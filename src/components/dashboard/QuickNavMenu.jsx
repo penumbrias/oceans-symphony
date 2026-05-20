@@ -335,28 +335,26 @@ export default function QuickNavMenu() {
       {/* Header with search and layout controls */}
       <div className="flex gap-2 items-center">
         <GlobalSearch />
-        {navDisplayMode !== "list" && (
-          editMode ? (
-            <button
-              onClick={handleDoneEdit}
-              disabled={saving}
-              className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
-            >
-              <Check className="w-3.5 h-3.5" />
-              Done
-            </button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleEnterEdit}
-              className="flex-shrink-0"
-              title="Rearrange tiles"
-              aria-label="Edit grid"
-            >
-              <Pencil className="w-4 h-4" />
-            </Button>
-          )
+        {editMode ? (
+          <button
+            onClick={handleDoneEdit}
+            disabled={saving}
+            className="flex-shrink-0 flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
+          >
+            <Check className="w-3.5 h-3.5" />
+            Done
+          </button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleEnterEdit}
+            className="flex-shrink-0"
+            title={navDisplayMode === "list" ? "Toggle which items show in the list" : "Rearrange tiles"}
+            aria-label="Edit dashboard"
+          >
+            <Pencil className="w-4 h-4" />
+          </Button>
         )}
         <Button
           variant="ghost"
@@ -376,7 +374,9 @@ export default function QuickNavMenu() {
       {/* Edit mode hint */}
       {editMode && (
         <p className="text-xs text-muted-foreground text-center">
-          Drag to rearrange · tap × to remove · tap Done to save
+          {navDisplayMode === "list"
+            ? "Tap × to hide · tap a Hidden row to add it back · tap Done to save"
+            : "Drag to rearrange · tap × to remove · tap Done to save"}
         </p>
       )}
 
@@ -410,19 +410,35 @@ export default function QuickNavMenu() {
         </DndContext>
       )}
 
-      {/* List layout — always shows all pages, no edit mode here */}
-      {navDisplayMode === "list" && (
-        <div className="space-y-6">
-          {Object.entries(NAV_GROUPS).map(([groupName, items]) => (
-            <div key={groupName}>
-              <p className="text-muted-foreground mr-1 mb-1 ml-2 text-xs font-semibold uppercase tracking-wider">
-                {groupName}
-              </p>
-              <div className="space-y-2">
-                {items.map((item) => {
-                  const Icon = item.icon;
-                  return (
-                    <Link key={item.path} to={item.path}>
+      {/* List layout. Out of edit mode: shows the user's visible items
+          grouped by category. In edit mode: each row gets an X to
+          remove, and removed items appear in a "Hidden" section at the
+          bottom (ghost styling, tap to re-add). Uses the same
+          localOrder + handleRemoveInEdit / handleAddInEdit machinery
+          as the grid so the saved config is unified. */}
+      {navDisplayMode === "list" && (() => {
+        const visibleIds = new Set((editMode ? (localOrder || []) : configuredGridItems.map(i => i.id)));
+        const visibleGroups = Object.entries(NAV_GROUPS)
+          .map(([groupName, items]) => [groupName, items.filter((it) => visibleIds.has(it.id))])
+          .filter(([, items]) => items.length > 0);
+        // In edit mode, anything in GRID_ITEMS that's NOT currently
+        // visible is a ghost. NAV_GROUPS may not contain every grid
+        // item (e.g. ones grouped differently), so fall back to
+        // GRID_ITEMS for the ghost catalogue.
+        const hiddenItems = editMode
+          ? GRID_ITEMS.filter((it) => !visibleIds.has(it.id))
+          : [];
+        return (
+          <div className="space-y-6">
+            {visibleGroups.map(([groupName, items]) => (
+              <div key={groupName}>
+                <p className="text-muted-foreground mr-1 mb-1 ml-2 text-xs font-semibold uppercase tracking-wider">
+                  {groupName}
+                </p>
+                <div className="space-y-2">
+                  {items.map((item) => {
+                    const Icon = item.icon;
+                    const rowInner = (
                       <div className="bg-card px-4 py-2 rounded-lg flex items-center gap-3 border border-border/50 hover:bg-muted/50 hover:border-border transition-all cursor-pointer group">
                         <div className="text-muted-foreground group-hover:text-primary transition-colors">
                           <Icon className="w-5 h-5" />
@@ -440,15 +456,58 @@ export default function QuickNavMenu() {
                             {todoAlertCount > 9 ? "9+" : todoAlertCount}
                           </span>
                         )}
+                        {editMode && (
+                          <button
+                            type="button"
+                            onClick={(e) => { e.preventDefault(); e.stopPropagation(); handleRemoveInEdit(item.id); }}
+                            aria-label={`Hide ${item.label}`}
+                            title={`Hide ${item.label}`}
+                            className="flex-shrink-0 p-1 rounded-md text-muted-foreground hover:text-red-500 hover:bg-red-500/10"
+                          >
+                            <XIcon className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
-                    </Link>
-                  );
-                })}
+                    );
+                    return editMode
+                      ? <div key={item.path}>{rowInner}</div>
+                      : <Link key={item.path} to={item.path}>{rowInner}</Link>;
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+
+            {editMode && hiddenItems.length > 0 && (
+              <div>
+                <p className="text-muted-foreground mr-1 mb-1 ml-2 text-xs font-semibold uppercase tracking-wider">
+                  Hidden — tap to add back
+                </p>
+                <div className="space-y-2">
+                  {hiddenItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        type="button"
+                        key={`hidden-${item.id}`}
+                        onClick={() => handleAddInEdit(item.id)}
+                        className="w-full bg-card px-4 py-2 rounded-lg flex items-center gap-3 border border-dashed border-border/40 opacity-50 hover:opacity-100 hover:border-primary/50 transition-all"
+                      >
+                        <div className="text-muted-foreground">
+                          <Icon className="w-5 h-5" />
+                        </div>
+                        <span className="text-foreground px-2 text-sm font-extralight lowercase flex-1 text-left">
+                          {item.label}
+                        </span>
+                        <PlusIcon className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "System Chat page was rendering blank on mobile because the layout was overshooting the device viewport and pushing everything behind the bottom nav. Now fills the available area correctly with the composer always visible.",
+      },
+      {
+        type: "fix",
+        text: "Plan Activity modal: toggling Quick plan on now always snaps the date to today (was previously gated to new plans only).",
+      },
+      {
+        type: "improve",
+        text: "Dashboard menu list view now has the same edit pencil as the grid. In edit mode you can tap × to hide a row; hidden rows move to a \"Hidden\" section at the bottom (ghosted, tap to add back). Same saved config as the grid, so toggling in either view stays in sync.",
+      },
+      {
         type: "feature",
         text: "System Chat (/chat) — a Discord-style multi-channel chat for alters to talk to each other. Create named channels, send messages with an alter signpost on every line, @mention any alter by name, reply-quote inline, edit and delete your own messages. Chat content is intentionally NEVER included in therapy reports. Reactions, threads, and pinned messages are the next iteration.",
       },
