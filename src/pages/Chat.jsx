@@ -141,7 +141,10 @@ export default function Chat() {
   }, [activeFront, activeFronterIds, alters]);
 
   return (
-    <div className="flex flex-col h-[100dvh] max-h-[100dvh] -mt-4">
+    <div
+      className="flex flex-col h-full min-h-[80vh]"
+      style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+    >
       <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
         <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
           <ChevronLeft className="w-4 h-4" /> Back
@@ -169,7 +172,7 @@ export default function Chat() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <ul className="flex-1 overflow-y-auto p-1">
+          <ul className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
             {sortedChannels.map((c) => (
               <li key={c.id}>
                 <button

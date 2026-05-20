@@ -574,13 +574,14 @@ export default function ActivityPlanModal({
               onChange={(e) => {
                 const checked = e.target.checked;
                 setIsQuickPlan(checked);
-                // Snap the date to TODAY when the user turns quick-plan on
-                // (and we're not editing an existing plan). The default
-                // start that gets used for timed plans is the next free
-                // hour slot, which on late evenings rolls into tomorrow —
-                // not what a user wants when they're saying "I want to
-                // do this today".
-                if (checked && !editingPlan) {
+                // Flipping quick-plan on snaps the date to today. The
+                // default start that gets used for timed plans is the
+                // next free hour slot, which on late evenings rolls
+                // into tomorrow — not what a user wants when they're
+                // saying "I want to do this today". Also applies when
+                // editing — converting a future plan to a quick plan
+                // is implicitly "make this today's quick plan".
+                if (checked) {
                   const todayStr = format(new Date(), "yyyy-MM-dd");
                   setDatePicked(todayStr);
                   setEndDatePicked(todayStr);
