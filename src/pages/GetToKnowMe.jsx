@@ -140,6 +140,7 @@ export default function GetToKnowMe() {
 
   const [colorDraft, setColorDraft] = useState("#8b5cf6");
   const [textDraft, setTextDraft] = useState("");
+  const [choiceDraft, setChoiceDraft] = useState(null);
   const [saving, setSaving] = useState(false);
 
   const handleShuffle = () => {
@@ -153,6 +154,7 @@ export default function GetToKnowMe() {
     setQuestionId(pick.id);
     setColorDraft("#8b5cf6");
     setTextDraft("");
+    setChoiceDraft(null);
   };
 
   // Pre-fill the draft with the selected alters' existing value(s)
@@ -160,6 +162,7 @@ export default function GetToKnowMe() {
   // what's already there and edit rather than re-typing from blank.
   // If selected alters disagree, fall back to the first one's value.
   useEffect(() => {
+    setChoiceDraft(null);
     if (!currentQuestion) {
       setColorDraft("#8b5cf6");
       setTextDraft("");
@@ -428,18 +431,34 @@ export default function GetToKnowMe() {
           )}
 
           {currentQuestion.kind === "choice" && (
-            <div className="flex flex-wrap gap-2">
-              {currentQuestion.options.map((opt) => (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => submitAnswer(opt)}
-                  disabled={saving || selectedAlterIds.length === 0}
-                  className="px-3 py-1.5 rounded-full border border-border/60 hover:border-primary hover:bg-primary/5 text-sm transition-colors disabled:opacity-50"
-                >
-                  {opt.label}
-                </button>
-              ))}
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                {currentQuestion.options.map((opt) => {
+                  const selected = choiceDraft?.id === opt.id;
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setChoiceDraft(opt)}
+                      disabled={saving}
+                      className={`px-3 py-1.5 rounded-full border text-sm transition-colors disabled:opacity-50 ${
+                        selected
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-border/60 text-foreground hover:border-primary hover:bg-primary/5"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  );
+                })}
+              </div>
+              <Button
+                onClick={() => submitAnswer(choiceDraft)}
+                disabled={!choiceDraft || saving || selectedAlterIds.length === 0}
+                className="w-full"
+              >
+                Save &amp; next
+              </Button>
             </div>
           )}
 
@@ -451,9 +470,13 @@ export default function GetToKnowMe() {
                     <button
                       key={opt.id}
                       type="button"
-                      onClick={() => submitAnswer(opt.label)}
-                      disabled={saving || selectedAlterIds.length === 0}
-                      className="px-3 py-1.5 rounded-full border border-border/60 hover:border-primary hover:bg-primary/5 text-sm transition-colors disabled:opacity-50"
+                      onClick={() => setTextDraft(opt.label)}
+                      disabled={saving}
+                      className={`px-3 py-1.5 rounded-full border text-sm transition-colors disabled:opacity-50 ${
+                        textDraft === opt.label
+                          ? "border-primary bg-primary/15 text-foreground"
+                          : "border-border/60 text-foreground hover:border-primary hover:bg-primary/5"
+                      }`}
                     >
                       {opt.label}
                     </button>
@@ -475,7 +498,7 @@ export default function GetToKnowMe() {
                   onClick={() => submitAnswer(textDraft)}
                   disabled={!textDraft.trim() || saving || selectedAlterIds.length === 0}
                 >
-                  Save
+                  Save &amp; next
                 </Button>
               </div>
             </div>

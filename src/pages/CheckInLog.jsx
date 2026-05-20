@@ -266,7 +266,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
         </div>
         <div className="flex items-center gap-0.5">
           <Button variant="ghost" size="icon"
-            className="h-6 w-6 text-muted-foreground hover:text-foreground opacity-0 group-hover/checkin:opacity-100 transition-opacity"
+            className="h-6 w-6 text-muted-foreground hover:text-foreground"
             onClick={(e) => { e.stopPropagation(); onEdit?.(checkIn); }}
             aria-label="Edit check-in"
             title="Edit check-in">
@@ -303,8 +303,8 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
             const symptom = symptomsById[sc.symptom_id];
             const color = symptom?.color || "#8b5cf6";
             return (
-              <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
-                style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
+              <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
                 {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
               </span>
             );
@@ -412,7 +412,11 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   );
   const fronters = allFronterIds.map(id => altersById[id]).filter(Boolean);
 
-  // De-duplicate symptoms by symptom_id, keeping highest severity
+  // De-duplicate symptoms by symptom_id, keeping highest severity.
+  // Includes both SymptomCheckIn records AND per-alter symptoms
+  // embedded in FrontingSession's session_symptoms JSON — otherwise
+  // alter-specific symptoms vanish from the day total even though
+  // they ARE part of the day.
   const allSymptoms = useMemo(() => {
     if (!display.symptoms) return [];
     const seen = {};
@@ -420,8 +424,23 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
       const prev = seen[sc.symptom_id];
       if (!prev || (sc.severity ?? -1) > (prev.severity ?? -1)) seen[sc.symptom_id] = sc;
     });
+    // Pull symptom payloads out of every per-alter "symptom" entry
+    // for the day. Treat each unique label as its own bucket since
+    // session_symptoms don't share ids with the Symptom catalogue.
+    for (const entry of perAlterEntries) {
+      if (entry.kind !== "symptom") continue;
+      const items = Array.isArray(entry.payload?.items) ? entry.payload.items : [];
+      for (const it of items) {
+        const key = `pa:${(it.label || it.id || "?").toLowerCase()}`;
+        const sev = typeof it.value === "number" ? it.value : null;
+        const prev = seen[key];
+        if (!prev || (sev ?? -1) > (prev.severity ?? -1)) {
+          seen[key] = { symptom_id: key, severity: sev, _perAlterLabel: it.label || "Symptom" };
+        }
+      }
+    }
     return Object.values(seen);
-  }, [symptomCheckIns, display.symptoms]);
+  }, [symptomCheckIns, perAlterEntries, display.symptoms]);
 
   const allActivities = display.activities ? [...new Set(activities.map(a => a.activity_name))] : [];
 
@@ -509,11 +528,12 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
         <div className="flex flex-wrap gap-1">
           {allSymptoms.map((sc, i) => {
             const symptom = symptomsById[sc.symptom_id];
+            const label = symptom?.label || sc._perAlterLabel || "?";
             const color = symptom?.color || "#8b5cf6";
             return (
-              <span key={i} className="text-xs px-1.5 py-0.5 rounded-full border"
-                style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
-                {symptom?.label || "?"}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
+              <span key={i} className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
+                {label}{sc.severity != null ? ` · ${sc.severity}/5` : ""}
               </span>
             );
           })}
@@ -632,13 +652,16 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
   );
 }
 
-function StandaloneEntry({ timestamp, children }) {
+function StandaloneEntry({ timestamp, children, actions }) {
   const timeStr = format(new Date(timestamp), "h:mm a");
   return (
     <div className="px-4 py-2.5 hover:bg-muted/10">
-      <div className="flex items-center gap-2 mb-1.5 text-xs text-muted-foreground">
-        <Clock className="w-3 h-3 flex-shrink-0" />
-        <span>{timeStr}</span>
+      <div className="flex items-center justify-between gap-2 mb-1.5">
+        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+          <Clock className="w-3 h-3 flex-shrink-0" />
+          <span>{timeStr}</span>
+        </div>
+        {actions ? <div className="flex-shrink-0">{actions}</div> : null}
       </div>
       <div className="flex flex-wrap gap-1">{children}</div>
     </div>
@@ -728,51 +751,51 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
   };
 
   return (
-    <StandaloneEntry timestamp={sc.timestamp}>
-      <div className="flex-1 flex items-center gap-2 min-w-0 flex-wrap">
-        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border flex-shrink-0"
-          style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}>
-          {symptom?.label || "Symptom"}{!editing && sc.severity != null ? ` · ${sc.severity}/5` : ""}
-        </span>
-        {editing && (
-          <>
-            <div className="flex items-center gap-1">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button
-                  key={n}
-                  type="button"
-                  onClick={() => setSeverity(n)}
-                  className={`w-5 h-5 text-[0.625rem] font-semibold rounded-md border transition-colors ${
-                    severity === n ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {n}
-                </button>
-              ))}
+    <StandaloneEntry
+      timestamp={sc.timestamp}
+      actions={!editing && (
+        <RowActions
+          onEdit={() => setEditing(true)}
+          onDelete={handleDelete}
+          armed={armed}
+          editLabel="Edit severity"
+          deleteLabel="Delete symptom entry"
+        />
+      )}
+    >
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border flex-shrink-0 text-foreground"
+        style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
+        {symptom?.label || "Symptom"}{!editing && sc.severity != null ? ` · ${sc.severity}/5` : ""}
+      </span>
+      {editing && (
+        <>
+          <div className="flex items-center gap-1">
+            {[1, 2, 3, 4, 5].map((n) => (
               <button
+                key={n}
                 type="button"
-                onClick={() => setSeverity(null)}
-                className={`px-1.5 h-5 text-[0.625rem] rounded-md border transition-colors ${
-                  severity == null ? "bg-muted text-foreground border-border" : "border-border/60 text-muted-foreground hover:text-foreground"
+                onClick={() => setSeverity(n)}
+                className={`w-5 h-5 text-[0.625rem] font-semibold rounded-md border transition-colors ${
+                  severity === n ? "bg-primary text-primary-foreground border-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
                 }`}
               >
-                None
+                {n}
               </button>
-            </div>
-            <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
-            <button type="button" onClick={() => { setSeverity(sc.severity ?? null); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
-          </>
-        )}
-        {!editing && (
-          <RowActions
-            onEdit={() => setEditing(true)}
-            onDelete={handleDelete}
-            armed={armed}
-            editLabel="Edit severity"
-            deleteLabel="Delete symptom entry"
-          />
-        )}
-      </div>
+            ))}
+            <button
+              type="button"
+              onClick={() => setSeverity(null)}
+              className={`px-1.5 h-5 text-[0.625rem] rounded-md border transition-colors ${
+                severity == null ? "bg-muted text-foreground border-border" : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              None
+            </button>
+          </div>
+          <button type="button" onClick={handleSave} disabled={saving} className="text-xs px-2 py-0.5 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50">Save</button>
+          <button type="button" onClick={() => { setSeverity(sc.severity ?? null); setEditing(false); }} className="text-xs px-2 py-0.5 rounded-md border border-border/60 text-muted-foreground hover:text-foreground">Cancel</button>
+        </>
+      )}
     </StandaloneEntry>
   );
 }
@@ -801,25 +824,9 @@ function LocationEntry({ loc }) {
   });
 
   return (
-    <StandaloneEntry timestamp={loc.timestamp}>
-      <div className="flex-1 flex items-start justify-between gap-2 min-w-0">
-        <div className="flex flex-col gap-0.5 min-w-0">
-          <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
-            <MapPin className="w-3 h-3 flex-shrink-0" />
-            {loc.name || meta?.label || "Location"}
-          </span>
-          {loc.latitude != null && loc.longitude != null && (
-            <a
-              href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
-            >
-              {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
-            </a>
-          )}
-        </div>
+    <StandaloneEntry
+      timestamp={loc.timestamp}
+      actions={(
         <RowActions
           onEdit={() => navigate("/location-history")}
           onDelete={handleDelete}
@@ -827,6 +834,24 @@ function LocationEntry({ loc }) {
           editLabel="Open Location History to edit"
           deleteLabel="Delete location"
         />
+      )}
+    >
+      <div className="flex flex-col gap-0.5 min-w-0">
+        <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-blue-500/10 text-blue-600 border border-blue-500/20 self-start">
+          <MapPin className="w-3 h-3 flex-shrink-0" />
+          {loc.name || meta?.label || "Location"}
+        </span>
+        {loc.latitude != null && loc.longitude != null && (
+          <a
+            href={`https://www.google.com/maps?q=${loc.latitude},${loc.longitude}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={(e) => e.stopPropagation()}
+            className="text-[0.6875rem] text-blue-400 hover:text-blue-300 underline self-start"
+          >
+            {loc.latitude.toFixed(4)}, {loc.longitude.toFixed(4)} ↗
+          </a>
+        )}
       </div>
     </StandaloneEntry>
   );
@@ -934,21 +959,59 @@ function StatusNoteEntry({ sn }) {
   );
 }
 
-// One entry from a FrontingSession's per-alter note / emotion / symptom array.
-// Read-only — sourced from the session record, not stored separately.
+// One entry from a FrontingSession's per-alter note / emotion / symptom
+// array. Delete affordance wipes the relevant payload from the source
+// session record (and removes a single note in the array by index).
 function PerAlterEntry({ entry, altersById }) {
+  const qc = useQueryClient();
   const alter = altersById[entry.alterId];
   const color = alter?.color || "#8b5cf6";
   const name = alter?.alias || alter?.name || "Unknown";
+
+  const invalidateAll = () => {
+    qc.invalidateQueries({ queryKey: ["frontingSessions"] });
+    qc.invalidateQueries({ queryKey: ["activeFront"] });
+    qc.invalidateQueries({ queryKey: ["frontHistory"] });
+    qc.invalidateQueries({ queryKey: ["timeline"] });
+  };
+
+  const { armed, trigger: handleDelete } = useArmedDelete(async () => {
+    try {
+      const session = await base44.entities.FrontingSession.filter({ id: entry.sessionId }).then(rs => rs?.[0]);
+      if (!session) return;
+      if (entry.kind === "note") {
+        const arr = JSON.parse(session.note || "[]");
+        const targetIdx = Number((entry.id.match(/-(\d+)$/) || [])[1]);
+        const next = Array.isArray(arr) ? arr.filter((_, i) => i !== targetIdx) : [];
+        await base44.entities.FrontingSession.update(session.id, { note: JSON.stringify(next) });
+      } else if (entry.kind === "emotion") {
+        await base44.entities.FrontingSession.update(session.id, { session_emotions: JSON.stringify([]) });
+      } else if (entry.kind === "symptom") {
+        await base44.entities.FrontingSession.update(session.id, { session_symptoms: JSON.stringify([]) });
+      }
+      invalidateAll();
+      toast.success("Deleted");
+    } catch (e) { toast.error(e.message || "Failed to delete"); }
+  });
+
   const AlterChip = () => (
     <span className="flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full bg-muted/40 border border-border/40 flex-shrink-0">
       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: color }} />
       {name}
     </span>
   );
+
+  const actions = (
+    <RowActions
+      onDelete={handleDelete}
+      armed={armed}
+      deleteLabel="Delete this per-alter entry"
+    />
+  );
+
   if (entry.kind === "note") {
     return (
-      <StandaloneEntry timestamp={entry.ts}>
+      <StandaloneEntry timestamp={entry.ts} actions={actions}>
         <div className="flex items-start gap-2 min-w-0">
           <AlterChip />
           <span className="text-sm text-foreground/80 min-w-0">💬 {entry.payload.text}</span>
@@ -961,7 +1024,7 @@ function PerAlterEntry({ entry, altersById }) {
       ? entry.payload.labels
       : (entry.payload?.label ? [entry.payload.label] : []);
     return (
-      <StandaloneEntry timestamp={entry.ts}>
+      <StandaloneEntry timestamp={entry.ts} actions={actions}>
         <div className="flex items-center gap-2 flex-wrap">
           <AlterChip />
           {labels.map((em, i) => <EmotionPill key={`${em}-${i}`} em={em} />)}
@@ -969,20 +1032,20 @@ function PerAlterEntry({ entry, altersById }) {
       </StandaloneEntry>
     );
   }
-  // symptom — same grouping pattern: render every symptom in the
-  // session as a pill in one row, rather than a row per symptom.
+  // symptom — render each item as a higher-contrast pill so dark
+  // alter colours don't bury the label.
   const items = Array.isArray(entry.payload?.items) && entry.payload.items.length > 0
     ? entry.payload.items
     : [entry.payload].filter(Boolean);
   return (
-    <StandaloneEntry timestamp={entry.ts}>
+    <StandaloneEntry timestamp={entry.ts} actions={actions}>
       <div className="flex items-center gap-2 flex-wrap">
         <AlterChip />
         {items.map((sym, i) => (
           <span
             key={`${sym.label || sym.id || i}`}
-            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border"
-            style={{ backgroundColor: `${color}15`, borderColor: `${color}40`, color }}
+            className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+            style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}
           >
             {sym.label}{sym.value !== undefined && sym.value !== null && sym.value !== true ? ` · ${sym.value}` : ""}
           </span>
