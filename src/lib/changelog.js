@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Rescheduling a quick plan now asks for a new date only — no time picker — since quick plans are tied to days, not specific times. The end-of-day sentinel timestamp is reapplied automatically.",
+      },
+      {
         type: "feature",
         text: "New Settings → Appearance toggle: choose how alters appear in lists, dropdowns, and pickers — Display name, Alias only, or Both. Default is Display name (most distinguishable when alters share aliases). Wired into the alter pickers, the chat composer (speaker chip, mention popup, signpost popup), and message author labels. Other surfaces will migrate progressively.",
       },
