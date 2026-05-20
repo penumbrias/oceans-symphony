@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Task creation: assigning an activity / expanding a sub-activity no longer kicks you back to the prior page. The picker's buttons were defaulting to type=submit inside the task form.",
+      },
+      {
         type: "improve",
         text: "Get to know me: choice questions are now multi-select. Field questions show pre-existing values as a labelled \"already on file\" panel and append your new answer alongside — nothing gets overwritten when you select an alter.",
       },

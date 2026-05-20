@@ -26,6 +26,7 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
     <div>
       <div className="flex items-center gap-1.5" style={{ paddingLeft: `${level * 16}px` }}>
         <button
+          type="button"
           onClick={() => onToggleExpanded(category.id)}
           className="flex-shrink-0 w-5 h-5 flex items-center justify-center"
         >
@@ -34,6 +35,7 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
           ) : <div className="w-3.5 h-3.5" />}
         </button>
         <button
+          type="button"
           onClick={() => onToggle(category.id)}
           className={`flex-1 px-3 py-1.5 rounded-full text-sm font-medium transition-all text-left ${
             isSelected ? "text-white" : "bg-muted text-muted-foreground hover:bg-accent"
@@ -166,6 +168,7 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
         />
         {search && (
           <button
+            type="button"
             onClick={() => setSearch("")}
             aria-label="Clear search"
             className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
@@ -181,6 +184,7 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
               const isSelected = selectedActivities.includes(cat.id);
               return (
                 <button
+                  type="button"
                   key={cat.id}
                   onClick={() => toggleActivity(cat.id)}
                   title={path}
