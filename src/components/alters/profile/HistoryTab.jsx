@@ -128,12 +128,19 @@ export default function HistoryTab({ alterId }) {
         <div className="flex items-start gap-2 p-3 rounded-xl border text-xs mb-2"
           style={{ backgroundColor: "hsl(var(--primary)/0.05)", borderColor: "hsl(var(--primary)/0.2)", color: "hsl(var(--primary))" }}>
           <GitMerge className="w-3.5 h-3.5 flex-shrink-0 mt-0.5" />
-          <span>
-            Includes pre-fusion history from{" "}
-            <span className="font-semibold">
-              {inheritedAlterIds.map(id => altersById[id]?.name || "Unknown").join(", ")}
-            </span>
-          </span>
+          <div className="space-y-1">
+            <div>
+              Includes inherited history from{" "}
+              <span className="font-semibold">
+                {inheritedAlterIds.map(id => altersById[id]?.name || "Unknown").join(", ")}
+              </span>
+              {" "}— these sessions originally belonged to the source {inheritedAlterIds.length > 1 ? "alters" : "alter"} but
+              {" "}surface here because of a fusion / split event you logged in System History.
+            </div>
+            <div className="text-[0.6875rem] opacity-80">
+              To stop seeing them, edit or delete the matching event in Settings → System History.
+            </div>
+          </div>
         </div>
       )}
 
