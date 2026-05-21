@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Quick alter-label toggle: a small pill button now sits in the Alters directory header, the Set Front modal header, and the Polls page header that cycles the label mode through Name → Alias → Both without having to dive into Settings.",
+      },
+      {
+        type: "fix",
+        text: "Long alter names in the avatar grid + fronter picker no longer chop off at 12 characters of text. The hard slice is gone — names show in full and use CSS truncation (ellipsis) only when they actually run past the cell width.",
+      },
+      {
         type: "fix",
         text: "Simply Plural import: one bad alter no longer halts the whole import. Previously, if a single alter's write to local storage failed mid-way through, every alter after it was silently skipped — which is why some systems ended up with around half their members copied across. Each alter now imports independently, and the final toast lists how many failed (with details in the devtools console).",
       },

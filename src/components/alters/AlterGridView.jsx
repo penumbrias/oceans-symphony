@@ -68,8 +68,11 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
         </span>
       )}
       {!swipeHint && (
-        <span className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}>
-          {formatAlter(alter).slice(0, 12)}
+        <span
+          title={formatAlter(alter)}
+          className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}
+        >
+          {formatAlter(alter)}
         </span>
       )}
     </div>

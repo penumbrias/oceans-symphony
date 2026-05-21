@@ -12,6 +12,7 @@ import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
+import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 
 export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
@@ -237,6 +238,7 @@ export default function AlterGrid({ alters }) {
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{terms.Alters}</p>
             <div className="flex-1 h-px bg-border/50" />
             <div className="flex items-center gap-1">
+              <AlterLabelToggle size="xs" />
               {/* View / column cycle */}
               <button
                 data-tour="alter-view-toggle"
