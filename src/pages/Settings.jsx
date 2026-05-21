@@ -28,6 +28,7 @@ import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSur
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
+import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
 import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe } from "lucide-react";
@@ -79,6 +80,7 @@ export default function Settings() {
     { id: "alters", label: `${terms.Alters} & Fields`, icon: "👥" },
     { id: "checkin", label: "Tracking & Analytics", icon: "⚡" },
     { id: "reminders", label: "Reminders", icon: "🔔" },
+    { id: "notifications", label: "Notifications & toasts", icon: "📣" },
     { id: "data", label: "Data & Privacy", icon: "💾" },
     { id: "disclaimer", label: "Disclaimer", icon: "⚠️" },
     { id: "bug-report", label: "Report a Bug", icon: "🐛" },
@@ -448,6 +450,10 @@ export default function Settings() {
         {/* ── REMINDERS ── */}
         <Section id="reminders" icon="🔔" label="Reminders">
           <RemindersSettings />
+        </Section>
+
+        <Section id="notifications" icon="📣" label="Notifications & toasts">
+          <NotificationSettings />
         </Section>
 
         <Section id="preview" icon="👁️" label="Preview Mode">
