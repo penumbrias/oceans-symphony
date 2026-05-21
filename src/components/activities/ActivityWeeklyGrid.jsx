@@ -33,6 +33,13 @@ function lsSet(key, val) {
 }
 
 const HEADER_H = 56;
+// Each quick-plan pill in the day-header band is ~20 px tall (text +
+// padding + border). The band height is `maxQuickPlans * QUICK_PLAN_PILL_H`
+// across the visible week, capped so a day with a huge backlog doesn't
+// push the time grid off-screen — past that cap, taps on a pill open
+// the full-day quick-plan popup which lists every pill.
+const QUICK_PLAN_PILL_H = 20;
+const QUICK_PLANS_CAP = 4;
 const ALL_HOURS = Array.from({ length: 24 }, (_, i) => i);
 
 import { emotionColor, getActivityColor as _getActivityColor, getActivitiesForSlot as _getActivitiesForSlot, getAlterIdsForSlot as _getAlterIdsForSlot, getEmotionsForSlot as _getEmotionsForSlot } from "./activityHelpers";
@@ -224,6 +231,38 @@ export default function ActivityWeeklyGrid({
     });
     return s;
   }, [gridInterval]);
+
+  // Quick plans live in the day-header band so they don't paint on top
+  // of activities in the time grid. The band is tall enough to fit the
+  // most-loaded day in the visible week (capped). Recomputed on every
+  // activities change.
+  const quickByDay = useMemo(() => {
+    const m = new Map();
+    for (const a of activities) {
+      if (!a.is_quick_plan) continue;
+      const st = statusFor(a);
+      if (st === ACTIVITY_STATUSES.CANCELLED || st === ACTIVITY_STATUSES.SKIPPED) continue;
+      const dayKey = format(parseDate(a.timestamp), "yyyy-MM-dd");
+      if (!m.has(dayKey)) m.set(dayKey, []);
+      m.get(dayKey).push(a);
+    }
+    return m;
+  }, [activities]);
+  const maxQuickPlansThisWeek = useMemo(() => {
+    let max = 0;
+    for (const d of weekDays) {
+      const list = quickByDay.get(format(d, "yyyy-MM-dd")) || [];
+      max = Math.max(max, list.length);
+    }
+    return max;
+  }, [weekDays, quickByDay]);
+  const quickPlansBandH = showQuickPlans && maxQuickPlansThisWeek > 0
+    ? Math.min(maxQuickPlansThisWeek, QUICK_PLANS_CAP) * QUICK_PLAN_PILL_H + 4
+    : 0;
+  // Top y-coordinate of the time grid inside the right-hand scroll area.
+  // Used by every absolute-positioned element that previously anchored
+  // to HEADER_H.
+  const gridTopY = HEADER_H + quickPlansBandH;
 
   const getActivityColor = useCallback((act) => _getActivityColor(act, catById), [catById]);
   const getActivitiesForSlot = useCallback((date, hour, minute) => _getActivitiesForSlot(date, hour, minute, gridInterval, activities), [activities, gridInterval]);
@@ -735,7 +774,7 @@ if (isSameCell) {
       {/* Grid */}
       <div
         className="border border-border rounded-lg overflow-hidden flex"
-        style={{ maxWidth: "100vw", touchAction: pinchActiveRef.current ? "none" : undefined }}
+        style={{ maxWidth: "100vw", touchAction: "pan-x pan-y" }}
         onTouchStart={(e) => {
           if (e.touches.length === 2) {
             const dx = e.touches[0].clientX - e.touches[1].clientX;
@@ -765,6 +804,11 @@ if (isSameCell) {
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
           <div style={{ height: HEADER_H, minHeight: HEADER_H }} className="border-b border-border" />
+          {/* Spacer matching the day-header quick-plans band so the
+              time labels line up with their slot rows. */}
+          {quickPlansBandH > 0 && (
+            <div style={{ height: quickPlansBandH, minHeight: quickPlansBandH }} className="border-b border-border" />
+          )}
           {slots.map(({ hour, minute }) => {
             const useTicks = shouldUseTicks(rowH, tickMode, gridInterval);
             return (
@@ -802,7 +846,7 @@ if (isSameCell) {
               const todayInWeek = weekDays.some(d => format(d, "yyyy-MM-dd") === todayStr);
               if (!todayInWeek) return null;
               const totalGridHeight = slots.length * rowH;
-              const nowTop = HEADER_H + ((currentTime.getHours() * 60 + currentTime.getMinutes()) / (24 * 60)) * totalGridHeight;
+              const nowTop = gridTopY + ((currentTime.getHours() * 60 + currentTime.getMinutes()) / (24 * 60)) * totalGridHeight;
               return (
                 <div className="absolute left-0 right-0 z-20 pointer-events-none flex items-center"
                   style={{ top: nowTop }}>
@@ -824,7 +868,7 @@ if (isSameCell) {
                 <div
                   className="absolute bg-primary/5 pointer-events-none"
                   style={{
-                    top: HEADER_H,
+                    top: gridTopY,
                     left: todayIdx * colW,
                     width: colW,
                     height: totalGridHeight,
@@ -834,92 +878,6 @@ if (isSameCell) {
               );
             })()}
 
-            {/* Quick-plan overlay — one stack of pills per day
-                column. For today, the stack starts just below the
-                now-line and rides down with it; for every other
-                day, the stack sits at the top of the column. The
-                whole layer is pointer-events-none except the pills
-                themselves, so it never obscures activity labels or
-                blocks taps on the cells underneath. */}
-            {showQuickPlans && (() => {
-              const totalGridHeight = slots.length * rowH;
-              const nowTop = HEADER_H + ((currentTime.getHours() * 60 + currentTime.getMinutes()) / (24 * 60)) * totalGridHeight;
-              const todayStr = format(currentTime, "yyyy-MM-dd");
-              const quickByDay = new Map();
-              for (const a of activities) {
-                if (!a.is_quick_plan) continue;
-                const st = statusFor(a);
-                if (st === ACTIVITY_STATUSES.CANCELLED || st === ACTIVITY_STATUSES.SKIPPED) continue;
-                const dayKey = format(parseDate(a.timestamp), "yyyy-MM-dd");
-                if (!quickByDay.has(dayKey)) quickByDay.set(dayKey, []);
-                quickByDay.get(dayKey).push(a);
-              }
-              return (
-                <div className="absolute inset-0 pointer-events-none z-30">
-                  {weekDays.map((date, dayIdx) => {
-                    const dayKey = format(date, "yyyy-MM-dd");
-                    const list = quickByDay.get(dayKey) || [];
-                    if (list.length === 0) return null;
-                    const isTodayCol = dayKey === todayStr;
-                    const top = isTodayCol ? Math.max(nowTop + 4, HEADER_H + 4) : HEADER_H + 4;
-                    return (
-                      <div
-                        key={dayKey}
-                        className="absolute flex flex-col gap-1 p-1 pointer-events-auto"
-                        style={{ top, left: dayIdx * colW, width: colW }}
-                      >
-                        {list.map((a) => {
-                          const color = getActivityColor(a) || "hsl(var(--primary))";
-                          const st = statusFor(a);
-                          const v = visualForStatus(st);
-                          return (
-                            <button
-                              key={a.id}
-                              type="button"
-                              title={a.activity_name || "Quick plan"}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                // Double-tap on any quick-plan pill in
-                                // a day's stack opens the full-list
-                                // popup. The tracked id is the pill's
-                                // own id so taps on two different
-                                // pills don't accidentally count as a
-                                // double-tap.
-                                const now = Date.now();
-                                const last = quickPlanTapRef.current;
-                                if (last.id === a.id && now - last.time < 280) {
-                                  quickPlanTapRef.current = { id: null, time: 0 };
-                                  setQuickPlanDayPopup({ date: dayKey, plans: list });
-                                  return;
-                                }
-                                quickPlanTapRef.current = { id: a.id, time: now };
-                                setTimeout(() => {
-                                  const cur = quickPlanTapRef.current;
-                                  if (cur.id === a.id && now - cur.time >= 0 && cur.time === now) {
-                                    quickPlanTapRef.current = { id: null, time: 0 };
-                                    navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
-                                  }
-                                }, 280);
-                              }}
-                              className="text-[0.625rem] leading-tight font-semibold text-white rounded-full px-2 py-0.5 truncate shadow-sm"
-                              style={{
-                                backgroundColor: v.dashed ? "transparent" : color,
-                                border: v.dashed ? `1px dashed ${color}` : `1px solid ${color}`,
-                                opacity: v.fillOpacity ?? 0.95,
-                                textDecoration: v.strike ? "line-through" : undefined,
-                                maxWidth: colW - 4,
-                              }}
-                            >
-                              {v.corner ? `${v.corner} ` : ""}{a.activity_name || "Plan"}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    );
-                  })}
-                </div>
-              );
-            })()}
             {/* Day headers */}
             <div className="grid bg-card border-b border-border"
               style={{ gridTemplateColumns: `repeat(${weekDays.length}, ${colW}px)`, height: HEADER_H }}>
@@ -948,6 +906,80 @@ if (isSameCell) {
                 );
               })}
             </div>
+
+            {/* Quick-plans band — one column per day, vertically
+                stacked pills inside each. Lives in the layout flow
+                BELOW the date row and ABOVE the time-slot grid so
+                pills never paint over activities. Hidden entirely
+                when no day in the visible week has any quick plans. */}
+            {quickPlansBandH > 0 && (
+              <div className="grid border-b border-border bg-card/40"
+                style={{
+                  gridTemplateColumns: `repeat(${weekDays.length}, ${colW}px)`,
+                  height: quickPlansBandH,
+                }}>
+                {weekDays.map((date, dayIdx) => {
+                  const dayKey = format(date, "yyyy-MM-dd");
+                  const list = quickByDay.get(dayKey) || [];
+                  const visible = list.slice(0, QUICK_PLANS_CAP);
+                  const overflow = Math.max(0, list.length - visible.length);
+                  return (
+                    <div key={dayKey} className="border-r border-border/40 flex flex-col gap-0.5 p-0.5 overflow-hidden">
+                      {visible.map((a) => {
+                        const color = getActivityColor(a) || "hsl(var(--primary))";
+                        const st = statusFor(a);
+                        const v = visualForStatus(st);
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            title={a.activity_name || "Quick plan"}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const now = Date.now();
+                              const last = quickPlanTapRef.current;
+                              if (last.id === a.id && now - last.time < 280) {
+                                quickPlanTapRef.current = { id: null, time: 0 };
+                                setQuickPlanDayPopup({ date: dayKey, plans: list });
+                                return;
+                              }
+                              quickPlanTapRef.current = { id: a.id, time: now };
+                              setTimeout(() => {
+                                const cur = quickPlanTapRef.current;
+                                if (cur.id === a.id && cur.time === now) {
+                                  quickPlanTapRef.current = { id: null, time: 0 };
+                                  navigate(`/activities?date=${dayKey}&highlight=${a.id}`);
+                                }
+                              }, 280);
+                            }}
+                            className="text-[0.625rem] leading-tight font-semibold text-white rounded-full px-1.5 py-0 truncate shadow-sm"
+                            style={{
+                              backgroundColor: v.dashed ? "transparent" : color,
+                              border: v.dashed ? `1px dashed ${color}` : `1px solid ${color}`,
+                              opacity: v.fillOpacity ?? 0.95,
+                              textDecoration: v.strike ? "line-through" : undefined,
+                              height: QUICK_PLAN_PILL_H - 2,
+                              lineHeight: `${QUICK_PLAN_PILL_H - 4}px`,
+                            }}
+                          >
+                            {v.corner ? `${v.corner} ` : ""}{a.activity_name || "Plan"}
+                          </button>
+                        );
+                      })}
+                      {overflow > 0 && (
+                        <button
+                          type="button"
+                          onClick={(e) => { e.stopPropagation(); setQuickPlanDayPopup({ date: dayKey, plans: list }); }}
+                          className="text-[0.625rem] leading-tight text-muted-foreground self-start px-1"
+                        >
+                          +{overflow} more
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Slot rows */}
             {slots.map(({ hour, minute }) => (
