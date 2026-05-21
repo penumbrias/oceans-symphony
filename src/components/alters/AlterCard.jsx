@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -159,6 +160,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
 }
 
 export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off" }) {
+  const formatAlter = useAlterLabel();
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
   // CSS hex), which made the row render with no colour at all.
@@ -210,7 +212,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.name}</p>
+            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{formatAlter(alter)}</p>
             {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
           </div>
           {alter.role && (() => {

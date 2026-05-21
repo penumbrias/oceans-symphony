@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The Alters page grid + the row-style alter cards now respect your Settings → Appearance → Alter labels preference (Display name / Alias only / Both). They were hard-coded to alias-first regardless of the toggle.",
+      },
+      {
         type: "improve",
         text: "Get to know me custom-field questions now use the same input type the custom field was defined with — Yes/No fields show two buttons (no more typing \"yes\"), Number fields show a number keypad, List fields hint to comma-separate items. Text fields stay as a plain text input. Boolean and number answers replace prior values; text and list still append + dedupe.",
       },
