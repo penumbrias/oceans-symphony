@@ -5,6 +5,8 @@ import { Pencil, Plus, Trash2, X, Check, Eye, EyeOff, ChevronUp, ChevronDown, Ro
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
 const FIELD_ORDER_KEY = "_field_order";
 
@@ -136,10 +138,78 @@ export default function InfoTab({ alter, systemFields }) {
     setSaving(false);
   };
 
-  const hasAnyData = systemFields.some((f) => customFieldValues[f.id]) || alterSpecificFields.length > 0;
+  // Preset answers (energy / body-or-head / role-lean / dominant-
+  // feeling) come from Get to know me. Stored as comma-separated
+  // list-style strings keyed by question id on
+  // alter.preset_answers.
+  const presetAnswersRaw = (alter?.preset_answers && typeof alter.preset_answers === "object" && !Array.isArray(alter.preset_answers))
+    ? alter.preset_answers
+    : null;
+  const presetAnswerRows = useMemo(() => {
+    if (!presetAnswersRaw) return [];
+    return Object.entries(presetAnswersRaw)
+      .map(([key, raw]) => ({
+        key,
+        label: PRESET_ANSWER_LABELS[key] || key.replace(/_/g, " "),
+        values: typeof raw === "string"
+          ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean)
+          : [],
+      }))
+      .filter((row) => row.values.length > 0);
+  }, [presetAnswersRaw]);
+
+  const removePresetValue = async (questionKey, valueToRemove) => {
+    if (!presetAnswersRaw) return;
+    const prev = typeof presetAnswersRaw[questionKey] === "string" ? presetAnswersRaw[questionKey] : "";
+    const next = prev.split(/[,;|]/).map((s) => s.trim()).filter(Boolean).filter((v) => v !== valueToRemove);
+    const updated = { ...presetAnswersRaw };
+    if (next.length === 0) delete updated[questionKey];
+    else updated[questionKey] = next.join(", ");
+    try {
+      await base44.entities.Alter.update(alter.id, { preset_answers: updated });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't remove answer");
+    }
+  };
+
+  const hasAnyData = systemFields.some((f) => customFieldValues[f.id])
+    || alterSpecificFields.length > 0
+    || presetAnswerRows.length > 0;
 
   return (
     <div className="space-y-6">
+      {presetAnswerRows.length > 0 && (
+        <div className="space-y-3">
+          <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            From Get to know me
+          </p>
+          <div className="space-y-2">
+            {presetAnswerRows.map((row) => (
+              <div key={row.key} className="rounded-xl border border-border/40 bg-card px-3 py-2">
+                <p className="text-xs text-muted-foreground mb-1.5">{row.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {row.values.map((v) => (
+                    <span key={v} className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-foreground border border-border/40">
+                      {v}
+                      <button
+                        type="button"
+                        onClick={() => removePresetValue(row.key, v)}
+                        aria-label={`Remove ${v}`}
+                        className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {systemFields.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">

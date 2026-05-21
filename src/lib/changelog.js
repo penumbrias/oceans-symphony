@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Replaced the Get to know me tag pills with a custom-field-style \"From Get to know me\" section on the Info tab. Each question (energy, body / head, role lean, dominant feeling) shows up as a labelled row of pills (e.g. \"Energy: High / wired energy, Calm / settled energy\"), one pill per answer, with an × to remove individual values. No more tag soup on the profile.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile tags get a one-click \"Clear all\" button alongside the per-tag × so you can wipe legacy tag data in one go instead of pruning each tag individually. (The Tags section only shows up when there's still legacy data to clean up — new Get to know me answers no longer write here.)",
+      },
+      {
+        type: "improve",
         text: "Get to know me tags are now context-stamped — picking \"High / wired\" on the energy question stores \"High / wired energy\" instead of a bare \"High / wired\" that didn't say what it was about. The alter profile's Tags section also notes \"sourced from Get to know me\" so it's transparent where they come from.",
       },
       {
