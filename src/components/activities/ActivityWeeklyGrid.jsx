@@ -168,6 +168,11 @@ export default function ActivityWeeklyGrid({
   // cell if the user never moved).
   const [dragSelectEnd, setDragSelectEnd] = useState(null);
   const dragSelectActiveRef = useRef(false);
+  // State mirror of the ref so the grid wrapper can re-render with
+  // `touch-action: none` the instant long-press fires. Refs don't
+  // trigger a render, so a ref alone leaves the browser free to
+  // engage its own pan-scroll gesture during the drag.
+  const [dragSelectActive, setDragSelectActive] = useState(false);
   // Pinch-to-zoom row-height state. Tracks the initial touch
   // distance and rowH so we can scale proportionally on subsequent
   // touchmoves. touchAction is set to "none" while active so the
@@ -441,6 +446,7 @@ if (isSameCell) {
         setPendingStart({ date, hour, minute });
         setDragSelectEnd({ date, hour, minute });
         dragSelectActiveRef.current = true;
+        setDragSelectActive(true);
       }
     }, 500);
   }, [getActivitiesForSlot, addMode, onToggleAddMode]);
@@ -485,6 +491,7 @@ if (isSameCell) {
   const handleDragSelectPointerUp = useCallback(() => {
     if (!dragSelectActiveRef.current) return;
     dragSelectActiveRef.current = false;
+    setDragSelectActive(false);
     const start = pendingStart;
     const end = dragSelectEnd || start;
     setDragSelectEnd(null);
@@ -523,23 +530,29 @@ if (isSameCell) {
     window.addEventListener("pointermove", handleDragSelectPointerMove);
     window.addEventListener("pointerup", handleDragSelectPointerUp);
     window.addEventListener("pointercancel", handleDragSelectPointerUp);
-    // Non-passive touchmove listener: once drag-select is active we
-    // need to call preventDefault on every move event so the browser
-    // doesn't scroll the page underneath us. React's synthetic touch
-    // events are passive by default, which is why this has to live on
-    // the document itself.
+    return () => {
+      window.removeEventListener("pointermove", handleDragSelectPointerMove);
+      window.removeEventListener("pointerup", handleDragSelectPointerUp);
+      window.removeEventListener("pointercancel", handleDragSelectPointerUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragSelectEnd, handleDragSelectPointerMove, handleDragSelectPointerUp]);
+
+  // Mount-once non-passive touchmove listener. Has to be attached
+  // BEFORE the user starts moving — if we wait until drag-select
+  // activation, the browser may have already engaged a pan-scroll
+  // gesture during the 500 ms hold and calling preventDefault
+  // mid-pan is unreliable. The listener is a no-op while drag-select
+  // is inactive, so normal scrolling still works.
+  useEffect(() => {
     const blockTouchScroll = (e) => {
       if (dragSelectActiveRef.current) e.preventDefault();
     };
     document.addEventListener("touchmove", blockTouchScroll, { passive: false });
     return () => {
-      window.removeEventListener("pointermove", handleDragSelectPointerMove);
-      window.removeEventListener("pointerup", handleDragSelectPointerUp);
-      window.removeEventListener("pointercancel", handleDragSelectPointerUp);
       document.removeEventListener("touchmove", blockTouchScroll, { passive: false });
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dragSelectEnd, handleDragSelectPointerMove, handleDragSelectPointerUp]);
+  }, []);
 
   // Helper: is this cell inside the current long-press-drag range?
   const isInDragRange = useCallback((date, hour, minute) => {
@@ -774,7 +787,7 @@ if (isSameCell) {
       {/* Grid */}
       <div
         className="border border-border rounded-lg overflow-hidden flex"
-        style={{ maxWidth: "100vw", touchAction: "pan-x pan-y" }}
+        style={{ maxWidth: "100vw", touchAction: dragSelectActive ? "none" : "pan-x pan-y" }}
         onTouchStart={(e) => {
           if (e.touches.length === 2) {
             const dx = e.touches[0].clientX - e.touches[1].clientX;

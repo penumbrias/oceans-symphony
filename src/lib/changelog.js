@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker weekly grid: the page no longer scrolls during the drag part of long-press-drag-select. The grid now hard-disables touch-scrolling the instant the press fires, so dragging your finger after the half-second hold actually selects cells instead of scrolling the page underneath.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker weekly grid: quick-plan chips no longer paint on top of activities. They now live in their own band right below the day-of-week row so the time grid below stays clear. Past + today columns work the same way.",
       },
       {
