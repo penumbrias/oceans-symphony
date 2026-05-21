@@ -3,6 +3,16 @@ import { useRef, useState } from "react";
 const SWIPE_THRESHOLD = 40;
 const TAP_THRESHOLD = 10;
 
+// Module-level recent-touch deadline. Android WebView sometimes fires the
+// synthetic `click` after a touchend on a NEIGHBOURING element — finger
+// position rounds slightly and the click lands on the row above or below
+// the one that actually got tapped. A per-hook `recentTouch` ref only
+// suppresses the click on the original row, so the neighbour fired its
+// onTap a second time. We track the deadline module-wide so every
+// instance of the hook ignores any onClick that lands within 500 ms of
+// any touch elsewhere on the page.
+let globalRecentTouchUntil = 0;
+
 /**
  * Touch-driven swipe-tap-and-pan handler used by alter cards / chips.
  *
@@ -70,14 +80,21 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onLo
     const ady = Math.abs(dy);
     setDragX(0);
     recentTouch.current = true;
+    globalRecentTouchUntil = Date.now() + 500;
     setTimeout(() => { recentTouch.current = false; }, 500);
 
     if (longPressFired.current) return; // long-press already handled
 
     if (adx > SWIPE_THRESHOLD && adx > ady) {
+      // Suppress the synthetic click that mobile WebViews emit next —
+      // otherwise the click could land on a different element and fire
+      // a tap there. preventDefault on touchend cancels it across the
+      // whole document for this gesture.
+      if (typeof e.preventDefault === "function") e.preventDefault();
       if (dx > 0) onSwipeRight?.();
       else onSwipeLeft?.();
     } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
       onTap?.();
     }
   };
@@ -88,7 +105,11 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onLo
   };
 
   const onClick = () => {
-    if (recentTouch.current) return;
+    // Suppress the click if either this hook saw a recent touch OR any
+    // sibling hook saw one. The cross-row case is the bug that caused
+    // "tap synskritty also adds abstractictonica" — Android's synthetic
+    // click for the touch landed on the neighbouring row.
+    if (recentTouch.current || Date.now() < globalRecentTouchUntil) return;
     onTap?.();
   };
 
