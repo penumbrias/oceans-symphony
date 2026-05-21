@@ -1,5 +1,6 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -49,6 +50,7 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
+  const formatAlter = useAlterLabel();
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onToggle(),
     onSwipeRight: () => onToggle(),
@@ -87,7 +89,7 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
             style={{ backgroundColor: selected ? `${alterColor}30` : "hsl(var(--muted))", boxShadow }}
             className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${selected ? "w-20 h-20" : "w-16 h-16"}`}
           >
-            <span className="text-xs font-semibold text-muted-foreground">{alter.name.slice(0, 2)}</span>
+            <span className="text-xs font-semibold text-muted-foreground">{(formatAlter(alter) || alter.name || "?").slice(0, 2)}</span>
           </div>
         )}
       </div>
@@ -96,8 +98,11 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
           {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
         </span>
       ) : (
-        <span className="text-xs text-center font-medium truncate w-full px-1">
-          {alter.alias?.slice(0, 7) || alter.name.slice(0, 7)}
+        <span
+          title={formatAlter(alter)}
+          className="text-xs text-center font-medium truncate w-full px-1"
+        >
+          {formatAlter(alter)}
         </span>
       )}
     </div>
@@ -109,6 +114,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
+  const formatAlter = useAlterLabel();
 
   // Same gesture model as the alters page list / grid:
   //   tap          → toggle selection (the modal's primary action)
@@ -157,7 +163,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
         }
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium truncate">{alter.name}</p>
+        <p className="text-sm font-medium truncate">{formatAlter(alter)}</p>
         {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
       </div>
       {selected &&
@@ -179,6 +185,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 //   swipe left   → toggle primary
 //   long-press   → toggle primary
 function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
+  const formatAlter = useAlterLabel();
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onSetPrimary(),
     onSwipeRight: () => onRemove(),
@@ -207,7 +214,7 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
         </span>
       )}
       {isPrimary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
-      <span className="text-sm">{alter.name}</span>
+      <span className="text-sm">{formatAlter(alter)}</span>
       <button
         onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
         onPointerDown={(e) => e.stopPropagation()}

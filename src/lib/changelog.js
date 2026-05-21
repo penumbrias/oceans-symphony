@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Set Fronters modal: the Name / Alias / Both toggle now actually changes how alters are labelled in the modal — the list rows, the grid-view cards, the selected-fronter chips at the top, and the avatar fallback initials all honour your label-mode preference. Names also fully use CSS truncation (no more 7-char chop).",
+      },
+      {
+        type: "fix",
         text: "Toast notifications and modal dialogs no longer slide under the device status bar / Spotify pill / notification island at the top, or the gesture chin at the bottom. Toasts get a safe-area-aware offset, and the base Dialog now subtracts both insets from its max height + center calc — fixes every modal in the app at once.",
       },
       {
