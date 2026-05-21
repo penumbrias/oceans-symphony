@@ -1271,8 +1271,13 @@ if (isSameCell) {
                                       const chars = Math.floor(size / 5.5);
                                       const label = chars >= 2 ? pill.activity_name?.slice(0, chars) : "";
                                       return (
-                                        <div key={pill.id}
-                                          className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden relative"
+                                        <button
+                                          type="button"
+                                          key={pill.id}
+                                          onClick={(e) => { e.stopPropagation(); setDetailsActivity(pill); }}
+                                          onPointerDown={(e) => e.stopPropagation()}
+                                          onTouchStart={(e) => e.stopPropagation()}
+                                          className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden relative cursor-pointer hover:brightness-110 active:scale-95 transition-all"
                                           style={{
                                             backgroundColor: v.dashed ? "transparent" : color,
                                             border: v.dashed ? `1px dashed ${color}` : undefined,
@@ -1291,7 +1296,7 @@ if (isSameCell) {
                                           {needsReview && (
                                             <span className="absolute -top-0.5 -right-0.5 w-1.5 h-1.5 rounded-full bg-amber-400 ring-1 ring-amber-700/40" />
                                           )}
-                                        </div>
+                                        </button>
                                       );
                                     })}
                                   </div>
@@ -1307,8 +1312,13 @@ if (isSameCell) {
                                 const h = isExpanded ? undefined : Math.min(Math.max(10, pillH), 18);
                                 const fs = isExpanded ? 9 : Math.max(7, Math.min(9, pillH * 0.6));
                                 return (
-                                  <div key={pill.id}
-                                    className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full relative"
+                                  <button
+                                    type="button"
+                                    key={pill.id}
+                                    onClick={(e) => { e.stopPropagation(); setDetailsActivity(pill); }}
+                                    onPointerDown={(e) => e.stopPropagation()}
+                                    onTouchStart={(e) => e.stopPropagation()}
+                                    className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full relative cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all text-left"
                                     style={{
                                       backgroundColor: v.dashed ? "transparent" : color,
                                       border: v.dashed ? `1px dashed ${color}` : undefined,
@@ -1347,7 +1357,7 @@ if (isSameCell) {
                                       <span key={i} className="w-2 h-2 rounded-full flex-shrink-0"
                                         style={{ backgroundColor: emotionColor(em) }} title={em} />
                                     ))}
-                                  </div>
+                                  </button>
                                 );
                               });
                             })()}

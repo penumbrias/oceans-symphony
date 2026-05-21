@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker weekly grid: tapping a small activity pill (like a quick-logged pill sitting on top of a Sleep block) now opens THAT activity's details instead of falling through to whatever larger activity sat in the same cell. Each pill has its own tap target now.",
+      },
+      {
+        type: "fix",
+        text: "\"You have X planned in N minutes\" banner no longer fires for plans you've already marked done / skipped / cancelled. The banner now only surfaces plans that are still actually scheduled.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker → Planned now has an Upcoming / Past toggle. Past shows every plan you've already resolved (done, partial, skipped, cancelled), with a status badge next to the name and same horizon filters (today / week / month / year).",
+      },
+      {
+        type: "fix",
         text: "Bio Import Template no longer drops the text from lines that also contain multiple images. A line like `![A](url) **Rinn** Frequent fronter ![B](url)` used to come out as just a 2-image gallery with no text at all; now the prose around the images is preserved as a text block right under the gallery.",
       },
       {
