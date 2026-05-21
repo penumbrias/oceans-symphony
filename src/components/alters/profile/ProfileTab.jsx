@@ -17,6 +17,7 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getPageBackground, adjustForContrast } from "@/lib/contrast";
+import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -342,6 +343,43 @@ useEffect(() => {
       toast.error(err?.message || "Couldn't clear tags");
     }
   };
+
+  // Preset answers (energy / body-or-head / role-lean / dominant
+  // feeling) from Get to know me — render directly on the profile
+  // so the user sees their literal answers without flipping to the
+  // Info tab. Same shape as InfoTab's "From Get to know me"
+  // section.
+  const presetAnswersRaw = (alter?.preset_answers && typeof alter.preset_answers === "object" && !Array.isArray(alter.preset_answers))
+    ? alter.preset_answers
+    : null;
+  const presetAnswerRows = (() => {
+    if (!presetAnswersRaw) return [];
+    return Object.entries(presetAnswersRaw)
+      .map(([key, raw]) => ({
+        key,
+        label: PRESET_ANSWER_LABELS[key] || key.replace(/_/g, " "),
+        values: typeof raw === "string"
+          ? raw.split(/[,;|]/).map((s) => s.trim()).filter(Boolean)
+          : [],
+      }))
+      .filter((row) => row.values.length > 0);
+  })();
+
+  const removePresetValue = async (questionKey, valueToRemove) => {
+    if (!presetAnswersRaw) return;
+    const prev = typeof presetAnswersRaw[questionKey] === "string" ? presetAnswersRaw[questionKey] : "";
+    const next = prev.split(/[,;|]/).map((s) => s.trim()).filter(Boolean).filter((v) => v !== valueToRemove);
+    const updated = { ...presetAnswersRaw };
+    if (next.length === 0) delete updated[questionKey];
+    else updated[questionKey] = next.join(", ");
+    try {
+      await base44.entities.Alter.update(alter.id, { preset_answers: updated });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't remove answer");
+    }
+  };
   const hasColor = form.color && form.color.length > 3;
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
@@ -548,13 +586,43 @@ useEffect(() => {
           );
         })()}
 
+        {presetAnswerRows.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              From Get to know me
+            </p>
+            <div className="space-y-2">
+              {presetAnswerRows.map((row) => (
+                <div key={row.key} className="rounded-xl border border-border/40 bg-card px-3 py-2">
+                  <p className="text-xs text-muted-foreground mb-1.5">{row.label}</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {row.values.map((v) => (
+                      <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-foreground border border-border/40">
+                        {v}
+                        <button
+                          type="button"
+                          onClick={() => removePresetValue(row.key, v)}
+                          aria-label={`Remove ${v}`}
+                          className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
         {alter.tags && alter.tags.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Tags
                 <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
-                  sourced from Get to know me
+                  legacy — Get to know me no longer writes here
                 </span>
               </p>
               <button
@@ -916,13 +984,43 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         })() : <p className="text-xs text-muted-foreground">Not in any groups</p>}
       </div>
 
+      {presetAnswerRows.length > 0 && (
+        <div>
+          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2">
+            <Tag className="w-3.5 h-3.5" /> From Get to know me
+          </p>
+          <div className="space-y-2">
+            {presetAnswerRows.map((row) => (
+              <div key={row.key} className="rounded-xl border border-border/40 bg-card px-3 py-2">
+                <p className="text-xs text-muted-foreground mb-1.5">{row.label}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {row.values.map((v) => (
+                    <span key={v} className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-foreground border border-border/40">
+                      {v}
+                      <button
+                        type="button"
+                        onClick={() => removePresetValue(row.key, v)}
+                        aria-label={`Remove ${v}`}
+                        className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
+                      >
+                        <X className="w-3 h-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {alter.tags && alter.tags.length > 0 && (
         <div>
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-primary flex items-center gap-1.5">
               <Tag className="w-3.5 h-3.5" /> Tags
               <span className="ml-1 text-[10px] font-normal italic text-muted-foreground/70">
-                sourced from Get to know me
+                legacy — Get to know me no longer writes here
               </span>
             </p>
             <button
