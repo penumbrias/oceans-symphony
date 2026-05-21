@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker weekly grid: quick-plan chips no longer paint on top of activities. They now live in their own band right below the day-of-week row so the time grid below stays clear. Past + today columns work the same way.",
+      },
+      {
+        type: "fix",
+        text: "Activity Tracker weekly grid: pinch-zoom no longer zooms the entire page. The grid container now disables the browser's pinch gesture so only the in-app pinch (row-height zoom) fires.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker weekly grid: long-press-drag activity selection actually works on touch now. The page no longer scrolls underneath the gesture once the press fires, the selection banner doesn't shift the grid mid-press, and small finger jitter during the half-second hold no longer cancels the press.",
       },
       {
