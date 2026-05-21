@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Bulletins are now editable — long-press any bulletin to find a new \"Edit content + author\" action. Rewrite the post text, change which alters get attribution, or re-attribute to the whole system. Works on regular bulletins and task bulletins.",
+      },
+      {
         type: "fix",
         text: "In-app mention notification banner no longer slides under the device status bar / Spotify pill. It now respects the device's top safe-area inset.",
       },

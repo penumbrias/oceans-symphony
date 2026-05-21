@@ -1,27 +1,31 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
-import { Pin, PinOff, Trash2, Eye, Loader2 } from "lucide-react";
+import { Pin, PinOff, Trash2, Eye, Loader2, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
+import BulletinEditModal from "./BulletinEditModal";
 
 /**
  * Shared long-press action menu for BulletinCard and TaskBulletinCard.
  *
  * Surfaces the actions that already exist on the inline icon row plus the
- * new Pin-to-dashboard action, so the user can reach all of them via the
- * long-press gesture.
+ * Pin-to-dashboard and Edit actions, so the user can reach all of them via
+ * the long-press gesture.
  *
  * Props:
  *   bulletin     — the record (Bulletin entity, may be a task)
+ *   alters       — alter list, needed by the edit modal to populate the
+ *                  author multi-select
  *   open / onClose
  *   onOpen?      — optional "expand the bulletin" callback (BulletinCard only;
  *                  task cards expand inline elsewhere so this is omitted there)
  */
-export default function BulletinActionMenu({ bulletin, open, onClose, onOpen }) {
+export default function BulletinActionMenu({ bulletin, alters = [], open, onClose, onOpen }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(null); // "board" | "dash" | "delete" | null
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   const isBoardPinned = !!bulletin.is_pinned;
   const isDashPinned  = !!bulletin.dashboard_pinned;
@@ -94,6 +98,16 @@ export default function BulletinActionMenu({ bulletin, open, onClose, onOpen }) 
 
           <button
             type="button"
+            onClick={() => { setEditing(true); }}
+            disabled={busy !== null}
+            className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-muted/40 transition-colors text-left"
+          >
+            <Pencil className="w-4 h-4" />
+            <span className="text-sm">Edit content + author</span>
+          </button>
+
+          <button
+            type="button"
             onClick={handleDelete}
             disabled={busy !== null}
             className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border transition-colors text-left ${
@@ -107,6 +121,12 @@ export default function BulletinActionMenu({ bulletin, open, onClose, onOpen }) 
           </button>
         </div>
       </DialogContent>
+      <BulletinEditModal
+        bulletin={bulletin}
+        alters={alters}
+        open={editing}
+        onClose={() => { setEditing(false); onClose(); }}
+      />
     </Dialog>
   );
 }
