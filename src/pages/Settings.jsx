@@ -22,6 +22,7 @@ import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
 import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
+import CornerStyleSettings from "@/components/settings/CornerStyleSettings";
 import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import NavigationSettings from "@/components/settings/NavigationSettings";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
@@ -352,6 +353,9 @@ export default function Settings() {
         {/* ── APPEARANCE ── */}
         <Section id="appearance" icon="🎨" label="Appearance">
           <AdvancedAppearance />
+          <div className="border-t border-border/30 pt-4">
+            <CornerStyleSettings />
+          </div>
           <div className="border-t border-border/30 pt-4">
             <AlterLabelSettings />
           </div>

@@ -69,7 +69,12 @@ export function normalizeSession(raw, now = Date.now()) {
   if (startMs == null) return null;
   const endMs = toMs(raw.end_time);
   const isOpen = endMs == null;
-  const isStale = isOpen && (now - startMs) > STALE_OPEN_SESSION_HOURS * HOUR_MS;
+  // Some alters legitimately stay fronting for days. The user
+  // can mark a row as `confirmed_long_session: true` from the
+  // stale-sessions modal so we don't cap it at 48h. Stays
+  // "stale" for warning-list purposes only if the flag is off.
+  const confirmedLong = !!raw.confirmed_long_session;
+  const isStale = isOpen && !confirmedLong && (now - startMs) > STALE_OPEN_SESSION_HOURS * HOUR_MS;
 
   // Two source-of-truth paths. The individual model writes
   // `alter_id` per row with `is_primary` on the primary's row.
@@ -102,6 +107,7 @@ export function normalizeSession(raw, now = Date.now()) {
     endMs,
     isOpen,
     isStale,
+    confirmedLong,
     alterIds,
     primaryAlterId,
     coFronterIds,

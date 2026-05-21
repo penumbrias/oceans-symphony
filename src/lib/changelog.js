@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Settings → Appearance → Corner style toggle: switch every card, button, input, and pill to sharp corners across the app. Avatars and other intentionally circular elements stay round.",
+      },
+      {
+        type: "improve",
+        text: "Stale-sessions banner on the Analytics page is now a tappable review modal. Each open-too-long session lists the alters, start time, and three actions: close now, retro-close at a chosen date/time, or mark as still active. Sessions you mark as still active opt out of the 48h analytics cap so legitimately long-running fronts aren't truncated.",
+      },
+      {
         type: "fix",
         text: "Analytics rework: every chart that aggregates fronting sessions now goes through a shared session normaliser. The old code treated unclosed sessions as if they were still running right now, which is why a 30-day window could show \"5085h solo\". Sessions you forgot to close are capped at 48h and the page warns you so you can go close them.",
       },
