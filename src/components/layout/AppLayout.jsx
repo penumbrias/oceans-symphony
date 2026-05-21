@@ -252,13 +252,23 @@ useEffect(() => {
 }, [primaryFronter]);
 
 const handleNotifClick = (mentionLog) => {
-  if (mentionLog.navigate_path?.includes("?id=")) {
-    // Already has ID in URL param — navigate directly
-    navigate(mentionLog.navigate_path);
+  let path = mentionLog.navigate_path || "/";
+  // Back-compat: chat mention logs created before the message-deep-link
+  // change only stored `/chat?channel=X`. Their source_id IS the message
+  // id, so splice it in so the deep-link scrolls + highlights that
+  // specific row instead of dumping the user at the channel root.
+  if (
+    mentionLog.source_type === "chat"
+    && mentionLog.source_id
+    && path.startsWith("/chat")
+    && !path.includes("message=")
+  ) {
+    path += (path.includes("?") ? "&" : "?") + `message=${mentionLog.source_id}`;
+  }
+  if (path.includes("?id=")) {
+    navigate(path);
   } else {
-    navigate(mentionLog.navigate_path || "/", {
-      state: { highlightBulletinId: mentionLog.source_id }
-    });
+    navigate(path, { state: { highlightBulletinId: mentionLog.source_id } });
   }
 };
 

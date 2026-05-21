@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "In-app mention notification banner no longer slides under the device status bar / Spotify pill. It now respects the device's top safe-area inset.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a chat mention notification now opens the specific channel AND scrolls to the exact message that mentioned you, with a temporary highlight ring so you can spot it. Works for both new mentions and any older mention-log records.",
+      },
+      {
         type: "improve",
         text: "Therapy Report \"most frequently logged emotions / symptoms\" now shows the count alongside each item (e.g. \"hopeless (4×)\") and requires at least 2 occurrences to qualify. A one-off check-in is no longer summarised as a top emotion in the clinical narrative.",
       },

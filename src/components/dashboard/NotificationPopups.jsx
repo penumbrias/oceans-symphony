@@ -36,7 +36,10 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
   if (relevant.length === 0) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none">
+    <div
+      className="fixed right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
+      style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
+    >
       {relevant.slice(0, 5).map((m) => {
         const alter = alters.find((a) => a.id === m.mentioned_alter_id);
         return (
