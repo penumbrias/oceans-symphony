@@ -7,6 +7,7 @@ import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileTex
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import InfoTab from "@/components/alters/profile/InfoTab";
@@ -46,7 +47,33 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export default function AlterProfile() {
+function AlterProfileFallback({ error, reset }) {
+  const msg = (error && (error.message || String(error))) || "Unknown error";
+  const stack = (error && error.stack) || "";
+  return (
+    <div className="p-4 space-y-3">
+      <Link to="/Home">
+        <Button variant="ghost" size="sm" className="-ml-2">
+          <ArrowLeft className="w-4 h-4 mr-2" /> Back to {`alters`}
+        </Button>
+      </Link>
+      <div className="rounded-xl border border-destructive/40 bg-destructive/5 p-4 space-y-3">
+        <p className="text-sm font-semibold text-destructive">Something went wrong loading this alter</p>
+        <p className="text-xs text-foreground/90 break-words">{msg}</p>
+        <details className="text-[11px] text-muted-foreground">
+          <summary className="cursor-pointer hover:text-foreground">Show details</summary>
+          <pre className="mt-2 whitespace-pre-wrap break-words text-[10px] leading-snug">{stack}</pre>
+        </details>
+        <div className="flex gap-2">
+          <Button size="sm" variant="outline" onClick={reset}>Try again</Button>
+          <Link to="/Home"><Button size="sm">Go back</Button></Link>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function AlterProfileInner() {
   const { id: alterId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
@@ -318,5 +345,19 @@ export default function AlterProfile() {
         </div>
       </div>
     </motion.div>
+  );
+}
+
+export default function AlterProfile() {
+  // Wrap the page in an error boundary so a render-time crash
+  // (most commonly a malformed FrontingSession payload for a
+  // currently-fronting alter) shows the actual error text + a
+  // way back to the alters list, instead of leaving the user
+  // staring at a blank black screen with no path home.
+  const { id: alterId } = useParams();
+  return (
+    <ErrorBoundary fallback={(error, reset) => <AlterProfileFallback error={error} reset={reset} />} resetKeys={[alterId]}>
+      <AlterProfileInner />
+    </ErrorBoundary>
   );
 }
