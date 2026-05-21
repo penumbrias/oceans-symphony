@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -160,6 +160,52 @@ export default function Chat() {
     [channels]
   );
 
+  // Group channels by category for the sidebar. Channels without a
+  // category fall under an "Uncategorised" bucket rendered at the
+  // top. Categories themselves are listed in the order they first
+  // appear in the sorted list.
+  const groupedChannels = useMemo(() => {
+    const order = [];
+    const map = new Map();
+    for (const c of sortedChannels) {
+      const key = c.category?.trim() || "";
+      if (!map.has(key)) {
+        map.set(key, []);
+        order.push(key);
+      }
+      map.get(key).push(c);
+    }
+    return order.map((key) => ({ category: key, channels: map.get(key) }));
+  }, [sortedChannels]);
+  const existingCategoryNames = useMemo(() => {
+    const set = new Set();
+    for (const c of channels) if (c.category) set.add(c.category.trim());
+    return Array.from(set).sort();
+  }, [channels]);
+
+  // Move a channel up or down within its category (or relative to
+  // the full list when uncategorised). Reassigns sort_order in
+  // small increments so future inserts at Date.now() still come
+  // after these.
+  const moveChannel = async (channel, direction) => {
+    const groupKey = channel.category?.trim() || "";
+    const peers = sortedChannels.filter((c) => (c.category?.trim() || "") === groupKey);
+    const idx = peers.findIndex((c) => c.id === channel.id);
+    if (idx === -1) return;
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    if (targetIdx < 0 || targetIdx >= peers.length) return;
+    const target = peers[targetIdx];
+    try {
+      await Promise.all([
+        localEntities.SystemChatChannel.update(channel.id, { sort_order: target.sort_order ?? 0 }),
+        localEntities.SystemChatChannel.update(target.id, { sort_order: channel.sort_order ?? 0 }),
+      ]);
+      qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't reorder");
+    }
+  };
+
   const urlChannelId = searchParams.get("channel");
   const activeChannel = useMemo(() => {
     if (urlChannelId) {
@@ -201,15 +247,22 @@ export default function Chat() {
 
   return (
     <div
-      className="flex flex-col h-full min-h-[80vh]"
-      style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+      className="flex flex-col h-full"
+      style={{
+        // The bottom nav is `position: fixed` and covers the bottom
+        // `bottom-nav-height + safe-area` of the viewport, so the
+        // composer needs that much padding below it to clear the bar.
+        paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
+        // The chat must also be at least the height of the visible
+        // area below the AppLayout's mobile header so the flex
+        // layout has room to push the composer to the bottom (rather
+        // than letting it bunch up below short message lists).
+        minHeight: "calc(100dvh - 56px - env(safe-area-inset-top, 0px))",
+      }}
     >
-      <div className="px-4 py-3 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1">
-          <ChevronLeft className="w-4 h-4" /> Back
-        </Button>
-        <h1 className="text-lg font-semibold flex items-center gap-2 flex-1 min-w-0">
-          <MessageSquare className="w-5 h-5 text-primary flex-shrink-0" />
+      <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
+        <h1 className="text-base font-semibold flex items-center gap-2 flex-1 min-w-0">
+          <MessageSquare className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="truncate">{terms.System || "System"} Chat</span>
         </h1>
         <Button variant="ghost" size="sm" onClick={() => setShowChannels((v) => !v)} className="lg:hidden">
@@ -231,38 +284,69 @@ export default function Chat() {
               <Plus className="w-4 h-4" />
             </button>
           </div>
-          <ul className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
-            {sortedChannels.map((c) => (
-              <li key={c.id}>
-                <button
-                  type="button"
-                  onClick={() => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
-                  onContextMenu={(e) => { e.preventDefault(); setEditingChannel(c); }}
-                  className={`w-full flex items-center gap-1.5 px-2 py-1.5 rounded-md text-sm group ${
-                    activeChannel?.id === c.id
-                      ? "bg-primary/15 text-foreground"
-                      : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                  }`}
-                >
-                  <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                  <span className="truncate flex-1 text-left">{c.name}</span>
-                  <span
-                    role="button"
-                    tabIndex={0}
-                    onClick={(e) => { e.stopPropagation(); setEditingChannel(c); }}
-                    onKeyDown={(e) => { if (e.key === "Enter") { e.stopPropagation(); setEditingChannel(c); } }}
-                    aria-label={`Edit ${c.name}`}
-                    className="p-0.5 opacity-0 group-hover:opacity-100 text-muted-foreground hover:text-foreground"
-                  >
-                    <Pencil className="w-3 h-3" />
-                  </span>
-                </button>
-              </li>
+          <div className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
+            {groupedChannels.map(({ category, channels: list }) => (
+              <div key={category || "__uncat__"} className="mb-1.5 last:mb-0">
+                {category && (
+                  <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80">
+                    {category}
+                  </div>
+                )}
+                <ul>
+                  {list.map((c, idx) => (
+                    <li key={c.id}>
+                      <div
+                        className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
+                          activeChannel?.id === c.id
+                            ? "bg-primary/15 text-foreground"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
+                          onContextMenu={(e) => { e.preventDefault(); setEditingChannel(c); }}
+                          className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
+                        >
+                          <Hash className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate flex-1">{c.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveChannel(c, "up")}
+                          disabled={idx === 0}
+                          aria-label={`Move ${c.name} up`}
+                          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                        >
+                          <ChevronUp className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => moveChannel(c, "down")}
+                          disabled={idx === list.length - 1}
+                          aria-label={`Move ${c.name} down`}
+                          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
+                        >
+                          <ChevronDown className="w-3 h-3" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingChannel(c)}
+                          aria-label={`Edit ${c.name}`}
+                          className="p-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             ))}
             {sortedChannels.length === 0 && (
-              <li className="px-2 py-3 text-xs text-muted-foreground italic">No channels yet.</li>
+              <p className="px-2 py-3 text-xs text-muted-foreground italic">No channels yet.</p>
             )}
-          </ul>
+          </div>
         </aside>
 
         {/* Active channel */}
@@ -294,6 +378,7 @@ export default function Chat() {
       {createOpen && (
         <ChannelDialog
           mode="create"
+          existingCategories={existingCategoryNames}
           onClose={() => setCreateOpen(false)}
           onSaved={(record) => {
             setSearchParams({ channel: record.id }, { replace: true });
@@ -306,6 +391,7 @@ export default function Chat() {
         <ChannelDialog
           mode="edit"
           channel={editingChannel}
+          existingCategories={existingCategoryNames}
           onClose={() => setEditingChannel(null)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
@@ -1111,9 +1197,10 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
   );
 }
 
-function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted }) {
+function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted, existingCategories = [] }) {
   const [name, setName] = useState(channel?.name || "");
   const [description, setDescription] = useState(channel?.description || "");
+  const [category, setCategory] = useState(channel?.category || "");
   const [busy, setBusy] = useState(false);
 
   const handleSave = async () => {
@@ -1125,6 +1212,7 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted }) {
         const record = await localEntities.SystemChatChannel.create({
           name: trimmed,
           description: description.trim() || null,
+          category: category.trim() || null,
           sort_order: Date.now(),
           is_archived: false,
           created_date: new Date().toISOString(),
@@ -1134,6 +1222,7 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted }) {
         await localEntities.SystemChatChannel.update(channel.id, {
           name: trimmed,
           description: description.trim() || null,
+          category: category.trim() || null,
         });
         onSaved?.();
       }
@@ -1189,6 +1278,26 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted }) {
               placeholder="what this channel is for"
               maxLength={120}
             />
+          </div>
+          <div>
+            <label className="text-xs font-medium block mb-1">Category <span className="text-muted-foreground">(optional)</span></label>
+            <Input
+              value={category}
+              onChange={(e) => setCategory(e.target.value)}
+              placeholder="Daily life, Therapy, Inside jokes…"
+              maxLength={32}
+              list="chat-channel-categories"
+            />
+            {existingCategories.length > 0 && (
+              <datalist id="chat-channel-categories">
+                {existingCategories.map((c) => (
+                  <option key={c} value={c} />
+                ))}
+              </datalist>
+            )}
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">
+              Channels with the same category are grouped together in the sidebar.
+            </p>
           </div>
           <div className="flex items-center gap-2 pt-1">
             {mode === "edit" && (

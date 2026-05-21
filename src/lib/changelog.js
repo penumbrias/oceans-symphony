@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "System Chat: channels can now be grouped into categories — add an optional category when creating or editing a channel and channels with the same category stack under one header in the sidebar. Up / down arrows next to each channel let you reorder them within a category.",
+      },
+      {
+        type: "fix",
+        text: "System Chat: removed the duplicate \"Back\" button in the chat header and trimmed the empty band between the message composer and the bottom navigation bar.",
+      },
+      {
+        type: "feature",
         text: "Bulletins are now editable — long-press any bulletin to find a new \"Edit content + author\" action. Rewrite the post text, change which alters get attribution, or re-attribute to the whole system. Works on regular bulletins and task bulletins.",
       },
       {
