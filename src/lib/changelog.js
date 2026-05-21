@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Simply Plural import: one bad alter no longer halts the whole import. Previously, if a single alter's write to local storage failed mid-way through, every alter after it was silently skipped — which is why some systems ended up with around half their members copied across. Each alter now imports independently, and the final toast lists how many failed (with details in the devtools console).",
+      },
+      {
         type: "feature",
         text: "System Chat: channels can now be grouped into categories — add an optional category when creating or editing a channel and channels with the same category stack under one header in the sidebar. Up / down arrows next to each channel let you reorder them within a category.",
       },

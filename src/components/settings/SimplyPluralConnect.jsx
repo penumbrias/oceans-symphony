@@ -198,19 +198,36 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
 
         // ── Step 3: Alters (optional) ──
         let altersCreated = 0, altersUpdated = 0;
+        // Per-alter failures are isolated so one bad record doesn't
+        // abort the whole import. The previous unguarded for-loop is
+        // why a SP system with 53 members could end up with only ~23
+        // copied across — the first IDB write that rejected stopped
+        // every remaining create silently. We collect failures and
+        // surface them at the end of the run instead.
+        const alterFailures = [];
         const alterIdBySpId = {};
 
         if (includeAlters) {
           const effectiveGroupsById = includeGroups ? groupsById : {};
           const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap, sysId));
-          setImportProgress("Importing alters…");
+          setImportProgress(`Importing alters… (0/${mappedAlters.length})`);
           const existingAlters = await localEntities.Alter.list();
           if (importMode === "replace_all") {
-            for (const a of existingAlters) await localEntities.Alter.delete(a.id);
+            for (const a of existingAlters) {
+              try { await localEntities.Alter.delete(a.id); } catch { /* non-fatal: best-effort wipe */ }
+            }
+            let idx = 0;
             for (const a of mappedAlters) {
-              const created = await localEntities.Alter.create(a);
-              alterIdBySpId[a.sp_id] = created.id;
-              altersCreated++;
+              idx++;
+              setImportProgress(`Importing alters… (${idx}/${mappedAlters.length})`);
+              try {
+                const created = await localEntities.Alter.create(a);
+                alterIdBySpId[a.sp_id] = created.id;
+                altersCreated++;
+              } catch (err) {
+                console.error("[SP import] Alter.create failed", a?.name, a?.sp_id, err);
+                alterFailures.push({ name: a?.name || "(unnamed)", reason: err?.message || String(err) });
+              }
             }
           } else {
             const existingBySpId = {};
@@ -218,35 +235,43 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               if (a.sp_id) existingBySpId[a.sp_id] = a;
               if (a.sp_id) alterIdBySpId[a.sp_id] = a.id;
             }
+            let idx = 0;
             for (const incoming of mappedAlters) {
+              idx++;
+              setImportProgress(`Importing alters… (${idx}/${mappedAlters.length})`);
               const existing = existingBySpId[incoming.sp_id];
-              if (existing) {
-                if (importMode !== "new_only") {
-                  const updateData = { ...incoming };
-                  // custom_fields update would otherwise REPLACE the whole
-                  // object, wiping local-only profile-style keys (_bg_color,
-                  // _header_image, _hide_header, …). Merge: preserve local-
-                  // only `_*` keys from the existing record, then layer SP
-                  // fields on top. `_header_image` is treated as part of the
-                  // avatar/banner bundle and respects `includeAvatars`.
-                  const localOnly = Object.fromEntries(
-                    Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
-                  );
-                  const incomingFields = { ...(incoming.custom_fields || {}) };
-                  if (!includeAvatars) {
-                    delete updateData.avatar_url;
-                    delete updateData.banner_url;
-                    delete incomingFields._header_image;
+              try {
+                if (existing) {
+                  if (importMode !== "new_only") {
+                    const updateData = { ...incoming };
+                    // custom_fields update would otherwise REPLACE the whole
+                    // object, wiping local-only profile-style keys (_bg_color,
+                    // _header_image, _hide_header, …). Merge: preserve local-
+                    // only `_*` keys from the existing record, then layer SP
+                    // fields on top. `_header_image` is treated as part of the
+                    // avatar/banner bundle and respects `includeAvatars`.
+                    const localOnly = Object.fromEntries(
+                      Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
+                    );
+                    const incomingFields = { ...(incoming.custom_fields || {}) };
+                    if (!includeAvatars) {
+                      delete updateData.avatar_url;
+                      delete updateData.banner_url;
+                      delete incomingFields._header_image;
+                    }
+                    updateData.custom_fields = { ...localOnly, ...incomingFields };
+                    await localEntities.Alter.update(existing.id, updateData);
+                    altersUpdated++;
                   }
-                  updateData.custom_fields = { ...localOnly, ...incomingFields };
-                  await localEntities.Alter.update(existing.id, updateData);
-                  altersUpdated++;
+                  alterIdBySpId[incoming.sp_id] = existing.id;
+                } else {
+                  const created = await localEntities.Alter.create(incoming);
+                  alterIdBySpId[incoming.sp_id] = created.id;
+                  altersCreated++;
                 }
-                alterIdBySpId[incoming.sp_id] = existing.id;
-              } else {
-                const created = await localEntities.Alter.create(incoming);
-                alterIdBySpId[incoming.sp_id] = created.id;
-                altersCreated++;
+              } catch (err) {
+                console.error("[SP import] Alter write failed", incoming?.name, incoming?.sp_id, err);
+                alterFailures.push({ name: incoming?.name || "(unnamed)", reason: err?.message || String(err) });
               }
             }
           }
@@ -440,7 +465,7 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         setImportProgress("");
 
         const parts = [
-          includeAlters && `Alters: ${altersCreated} new, ${altersUpdated} updated`,
+          includeAlters && `Alters: ${altersCreated} new, ${altersUpdated} updated${alterFailures.length > 0 ? `, ${alterFailures.length} failed` : ""}`,
           includeCustomFronts && (customFrontsCreated > 0 || customFrontsUpdated > 0) && `Custom fronts → alters: ${customFrontsCreated} new, ${customFrontsUpdated} updated`,
           includeCustomFrontsAsSymptoms && (symptomsCreated > 0 || symptomsUpdated > 0) && `Custom fronts → symptoms: ${symptomsCreated} new, ${symptomsUpdated} updated`,
           includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
@@ -448,6 +473,17 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
           includePolls && `Polls: ${pollsCreated} new, ${pollsUpdated} updated`,
           includeNotes && notesCreated > 0 && `Notes: ${notesCreated} imported`,
         ].filter(Boolean).join(" · ");
+        if (alterFailures.length > 0) {
+          // A toast can disappear before the user reads the list. Echo
+          // the failures to the dev console too so a re-importing user
+          // can copy them into a bug report.
+          console.warn("[SP import] Some alters failed to import:", alterFailures);
+          const sample = alterFailures.slice(0, 3).map((f) => f.name).join(", ");
+          toast.error(
+            `Import partial — ${alterFailures.length} alter${alterFailures.length === 1 ? "" : "s"} failed (${sample}${alterFailures.length > 3 ? ", …" : ""}). See devtools console for details.`,
+            { duration: 12000 },
+          );
+        }
         toast.success(`Import complete! ${parts}`);
       } else {
         // Cloud mode
