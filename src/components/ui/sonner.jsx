@@ -43,7 +43,12 @@ const Toaster = ({
     : "calc(env(safe-area-inset-bottom, 0px) + 16px)";
 
   return (
+    // Force remount when `position` changes — Sonner's `position`
+    // prop is documented as reactive but in v2.0.1 the rendered
+    // portal sticks to the position it had at first mount. Keying
+    // on position guarantees a fresh container at the new corner.
     (<Sonner
+      key={prefs.position}
       theme={theme}
       className="toaster group"
       position={prefs.position}

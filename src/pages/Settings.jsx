@@ -45,13 +45,28 @@ import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
 
 
+// React context lets the parent <Settings> drive single-accordion
+// behaviour: only one Section open at a time. Drops the perceived
+// scroll-length of the page from "every section's contents stacked"
+// to "just one section's contents".
+const SectionAccordionCtx = React.createContext(null);
+
 function Section({ id, icon, label, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const ctx = React.useContext(SectionAccordionCtx);
+  const isOpen = ctx
+    ? ctx.openId === id
+    : defaultOpen;
+  const setOpen = ctx
+    ? () => ctx.toggle(id)
+    : null;
+  const [localOpen, setLocalOpen] = useState(defaultOpen);
+  const open = ctx ? isOpen : localOpen;
+  const toggle = ctx ? setOpen : () => setLocalOpen(o => !o);
   return (
     <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
       >
         <span className="text-xl">{icon}</span>
@@ -79,8 +94,7 @@ export default function Settings() {
     { id: "accessibility", label: "Accessibility", icon: "♿" },
     { id: "alters", label: `${terms.Alters} & Fields`, icon: "👥" },
     { id: "checkin", label: "Tracking & Analytics", icon: "⚡" },
-    { id: "reminders", label: "Reminders", icon: "🔔" },
-    { id: "notifications", label: "Notifications & toasts", icon: "📣" },
+    { id: "notifications", label: "Notifications & reminders", icon: "🔔" },
     { id: "data", label: "Data & Privacy", icon: "💾" },
     { id: "disclaimer", label: "Disclaimer", icon: "⚠️" },
     { id: "bug-report", label: "Report a Bug", icon: "🐛" },
@@ -265,10 +279,11 @@ export default function Settings() {
         ))}
       </div>
 
+      <SectionsAccordion>
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── PROFILE ── */}
-        <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
+        <Section id="system" icon="⚙️" label="Profile">
           <div className="space-y-4">
             <div>
               {showAlterCount ? (
@@ -447,13 +462,14 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── REMINDERS ── */}
-        <Section id="reminders" icon="🔔" label="Reminders">
-          <RemindersSettings />
-        </Section>
-
-        <Section id="notifications" icon="📣" label="Notifications & toasts">
-          <NotificationSettings />
+        {/* ── NOTIFICATIONS & REMINDERS ── */}
+        <Section id="notifications" icon="🔔" label="Notifications & reminders">
+          <div className="space-y-6">
+            <NotificationSettings />
+            <div className="pt-4 border-t border-border/40">
+              <RemindersSettings />
+            </div>
+          </div>
         </Section>
 
         <Section id="preview" icon="👁️" label="Preview Mode">
@@ -514,8 +530,30 @@ export default function Settings() {
         </Section>
 
       </div>
+      </SectionsAccordion>
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
     </motion.div>
+  );
+}
+
+// Accordion provider — wraps every <Section> so opening one auto-
+// closes the others. Honours URL hash on first render so TOC jumps
+// and external deep-links still drop the user inside an open section.
+function SectionsAccordion({ children }) {
+  const [openId, setOpenId] = useState(() => {
+    try {
+      const h = (window.location.hash || "").replace(/^#/, "");
+      return h || null;
+    } catch { return null; }
+  });
+  const toggle = React.useCallback((id) => {
+    setOpenId(prev => prev === id ? null : id);
+  }, []);
+  const value = React.useMemo(() => ({ openId, toggle }), [openId, toggle]);
+  return (
+    <SectionAccordionCtx.Provider value={value}>
+      {children}
+    </SectionAccordionCtx.Provider>
   );
 }

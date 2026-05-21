@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings page is shorter to scroll: only one section opens at a time now (an accordion), so picking a section auto-closes the others. Reminders moved into the Notifications & toasts section (renamed \"Notifications & reminders\") so related controls live together.",
+      },
+      {
+        type: "fix",
+        text: "Notifications & toasts \"Where they appear\" position picker actually moves the toaster now. Sonner's `position` prop wasn't reactive on remount; we re-key the container so each new corner takes effect immediately.",
+      },
+      {
         type: "fix",
         text: "Set Fronters modal: the Name / Alias / Both toggle now actually changes how alters are labelled in the modal — the list rows, the grid-view cards, the selected-fronter chips at the top, and the avatar fallback initials all honour your label-mode preference. Names also fully use CSS truncation (no more 7-char chop).",
       },
