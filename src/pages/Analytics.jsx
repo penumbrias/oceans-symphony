@@ -29,6 +29,7 @@ import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
 import PatternInsights from "@/components/analytics/PatternInsights";
 import LocationAnalytics from "@/components/analytics/LocationAnalytics";
 import InsightsHub from "@/components/analytics/InsightsHub";
+import StaleSessionsModal from "@/components/analytics/StaleSessionsModal";
 import {
   normalizeSessions,
   sessionsInRange,
@@ -177,6 +178,7 @@ export default function Analytics() {
   const [to, setTo] = useState(new Date());
   const [mode, setMode] = useState("total");
   const [showArchived, setShowArchived] = useState(false);
+  const [staleModalOpen, setStaleModalOpen] = useState(false);
   const [topTab, setTopTab] = useState("stats");
   const [activitySubTab, setActivitySubTab] = useState("overview");
 
@@ -422,12 +424,16 @@ export default function Analytics() {
           {topTab === "stats" && (
             <>
               {stale && stale.length > 0 && (
-                <div className="mb-3 flex items-start gap-2 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs">
+                <button
+                  type="button"
+                  onClick={() => setStaleModalOpen(true)}
+                  className="w-full text-left mb-3 flex items-start gap-2 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs hover:bg-amber-500/10 transition-colors"
+                >
                   <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                  <p className="text-foreground/90">
-                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours and look forgotten. Their duration is capped at 48h so they don't inflate these stats. Open the {`${terms.System}`} Map or Front History to close them.
+                  <p className="text-foreground/90 flex-1">
+                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours and look forgotten. Their duration is capped at 48h in these stats. <span className="font-medium text-primary">Tap to review →</span>
                   </p>
-                </div>
+                </button>
               )}
               <div className="mb-4">
                 <ActivityHeatmap sessions={filtered} from={from} to={to} />
@@ -600,6 +606,13 @@ export default function Analytics() {
           to={to}
         />
       )}
+
+      <StaleSessionsModal
+        isOpen={staleModalOpen}
+        onClose={() => setStaleModalOpen(false)}
+        staleSessions={stale || []}
+        altersById={altersById}
+      />
     </div>
   );
 }
