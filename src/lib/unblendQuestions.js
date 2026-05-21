@@ -42,12 +42,23 @@ export function splitCustomFieldValue(raw) {
 }
 
 // Helper: read a custom-field value off an alter, case-insensitive.
+// Custom-field values live in alter.custom_fields keyed by
+// CustomField.id; we also fall back to legacy alter_custom_fields
+// (object shape) for un-migrated rows so existing Get to know me
+// answers still feed the matcher.
 function readCustom(alter, fieldName) {
-  const map = alter?.alter_custom_fields;
-  if (!map || typeof map !== "object") return null;
   const lower = fieldName.toLowerCase();
-  for (const [k, v] of Object.entries(map)) {
-    if (k.toLowerCase() === lower) return v;
+  const maps = [];
+  if (alter?.custom_fields && typeof alter.custom_fields === "object" && !Array.isArray(alter.custom_fields)) {
+    maps.push(alter.custom_fields);
+  }
+  if (alter?.alter_custom_fields && typeof alter.alter_custom_fields === "object" && !Array.isArray(alter.alter_custom_fields)) {
+    maps.push(alter.alter_custom_fields);
+  }
+  for (const map of maps) {
+    for (const [k, v] of Object.entries(map)) {
+      if (k.toLowerCase() === lower) return v;
+    }
   }
   return null;
 }
@@ -322,8 +333,18 @@ export function buildDynamicQuestions(alters, customFields = []) {
   const customFieldValues = {};        // field-id → Map<alterId, originalString>
   const customFieldItemsByAlter = {};  // field-id → Map<alterId, Set<lowercaseItems>>
   for (const a of active) {
-    const map = a.alter_custom_fields;
-    if (!map || typeof map !== "object") continue;
+    // Prefer alter.custom_fields (the canonical map); fall back to
+    // legacy alter_custom_fields if the row hasn't been migrated.
+    // Array-shaped alter_custom_fields belong to InfoTab's per-
+    // alter ad-hoc UI and are skipped here.
+    const cf = a.custom_fields && typeof a.custom_fields === "object" && !Array.isArray(a.custom_fields)
+      ? a.custom_fields
+      : null;
+    const legacy = a.alter_custom_fields && typeof a.alter_custom_fields === "object" && !Array.isArray(a.alter_custom_fields)
+      ? a.alter_custom_fields
+      : null;
+    const map = cf || legacy;
+    if (!map) continue;
     for (const [k, v] of Object.entries(map)) {
       const value = typeof v === "string" ? v.trim() : "";
       if (!value) continue;
@@ -399,8 +420,17 @@ export function buildAllFieldQuestions(alters, customFields = []) {
 
   const valuesByField = {}; // fieldId → Map<alterId, raw string>
   for (const a of active) {
-    const map = a.alter_custom_fields;
-    if (!map || typeof map !== "object") continue;
+    // Same two-source read as buildDynamicQuestions — canonical
+    // alter.custom_fields, fallback to legacy alter_custom_fields,
+    // skip array-shape (InfoTab's per-alter ad-hoc list).
+    const cf = a.custom_fields && typeof a.custom_fields === "object" && !Array.isArray(a.custom_fields)
+      ? a.custom_fields
+      : null;
+    const legacy = a.alter_custom_fields && typeof a.alter_custom_fields === "object" && !Array.isArray(a.alter_custom_fields)
+      ? a.alter_custom_fields
+      : null;
+    const map = cf || legacy;
+    if (!map) continue;
     for (const [k, v] of Object.entries(map)) {
       if (typeof v !== "string" || !v.trim()) continue;
       if (!valuesByField[k]) valuesByField[k] = new Map();

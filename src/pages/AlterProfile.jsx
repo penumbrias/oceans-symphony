@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge } from "lucide-react";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import InfoTab from "@/components/alters/profile/InfoTab";
@@ -95,6 +96,7 @@ function AlterProfileInner() {
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
   const saveRef = useRef(null);
 
+  const queryClient = useQueryClient();
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
     queryFn: async () => {
@@ -104,6 +106,26 @@ function AlterProfileInner() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  // Lazy one-shot migration: if this alter still has object-shape
+  // data on the legacy alter_custom_fields field, fold it into
+  // alter.custom_fields and clear the legacy field. Idempotent,
+  // runs at most once per alter (the next render reads the migrated
+  // record and the predicate is false).
+  useEffect(() => {
+    if (!alter) return;
+    if (!needsAlterCustomFieldsMigration(alter)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        await migrateAlterCustomFieldsObject(alter);
+        if (cancelled) return;
+        queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+        queryClient.invalidateQueries({ queryKey: ["alters"] });
+      } catch { /* non-fatal — the defensive Array.isArray reads keep the page rendering */ }
+    })();
+    return () => { cancelled = true; };
+  }, [alter, queryClient]);
 
   // Resolve avatar URL (local or external)
   useEffect(() => {

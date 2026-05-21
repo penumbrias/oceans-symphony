@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Get to know me answers now actually fill in the matching custom field on the alter's Info tab — they were being written to the wrong field name, so values like \"Hyperfocusing\" set via Get to know me never appeared in the alter's profile. Existing alters lazy-migrate the next time you open their profile.",
+      },
+      {
+        type: "fix",
+        text: "Alter profile no longer crashes for alters whose custom-field values were saved by Get to know me or Help me unblend. The Info tab's \"per-alter ad-hoc fields\" section now ignores the unblend writeback's object-shaped data instead of trying to call .filter() on it — both features keep working, they just don't share the same field name's display surface anymore.",
+      },
+      {
+        type: "fix",
         text: "Alter profile pages now show a readable error screen instead of a blank black page when something throws during render — useful for catching the \"tap a fronting alter and the app crashes\" class of bug. The error message and stack are printed so the issue can be reported and traced.",
       },
       {

@@ -537,7 +537,16 @@ const orderedFields = perAlterOrder
       return (ai === -1 ? 9999 : ai) - (bi === -1 ? 9999 : bi);
     })
   : systemFields;
-const visibleFilled = orderedFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);          const alterSpecific = (alter.alter_custom_fields || []).filter(f => f.value);
+const visibleFilled = orderedFields.filter(f => f.is_visible !== false && customFieldValues[f.id]);
+          // alter_custom_fields can be either an array of ad-hoc
+          // { name, value } records (this tab's UI) or an object
+          // map keyed by CustomField id (Get to know me / Help me
+          // unblend writeback). Guard against the object shape so
+          // .filter() doesn't blow up when the user has used the
+          // unblend writeback path.
+          const alterSpecific = Array.isArray(alter.alter_custom_fields)
+            ? alter.alter_custom_fields.filter(f => f.value)
+            : [];
           if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
           return (
             <div>
