@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker weekly grid: long-press-drag activity selection actually works on touch now. The page no longer scrolls underneath the gesture once the press fires, the selection banner doesn't shift the grid mid-press, and small finger jitter during the half-second hold no longer cancels the press.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid: past / elapsed time cells now render visibly darker than future cells, so the boundary between \"already happened\" and \"upcoming\" is glanceable. The tint sits under logged / scheduled activity blocks, so coloured activities still show through fully.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker weekly grid: long activity labels no longer overlap the next activity's label below them. When a longer activity is followed by another one starting partway through, the long activity's name now stops at the new activity's row instead of bleeding down on top of it.",
       },
       {

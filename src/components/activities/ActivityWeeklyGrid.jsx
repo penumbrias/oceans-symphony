@@ -175,6 +175,12 @@ export default function ActivityWeeklyGrid({
   // to live in.
   const longPressTimerRef = useRef(null);
   const longPressFiredRef = useRef(false);
+  // Touchstart coordinates so the long-press timer can be cancelled
+  // only when the finger actually moves a meaningful distance — tiny
+  // jitter shouldn't kill the press (otherwise drag-select is almost
+  // impossible to trigger on a real touchscreen).
+  const touchStartPosRef = useRef(null);
+  const TOUCH_SLOP_PX = 10;
   const [lifecycleActivity, setLifecycleActivity] = useState(null);
   // Set when a quick-plan chip in the day popup is tapped (not held).
   // Tap → Activity Details (lets the user mark done / edit / delete).
@@ -338,6 +344,7 @@ if (isSameCell) {
     const touch = e.touches[0];
     const key = slotKey(date, hour, minute);
     const pos = clampTooltipPos(touch.clientX, touch.clientY);
+    touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
     tooltipTimerRef.current = setTimeout(() => {
       setHoveredCell({ key, date, hour, minute, position: pos });
     }, 500);
@@ -346,6 +353,20 @@ if (isSameCell) {
   const handleCellTouchEnd = useCallback(() => {
     if (tooltipTimerRef.current) { clearTimeout(tooltipTimerRef.current); tooltipTimerRef.current = null; }
     setHoveredCell(null);
+    touchStartPosRef.current = null;
+  }, []);
+
+  // Returns true when the touch has moved past the slop threshold —
+  // used by cell onTouchMove to decide whether to cancel a long-press
+  // timer. Finger jitter inside ~10 px shouldn't kill the press.
+  const touchMovedBeyondSlop = useCallback((e) => {
+    const start = touchStartPosRef.current;
+    if (!start) return false;
+    const t = e.touches?.[0];
+    if (!t) return false;
+    const dx = t.clientX - start.x;
+    const dy = t.clientY - start.y;
+    return (dx * dx + dy * dy) > (TOUCH_SLOP_PX * TOUCH_SLOP_PX);
   }, []);
 
   // Long-press to open the lifecycle popover. We only arm it when the
@@ -368,7 +389,16 @@ if (isSameCell) {
         // Cell is empty → enter long-press-drag selection mode:
         // start cell is this one, drag end will follow the finger
         // via pointermove until release.
-        if (!addMode) onToggleAddMode?.();
+        //
+        // We deliberately do NOT enable addMode here even though the
+        // two-tap fallback uses it. Toggling addMode mid-press renders
+        // the "Cancel selection" pill + "Start: HH:00" banner above
+        // the grid, which pushes the cell under the finger downward —
+        // the user's finger ends up over a different cell from the
+        // one they pressed, and the drag-select interprets that as
+        // an instant cross-cell drag. We turn addMode on only on
+        // release, and only in the no-drag case (so the user can tap
+        // an end cell using the existing two-tap flow).
         setPendingStart({ date, hour, minute });
         setDragSelectEnd({ date, hour, minute });
         dragSelectActiveRef.current = true;
@@ -426,7 +456,11 @@ if (isSameCell) {
     const isSameCell = isSameDay && startH === endH;
     if (isSameCell) {
       // No drag — leave pendingStart in place so the user can tap
-      // an end cell next (the existing two-tap flow).
+      // an end cell next (the existing two-tap flow). Now is the
+      // safe time to turn addMode on (the press is over, so the
+      // banner appearing won't shift the cell out from under the
+      // user's finger).
+      if (!addMode) onToggleAddMode?.();
       return;
     }
     if (!isSameDay) {
@@ -443,17 +477,27 @@ if (isSameCell) {
       );
     }
     setPendingStart(null);
-  }, [pendingStart, dragSelectEnd, onTimeRangeSelect]);
+  }, [pendingStart, dragSelectEnd, onTimeRangeSelect, addMode, onToggleAddMode]);
 
   useEffect(() => {
     if (!dragSelectActiveRef.current && !dragSelectEnd) return;
     window.addEventListener("pointermove", handleDragSelectPointerMove);
     window.addEventListener("pointerup", handleDragSelectPointerUp);
     window.addEventListener("pointercancel", handleDragSelectPointerUp);
+    // Non-passive touchmove listener: once drag-select is active we
+    // need to call preventDefault on every move event so the browser
+    // doesn't scroll the page underneath us. React's synthetic touch
+    // events are passive by default, which is why this has to live on
+    // the document itself.
+    const blockTouchScroll = (e) => {
+      if (dragSelectActiveRef.current) e.preventDefault();
+    };
+    document.addEventListener("touchmove", blockTouchScroll, { passive: false });
     return () => {
       window.removeEventListener("pointermove", handleDragSelectPointerMove);
       window.removeEventListener("pointerup", handleDragSelectPointerUp);
       window.removeEventListener("pointercancel", handleDragSelectPointerUp);
+      document.removeEventListener("touchmove", blockTouchScroll, { passive: false });
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dragSelectEnd, handleDragSelectPointerMove, handleDragSelectPointerUp]);
@@ -997,18 +1041,33 @@ if (isSameCell) {
                       onPointerCancel={cancelLongPress}
                       onTouchStart={(e) => handleCellTouchStart(e, date, hour, minute)}
                       onTouchEnd={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
-                      onTouchMove={(e) => { handleCellTouchEnd(); if (!dragSelectActiveRef.current) cancelLongPress(); }}
+                      onTouchMove={(e) => {
+                        // Don't kill the long-press for finger jitter
+                        // under TOUCH_SLOP_PX. Once drag-select is
+                        // active we never want to cancel anyway —
+                        // dragging IS the interaction at that point.
+                        if (dragSelectActiveRef.current) return;
+                        if (!touchMovedBeyondSlop(e)) return;
+                        handleCellTouchEnd();
+                        cancelLongPress();
+                      }}
                       data-cell-key={key}
                       ref={(el) => { if (el) registerCellInfo(key, { date, hour, minute }); }}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
-                        ${!hasContent && isPastSlot ? "bg-muted/15" : ""}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
                         ${!hasContent && !addMode ? "hover:bg-muted/20" : ""}
                         ${isExpanded ? "z-10" : ""}
                       `}
                       style={{ minHeight: rowH, height: isExpanded ? "auto" : rowH, userSelect: "none" }}
                     >
+                      {/* Past-time tint — sits behind activity blocks
+                          so logged/scheduled colours stay on top, but
+                          any uncovered portion of a past cell shows as
+                          visibly darker than future cells. */}
+                      {isPastSlot && (
+                        <div className="absolute inset-0 bg-black/40 pointer-events-none" />
+                      )}
                       {highlightActivityId && timed.some(a => a.id === highlightActivityId) && (
                         <div className="absolute inset-0 ring-2 ring-yellow-400 ring-inset pointer-events-none z-20 animate-pulse" />
                       )}
