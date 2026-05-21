@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Get to know me's \"What colour feels most present right now?\" now shows your existing alters' colours as swatches at the top — tap one to pick it. The free-form gradient picker stays below for when you actually want to assign a brand-new colour.",
+      },
+      {
+        type: "improve",
         text: "The \"From Get to know me\" section now also renders directly on the alter's Profile tab (not just the Info tab) so direct answers show up in the same place the old tag pills did. The legacy Tags pill cloud beneath it is now labelled \"legacy — Get to know me no longer writes here\" so it's clear that section is just for cleaning up old data.",
       },
       {

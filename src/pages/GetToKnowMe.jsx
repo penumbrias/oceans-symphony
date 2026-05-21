@@ -529,31 +529,77 @@ export default function GetToKnowMe() {
           </div>
 
           {currentQuestion.kind === "color" && (
-            <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
-              <div className="w-full sm:w-auto">
-                <HexColorPicker color={colorDraft} onChange={setColorDraft} style={{ width: "100%", maxWidth: 280, height: 200 }} />
-              </div>
-              <div className="flex-1 w-full space-y-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-xl border border-border/60 flex-shrink-0 shadow-sm" style={{ backgroundColor: colorDraft }} />
-                  <input
-                    type="text"
-                    value={colorDraft}
-                    onChange={(e) => {
-                      const v = e.target.value;
-                      if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorDraft(v);
-                    }}
-                    className="flex-1 h-10 px-3 rounded-md border border-border bg-background text-sm font-mono"
-                    maxLength={7}
-                  />
+            <div className="space-y-4">
+              {/* Existing alter colours rendered as swatches so the
+                  user can pick "the colour that already belongs to
+                  one of my alters" instead of fiddling with a free-
+                  form gradient. Each swatch's hex feeds the regular
+                  colorDraft / submitAnswer flow underneath. */}
+              {(() => {
+                const seen = new Set();
+                const swatchAlters = (alters || [])
+                  .filter((a) => !a.is_archived && typeof a.color === "string" && /^#[0-9a-fA-F]{6}$/.test(a.color))
+                  .filter((a) => {
+                    const key = a.color.toLowerCase();
+                    if (seen.has(key)) return false;
+                    seen.add(key);
+                    return true;
+                  });
+                if (swatchAlters.length === 0) return null;
+                return (
+                  <div>
+                    <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground mb-2">
+                      Pick from your {terms.alters || "alters"}' colours
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {swatchAlters.map((a) => {
+                        const selected = colorDraft.toLowerCase() === a.color.toLowerCase();
+                        return (
+                          <button
+                            key={a.id}
+                            type="button"
+                            onClick={() => setColorDraft(a.color.toLowerCase())}
+                            title={`${a.name} (${a.color})`}
+                            className={`relative w-10 h-10 rounded-full border-2 transition-transform ${selected ? "scale-110 ring-2 ring-primary ring-offset-2 ring-offset-background" : "border-border/60 hover:scale-105"}`}
+                            style={{ backgroundColor: a.color }}
+                            aria-label={`Pick ${a.name}'s colour ${a.color}`}
+                          />
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <div className="flex flex-col sm:flex-row gap-4 items-center sm:items-start">
+                <div className="w-full sm:w-auto">
+                  <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground mb-2">
+                    Or pick a new colour
+                  </p>
+                  <HexColorPicker color={colorDraft} onChange={setColorDraft} style={{ width: "100%", maxWidth: 280, height: 200 }} />
                 </div>
-                <Button
-                  onClick={() => submitAnswer(colorDraft)}
-                  disabled={!/^#[0-9a-fA-F]{6}$/.test(colorDraft) || saving || selectedAlterIds.length === 0}
-                  className="w-full"
-                >
-                  Save colour to {selectedAlterIds.length || "?"} {selectedAlterIds.length === 1 ? terms.alter || "alter" : terms.alters || "alters"}
-                </Button>
+                <div className="flex-1 w-full space-y-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-12 h-12 rounded-xl border border-border/60 flex-shrink-0 shadow-sm" style={{ backgroundColor: colorDraft }} />
+                    <input
+                      type="text"
+                      value={colorDraft}
+                      onChange={(e) => {
+                        const v = e.target.value;
+                        if (/^#[0-9a-fA-F]{0,6}$/.test(v)) setColorDraft(v);
+                      }}
+                      className="flex-1 h-10 px-3 rounded-md border border-border bg-background text-sm font-mono"
+                      maxLength={7}
+                    />
+                  </div>
+                  <Button
+                    onClick={() => submitAnswer(colorDraft)}
+                    disabled={!/^#[0-9a-fA-F]{6}$/.test(colorDraft) || saving || selectedAlterIds.length === 0}
+                    className="w-full"
+                  >
+                    Save colour to {selectedAlterIds.length || "?"} {selectedAlterIds.length === 1 ? terms.alter || "alter" : terms.alters || "alters"}
+                  </Button>
+                </div>
               </div>
             </div>
           )}
