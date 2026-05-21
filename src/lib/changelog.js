@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Activity Tracker weekly grid: hold an empty cell for half a second to drop the activity-selection start there, then drag your finger to pick the end cell in one gesture. The current target highlights as you drag, releases as the activity's end on touch up. Moving the finger before the half-second elapses cancels (so scrolling doesn't accidentally start a selection).",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid: pinch with two fingers to zoom row heights up or down. Same range as the Display menu's slider (6 – 80 px), live as you pinch.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid hover/long-press popup: each activity row is now tappable and opens that activity's details modal directly, so you don't have to dismiss the popup and find the cell again.",
+      },
+      {
+        type: "improve",
         text: "Long-running fronting sessions (open >48 hours) are no longer silently capped at 48h in analytics. Their full duration is counted as-is; the banner just flags them so you can confirm or close any that aren't actually still active. Your data is yours to interpret — the app's job is to ask, not to rewrite the numbers in the background.",
       },
       {

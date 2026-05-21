@@ -153,6 +153,20 @@ export default function ActivityWeeklyGrid({
   useEffect(() => { lsSet("symphony_act_quick_plans", showQuickPlans); }, [showQuickPlans]);
   const [pendingStart,   setPendingStart]   = useState(null);
   const [hoveredCell,    setHoveredCell]    = useState(null);
+  // Long-press-drag selection state. When the user holds an empty
+  // cell for 500ms, we enter dragSelect mode: pendingStart is set
+  // to the starting cell and dragSelectEnd tracks whichever cell
+  // the finger is currently over via elementFromPoint. On release
+  // we fire onTimeRangeSelect with start → end (or just the start
+  // cell if the user never moved).
+  const [dragSelectEnd, setDragSelectEnd] = useState(null);
+  const dragSelectActiveRef = useRef(false);
+  // Pinch-to-zoom row-height state. Tracks the initial touch
+  // distance and rowH so we can scale proportionally on subsequent
+  // touchmoves. touchAction is set to "none" while active so the
+  // browser doesn't fight us with its own pinch-zoom-page gesture.
+  const pinchStartRef = useRef(null);
+  const pinchActiveRef = useRef(false);
   const lastTapRef     = useRef({ key: "", time: 0 });
   const tooltipTimerRef = useRef(null);
   // Long-press detection for opening the lifecycle popover. We track the
@@ -341,17 +355,26 @@ if (isSameCell) {
   const startLongPress = useCallback((date, hour, minute) => {
     const { timed, logged } = getActivitiesForSlot(date, hour, minute);
     const real = [...timed, ...logged].filter(a => !a._isTask);
-    if (real.length === 0) return;
     if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
     longPressFiredRef.current = false;
     longPressTimerRef.current = setTimeout(() => {
       longPressFiredRef.current = true;
-      // Open on the first activity (most common: one chip per cell).
-      // Multi-activity cells still keep tap-to-open-details available.
       if (navigator.vibrate) try { navigator.vibrate(20); } catch {}
-      setLifecycleActivity(real[0]);
+      if (real.length > 0) {
+        // Cell has an activity → existing behaviour: open lifecycle
+        // popover on the first activity.
+        setLifecycleActivity(real[0]);
+      } else {
+        // Cell is empty → enter long-press-drag selection mode:
+        // start cell is this one, drag end will follow the finger
+        // via pointermove until release.
+        if (!addMode) onToggleAddMode?.();
+        setPendingStart({ date, hour, minute });
+        setDragSelectEnd({ date, hour, minute });
+        dragSelectActiveRef.current = true;
+      }
     }, 500);
-  }, [getActivitiesForSlot]);
+  }, [getActivitiesForSlot, addMode, onToggleAddMode]);
 
   const cancelLongPress = useCallback(() => {
     if (longPressTimerRef.current) {
@@ -359,6 +382,101 @@ if (isSameCell) {
       longPressTimerRef.current = null;
     }
   }, []);
+
+  // Inline cell <-> info lookup keyed by `slotKey`. Set via data
+  // attribute on each cell so elementFromPoint can resolve which
+  // cell a touch is currently over during a drag-select.
+  const cellInfoRef = useRef(new Map());
+  const registerCellInfo = useCallback((key, info) => {
+    cellInfoRef.current.set(key, info);
+  }, []);
+
+  // Window-level pointermove + pointerup during a long-press-drag
+  // selection. Reads the cell under the pointer via
+  // elementFromPoint so we don't depend on per-cell pointerenter
+  // (which doesn't fire during touch when the original element
+  // has the pointer captured).
+  const handleDragSelectPointerMove = useCallback((e) => {
+    if (!dragSelectActiveRef.current) return;
+    const x = e.clientX ?? e.touches?.[0]?.clientX;
+    const y = e.clientY ?? e.touches?.[0]?.clientY;
+    if (x == null || y == null) return;
+    const el = document.elementFromPoint(x, y);
+    if (!el) return;
+    const cell = el.closest("[data-cell-key]");
+    if (!cell) return;
+    const info = cellInfoRef.current.get(cell.getAttribute("data-cell-key"));
+    if (!info) return;
+    setDragSelectEnd((prev) => {
+      if (prev && prev.date.toDateString() === info.date.toDateString()
+        && prev.hour === info.hour && prev.minute === info.minute) return prev;
+      return info;
+    });
+  }, []);
+  const handleDragSelectPointerUp = useCallback(() => {
+    if (!dragSelectActiveRef.current) return;
+    dragSelectActiveRef.current = false;
+    const start = pendingStart;
+    const end = dragSelectEnd || start;
+    setDragSelectEnd(null);
+    if (!start) return;
+    const startH = start.hour + start.minute / 60;
+    const endH = (end.hour ?? start.hour) + (end.minute ?? start.minute) / 60;
+    const isSameDay = format(start.date, "yyyy-MM-dd") === format(end.date, "yyyy-MM-dd");
+    const isSameCell = isSameDay && startH === endH;
+    if (isSameCell) {
+      // No drag — leave pendingStart in place so the user can tap
+      // an end cell next (the existing two-tap flow).
+      return;
+    }
+    if (!isSameDay) {
+      onTimeRangeSelect(start.date, start.hour, end.hour, start.minute, end.minute, end.date);
+    } else {
+      const forward = startH <= endH;
+      onTimeRangeSelect(
+        start.date,
+        forward ? start.hour : end.hour,
+        forward ? end.hour : start.hour,
+        forward ? start.minute : end.minute,
+        forward ? end.minute : start.minute,
+        start.date,
+      );
+    }
+    setPendingStart(null);
+  }, [pendingStart, dragSelectEnd, onTimeRangeSelect]);
+
+  useEffect(() => {
+    if (!dragSelectActiveRef.current && !dragSelectEnd) return;
+    window.addEventListener("pointermove", handleDragSelectPointerMove);
+    window.addEventListener("pointerup", handleDragSelectPointerUp);
+    window.addEventListener("pointercancel", handleDragSelectPointerUp);
+    return () => {
+      window.removeEventListener("pointermove", handleDragSelectPointerMove);
+      window.removeEventListener("pointerup", handleDragSelectPointerUp);
+      window.removeEventListener("pointercancel", handleDragSelectPointerUp);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dragSelectEnd, handleDragSelectPointerMove, handleDragSelectPointerUp]);
+
+  // Helper: is this cell inside the current long-press-drag range?
+  const isInDragRange = useCallback((date, hour, minute) => {
+    if (!pendingStart || !dragSelectEnd) return false;
+    const startStr = format(pendingStart.date, "yyyy-MM-dd");
+    const endStr = format(dragSelectEnd.date, "yyyy-MM-dd");
+    const curStr = format(date, "yyyy-MM-dd");
+    if (startStr !== endStr) {
+      // Cross-day range: include start day, end day, and any days
+      // between. For each contained day, the whole column counts
+      // up to the boundary cells.
+      if (curStr < Math.min(startStr, endStr) || curStr > Math.max(startStr, endStr)) return false;
+      return true;
+    }
+    if (curStr !== startStr) return false;
+    const cur = hour + minute / 60;
+    const a = pendingStart.hour + pendingStart.minute / 60;
+    const b = dragSelectEnd.hour + dragSelectEnd.minute / 60;
+    return cur >= Math.min(a, b) && cur <= Math.max(a, b);
+  }, [pendingStart, dragSelectEnd]);
 
   return (
     <div className="space-y-2">
@@ -497,32 +615,42 @@ if (isSameCell) {
 
         return (
           <div
-            className="fixed z-50 pointer-events-none w-max max-w-[280px]"
+            className="fixed z-50 w-max max-w-[280px]"
             style={{ left: position.x, top: position.y }}
           >
             <div className="bg-card/95 backdrop-blur-sm border border-border shadow-xl rounded-lg p-3 space-y-2 text-xs">
-              <p className="text-muted-foreground font-medium">{format(date, "EEE d MMM")} · {timeRange}</p>
+              <p className="text-muted-foreground font-medium pointer-events-none">{format(date, "EEE d MMM")} · {timeRange}</p>
 
               {timed.map(a => (
-                <div key={a.id} className="space-y-0.5">
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => { setHoveredCell(null); setDetailsActivity(a); }}
+                  className="block w-full text-left space-y-0.5 -mx-1 px-1 py-0.5 rounded hover:bg-muted/40"
+                >
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getActivityColor(a) }} />
                     <span className="font-semibold text-foreground">{a.activity_name}</span>
                     {a.duration_minutes && <span className="text-muted-foreground ml-auto">{a.duration_minutes}m</span>}
                   </div>
                   {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
-                </div>
+                </button>
               ))}
 
               {allLogged.map(a => (
-                <div key={a.id} className="space-y-0.5">
+                <button
+                  type="button"
+                  key={a.id}
+                  onClick={() => { setHoveredCell(null); setDetailsActivity(a); }}
+                  className="block w-full text-left space-y-0.5 -mx-1 px-1 py-0.5 rounded hover:bg-muted/40"
+                >
                   <div className="flex items-center gap-1.5">
                     <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: getActivityColor(a) }} />
                     <span className="font-semibold text-foreground">{a.activity_name}</span>
                     <span className="text-muted-foreground ml-1 opacity-70">· logged</span>
                   </div>
                   {a.notes && <p className="text-muted-foreground italic pl-4 leading-snug">{a.notes}</p>}
-                </div>
+                </button>
               ))}
 
               {emotions.length > 0 && (
@@ -561,7 +689,35 @@ if (isSameCell) {
       })()}
 
       {/* Grid */}
-      <div className="border border-border rounded-lg overflow-hidden flex" style={{ maxWidth: "100vw" }}>
+      <div
+        className="border border-border rounded-lg overflow-hidden flex"
+        style={{ maxWidth: "100vw", touchAction: pinchActiveRef.current ? "none" : undefined }}
+        onTouchStart={(e) => {
+          if (e.touches.length === 2) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            pinchStartRef.current = { dist: Math.hypot(dx, dy), startRowH: rowH };
+            pinchActiveRef.current = true;
+          }
+        }}
+        onTouchMove={(e) => {
+          if (e.touches.length === 2 && pinchStartRef.current) {
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            const dist = Math.hypot(dx, dy);
+            const ratio = dist / pinchStartRef.current.dist;
+            const next = Math.max(6, Math.min(80, Math.round(pinchStartRef.current.startRowH * ratio)));
+            setRowH(next);
+            e.preventDefault();
+          }
+        }}
+        onTouchEnd={(e) => {
+          if (e.touches.length < 2) {
+            pinchStartRef.current = null;
+            pinchActiveRef.current = false;
+          }
+        }}
+      >
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
           <div style={{ height: HEADER_H, minHeight: HEADER_H }} className="border-b border-border" />
@@ -821,7 +977,9 @@ if (isSameCell) {
                       onPointerCancel={cancelLongPress}
                       onTouchStart={(e) => handleCellTouchStart(e, date, hour, minute)}
                       onTouchEnd={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
-                      onTouchMove={(e) => { handleCellTouchEnd(); cancelLongPress(); }}
+                      onTouchMove={(e) => { handleCellTouchEnd(); if (!dragSelectActiveRef.current) cancelLongPress(); }}
+                      data-cell-key={key}
+                      ref={(el) => { if (el) registerCellInfo(key, { date, hour, minute }); }}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
                         ${timedContinues ? "" : "border-b border-border/40"}
                         ${!hasContent && isPastSlot ? "bg-muted/15" : ""}
@@ -836,6 +994,9 @@ if (isSameCell) {
                       )}
                       {isPending && (
                         <div className="absolute inset-0 ring-2 ring-primary ring-inset pointer-events-none z-20" />
+                      )}
+                      {isInDragRange(date, hour, minute) && !isPending && (
+                        <div className="absolute inset-0 bg-primary/20 ring-1 ring-primary/60 ring-inset pointer-events-none z-20" />
                       )}
 
                       {timed.length > 0 && (
