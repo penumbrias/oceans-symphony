@@ -88,17 +88,20 @@ export default function Settings() {
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
 
+  // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
+  // Profile is anchored at the top because the user said so, then the
+  // surfaces people change most (look & feel, notifications, accessibility)
+  // come before the heavier customisation pages (alter setup, tracking
+  // setup) and the rarely-touched trailing stuff (data & privacy, about).
   const SECTIONS = [
     { id: "system", label: "Profile", icon: "⚙️" },
     { id: "appearance", label: "Appearance", icon: "🎨" },
-    { id: "accessibility", label: "Accessibility", icon: "♿" },
-    { id: "alters", label: `${terms.Alters} & Fields`, icon: "👥" },
-    { id: "checkin", label: "Tracking & Analytics", icon: "⚡" },
     { id: "notifications", label: "Notifications & reminders", icon: "🔔" },
-    { id: "data", label: "Data & Privacy", icon: "💾" },
-    { id: "disclaimer", label: "Disclaimer", icon: "⚠️" },
-    { id: "bug-report", label: "Report a Bug", icon: "🐛" },
-    { id: "updates", label: "Recent Updates", icon: "📋" },
+    { id: "accessibility", label: "Accessibility", icon: "♿" },
+    { id: "alters", label: `${terms.Alter} setup`, icon: "👥" },
+    { id: "checkin", label: "Tracking setup", icon: "⚡" },
+    { id: "data", label: "Data & privacy", icon: "💾" },
+    { id: "about", label: "About & help", icon: "ℹ️" },
   ];
 
   const { data: alters = [] } = useQuery({
@@ -384,13 +387,23 @@ export default function Settings() {
           <NavigationSettings settings={settings} />
         </Section>
 
+        {/* ── NOTIFICATIONS & REMINDERS ── */}
+        <Section id="notifications" icon="🔔" label="Notifications & reminders">
+          <div className="space-y-6">
+            <NotificationSettings />
+            <div className="pt-4 border-t border-border/40">
+              <RemindersSettings />
+            </div>
+          </div>
+        </Section>
+
         {/* ── ACCESSIBILITY ── */}
         <Section id="accessibility" icon="♿" label="Accessibility">
           <AccessibilitySettings />
         </Section>
 
-        {/* ── ALTERS & FIELDS ── */}
-        <Section id="alters" icon="👥" label={`${terms.Alters} & Fields`}>
+        {/* ── ALTER SETUP ── */}
+        <Section id="alters" icon="👥" label={`${terms.Alter} setup`}>
           <CustomFieldsManager />
           <div className="border-t border-border/30 pt-4">
             <RelationshipTypesManager />
@@ -400,8 +413,8 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── TRACKING & ANALYTICS ── */}
-        <Section id="checkin" icon="⚡" label="Tracking & Analytics">
+        {/* ── TRACKING SETUP ── */}
+        <Section id="checkin" icon="⚡" label="Tracking setup">
           <QuickActionsConfig />
           <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
@@ -462,22 +475,8 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── NOTIFICATIONS & REMINDERS ── */}
-        <Section id="notifications" icon="🔔" label="Notifications & reminders">
-          <div className="space-y-6">
-            <NotificationSettings />
-            <div className="pt-4 border-t border-border/40">
-              <RemindersSettings />
-            </div>
-          </div>
-        </Section>
-
-        <Section id="preview" icon="👁️" label="Preview Mode">
-          <PreviewModeSection />
-        </Section>
-
         {/* ── DATA & PRIVACY ── */}
-        <Section id="data" icon="💾" label="Data & Privacy">
+        <Section id="data" icon="💾" label="Data & privacy">
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
@@ -507,26 +506,46 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── DISCLAIMER ── */}
-        <Section id="disclaimer" icon="⚠️" label="Disclaimer" defaultOpen={false}>
-          <MedicalDisclaimer />
-        </Section>
+        {/* ── ABOUT & HELP ──
+            Consolidates the four trailing sub-pages (medical
+            disclaimer, recent updates, bug report, dev preview mode)
+            into one collapsed group so the TOC isn't dominated by
+            rarely-touched links. */}
+        <Section id="about" icon="ℹ️" label="About & help">
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                What's new
+              </p>
+              <RecentUpdates />
+            </div>
 
-        {/* ── BUG REPORT ── */}
-        <Section id="bug-report" icon="🐛" label="Report a Bug" defaultOpen={false}>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Found something broken? Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
-            </p>
-            <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
-              <span>🐛</span> Open bug report form
-            </Button>
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Found a bug?
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+                Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
+              </p>
+              <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
+                <span>🐛</span> Open bug report form
+              </Button>
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Medical disclaimer
+              </p>
+              <MedicalDisclaimer />
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Preview mode <span className="text-[0.625rem] font-normal text-muted-foreground/70 normal-case ml-1">(dev)</span>
+              </p>
+              <PreviewModeSection />
+            </div>
           </div>
-        </Section>
-
-        {/* ── RECENT UPDATES ── */}
-        <Section id="updates" icon="📋" label="Recent Updates" defaultOpen={false}>
-          <RecentUpdates />
         </Section>
 
       </div>

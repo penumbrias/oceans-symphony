@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings page restructured: 11 top-level sections collapsed down to 8, reordered so commonly-tweaked things (notifications, accessibility) sit higher and the rarely-touched stuff (disclaimer, updates, bug report, preview mode) folds into a single \"About & help\" section at the bottom. Section labels are cleaner: \"Alters & Fields\" → \"Alter setup\", \"Tracking & Analytics\" → \"Tracking setup\". Profile stays first.",
+      },
+      {
+        type: "improve",
         text: "Settings page is shorter to scroll: only one section opens at a time now (an accordion), so picking a section auto-closes the others. Reminders moved into the Notifications & toasts section (renamed \"Notifications & reminders\") so related controls live together.",
       },
       {
