@@ -143,7 +143,7 @@ const SystemMap = ({ relationships = [] }) => {
       const start = Math.max(s.startMs, fromMs);
       const end = s.endMs != null
         ? Math.min(s.endMs, toMs)
-        : (s.isStale ? Math.min(s.startMs + 48 * 60 * 60 * 1000, toMs) : Math.min(now, toMs));
+        : Math.min(now, toMs);
       return { s, start, end };
     });
     for (const slice of slices) {

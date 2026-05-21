@@ -98,9 +98,7 @@ export function computeAlterFrontingTotals(sessions, alters, range) {
     const start = Math.max(s.startMs, range.fromMs);
     const end = s.endMs != null
       ? Math.min(s.endMs, range.toMs)
-      : (s.isStale
-          ? Math.min(s.startMs + 48 * 60 * 60 * 1000, range.toMs)
-          : Math.min(range.now, range.toMs));
+      : Math.min(range.now, range.toMs);
     const dur = Math.max(0, end - start);
     if (dur <= 0) continue;
     for (const id of s.alterIds) {

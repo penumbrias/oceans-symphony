@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Long-running fronting sessions (open >48 hours) are no longer silently capped at 48h in analytics. Their full duration is counted as-is; the banner just flags them so you can confirm or close any that aren't actually still active. Your data is yours to interpret — the app's job is to ask, not to rewrite the numbers in the background.",
+      },
+      {
+        type: "feature",
+        text: "Chat reply chip now has a Discord-style @ ON / OFF toggle. When ON (default), replying to a message mentions the alter being replied to so they get a notification; tap to mute the reply so it doesn't ping. Tapping the notification routes back to the reply in the channel.",
+      },
+      {
         type: "fix",
         text: "System Structure Map node sizing + co-fronting distances are correct again. The map was still using the legacy \"unclosed session counts to right now\" math the analytics rework already killed elsewhere, so every alter ended up about the same size (one stale-open session inflated everyone's totals equally). Now goes through the shared session normaliser like the rest of analytics.",
       },
