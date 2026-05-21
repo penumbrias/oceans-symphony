@@ -651,7 +651,12 @@ export default function GetToKnowMe() {
             </div>
           )}
 
-          {currentQuestion.kind === "field_input" && (
+          {currentQuestion.kind === "field_input" && (() => {
+            // Match the custom field's defined type so the input
+            // control feels like a continuation of the Info tab,
+            // not a generic text box for every field.
+            const fieldType = currentQuestion.fieldType || "text";
+            return (
             <div className="space-y-3">
               {existingFieldValues.length > 0 && (
                 <div className="rounded-lg border border-border/40 bg-muted/20 p-2 space-y-1">
@@ -669,7 +674,7 @@ export default function GetToKnowMe() {
                   </p>
                 </div>
               )}
-              {currentQuestion.options.length > 0 && (
+              {fieldType !== "boolean" && currentQuestion.options.length > 0 && (
                 <div className="flex flex-wrap gap-2 max-h-32 overflow-y-auto pr-1">
                   {currentQuestion.options.map((opt) => (
                     <button
@@ -688,26 +693,63 @@ export default function GetToKnowMe() {
                   ))}
                 </div>
               )}
-              <div className="flex gap-2">
-                <Input
-                  value={textDraft}
-                  onChange={(e) => setTextDraft(e.target.value)}
-                  placeholder={
-                    currentQuestion.options.length > 0
-                      ? "…or type a different answer"
-                      : "Type your answer"
-                  }
-                  className="flex-1"
-                />
-                <Button
-                  onClick={() => submitAnswer(textDraft)}
-                  disabled={!textDraft.trim() || saving || selectedAlterIds.length === 0}
-                >
-                  Save &amp; next
-                </Button>
-              </div>
+
+              {/* Boolean: two big buttons, no text input. Stored as
+                  the string "true" / "false" to match what InfoTab
+                  reads when rendering Yes/No. */}
+              {fieldType === "boolean" ? (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => submitAnswer("true")}
+                    disabled={saving || selectedAlterIds.length === 0}
+                    className="flex-1"
+                  >
+                    Yes &amp; next
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => submitAnswer("false")}
+                    disabled={saving || selectedAlterIds.length === 0}
+                    className="flex-1"
+                  >
+                    No &amp; next
+                  </Button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Input
+                    type={fieldType === "number" ? "number" : "text"}
+                    inputMode={fieldType === "number" ? "decimal" : undefined}
+                    value={textDraft}
+                    onChange={(e) => setTextDraft(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && textDraft.trim() && selectedAlterIds.length > 0 && !saving) {
+                        e.preventDefault();
+                        submitAnswer(textDraft);
+                      }
+                    }}
+                    placeholder={
+                      fieldType === "list"
+                        ? "Comma-separate items — each is matched individually"
+                        : fieldType === "number"
+                          ? "Type a number"
+                          : currentQuestion.options.length > 0
+                            ? "…or type a different answer"
+                            : "Type your answer"
+                    }
+                    className="flex-1"
+                  />
+                  <Button
+                    onClick={() => submitAnswer(textDraft)}
+                    disabled={!textDraft.trim() || saving || selectedAlterIds.length === 0}
+                  >
+                    Save &amp; next
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
+            );
+          })()}
         </section>
       )}
 

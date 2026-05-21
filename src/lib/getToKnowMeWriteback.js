@@ -73,20 +73,18 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       // User-data invariant: never silently overwrite. For both list
       // AND text fields, fold the new value into a comma-separated
       // sequence so prior answers are preserved. Dedupes case-
-      // insensitively. A boolean / yes-no field still replaces (the
-      // value is the entire field).
+      // insensitively. Boolean / yes-no and number fields still
+      // replace (the value is the entire field — comma-joining
+      // booleans or numbers reads as garbage in the Info tab).
       for (const id of alterIds) {
         let alter = byId[id];
         if (!alter) continue;
-        // Lazy migrate any pre-existing object-shape data on
-        // alter_custom_fields into alter.custom_fields so the
-        // writeback below merges cleanly.
         alter = await migrateAlterCustomFieldsObject(alter);
         const map = { ...(alter.custom_fields || {}) };
         const prev = typeof map[fieldId] === "string" ? map[fieldId] : "";
         let next;
         const fieldType = fieldDef?.field_type;
-        if (fieldType === "boolean") {
+        if (fieldType === "boolean" || fieldType === "number") {
           next = raw;
         } else {
           const items = prev ? prev.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [];
