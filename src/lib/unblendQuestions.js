@@ -92,7 +92,7 @@ export const PRESET_QUESTIONS = [
       { id: "low",   label: "Low / heavy",    tags: ["low-energy", "depressed", "tired", "shut-down"] },
       { id: "anxious", label: "Anxious / jittery", tags: ["anxious", "hypervigilant", "scared"] },
     ],
-    score: (alter, ans) => matchTags(alter, ans?.tags),
+    score: (alter, ans) => matchAnswer(alter, ans),
   },
   {
     id: "age_range",
@@ -124,7 +124,7 @@ export const PRESET_QUESTIONS = [
       { id: "both",  label: "Both / mixed", tags: [] },
       { id: "numb",  label: "Numb / neither", tags: ["numb", "dissociated", "shut-down"] },
     ],
-    score: (alter, ans) => matchTags(alter, ans?.tags),
+    score: (alter, ans) => matchAnswer(alter, ans),
   },
   // NOTE: The dominant-feeling question used to live here as a
   // static curated list. It's now generated dynamically from the
@@ -146,9 +146,9 @@ export const PRESET_QUESTIONS = [
     ],
     score: (alter, ans) => {
       if (!ans || ans.skipScoring) return 0;
-      const fromTags = matchTags(alter, ans?.tags);
+      const fromAnswer = matchAnswer(alter, ans);
       const fromRole = matchRole(alter, ans?.roles);
-      return Math.max(fromTags, fromRole);
+      return Math.max(fromAnswer, fromRole);
     },
   },
 ];
@@ -550,6 +550,24 @@ export function instantiateUserQuestion(userQ, { alters, customFields = [] } = {
 
 // Generic matchers. Each returns a number in roughly the range
 // [ANSWER_PENALTY * 0.5, ANSWER_DELTA].
+// Match against either the user's literal answer label (new
+// writes from Get to know me — single label string) OR the
+// option's inferred multi-tag bag (legacy writes that pre-date
+// the "store only what the user actually said" fix). Returns
+// the better of the two scores so an alter with old-style data
+// still gets credit without us having to write more inferred
+// tags to fix things.
+function matchAnswer(alter, ans) {
+  if (!ans) return 0;
+  const literal = ans.label
+    ? matchTags(alter, [ans.label])
+    : 0;
+  const inferred = Array.isArray(ans.tags) && ans.tags.length > 0
+    ? matchTags(alter, ans.tags)
+    : 0;
+  return Math.max(literal, inferred);
+}
+
 function matchTags(alter, wantedTags) {
   if (!Array.isArray(wantedTags) || wantedTags.length === 0) return 0;
   const alterTags = collectTags(alter).map((t) => t.toLowerCase());
