@@ -71,6 +71,7 @@ import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
+import { CornerModeApplier } from '@/lib/useCornerMode';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
@@ -137,7 +138,9 @@ const AuthenticatedApp = () => {
   }
 
   return (
-    <Routes>
+    <>
+      <CornerModeApplier />
+      <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
         <Route path="/Dashboard" element={<Navigate to="/" replace />} />
@@ -175,7 +178,8 @@ const AuthenticatedApp = () => {
         <Route path="/friends" element={<FriendsPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
-    </Routes>
+      </Routes>
+    </>
   );
 };
 

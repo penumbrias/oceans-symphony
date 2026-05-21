@@ -231,3 +231,30 @@ html.a11y-high-contrast {
 .bulletin-prose ol { padding-left: 1.4em; margin: .25em 0; }
 .bulletin-prose li { margin: .15em 0; }
 .bulletin-prose a { color: hsl(var(--primary)); text-decoration: underline; }
+
+/* Corner-mode toggle (Settings → Appearance → Corner style). When the
+ * user picks "Sharp" we zero out every Tailwind rounded-* class via a
+ * data attribute on <html>. .rounded-full is explicitly preserved so
+ * avatars, circular badges, and other elements that derive their
+ * identity from being round stay round — squaring those would look
+ * broken, not stylish. Inline border-radius set via the style="…"
+ * prop is left alone too (those are usually intentional one-offs).
+ */
+html[data-corner-mode="sharp"] .rounded,
+html[data-corner-mode="sharp"] .rounded-sm,
+html[data-corner-mode="sharp"] .rounded-md,
+html[data-corner-mode="sharp"] .rounded-lg,
+html[data-corner-mode="sharp"] .rounded-xl,
+html[data-corner-mode="sharp"] .rounded-2xl,
+html[data-corner-mode="sharp"] .rounded-3xl,
+html[data-corner-mode="sharp"] [class*="rounded-t-"],
+html[data-corner-mode="sharp"] [class*="rounded-b-"],
+html[data-corner-mode="sharp"] [class*="rounded-l-"],
+html[data-corner-mode="sharp"] [class*="rounded-r-"],
+html[data-corner-mode="sharp"] [class*="rounded-tl-"],
+html[data-corner-mode="sharp"] [class*="rounded-tr-"],
+html[data-corner-mode="sharp"] [class*="rounded-bl-"],
+html[data-corner-mode="sharp"] [class*="rounded-br-"] {
+  border-radius: 0 !important;
+}
+
