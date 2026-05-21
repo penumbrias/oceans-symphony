@@ -373,10 +373,23 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
     return { cleanText: cleanText.trim(), authorAlterIds: ids };
   };
 
-  const handleSend = async ({ content, speakerIds }) => {
+  const handleSend = async ({ content, speakerIds, notifyOnReply }) => {
     const { cleanText, authorAlterIds } = resolveAuthors(content, speakerIds);
     if (!cleanText) return;
     const mentionedIds = extractMentionedIds(cleanText, alters);
+    // When replying with the "@ ON" toggle, treat every alter the
+    // reply targets as a mention so they get a notification (the
+    // signposted reply preview makes it obvious who's being
+    // pinged). Discord-style behaviour. Skip when the toggle is
+    // off, or when there's no reply, or when the same alter is
+    // also the message author (don't notify yourself).
+    const replyAuthorIds = replyTo && notifyOnReply
+      ? (Array.isArray(replyTo.author_alter_ids) && replyTo.author_alter_ids.length > 0
+          ? replyTo.author_alter_ids
+          : (replyTo.author_alter_id ? [replyTo.author_alter_id] : []))
+        .filter((id) => id && !authorAlterIds.includes(id))
+      : [];
+    const allMentionedIds = [...new Set([...mentionedIds, ...replyAuthorIds])];
     const created = await localEntities.SystemChatMessage.create({
       channel_id: channel.id,
       author_alter_id: authorAlterIds[0] || null,
@@ -386,7 +399,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
       edited_at: null,
       deleted_at: null,
       reply_to_id: replyTo?.id || null,
-      mentioned_alter_ids: mentionedIds,
+      mentioned_alter_ids: allMentionedIds,
       reactions: {},
       thread_parent_id: null,
       is_pinned: false,
@@ -416,6 +429,26 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
         navigatePath: `/chat?channel=${channel.id}`,
         authorAlterId: authorAlterIds[0] || null,
       });
+      // Reply-notify rows: when "@ ON" was set on the reply chip,
+      // log a mention for each replied-to alter that wasn't
+      // already @mentioned in the body, so they show up in
+      // notifications even if the author didn't type @name.
+      for (const id of replyAuthorIds) {
+        if (mentionedIds.includes(id)) continue;
+        try {
+          await base44.entities.MentionLog.create({
+            mentioned_alter_id: id,
+            author_alter_id: authorAlterIds[0] || null,
+            log_type: "mention",
+            source_type: "chat",
+            source_id: created.id,
+            source_label: `#${channel.name}`,
+            source_date: new Date().toISOString(),
+            preview_text: cleanText.slice(0, 120),
+            navigate_path: `/chat?channel=${channel.id}`,
+          });
+        } catch { /* non-fatal */ }
+      }
     } catch { /* mention log is best-effort; don't block send */ }
   };
 
@@ -648,6 +681,15 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
 
+  // Reply-notify toggle (Discord's "@ ON / OFF" on the reply chip).
+  // Defaults to ON each time a new reply target is selected so the
+  // common case — replying TO someone wanting them to see it —
+  // doesn't require an extra tap.
+  const [notifyOnReply, setNotifyOnReply] = useState(true);
+  useEffect(() => {
+    if (replyTo) setNotifyOnReply(true);
+  }, [replyTo?.id]);
+
   // Inline-autocomplete state, ported from BulletinComposer.
   const textareaRef = useRef(null);
   const [showMentions, setShowMentions] = useState(false);
@@ -770,7 +812,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
-    await onSend({ content: text, speakerIds });
+    await onSend({ content: text, speakerIds, notifyOnReply });
     setText("");
   };
 
@@ -788,6 +830,21 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
             {replyAuthors.map((a) => formatAlter(a)).join(", ")}
           </span>
           <span className="text-muted-foreground truncate flex-1">{(replyTo.content || "").slice(0, 60)}</span>
+          <button
+            type="button"
+            onClick={() => setNotifyOnReply((v) => !v)}
+            aria-pressed={notifyOnReply}
+            title={notifyOnReply
+              ? `Reply will mention ${replyAuthors.map((a) => formatAlter(a)).join(", ")} — tap to mute`
+              : "Reply won't notify anyone — tap to enable mention"}
+            className={`inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-md text-[0.625rem] font-semibold uppercase tracking-wide transition-colors ${
+              notifyOnReply
+                ? "bg-primary/15 text-primary hover:bg-primary/25"
+                : "bg-muted/40 text-muted-foreground hover:bg-muted/60"
+            }`}
+          >
+            @ {notifyOnReply ? "on" : "off"}
+          </button>
           <button onClick={onCancelReply} aria-label="Cancel reply" className="p-0.5 text-muted-foreground hover:text-foreground">
             <X className="w-3 h-3" />
           </button>

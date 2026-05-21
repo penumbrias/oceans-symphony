@@ -33,11 +33,11 @@
 const HOUR_MS = 60 * 60 * 1000;
 const DAY_MS = 24 * HOUR_MS;
 
-// An open session older than this is assumed forgotten — its
-// duration past this point is not counted toward any total. Set
-// generously so legitimate long-running sessions (e.g. someone
-// who left the app open overnight without closing) still count
-// for their first day.
+// Open sessions older than this are flagged via `isStale` so the
+// UI can surface them for review. We do NOT silently truncate
+// their duration any more — the user's data is the user's to
+// interpret, the app's job is to ask "is this right?" rather
+// than rewriting their numbers in the background.
 export const STALE_OPEN_SESSION_HOURS = 48;
 
 function toMs(v) {
@@ -126,21 +126,17 @@ export function normalizeSessions(rawList = [], now = Date.now()) {
 
 /**
  * Effective end of a session inside a [fromMs, toMs] window.
- * Stale open sessions are dropped at fromMs of staleness — they
- * don't keep accruing duration. For non-stale open sessions,
- * effective end is min(now, toMs).
+ * Open sessions extend to min(now, toMs) — we don't truncate
+ * stale (>48h) ones any more, only flag them via `isStale` so
+ * the UI can show a "looks forgotten — review?" banner. The
+ * user is the one who decides whether the long duration is
+ * accurate; the app no longer silently rewrites it.
  *
  * Returns null when the session doesn't intersect the window at all.
  */
 export function effectiveEnd(session, fromMs, toMs, now = Date.now()) {
   if (!session) return null;
   if (session.endMs != null) return Math.min(session.endMs, toMs);
-  if (session.isStale) {
-    // Cap at the staleness boundary so a forgotten-open session
-    // contributes its first STALE_OPEN_SESSION_HOURS only.
-    const cap = session.startMs + STALE_OPEN_SESSION_HOURS * HOUR_MS;
-    return Math.min(cap, toMs);
-  }
   return Math.min(now, toMs);
 }
 

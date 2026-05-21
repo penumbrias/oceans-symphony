@@ -51,9 +51,10 @@ const MODES = [
 // Per-alter totals computed via a sweep-line over normalised
 // sessions (see /src/lib/sessionNormalizer.js). Single pass, no
 // double counting, no `?? Date.now()` leakage past the range end.
-// Unclosed sessions older than STALE_OPEN_SESSION_HOURS contribute
-// at most that bound — anything beyond is treated as a forgotten
-// session.
+// Unclosed sessions older than STALE_OPEN_SESSION_HOURS are still
+// counted in full (their duration is the user's data to interpret,
+// not ours to silently truncate) but get flagged via `stale` so the
+// Analytics banner can prompt the user to review them.
 //
 // For every alter:
 //   total       = solo + cofronting (effective active time inside
@@ -109,9 +110,7 @@ function computeStats(sessions, alters, from, to) {
     const start = Math.max(s.startMs, fromMs);
     const end = s.endMs != null
       ? Math.min(s.endMs, toMs)
-      : (s.isStale
-          ? Math.min(s.startMs + 48 * 60 * 60 * 1000, toMs)
-          : Math.min(now, toMs));
+      : Math.min(now, toMs);
     const dur = Math.max(0, end - start);
     if (dur <= 0) continue;
     for (const id of s.alterIds) {
@@ -431,7 +430,7 @@ export default function Analytics() {
                 >
                   <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
                   <p className="text-foreground/90 flex-1">
-                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours and look forgotten. Their duration is capped at 48h in these stats. <span className="font-medium text-primary">Tap to review →</span>
+                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours. Their full duration is counted in these stats — review and confirm or close any that aren't actually still active. <span className="font-medium text-primary">Tap to review →</span>
                   </p>
                 </button>
               )}

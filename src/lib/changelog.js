@@ -17,6 +17,34 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Activity Tracker weekly grid: hold an empty cell for half a second to drop the activity-selection start there, then drag your finger to pick the end cell in one gesture. The current target highlights as you drag, releases as the activity's end on touch up. Moving the finger before the half-second elapses cancels (so scrolling doesn't accidentally start a selection).",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid: pinch with two fingers to zoom row heights up or down. Same range as the Display menu's slider (6 – 80 px), live as you pinch.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker weekly grid hover/long-press popup: each activity row is now tappable and opens that activity's details modal directly, so you don't have to dismiss the popup and find the cell again.",
+      },
+      {
+        type: "improve",
+        text: "Long-running fronting sessions (open >48 hours) are no longer silently capped at 48h in analytics. Their full duration is counted as-is; the banner just flags them so you can confirm or close any that aren't actually still active. Your data is yours to interpret — the app's job is to ask, not to rewrite the numbers in the background.",
+      },
+      {
+        type: "feature",
+        text: "Chat reply chip now has a Discord-style @ ON / OFF toggle. When ON (default), replying to a message mentions the alter being replied to so they get a notification; tap to mute the reply so it doesn't ping. Tapping the notification routes back to the reply in the channel.",
+      },
+      {
+        type: "fix",
+        text: "System Structure Map node sizing + co-fronting distances are correct again. The map was still using the legacy \"unclosed session counts to right now\" math the analytics rework already killed elsewhere, so every alter ended up about the same size (one stale-open session inflated everyone's totals equally). Now goes through the shared session normaliser like the rest of analytics.",
+      },
+      {
+        type: "fix",
+        text: "The Alters page grid + the row-style alter cards now respect your Settings → Appearance → Alter labels preference (Display name / Alias only / Both). They were hard-coded to alias-first regardless of the toggle.",
+      },
+      {
+        type: "improve",
         text: "Get to know me custom-field questions now use the same input type the custom field was defined with — Yes/No fields show two buttons (no more typing \"yes\"), Number fields show a number keypad, List fields hint to comma-separate items. Text fields stay as a plain text input. Boolean and number answers replace prior values; text and list still append + dedupe.",
       },
       {

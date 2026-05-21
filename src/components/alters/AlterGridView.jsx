@@ -6,8 +6,10 @@ import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
 function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, anonymize = "off" }) {
+  const formatAlter = useAlterLabel();
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
   // malformed alter doesn't render as a blank uncoloured tile next
@@ -55,7 +57,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
             className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${sizeClass} ${anonymize === "all" ? "blur-sm" : ""}`}
           >
             <span className="text-xs font-semibold text-muted-foreground">
-              {alter.name.slice(0, 2)}
+              {(formatAlter(alter) || alter.name || "?").slice(0, 2)}
             </span>
           </div>
         )}
@@ -67,7 +69,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
       )}
       {!swipeHint && (
         <span className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}>
-          {alter.alias?.slice(0, 5) || alter.name.slice(0, 5)}
+          {formatAlter(alter).slice(0, 12)}
         </span>
       )}
     </div>

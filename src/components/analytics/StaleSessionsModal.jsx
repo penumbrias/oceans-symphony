@@ -131,7 +131,7 @@ export default function StaleSessionsModal({ isOpen, onClose, staleSessions = []
             Long-running {terms.fronting} sessions
           </DialogTitle>
           <p className="text-xs text-muted-foreground pt-1">
-            These have been open for over 48 hours. Their duration is capped at 48h in analytics until you confirm or close them.
+            These have been open for over 48 hours. Their full duration is being counted — review and confirm or close any that aren't actually still active.
           </p>
         </DialogHeader>
 

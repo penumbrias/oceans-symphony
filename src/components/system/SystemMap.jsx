@@ -7,6 +7,11 @@ import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown, SlidersHorizonta
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { buildAbsorptionMap, foldAbsorptionTimes, foldAbsorptionCofronting } from "@/lib/absorptionUtils";
+import {
+  normalizeSessions,
+  effectiveDurationMs,
+  sliceByOverlap,
+} from "@/lib/sessionNormalizer";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -69,29 +74,32 @@ const SystemMap = ({ relationships = [] }) => {
 
   const absorptionMap = useMemo(() => buildAbsorptionMap(systemChangeEvents), [systemChangeEvents]);
 
-  // Fronting duration per alter broken down by total / primary / cofronting (ms)
+  // Fronting duration per alter broken down by total / primary / cofronting (ms).
+  // Goes through the shared session normaliser so unclosed sessions
+  // older than 48h don't leak their "start-to-now" duration into
+  // every alter's total — which was making every node in the
+  // system map render the same massive size. Range is "all time"
+  // (epoch → now); the stale-session cap is the only thing that
+  // bounds open sessions.
   const frontingTimeAll = useMemo(() => {
+    const fromMs = 0;
+    const toMs = Date.now();
+    const now = Date.now();
+    const normalised = normalizeSessions(frontingSessions, now);
     const time = {};
-    frontingSessions.forEach((session) => {
-      const endTime = session.end_time ? new Date(session.end_time) : new Date();
-      const startTime = new Date(session.start_time);
-      const duration = endTime - startTime;
-      if (session.alter_id) {
-        if (!time[session.alter_id]) time[session.alter_id] = { total: 0, primary: 0, cofronting: 0 };
-        time[session.alter_id].total += duration;
-        if (session.is_primary) time[session.alter_id].primary += duration;
-        else time[session.alter_id].cofronting += duration;
-      } else {
-        const ids = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
-        ids.forEach((id) => {
-          if (!time[id]) time[id] = { total: 0, primary: 0, cofronting: 0 };
-          time[id].total += duration;
-          if (session.primary_alter_id === id) time[id].primary += duration;
-          else time[id].cofronting += duration;
-        });
+    for (const s of normalised) {
+      const dur = effectiveDurationMs(s, fromMs, toMs, now);
+      if (dur <= 0) continue;
+      // Attribute exactly like the legacy code did — per-alter on
+      // the row — but with the normaliser handling the clamping
+      // for unclosed/stale rows.
+      for (const id of s.alterIds) {
+        if (!time[id]) time[id] = { total: 0, primary: 0, cofronting: 0 };
+        time[id].total += dur;
+        if (id === s.primaryAlterId) time[id].primary += dur;
+        else time[id].cofronting += dur;
       }
-    });
-    // Fold absorbed alters' time into their persistent alter
+    }
     return foldAbsorptionTimes(time, absorptionMap);
   }, [frontingSessions, absorptionMap]);
 
@@ -103,53 +111,67 @@ const SystemMap = ({ relationships = [] }) => {
     return result;
   }, [frontingTimeAll, timeMode]);
 
-  // cofrontingTime[idA][idB] = { total, primary, cofronting } ms of overlap
+  // cofrontingTime[idA][idB] = { total, primary, cofronting } ms of overlap.
+  // Single sweep-line via sliceByOverlap — each slice represents
+  // a span where the same set of alters was active, so we can
+  // emit pair-overlap durations without doing O(n²) session×session
+  // comparison and without the Date.now() fallback that inflated
+  // unclosed sessions.
+  //
+  // The primary / cofronting breakdown here mirrors the legacy
+  // semantics: for a pair (A, B) co-active during a slice,
+  // map[A][B].primary is the portion where A was THE PRIMARY of
+  // their own session row, and map[A][B].cofronting is the
+  // portion where A was a co-fronter (not primary). We compute
+  // the primary set per slice by walking the contributing
+  // normalised rows and noting which had `primaryAlterId` === A.
   const cofrontingTimeAll = useMemo(() => {
+    const fromMs = 0;
+    const toMs = Date.now();
+    const now = Date.now();
+    const normalised = normalizeSessions(frontingSessions, now);
     const map = {};
-    const addOverlap = (idA, idB, overlap, aPrimary, bPrimary) => {
-      if (!idA || !idB || idA === idB) return;
+    const ensurePair = (idA, idB) => {
       if (!map[idA]) map[idA] = {};
-      if (!map[idB]) map[idB] = {};
       if (!map[idA][idB]) map[idA][idB] = { total: 0, primary: 0, cofronting: 0 };
-      if (!map[idB][idA]) map[idB][idA] = { total: 0, primary: 0, cofronting: 0 };
-      map[idA][idB].total += overlap;
-      map[idB][idA].total += overlap;
-      // "primary" = time idA was primary while co-fronting with idB
-      if (aPrimary) map[idA][idB].primary += overlap;
-      if (bPrimary) map[idB][idA].primary += overlap;
-      // "cofronting" = time idA was co-fronter (not primary) while with idB
-      if (!aPrimary) map[idA][idB].cofronting += overlap;
-      if (!bPrimary) map[idB][idA].cofronting += overlap;
     };
-    const individualSessions = frontingSessions.filter(s => s.alter_id);
-    for (let i = 0; i < individualSessions.length; i++) {
-      for (let j = i + 1; j < individualSessions.length; j++) {
-        const a = individualSessions[i];
-        const b = individualSessions[j];
-        if (a.alter_id === b.alter_id) continue;
-        const aStart = new Date(a.start_time).getTime();
-        const aEnd = a.end_time ? new Date(a.end_time).getTime() : Date.now();
-        const bStart = new Date(b.start_time).getTime();
-        const bEnd = b.end_time ? new Date(b.end_time).getTime() : Date.now();
-        const overlapStart = Math.max(aStart, bStart);
-        const overlapEnd = Math.min(aEnd, bEnd);
-        if (overlapEnd > overlapStart) addOverlap(a.alter_id, b.alter_id, overlapEnd - overlapStart, a.is_primary, b.is_primary);
-      }
-    }
-    const legacySessions = frontingSessions.filter(s => !s.alter_id && s.primary_alter_id);
-    legacySessions.forEach(s => {
-      const start = new Date(s.start_time).getTime();
-      const end = s.end_time ? new Date(s.end_time).getTime() : Date.now();
-      const duration = end - start;
-      const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = i + 1; j < ids.length; j++) {
-          const aPrimary = ids[i] === s.primary_alter_id;
-          const bPrimary = ids[j] === s.primary_alter_id;
-          addOverlap(ids[i], ids[j], duration, aPrimary, bPrimary);
+    const slices = sliceByOverlap(normalised, fromMs, toMs, now);
+    // Pre-compute each session's effective [start, end] inside the
+    // window so we can ask "was alter X primary during this slice?"
+    // without re-walking session rows for every slice.
+    const rowSpans = normalised.map((s) => {
+      const start = Math.max(s.startMs, fromMs);
+      const end = s.endMs != null
+        ? Math.min(s.endMs, toMs)
+        : Math.min(now, toMs);
+      return { s, start, end };
+    });
+    for (const slice of slices) {
+      const ids = [...slice.aliveAlterIds];
+      if (ids.length < 2) continue;
+      const dur = slice.endMs - slice.startMs;
+      // Set of alters who were PRIMARY during this slice — any
+      // row whose primaryAlterId === id and whose span covers the
+      // slice window.
+      const primarySet = new Set();
+      for (const { s, start, end } of rowSpans) {
+        if (!s.primaryAlterId) continue;
+        if (start <= slice.startMs && end >= slice.endMs && slice.aliveAlterIds.has(s.primaryAlterId)) {
+          primarySet.add(s.primaryAlterId);
         }
       }
-    });
+      for (let i = 0; i < ids.length; i++) {
+        for (let j = 0; j < ids.length; j++) {
+          if (i === j) continue;
+          const idA = ids[i];
+          const idB = ids[j];
+          ensurePair(idA, idB);
+          map[idA][idB].total += dur;
+          if (primarySet.has(idA)) map[idA][idB].primary += dur;
+          else map[idA][idB].cofronting += dur;
+        }
+      }
+    }
     return foldAbsorptionCofronting(map, absorptionMap);
   }, [frontingSessions, absorptionMap]);
 
