@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Set Fronters modal: the X button on a fronter chip now actually removes them on tap. Previously, on touch, the tap bubbled to the chip's swipe handler — which interpreted it as a primary-toggle — so the only way to deselect was a swipe-right. Same fix applied to FronterPicker.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker weekly grid: tapping a small activity pill (like a quick-logged pill sitting on top of a Sleep block) now opens THAT activity's details instead of falling through to whatever larger activity sat in the same cell. Each pill has its own tap target now.",
       },
       {

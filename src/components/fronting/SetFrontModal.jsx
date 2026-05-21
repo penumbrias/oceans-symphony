@@ -209,10 +209,13 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
       {isPrimary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
       <span className="text-sm">{alter.name}</span>
       <button
-        onClick={(e) => { e.stopPropagation(); onRemove(); }}
+        onClick={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
         onPointerDown={(e) => e.stopPropagation()}
+        onTouchStart={(e) => e.stopPropagation()}
+        onTouchEnd={(e) => { e.stopPropagation(); e.preventDefault(); onRemove(); }}
+        onTouchMove={(e) => e.stopPropagation()}
         aria-label={`Remove ${alter.name}`}
-        className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
+        className="ml-0.5 -mr-1 p-1 rounded-full text-muted-foreground hover:text-destructive transition-colors"
       >
         <X className="w-3 h-3" />
       </button>
