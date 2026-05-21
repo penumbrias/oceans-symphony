@@ -605,9 +605,23 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   return (
     <>
       <Dialog open={open} onOpenChange={onClose}>
-        <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
+        <DialogContent
+          className="max-w-md flex flex-col overflow-hidden"
+          style={{
+            // Don't let the modal stretch up under the device status bar.
+            // The base Dialog uses `top: 50%` + `translate-y(-50%)` and
+            // a maxHeight calc that doesn't account for the top/bottom
+            // safe-area inset — on Android with a tall status bar /
+            // Spotify pill the modal's top edge bled into the bar.
+            // Subtract both insets so the modal stays inside the safe
+            // viewport.
+            maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)",
+          }}
+        >
           <DialogHeader>
-            <div className="flex items-center justify-between gap-2">
+            {/* Right-pad past the 44x44 close X (positioned right-2)
+                so the label-mode toggle pill doesn't end up under it. */}
+            <div className="flex items-center justify-between gap-2 pr-14">
               <DialogTitle>Set {terms.Front}ers</DialogTitle>
               <AlterLabelToggle size="xs" />
             </div>

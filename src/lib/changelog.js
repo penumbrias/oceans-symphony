@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Settings → Notifications & toasts: toggle which kinds of in-app banner messages appear (success / info / warning — errors always stay on), pick how long they linger (2s / 4s / 6s / 10s), and move them to any corner of the screen.",
+      },
+      {
+        type: "fix",
+        text: "Set Fronters modal: the Name / Alias toggle no longer overlaps the close X in the top-right corner, and the modal stays inside the device safe area so it doesn't slide under the status bar / notification island.",
+      },
+      {
         type: "fix",
         text: "Tapping an alter in the Set Fronters list no longer accidentally toggles the alter listed above (or below) it. Android's synthetic click after a touch sometimes lands on the neighbouring row — the tap-suppress logic now spans the whole page so the stray click can't fire a second selection.",
       },

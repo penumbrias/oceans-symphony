@@ -1,6 +1,10 @@
 "use client";
+import { useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { useTheme } from "@/lib/ThemeContext"
 import { Toaster as Sonner } from "sonner"
+import { base44 } from "@/api/base44Client";
+import { readNotificationPrefs, setActivePrefs, installNotificationFilter } from "@/lib/notificationPrefs";
 
 const Toaster = ({
   ...props
@@ -13,10 +17,27 @@ const Toaster = ({
   const { themeMode } = useTheme()
   const theme = themeMode === "system" ? "system" : (themeMode === "dark" ? "dark" : "light")
 
+  // Pull notification prefs from the same systemSettings cache the rest
+  // of the app shares (useTerms / useAccessibility / useAlterLabel).
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const prefs = readNotificationPrefs(list?.[0]);
+
+  // Patch toast.success / info / warning once, then re-sync the module-
+  // level cache every time the prefs object changes. The patched
+  // methods read the cache on every call so they always see the latest
+  // user preference without re-patching.
+  useEffect(() => { installNotificationFilter(); }, []);
+  useEffect(() => { setActivePrefs(prefs); }, [prefs.showSuccess, prefs.showInfo, prefs.showWarning]);
+
   return (
     (<Sonner
       theme={theme}
       className="toaster group"
+      position={prefs.position}
+      duration={prefs.durationMs}
       toastOptions={{
         classNames: {
           toast:
