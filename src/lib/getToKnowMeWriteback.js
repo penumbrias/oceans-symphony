@@ -183,17 +183,27 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       }
 
       // 4) Preset tag-based questions (energy / body / role_lean /
-      //    dyn_dominant_feeling). Save the option's tags into
-      //    alter.tags as a merged, deduped set so Help me unblend's
-      //    matchTags() picks them up next time. Also save the role
-      //    hint for role_lean if the alter has no role yet. age_range
-      //    is intentionally skipped — the option is a range, not a
-      //    discrete age.
-      const optionTags = Array.isArray(answer.tags) ? answer.tags.filter(Boolean) : [];
+      //    dyn_dominant_feeling). Store ONLY the user's literal
+      //    answer label (e.g. "High / wired") — not the inferred
+      //    multi-tag bag that used to land on alter.tags
+      //    (high-energy / manic / playful). The inferred bag felt
+      //    intrusive to users because the app was effectively
+      //    stamping things onto an alter that the user never
+      //    typed. The matcher reads label-shaped tags via a
+      //    legacy-bag-aware comparison so pre-existing data keeps
+      //    scoring without us writing more inferred soup.
+      // tagLabel is the context-stamped form ("High / wired
+      // energy") set on each option in PRESET_QUESTIONS — it
+      // reads naturally on the profile as a tag pill, where a
+      // bare option label ("High / wired") wouldn't carry the
+      // question's context. Fall back to the plain label / value
+      // for any option that doesn't define one.
+      const literalAnswer = (answer.tagLabel || answer.label || answer.value || "").trim();
+      const optionTags = literalAnswer ? [literalAnswer] : [];
       const dominantFeelingValue = question.id === "dyn_dominant_feeling" ? (answer.value || answer.label || null) : null;
       const roleHints = Array.isArray(answer.roles) ? answer.roles.filter(Boolean) : [];
       const tagsToWrite = [...optionTags];
-      if (dominantFeelingValue) tagsToWrite.push(dominantFeelingValue);
+      if (dominantFeelingValue && !tagsToWrite.includes(dominantFeelingValue)) tagsToWrite.push(dominantFeelingValue);
       if (tagsToWrite.length > 0 || (roleHints.length > 0)) {
         for (const id of alterIds) {
           const alter = byId[id];

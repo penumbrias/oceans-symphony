@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Get to know me tags are now context-stamped — picking \"High / wired\" on the energy question stores \"High / wired energy\" instead of a bare \"High / wired\" that didn't say what it was about. The alter profile's Tags section also notes \"sourced from Get to know me\" so it's transparent where they come from.",
+      },
+      {
+        type: "fix",
+        text: "Get to know me preset questions no longer auto-tag your alter with inferred concepts. Picking \"High / wired\" used to silently stamp high-energy, manic, and playful onto the alter — surprising and felt intrusive. Now only the literal answer you picked is stored. The Help me unblend matcher still respects pre-existing inferred tags so old data isn't ignored.",
+      },
+      {
+        type: "improve",
+        text: "Each tag on the alter profile now has an × delete button so you can prune ones that landed there automatically (or by mistake) without going through edit mode.",
+      },
+      {
         type: "fix",
         text: "Get to know me answers now actually fill in the matching custom field on the alter's Info tab — they were being written to the wrong field name, so values like \"Hyperfocusing\" set via Get to know me never appeared in the alter's profile. Existing alters lazy-migrate the next time you open their profile.",
       },

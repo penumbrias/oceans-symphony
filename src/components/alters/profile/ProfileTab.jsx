@@ -309,6 +309,25 @@ useEffect(() => {
 
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Remove a single tag from this alter. Tags are populated by Get
+  // to know me's preset writeback (the user's literal answer
+  // label, plus any legacy inferred bag from before the writeback
+  // was changed to only store direct answers). Surface a per-tag
+  // delete so users can prune the inferred soup that landed on
+  // their profiles without their explicit intent.
+  const removeTag = async (tagToRemove) => {
+    const existing = Array.isArray(alter.tags) ? alter.tags : [];
+    const next = existing.filter((t) => t !== tagToRemove);
+    if (next.length === existing.length) return;
+    try {
+      await base44.entities.Alter.update(alter.id, { tags: next });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't remove tag");
+    }
+  };
   const hasColor = form.color && form.color.length > 3;
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
@@ -517,10 +536,25 @@ useEffect(() => {
 
         {alter.tags && alter.tags.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Tags
+              <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
+                sourced from Get to know me
+              </span>
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {alter.tags.map((tag) => (
-                <span key={tag} className="px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">{tag}</span>
+                <span key={tag} className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
+                  {tag}
+                  <button
+                    type="button"
+                    onClick={() => removeTag(tag)}
+                    aria-label={`Remove tag ${tag}`}
+                    className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
+                  >
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
               ))}
             </div>
           </div>
@@ -861,10 +895,25 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
 
       {alter.tags && alter.tags.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2"><Tag className="w-3.5 h-3.5" /> Tags</p>
+          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2">
+            <Tag className="w-3.5 h-3.5" /> Tags
+            <span className="ml-1 text-[10px] font-normal italic text-muted-foreground/70">
+              sourced from Get to know me
+            </span>
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {alter.tags.map((tag) => (
-              <span key={tag} className="px-3 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">{tag}</span>
+              <span key={tag} className="group inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
+                {tag}
+                <button
+                  type="button"
+                  onClick={() => removeTag(tag)}
+                  aria-label={`Remove tag ${tag}`}
+                  className="-mr-1 p-0.5 rounded-full text-muted-foreground/60 hover:text-red-500 hover:bg-red-500/10"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              </span>
             ))}
           </div>
         </div>

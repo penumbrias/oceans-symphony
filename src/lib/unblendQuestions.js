@@ -87,12 +87,17 @@ export const PRESET_QUESTIONS = [
     prompt: "What energy do you feel?",
     kind: "choice",
     options: [
-      { id: "high",  label: "High / wired",   tags: ["high-energy", "manic", "playful"] },
-      { id: "calm",  label: "Calm / settled", tags: ["calm", "grounded", "regulated"] },
-      { id: "low",   label: "Low / heavy",    tags: ["low-energy", "depressed", "tired", "shut-down"] },
-      { id: "anxious", label: "Anxious / jittery", tags: ["anxious", "hypervigilant", "scared"] },
+      // tagLabel rides on each option so the stored tag and the
+      // matcher both use a context-stamped form ("High / wired
+      // energy") while the displayed pick text stays as the
+      // shorter "High / wired". Otherwise a bare "High / wired"
+      // tag on the profile reads strangely without the question.
+      { id: "high",  label: "High / wired",       tagLabel: "High / wired energy",    tags: ["high-energy", "manic", "playful"] },
+      { id: "calm",  label: "Calm / settled",     tagLabel: "Calm / settled energy",  tags: ["calm", "grounded", "regulated"] },
+      { id: "low",   label: "Low / heavy",        tagLabel: "Low / heavy energy",     tags: ["low-energy", "depressed", "tired", "shut-down"] },
+      { id: "anxious", label: "Anxious / jittery", tagLabel: "Anxious / jittery energy", tags: ["anxious", "hypervigilant", "scared"] },
     ],
-    score: (alter, ans) => matchTags(alter, ans?.tags),
+    score: (alter, ans) => matchAnswer(alter, ans),
   },
   {
     id: "age_range",
@@ -119,12 +124,12 @@ export const PRESET_QUESTIONS = [
     prompt: "More in your body, or more in your head?",
     kind: "choice",
     options: [
-      { id: "body",  label: "In my body",   tags: ["embodied", "grounded", "physical"] },
-      { id: "head",  label: "In my head",   tags: ["dissociated", "intellectual", "thinker"] },
-      { id: "both",  label: "Both / mixed", tags: [] },
-      { id: "numb",  label: "Numb / neither", tags: ["numb", "dissociated", "shut-down"] },
+      { id: "body",  label: "In my body",     tagLabel: "In my body",      tags: ["embodied", "grounded", "physical"] },
+      { id: "head",  label: "In my head",     tagLabel: "In my head",      tags: ["dissociated", "intellectual", "thinker"] },
+      { id: "both",  label: "Both / mixed",   tagLabel: "Body + head, mixed", tags: [] },
+      { id: "numb",  label: "Numb / neither", tagLabel: "Numb / neither",  tags: ["numb", "dissociated", "shut-down"] },
     ],
-    score: (alter, ans) => matchTags(alter, ans?.tags),
+    score: (alter, ans) => matchAnswer(alter, ans),
   },
   // NOTE: The dominant-feeling question used to live here as a
   // static curated list. It's now generated dynamically from the
@@ -146,9 +151,9 @@ export const PRESET_QUESTIONS = [
     ],
     score: (alter, ans) => {
       if (!ans || ans.skipScoring) return 0;
-      const fromTags = matchTags(alter, ans?.tags);
+      const fromAnswer = matchAnswer(alter, ans);
       const fromRole = matchRole(alter, ans?.roles);
-      return Math.max(fromTags, fromRole);
+      return Math.max(fromAnswer, fromRole);
     },
   },
 ];
@@ -550,6 +555,26 @@ export function instantiateUserQuestion(userQ, { alters, customFields = [] } = {
 
 // Generic matchers. Each returns a number in roughly the range
 // [ANSWER_PENALTY * 0.5, ANSWER_DELTA].
+// Match against either the user's literal answer label (new
+// writes from Get to know me — single label string) OR the
+// option's inferred multi-tag bag (legacy writes that pre-date
+// the "store only what the user actually said" fix). Returns
+// the better of the two scores so an alter with old-style data
+// still gets credit without us having to write more inferred
+// tags to fix things.
+function matchAnswer(alter, ans) {
+  if (!ans) return 0;
+  // tagLabel is the context-stamped form ("High / wired energy")
+  // that newer writebacks store; fall back to the bare display
+  // label for any answer that doesn't carry one.
+  const literalForm = ans.tagLabel || ans.label;
+  const literal = literalForm ? matchTags(alter, [literalForm]) : 0;
+  const inferred = Array.isArray(ans.tags) && ans.tags.length > 0
+    ? matchTags(alter, ans.tags)
+    : 0;
+  return Math.max(literal, inferred);
+}
+
 function matchTags(alter, wantedTags) {
   if (!Array.isArray(wantedTags) || wantedTags.length === 0) return 0;
   const alterTags = collectTags(alter).map((t) => t.toLowerCase());
