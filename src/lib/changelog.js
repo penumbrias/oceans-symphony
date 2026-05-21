@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Bio Import Template no longer drops the text from lines that also contain multiple images. A line like `![A](url) **Rinn** Frequent fronter ![B](url)` used to come out as just a 2-image gallery with no text at all; now the prose around the images is preserved as a text block right under the gallery.",
+      },
+      {
         type: "feature",
         text: "New Settings → Data & Privacy → Quick-tap privacy cover: pick how many quick taps open the Grocery List as a privacy overlay (2 / 3 / 4 / 5), or turn the gesture off entirely if it's been misfiring.",
       },

@@ -77,12 +77,28 @@ function convertSPToBlocks(rawText) {
       continue;
     }
     flushText(pendingText); pendingText = [];
+
+    // Collect the non-image prose from this multi-image line so it
+    // doesn't get silently dropped. The previous behaviour was to
+    // build a gallery from the images and discard everything else on
+    // the same line — which is why a bio with `![A](url) **Rinn**
+    // Frequent fronter...` came back as a 3-image gallery and no
+    // text at all. Preserve the surrounding text as a separate
+    // block emitted after the gallery (perfect inline layout fidelity
+    // isn't possible once we collapse into a gallery, but the
+    // CONTENT survives, which is what matters).
+    const galleryTextSegments = [];
+    const ownText = stripImages(line);
+    if (ownText.length > 0 && !isBlankish(ownText)) galleryTextSegments.push(ownText);
+
     const galleryImages = images.map(img => ({ src: img.src, alt: img.alt, cropped: false }));
     while (i + 1 < lines.length) {
       const next = lines[i + 1];
       const nextImgs = extractImages(next);
-      if (nextImgs.length > 0 && isBlankish(stripImages(next))) { i++; galleryImages.push(...nextImgs.map(img => ({ src: img.src, alt: img.alt, cropped: false }))); }
-      else break;
+      if (nextImgs.length > 0 && isBlankish(stripImages(next))) {
+        i++;
+        galleryImages.push(...nextImgs.map(img => ({ src: img.src, alt: img.alt, cropped: false })));
+      } else break;
     }
     if (galleryImages.length === 1) {
       const img = images[0];
@@ -91,6 +107,9 @@ function convertSPToBlocks(rawText) {
       blocks.push({ id: uid(), type: "raw", content: `<img src="${img.src}" alt="${img.alt}" style="display:block;width:${w};${hStyle}border-radius:8px;margin:4px 0;" />` });
     } else {
       blocks.push({ id: uid(), type: "gallery", maxHeight: 160, images: galleryImages });
+    }
+    if (galleryTextSegments.length > 0) {
+      blocks.push({ id: uid(), type: "text", content: spBlockToHTML(galleryTextSegments.join("\n")) });
     }
   }
   flushText(pendingText);
