@@ -82,8 +82,8 @@ function GridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
           {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
         </span>
       ) : (
-        <span className="text-xs text-center font-medium truncate w-full px-1">
-          {formatAlter(alter).slice(0, 10)}
+        <span title={formatAlter(alter)} className="text-xs text-center font-medium truncate w-full px-1">
+          {formatAlter(alter)}
         </span>
       )}
     </div>

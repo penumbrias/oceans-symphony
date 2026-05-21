@@ -20,6 +20,11 @@ import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
  */
 export default function PlannedActivitiesList({ activities = [], alters = [], onClick, limit = null, horizon = "all", compact = false }) {
   const [activeHorizon, setActiveHorizon] = useState(horizon);
+  // Upcoming = future-dated SCHEDULED plans. Past = plans that have
+  // already resolved (done / partial / skipped / cancelled), regardless
+  // of timestamp. Compact callers (dashboard / alter panel) keep the
+  // old upcoming-only behaviour.
+  const [view, setView] = useState("upcoming");
 
   const altersById = useMemo(
     () => Object.fromEntries(alters.map(a => [a.id, a])),
@@ -46,9 +51,28 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
       .sort((a, b) => parseDate(a.timestamp) - parseDate(b.timestamp));
   }, [activities]);
 
+  const past = useMemo(() => {
+    return activities
+      .filter(a => {
+        if (!a) return false;
+        const ts = parseDate(a.timestamp);
+        if (!ts || isNaN(ts)) return false;
+        const status = statusFor(a);
+        // Resolved-plan statuses (the user actually marked an outcome).
+        return status === ACTIVITY_STATUSES.DONE
+          || status === ACTIVITY_STATUSES.PARTIAL
+          || status === ACTIVITY_STATUSES.SKIPPED
+          || status === ACTIVITY_STATUSES.CANCELLED;
+      })
+      // Most recent first — when reviewing past plans the user wants
+      // the latest outcome at the top.
+      .sort((a, b) => parseDate(b.timestamp) - parseDate(a.timestamp));
+  }, [activities]);
+
   const filteredByHorizon = useMemo(() => {
-    if (activeHorizon === "all") return future;
-    return future.filter(a => {
+    const source = view === "past" ? past : future;
+    if (activeHorizon === "all") return source;
+    return source.filter(a => {
       const d = parseDate(a.timestamp);
       switch (activeHorizon) {
         case "today": return isToday(d);
@@ -58,7 +82,7 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
         default: return true;
       }
     });
-  }, [future, activeHorizon]);
+  }, [future, past, view, activeHorizon]);
 
   const items = limit ? filteredByHorizon.slice(0, limit) : filteredByHorizon;
 
@@ -83,39 +107,83 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
     );
   }
 
+  const viewToggle = (
+    <div className="inline-flex rounded-full border border-border/60 bg-muted/20 p-0.5 mb-3">
+      <button
+        type="button"
+        onClick={() => { setView("upcoming"); setActiveHorizon("all"); }}
+        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+          view === "upcoming"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        Upcoming{future.length > 0 ? ` · ${future.length}` : ""}
+      </button>
+      <button
+        type="button"
+        onClick={() => { setView("past"); setActiveHorizon("all"); }}
+        className={`px-3 py-1 rounded-full text-xs font-medium transition-colors ${
+          view === "past"
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:text-foreground"
+        }`}
+      >
+        Past{past.length > 0 ? ` · ${past.length}` : ""}
+      </button>
+    </div>
+  );
+
+  const horizonChips = (
+    <div className="flex flex-wrap gap-2 mb-3">
+      {[
+        { id: "all",   label: view === "past" ? "All past" : "All upcoming" },
+        { id: "today", label: "Today" },
+        { id: "week",  label: "This week" },
+        { id: "month", label: "This month" },
+        { id: "year",  label: "This year" },
+      ].map(h => (
+        <button
+          key={h.id}
+          type="button"
+          onClick={() => setActiveHorizon(h.id)}
+          className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
+            activeHorizon === h.id
+              ? "bg-primary text-primary-foreground border-primary"
+              : "bg-card text-muted-foreground border-border hover:border-primary/40"
+          }`}
+        >{h.label}</button>
+      ))}
+    </div>
+  );
+
   if (filteredByHorizon.length === 0) {
     return (
-      <div className="text-center py-12 text-sm text-muted-foreground">
-        <Calendar className="w-8 h-8 mx-auto mb-2 opacity-40" />
-        Nothing planned {activeHorizon === "all" ? "yet" : `for ${horizonLabel(activeHorizon)}`}.
+      <div>
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          {viewToggle}
+        </div>
+        {horizonChips}
+        <div className="text-center py-12 text-sm text-muted-foreground">
+          <Calendar className="w-8 h-8 mx-auto mb-2 opacity-40" />
+          {view === "past"
+            ? `Nothing resolved ${activeHorizon === "all" ? "yet" : `for ${horizonLabel(activeHorizon)}`}.`
+            : `Nothing planned ${activeHorizon === "all" ? "yet" : `for ${horizonLabel(activeHorizon)}`}.`}
+        </div>
       </div>
     );
   }
 
+  const showPastStatus = view === "past";
+
   return (
     <div>
-      <div className="flex flex-wrap gap-2 mb-3">
-        {[
-          { id: "all",   label: "All upcoming" },
-          { id: "today", label: "Today" },
-          { id: "week",  label: "This week" },
-          { id: "month", label: "This month" },
-          { id: "year",  label: "This year" },
-        ].map(h => (
-          <button
-            key={h.id}
-            type="button"
-            onClick={() => setActiveHorizon(h.id)}
-            className={`px-3 py-1 rounded-full text-xs font-medium border transition-colors ${
-              activeHorizon === h.id
-                ? "bg-primary text-primary-foreground border-primary"
-                : "bg-card text-muted-foreground border-border hover:border-primary/40"
-            }`}
-          >{h.label}</button>
-        ))}
+      <div className="flex items-center justify-between flex-wrap gap-2">
+        {viewToggle}
       </div>
+      {horizonChips}
 
-      {activeHorizon === "all" ? (
+      {activeHorizon === "all" && view === "upcoming" ? (
         <div className="space-y-4">
           <Group label="Today"      items={grouped.today}  altersById={altersById} onClick={onClick} />
           <Group label="This week"  items={grouped.week}   altersById={altersById} onClick={onClick} />
@@ -124,12 +192,27 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
         </div>
       ) : (
         <div className="space-y-1.5">
-          {filteredByHorizon.map(a => <ActivityRow key={a.id} activity={a} altersById={altersById} onClick={onClick} />)}
+          {filteredByHorizon.map(a => (
+            <ActivityRow
+              key={a.id}
+              activity={a}
+              altersById={altersById}
+              onClick={onClick}
+              showPastStatus={showPastStatus}
+            />
+          ))}
         </div>
       )}
     </div>
   );
 }
+
+const STATUS_LABELS = {
+  done:      { label: "Done",      cls: "bg-emerald-500/15 text-emerald-500 border-emerald-500/40" },
+  partial:   { label: "Partial",   cls: "bg-amber-500/15 text-amber-500 border-amber-500/40" },
+  skipped:   { label: "Skipped",   cls: "bg-muted text-muted-foreground border-border" },
+  cancelled: { label: "Cancelled", cls: "bg-destructive/15 text-destructive border-destructive/40" },
+};
 
 function Group({ label, items, altersById, onClick }) {
   if (items.length === 0) return null;
@@ -143,10 +226,12 @@ function Group({ label, items, altersById, onClick }) {
   );
 }
 
-function ActivityRow({ activity, altersById, onClick, compact }) {
+function ActivityRow({ activity, altersById, onClick, compact, showPastStatus }) {
   const ts = parseDate(activity.timestamp);
   const assigned = (activity.assigned_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const colorBar = activity.color || "hsl(var(--primary))";
+  const status = statusFor(activity);
+  const statusMeta = showPastStatus ? STATUS_LABELS[status] : null;
 
   return (
     <button
@@ -161,6 +246,11 @@ function ActivityRow({ activity, altersById, onClick, compact }) {
             <Zap className="w-3.5 h-3.5 fill-amber-500 text-amber-500 flex-shrink-0" title="Critical plan" />
           )}
           <span className="truncate">{activity.activity_name || "Untitled activity"}</span>
+          {statusMeta && (
+            <span className={`text-[0.625rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-full border flex-shrink-0 ${statusMeta.cls}`}>
+              {statusMeta.label}
+            </span>
+          )}
         </p>
         {activity.location && (
           <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5 truncate">
@@ -179,7 +269,10 @@ function ActivityRow({ activity, altersById, onClick, compact }) {
         )}
         <p className="text-xs text-muted-foreground flex items-center gap-1.5 mt-0.5">
           <Clock className="w-3 h-3" />
-          {format(ts, "EEE, MMM d · h:mm a")} <span className="opacity-70">· in {formatDistanceToNow(ts)}</span>
+          {format(ts, "EEE, MMM d · h:mm a")}
+          {showPastStatus
+            ? <span className="opacity-70">· {formatDistanceToNow(ts, { addSuffix: true })}</span>
+            : <span className="opacity-70">· in {formatDistanceToNow(ts)}</span>}
         </p>
       </div>
       {assigned.length > 0 && (

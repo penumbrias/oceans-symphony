@@ -7,6 +7,30 @@ const BTN_SIZE = 48;
 const EDGE_MARGIN = 16;
 const DRAG_THRESHOLD = 6;
 
+// The fixed bottom nav covers `--bottom-nav-height + safe-area-inset-bottom`
+// at the bottom of the viewport. Without accounting for that, the
+// button defaults under it and can be dragged into it. Read the CSS
+// custom property so the same value applies whether the user has the
+// nav set to compact, default, tall, or extra-tall.
+function getBottomNavGuard() {
+  try {
+    const styles = getComputedStyle(document.documentElement);
+    const navRaw = styles.getPropertyValue("--bottom-nav-height").trim() || "56px";
+    const navPx = parseFloat(navRaw) || 56;
+    // env(safe-area-inset-bottom) — temp element to resolve to px.
+    const probe = document.createElement("div");
+    probe.style.height = "env(safe-area-inset-bottom, 0px)";
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    document.body.appendChild(probe);
+    const inset = probe.getBoundingClientRect().height || 0;
+    probe.remove();
+    return navPx + inset + EDGE_MARGIN;
+  } catch {
+    return 56 + EDGE_MARGIN;
+  }
+}
+
 function getEventXY(e) {
   if (e.changedTouches?.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
   if (e.touches?.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -14,13 +38,19 @@ function getEventXY(e) {
 }
 
 function loadPos() {
+  const guard = getBottomNavGuard();
+  const defaultY = Math.max(EDGE_MARGIN, window.innerHeight - BTN_SIZE - guard - 8);
   try {
     const saved = JSON.parse(localStorage.getItem(LS_KEY));
     if (saved && typeof saved.y === "number" && (saved.side === "left" || saved.side === "right")) {
-      return saved;
+      // Re-clamp persisted positions — users on a previous build may
+      // have left the button dragged into where the bottom nav now
+      // sits. Hoist it above the nav on next mount.
+      const clampedY = Math.max(EDGE_MARGIN, Math.min(window.innerHeight - BTN_SIZE - guard, saved.y));
+      return { ...saved, y: clampedY };
     }
   } catch {}
-  return { side: "right", y: window.innerHeight - 120 };
+  return { side: "right", y: defaultY };
 }
 
 export default function FloatingGroundingButton() {
@@ -57,7 +87,7 @@ export default function FloatingGroundingButton() {
         currentX = x;
         const clampedY = Math.max(
           EDGE_MARGIN,
-          Math.min(window.innerHeight - BTN_SIZE - EDGE_MARGIN, startY + dy)
+          Math.min(window.innerHeight - BTN_SIZE - getBottomNavGuard(), startY + dy)
         );
         setPos((prev) => ({ ...prev, y: clampedY }));
       }

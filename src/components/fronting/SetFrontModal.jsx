@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -603,7 +604,10 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent className="max-w-md max-h-[85vh] flex flex-col overflow-hidden">
           <DialogHeader>
-            <DialogTitle>Set {terms.Front}ers</DialogTitle>
+            <div className="flex items-center justify-between gap-2">
+              <DialogTitle>Set {terms.Front}ers</DialogTitle>
+              <AlterLabelToggle size="xs" />
+            </div>
           </DialogHeader>
 
           {/* First-time permission-giving hint. Dismissible, never shown

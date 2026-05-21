@@ -17,6 +17,46 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker weekly grid: tapping a small activity pill (like a quick-logged pill sitting on top of a Sleep block) now opens THAT activity's details instead of falling through to whatever larger activity sat in the same cell. Each pill has its own tap target now.",
+      },
+      {
+        type: "fix",
+        text: "\"You have X planned in N minutes\" banner no longer fires for plans you've already marked done / skipped / cancelled. The banner now only surfaces plans that are still actually scheduled.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker → Planned now has an Upcoming / Past toggle. Past shows every plan you've already resolved (done, partial, skipped, cancelled), with a status badge next to the name and same horizon filters (today / week / month / year).",
+      },
+      {
+        type: "fix",
+        text: "Bio Import Template no longer drops the text from lines that also contain multiple images. A line like `![A](url) **Rinn** Frequent fronter ![B](url)` used to come out as just a 2-image gallery with no text at all; now the prose around the images is preserved as a text block right under the gallery.",
+      },
+      {
+        type: "feature",
+        text: "New Settings → Data & Privacy → Quick-tap privacy cover: pick how many quick taps open the Grocery List as a privacy overlay (2 / 3 / 4 / 5), or turn the gesture off entirely if it's been misfiring.",
+      },
+      {
+        type: "fix",
+        text: "Floating grounding / quick-support bubble no longer hides behind the bottom navigation bar. It now respects the bottom nav height + safe-area, and persisted positions from older builds get hoisted back up on the next launch if they were dragged into the nav.",
+      },
+      {
+        type: "improve",
+        text: "Simply Plural sync now sends explicit no-cache headers on every API call so an aggressive Android WebView or proxy can't serve a stored older response on a fresh import. (Won't fix SP-side caching, but rules out the local browser as a culprit.)",
+      },
+      {
+        type: "fix",
+        text: "Simply Plural import: alters no longer get force-archived (or slip through un-archived) when SP returns the archive flag in an unexpected shape. The old read was a loose `!!archived`, which mis-classified timestamps and alternate field names. Now only an explicit boolean true / \"true\" / 1 counts as archived; anything else lands in your active list so nothing gets lost. If a member was archived on SP and lands as active here, you can re-archive from the alter profile.",
+      },
+      {
+        type: "feature",
+        text: "Quick alter-label toggle: a small pill button now sits in the Alters directory header, the Set Front modal header, and the Polls page header that cycles the label mode through Name → Alias → Both without having to dive into Settings.",
+      },
+      {
+        type: "fix",
+        text: "Long alter names in the avatar grid + fronter picker no longer chop off at 12 characters of text. The hard slice is gone — names show in full and use CSS truncation (ellipsis) only when they actually run past the cell width.",
+      },
+      {
+        type: "fix",
         text: "Simply Plural import: one bad alter no longer halts the whole import. Previously, if a single alter's write to local storage failed mid-way through, every alter after it was silently skipped — which is why some systems ended up with around half their members copied across. Each alter now imports independently, and the final toast lists how many failed (with details in the devtools console).",
       },
       {

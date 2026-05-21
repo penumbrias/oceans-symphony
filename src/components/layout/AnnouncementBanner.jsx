@@ -6,6 +6,7 @@ import { formatDistanceToNow } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
 import { readPlanRemindersDefaultOffset } from "@/lib/planReminderScheduler";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 const ACK_KEY = "symphony_upcoming_plan_acks";
 
@@ -51,6 +52,14 @@ export default function AnnouncementBanner() {
       if (!a?.timestamp) return false;
       const ts = new Date(a.timestamp).getTime();
       if (isNaN(ts) || ts <= now) return false;
+      // Only nag the user about plans that are still actually upcoming.
+      // Without this, a record the user has already marked done /
+      // skipped / cancelled (or one that was logged with a future
+      // timestamp from a weird recurrence path) would still pop the
+      // banner — leading to "you have X planned in 8 minutes" alerts
+      // for things that aren't actually scheduled anymore.
+      const st = statusFor(a);
+      if (st !== ACTIVITY_STATUSES.SCHEDULED) return false;
       const offsetMs = (a.reminder_offset_minutes ?? defaultOffset) * 60_000;
       const windowOpens = ts - offsetMs;
       return now >= windowOpens && !acks[a.id];
