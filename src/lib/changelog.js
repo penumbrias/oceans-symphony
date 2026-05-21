@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 21, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Toast messages (Save Plan validation, save confirmations, error reports, etc.) actually appear on screen now. The toast renderer wasn't mounted, so pressing Save Plan with no title / activity / linked to-do looked like the button was broken — really the \"add one of these first\" toast was firing but had nowhere to render.",
+      },
+    ],
+  },
+  {
     date: "May 20, 2026",
     changes: [
       {
