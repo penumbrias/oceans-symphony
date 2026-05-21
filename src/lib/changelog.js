@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Alter profile pages now show a readable error screen instead of a blank black page when something throws during render — useful for catching the \"tap a fronting alter and the app crashes\" class of bug. The error message and stack are printed so the issue can be reported and traced.",
+      },
+      {
         type: "feature",
         text: "New Settings → Appearance → Corner style toggle: switch every card, button, input, and pill to sharp corners across the app. Avatars and other intentionally circular elements stay round.",
       },
