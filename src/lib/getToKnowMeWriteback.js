@@ -9,16 +9,25 @@
 //   - color           → alter.color
 //   - pronouns        → alter.pronouns
 //   - role            → alter.role
-//   - custom_field    → alter.alter_custom_fields[fieldId]
+//   - custom_field    → alter.custom_fields[fieldId] (the same
+//                       map InfoTab already renders, so a
+//                       writeback shows up immediately as a
+//                       filled-in custom field on the profile)
 //                       (appends + dedupes for list-type fields)
 //   - multiple_choice → option.alterIds on the stored
 //                       UnblendQuestion record itself
+//
+// Historical note: writeback used to target alter_custom_fields,
+// which conflicted with InfoTab's per-alter ad-hoc list. Existing
+// rows are migrated lazily via migrateAlterCustomFieldsObject()
+// the first time the affected alter passes through here.
 //
 // Anything else (age range, energy/body/feeling tag matchers,
 // dominant-feeling derived from EmotionCheckIn) returns
 // { saved: false, reason } so the page can show a friendly "this
 // question type doesn't save data yet" hint.
 import { base44, localEntities } from "@/api/base44Client";
+import { migrateAlterCustomFieldsObject } from "@/lib/alterCustomFieldsMigration";
 
 function isListField(fieldDef) {
   return fieldDef?.field_type === "list";
@@ -67,9 +76,13 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       // insensitively. A boolean / yes-no field still replaces (the
       // value is the entire field).
       for (const id of alterIds) {
-        const alter = byId[id];
+        let alter = byId[id];
         if (!alter) continue;
-        const map = { ...(alter.alter_custom_fields || {}) };
+        // Lazy migrate any pre-existing object-shape data on
+        // alter_custom_fields into alter.custom_fields so the
+        // writeback below merges cleanly.
+        alter = await migrateAlterCustomFieldsObject(alter);
+        const map = { ...(alter.custom_fields || {}) };
         const prev = typeof map[fieldId] === "string" ? map[fieldId] : "";
         let next;
         const fieldType = fieldDef?.field_type;
@@ -81,7 +94,7 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
           next = dedupePreserveOrder(items).join(", ");
         }
         map[fieldId] = next;
-        await base44.entities.Alter.update(id, { alter_custom_fields: map });
+        await base44.entities.Alter.update(id, { custom_fields: map });
       }
       return { saved: true, count: alterIds.length, field: question.fieldName || "custom field" };
     }
@@ -118,9 +131,10 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       if (fieldIdMatch) {
         const fieldDef = customFields.find((f) => f.id === fieldIdMatch);
         for (const id of alterIds) {
-          const alter = byId[id];
+          let alter = byId[id];
           if (!alter) continue;
-          const map = { ...(alter.alter_custom_fields || {}) };
+          alter = await migrateAlterCustomFieldsObject(alter);
+          const map = { ...(alter.custom_fields || {}) };
           const prev = typeof map[fieldIdMatch] === "string" ? map[fieldIdMatch] : "";
           let next;
           if (isListField(fieldDef)) {
@@ -133,7 +147,7 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
             next = answer.label || writeValue;
           }
           map[fieldIdMatch] = next;
-          await base44.entities.Alter.update(id, { alter_custom_fields: map });
+          await base44.entities.Alter.update(id, { custom_fields: map });
         }
         return { saved: true, count: alterIds.length, field: fieldDef?.name || "custom field" };
       }
