@@ -87,10 +87,15 @@ export const PRESET_QUESTIONS = [
     prompt: "What energy do you feel?",
     kind: "choice",
     options: [
-      { id: "high",  label: "High / wired",   tags: ["high-energy", "manic", "playful"] },
-      { id: "calm",  label: "Calm / settled", tags: ["calm", "grounded", "regulated"] },
-      { id: "low",   label: "Low / heavy",    tags: ["low-energy", "depressed", "tired", "shut-down"] },
-      { id: "anxious", label: "Anxious / jittery", tags: ["anxious", "hypervigilant", "scared"] },
+      // tagLabel rides on each option so the stored tag and the
+      // matcher both use a context-stamped form ("High / wired
+      // energy") while the displayed pick text stays as the
+      // shorter "High / wired". Otherwise a bare "High / wired"
+      // tag on the profile reads strangely without the question.
+      { id: "high",  label: "High / wired",       tagLabel: "High / wired energy",    tags: ["high-energy", "manic", "playful"] },
+      { id: "calm",  label: "Calm / settled",     tagLabel: "Calm / settled energy",  tags: ["calm", "grounded", "regulated"] },
+      { id: "low",   label: "Low / heavy",        tagLabel: "Low / heavy energy",     tags: ["low-energy", "depressed", "tired", "shut-down"] },
+      { id: "anxious", label: "Anxious / jittery", tagLabel: "Anxious / jittery energy", tags: ["anxious", "hypervigilant", "scared"] },
     ],
     score: (alter, ans) => matchAnswer(alter, ans),
   },
@@ -119,10 +124,10 @@ export const PRESET_QUESTIONS = [
     prompt: "More in your body, or more in your head?",
     kind: "choice",
     options: [
-      { id: "body",  label: "In my body",   tags: ["embodied", "grounded", "physical"] },
-      { id: "head",  label: "In my head",   tags: ["dissociated", "intellectual", "thinker"] },
-      { id: "both",  label: "Both / mixed", tags: [] },
-      { id: "numb",  label: "Numb / neither", tags: ["numb", "dissociated", "shut-down"] },
+      { id: "body",  label: "In my body",     tagLabel: "In my body",      tags: ["embodied", "grounded", "physical"] },
+      { id: "head",  label: "In my head",     tagLabel: "In my head",      tags: ["dissociated", "intellectual", "thinker"] },
+      { id: "both",  label: "Both / mixed",   tagLabel: "Body + head, mixed", tags: [] },
+      { id: "numb",  label: "Numb / neither", tagLabel: "Numb / neither",  tags: ["numb", "dissociated", "shut-down"] },
     ],
     score: (alter, ans) => matchAnswer(alter, ans),
   },
@@ -559,9 +564,11 @@ export function instantiateUserQuestion(userQ, { alters, customFields = [] } = {
 // tags to fix things.
 function matchAnswer(alter, ans) {
   if (!ans) return 0;
-  const literal = ans.label
-    ? matchTags(alter, [ans.label])
-    : 0;
+  // tagLabel is the context-stamped form ("High / wired energy")
+  // that newer writebacks store; fall back to the bare display
+  // label for any answer that doesn't carry one.
+  const literalForm = ans.tagLabel || ans.label;
+  const literal = literalForm ? matchTags(alter, [literalForm]) : 0;
   const inferred = Array.isArray(ans.tags) && ans.tags.length > 0
     ? matchTags(alter, ans.tags)
     : 0;

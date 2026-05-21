@@ -536,7 +536,12 @@ useEffect(() => {
 
         {alter.tags && alter.tags.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Tags</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              Tags
+              <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
+                sourced from Get to know me
+              </span>
+            </p>
             <div className="flex flex-wrap gap-1.5">
               {alter.tags.map((tag) => (
                 <span key={tag} className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
@@ -890,7 +895,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
 
       {alter.tags && alter.tags.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2"><Tag className="w-3.5 h-3.5" /> Tags</p>
+          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2">
+            <Tag className="w-3.5 h-3.5" /> Tags
+            <span className="ml-1 text-[10px] font-normal italic text-muted-foreground/70">
+              sourced from Get to know me
+            </span>
+          </p>
           <div className="flex flex-wrap gap-1.5">
             {alter.tags.map((tag) => (
               <span key={tag} className="group inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">

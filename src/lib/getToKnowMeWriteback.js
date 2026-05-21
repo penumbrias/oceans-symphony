@@ -192,7 +192,13 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       //    typed. The matcher reads label-shaped tags via a
       //    legacy-bag-aware comparison so pre-existing data keeps
       //    scoring without us writing more inferred soup.
-      const literalAnswer = (answer.label || answer.value || "").trim();
+      // tagLabel is the context-stamped form ("High / wired
+      // energy") set on each option in PRESET_QUESTIONS — it
+      // reads naturally on the profile as a tag pill, where a
+      // bare option label ("High / wired") wouldn't carry the
+      // question's context. Fall back to the plain label / value
+      // for any option that doesn't define one.
+      const literalAnswer = (answer.tagLabel || answer.label || answer.value || "").trim();
       const optionTags = literalAnswer ? [literalAnswer] : [];
       const dominantFeelingValue = question.id === "dyn_dominant_feeling" ? (answer.value || answer.label || null) : null;
       const roleHints = Array.isArray(answer.roles) ? answer.roles.filter(Boolean) : [];
