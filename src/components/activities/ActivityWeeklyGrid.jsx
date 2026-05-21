@@ -942,9 +942,29 @@ if (isSameCell) {
                   const labelSpanCells = (() => {
                     const starters = timed.filter(a => isFirstSlotForActivity(a, date, hour, minute));
                     if (starters.length === 0) return 1;
-                    return Math.max(1, ...starters.map(a =>
+                    const headActivityIds = new Set(starters.map(a => a.id));
+                    const desired = Math.max(1, ...starters.map(a =>
                       Math.ceil(Math.max(gridInterval, a.duration_minutes || gridInterval) / gridInterval)
                     ));
+                    // Truncate at the first downstream cell that introduces
+                    // a new activity (one not already starting in this head
+                    // cell) so the label box doesn't bleed down over the
+                    // next activity's row.
+                    let span = 1;
+                    for (let i = 1; i < desired; i++) {
+                      const nextMinutes = minute + i * gridInterval;
+                      const nextHour = hour + Math.floor(nextMinutes / 60);
+                      const nextMin = nextMinutes % 60;
+                      if (nextHour > 23) break;
+                      const { timed: nextTimed } = getActivitiesForSlot(date, nextHour, nextMin);
+                      const introducesNew = nextTimed.some(a =>
+                        !headActivityIds.has(a.id)
+                        && isFirstSlotForActivity(a, date, nextHour, nextMin)
+                      );
+                      if (introducesNew) break;
+                      span = i + 1;
+                    }
+                    return span;
                   })();
                   const loggedToShow = logged.filter(pill => {
                     const pillCats = new Set(pill.activity_category_ids || []);
