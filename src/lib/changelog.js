@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Therapy Report \"most frequently logged emotions / symptoms\" now shows the count alongside each item (e.g. \"hopeless (4×)\") and requires at least 2 occurrences to qualify. A one-off check-in is no longer summarised as a top emotion in the clinical narrative.",
+      },
+      {
         type: "fix",
         text: "Activity Tracker weekly grid: the page no longer scrolls during the drag part of long-press-drag-select. The grid now hard-disables touch-scrolling the instant the press fires, so dragging your finger after the half-second hold actually selects cells instead of scrolling the page underneath.",
       },
