@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "System Structure Map node sizing + co-fronting distances are correct again. The map was still using the legacy \"unclosed session counts to right now\" math the analytics rework already killed elsewhere, so every alter ended up about the same size (one stale-open session inflated everyone's totals equally). Now goes through the shared session normaliser like the rest of analytics.",
+      },
+      {
+        type: "fix",
         text: "The Alters page grid + the row-style alter cards now respect your Settings → Appearance → Alter labels preference (Display name / Alias only / Both). They were hard-coded to alias-first regardless of the toggle.",
       },
       {
