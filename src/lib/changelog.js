@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Tapping an alter in the Set Fronters list no longer accidentally toggles the alter listed above (or below) it. Android's synthetic click after a touch sometimes lands on the neighbouring row — the tap-suppress logic now spans the whole page so the stray click can't fire a second selection.",
+      },
+      {
+        type: "fix",
         text: "Set Fronters modal: the X button on a fronter chip now actually removes them on tap. Previously, on touch, the tap bubbled to the chip's swipe handler — which interpreted it as a primary-toggle — so the only way to deselect was a swipe-right. Same fix applied to FronterPicker.",
       },
       {
