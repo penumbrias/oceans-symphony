@@ -22,7 +22,7 @@ const OPTIONS = [
   { value: 3, label: "3 taps", description: "Default. The original three-quick-taps gesture." },
   { value: 4, label: "4 taps", description: "Less sensitive — avoids accidental triggers." },
   { value: 5, label: "5 taps", description: "Deliberate-feeling. Best if 3 / 4 keep misfiring." },
-  { value: "off", label: "Off", description: "Disable the quick-tap entirely. You can still open the grocery list from its bottom-nav button (if pinned) or from the Unlock screen." },
+  { value: "off", label: "Off", description: "Disable the quick-tap entirely. You can still open the grocery list from the side nav (tap the logo in the upper-left to open the sidebar)." },
 ];
 
 export function readPanicTapsSetting(systemSettings) {
