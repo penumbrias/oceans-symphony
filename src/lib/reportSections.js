@@ -470,14 +470,24 @@ export function buildPatternsSummary({
 }) {
   const name = systemName || "The system";
   const dayCount = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
-  const topEmotions = (emotionData?.topEmotions || []).slice(0, 3).map(e => e.emotion);
-  const topSymptoms = (symptomsData?.summaryTable || []).slice(0, 3).map(s => s.label);
+  // Anything logged fewer than twice in the whole period isn't really
+  // "most frequent" — listing a one-off as a top emotion in a clinical
+  // report misrepresents the data. Apply the same floor to symptoms.
+  const FREQUENCY_FLOOR = 2;
+  const topEmotionEntries = (emotionData?.topEmotions || []).filter(e => e.count >= FREQUENCY_FLOOR).slice(0, 3);
+  const topSymptomEntries = (symptomsData?.summaryTable || []).filter(s => (s.count ?? 0) >= FREQUENCY_FLOOR).slice(0, 3);
   const crisisCount = (emotionData?.noteworthy || []).length;
 
   // Always build the stats summary paragraph
   let statsParagraph = `During this ${dayCount}-day period (${fmtDate(dateFrom)} to ${fmtDate(dateTo)}), ${name} recorded ${overview.frontingCount} fronting session${overview.frontingCount !== 1 ? "s" : ""}.`;
-  if (topEmotions.length > 0) statsParagraph += ` The most frequently logged emotions were ${topEmotions.join(", ")}.`;
-  if (topSymptoms.length > 0) statsParagraph += ` The most tracked symptoms or habits were ${topSymptoms.join(", ")}.`;
+  if (topEmotionEntries.length > 0) {
+    const formatted = topEmotionEntries.map(e => `${e.emotion} (${e.count}×)`).join(", ");
+    statsParagraph += ` The most frequently logged emotions were ${formatted}.`;
+  }
+  if (topSymptomEntries.length > 0) {
+    const formatted = topSymptomEntries.map(s => s.count != null ? `${s.label} (${s.count}×)` : s.label).join(", ");
+    statsParagraph += ` The most tracked symptoms or habits were ${formatted}.`;
+  }
   if (overview.checkInCount > 0) statsParagraph += ` There were ${overview.checkInCount} emotion check-in${overview.checkInCount !== 1 ? "s" : ""} recorded.`;
   if (crisisCount > 0) statsParagraph += ` ${crisisCount} check-in${crisisCount !== 1 ? "s" : ""} included crisis-level distress.`;
   if (overview.journalCount > 0) statsParagraph += ` ${overview.journalCount} journal entr${overview.journalCount !== 1 ? "ies were" : "y was"} written.`;

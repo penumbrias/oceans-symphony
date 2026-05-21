@@ -272,6 +272,16 @@ export default function Chat() {
               channel={activeChannel}
               alters={alters}
               defaultAuthorId={defaultAuthorId}
+              focusMessageId={searchParams.get("message")}
+              onMessageFocused={() => {
+                // Once the requested message has been scrolled to and
+                // highlighted, drop the param so a manual refresh or
+                // re-open of the page doesn't keep yanking the user
+                // back to the same row.
+                const next = new URLSearchParams(searchParams);
+                next.delete("message");
+                setSearchParams(next, { replace: true });
+              }}
             />
           ) : (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground italic px-6 text-center">
@@ -315,10 +325,15 @@ export default function Chat() {
   );
 }
 
-function ChannelView({ channel, alters, defaultAuthorId }) {
+function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessageFocused }) {
   const qc = useQueryClient();
   const terms = useTerms();
   const streamRef = useRef(null);
+  // When a mention notification deep-links us to a specific message,
+  // hold onto its id for a beat so MessageRow renders a highlight
+  // ring and the stream auto-scrolls into view. The ring fades back
+  // out after 2.5 s.
+  const [highlightId, setHighlightId] = useState(null);
 
   const { data: rawMessages = [] } = useQuery({
     queryKey: ["systemChatMessages", channel.id],
@@ -335,12 +350,32 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
     [rawMessages]
   );
 
-  // Auto-scroll to bottom on new messages.
+  // Auto-scroll to bottom on new messages — but only when we're NOT
+  // currently focusing a specific message via the URL deep-link.
   useEffect(() => {
+    if (focusMessageId) return;
     const el = streamRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [messages.length]);
+  }, [messages.length, focusMessageId]);
+
+  // Deep-link: scroll a specific message into view and apply a
+  // temporary highlight ring. Fires whenever focusMessageId resolves
+  // to a message that's in this channel's loaded list. Clears the
+  // URL param after the highlight starts so re-renders don't replay.
+  useEffect(() => {
+    if (!focusMessageId) return;
+    if (!messages.some((m) => m.id === focusMessageId)) return;
+    const el = document.querySelector(`[data-msg-id="${focusMessageId}"]`);
+    if (el && typeof el.scrollIntoView === "function") {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    setHighlightId(focusMessageId);
+    const t = setTimeout(() => setHighlightId(null), 2500);
+    onMessageFocused?.();
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusMessageId, messages.length]);
 
   const grouped = useMemo(() => {
     const groups = new Map();
@@ -416,7 +451,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
           sourceType: "chat",
           sourceId: created.id,
           sourceLabel: `#${channel.name}`,
-          navigatePath: `/chat?channel=${channel.id}`,
+          navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
           previewText: cleanText,
         });
       }
@@ -426,7 +461,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
         sourceType: "chat",
         sourceId: created.id,
         sourceLabel: `#${channel.name}`,
-        navigatePath: `/chat?channel=${channel.id}`,
+        navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
         authorAlterId: authorAlterIds[0] || null,
       });
       // Reply-notify rows: when "@ ON" was set on the reply chip,
@@ -445,7 +480,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
             source_label: `#${channel.name}`,
             source_date: new Date().toISOString(),
             preview_text: cleanText.slice(0, 120),
-            navigate_path: `/chat?channel=${channel.id}`,
+            navigate_path: `/chat?channel=${channel.id}&message=${created.id}`,
           });
         } catch { /* non-fatal */ }
       }
@@ -517,6 +552,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
                 alters={alters}
                 allMessages={rawMessages}
                 editing={editing?.id === m.id}
+                highlighted={highlightId === m.id}
                 onStartEdit={() => setEditing(m)}
                 onCancelEdit={() => setEditing(null)}
                 onSubmitEdit={(content) => handleEdit(m, content)}
@@ -541,7 +577,7 @@ function ChannelView({ channel, alters, defaultAuthorId }) {
   );
 }
 
-function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
+function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
   const formatAlter = useAlterLabel();
   const authors = authorsFor(msg, alters);
   const parent = msg.reply_to_id ? allMessages.find((x) => x.id === msg.reply_to_id) : null;
@@ -555,7 +591,10 @@ function MessageRow({ msg, alters, allMessages, editing, onStartEdit, onCancelEd
   const parentColor = useReadableColor(parentAuthors[0]?.color);
 
   return (
-    <div className="group flex gap-2 px-1 py-1 rounded-md hover:bg-muted/30">
+    <div
+      data-msg-id={msg.id}
+      className={`group flex gap-2 px-1 py-1 rounded-md transition-colors hover:bg-muted/30 ${highlighted ? "ring-2 ring-primary bg-primary/10" : ""}`}
+    >
       <AuthorAvatars authors={authors} size={28} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">

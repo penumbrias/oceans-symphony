@@ -682,9 +682,16 @@ export function generateWeeklyNarrative({
   periodEmotions.forEach(ci => {
     (ci.emotions || []).forEach(e => { emotionCounts[e] = (emotionCounts[e] || 0) + 1; });
   });
-  const topEmotions = Object.entries(emotionCounts).sort((a, b) => b[1] - a[1]).slice(0, 4).map(([e]) => e);
-  if (topEmotions.length > 0) {
-    paragraphs.push(`Most frequent emotions: ${topEmotions.join(", ")}.`);
+  // Floor at 2 — a single check-in shouldn't be summarised as "most
+  // frequent" in a clinical report. Counts are shown inline so the
+  // therapist can see the actual numbers.
+  const topEmotionEntries = Object.entries(emotionCounts)
+    .filter(([, n]) => n >= 2)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 4);
+  if (topEmotionEntries.length > 0) {
+    const formatted = topEmotionEntries.map(([e, n]) => `${e} (${n}×)`).join(", ");
+    paragraphs.push(`Most frequent emotions: ${formatted}.`);
   }
 
   return paragraphs;

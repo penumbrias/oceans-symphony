@@ -17,6 +17,22 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "In-app mention notification banner no longer slides under the device status bar / Spotify pill. It now respects the device's top safe-area inset.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a chat mention notification now opens the specific channel AND scrolls to the exact message that mentioned you, with a temporary highlight ring so you can spot it. Works for both new mentions and any older mention-log records.",
+      },
+      {
+        type: "improve",
+        text: "Therapy Report \"most frequently logged emotions / symptoms\" now shows the count alongside each item (e.g. \"hopeless (4×)\") and requires at least 2 occurrences to qualify. A one-off check-in is no longer summarised as a top emotion in the clinical narrative.",
+      },
+      {
+        type: "fix",
+        text: "Activity Tracker weekly grid: the page no longer scrolls during the drag part of long-press-drag-select. The grid now hard-disables touch-scrolling the instant the press fires, so dragging your finger after the half-second hold actually selects cells instead of scrolling the page underneath.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker weekly grid: quick-plan chips no longer paint on top of activities. They now live in their own band right below the day-of-week row so the time grid below stays clear. Past + today columns work the same way.",
       },
       {
