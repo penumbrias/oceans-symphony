@@ -45,13 +45,28 @@ import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
 
 
+// React context lets the parent <Settings> drive single-accordion
+// behaviour: only one Section open at a time. Drops the perceived
+// scroll-length of the page from "every section's contents stacked"
+// to "just one section's contents".
+const SectionAccordionCtx = React.createContext(null);
+
 function Section({ id, icon, label, defaultOpen = false, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+  const ctx = React.useContext(SectionAccordionCtx);
+  const isOpen = ctx
+    ? ctx.openId === id
+    : defaultOpen;
+  const setOpen = ctx
+    ? () => ctx.toggle(id)
+    : null;
+  const [localOpen, setLocalOpen] = useState(defaultOpen);
+  const open = ctx ? isOpen : localOpen;
+  const toggle = ctx ? setOpen : () => setLocalOpen(o => !o);
   return (
     <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen(o => !o)}
+        onClick={toggle}
         className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
       >
         <span className="text-xl">{icon}</span>
@@ -73,18 +88,20 @@ export default function Settings() {
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
 
+  // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
+  // Profile is anchored at the top because the user said so, then the
+  // surfaces people change most (look & feel, notifications, accessibility)
+  // come before the heavier customisation pages (alter setup, tracking
+  // setup) and the rarely-touched trailing stuff (data & privacy, about).
   const SECTIONS = [
     { id: "system", label: "Profile", icon: "⚙️" },
     { id: "appearance", label: "Appearance", icon: "🎨" },
+    { id: "notifications", label: "Notifications & reminders", icon: "🔔" },
     { id: "accessibility", label: "Accessibility", icon: "♿" },
-    { id: "alters", label: `${terms.Alters} & Fields`, icon: "👥" },
-    { id: "checkin", label: "Tracking & Analytics", icon: "⚡" },
-    { id: "reminders", label: "Reminders", icon: "🔔" },
-    { id: "notifications", label: "Notifications & toasts", icon: "📣" },
-    { id: "data", label: "Data & Privacy", icon: "💾" },
-    { id: "disclaimer", label: "Disclaimer", icon: "⚠️" },
-    { id: "bug-report", label: "Report a Bug", icon: "🐛" },
-    { id: "updates", label: "Recent Updates", icon: "📋" },
+    { id: "alters", label: `${terms.Alter} setup`, icon: "👥" },
+    { id: "checkin", label: "Tracking setup", icon: "⚡" },
+    { id: "data", label: "Data & privacy", icon: "💾" },
+    { id: "about", label: "About & help", icon: "ℹ️" },
   ];
 
   const { data: alters = [] } = useQuery({
@@ -265,10 +282,11 @@ export default function Settings() {
         ))}
       </div>
 
+      <SectionsAccordion>
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── PROFILE ── */}
-        <Section id="system" icon="⚙️" label="Profile" defaultOpen={true}>
+        <Section id="system" icon="⚙️" label="Profile">
           <div className="space-y-4">
             <div>
               {showAlterCount ? (
@@ -369,13 +387,23 @@ export default function Settings() {
           <NavigationSettings settings={settings} />
         </Section>
 
+        {/* ── NOTIFICATIONS & REMINDERS ── */}
+        <Section id="notifications" icon="🔔" label="Notifications & reminders">
+          <div className="space-y-6">
+            <NotificationSettings />
+            <div className="pt-4 border-t border-border/40">
+              <RemindersSettings />
+            </div>
+          </div>
+        </Section>
+
         {/* ── ACCESSIBILITY ── */}
         <Section id="accessibility" icon="♿" label="Accessibility">
           <AccessibilitySettings />
         </Section>
 
-        {/* ── ALTERS & FIELDS ── */}
-        <Section id="alters" icon="👥" label={`${terms.Alters} & Fields`}>
+        {/* ── ALTER SETUP ── */}
+        <Section id="alters" icon="👥" label={`${terms.Alter} setup`}>
           <CustomFieldsManager />
           <div className="border-t border-border/30 pt-4">
             <RelationshipTypesManager />
@@ -385,8 +413,8 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── TRACKING & ANALYTICS ── */}
-        <Section id="checkin" icon="⚡" label="Tracking & Analytics">
+        {/* ── TRACKING SETUP ── */}
+        <Section id="checkin" icon="⚡" label="Tracking setup">
           <QuickActionsConfig />
           <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
@@ -447,21 +475,8 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── REMINDERS ── */}
-        <Section id="reminders" icon="🔔" label="Reminders">
-          <RemindersSettings />
-        </Section>
-
-        <Section id="notifications" icon="📣" label="Notifications & toasts">
-          <NotificationSettings />
-        </Section>
-
-        <Section id="preview" icon="👁️" label="Preview Mode">
-          <PreviewModeSection />
-        </Section>
-
         {/* ── DATA & PRIVACY ── */}
-        <Section id="data" icon="💾" label="Data & Privacy">
+        <Section id="data" icon="💾" label="Data & privacy">
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
@@ -491,31 +506,73 @@ export default function Settings() {
           </div>
         </Section>
 
-        {/* ── DISCLAIMER ── */}
-        <Section id="disclaimer" icon="⚠️" label="Disclaimer" defaultOpen={false}>
-          <MedicalDisclaimer />
-        </Section>
+        {/* ── ABOUT & HELP ──
+            Consolidates the four trailing sub-pages (medical
+            disclaimer, recent updates, bug report, dev preview mode)
+            into one collapsed group so the TOC isn't dominated by
+            rarely-touched links. */}
+        <Section id="about" icon="ℹ️" label="About & help">
+          <div className="space-y-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                What's new
+              </p>
+              <RecentUpdates />
+            </div>
 
-        {/* ── BUG REPORT ── */}
-        <Section id="bug-report" icon="🐛" label="Report a Bug" defaultOpen={false}>
-          <div className="space-y-3">
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              Found something broken? Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
-            </p>
-            <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
-              <span>🐛</span> Open bug report form
-            </Button>
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Found a bug?
+              </p>
+              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+                Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
+              </p>
+              <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
+                <span>🐛</span> Open bug report form
+              </Button>
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Medical disclaimer
+              </p>
+              <MedicalDisclaimer />
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Preview mode <span className="text-[0.625rem] font-normal text-muted-foreground/70 normal-case ml-1">(dev)</span>
+              </p>
+              <PreviewModeSection />
+            </div>
           </div>
         </Section>
 
-        {/* ── RECENT UPDATES ── */}
-        <Section id="updates" icon="📋" label="Recent Updates" defaultOpen={false}>
-          <RecentUpdates />
-        </Section>
-
       </div>
+      </SectionsAccordion>
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
     </motion.div>
+  );
+}
+
+// Accordion provider — wraps every <Section> so opening one auto-
+// closes the others. Honours URL hash on first render so TOC jumps
+// and external deep-links still drop the user inside an open section.
+function SectionsAccordion({ children }) {
+  const [openId, setOpenId] = useState(() => {
+    try {
+      const h = (window.location.hash || "").replace(/^#/, "");
+      return h || null;
+    } catch { return null; }
+  });
+  const toggle = React.useCallback((id) => {
+    setOpenId(prev => prev === id ? null : id);
+  }, []);
+  const value = React.useMemo(() => ({ openId, toggle }), [openId, toggle]);
+  return (
+    <SectionAccordionCtx.Provider value={value}>
+      {children}
+    </SectionAccordionCtx.Provider>
   );
 }

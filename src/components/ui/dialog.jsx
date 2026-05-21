@@ -61,9 +61,13 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
       }}
       style={{
         // Center the dialog in the space above the tour card when active,
-        // and above the on-screen keyboard when one is open.
-        top: `calc((100dvh - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
-        maxHeight: `calc(100dvh - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
+        // and above the on-screen keyboard when one is open. Also subtract
+        // the device's top + bottom safe-area insets so a full-height
+        // dialog can't bleed under the status bar / notification island
+        // at the top or the gesture-area chin at the bottom on Android /
+        // iOS notch devices.
+        top: `calc(env(safe-area-inset-top, 0px) + (100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - ${keyboardInset}px - var(--tour-card-height, 0px)) / 2)`,
+        maxHeight: `calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - ${keyboardInset}px - var(--tour-card-height, 0px) - 2rem)`,
         ...style,
       }}
       className={cn(
