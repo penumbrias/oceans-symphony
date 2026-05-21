@@ -20,6 +20,10 @@ export const CHANGELOG = [
         text: "Floating grounding / quick-support bubble no longer hides behind the bottom navigation bar. It now respects the bottom nav height + safe-area, and persisted positions from older builds get hoisted back up on the next launch if they were dragged into the nav.",
       },
       {
+        type: "improve",
+        text: "Simply Plural sync now sends explicit no-cache headers on every API call so an aggressive Android WebView or proxy can't serve a stored older response on a fresh import. (Won't fix SP-side caching, but rules out the local browser as a culprit.)",
+      },
+      {
         type: "fix",
         text: "Simply Plural import: alters no longer get force-archived (or slip through un-archived) when SP returns the archive flag in an unexpected shape. The old read was a loose `!!archived`, which mis-classified timestamps and alternate field names. Now only an explicit boolean true / \"true\" / 1 counts as archived; anything else lands in your active list so nothing gets lost. If a member was archived on SP and lands as active here, you can re-archive from the alter profile.",
       },
