@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Settings → Data & Privacy → Quick-tap privacy cover: pick how many quick taps open the Grocery List as a privacy overlay (2 / 3 / 4 / 5), or turn the gesture off entirely if it's been misfiring.",
+      },
+      {
         type: "fix",
         text: "Floating grounding / quick-support bubble no longer hides behind the bottom navigation bar. It now respects the bottom nav height + safe-area, and persisted positions from older builds get hoisted back up on the next launch if they were dragged into the nav.",
       },

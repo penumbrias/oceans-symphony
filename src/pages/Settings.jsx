@@ -18,6 +18,7 @@ import RelationshipTypesManager from "@/components/settings/RelationshipTypesMan
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
+import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
@@ -460,6 +461,9 @@ export default function Settings() {
           </p>
           <div className="border-t border-border/30 pt-4">
             <StorageModeSettings />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <GroceryPanicTapsSettings />
           </div>
           <div className="border-t border-border/30 pt-4">
             <DataBackupRestore />
