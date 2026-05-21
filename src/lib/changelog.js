@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Toast notifications and modal dialogs no longer slide under the device status bar / Spotify pill / notification island at the top, or the gesture chin at the bottom. Toasts get a safe-area-aware offset, and the base Dialog now subtracts both insets from its max height + center calc — fixes every modal in the app at once.",
+      },
+      {
         type: "feature",
         text: "New Settings → Notifications & toasts: toggle which kinds of in-app banner messages appear (success / info / warning — errors always stay on), pick how long they linger (2s / 4s / 6s / 10s), and move them to any corner of the screen.",
       },

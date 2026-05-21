@@ -32,12 +32,24 @@ const Toaster = ({
   useEffect(() => { installNotificationFilter(); }, []);
   useEffect(() => { setActivePrefs(prefs); }, [prefs.showSuccess, prefs.showInfo, prefs.showWarning]);
 
+  // Sonner only takes a single numeric/string `offset` and applies it
+  // to whichever edge the chosen position anchors against. We feed it
+  // a safe-area-aware value so toasts never slide under the device
+  // status bar / Spotify pill at the top, or the gesture-area chin at
+  // the bottom. `position` is read off prefs above.
+  const isTop = prefs.position.startsWith("top-");
+  const offset = isTop
+    ? "calc(env(safe-area-inset-top, 0px) + 16px)"
+    : "calc(env(safe-area-inset-bottom, 0px) + 16px)";
+
   return (
     (<Sonner
       theme={theme}
       className="toaster group"
       position={prefs.position}
       duration={prefs.durationMs}
+      offset={offset}
+      mobileOffset={offset}
       toastOptions={{
         classNames: {
           toast:
