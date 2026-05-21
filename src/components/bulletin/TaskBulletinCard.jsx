@@ -188,6 +188,7 @@ const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : r
       )}
       <BulletinActionMenu
         bulletin={bulletin}
+        alters={alters}
         open={showActions}
         onClose={() => setShowActions(false)}
       />

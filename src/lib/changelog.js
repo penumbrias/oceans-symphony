@@ -17,6 +17,22 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Simply Plural import: one bad alter no longer halts the whole import. Previously, if a single alter's write to local storage failed mid-way through, every alter after it was silently skipped — which is why some systems ended up with around half their members copied across. Each alter now imports independently, and the final toast lists how many failed (with details in the devtools console).",
+      },
+      {
+        type: "feature",
+        text: "System Chat: channels can now be grouped into categories — add an optional category when creating or editing a channel and channels with the same category stack under one header in the sidebar. Up / down arrows next to each channel let you reorder them within a category.",
+      },
+      {
+        type: "fix",
+        text: "System Chat: removed the duplicate \"Back\" button in the chat header and trimmed the empty band between the message composer and the bottom navigation bar.",
+      },
+      {
+        type: "feature",
+        text: "Bulletins are now editable — long-press any bulletin to find a new \"Edit content + author\" action. Rewrite the post text, change which alters get attribution, or re-attribute to the whole system. Works on regular bulletins and task bulletins.",
+      },
+      {
+        type: "fix",
         text: "In-app mention notification banner no longer slides under the device status bar / Spotify pill. It now respects the device's top safe-area inset.",
       },
       {
