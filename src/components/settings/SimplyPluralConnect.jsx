@@ -210,6 +210,23 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
         if (includeAlters) {
           const effectiveGroupsById = includeGroups ? groupsById : {};
           const mappedAlters = members.map((m) => mapMemberToAlter(m, effectiveGroupsById, fieldIdMap, sysId));
+          // Diagnostic: log the raw archive shape SP returned alongside
+          // what we decided. If a future report shows alters in the
+          // wrong archive bucket again, the user can paste this
+          // console output and we'll know exactly which field SP
+          // populated (timestamp number? camelCase? something new?).
+          try {
+            const archiveRows = members.map((m, i) => {
+              const c = m?.content || m || {};
+              return {
+                name: mappedAlters[i]?.name,
+                spArchived: c.archived,
+                spIsArchived: c.isArchived,
+                resolved: mappedAlters[i]?.is_archived,
+              };
+            });
+            console.debug("[SP import] Archive resolution per member:", archiveRows);
+          } catch { /* logging is best-effort */ }
           setImportProgress(`Importing alters… (0/${mappedAlters.length})`);
           const existingAlters = await localEntities.Alter.list();
           if (importMode === "replace_all") {

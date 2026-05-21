@@ -158,6 +158,27 @@ function remapCustomFields(spInfo, fieldIdMap) {
   return result;
 }
 
+// SP's archive flag has appeared in several shapes across API versions
+// and exports — sometimes a boolean on `content.archived`, sometimes
+// camelCase `isArchived`, sometimes a timestamp number that means
+// "last archived at" rather than "currently archived." Reading it as
+// `!!c.archived` got both directions wrong in the wild (a 53-alter
+// system saw active alters force-archived AND archived ones imported
+// as active). Be conservative: only mark archived when we see an
+// explicit truthy boolean / "true" / 1; anything else (numbers,
+// undefined, null, strings) falls through to NOT archived. Better to
+// under-archive (user sees too many alters and can hide them) than
+// to over-archive (user thinks alters got lost).
+export function readSpArchived(member) {
+  const c = member?.content || member || {};
+  const candidates = [c.archived, c.isArchived, member?.archived, member?.isArchived];
+  for (const v of candidates) {
+    if (v === true || v === "true" || v === 1) return true;
+    if (v === false || v === "false" || v === 0) return false;
+  }
+  return false;
+}
+
 export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, systemId = "") {
   const spId = member.id || member._id || "";
   const c = member.content || member;
@@ -194,7 +215,7 @@ export function mapMemberToAlter(member, groupsById = {}, fieldIdMap = {}, syste
     custom_fields: customFields,
     tags: Array.isArray(c.tags) ? c.tags : [],
     groups: memberGroups,
-    is_archived: !!c.archived,
+    is_archived: readSpArchived(member),
     birthday: c.birthday || c.birthdate || "",
   };
 }
@@ -215,7 +236,7 @@ export function mapCustomFrontToAlter(customFront, systemId = "") {
     custom_fields: customFields,
     tags: [],
     groups: [],
-    is_archived: !!c.archived,
+    is_archived: readSpArchived(customFront),
   };
 }
 
@@ -240,7 +261,7 @@ export function mapCustomFrontToSymptom(customFront) {
     is_positive: false,
     color: normalizeColor(c.color) || "#9333EA",
     is_default: false,
-    is_archived: !!c.archived,
+    is_archived: readSpArchived(customFront),
     order: 999,
   };
 }

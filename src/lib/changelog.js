@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Simply Plural import: alters no longer get force-archived (or slip through un-archived) when SP returns the archive flag in an unexpected shape. The old read was a loose `!!archived`, which mis-classified timestamps and alternate field names. Now only an explicit boolean true / \"true\" / 1 counts as archived; anything else lands in your active list so nothing gets lost. If a member was archived on SP and lands as active here, you can re-archive from the alter profile.",
+      },
+      {
         type: "feature",
         text: "Quick alter-label toggle: a small pill button now sits in the Alters directory header, the Set Front modal header, and the Polls page header that cycles the label mode through Name → Alias → Both without having to dive into Settings.",
       },
