@@ -24,7 +24,17 @@ export default function InfoTab({ alter, systemFields }) {
   const hiddenFieldIds = systemSettings?.hidden_field_ids || [];
 
   const customFieldValues = alter.custom_fields || {};
-  const alterSpecificFields = alter.alter_custom_fields || [];
+  // alter_custom_fields is written by two unrelated features with
+  // incompatible shapes: this tab's per-alter "ad-hoc one-off
+  // fields" UI uses an array of { name, value } records, while
+  // Get to know me / Help me unblend write an object map keyed by
+  // CustomField id. If we land on the object shape, treat it as
+  // empty here so the page doesn't crash — the data stays intact
+  // for the other features and just doesn't surface in the per-
+  // alter ad-hoc list.
+  const alterSpecificFields = Array.isArray(alter.alter_custom_fields)
+    ? alter.alter_custom_fields
+    : [];
 
   // Per-alter system field order — falls back to global order
   const perAlterFieldOrder = customFieldValues[FIELD_ORDER_KEY] || null;
