@@ -66,6 +66,18 @@ function readCustom(alter, fieldName) {
 // ───────────────────────────────────────────────────────────────────
 // PRESET QUESTIONS — broad → specific. Color first since "what
 // colour feels present" is usually the easiest signal.
+// Human-readable labels for preset_answers keys so InfoTab can
+// render them as "Energy: <pills>", "Body or head: <pills>", etc.
+// Keep keys in sync with question.id (and the special
+// dominant_feeling key used by the dynamic dominant-feeling
+// question).
+export const PRESET_ANSWER_LABELS = {
+  energy: "Energy",
+  body_or_head: "Body or head",
+  role_lean: "Role lean",
+  dominant_feeling: "Dominant feeling",
+};
+
 export const PRESET_QUESTIONS = [
   {
     id: "color",
@@ -596,6 +608,17 @@ function collectTags(alter) {
   const out = [];
   if (Array.isArray(alter?.tags)) out.push(...alter.tags);
   if (alter?.role) out.push(alter.role);
+  // Fold preset_answers into the match pool. Each entry is a
+  // comma-separated list-style string (matching how InfoTab
+  // renders custom-field list values), so split + push each
+  // value individually for the matcher to find.
+  if (alter?.preset_answers && typeof alter.preset_answers === "object" && !Array.isArray(alter.preset_answers)) {
+    for (const v of Object.values(alter.preset_answers)) {
+      if (typeof v === "string") {
+        out.push(...v.split(/[,;]/).map((s) => s.trim()).filter(Boolean));
+      }
+    }
+  }
   // Read a couple of conventional custom fields if the user has them.
   for (const fname of ["vibe", "tags", "energy"]) {
     const v = readCustom(alter, fname);

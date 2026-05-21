@@ -183,66 +183,42 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       }
 
       // 4) Preset tag-based questions (energy / body / role_lean /
-      //    dyn_dominant_feeling). Store ONLY the user's literal
-      //    answer label (e.g. "High / wired") — not the inferred
-      //    multi-tag bag that used to land on alter.tags
-      //    (high-energy / manic / playful). The inferred bag felt
-      //    intrusive to users because the app was effectively
-      //    stamping things onto an alter that the user never
-      //    typed. The matcher reads label-shaped tags via a
-      //    legacy-bag-aware comparison so pre-existing data keeps
-      //    scoring without us writing more inferred soup.
-      // tagLabel is the context-stamped form ("High / wired
-      // energy") set on each option in PRESET_QUESTIONS — it
-      // reads naturally on the profile as a tag pill, where a
-      // bare option label ("High / wired") wouldn't carry the
-      // question's context. Fall back to the plain label / value
-      // for any option that doesn't define one.
+      //    dyn_dominant_feeling). Store answers as a custom-field-
+      //    style list on alter.preset_answers[question.id] —
+      //    multi-value, comma-separated, deduped. InfoTab renders
+      //    these as a row of pills under a section labelled "From
+      //    Get to know me" so the user can see (and remove
+      //    individual) entries directly. NO writes to alter.tags
+      //    anymore — that surface felt intrusive when it was
+      //    bundling inferences the user hadn't typed.
       const literalAnswer = (answer.tagLabel || answer.label || answer.value || "").trim();
-      const optionTags = literalAnswer ? [literalAnswer] : [];
-      const dominantFeelingValue = question.id === "dyn_dominant_feeling" ? (answer.value || answer.label || null) : null;
+      const dominantFeelingValue = question.id === "dyn_dominant_feeling"
+        ? (answer.value || answer.label || null)
+        : null;
       const roleHints = Array.isArray(answer.roles) ? answer.roles.filter(Boolean) : [];
-      const tagsToWrite = [...optionTags];
-      if (dominantFeelingValue && !tagsToWrite.includes(dominantFeelingValue)) tagsToWrite.push(dominantFeelingValue);
-      // Auto-tag writeback is opt-in. Users found it intrusive
-      // that picking a preset answer stamped tags onto their
-      // alter's public profile. Default OFF — the user explicitly
-      // turns it on in Settings → Appearance if they want their
-      // Get to know me answers to seed alter.tags.
-      let autoTagOn = false;
-      try {
-        const list = await base44.entities.SystemSettings.list();
-        autoTagOn = !!list?.[0]?.auto_tag_from_get_to_know_me;
-      } catch { /* default to off */ }
 
-      if (!autoTagOn && tagsToWrite.length > 0) {
-        // Still honour role_lean's role hint, since "role" is the
-        // user's explicit role answer, not an inferred tag bag.
-        if (roleHints.length > 0) {
-          for (const id of alterIds) {
-            const alter = byId[id];
-            if (!alter) continue;
-            if (typeof alter.role === "string" && alter.role.trim()) continue;
-            await base44.entities.Alter.update(id, { role: roleHints[0] });
-          }
-          return { saved: true, count: alterIds.length, field: "role" };
-        }
-        return {
-          saved: false,
-          reason: "Tag writeback is off — turn it on in Settings → Appearance if you want preset answers to seed alter tags.",
-        };
-      }
+      const presetKey = question.id === "dyn_dominant_feeling"
+        ? "dominant_feeling"
+        : question.id;
+      const presetValue = literalAnswer || dominantFeelingValue;
 
-      if (tagsToWrite.length > 0 || (roleHints.length > 0)) {
+      if (presetValue || roleHints.length > 0) {
         for (const id of alterIds) {
           const alter = byId[id];
           if (!alter) continue;
           const updates = {};
-          if (tagsToWrite.length > 0) {
-            const prevTags = Array.isArray(alter.tags) ? alter.tags : [];
-            const merged = dedupePreserveOrder([...prevTags, ...tagsToWrite]);
-            updates.tags = merged;
+
+          if (presetValue) {
+            const prevPresetAll = (alter.preset_answers && typeof alter.preset_answers === "object" && !Array.isArray(alter.preset_answers))
+              ? alter.preset_answers
+              : {};
+            const prevStr = typeof prevPresetAll[presetKey] === "string" ? prevPresetAll[presetKey] : "";
+            const items = prevStr ? prevStr.split(/[,;|]/).map((s) => s.trim()).filter(Boolean) : [];
+            items.push(presetValue);
+            const next = dedupePreserveOrder(items).join(", ");
+            updates.preset_answers = { ...prevPresetAll, [presetKey]: next };
           }
+
           // Only set role if it's currently blank — don't overwrite
           // an explicit role the user already typed.
           if (roleHints.length > 0 && !(typeof alter.role === "string" && alter.role.trim())) {
@@ -252,7 +228,11 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
             await base44.entities.Alter.update(id, updates);
           }
         }
-        return { saved: true, count: alterIds.length, field: tagsToWrite.length > 0 ? "tags" : "role" };
+        return {
+          saved: true,
+          count: alterIds.length,
+          field: presetValue ? (question.fieldName || question.prompt?.split(/[?]/)[0] || "answer") : "role",
+        };
       }
 
       return {

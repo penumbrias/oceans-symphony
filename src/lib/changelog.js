@@ -17,11 +17,11 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Get to know me's tag writeback is now opt-in (default OFF) via a new Settings → Appearance toggle. The four questions that historically wrote tags (energy / body-or-head / role lean / dominant feeling) just record your answer in passing without stamping the alter's profile unless you explicitly turn the toggle on. Other writebacks (custom fields, colour, pronouns, role) are unaffected.",
+        text: "Replaced the Get to know me tag pills with a custom-field-style \"From Get to know me\" section on the Info tab. Each question (energy, body / head, role lean, dominant feeling) shows up as a labelled row of pills (e.g. \"Energy: High / wired energy, Calm / settled energy\"), one pill per answer, with an × to remove individual values. No more tag soup on the profile.",
       },
       {
         type: "improve",
-        text: "Alter profile tags get a one-click \"Clear all\" button alongside the per-tag × so you can wipe a legacy bag in one go instead of pruning each tag individually.",
+        text: "Alter profile tags get a one-click \"Clear all\" button alongside the per-tag × so you can wipe legacy tag data in one go instead of pruning each tag individually. (The Tags section only shows up when there's still legacy data to clean up — new Get to know me answers no longer write here.)",
       },
       {
         type: "improve",
