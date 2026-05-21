@@ -204,6 +204,35 @@ export async function applyGetToKnowMeAnswer({ question, answer, alterIds, custo
       const roleHints = Array.isArray(answer.roles) ? answer.roles.filter(Boolean) : [];
       const tagsToWrite = [...optionTags];
       if (dominantFeelingValue && !tagsToWrite.includes(dominantFeelingValue)) tagsToWrite.push(dominantFeelingValue);
+      // Auto-tag writeback is opt-in. Users found it intrusive
+      // that picking a preset answer stamped tags onto their
+      // alter's public profile. Default OFF — the user explicitly
+      // turns it on in Settings → Appearance if they want their
+      // Get to know me answers to seed alter.tags.
+      let autoTagOn = false;
+      try {
+        const list = await base44.entities.SystemSettings.list();
+        autoTagOn = !!list?.[0]?.auto_tag_from_get_to_know_me;
+      } catch { /* default to off */ }
+
+      if (!autoTagOn && tagsToWrite.length > 0) {
+        // Still honour role_lean's role hint, since "role" is the
+        // user's explicit role answer, not an inferred tag bag.
+        if (roleHints.length > 0) {
+          for (const id of alterIds) {
+            const alter = byId[id];
+            if (!alter) continue;
+            if (typeof alter.role === "string" && alter.role.trim()) continue;
+            await base44.entities.Alter.update(id, { role: roleHints[0] });
+          }
+          return { saved: true, count: alterIds.length, field: "role" };
+        }
+        return {
+          saved: false,
+          reason: "Tag writeback is off — turn it on in Settings → Appearance if you want preset answers to seed alter tags.",
+        };
+      }
+
       if (tagsToWrite.length > 0 || (roleHints.length > 0)) {
         for (const id of alterIds) {
           const alter = byId[id];

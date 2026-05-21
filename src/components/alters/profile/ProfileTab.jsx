@@ -328,6 +328,20 @@ useEffect(() => {
       toast.error(err?.message || "Couldn't remove tag");
     }
   };
+
+  const clearAllTags = async () => {
+    const existing = Array.isArray(alter.tags) ? alter.tags : [];
+    if (existing.length === 0) return;
+    if (!window.confirm(`Remove all ${existing.length} tag${existing.length === 1 ? "" : "s"} from ${alter.name || "this alter"}? This can't be undone.`)) return;
+    try {
+      await base44.entities.Alter.update(alter.id, { tags: [] });
+      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      toast.success("Tags cleared");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't clear tags");
+    }
+  };
   const hasColor = form.color && form.color.length > 3;
   const bgColorAlter = hasColor ? form.color : null;
   const textOnColor = hasColor ? getContrastColor(form.color) : null;
@@ -536,12 +550,21 @@ useEffect(() => {
 
         {alter.tags && alter.tags.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-              Tags
-              <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
-                sourced from Get to know me
-              </span>
-            </p>
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+                Tags
+                <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
+                  sourced from Get to know me
+                </span>
+              </p>
+              <button
+                type="button"
+                onClick={clearAllTags}
+                className="text-[10px] font-medium text-muted-foreground/70 hover:text-red-500 hover:underline"
+              >
+                Clear all
+              </button>
+            </div>
             <div className="flex flex-wrap gap-1.5">
               {alter.tags.map((tag) => (
                 <span key={tag} className="group inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">
@@ -895,12 +918,21 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
 
       {alter.tags && alter.tags.length > 0 && (
         <div>
-          <p className="text-xs font-medium text-primary flex items-center gap-1.5 mb-2">
-            <Tag className="w-3.5 h-3.5" /> Tags
-            <span className="ml-1 text-[10px] font-normal italic text-muted-foreground/70">
-              sourced from Get to know me
-            </span>
-          </p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+              <Tag className="w-3.5 h-3.5" /> Tags
+              <span className="ml-1 text-[10px] font-normal italic text-muted-foreground/70">
+                sourced from Get to know me
+              </span>
+            </p>
+            <button
+              type="button"
+              onClick={clearAllTags}
+              className="text-[10px] font-medium text-muted-foreground/70 hover:text-red-500 hover:underline"
+            >
+              Clear all
+            </button>
+          </div>
           <div className="flex flex-wrap gap-1.5">
             {alter.tags.map((tag) => (
               <span key={tag} className="group inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs bg-muted/50 text-muted-foreground border border-border/40">

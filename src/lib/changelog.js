@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Get to know me's tag writeback is now opt-in (default OFF) via a new Settings → Appearance toggle. The four questions that historically wrote tags (energy / body-or-head / role lean / dominant feeling) just record your answer in passing without stamping the alter's profile unless you explicitly turn the toggle on. Other writebacks (custom fields, colour, pronouns, role) are unaffected.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile tags get a one-click \"Clear all\" button alongside the per-tag × so you can wipe a legacy bag in one go instead of pruning each tag individually.",
+      },
+      {
+        type: "improve",
         text: "Get to know me tags are now context-stamped — picking \"High / wired\" on the energy question stores \"High / wired energy\" instead of a bare \"High / wired\" that didn't say what it was about. The alter profile's Tags section also notes \"sourced from Get to know me\" so it's transparent where they come from.",
       },
       {
