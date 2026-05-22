@@ -47,11 +47,9 @@ export default function AccessibilitySettings() {
   return (
     <div className="space-y-6">
 
-      {/* Font / UI scale — three-column grid mirroring the layout
-          the same control used to render under Appearance. Body
-          font lives in Settings → Appearance now; only the SIZE
-          slider is here so a single accessibility-focused page
-          owns text readability. */}
+      {/* Font / UI scale — same picker also appears under
+          Appearance. Both write to the same accessibility key so
+          changes propagate immediately either way. */}
       <div>
         <p className="text-sm font-semibold mb-1">Text & UI size</p>
         <p className="text-xs text-muted-foreground mb-3">
