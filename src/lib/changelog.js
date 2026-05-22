@@ -34,6 +34,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Details modal: opening it for one activity after editing a different one no longer shows a blank modal — the stale editing-id was making the body render nothing. Edit state now resets when the modal opens or the underlying activity changes.",
+      },
+      {
+        type: "fix",
+        text: "Logging an activity with no end time now actually saves with no duration instead of forcing a one-hour-after-start fallback. The Activity Details edit form leaves the End field blank when there's no duration, and saving with a blank End writes `duration_minutes: null`. Read-only view shows \"—\" for End/Duration on instant-style logs.",
+      },
+      {
+        type: "fix",
         text: "Web (oceans-symphony.app) was white-screening with a \"No QueryClient set\" error when boot landed on the unlock / firstrun / recovery screens. Those early-boot branches weren't wrapped in QueryClientProvider, so the grocery panel's useQuery hook crashed the render. Wrapped all three boot branches.",
       },
       {
