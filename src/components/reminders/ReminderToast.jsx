@@ -106,6 +106,22 @@ export default function ReminderToast() {
     setVisible(prev => prev.filter(v => v.instance.id !== instanceId));
   };
 
+  // Top-right X on a reminder card. Previously this ONLY hid the
+  // visual toast without persisting the dismissal — so on the next
+  // reload the same fired instances would re-trigger as toasts AND
+  // wouldn't appear in "recently handled". Now write
+  // status: "dismissed" too, matching what the inline Dismiss
+  // button does.
+  const handleXClose = async (instanceId) => {
+    dismiss(instanceId);
+    try {
+      await base44.entities.ReminderInstance.update(instanceId, { status: "dismissed" });
+      queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
+    } catch (e) {
+      console.warn("[ReminderToast] X-dismiss persist failed:", e?.message || e);
+    }
+  };
+
   const updateInstance = async (id, data) => {
     await base44.entities.ReminderInstance.update(id, data);
     queryClient.invalidateQueries({ queryKey: ["reminderInstances"] });
@@ -179,7 +195,8 @@ export default function ReminderToast() {
                       <p className="text-xs text-muted-foreground mt-0.5 line-clamp-2">{reminder.body}</p>
                     )}
                   </div>
-                  <button onClick={() => dismiss(instance.id)}
+                  <button onClick={() => handleXClose(instance.id)}
+                    aria-label="Dismiss reminder"
                     className="text-muted-foreground hover:text-foreground transition-colors min-w-[28px] min-h-[28px] flex items-center justify-center">
                     <X className="w-4 h-4" />
                   </button>

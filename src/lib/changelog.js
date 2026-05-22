@@ -34,6 +34,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Web (oceans-symphony.app) was white-screening with a \"No QueryClient set\" error when boot landed on the unlock / firstrun / recovery screens. Those early-boot branches weren't wrapped in QueryClientProvider, so the grocery panel's useQuery hook crashed the render. Wrapped all three boot branches.",
+      },
+      {
+        type: "fix",
+        text: "Reminder banner X button now actually marks the reminder as dismissed in the database, so it (a) doesn't re-fire next session and (b) shows up in the Recently Handled list. Previously the X only hid the visual toast without persisting.",
+      },
+      {
+        type: "fix",
         text: "Backup & Export now shows a clear \"the app needs to reload to pick up the latest assets\" message instead of a raw \"Failed to fetch dynamically imported module\" error when the WebView has a stale chunk reference from a previous build. Underlying problem is a one-time stale cache after an app update — closing + reopening the app resolves it.",
       },
       {
