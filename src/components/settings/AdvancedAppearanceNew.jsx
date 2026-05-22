@@ -206,10 +206,16 @@ function WaveColorPicker() {
                 isCurrent ? "border-primary/60 bg-primary/10" : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
+              {/* Outer wrapper paints a checker-style mid-grey so a
+                  swatch fill that matches the surrounding card
+                  (most often: the Background swatch) is still
+                  visible as a clickable target. Inner div sits on
+                  top and shows the actual colour. */}
               <div
-                className="w-7 h-7 rounded-lg border border-border/60"
-                style={{ backgroundColor: cssVarFor(key) }}
-              />
+                className="w-7 h-7 rounded-lg border-2 border-border bg-[repeating-linear-gradient(45deg,#4b5563_0_4px,#9ca3af_4px_8px)] overflow-hidden"
+              >
+                <div className="w-full h-full" style={{ backgroundColor: cssVarFor(key) }} />
+              </div>
               <span className={`text-[0.625rem] ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
                 {WAVE_COLOR_LABELS[key]}
               </span>

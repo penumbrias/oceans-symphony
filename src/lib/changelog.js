@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Contrast adjustment for alter / group / role chips no longer changes colours dramatically. It now shifts lightness by the smallest amount needed to hit the WCAG 3:1 readability bar instead of snapping to a fixed lightness target, so a deep navy stays a deep navy (just visible).",
+      },
+      {
+        type: "fix",
+        text: "Wave-colour picker: the Background swatch is now visible even when its fill matches the surrounding card. Added a checkered backdrop behind each swatch so any colour — including one that perfectly camouflages — still reads as a tappable target.",
+      },
+      {
         type: "feature",
         text: "Wave colour is now user-pickable. Under Settings → Appearance → Wave colour, choose which palette swatch (Background, Surface, Primary, Secondary, Accent, Muted, Text, Text 2nd) fills the header wave at 0.3 opacity. Defaults to Muted.",
       },
