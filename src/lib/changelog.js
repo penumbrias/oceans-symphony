@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Backup & Export on the native Android build now actually saves the file to Downloads/Oceans Symphony/ instead of opening the share sheet. The previous fix wrote the file to MediaStore successfully but then mis-checked the result code (`media-store` vs the real `filesystem`), so every native export fell through to the share fallback even when the silent save had worked.",
+      },
+      {
+        type: "fix",
         text: "Backup & Export on the TWA / web build now actually saves the file to the device's Downloads folder instead of opening the share sheet. The web pathway used to prefer `navigator.share` (which Android renders as a share UI); backup callers now prefer the anchor-download path, which the WebView's download manager writes straight to Downloads.",
       },
       {
