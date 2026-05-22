@@ -164,8 +164,17 @@ async function downloadJson(data, filename, format = "json") {
         filename,
         subdir: "Oceans Symphony",
       });
-      if (mediaRes?.result === "media-store") {
-        return { result: "downloaded", uri: mediaRes.uri, location: "Downloads/Oceans Symphony" };
+      // saveBlobToPublicDownloads returns `result: "filesystem"` on
+      // success (matching autoBackup's interpretation), NOT
+      // "media-store" — getting this wrong meant every native
+      // backup fell through to the share sheet even when MediaStore
+      // had silently succeeded.
+      if (mediaRes?.result === "filesystem") {
+        return {
+          result: "downloaded",
+          uri: mediaRes.uri,
+          location: mediaRes.location || "Downloads/Oceans Symphony",
+        };
       }
       console.warn("[downloadJson] MediaStore unavailable, falling back to Share:", mediaRes?.error);
     } catch (e) {
@@ -183,6 +192,12 @@ async function downloadJson(data, filename, format = "json") {
     filename,
     title: "Oceans Symphony Backup",
     dialogTitle: "Save backup file",
+    // Backup callers want "save to my device", not "send to another
+    // app" — anchor-download lands the file in the WebView's
+    // download folder, which is what users expect when they tap
+    // Export. Share sheet is still used as fallback if the anchor
+    // path fails (rare).
+    prefer: "download",
   });
 }
 

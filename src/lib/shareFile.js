@@ -75,10 +75,34 @@ function blobToBase64(blob) {
   });
 }
 
-async function shareWeb(blob, filename, title) {
-  // Web Share API (Android Chrome / iOS Safari PWA / TWA). Lets the
-  // user file the blob in any share target.
-  if (typeof navigator !== "undefined" && navigator.share && navigator.canShare) {
+async function shareWeb(blob, filename, title, prefer = "share") {
+  // `prefer`:
+  //   "share"    — Web Share API first (good for "send this to another
+  //                app" semantics like sharing a therapy report to a
+  //                messaging app).
+  //   "download" — anchor-click download first (good for "save this
+  //                file to my device" semantics like exporting a
+  //                backup — the WebView's download manager drops the
+  //                file straight into ~/Downloads on every major
+  //                desktop and mobile browser, no share-sheet
+  //                ceremony).
+  const tryDownload = () => {
+    try {
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      setTimeout(() => URL.revokeObjectURL(url), 10_000);
+      return { result: "downloaded" };
+    } catch (e) {
+      return { result: "failed", error: e?.message || "download_failed" };
+    }
+  };
+  const tryShare = async () => {
+    if (typeof navigator === "undefined" || !navigator.share || !navigator.canShare) return null;
     try {
       const file = new File([blob], filename, { type: blob.type || "application/octet-stream" });
       if (navigator.canShare({ files: [file] })) {
@@ -89,21 +113,19 @@ async function shareWeb(blob, filename, title) {
       if (e?.name === "AbortError") return { result: "cancelled" };
       console.warn("[shareFile] navigator.share failed, falling back:", e?.message);
     }
+    return null;
+  };
+
+  if (prefer === "download") {
+    const dl = tryDownload();
+    if (dl.result === "downloaded") return dl;
+    const sh = await tryShare();
+    if (sh) return sh;
+    return dl; // surface the original failure if neither worked
   }
-  // Desktop / older browsers: anchor-click download.
-  try {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
-    return { result: "downloaded" };
-  } catch (e) {
-    return { result: "failed", error: e?.message || "download_failed" };
-  }
+  const sh = await tryShare();
+  if (sh) return sh;
+  return tryDownload();
 }
 
 // Public API. Returns { result, uri?, error? }.
@@ -112,14 +134,18 @@ async function shareWeb(blob, filename, title) {
 // filename   — name shown in the share sheet / used for the download
 // title      — share-sheet metadata title (Android system text)
 // dialogTitle — Android-only share-sheet title bar text
-export async function shareFile({ blob, filename, title, dialogTitle }) {
+// prefer     — "share" (default) | "download". Web target only —
+//              backup-style "save this to my device" callers pass
+//              "download" so the anchor-download path is tried
+//              before navigator.share.
+export async function shareFile({ blob, filename, title, dialogTitle, prefer = "share" }) {
   if (!(blob instanceof Blob)) {
     return { result: "failed", error: "not_a_blob" };
   }
   if (isNative()) {
     return shareNative(blob, filename, title || filename, dialogTitle);
   }
-  return shareWeb(blob, filename, title || filename);
+  return shareWeb(blob, filename, title || filename, prefer);
 }
 
 // Native-only silent write to the public Documents folder via the
