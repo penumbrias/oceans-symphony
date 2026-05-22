@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Header wave now uses your Muted palette colour at 0.3 opacity instead of Surface, so it reads as a chrome / divider tone rather than competing with the card-background.",
+      },
+      {
         type: "fix",
         text: "Friend-front-change banners (and a handful of other neutral toasts: reminder dismiss, reminder snooze, push-test progress, bio editor undo/discard, backup-canceled) now respect the Notification Settings toggles. They were bypassing the filter because they used the un-categorised toast() call; routed through toast.info so the Info Messages switch controls them.",
       },
