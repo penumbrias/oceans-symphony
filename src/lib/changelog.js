@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Header wave: fill and outline are now in sync (they were drawn in opposite directions, so the peaks and troughs ended up offset). Fill opacity nudged down to 0.8 for a softer wash.",
+        text: "Header wave is now seamless — dropped the separate outline stroke that was overlapping the fill and creating a visible darker edge. Fill opacity dialled down to 0.3 for a barely-there wash.",
       },
       {
         type: "improve",

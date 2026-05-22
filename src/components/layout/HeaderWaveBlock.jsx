@@ -35,27 +35,15 @@ export default function HeaderWaveBlock() {
         viewBox="0 0 240 32"
         preserveAspectRatio="none"
       >
-        {/* The wave fill. Both the fill outline and the stroke below
-            walk the wave LEFT-to-RIGHT so SVG's `T` smooth-quadratic
-            reflections produce identical phases — drawing fill right-
-            to-left and stroke left-to-right (the previous shape) put
-            the two wave paths 180° out of phase: the fill's peaks
-            landed where the stroke's troughs landed and vice versa.
-            Now both peak / trough at the same x positions. */}
+        {/* Single filled wave path. We used to render a separate
+            stroke along the bottom edge for extra definition, but at
+            any opacity the overlap with the fill produced a visible
+            darker outline — exactly the "seam" the user reported.
+            Fill alone is seamless. */}
         <path
           d="M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"
           fill="var(--color-surface, #E0F2FE)"
-          fillOpacity="0.8"
-        />
-        {/* A second, slightly darker stroke along the wave edge so the
-            boundary still reads clearly on themes where the surface
-            colour is very close to the background. */}
-        <path
-          d="M0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22"
-          fill="none"
-          stroke="var(--color-surface, #E0F2FE)"
-          strokeOpacity="0.8"
-          strokeWidth="1"
+          fillOpacity="0.3"
         />
       </svg>
     </div>
