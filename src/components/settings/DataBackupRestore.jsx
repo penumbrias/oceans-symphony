@@ -2,7 +2,7 @@ import React, { useState, useRef, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2 } from "lucide-react";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import {
@@ -140,23 +140,41 @@ const EXPORT_CATEGORIES = [
   { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
 ];
 
-async function downloadJson(data, filename, format = "json") {
+async function downloadJson(data, filename, format = "json", mode = "save") {
   // format:
   //   "json"    — plain JSON.stringify (easier to inspect/share)
   //   "compact" — gzip + base64 envelope ("SYMPHONYZ:") for smaller files
+  //
+  // mode:
+  //   "save"  — silent direct-to-disk (MediaStore on native,
+  //             anchor-download on web). What users want when they
+  //             tap "Save to device".
+  //   "share" — force the OS share sheet (Drive / email /
+  //             messaging / Send to PC / etc.). What users want
+  //             when they tap "Send to a cloud / app".
   const isCompact = format === "compact";
   const text = isCompact ? compressBackup(data) : JSON.stringify(data, null, 2);
   const mime = isCompact ? "application/octet-stream" : "application/json";
   const blob = new Blob([text], { type: mime });
 
-  // On native, try the silent direct-to-Downloads path FIRST (same
-  // MediaStore pipeline auto-backup uses). Only falls back to the
-  // Share sheet if MediaStore is unavailable (Android 9 or earlier
-  // with the plugin not registered, or unforeseen runtime errors).
-  // The Share sheet still works for users who want a different
-  // destination than the public Downloads folder — but tapping
-  // Export shouldn't FORCE that prompt on people who just want a
-  // file saved locally.
+  // SHARE-MODE early-out: skip MediaStore entirely and go straight
+  // to the share-sheet pipeline so the user can pick any
+  // destination they want (Drive, email, etc.).
+  if (mode === "share") {
+    return shareFile({
+      blob,
+      filename,
+      title: "Oceans Symphony Backup",
+      dialogTitle: "Send backup file",
+      // Default "share" preference for shareFile — share sheet on
+      // web, share sheet on native.
+    });
+  }
+
+  // SAVE-MODE on native: silent direct-to-Downloads via MediaStore.
+  // Falls back to the share sheet only if MediaStore isn't
+  // available (Android 9 or earlier with the plugin not
+  // registered, or unforeseen runtime errors).
   if (isNative()) {
     try {
       const mediaRes = await saveBlobToPublicDownloads({
@@ -342,13 +360,19 @@ export default function DataBackupRestore() {
     };
   };
 
-  const handleExportFull = async () => {
+  // Two-mode export. `mode = "save"` writes the backup straight to
+  // the device (MediaStore Downloads on native, browser download on
+  // web). `mode = "share"` skips the silent write and pops the OS
+  // share sheet so the user can pick a destination (Drive, email,
+  // Send to PC, etc.). Buttons in the UI call this with their
+  // respective mode.
+  const runExport = async (mode = "save") => {
     setExportLoading(true);
     try {
       const exportData = await buildExportData();
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
-      const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat);
+      const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat, mode);
       if (res?.result === "failed") {
         showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
       } else if (res?.result === "cancelled") {
@@ -374,6 +398,8 @@ export default function DataBackupRestore() {
       setExportLoading(false);
     }
   };
+  const handleExportFull  = () => runExport("save");
+  const handleExportShare = () => runExport("share");
 
   // Applies an already-parsed { data, localImages?, localSettings? } payload
   // to the in-memory DB. Shared by the standard-backup, raw-plain, and
@@ -808,8 +834,24 @@ export default function DataBackupRestore() {
           <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
             {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
             <div className="text-left">
-              <p className="font-medium">Download Backup</p>
-              <p className="text-xs text-muted-foreground font-normal">{selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length ? `${selectedCats.size} categories selected` : exportFormat === "compact" ? "All data, compressed (.txt)" : "All data, plain JSON"}</p>
+              <p className="font-medium">Save to device</p>
+              <p className="text-xs text-muted-foreground font-normal">
+                {selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
+                  ? `${selectedCats.size} categories · drops in Downloads/Oceans Symphony`
+                  : isNative()
+                    ? "Drops in Downloads/Oceans Symphony — no share sheet"
+                    : "Browser downloads to your default folder"}
+              </p>
+            </div>
+          </Button>
+
+          <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start">
+            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            <div className="text-left">
+              <p className="font-medium">Share or send elsewhere</p>
+              <p className="text-xs text-muted-foreground font-normal">
+                Opens the share sheet — pick Drive, email, Send to PC, etc.
+              </p>
             </div>
           </Button>
         </div>
