@@ -236,7 +236,7 @@ export async function runAutoBackupNow({ silent = false } = {}) {
       }
       else if (result === "shared") toast.success("Backup saved — pick a destination in the share sheet");
       else if (result === "downloaded") toast.success("Backup downloaded");
-      else if (result === "cancelled") toast("Backup canceled");
+      else if (result === "cancelled") toast.info("Backup canceled");
       else toast.error(`Backup failed${error ? `: ${error}` : ""}`);
     } catch { /* sonner not available */ }
   }

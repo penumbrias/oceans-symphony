@@ -198,7 +198,7 @@ export default function BioEditor({ value, onChange }) {
     const prev = h.stack[h.index];
     setCurrentHTML(prev);
     onChange(prev);
-    toast("Undone");
+    toast.info("Undone");
   };
 
   const handleDiscard = () => {
@@ -206,7 +206,7 @@ export default function BioEditor({ value, onChange }) {
     historyRef.current = { stack: [orig], index: 0 };
     setCurrentHTML(orig);
     onChange(orig);
-    toast("Changes discarded");
+    toast.info("Changes discarded");
   };
 
   const handleImport = useCallback((text) => {
