@@ -246,15 +246,14 @@ export default function AdvancedAppearance() {
 
   const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '🌙';
 
-  // ── Font handlers ────────────────────────────────────────────
+  // ── Font handler ─────────────────────────────────────────────
+  // Body font lives in Appearance; the overall text size lives in
+  // Accessibility (one slider in one place). Saved theme presets
+  // still capture both via `currentFont` / `currentSize` so a preset
+  // can pin a coordinated typography choice.
   const handleFontSelect = (value) => {
     setCurrentFont(value);
     setAccessibilityFontFamily(value);
-  };
-
-  const handleSizeSelect = (value) => {
-    setCurrentSize(value);
-    setAccessibilityFontSize(value);
   };
 
   // ── Preset handlers ──────────────────────────────────────────
@@ -347,7 +346,10 @@ export default function AdvancedAppearance() {
 
   return (
     <>
-      {/* ── Font Family + Heading Font (side by side) ──────────── */}
+      {/* ── Body Font + Heading Font (side by side) ───────────────
+              These are the typography-style choices. Text & UI Size
+              lives in Accessibility — moving it there avoided the
+              duplicate slider we used to render in both sections. */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2 min-w-0">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
@@ -373,7 +375,9 @@ export default function AdvancedAppearance() {
           </p>
         </div>
       </div>
-      <p className="text-xs text-muted-foreground -mt-1">Heading font is used for page titles and the app name. Body text uses the Font Family.</p>
+      <p className="text-xs text-muted-foreground -mt-1">
+        Heading font is used for page titles and the app name. Body text uses the Font Family. Overall text size lives in <strong>Accessibility</strong>.
+      </p>
 
       {/* ── Theme Mode (light / dark / system) ─────────────────── */}
       <div className="space-y-2">
@@ -387,28 +391,6 @@ export default function AdvancedAppearance() {
           <span className="text-sm font-medium capitalize">{themeMode === 'system' ? 'System (follow OS)' : themeMode}</span>
           <span className="ml-auto text-xs text-muted-foreground">tap to cycle</span>
         </button>
-      </div>
-
-      {/* ── Text & UI Size ─────────────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Text & UI Size</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {FONT_SIZE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleSizeSelect(opt.value)}
-              className={`rounded-xl border px-2 py-2 text-center transition-all ${
-                currentSize === opt.value
-                  ? 'border-primary/60 bg-primary/10'
-                  : 'border-border/50 bg-card hover:bg-muted/30'
-              }`}
-            >
-              <p className={`text-sm font-semibold ${currentSize === opt.value ? 'text-primary' : ''}`}>{opt.label}</p>
-              <p className="text-[0.625rem] text-muted-foreground mt-0.5">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
       </div>
 
       {/* ── Built-in Theme Presets ─────────────────────────────── */}

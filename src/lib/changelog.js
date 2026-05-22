@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings cleanup pass: Font Family lives in Appearance (with the richer side-by-side Body + Heading picker), Text & UI Size lives in Accessibility (now a wider three-column grid). No more duplicate controls for the same setting in two places. About & help reordered so \"What's new\" sits at the bottom.",
+      },
+      {
+        type: "improve",
         text: "Settings page restructured: 11 top-level sections collapsed down to 8, reordered so commonly-tweaked things (notifications, accessibility) sit higher and the rarely-touched stuff (disclaimer, updates, bug report, preview mode) folds into a single \"About & help\" section at the bottom. Section labels are cleaner: \"Alters & Fields\" → \"Alter setup\", \"Tracking & Analytics\" → \"Tracking setup\". Profile stays first.",
       },
       {

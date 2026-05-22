@@ -515,13 +515,6 @@ export default function Settings() {
           <div className="space-y-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                What's new
-              </p>
-              <RecentUpdates />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                 Found a bug?
               </p>
               <p className="text-sm text-muted-foreground leading-relaxed mb-2">
@@ -544,6 +537,13 @@ export default function Settings() {
                 Preview mode <span className="text-[0.625rem] font-normal text-muted-foreground/70 normal-case ml-1">(dev)</span>
               </p>
               <PreviewModeSection />
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                What's new
+              </p>
+              <RecentUpdates />
             </div>
           </div>
         </Section>
