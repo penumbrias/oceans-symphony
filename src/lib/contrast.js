@@ -139,17 +139,41 @@ function toHex(n) {
 
 // Return a hue-preserving lightness-adjusted version of `input` so it
 // reads against `background`. Used as the chip fill when `needsHalo`
-// flags the user's chosen colour as too close to the surface — we keep
-// their hue and saturation, just shift L into a visible range. Dark
-// backgrounds get L raised toward 0.45; light backgrounds get L pulled
-// down toward 0.55. Returns the original colour if it can't be parsed.
-export function adjustForContrast(input, background, { darkTargetL = 0.45, lightTargetL = 0.55 } = {}) {
+// flags the user's chosen colour as too close to the surface.
+//
+// Behaviour: we keep the original hue and saturation, and shift L
+// by the SMALLEST amount needed to hit a target contrast ratio
+// (default 3.0 — the WCAG large-text threshold the rest of the
+// codebase uses as its visibility bar). This is intentionally more
+// conservative than an earlier version that snapped L to a fixed
+// 0.45 / 0.55 target on every call: that earlier behaviour could
+// turn a deep navy into a medium periwinkle on a dark theme, which
+// users (rightly) called out as changing brand colours too much.
+//
+// `minRatio` lets a caller raise the bar (e.g. for body text where
+// 4.5 is the WCAG AA-normal threshold) — default keeps the previous
+// chip-style "just-readable" feel without distorting hue.
+export function adjustForContrast(input, background, { minRatio = 3 } = {}) {
   const rgb = parseColor(input);
   const bgLum = relativeLuminance(background);
   if (!rgb || bgLum == null) return input;
+  if (contrastRatio(input, background) >= minRatio) return input;
   const [h, s, l] = rgbToHsl(rgb.r, rgb.g, rgb.b);
-  const targetL = bgLum < 0.5 ? Math.max(l, darkTargetL) : Math.min(l, lightTargetL);
-  if (targetL === l) return input;
-  const [r, g, b] = hslToRgb(h, s, targetL);
-  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  const tryL = (newL) => {
+    const [r, g, b] = hslToRgb(h, s, Math.max(0, Math.min(1, newL)));
+    const hex = `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+    return { hex, ratio: contrastRatio(hex, background) ?? 0 };
+  };
+  // Bias direction: away from the background. Dark bg → brighten;
+  // light bg → darken. Step lightness in small increments until we
+  // clear minRatio or we run out of room. Step size = 0.02 keeps
+  // the change visually subtle on close calls.
+  const direction = bgLum < 0.5 ? +1 : -1;
+  for (let delta = 0.02; delta <= 0.6; delta += 0.02) {
+    const { hex, ratio } = tryL(l + delta * direction);
+    if (ratio >= minRatio) return hex;
+  }
+  // Couldn't reach the ratio without saturation loss — return the
+  // strongest result we could find at the maximum delta.
+  return tryL(l + 0.6 * direction).hex;
 }
