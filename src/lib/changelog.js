@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings: Appearance no longer duplicates the body Font and Text Size controls — those live only in Accessibility now. Appearance keeps Heading Font, theme mode, and colour themes. About & help reordered so \"What's new\" sits at the bottom (after bug report, disclaimer, preview mode) instead of at the top.",
+      },
+      {
+        type: "improve",
         text: "Settings page restructured: 11 top-level sections collapsed down to 8, reordered so commonly-tweaked things (notifications, accessibility) sit higher and the rarely-touched stuff (disclaimer, updates, bug report, preview mode) folds into a single \"About & help\" section at the bottom. Section labels are cleaner: \"Alters & Fields\" → \"Alter setup\", \"Tracking & Analytics\" → \"Tracking setup\". Profile stays first.",
       },
       {
