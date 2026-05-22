@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Backup & Restore: Import can now actually pick a backup file from Google Drive (and any other cloud picker) — the `.json,.txt` filter blocked Drive entries whose MIME came through as octet-stream. Manual Export now writes straight to Downloads/Oceans Symphony/ on Android instead of forcing the share sheet; if MediaStore isn't available it still falls back to share, so nothing's lost.",
+      },
+      {
+        type: "fix",
         text: "Header wave is now seamless — dropped the separate outline stroke that was overlapping the fill and creating a visible darker edge. Fill opacity dialled down to 0.3 for a barely-there wash.",
       },
       {
