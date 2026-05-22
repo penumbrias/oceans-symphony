@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Backup & Export now has two buttons: \"Save to device\" drops the file straight into Downloads/Oceans Symphony/ (no share sheet), and \"Share or send elsewhere\" opens the share sheet so you can route the backup to Drive, email, Send to PC, etc. Audited the backup coverage: every non-device-bound entity in the codebase is included.",
+      },
+      {
         type: "improve",
         text: "Header wave now uses your Muted palette colour at 0.3 opacity instead of Surface, so it reads as a chrome / divider tone rather than competing with the card-background.",
       },

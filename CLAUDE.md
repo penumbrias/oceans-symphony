@@ -143,6 +143,18 @@ If the entity doesn't fit an existing category, add a new `EXPORT_CATEGORIES` en
 
 **Device-specific entities are intentionally excluded** — `FriendIdentity` (the user's friend-server identity, tied to a single browser), `PushSubscription` (per-browser push registration). Restoring them on a different device causes collisions or impersonation. If you add another device-bound entity, leave it out of both arrays AND document the exclusion in the comment block above `ENTITY_NAMES`.
 
+### Concrete audit checklist (run this when adding ANY entity)
+
+When you touch any `localEntities.X.create()` / `base44.entities.X.create()` site, do the following before merging:
+
+1. **Sweep**: `grep -rnoE '(base44|localEntities)\.entities\.[A-Z][A-Za-z]+|localEntities\.[A-Z][A-Za-z]+' src --include='*.jsx' --include='*.js' | grep -oE '\.[A-Z][A-Za-z]+' | sort -u` — every name in the output that isn't device-bound MUST appear in `ENTITY_NAMES` AND in at least one `EXPORT_CATEGORIES[].entities` array.
+2. **Confirm by reading `DataBackupRestore.jsx`** — yes, both arrays. The first gates the dump, the second gates the export iteration; one without the other = silent data loss.
+3. **For a brand-new entity type**: prefer adding to an existing category (`alters`, `tracking`, `journals`, `bulletin`, etc.) over creating a new one — unless the entity is conceptually distinct enough that a user would expect a separate checkbox.
+4. **Restore path**: the merge-mode import has a singleton special-case for `SystemSettings` (see PR #91 — `list()[0]` was clobbering on import). If you add another singleton entity, mirror that pattern.
+5. **Changelog entry mentioning the backup wiring**: yes, even if the entity is mainly internal. Testers need to know that a re-export will include the new data.
+
+Reference: as of v0.25.51 the audit was clean — every non-device-bound entity in the codebase is covered. If you suspect drift, re-run step 1 and diff against `ENTITY_NAMES`.
+
 ---
 
 ## Critical: Keep the Feature Tour Up to Date
