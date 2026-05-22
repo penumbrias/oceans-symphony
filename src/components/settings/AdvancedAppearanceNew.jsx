@@ -12,6 +12,7 @@ import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save } f
 import { toast } from 'sonner';
 import { useTerms } from '@/lib/useTerms';
 import '@/lib/editorFonts.js'; // ensure all fonts are loaded
+import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from '@/lib/waveColorKey';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
@@ -150,6 +151,73 @@ function ColorSwatch({ label, color, onClick }) {
       />
       <span className="text-[0.625rem] text-muted-foreground group-hover:text-foreground">{label}</span>
     </button>
+  );
+}
+
+// Picker for which palette swatch the header's animated wave fills
+// with. Writes SystemSettings.wave_color_key. Rendered inline inside
+// AdvancedAppearance after the Theme Mode block.
+function WaveColorPicker() {
+  const qc = useQueryClient();
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const settings = list?.[0];
+  const current = readWaveColorKey(settings);
+
+  const setKey = async (key) => {
+    try {
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, { wave_color_key: key });
+      } else {
+        await base44.entities.SystemSettings.create({ wave_color_key: key });
+      }
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) {
+      // best-effort — picker remains operable even if save fails
+      console.warn("[WaveColorPicker] save failed:", e?.message || e);
+    }
+  };
+
+  // Map each picker option to the actual CSS variable so the swatch
+  // matches what the wave will look like.
+  const cssVarFor = (key) => key === "text-2nd"
+    ? "var(--color-text-secondary)"
+    : key === "text"
+      ? "var(--color-text-primary)"
+      : `var(--color-${key})`;
+
+  return (
+    <div className="space-y-2">
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Wave colour</p>
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+        Which palette colour the header's animated wave uses (at 0.3 opacity). Picking the same colour your custom-colour grid shows.
+      </p>
+      <div className="grid grid-cols-4 gap-1.5">
+        {WAVE_COLOR_KEYS.map((key) => {
+          const isCurrent = current === key;
+          return (
+            <button
+              key={key}
+              type="button"
+              onClick={() => setKey(key)}
+              className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-xl border transition-all ${
+                isCurrent ? "border-primary/60 bg-primary/10" : "border-border/50 bg-card hover:bg-muted/30"
+              }`}
+            >
+              <div
+                className="w-7 h-7 rounded-lg border border-border/60"
+                style={{ backgroundColor: cssVarFor(key) }}
+              />
+              <span className={`text-[0.625rem] ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                {WAVE_COLOR_LABELS[key]}
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 
@@ -400,6 +468,14 @@ export default function AdvancedAppearance() {
           <span className="ml-auto text-xs text-muted-foreground">tap to cycle</span>
         </button>
       </div>
+
+      {/* ── Wave colour picker ────────────────────────────────────
+              Lets the user pick which palette swatch the header's
+              animated wave uses for its fill. Writes
+              SystemSettings.wave_color_key; HeaderWaveBlock reads via
+              the same systemSettings react-query cache so changes
+              are live. Default is "muted". */}
+      <WaveColorPicker />
 
       {/* ── Text & UI Size ──────────────────────────────────────
               Mirror copy of the picker that lives in Accessibility.

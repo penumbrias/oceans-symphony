@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Wave colour is now user-pickable. Under Settings → Appearance → Wave colour, choose which palette swatch (Background, Surface, Primary, Secondary, Accent, Muted, Text, Text 2nd) fills the header wave at 0.3 opacity. Defaults to Muted.",
+      },
+      {
+        type: "feature",
         text: "Backup & Export now has two buttons: \"Save to device\" drops the file straight into Downloads/Oceans Symphony/ (no share sheet), and \"Share or send elsewhere\" opens the share sheet so you can route the backup to Drive, email, Send to PC, etc. Audited the backup coverage: every non-device-bound entity in the codebase is included.",
       },
       {
