@@ -22,8 +22,25 @@ import { isNative } from "@/lib/platform";
 
 // Returns { result, uri?, error? }
 //   result: "shared" | "downloaded" | "cancelled" | "failed"
+//
+// `error` codes worth surfacing to the UI:
+//   - "chunk_load_failed": A dynamically-imported Capacitor plugin
+//     chunk wasn't reachable. Usually means the cached HTML refers
+//     to a chunk hash from an older build that the WebView can't
+//     find — the caller should suggest a hard reload.
 async function shareNative(blob, filename, title, dialogTitle) {
-  const { Filesystem, Directory } = await import("@capacitor/filesystem");
+  // Dynamic-import the Capacitor plugins so the web bundle doesn't
+  // ship them. On a stale WebView the chunk file can 404 — surface
+  // that distinctly so the caller can render a "reload to recover"
+  // prompt instead of bubbling a raw "Failed to fetch dynamically
+  // imported module" string.
+  let Filesystem, Directory;
+  try {
+    ({ Filesystem, Directory } = await import("@capacitor/filesystem"));
+  } catch (e) {
+    console.warn("[shareFile] failed to load @capacitor/filesystem chunk:", e?.message || e);
+    return { result: "failed", error: "chunk_load_failed" };
+  }
 
   // Convert the Blob → base64 string for the Filesystem plugin (it
   // can't take a Blob directly; data must be a string + encoding, or
@@ -46,8 +63,14 @@ async function shareNative(blob, filename, title, dialogTitle) {
   }
   if (!uri) return { result: "failed", error: "no_uri" };
 
+  let Share;
   try {
-    const { Share } = await import("@capacitor/share");
+    ({ Share } = await import("@capacitor/share"));
+  } catch (e) {
+    console.warn("[shareFile] failed to load @capacitor/share chunk:", e?.message || e);
+    return { result: "failed", uri, error: "chunk_load_failed" };
+  }
+  try {
     await Share.share({
       title,
       url: uri,

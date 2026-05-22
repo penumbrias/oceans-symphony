@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Backup & Export now shows a clear \"the app needs to reload to pick up the latest assets\" message instead of a raw \"Failed to fetch dynamically imported module\" error when the WebView has a stale chunk reference from a previous build. Underlying problem is a one-time stale cache after an app update — closing + reopening the app resolves it.",
+      },
+      {
         type: "improve",
         text: "Wave-colour picker: the Background swatch is now an explicit \"Off\" option (with a ⊘ icon) that hides the header wave entirely. Picking the same colour as the page background used to look like a faintly-visible band; now it cleanly hides the wave.",
       },
