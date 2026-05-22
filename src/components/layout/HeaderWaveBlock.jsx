@@ -31,6 +31,14 @@ export default function HeaderWaveBlock() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const colorKey = readWaveColorKey(settingsList?.[0]);
+
+  // "background" means "no wave". Filling a wave with the page's
+  // background colour produces a weirdly visible-but-invisible band
+  // that picks up subpixel rendering quirks at the edges. If the
+  // user picks Background as the wave colour they're saying "I don't
+  // want the wave" — give them that cleanly.
+  if (colorKey === "background") return null;
+
   // Map the "text-2nd" alias to the actual CSS var name. Every other
   // option matches `--color-<key>` 1:1.
   const cssVarKey = colorKey === "text-2nd"

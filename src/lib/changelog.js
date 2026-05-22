@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Wave-colour picker: the Background swatch is now an explicit \"Off\" option (with a ⊘ icon) that hides the header wave entirely. Picking the same colour as the page background used to look like a faintly-visible band; now it cleanly hides the wave.",
+      },
+      {
         type: "fix",
         text: "Contrast adjustment for alter / group / role chips no longer changes colours dramatically. It now shifts lightness by the smallest amount needed to hit the WCAG 3:1 readability bar instead of snapping to a fixed lightness target, so a deep navy stays a deep navy (just visible).",
       },
