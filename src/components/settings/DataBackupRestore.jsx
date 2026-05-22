@@ -15,6 +15,8 @@ import {
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
 import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
 import { shareFile } from "@/lib/shareFile";
+import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
+import { isNative } from "@/lib/platform";
 import pako from "pako";
 
 // Single source of truth for the localStorage keys that belong in a
@@ -147,8 +149,31 @@ async function downloadJson(data, filename, format = "json") {
   const mime = isCompact ? "application/octet-stream" : "application/json";
   const blob = new Blob([text], { type: mime });
 
-  // Single delivery pipeline shared with the Auto-backup "Back up now"
-  // button and the therapy-report "Save PDF" — see src/lib/shareFile.js.
+  // On native, try the silent direct-to-Downloads path FIRST (same
+  // MediaStore pipeline auto-backup uses). Only falls back to the
+  // Share sheet if MediaStore is unavailable (Android 9 or earlier
+  // with the plugin not registered, or unforeseen runtime errors).
+  // The Share sheet still works for users who want a different
+  // destination than the public Downloads folder — but tapping
+  // Export shouldn't FORCE that prompt on people who just want a
+  // file saved locally.
+  if (isNative()) {
+    try {
+      const mediaRes = await saveBlobToPublicDownloads({
+        blob,
+        filename,
+        subdir: "Oceans Symphony",
+      });
+      if (mediaRes?.result === "media-store") {
+        return { result: "downloaded", uri: mediaRes.uri, location: "Downloads/Oceans Symphony" };
+      }
+      console.warn("[downloadJson] MediaStore unavailable, falling back to Share:", mediaRes?.error);
+    } catch (e) {
+      console.warn("[downloadJson] MediaStore threw, falling back to Share:", e?.message || e);
+    }
+  }
+
+  // Web path, or native fallback when MediaStore wasn't available.
   // Native (Capacitor) routes through Filesystem.Cache + @capacitor/share;
   // web/TWA keeps the existing navigator.share → anchor-download chain.
   // Returning the result so the caller can distinguish "failed" from
@@ -314,7 +339,12 @@ export default function DataBackupRestore() {
       } else if (res?.result === "cancelled") {
         // User dismissed the share sheet — no toast, no surprise.
       } else {
-        showStatus("success", res?.result === "shared" ? "Backup ready — pick a destination" : "Backup exported!");
+        const msg = res?.result === "shared"
+          ? "Backup ready — pick a destination"
+          : res?.location
+            ? `Backup saved to ${res.location} 📁`
+            : "Backup exported!";
+        showStatus("success", msg);
         // Mark today as "backup exported" so a daily task wired to the
         // backup_exported auto-trigger can complete itself.
         try {
@@ -948,7 +978,15 @@ export default function DataBackupRestore() {
               <span className="text-xs font-medium">Replace All</span>
             </label>
           </div>
-          <input ref={fileInputRef} type="file" accept=".json,.txt" onChange={handleImportFromFile} className="hidden" />
+          {/* No `accept` filter. Google Drive's "Choose an item"
+              picker hands the WebView a content:// URI whose MIME
+              is usually application/octet-stream regardless of the
+              .json extension on the underlying file, so an
+              `accept=".json,.txt"` filter made every Drive-hosted
+              backup unselectable. Local files still work because
+              the parse step rejects anything that isn't a valid
+              backup envelope with a clear error toast. */}
+          <input ref={fileInputRef} type="file" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
