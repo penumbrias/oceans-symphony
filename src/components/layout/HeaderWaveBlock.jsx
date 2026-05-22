@@ -1,4 +1,7 @@
 import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { readWaveColorKey } from "@/lib/waveColorKey";
 
 // Animated wave block that fills the header's upper portion with a
 // slightly lighter hue, ending in a wavy bottom edge that scrolls
@@ -12,19 +15,31 @@ import React from "react";
 //      keyframe slides the SVG from translateX(0) to translateX(-50%),
 //      i.e. by exactly one viewBox-width, then loops — so the motion
 //      is seamless because the path tiles to itself.
-//   2. Fill uses var(--color-muted) at 0.3 opacity so the wave
-//      inherits the user's "Muted" palette colour from Settings →
-//      Appearance → Custom colors. Muted reads as a chrome / divider
-//      tone (vs Surface which doubles as a card-background colour,
-//      so a Surface-based wave looked too solid). At 0.3 the wash
-//      reads as a subtle band behind the title without competing
-//      with brand or content colours.
+//   2. Fill colour is user-pickable from Settings → Appearance → Wave
+//      colour. Defaults to "muted" (a divider/chrome tone in the
+//      palette) at 0.3 opacity. The user can switch to Background,
+//      Surface, Primary, Secondary, Accent, Text, or Text 2nd —
+//      anything in the Custom Colours grid.
 //
 // Visual placement: the wash sits in the top ~60% of the header so
 // the wave's trough crosses just below the centre of the title and
 // icons — gives the title a clearer "above the water" framing while
 // keeping the icons mostly below the wash.
 export default function HeaderWaveBlock() {
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const colorKey = readWaveColorKey(settingsList?.[0]);
+  // Map the "text-2nd" alias to the actual CSS var name. Every other
+  // option matches `--color-<key>` 1:1.
+  const cssVarKey = colorKey === "text-2nd"
+    ? "text-secondary"
+    : colorKey === "text"
+      ? "text-primary"
+      : colorKey;
+  const fill = `var(--color-${cssVarKey}, #94A3B8)`;
+
   return (
     <div
       aria-hidden="true"
@@ -44,7 +59,7 @@ export default function HeaderWaveBlock() {
             Fill alone is seamless. */}
         <path
           d="M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"
-          fill="var(--color-muted, #94A3B8)"
+          fill={fill}
           fillOpacity="0.3"
         />
       </svg>
