@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Header wave: fill and outline are now in sync (they were drawn in opposite directions, so the peaks and troughs ended up offset). Fill opacity nudged down to 0.8 for a softer wash.",
+      },
+      {
         type: "improve",
         text: "The wave block at the top of the header now uses your chosen Surface colour from Appearance → Custom Colors, so the header chrome matches the rest of your theme palette.",
       },
