@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Friend-front-change banners (and a handful of other neutral toasts: reminder dismiss, reminder snooze, push-test progress, bio editor undo/discard, backup-canceled) now respect the Notification Settings toggles. They were bypassing the filter because they used the un-categorised toast() call; routed through toast.info so the Info Messages switch controls them.",
+      },
+      {
+        type: "fix",
         text: "Settings: opening a section no longer makes the page jump to a different scroll position. The accordion now keeps the tapped section's header pinned to the same spot in the viewport even when collapsing an above-the-fold section underneath it.",
       },
       {

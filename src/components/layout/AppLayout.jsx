@@ -108,7 +108,7 @@ export default function AppLayout() {
               : 'no one fronting';
           }
 
-          toast(`🔔 ${label}: ${fronterLine}`, {
+          toast.info(`🔔 ${label}: ${fronterLine}`, {
             description: 'Front updated',
             duration: 10000,
           });

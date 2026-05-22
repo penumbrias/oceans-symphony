@@ -178,7 +178,7 @@ export default function RemindersSettings() {
             <button
               type="button"
               onClick={async () => {
-                toast("Sending push + listening for SW receipt (up to 30s)…");
+                toast.info("Sending push + listening for SW receipt (up to 30s)…");
                 const r = await pushDeepDiagnostic();
                 if (r.result === "delivered") toast.success(r.detail);
                 else toast.error(`${r.result.toUpperCase()}: ${r.detail}`, { duration: 12_000 });
