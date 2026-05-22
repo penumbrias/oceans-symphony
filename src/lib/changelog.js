@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Settings cleanup pass: Font Family lives in Appearance (with the richer side-by-side Body + Heading picker), Text & UI Size lives in Accessibility (now a wider three-column grid). No more duplicate controls for the same setting in two places. About & help reordered so \"What's new\" sits at the bottom.",
+        text: "Text & UI Size now appears in BOTH Appearance and Accessibility — same picker, same setting, reachable from whichever section you happen to be in. Font Family still lives only in Appearance.",
       },
       {
         type: "improve",
