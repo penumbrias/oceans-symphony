@@ -56,17 +56,55 @@ function Section({ id, icon, label, defaultOpen = false, children }) {
   const isOpen = ctx
     ? ctx.openId === id
     : defaultOpen;
-  const setOpen = ctx
-    ? () => ctx.toggle(id)
-    : null;
   const [localOpen, setLocalOpen] = useState(defaultOpen);
   const open = ctx ? isOpen : localOpen;
-  const toggle = ctx ? setOpen : () => setLocalOpen(o => !o);
+
+  // Stash the header's viewport-relative top BEFORE toggling so we
+  // can re-anchor to the same Y position after the previously-open
+  // section's body collapses. Without this, opening section B
+  // (which lives below A) yanks the page UPWARD by the height of
+  // A's just-collapsed contents — the user ends up staring at a
+  // random section further down instead of at B.
+  const handleToggle = React.useCallback(() => {
+    const headerEl = document.getElementById(id)?.querySelector("button");
+    const beforeTop = headerEl?.getBoundingClientRect().top ?? null;
+    if (ctx) ctx.toggle(id);
+    else setLocalOpen(o => !o);
+    if (beforeTop == null) return;
+    // Layout reflows synchronously after state updates flush.
+    // requestAnimationFrame waits until React has painted, then we
+    // measure the new top and compensate.
+    requestAnimationFrame(() => {
+      const after = document.getElementById(id)?.querySelector("button");
+      if (!after) return;
+      const afterTop = after.getBoundingClientRect().top;
+      const delta = afterTop - beforeTop;
+      if (Math.abs(delta) > 1) {
+        // App's actual scrolling container is the <main> element
+        // (the document body is `overflow: hidden`). Walk up the
+        // tree until we find an element whose computed style is
+        // scrollable — that's the one whose scrollTop matters.
+        const findScroller = (el) => {
+          let cur = el;
+          while (cur && cur !== document.body) {
+            const cs = window.getComputedStyle(cur);
+            const oy = cs.overflowY;
+            if ((oy === "auto" || oy === "scroll") && cur.scrollHeight > cur.clientHeight) return cur;
+            cur = cur.parentElement;
+          }
+          return document.scrollingElement || document.documentElement;
+        };
+        const scroller = findScroller(after);
+        scroller.scrollTop += delta;
+      }
+    });
+  }, [ctx, id]);
+
   return (
     <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
       <button
         type="button"
-        onClick={toggle}
+        onClick={handleToggle}
         className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
       >
         <span className="text-xl">{icon}</span>

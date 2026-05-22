@@ -183,6 +183,12 @@ async function downloadJson(data, filename, format = "json") {
     filename,
     title: "Oceans Symphony Backup",
     dialogTitle: "Save backup file",
+    // Backup callers want "save to my device", not "send to another
+    // app" — anchor-download lands the file in the WebView's
+    // download folder, which is what users expect when they tap
+    // Export. Share sheet is still used as fallback if the anchor
+    // path fails (rare).
+    prefer: "download",
   });
 }
 

@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Settings: opening a section no longer makes the page jump to a different scroll position. The accordion now keeps the tapped section's header pinned to the same spot in the viewport even when collapsing an above-the-fold section underneath it.",
+      },
+      {
+        type: "fix",
+        text: "Backup & Export on the TWA / web build now actually saves the file to the device's Downloads folder instead of opening the share sheet. The web pathway used to prefer `navigator.share` (which Android renders as a share UI); backup callers now prefer the anchor-download path, which the WebView's download manager writes straight to Downloads.",
+      },
+      {
+        type: "fix",
         text: "Backup & Restore: Import can now actually pick a backup file from Google Drive (and any other cloud picker) — the `.json,.txt` filter blocked Drive entries whose MIME came through as octet-stream. Manual Export now writes straight to Downloads/Oceans Symphony/ on Android instead of forcing the share sheet; if MediaStore isn't available it still falls back to share, so nothing's lost.",
       },
       {
