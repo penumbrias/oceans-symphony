@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The wave block at the top of the header now uses your chosen Surface colour from Appearance → Custom Colors, so the header chrome matches the rest of your theme palette.",
+      },
+      {
+        type: "improve",
         text: "Text & UI Size now appears in BOTH Appearance and Accessibility — same picker, same setting, reachable from whichever section you happen to be in. Font Family still lives only in Appearance.",
       },
       {
