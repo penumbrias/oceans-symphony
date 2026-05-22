@@ -21,7 +21,11 @@ export const WAVE_COLOR_KEYS = Object.freeze([
 ]);
 
 export const WAVE_COLOR_LABELS = Object.freeze({
-  background: "Background",
+  // Special-cased: picking "Background" hides the wave entirely.
+  // Rendering a wave at the page-background colour produces a
+  // weirdly visible-but-invisible band, so we treat that choice as
+  // "no wave" — see HeaderWaveBlock's early return.
+  background: "Off",
   surface:    "Surface",
   primary:    "Primary",
   secondary:  "Secondary",

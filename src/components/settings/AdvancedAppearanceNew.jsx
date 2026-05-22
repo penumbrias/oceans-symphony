@@ -192,11 +192,12 @@ function WaveColorPicker() {
     <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Wave colour</p>
       <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-        Which palette colour the header's animated wave uses (at 0.3 opacity). Picking the same colour your custom-colour grid shows.
+        Which palette colour the header's animated wave uses (at 0.3 opacity). Pick <strong>Off</strong> to hide the wave entirely.
       </p>
       <div className="grid grid-cols-4 gap-1.5">
         {WAVE_COLOR_KEYS.map((key) => {
           const isCurrent = current === key;
+          const isOff = key === "background";
           return (
             <button
               key={key}
@@ -206,16 +207,20 @@ function WaveColorPicker() {
                 isCurrent ? "border-primary/60 bg-primary/10" : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              {/* Outer wrapper paints a checker-style mid-grey so a
-                  swatch fill that matches the surrounding card
-                  (most often: the Background swatch) is still
-                  visible as a clickable target. Inner div sits on
-                  top and shows the actual colour. */}
-              <div
-                className="w-7 h-7 rounded-lg border-2 border-border bg-[repeating-linear-gradient(45deg,#4b5563_0_4px,#9ca3af_4px_8px)] overflow-hidden"
-              >
-                <div className="w-full h-full" style={{ backgroundColor: cssVarFor(key) }} />
-              </div>
+              {/* The "Off" swatch (key === "background") shows a
+                  crossed-out tile to communicate "no wave"; every
+                  other key shows the actual palette colour. */}
+              {isOff ? (
+                <div className="w-7 h-7 rounded-lg border-2 border-border bg-muted/40 flex items-center justify-center text-muted-foreground">
+                  <span className="text-base leading-none">⊘</span>
+                </div>
+              ) : (
+                <div
+                  className="w-7 h-7 rounded-lg border-2 border-border overflow-hidden"
+                >
+                  <div className="w-full h-full" style={{ backgroundColor: cssVarFor(key) }} />
+                </div>
+              )}
               <span className={`text-[0.625rem] ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
                 {WAVE_COLOR_LABELS[key]}
               </span>
