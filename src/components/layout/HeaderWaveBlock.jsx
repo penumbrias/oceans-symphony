@@ -35,13 +35,17 @@ export default function HeaderWaveBlock() {
         viewBox="0 0 240 32"
         preserveAspectRatio="none"
       >
-        {/* The wave fill: rectangle to y=22 then sine wave back to the
-            left edge along y≈22, tiling at every 60 units so x=240
-            lands at exactly the same phase as x=0. */}
+        {/* The wave fill. Both the fill outline and the stroke below
+            walk the wave LEFT-to-RIGHT so SVG's `T` smooth-quadratic
+            reflections produce identical phases — drawing fill right-
+            to-left and stroke left-to-right (the previous shape) put
+            the two wave paths 180° out of phase: the fill's peaks
+            landed where the stroke's troughs landed and vice versa.
+            Now both peak / trough at the same x positions. */}
         <path
-          d="M0 0 L240 0 L240 22 Q225 17 210 22 T180 22 T150 22 T120 22 T90 22 T60 22 T30 22 T0 22 Z"
+          d="M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"
           fill="var(--color-surface, #E0F2FE)"
-          fillOpacity="1"
+          fillOpacity="0.8"
         />
         {/* A second, slightly darker stroke along the wave edge so the
             boundary still reads clearly on themes where the surface
@@ -50,7 +54,7 @@ export default function HeaderWaveBlock() {
           d="M0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22"
           fill="none"
           stroke="var(--color-surface, #E0F2FE)"
-          strokeOpacity="0.9"
+          strokeOpacity="0.8"
           strokeWidth="1"
         />
       </svg>
