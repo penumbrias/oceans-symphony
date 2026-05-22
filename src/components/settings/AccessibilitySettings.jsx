@@ -7,15 +7,7 @@ import {
   setAccessibilityHighContrast,
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
-  setAccessibilityFontFamily,
 } from "@/lib/useAccessibility";
-
-const FONT_FAMILY_OPTIONS = [
-  { value: "inter",    label: "Inter",                 desc: "App default — clean, modern",          fontFamily: "'Inter', sans-serif" },
-  { value: "system",   label: "System font",           desc: "Uses your device's built-in font",     fontFamily: "system-ui, sans-serif" },
-  { value: "atkinson", label: "Atkinson Hyperlegible", desc: "Designed for low vision & dyslexia",   fontFamily: "'Atkinson Hyperlegible', sans-serif" },
-  { value: "nunito",   label: "Nunito",                desc: "Rounded, friendly — easier to read",   fontFamily: "'Nunito', sans-serif" },
-];
 
 const NAV_HEIGHT_OPTIONS = [
   { value: "compact",    label: "Compact",    desc: "44px — more screen space" },
@@ -55,54 +47,31 @@ export default function AccessibilitySettings() {
   return (
     <div className="space-y-6">
 
-      {/* Font family */}
-      <div>
-        <p className="text-sm font-semibold mb-1">Font family</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Switch to your device's system font for a more native feel.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {FONT_FAMILY_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => update("fontFamily", opt.value, setAccessibilityFontFamily)}
-              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
-                settings.fontFamily === opt.value
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border/50 bg-card hover:bg-muted/30"
-              }`}
-            >
-              <p className={`text-sm font-semibold break-words ${settings.fontFamily === opt.value ? "text-primary" : ""}`}
-                style={{ fontFamily: opt.fontFamily }}>
-                {opt.label}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Font / UI scale */}
+      {/* Font / UI scale — three-column grid mirroring the layout
+          the same control used to render under Appearance. Body
+          font lives in Settings → Appearance now; only the SIZE
+          slider is here so a single accessibility-focused page
+          owns text readability. */}
       <div>
         <p className="text-sm font-semibold mb-1">Text & UI size</p>
         <p className="text-xs text-muted-foreground mb-3">
-          Scales the base font size — affects text, spacing, and button sizes proportionally.
+          Scales the base font size — affects text, spacing, and button sizes proportionally. Font family lives in <strong>Appearance</strong>.
         </p>
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-1.5">
           {FONT_OPTIONS.map(opt => (
             <button
               key={opt.value}
               onClick={() => update("fontSize", opt.value, setAccessibilityFontSize)}
-              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
+              className={`rounded-xl border px-2 py-2 text-center transition-all ${
                 settings.fontSize === opt.value
                   ? "border-primary/60 bg-primary/10"
                   : "border-border/50 bg-card hover:bg-muted/30"
               }`}
             >
-              <p className={`text-sm font-semibold break-words ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
+              <p className={`text-sm font-semibold ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
                 {opt.label}
               </p>
-              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
+              <p className="text-[0.625rem] text-muted-foreground mt-0.5">{opt.desc}</p>
             </button>
           ))}
         </div>

@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Settings: Appearance no longer duplicates the body Font and Text Size controls — those live only in Accessibility now. Appearance keeps Heading Font, theme mode, and colour themes. About & help reordered so \"What's new\" sits at the bottom (after bug report, disclaimer, preview mode) instead of at the top.",
+        text: "Settings cleanup pass: Font Family lives in Appearance (with the richer side-by-side Body + Heading picker), Text & UI Size lives in Accessibility (now a wider three-column grid). No more duplicate controls for the same setting in two places. About & help reordered so \"What's new\" sits at the bottom.",
       },
       {
         type: "improve",

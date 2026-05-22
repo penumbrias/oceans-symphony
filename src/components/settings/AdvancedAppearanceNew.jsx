@@ -246,11 +246,15 @@ export default function AdvancedAppearance() {
 
   const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '🌙';
 
-  // Body font + size handlers used to live here (and showed a duplicate
-  // picker in this panel). Both have moved to Accessibility. The preset
-  // save/load path below still reads `currentFont` / `currentSize` so a
-  // saved theme preset can lock in a coordinated font + size triple
-  // alongside its colour palette.
+  // ── Font handler ─────────────────────────────────────────────
+  // Body font lives in Appearance; the overall text size lives in
+  // Accessibility (one slider in one place). Saved theme presets
+  // still capture both via `currentFont` / `currentSize` so a preset
+  // can pin a coordinated typography choice.
+  const handleFontSelect = (value) => {
+    setCurrentFont(value);
+    setAccessibilityFontFamily(value);
+  };
 
   // ── Preset handlers ──────────────────────────────────────────
   const handleSelectPreset = async (name) => {
@@ -342,28 +346,38 @@ export default function AdvancedAppearance() {
 
   return (
     <>
-      {/* ── Heading Font (the only font control that lives in
-              Appearance — body-font + text-size both moved to
-              Accessibility to avoid the same control appearing
-              twice). Heading font is purely stylistic — used for
-              page titles and the app name. ───────────────────── */}
-      <div className="space-y-2 min-w-0">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
-        <FontPicker
-          currentFont={currentHeadingFont}
-          onSelect={handleHeadingFontSelect}
-          options={HEADING_FONT_OPTIONS}
-          resolveCurrent={(v) => HEADING_FONT_OPTIONS.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
-        />
-        <p className="text-xs text-muted-foreground">
-          Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'DM Serif Display', 'Playfair Display', serif" : currentHeadingFont }}>
-            Your System
-          </span>
-        </p>
-        <p className="text-xs text-muted-foreground">
-          Body font and overall text size live in <strong>Accessibility</strong>.
-        </p>
+      {/* ── Body Font + Heading Font (side by side) ───────────────
+              These are the typography-style choices. Text & UI Size
+              lives in Accessibility — moving it there avoided the
+              duplicate slider we used to render in both sections. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div className="space-y-2 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
+          <FontPicker currentFont={currentFont} onSelect={handleFontSelect} />
+          <p className="text-xs text-muted-foreground">
+            Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
+              The quick brown fox jumps over the lazy dog
+            </span>
+          </p>
+        </div>
+        <div className="space-y-2 min-w-0">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
+          <FontPicker
+            currentFont={currentHeadingFont}
+            onSelect={handleHeadingFontSelect}
+            options={HEADING_FONT_OPTIONS}
+            resolveCurrent={(v) => HEADING_FONT_OPTIONS.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
+          />
+          <p className="text-xs text-muted-foreground">
+            Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'DM Serif Display', 'Playfair Display', serif" : currentHeadingFont }}>
+              Your System
+            </span>
+          </p>
+        </div>
       </div>
+      <p className="text-xs text-muted-foreground -mt-1">
+        Heading font is used for page titles and the app name. Body text uses the Font Family. Overall text size lives in <strong>Accessibility</strong>.
+      </p>
 
       {/* ── Theme Mode (light / dark / system) ─────────────────── */}
       <div className="space-y-2">
