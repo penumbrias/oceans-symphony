@@ -122,12 +122,12 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
   };
   const handleDismiss = async (instance) => {
     await updateInstance(instance.id, { status: "dismissed" });
-    toast("Dismissed");
+    toast.info("Dismissed");
   };
   const handleSnoozeWithToast = async (instance, option) => {
     await handleSnooze(instance, option);
     const { formatSnoozeLabel } = await import("./snoozeHelpers");
-    toast(`Snoozed for ${formatSnoozeLabel(option)}`);
+    toast.info(`Snoozed for ${formatSnoozeLabel(option)}`);
   };
 
   return (
