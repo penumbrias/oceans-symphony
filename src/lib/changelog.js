@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Header wave now uses your Muted palette colour at 0.3 opacity instead of Surface, so it reads as a chrome / divider tone rather than competing with the card-background.",
+      },
+      {
         type: "fix",
         text: "Settings: opening a section no longer makes the page jump to a different scroll position. The accordion now keeps the tapped section's header pinned to the same spot in the viewport even when collapsing an above-the-fold section underneath it.",
       },
