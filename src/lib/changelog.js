@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Header wave is now seamless — dropped the separate outline stroke that was overlapping the fill and creating a visible darker edge. The fill's bottom curve is now the wave by itself, at 0.8 opacity.",
+        text: "Header wave is now seamless — dropped the separate outline stroke that was overlapping the fill and creating a visible darker edge. Fill opacity dialled down to 0.3 for a barely-there wash.",
       },
       {
         type: "improve",

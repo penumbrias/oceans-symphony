@@ -43,7 +43,7 @@ export default function HeaderWaveBlock() {
         <path
           d="M240 0 L0 0 L0 22 Q15 17 30 22 T60 22 T90 22 T120 22 T150 22 T180 22 T210 22 T240 22 Z"
           fill="var(--color-surface, #E0F2FE)"
-          fillOpacity="0.8"
+          fillOpacity="0.3"
         />
       </svg>
     </div>
