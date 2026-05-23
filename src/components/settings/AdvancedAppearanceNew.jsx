@@ -351,20 +351,27 @@ export default function AdvancedAppearance() {
     setEditingColor(null);
     const preset = allPresets[name] || userCustomPresets[name];
     if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
+    if (preset?.headingFont) { setCurrentHeadingFont(preset.headingFont); setAccessibilityHeadingFont(preset.headingFont); }
     if (preset?.themeMode) setThemeMode(preset.themeMode);
     if (preset?.fontSize) { setCurrentSize(preset.fontSize); setAccessibilityFontSize(preset.fontSize); }
-    // Apply saved terms if present
+    // Apply saved terms + wave colour if present. Both live on the
+    // singleton SystemSettings row, so batch them into one
+    // update/create instead of two separate writes.
+    const settingsPatch = {};
     if (preset?.terms) {
-      const termData = {
-        term_system: preset.terms.system || 'system',
-        term_alter:  preset.terms.alter  || 'alter',
-        term_switch: preset.terms.switch || 'switch',
-        term_front:  preset.terms.front  || 'front',
-      };
+      settingsPatch.term_system = preset.terms.system || 'system';
+      settingsPatch.term_alter  = preset.terms.alter  || 'alter';
+      settingsPatch.term_switch = preset.terms.switch || 'switch';
+      settingsPatch.term_front  = preset.terms.front  || 'front';
+    }
+    if (preset?.waveColorKey && WAVE_COLOR_KEYS.includes(preset.waveColorKey)) {
+      settingsPatch.wave_color_key = preset.waveColorKey;
+    }
+    if (Object.keys(settingsPatch).length > 0) {
       if (systemSettings?.id) {
-        await base44.entities.SystemSettings.update(systemSettings.id, termData);
+        await base44.entities.SystemSettings.update(systemSettings.id, settingsPatch);
       } else {
-        await base44.entities.SystemSettings.create(termData);
+        await base44.entities.SystemSettings.create(settingsPatch);
       }
       qc.invalidateQueries({ queryKey: ['systemSettings'] });
     }
@@ -409,6 +416,18 @@ export default function AdvancedAppearance() {
   };
 
   // ── Save as named preset ─────────────────────────────────────
+  // A saved preset should capture EVERYTHING the user can tune in
+  // the Appearance section so re-applying the preset brings the app
+  // back to the exact look they saved. Currently that's:
+  //   - colors (light + dark)
+  //   - body font + heading font
+  //   - theme mode
+  //   - text/UI size
+  //   - header wave colour
+  //   - terminology
+  // Missing any of these would silently revert that aspect to the
+  // last applied value when loading the preset — confusing for the
+  // user ("why did my heading font / wave colour change back?").
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
@@ -417,13 +436,15 @@ export default function AdvancedAppearance() {
     saveCustomPreset(name, {
       ...colors,
       font: currentFont,
+      headingFont: currentHeadingFont,
       themeMode,
       fontSize: currentSize,
+      waveColorKey: readWaveColorKey(systemSettings),
       terms: { system: t.system, alter: t.alter, switch: t.switch, front: t.front },
     });
     setPresetName('');
     setShowSaveForm(false);
-    toast.success(`Theme "${name}" saved — includes your current terminology`);
+    toast.success(`Theme "${name}" saved — includes your current Appearance settings`);
   };
 
   // Collect all presets for display
