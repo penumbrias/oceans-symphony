@@ -1329,9 +1329,14 @@ export default function InfiniteTimeline({
     const clientX = e.touches?.[0]?.clientX ?? e.clientX;
     const clientY = e.touches?.[0]?.clientY ?? e.clientY;
     longPressStartPos.current = { x: clientX, y: clientY };
+    // rect.top is already viewport-relative — accounts for whatever
+    // scroll position the parent page is in — so `clientY - rect.top`
+    // is the tap's position within the day grid. The previous code
+    // added a separate `scrollTop` from the now-removed inner
+    // `.overflow-y-auto` ancestor; that double-counted scroll
+    // whenever the user wasn't at the top of the inner scroller.
     const y = clientY - rect.top;
-    const scrollTop = e.currentTarget.closest(".overflow-y-auto")?.scrollTop || 0;
-    const mins = Math.round(((y + scrollTop) / totalHeight) * 24 * 60 / 15) * 15;
+    const mins = Math.round((y / totalHeight) * 24 * 60 / 15) * 15;
     longPressTargetRef.current = setTimeout(() => {
       longPressTargetRef.current = null;
       setRetroPickerState({ startMins: Math.min(Math.max(0, mins), 1439) });
@@ -1467,7 +1472,18 @@ export default function InfiniteTimeline({
               )}
             </div>
 
-            <div className="overflow-y-auto" style={{ maxHeight: "calc(100vh - 220px)" }}>
+            {/* Each day's grid now flows in the page scroll instead of
+                its own capped scroller. The previous wrapper
+                (`<div className="overflow-y-auto" style={{ maxHeight:
+                "calc(100vh - 220px)" }}>`) trapped the user inside one
+                day's 24-hour range — once they scrolled to the bottom
+                of that day, the page scroll never engaged, so they
+                couldn't reach the previous day's content without a
+                clumsy outside-the-grid drag. Now the day renders
+                full-height; the parent Timeline page's normal scroll
+                handles moving between days and the IntersectionObserver
+                sentinel lazy-loads more. */}
+            <div>
               <div ref={timelineAreaRef} className="relative" style={{ height: totalHeight, minWidth: totalWidth, touchAction: "pan-x pan-y" }}
                 onMouseDown={startAreaLongPress} onMouseMove={moveAreaLongPress} onMouseUp={cancelAreaLongPress} onMouseLeave={cancelAreaLongPress}
                 onTouchStart={startAreaLongPress} onTouchMove={moveAreaLongPress} onTouchEnd={cancelAreaLongPress} onTouchCancel={cancelAreaLongPress}>
