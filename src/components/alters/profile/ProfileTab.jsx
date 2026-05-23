@@ -479,8 +479,12 @@ useEffect(() => {
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
                   {alter.name}
                 </h2>
-                {alter.alias && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>}
-                {alter.pronouns && <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>}
+                {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
+                  <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
+                )}
+                {alter.pronouns && !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase()) && (
+                  <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>
+                )}
                 {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
                 {alter.role && (() => {
                   // Soft tint pill is the default look. When the alter's color is
