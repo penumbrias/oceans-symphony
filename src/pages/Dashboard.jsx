@@ -13,6 +13,7 @@ import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import DashboardPins from "@/components/dashboard/DashboardPins";
+import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
@@ -595,6 +596,8 @@ export default function Dashboard() {
             return <StatusNoteCard key="status_note" />;
           case "dashboard_pins":
             return <DashboardPins key="dashboard_pins" />;
+          case "pinned_daily_tasks":
+            return <PinnedDailyTasksWidget key="pinned_daily_tasks" />;
           case "current_symptoms":
             return (
               <CurrentSymptoms

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New \"Pinned tasks\" card on the dashboard surfaces your recurring Daily Tasks. Pick auto-by-frequency (e.g. monthly → weekly → daily, hiding completed) or hand-pick specific tasks; tune the card's scrollable height to fit your layout. Tap the circle on a manual task to mark it done without leaving the dashboard.",
+      },
+      {
         type: "fix",
         text: "Quick Check-In's \"Who's fronting?\" list now actually shows your alters when opened from a reminder banner or reminders inbox. Previously those entry points didn't pass the alters list through, so the picker came up empty.",
       },
