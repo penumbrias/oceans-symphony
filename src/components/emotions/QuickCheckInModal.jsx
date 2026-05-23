@@ -41,7 +41,7 @@ const PILLS = [
 { id: "location", label: "Location", icon: MapPin }];
 
 
-export default function QuickCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [], initialSection = null, retroTimestamp = null, editingEntry = null }) {
+export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp, currentFronterIds = [], initialSection = null, retroTimestamp = null, editingEntry = null }) {
   // Edit mode: when `editingEntry` is set we update that EmotionCheckIn
   // record in place instead of creating a new one. Only fields on the
   // EmotionCheckIn itself (emotions, fronting alters, note, timestamp)
@@ -154,6 +154,17 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     queryFn: () => localEntities.Location.list(),
   });
 
+  // Fetch alters internally so callers that mount this modal without
+  // passing the prop (ReminderToast, RemindersInbox) still get a
+  // populated "Who's fronting?" list. The shared ["alters"] cache means
+  // no extra fetch when the parent already loaded them.
+  const { data: fetchedAlters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+    enabled: !altersProp,
+  });
+  const alters = altersProp ?? fetchedAlters;
+
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
 
 
@@ -175,7 +186,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       if (editingEntry) {
         setEntryTime(toDatetimeLocal(editingEntry.timestamp));
         setSelectedEmotions(editingEntry.emotions || []);
+        // If a long note was saved as a JournalEntry (note >50 words at
+        // create-time), the EmotionCheckIn.note field only holds a
+        // truncated preview ("first 300 chars…"). Load the JournalEntry
+        // content so the user edits the FULL text, not the snippet.
         setNote(editingEntry.note || "");
+        if (editingEntry.journal_entry_id) {
+          base44.entities.JournalEntry
+            .filter({ id: editingEntry.journal_entry_id })
+            .then((rows) => {
+              const j = rows?.[0];
+              if (j?.content) setNote(j.content);
+            })
+            .catch(() => {});
+        }
         const fronterIds = editingEntry.fronting_alter_ids || [];
         const pid = fronterIds[0] || "";
         const co = fronterIds.slice(1);
@@ -383,16 +407,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     // In edit mode the only fields we persist are the EmotionCheckIn's
     // own — so validate against those rather than the broader form.
-    const hasData = isEditing
-      ? (selectedEmotions.length > 0 || selectedAlterIds.size > 0 || note.trim().length > 0)
-      : (
-          selectedEmotions.length > 0 ||
-          selectedAlterIds.size > 0 ||
-          selectedActivityCategories.length > 0 ||
-          note.trim().length > 0 ||
-          symptomCheckIns.length > 0 ||
-          hasDiaryData(diaryData)
-        );
+    const hasData =
+      selectedEmotions.length > 0 ||
+      selectedAlterIds.size > 0 ||
+      selectedActivityCategories.length > 0 ||
+      note.trim().length > 0 ||
+      symptomCheckIns.length > 0 ||
+      hasDiaryData(diaryData) ||
+      (openSections.has("location") && (locationName.trim() || locationCategory));
 
     if (!hasData) {
       toast.error(isEditing ? "Check-in can't be empty" : "Add at least one entry before saving");
@@ -410,12 +432,52 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
       // silently duplicating data. The original related records (e.g.
       // the activity logged alongside the first save) stay untouched.
       if (isEditing) {
+        // Mirror the create-path's >50-word rule: long notes live in a
+        // JournalEntry, the EmotionCheckIn holds a 300-char preview +
+        // journal_entry_id. Update the existing journal entry, create
+        // a new one if the note crossed the threshold mid-edit, or
+        // detach the link if the note shrank below the threshold.
+        const trimmedNote = note.trim();
+        const wc = trimmedNote ? trimmedNote.split(/\s+/).filter(Boolean).length : 0;
+        let journalEntryId = editingEntry.journal_entry_id || null;
+        if (trimmedNote && wc > 50) {
+          if (journalEntryId) {
+            try {
+              await base44.entities.JournalEntry.update(journalEntryId, { content: trimmedNote });
+            } catch {
+              const entry = await base44.entities.JournalEntry.create({
+                title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+                content: trimmedNote,
+                entry_type: "personal",
+                tags: ["checkin"],
+                folder: "Check-In Journals",
+                created_date: now,
+              });
+              journalEntryId = entry.id;
+            }
+          } else {
+            const entry = await base44.entities.JournalEntry.create({
+              title: `Check-in - ${new Date(now).toLocaleDateString()}`,
+              content: trimmedNote,
+              entry_type: "personal",
+              tags: ["checkin"],
+              folder: "Check-In Journals",
+              created_date: now,
+            });
+            journalEntryId = entry.id;
+          }
+        }
+        const noteForCheckIn = trimmedNote
+          ? (wc <= 50 ? trimmedNote : trimmedNote.substring(0, 300) + "...")
+          : null;
         await base44.entities.EmotionCheckIn.update(editingEntry.id, {
           timestamp: now,
           emotions: selectedEmotions,
           fronting_alter_ids: selectedAlters,
-          note: note.trim() || null,
+          note: noteForCheckIn,
+          journal_entry_id: journalEntryId,
         });
+        queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
         // Propagate symptom changes attached to this check-in so
         // edits actually reflect on the Timeline / Current symptoms
         // panel. Compare draft against the originals we loaded; for
@@ -449,6 +511,47 @@ export default function QuickCheckInModal({ isOpen, onClose, alters = [], curren
           // Non-fatal — the emotion edit still saved.
           // eslint-disable-next-line no-console
           console.warn("Symptom edit propagation failed", e);
+        }
+        // Activities/diary/location added during edit are new records —
+        // the modal doesn't pre-load existing activities/diary/locations,
+        // so anything in these fields was added by the user this session.
+        // Create them as fresh rows (linked by timestamp proximity, same
+        // as the create-path). Issue #229: previously these were silently
+        // dropped in edit mode, leaving the user thinking they'd saved.
+        if (selectedActivityCategories.length > 0) {
+          await handleSaveActivities(now);
+          queryClient.invalidateQueries({ queryKey: ["activities"] });
+        }
+        if (hasDiaryData(diaryData)) {
+          const cardDate = new Date(now);
+          await base44.entities.DiaryCard.create({
+            card_type: "daily",
+            date: format(cardDate, "yyyy-MM-dd"),
+            name: `Daily — ${format(cardDate, "MMM d, yyyy")}`,
+            fronting_alter_ids: selectedAlters,
+            emotions: selectedEmotions,
+            urges: diaryData.urges || null,
+            body_mind: diaryData.body_mind || null,
+            skills_practiced: diaryData.skills?.skills_practiced ?? null,
+            medication_safety: diaryData.skills ? {
+              rx_meds_taken: diaryData.skills.rx_meds_taken,
+              self_harm_occurred: diaryData.skills.self_harm_occurred,
+              substances_count: diaryData.skills.substances_count
+            } : null,
+            notes: trimmedNote ? { optional: trimmedNote } : null
+          });
+          queryClient.invalidateQueries({ queryKey: ["diaryCards"] });
+        }
+        if (openSections.has("location") && (locationName.trim() || locationCategory)) {
+          await localEntities.Location.create({
+            timestamp: now,
+            name: locationName.trim() || getCategoryMeta(locationCategory).label,
+            category: locationCategory || "other",
+            latitude: locationLat ?? null,
+            longitude: locationLng ?? null,
+            source: locationLat != null ? "gps" : "manual",
+          });
+          queryClient.invalidateQueries({ queryKey: ["locations"] });
         }
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });

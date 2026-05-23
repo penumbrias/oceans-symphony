@@ -13,6 +13,23 @@
 
 export const CHANGELOG = [
   {
+    date: "May 23, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Quick Check-In's \"Who's fronting?\" list now actually shows your alters when opened from a reminder banner or reminders inbox. Previously those entry points didn't pass the alters list through, so the picker came up empty.",
+      },
+      {
+        type: "fix",
+        text: "Editing a check-in that linked to a journal entry (long notes) now loads the FULL journal text instead of the 300-character truncated preview. Saving keeps the journal entry and the check-in's preview in sync.",
+      },
+      {
+        type: "fix",
+        text: "Adding an Activities, Diary, or Location section to an existing check-in via edit now actually saves — previously these were silently dropped in edit mode. Issue #229.",
+      },
+    ],
+  },
+  {
     date: "May 21, 2026",
     changes: [
       {
