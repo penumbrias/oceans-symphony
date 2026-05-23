@@ -236,6 +236,19 @@ What always needs a changelog entry:
 
 ---
 
+## Critical: Keep the Wiki Preview Honest
+
+The "Wiki" preview mode (Settings → Preview Mode → Wiki) is a feature walkthrough — each example alter is a docs page for one part of the app, written in HTML inside `src/lib/previewWiki.js`. The PreviewModeBanner reads `WIKI_CONTENT_VERSION` from that file and compares it to `APP_VERSION`:
+
+- If equal → "walkthrough up to date with vX.Y.Z"
+- If `WIKI_CONTENT_VERSION < APP_VERSION` → "last refreshed for vX, you're on vY (some new features may be missing)"
+
+**Bump `WIKI_CONTENT_VERSION` only when you actually update the wiki bios** — NOT on every `APP_VERSION` bump. The whole point of the separate constant is to honestly signal staleness; auto-bumping it on every PR re-creates the original bug (banner always claims fresh while bios drift months behind real features).
+
+When adding a meaningful new dashboard widget, new top-level page, or significant UX change, write a corresponding bio block in `previewWiki.js`, append it to the `A = {...}` map, add it to the right `groups[].member_alter_ids` array, and bump `WIKI_CONTENT_VERSION`. PATCH for adding/refreshing detail, MINOR for a whole new wiki alter / topic, MAJOR for a structural rewrite.
+
+---
+
 ## Build Targets — Web, TWA, Native (post v0.11.3)
 
 Single React codebase, three build targets. Native work must be **purely

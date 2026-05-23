@@ -3,14 +3,27 @@
 // bulletin board, the timeline, the activity tracker, reminders, friends
 // mode, and so on. The alters list functions as a table of contents.
 //
-// The banner shows "walkthrough up to date with vX.Y.Z" — see
-// PreviewModeBanner.jsx. When you materially update a wiki section (because
-// the underlying feature changed), bump APP_VERSION as usual.
+// The banner (PreviewModeBanner.jsx) reads WIKI_CONTENT_VERSION below
+// and compares it to APP_VERSION. When the two match it says "up to
+// date with vX.Y.Z"; when WIKI_CONTENT_VERSION is older it says
+// "last refreshed for vX.Y.Z — you're on vA.B.C" so the user knows
+// the walkthrough is stale.
+//
+// CRITICAL: bump WIKI_CONTENT_VERSION only when you actually update
+// the wiki bios in this file — APP_VERSION bumps every PR (per
+// CLAUDE.md), but the wiki bios don't. Without this separation the
+// banner would always claim "up to date" while the bios miss every
+// feature added since the bios were last touched.
 //
 // Bios use plain HTML so they render the same in Plain / Simple / Raw modes.
 // We deliberately keep them text-heavy and gradient-light so they're
 // readable on every theme. Inline images are avoided — the goal is
 // reference docs the user can read at their own pace.
+
+// Bump this string whenever you meaningfully change a bio in this
+// file. PATCH bumps for added detail / small tweaks; MINOR for a
+// whole new wiki alter / topic; MAJOR for a structural rewrite.
+export const WIKI_CONTENT_VERSION = "0.26.2";
 
 let _counter = 0;
 function uid(prefix) {
@@ -383,6 +396,22 @@ const bioQuickCheckIn = `
   ${tip(`Most of the panels above are also reachable from their own pages — but combining them in one check-in is faster, and keeps the timestamps consistent for the moment you're capturing.`)}
 `;
 
+// ── 12b. Pinned Daily Tasks widget ─────────────────────────────────────
+const bioPinnedDailyTasks = `
+  ${intro("Wiki · Pinned tasks card", `Configurable dashboard card surfacing your recurring <em>Daily Tasks</em> (the ones with daily / weekly / monthly / yearly frequencies, set up under the Daily Tasks page). Lets you watch what's due now without leaving the dashboard.`)}
+  ${section("Two modes",
+    `<strong>Auto by frequency</strong> (default) — pick which frequencies to include (e.g. monthly + weekly + daily) and the priority order (e.g. monthly first, then weekly, then daily). Completed tasks drop out as you check them off. Lower-priority frequencies fill the rest of the list.<br><br>
+    <strong>Hand-pick</strong> — pick specific tasks and the order they appear in. Useful when "what I want to glance at on the dashboard" is narrower than "everything incomplete by frequency".`)}
+  ${section("Scrollable height",
+    `Slider in the settings dialog (140–800 px). Anything beyond the height scrolls inside the card so the rest of the dashboard stays where you left it. Saved per device.`)}
+  ${section("Manual tap-to-toggle",
+    `For tasks with mode = MANUAL, tap the circle on the left to mark done. Writes through to the same ${kbd("DailyProgress")} record the Daily Tasks page uses, so completion state stays in sync across surfaces.`)}
+  ${section("Auto tasks are read-only here",
+    `Tasks with mode = AUTO update through the trigger pipeline on the Daily Tasks page (e.g. "create a journal entry today" fires automatically). The widget shows them with an external-link icon — tap it to jump to the Daily Tasks page where the auto state refreshes.`)}
+  ${section("Where it lives",
+    `Default position: between the "Pinned bulletins & tasks" strip and the "Current symptoms" card. Toggle it off or reorder it under Settings → Appearance → Dashboard Layout, same as every other dashboard element.`)}
+`;
+
 // ── 13. To-Do & plans integration ─────────────────────────────────────
 const bioTodo = `
   ${intro("Wiki · To-Do list", `One-off tasks with optional due dates and scheduled times. Lives at /todo, integrated with the Activity Tracker.`)}
@@ -503,11 +532,12 @@ export function buildWiki() {
     timeline:   wikiAlter({ name: "10. Timeline",                 alias: "time",  role: "Day-by-day view",  color: "#84cc16", order_index: 9,  description: bioTimeline }),
     activities: wikiAlter({ name: "11. Activity Tracker",         alias: "act",   role: "Activities",       color: "#10b981", order_index: 10, description: bioActivities }),
     checkIn:    wikiAlter({ name: "12. Quick Check-In",           alias: "ci",    role: "Daily capture",    color: "#14b8a6", order_index: 11, description: bioQuickCheckIn }),
-    todo:       wikiAlter({ name: "13. To-Do & plans",            alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 12, description: bioTodo }),
-    reminders:  wikiAlter({ name: "14. Reminders & push",         alias: "ping",  role: "Notifications",    color: "#ef4444", order_index: 13, description: bioReminders }),
-    friends:    wikiAlter({ name: "15. Friends mode",             alias: "amigo", role: "Relay & friends",  color: "#f472b6", order_index: 14, description: bioFriends }),
-    settings:   wikiAlter({ name: "16. Settings & themes",        alias: "set",   role: "Customisation",    color: "#6366f1", order_index: 15, description: bioSettings }),
-    privacy:    wikiAlter({ name: "17. Privacy & backup",         alias: "lock",  role: "Data scope",       color: "#4f46e5", order_index: 16, description: bioPrivacy }),
+    pinnedDailyTasks: wikiAlter({ name: "12b. Pinned tasks card", alias: "pin",   role: "Dashboard widget", color: "#0ea5e9", order_index: 12, description: bioPinnedDailyTasks }),
+    todo:       wikiAlter({ name: "13. To-Do & plans",            alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 13, description: bioTodo }),
+    reminders:  wikiAlter({ name: "14. Reminders & push",         alias: "ping",  role: "Notifications",    color: "#ef4444", order_index: 14, description: bioReminders }),
+    friends:    wikiAlter({ name: "15. Friends mode",             alias: "amigo", role: "Relay & friends",  color: "#f472b6", order_index: 15, description: bioFriends }),
+    settings:   wikiAlter({ name: "16. Settings & themes",        alias: "set",   role: "Customisation",    color: "#6366f1", order_index: 16, description: bioSettings }),
+    privacy:    wikiAlter({ name: "17. Privacy & backup",         alias: "lock",  role: "Data scope",       color: "#4f46e5", order_index: 17, description: bioPrivacy }),
   };
   const alters = Object.values(A);
 
@@ -518,7 +548,7 @@ export function buildWiki() {
     { id: uid("wiki-group"), name: "1 · Start Here",      color: "#22d3ee", description: "Welcome + the gestures cheatsheet. Read these first.",                          member_alter_ids: [A.welcome.id, A.gestures.id],                                                              parent: "root", order: 0 },
     { id: uid("wiki-group"), name: "2 · Dashboard",       color: "#a855f7", description: "What every tile on the home screen does.",                                       member_alter_ids: [A.dashboard.id],                                                                           parent: "root", order: 1 },
     { id: uid("wiki-group"), name: "3 · Alter profiles",  color: "#f59e0b", description: "The Alters page, profile edit modes, the mini-toolbar, profile fields, fronting.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.fronting.id],               parent: "root", order: 2 },
-    { id: uid("wiki-group"), name: "4 · Tracking",        color: "#10b981", description: "Timeline, Activity Tracker, Quick Check-In, To-Do.",                              member_alter_ids: [A.timeline.id, A.activities.id, A.checkIn.id, A.todo.id],                                  parent: "root", order: 3 },
+    { id: uid("wiki-group"), name: "4 · Tracking",        color: "#10b981", description: "Timeline, Activity Tracker, Quick Check-In, the Pinned tasks dashboard widget, To-Do.", member_alter_ids: [A.timeline.id, A.activities.id, A.checkIn.id, A.pinnedDailyTasks.id, A.todo.id],            parent: "root", order: 3 },
     { id: uid("wiki-group"), name: "5 · Sharing & relay", color: "#ec4899", description: "Bulletin board (internal) and Friends mode (opt-in cloud relay).",                member_alter_ids: [A.bulletin.id, A.friends.id],                                                              parent: "root", order: 4 },
     { id: uid("wiki-group"), name: "6 · Notifications",   color: "#ef4444", description: "Reminder editor, scheduler, push pipeline + diagnostics.",                        member_alter_ids: [A.reminders.id],                                                                           parent: "root", order: 5 },
     { id: uid("wiki-group"), name: "7 · Personal",        color: "#6366f1", description: "Settings, themes, privacy, backups.",                                             member_alter_ids: [A.settings.id, A.privacy.id],                                                              parent: "root", order: 6 },
