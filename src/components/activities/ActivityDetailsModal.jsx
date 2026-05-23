@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -137,6 +137,23 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
   const [editDataMap, setEditDataMap] = useState({});
   const [isLoading, setIsLoading] = useState(false);
   const [lifecycleAct, setLifecycleAct] = useState(null);
+
+  // Reset edit state whenever the modal closes OR the underlying
+  // activity changes. Without this, opening the modal for a different
+  // activity while `editingId` still points at a previously-edited
+  // record makes the body render null (the editing branch finds no
+  // match in the new `activities` list) and the user sees a modal
+  // with just a header and no content.
+  useEffect(() => {
+    if (!isOpen) {
+      setEditingId(null);
+      setEditDataMap({});
+      return;
+    }
+    // Modal opened with a (possibly different) activity — drop any
+    // stale editing context from a previous activity.
+    setEditingId(null);
+  }, [isOpen, activity]);
   // When set, the recurrence-branch chooser is open over the details
   // modal. Holds the activity the user is trying to delete from a
   // series; the actual deletion happens after they pick a branch.
@@ -187,14 +204,19 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
   const handleEdit = (act) => {
     const startTime = new Date(act.timestamp);
-    const endTime = addMinutes(startTime, act.duration_minutes || 60);
+    // If the activity has no duration we leave the End field empty
+    // instead of defaulting to "start + 60 min" — the user is
+    // editing an instant-style log and forcing them into a duration
+    // is the whole bug the report described.
+    const hasDuration = typeof act.duration_minutes === "number" && act.duration_minutes > 0;
+    const endTime = hasDuration ? addMinutes(startTime, act.duration_minutes) : null;
     setEditingId(act.id);
     setEditDataMap(prev => ({
       ...prev,
       [act.id]: {
         activity_category_ids: act.activity_category_ids || [],
         startTimeStr: timeToStr(startTime),
-        endTimeStr: timeToStr(endTime),
+        endTimeStr: endTime ? timeToStr(endTime) : "",
         fronting_alter_ids: act.fronting_alter_ids || [],
         notes: act.notes || "",
       }
@@ -217,8 +239,14 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     setIsLoading(true);
     try {
       const startDt = applyTimeStr(act.timestamp, data.startTimeStr);
-      const endDt = applyTimeStr(act.timestamp, data.endTimeStr);
-      const duration = Math.max(1, Math.round((endDt - startDt) / 60000));
+      // Empty End field → save as "instant-style log": timestamp
+      // only, no duration. The activity displays at the start time
+      // without an end-time / duration footprint on the grid.
+      const trimmedEnd = (data.endTimeStr || "").trim();
+      const endDt = trimmedEnd ? applyTimeStr(act.timestamp, trimmedEnd) : null;
+      const duration = endDt
+        ? Math.max(1, Math.round((endDt - startDt) / 60000))
+        : null;
       const catIds = data.activity_category_ids;
       const catName = catIds.map(id => catById[id]?.name).filter(Boolean).join(" + ") || "Activity";
 
@@ -233,13 +261,16 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
 
       // If this is the auto-created Activity that mirrors a Sleep record,
       // reflect the timestamp / wake_time / notes back so the Sleep page
-      // doesn't drift.
+      // doesn't drift. Sleep records need a wake_time, so only update
+      // it when we have a real duration to compute one from.
       if (act.source_sleep_id) {
         try {
-          const wakeTimeISO = new Date(startDt.getTime() + duration * 60_000).toISOString();
+          const wakeTimeISO = duration
+            ? new Date(startDt.getTime() + duration * 60_000).toISOString()
+            : null;
           await base44.entities.Sleep.update(act.source_sleep_id, {
             bedtime: startDt.toISOString(),
-            wake_time: wakeTimeISO,
+            ...(wakeTimeISO ? { wake_time: wakeTimeISO } : {}),
             notes: data.notes ?? null,
           });
         } catch {}
@@ -389,7 +420,13 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
             <div className="space-y-4">
               {activities.map((act) => {
                 const startTime = new Date(act.timestamp);
-                const endTime = addMinutes(startTime, act.duration_minutes || 60);
+                const hasDuration = typeof act.duration_minutes === "number" && act.duration_minutes > 0;
+                const endTime = hasDuration ? addMinutes(startTime, act.duration_minutes) : null;
+                const durationLabel = hasDuration
+                  ? (act.duration_minutes >= 60
+                    ? `${Math.round((act.duration_minutes / 60) * 10) / 10}h`
+                    : `${act.duration_minutes}m`)
+                  : "—";
                 const activityAlters = (act.fronting_alter_ids || []).map(id => alters.find(a => a.id === id)).filter(Boolean);
                 const emotions = getEmotionsNearActivity(act);
                 const color = getActivityColor(act);
@@ -410,8 +447,11 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     </div>
                     <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
                       <div><p className="text-muted-foreground text-xs font-semibold mb-1">Start</p><p className="font-medium">{format(startTime, "HH:mm")}</p></div>
-                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">End</p><p className="font-medium">{format(endTime, "HH:mm")}</p></div>
-                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p><p className="font-medium">{Math.round((act.duration_minutes || 60) / 60 * 10) / 10}h</p></div>
+                      <div>
+                        <p className="text-muted-foreground text-xs font-semibold mb-1">End</p>
+                        <p className="font-medium">{endTime ? format(endTime, "HH:mm") : "—"}</p>
+                      </div>
+                      <div><p className="text-muted-foreground text-xs font-semibold mb-1">Duration</p><p className="font-medium">{durationLabel}</p></div>
                     </div>
                     {(act.activity_category_ids || []).length > 0 && (
                       <div>

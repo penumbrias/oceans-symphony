@@ -33,6 +33,26 @@ export const CHANGELOG = [
     date: "May 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity Details modal: opening it for one activity after editing a different one no longer shows a blank modal — the stale editing-id was making the body render nothing. Edit state now resets when the modal opens or the underlying activity changes.",
+      },
+      {
+        type: "fix",
+        text: "Logging an activity with no end time now actually saves with no duration instead of forcing a one-hour-after-start fallback. The Activity Details edit form leaves the End field blank when there's no duration, and saving with a blank End writes `duration_minutes: null`. Read-only view shows \"—\" for End/Duration on instant-style logs.",
+      },
+      {
+        type: "fix",
+        text: "Web (oceans-symphony.app) was white-screening with a \"No QueryClient set\" error when boot landed on the unlock / firstrun / recovery screens. Those early-boot branches weren't wrapped in QueryClientProvider, so the grocery panel's useQuery hook crashed the render. Wrapped all three boot branches.",
+      },
+      {
+        type: "fix",
+        text: "Reminder banner X button now actually marks the reminder as dismissed in the database, so it (a) doesn't re-fire next session and (b) shows up in the Recently Handled list. Previously the X only hid the visual toast without persisting.",
+      },
+      {
+        type: "fix",
+        text: "Backup & Export now shows a clear \"the app needs to reload to pick up the latest assets\" message instead of a raw \"Failed to fetch dynamically imported module\" error when the WebView has a stale chunk reference from a previous build. Underlying problem is a one-time stale cache after an app update — closing + reopening the app resolves it.",
+      },
+      {
         type: "improve",
         text: "Wave-colour picker: the Background swatch is now an explicit \"Off\" option (with a ⊘ icon) that hides the header wave entirely. Picking the same colour as the page background used to look like a faintly-visible band; now it cleanly hides the wave.",
       },

@@ -315,7 +315,9 @@ function App() {
   if (setupState === 'firstrun') {
     return (
       <ThemeProvider>
-        <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+        <QueryClientProvider client={queryClientInstance}>
+          <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+        </QueryClientProvider>
       </ThemeProvider>
     );
   }
@@ -323,17 +325,22 @@ function App() {
   if (setupState === 'unlock') {
     return (
       <ThemeProvider>
-        <UnlockScreen
-          onUnlock={() => setSetupState(null)}
-          onNeedRecovery={(reason) => {
-            setRecoveryReason(reason || { kind: 'unlock_failed' });
-            setSetupState('recovery');
-          }}
-        />
-        {/* Mount the panel here so the user can pop their always-
-            unlocked grocery lists without going through the unlock
-            challenge. lockedMode hides every encrypted list. */}
-        <GroceryListPanel lockedMode />
+        <QueryClientProvider client={queryClientInstance}>
+          <UnlockScreen
+            onUnlock={() => setSetupState(null)}
+            onNeedRecovery={(reason) => {
+              setRecoveryReason(reason || { kind: 'unlock_failed' });
+              setSetupState('recovery');
+            }}
+          />
+          {/* Mount the panel here so the user can pop their always-
+              unlocked grocery lists without going through the unlock
+              challenge. lockedMode hides every encrypted list.
+              GroceryListPanel uses react-query — so it (and any future
+              tenant of these early-boot branches) needs the provider
+              wrapped here, not just on the main-app return below. */}
+          <GroceryListPanel lockedMode />
+        </QueryClientProvider>
       </ThemeProvider>
     );
   }
@@ -341,13 +348,15 @@ function App() {
   if (setupState === 'recovery') {
     return (
       <ThemeProvider>
-        <RecoveryScreen
-          reason={recoveryReason}
-          onResolved={() => {
-            setRecoveryReason(null);
-            setSetupState('booting');
-          }}
-        />
+        <QueryClientProvider client={queryClientInstance}>
+          <RecoveryScreen
+            reason={recoveryReason}
+            onResolved={() => {
+              setRecoveryReason(null);
+              setSetupState('booting');
+            }}
+          />
+        </QueryClientProvider>
       </ThemeProvider>
     );
   }

@@ -366,6 +366,22 @@ export default function DataBackupRestore() {
   // share sheet so the user can pick a destination (Drive, email,
   // Send to PC, etc.). Buttons in the UI call this with their
   // respective mode.
+  // Detect the "stale WebView refers to a chunk hash from an older
+  // build that no longer exists" failure mode so we can suggest a
+  // hard reload instead of dumping a raw module-loader error string
+  // on the user. Triggered by shareFile.js returning
+  // `error: "chunk_load_failed"`, or by the dynamic-import string
+  // bubbling up from somewhere else.
+  const isChunkLoadFailure = (err) => {
+    if (!err) return false;
+    if (err === "chunk_load_failed") return true;
+    const s = String(err).toLowerCase();
+    return s.includes("dynamically imported module")
+      || s.includes("failed to fetch")
+      || s.includes("chunk_load_failed");
+  };
+  const chunkRecoveryMsg = "Export failed — the app needs to reload to pick up the latest assets. Close and reopen the app, or pull-to-refresh, then try again.";
+
   const runExport = async (mode = "save") => {
     setExportLoading(true);
     try {
@@ -374,7 +390,11 @@ export default function DataBackupRestore() {
       const ext = exportFormat === "compact" ? "txt" : "json";
       const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat, mode);
       if (res?.result === "failed") {
-        showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
+        if (isChunkLoadFailure(res.error)) {
+          showStatus("error", chunkRecoveryMsg);
+        } else {
+          showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
+        }
       } else if (res?.result === "cancelled") {
         // User dismissed the share sheet — no toast, no surprise.
       } else {
@@ -393,7 +413,11 @@ export default function DataBackupRestore() {
         }
       }
     } catch (e) {
-      showStatus("error", `Export failed: ${e.message}`);
+      if (isChunkLoadFailure(e?.message)) {
+        showStatus("error", chunkRecoveryMsg);
+      } else {
+        showStatus("error", `Export failed: ${e.message}`);
+      }
     } finally {
       setExportLoading(false);
     }
