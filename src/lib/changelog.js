@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Alter profile → History tab: double-tap any session card to open the same \"Jump to session\" / \"Edit session\" popover the dashboard fronter chips use. Jump-to scrolls the Timeline to that session's day and pulses a 3-second halo; Edit opens the session editor directly. Same popover component on both surfaces.",
+      },
+      {
         type: "fix",
         text: "Web app on oceans-symphony.app: fixed a \"blank screen of death\" that could appear a day or two after a new deploy. The service worker was serving cached HTML that pointed at older JS bundle filenames, but Vercel had already deleted those old bundles, so the browser loaded a page that referenced 404'd scripts. HTML navigation is now network-first (fresh visits always pull the current bundle hashes); cache is only used when actually offline.",
       },
