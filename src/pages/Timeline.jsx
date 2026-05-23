@@ -187,17 +187,22 @@ export default function Timeline() {
     return () => observer.disconnect();
   }, []);
 
-  // Show scroll-to-top button after scrolling down
+  // Show scroll-to-top button after scrolling down. Scroll on the
+  // document/window (not on an inner overflow-y-auto element) — each
+  // InfiniteTimeline day's grid used to have its own inner scroller
+  // but now flows in the page scroll so the user can move between
+  // days continuously.
   useEffect(() => {
-    const el = document.querySelector(".overflow-y-auto");
-    if (!el) return;
-    const onScroll = () => setShowScrollTop(el.scrollTop > 400);
-    el.addEventListener("scroll", onScroll, { passive: true });
-    return () => el.removeEventListener("scroll", onScroll);
+    const onScroll = () => {
+      const el = document.scrollingElement || document.documentElement;
+      setShowScrollTop((el?.scrollTop || 0) > 400);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, []);
 
   const handleScrollTop = () => {
-    const el = document.querySelector(".overflow-y-auto");
+    const el = document.scrollingElement || document.documentElement;
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
@@ -207,14 +212,14 @@ export default function Timeline() {
     if (isNaN(target.getTime())) return;
     setAnchorDate(target);
     setDaysBack(CHUNK_DAYS);
-    const el = document.querySelector(".overflow-y-auto");
+    const el = document.scrollingElement || document.documentElement;
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 
   const handleBackToToday = () => {
     setAnchorDate(new Date());
     setDaysBack(CHUNK_DAYS);
-    const el = document.querySelector(".overflow-y-auto");
+    const el = document.scrollingElement || document.documentElement;
     if (el) el.scrollTo({ top: 0, behavior: "smooth" });
   };
 

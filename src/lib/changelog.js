@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Timeline: scrolling down inside a day's grid now flows naturally into the previous day instead of dead-ending at the bottom of the 24-hour block. Each day used to live inside its own viewport-height scroller; now the whole day renders full-height and the page scroll handles moving between days continuously.",
+      },
+      {
         type: "feature",
         text: "Alter profile → History tab: double-tap any session card to open the same \"Jump to session\" / \"Edit session\" popover the dashboard fronter chips use. Jump-to scrolls the Timeline to that session's day and pulses a 3-second halo; Edit opens the session editor directly. Same popover component on both surfaces.",
       },
