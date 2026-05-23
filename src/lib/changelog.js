@@ -25,6 +25,10 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Grounding → Browse all techniques: added \"← Back to Quick Support\" at the top so you can return to the entry / state-check flow without using the device back button. Matches the back-link convention already on the state-check and suggestions screens.",
+      },
+      {
+        type: "fix",
         text: "Timeline: scrolling down inside a day's grid now flows naturally into the previous day instead of dead-ending at the bottom of the 24-hour block. Each day used to live inside its own viewport-height scroller; now the whole day renders full-height and the page scroll handles moving between days continuously.",
       },
       {
