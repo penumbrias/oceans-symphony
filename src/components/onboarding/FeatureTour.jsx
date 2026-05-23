@@ -64,6 +64,14 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "✨",
+      title: "Pinned tasks card",
+      body: `The "Pinned tasks" card pulls your recurring Daily Tasks onto the dashboard. Tap the gear to pick mode: auto-by-frequency (e.g. show monthly tasks first, then weekly, then daily, hiding completed) or hand-pick specific tasks in your preferred order. You can also set the card's height — long lists become scrollable. Tap the circle on a manual task to mark it done from here; auto tasks open Daily Tasks to refresh.`,
+      route: "/", target: "pinned-daily-tasks",
+      look: `the highlighted Pinned tasks card — use the gear icon to configure what shows up`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
       emoji: "💬",
       title: "Status Notes",
       body: `The status note field lets you leave a short ${t.system}-wide note — "at work", "in therapy", "rough night". Every save creates a new timestamped record; nothing is ever overwritten. The most recent note appears above the input as a preview, and all past notes appear on the Timeline.`,

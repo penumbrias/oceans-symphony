@@ -28,6 +28,10 @@ export const DASHBOARD_ELEMENTS = {
     label: "Pinned bulletins & tasks",
     description: "Anything you've manually pinned to the dashboard.",
   },
+  pinned_daily_tasks: {
+    label: "Pinned tasks (daily/weekly/monthly)",
+    description: "Configurable list of recurring tasks. Pick auto-by-frequency or hand-pick specific tasks; tune the height to fit your dashboard.",
+  },
   current_symptoms: {
     label: "Current symptoms",
     description: "Active symptom sessions you've started.",
@@ -60,6 +64,7 @@ export const DEFAULT_LAYOUT = [
   { id: "current_fronters", enabled: true },
   { id: "status_note",      enabled: true },
   { id: "dashboard_pins",   enabled: true },
+  { id: "pinned_daily_tasks", enabled: true },
   { id: "current_symptoms", enabled: true },
   { id: "quick_checkin",    enabled: true },
   { id: "new_features_bar", enabled: true },
