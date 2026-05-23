@@ -485,6 +485,17 @@ export default function Grounding({ initialPath = null }) {
   if (path === "all") {
     return (
       <div className="max-w-lg mx-auto p-4 space-y-6">
+        {/* "Back to Quick Support" exit at the top of the catalogue
+            so the user can return to the Quick Support entry / state-
+            check flow without using the device back button. Matches
+            the small back-link convention used elsewhere in the
+            Grounding flow (state-check, suggestions). */}
+        <button
+          onClick={() => setPath("entry")}
+          className="text-xs text-muted-foreground hover:text-foreground -mb-2 flex items-center gap-1 transition-colors"
+        >
+          ← Back to Quick Support
+        </button>
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-lg font-semibold text-foreground">All techniques</h2>
