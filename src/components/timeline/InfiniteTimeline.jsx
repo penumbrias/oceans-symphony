@@ -137,7 +137,7 @@ function StatusNoteBadge({ note, topPx, id }) {
   );
 }
 
-function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote }) {
+function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary, rowH, onLongPress, hasNote, highlight }) {
   const sz = Math.max(18, Math.min(26, rowH * 0.45));
   const tap = useDoubleTap(onTap, onDoubleTap);
   const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
@@ -145,6 +145,20 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
   const lpRef = useRef(null);
   const touchFiredRef = useRef(false);
   const pressStart = useRef({ x: 0, y: 0, moved: false });
+  // 3-second "you just jumped to this session" halo — fades out so it
+  // doesn't permanently distract from the rest of the day. The parent
+  // sets `highlight` once and we drive the visible pulse here so we
+  // can decay it locally without needing the parent to clear the prop.
+  const [haloOn, setHaloOn] = useState(false);
+  const haloRef = useRef(null);
+  useEffect(() => {
+    if (!highlight) return;
+    setHaloOn(true);
+    if (haloRef.current) clearTimeout(haloRef.current);
+    haloRef.current = setTimeout(() => setHaloOn(false), 3000);
+    // Bring this bar into view if it's offscreen.
+    return () => { if (haloRef.current) clearTimeout(haloRef.current); };
+  }, [highlight]);
 
   const startPress = (e) => {
     e.stopPropagation();
@@ -192,7 +206,7 @@ function AlterBar({ alter, color, topPx, heightPx, onTap, onDoubleTap, isPrimary
       onTouchStart={startPress} onTouchMove={movePress} onTouchEnd={handleTouchEnd} onTouchCancel={cancelPress}>
       <div className="relative flex-shrink-0">
         <div
-          className="rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all"
+          className={`rounded-full overflow-hidden flex items-center justify-center hover:ring-2 hover:ring-primary/60 transition-all ${haloOn ? "alter-bar-jump-halo" : ""}`}
           style={{
             width: sz, height: sz,
             backgroundColor: color,
@@ -688,6 +702,12 @@ export default function InfiniteTimeline({
   categories = [],
   locations = [], showLocations = true,
   statusNotes = [],
+  // Set when a dashboard fronter chip double-tap → "Jump to session"
+  // brought the user here. The matching AlterBar pulses a 3s halo on
+  // first render. If focusOpenEditor is also true, the session-edit
+  // modal opens automatically.
+  focusSessionId = null,
+  focusOpenEditor = false,
 }) {
   const queryClient = useQueryClient();
 
@@ -729,6 +749,20 @@ export default function InfiniteTimeline({
   const [showTally, setShowTally] = useState(false);
   const [sessionPopover, setSessionPopover] = useState(null);
   const [editingSession, setEditingSession] = useState(null);
+
+  // Auto-open the session editor when the parent passed
+  // `?focusSessionId=…&edit=1`. Only fires once per focusSessionId so
+  // a manual close doesn't re-pop the modal.
+  const lastAutoOpenedRef = useRef(null);
+  useEffect(() => {
+    if (!focusSessionId || !focusOpenEditor) return;
+    if (lastAutoOpenedRef.current === focusSessionId) return;
+    const s = (sessions || []).find((x) => x.id === focusSessionId);
+    if (!s) return;
+    const alter = (alters || []).find((a) => a.id === s.alter_id) || null;
+    lastAutoOpenedRef.current = focusSessionId;
+    setEditingSession({ session: s, alter });
+  }, [focusSessionId, focusOpenEditor, sessions, alters]);
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [retroPickerState, setRetroPickerState] = useState(null); // { startMins } — type picker
@@ -1616,6 +1650,7 @@ export default function InfiniteTimeline({
                         const topPx = getTopPx(entry.startMins);
                         const heightPx = getRangePx(entry.startMins, entry.endMins);
                         const entrySession = sessions.find(s => s.id === entry.sessionId);
+                        const isFocused = !!focusSessionId && entrySession?.id === focusSessionId;
                         return (
                           <AlterBar
                             key={entry.key}
@@ -1626,6 +1661,7 @@ export default function InfiniteTimeline({
                             isPrimary={entry.isPrimary}
                             rowH={rowH}
                             hasNote={!!entrySession?.note}
+                            highlight={isFocused}
                             onTap={() => entrySession && setSessionPopover({ session: entrySession, alter })}
                             onDoubleTap={() => entrySession && setEditingSession({ session: entrySession, alter })}
                             onLongPress={({ clientY, barTop }) => {

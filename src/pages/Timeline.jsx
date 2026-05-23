@@ -12,8 +12,13 @@ import { localEntities } from "@/api/base44Client";
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
 export default function Timeline() {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [daysBack, setDaysBack] = useState(CHUNK_DAYS);
+  // Sessions a chip on the dashboard double-tapped through to. The
+  // URL carries `?focusSessionId=<id>` (and optionally `&edit=1`); we
+  // strip the params after handling so a refresh doesn't re-jump.
+  const focusSessionId = searchParams.get("focusSessionId") || null;
+  const focusEdit = searchParams.get("edit") === "1";
   const [showFronting, setShowFronting] = useState(true);
   const [showActivities, setShowActivities] = useState(true);
   const [showCheckIns, setShowCheckIns] = useState(true);
@@ -132,6 +137,39 @@ export default function Timeline() {
     }, 400);
     return () => clearTimeout(timer);
   }, [searchParams]);
+
+  // Focus a specific FrontingSession sent through from a dashboard
+  // chip's double-tap menu (?focusSessionId=<id>&edit=1?). Sets the
+  // anchor date to that session's day so InfiniteTimeline renders it,
+  // then scrolls to it. The session bar adds its own 3-second halo via
+  // the focusSessionId prop on InfiniteTimeline. Run only when sessions
+  // load AND the param is present.
+  useEffect(() => {
+    if (!focusSessionId) return;
+    if (!sessions || sessions.length === 0) return;
+    const session = sessions.find((s) => s.id === focusSessionId);
+    if (!session) return;
+    const sessionDay = startOfDay(parseDate(session.start_time));
+    // Only move the anchor if the user isn't already on that day's
+    // chunk (avoid unnecessary re-render storms).
+    if (startOfDay(anchorDate).getTime() !== sessionDay.getTime()) {
+      setAnchorDate(sessionDay);
+      setDaysBack(CHUNK_DAYS);
+    }
+    const dateStr = format(sessionDay, "yyyy-MM-dd");
+    const t = setTimeout(() => {
+      const dayEl = document.getElementById(`day-${dateStr}`);
+      if (dayEl) dayEl.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 200);
+    // Strip the params so a refresh / back-nav doesn't re-trigger the
+    // jump. focusSessionId / edit are consumed exactly once.
+    const next = new URLSearchParams(searchParams);
+    next.delete("focusSessionId");
+    next.delete("edit");
+    setSearchParams(next, { replace: true });
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [focusSessionId, sessions]);
 
   // Lazy load more days as user scrolls to bottom
   useEffect(() => {
@@ -340,6 +378,8 @@ export default function Timeline() {
                 showLocations={showLocations}
                 statusNotes={dayStatusNotes}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
+                focusSessionId={daySessions.some((s) => s.id === focusSessionId) ? focusSessionId : null}
+                focusOpenEditor={focusEdit}
               />
             </div>
           );

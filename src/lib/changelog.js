@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Double-tap a fronter chip on the dashboard to open a quick popover with \"Jump to session on Timeline\" and \"Edit session\" buttons. Jump-to scrolls the Timeline to that session's day and pulses a 3-second halo around the matching alter bar so you can find your spot. Useful when you need to go from \"who's fronting now?\" to \"where did this session start?\" without manually navigating.",
+      },
+      {
         type: "fix",
         text: "Pinned tasks widget: tapping a task (the external-link icon on AUTO tasks, or the \"All →\" button) no longer 404s. The widget linked to /daily-tasks but the actual route is /tasks.",
       },
