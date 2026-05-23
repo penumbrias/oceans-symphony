@@ -1,10 +1,11 @@
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { format } from "date-fns";
 import { Clock, GitMerge, Split } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
+import SessionActionPopover from "@/components/fronting/SessionActionPopover";
 
 const inheritStorageKey = (alterId) => `symphony_alter_inherit_history_v1_${alterId}`;
 
@@ -25,6 +26,14 @@ function formatDuration(start, end) {
 
 export default function HistoryTab({ alterId }) {
   const terms = useTerms();
+
+  // Double-tap on a session card → opens SessionActionPopover with
+  // "Jump to session on Timeline" + "Edit session" buttons. Mirrors
+  // the dashboard fronter-chip gesture but for past sessions. The
+  // 350ms threshold matches every other double-tap in the app
+  // (Activity grid, Timeline AlterBar, etc.).
+  const lastTapRef = useRef({ id: "", time: 0 });
+  const [actionFor, setActionFor] = useState(null); // { session, alter }
 
   // Per-alter "merge inherited history" toggle. Default OFF — users who log
   // a fusion/split event don't want the source alter's entire history
@@ -215,10 +224,30 @@ export default function HistoryTab({ alterId }) {
           ? "from split source"
           : "pre-fusion";
 
+        const cardKey = `${session.id}-${session._sourceAlterId || "own"}`;
+        const handleCardTap = () => {
+          const now = Date.now();
+          const prev = lastTapRef.current;
+          if (prev.id === cardKey && now - prev.time < 350) {
+            lastTapRef.current = { id: "", time: 0 };
+            // Render the popover for THIS session. Use the source alter
+            // for inherited rows (matches what "Jump to session" should
+            // surface) and the alter the user is viewing for own rows.
+            const alterForPopover = isInherited ? sourceAlter : (altersById[alterId] || null);
+            setActionFor({ session, alter: alterForPopover });
+            return;
+          }
+          lastTapRef.current = { id: cardKey, time: now };
+        };
         return (
           <div
-            key={`${session.id}-${session._sourceAlterId || "own"}`}
-            className="rounded-xl border border-border/50 bg-muted/10 p-4"
+            key={cardKey}
+            role="button"
+            tabIndex={0}
+            aria-label={`${terms.Fronting} session card. Double-tap to jump to it on the Timeline or open the edit modal.`}
+            onClick={handleCardTap}
+            onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") handleCardTap(); }}
+            className="rounded-xl border border-border/50 bg-muted/10 p-4 cursor-pointer hover:bg-muted/20 transition-colors"
             style={isInherited ? { borderLeftColor: sourceAlter?.color || "hsl(var(--border))", borderLeftWidth: 3 } : {}}
           >
             {isInherited && sourceAlter && (
@@ -247,6 +276,14 @@ export default function HistoryTab({ alterId }) {
           </div>
         );
       })}
+
+      <SessionActionPopover
+        open={!!actionFor}
+        onClose={() => setActionFor(null)}
+        session={actionFor?.session}
+        alter={actionFor?.alter}
+        startTime={actionFor?.session?.start_time}
+      />
     </div>
   );
 }

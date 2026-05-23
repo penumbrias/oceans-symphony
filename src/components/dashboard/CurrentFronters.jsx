@@ -3,7 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
+import { Dialog, DialogContent } from "@/components/ui/dialog";
+import SessionActionPopover from "@/components/fronting/SessionActionPopover";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
   Check, Loader2, MessageSquare, BookOpen
@@ -92,16 +93,6 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     onLongPress: () => onHold(alter),
   });
 
-  const jumpToSession = () => {
-    setSessionMenuOpen(false);
-    if (!session?.id) return;
-    navigate(`/timeline?focusSessionId=${encodeURIComponent(session.id)}`);
-  };
-  const editSession = () => {
-    setSessionMenuOpen(false);
-    if (!session?.id) return;
-    navigate(`/timeline?focusSessionId=${encodeURIComponent(session.id)}&edit=1`);
-  };
 
   return (
     <>
@@ -174,25 +165,15 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 
     {/* Double-tap action sheet — jump to this session on the Timeline
         (scrolls to the day + 3s glow halo on the session bar) or open
-        it in the session edit modal. */}
-    <Dialog open={sessionMenuOpen} onOpenChange={(o) => { if (!o) setSessionMenuOpen(false); }}>
-      <DialogContent className="max-w-xs">
-        <DialogHeader>
-          <DialogTitle className="text-base">{alter?.name}'s session</DialogTitle>
-          <DialogDescription className="text-xs">
-            {startTime ? `Started ${formatDistanceToNow(new Date(startTime), { addSuffix: true })}` : "Active session"}
-          </DialogDescription>
-        </DialogHeader>
-        <div className="grid grid-cols-1 gap-2 pt-2">
-          <Button onClick={jumpToSession} className="w-full justify-start">
-            Jump to session on Timeline
-          </Button>
-          <Button onClick={editSession} variant="outline" className="w-full justify-start">
-            Edit session
-          </Button>
-        </div>
-      </DialogContent>
-    </Dialog>
+        it in the session edit modal. Shared with the alter History
+        tab's session cards. */}
+    <SessionActionPopover
+      open={sessionMenuOpen}
+      onClose={() => setSessionMenuOpen(false)}
+      session={session}
+      alter={alter}
+      startTime={startTime}
+    />
     </>
   );
 }
