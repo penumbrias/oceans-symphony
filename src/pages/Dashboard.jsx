@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
+import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import { Heart, Inbox } from "lucide-react";
@@ -101,12 +102,20 @@ export default function Dashboard() {
   const handleNotifClick = (mentionLog) => {
     setShowNotifHistory(false);
     const path = mentionLog.navigate_path || "/";
+    // Local highlight stays as-is for dashboard bulletins — the
+    // BulletinBoard already reads highlightBulletinId from state and
+    // pulses the matching card.
     if (path === "/" && mentionLog.source_id) {
       setHighlightBulletinId(mentionLog.source_id);
       setTimeout(() => setHighlightBulletinId(null), 5000);
-    } else {
-      navigate(path);
+      return;
     }
+    // Cross-page navigation — append `?highlight=<source_id>` so the
+    // destination page's useHighlightScroll hook can scroll-to +
+    // pulse the matching `[data-highlight-id="…"]` element for 3s.
+    // Falls back to plain navigation if the notification has no
+    // source_id (rare; e.g. system-wide announcements).
+    navigate(withHighlightParam(path, mentionLog.source_id));
   };
 
   const { data: alters = [] } = useQuery({

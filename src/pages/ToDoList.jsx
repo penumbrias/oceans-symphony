@@ -7,6 +7,7 @@ import TaskItem from "@/components/tasks/TaskItem";
 import TaskFormModal from "@/components/tasks/TaskFormModal";
 import { useLocation, useSearchParams } from "react-router-dom";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
+import { useHighlightScroll } from "@/lib/useHighlightScroll";
 
 export default function ToDoList() {
   const queryClient = useQueryClient();
@@ -20,8 +21,11 @@ export default function ToDoList() {
   const [showCompleted, setShowCompleted] = useState(false);
   const [filterCategory, setFilterCategory] = useState("all");
 
-  // Handle deep link from search
+  // Handle deep link from search (?id=<task>) — the legacy hook.
   useDeepLinkHighlight("id", "item-");
+  // Handle notification-driven highlight (?highlight=<task>) — the
+  // generic hook used by every cross-page notification jump. Fires
+  // after tasks load so the target row is already in the DOM.
 
   useEffect(() => {
     if (highlightId) {
@@ -34,6 +38,10 @@ export default function ToDoList() {
     queryKey: ["tasks"],
     queryFn: () => base44.entities.Task.list(),
   });
+
+  // Wait for tasks to load before trying to highlight, otherwise the
+  // target row isn't in the DOM yet when the hook runs.
+  useHighlightScroll([tasks.length]);
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
@@ -166,7 +174,7 @@ export default function ToDoList() {
         ) : (
           <div className="space-y-2">
             {rootTasks.map((task) => (
-              <div key={task.id} id={`item-${task.id}`}>
+              <div key={task.id} id={`item-${task.id}`} data-highlight-id={task.id}>
                 <TaskItem
                   task={task}
                   highlight={highlightId === task.id}
@@ -192,7 +200,7 @@ export default function ToDoList() {
           </div>
           <div className="space-y-2">
             {completedTasks.map((task) => (
-              <div key={task.id} id={`item-${task.id}`}>
+              <div key={task.id} id={`item-${task.id}`} data-highlight-id={task.id}>
                 <TaskItem
                   task={task}
                   highlight={highlightId === task.id}
