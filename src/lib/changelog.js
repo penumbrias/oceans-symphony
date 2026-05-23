@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Double-tap a fronter chip on the dashboard to open a quick popover with \"Jump to session on Timeline\" and \"Edit session\" buttons. Jump-to scrolls the Timeline to that session's day and pulses a 3-second halo around the matching alter bar so you can find your spot. Useful when you need to go from \"who's fronting now?\" to \"where did this session start?\" without manually navigating.",
+        text: "Tapping a notification that navigates to another page now scrolls the destination to the specific source item and pulses a 3-second halo around it, so you can find what the notification was about without scanning the whole page. Wired into the To-Do list so far; other pages adopt the same pattern as they're touched (notifications back to the same dashboard bulletin still use the existing in-place highlight).",
       },
       {
         type: "fix",

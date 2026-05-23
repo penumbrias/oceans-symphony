@@ -249,6 +249,31 @@ When adding a meaningful new dashboard widget, new top-level page, or significan
 
 ---
 
+## Notification → scroll-and-highlight pattern (`useHighlightScroll`)
+
+Amnesia / context-switch is real for the target users: navigating from a notification card to a page full of items and then having to *find* the source is hostile. Every cross-page navigation that originates in a notification (or pin, or search result, or deep link) should land the user on the destination page **scrolled to and pulsing-haloed around the source row**.
+
+**Convention:**
+1. Notification click handler appends `?highlight=<source_id>` to the destination path (use `withHighlightParam(path, id)` from `@/lib/useHighlightScroll`).
+2. Destination page renders `data-highlight-id={item.id}` on each item's outer container.
+3. Destination page calls `useHighlightScroll([itemsReady])` so the hook fires once the rows are in the DOM.
+4. The hook scrolls the matching element into view, adds `.scroll-highlight-halo` (3 × 1s pulses, soft primary glow), and strips the `highlight` query param so refresh / back-nav doesn't re-fire.
+
+**Reference wirings:**
+- `Dashboard.jsx` → `handleNotifClick` (the producer).
+- `ToDoList.jsx` (the first consumer wired this way) — `data-highlight-id` on each task row + `useHighlightScroll([tasks.length])`.
+- BulletinBoard keeps its existing in-component highlight system; the producer skips appending the param when navigating to "/" with a bulletin source (the existing `setHighlightBulletinId` state-based highlight covers it).
+
+**Add to a new page when:**
+- Notifications, search results, pinned items, or any external entry point ever navigate to it referring to a specific row.
+- The page has identifiable per-item containers (one DOM element per row that can be located by id).
+
+The hook is small (~50 lines) and additive. Don't replace BulletinBoard's bespoke system — its multi-pass rendering needs the imperative pattern. Use the hook for new surfaces.
+
+For round-target highlights (avatar circles etc.) use `.alter-bar-jump-halo` instead — same vibe, slightly tighter pulse.
+
+---
+
 ## Build Targets — Web, TWA, Native (post v0.11.3)
 
 Single React codebase, three build targets. Native work must be **purely

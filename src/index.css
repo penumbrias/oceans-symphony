@@ -220,6 +220,26 @@ html.a11y-high-contrast {
   box-shadow: 0 0 0 4px hsl(var(--color-primary) / 0.7);
 }
 
+/* Generic "you just navigated here from a notification" halo —
+   driven by useHighlightScroll. Three soft 1-second pulses so the
+   user can locate the source of whatever notification they tapped.
+   Works on any block (cards, list rows, chips). For round avatar
+   targets, use .alter-bar-jump-halo instead. */
+@keyframes scrollHighlightHalo {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--color-primary) / 0.85), 0 0 14px 4px hsl(var(--color-primary) / 0.5); }
+  50%  { box-shadow: 0 0 0 6px hsl(var(--color-primary) / 0.18), 0 0 22px 10px hsl(var(--color-primary) / 0.3); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--color-primary) / 0), 0 0 0 0 hsl(var(--color-primary) / 0); }
+}
+.scroll-highlight-halo {
+  animation: scrollHighlightHalo 1s ease-in-out 3;
+  position: relative;
+  border-radius: 12px;
+}
+.a11y-reduce-motion .scroll-highlight-halo {
+  animation: none;
+  box-shadow: 0 0 0 3px hsl(var(--color-primary) / 0.7);
+}
+
 /* WYSIWYG editor placeholder */
 .wysiwyg-content:empty::before {
   content: attr(data-placeholder);
