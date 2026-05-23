@@ -205,11 +205,22 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
   const emotions = checkIn.emotions || [];
-  const note = checkIn.note;
   const fronters = (checkIn.fronting_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   // Inline note editor — lets the user fix typos in the quick check-in
   // note without re-doing the whole check-in. State scoped to this card.
   const queryClientForNote = useQueryClient();
+
+  // Long notes (>50 words at save-time) live on a JournalEntry; the
+  // EmotionCheckIn only holds a 300-char preview ending in "…". Fetch
+  // the linked entry so the user reads/edits the FULL text rather than
+  // a truncated stub.
+  const { data: linkedJournal } = useQuery({
+    queryKey: ["journalEntry", checkIn.journal_entry_id],
+    queryFn: () => base44.entities.JournalEntry.filter({ id: checkIn.journal_entry_id }).then(rs => rs?.[0] || null),
+    enabled: !!checkIn.journal_entry_id,
+  });
+  const note = linkedJournal?.content || checkIn.note;
+
   const [editingNote, setEditingNote] = useState(false);
   const [noteDraft, setNoteDraft] = useState(note || "");
   const [savingNote, setSavingNote] = useState(false);
@@ -218,8 +229,48 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
     const next = noteDraft.trim();
     setSavingNote(true);
     try {
-      await base44.entities.EmotionCheckIn.update(checkIn.id, { note: next || null });
+      // Mirror the QuickCheckInModal create-path: long notes go in a
+      // JournalEntry, the EmotionCheckIn holds a 300-char preview +
+      // journal_entry_id. Keeps the two in sync when edited inline.
+      const wc = next ? next.split(/\s+/).filter(Boolean).length : 0;
+      let journalEntryId = checkIn.journal_entry_id || null;
+      if (next && wc > 50) {
+        if (journalEntryId) {
+          try {
+            await base44.entities.JournalEntry.update(journalEntryId, { content: next });
+          } catch {
+            const j = await base44.entities.JournalEntry.create({
+              title: `Check-in - ${format(ts, "P")}`,
+              content: next,
+              entry_type: "personal",
+              tags: ["checkin"],
+              folder: "Check-In Journals",
+              created_date: checkIn.timestamp,
+            });
+            journalEntryId = j.id;
+          }
+        } else {
+          const j = await base44.entities.JournalEntry.create({
+            title: `Check-in - ${format(ts, "P")}`,
+            content: next,
+            entry_type: "personal",
+            tags: ["checkin"],
+            folder: "Check-In Journals",
+            created_date: checkIn.timestamp,
+          });
+          journalEntryId = j.id;
+        }
+      }
+      const noteForCheckIn = next
+        ? (wc <= 50 ? next : next.substring(0, 300) + "...")
+        : null;
+      await base44.entities.EmotionCheckIn.update(checkIn.id, {
+        note: noteForCheckIn,
+        journal_entry_id: journalEntryId,
+      });
       queryClientForNote.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      queryClientForNote.invalidateQueries({ queryKey: ["journalEntry", journalEntryId] });
+      queryClientForNote.invalidateQueries({ queryKey: ["journalEntries"] });
       setEditingNote(false);
     } catch (e) { toast.error(e.message || "Failed to save"); }
     finally { setSavingNote(false); }
