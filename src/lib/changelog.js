@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Web app on oceans-symphony.app: fixed a \"blank screen of death\" that could appear a day or two after a new deploy. The service worker was serving cached HTML that pointed at older JS bundle filenames, but Vercel had already deleted those old bundles, so the browser loaded a page that referenced 404'd scripts. HTML navigation is now network-first (fresh visits always pull the current bundle hashes); cache is only used when actually offline.",
+      },
+      {
         type: "feature",
         text: "Tapping a notification that navigates to another page now scrolls the destination to the specific source item and pulses a 3-second halo around it, so you can find what the notification was about without scanning the whole page. Wired into the To-Do list so far; other pages adopt the same pattern as they're touched (notifications back to the same dashboard bulletin still use the existing in-place highlight).",
       },

@@ -1,8 +1,11 @@
 // Oceans Symphony — Offline-First Service Worker
-// Cache-First for static assets; Stale-While-Revalidate for navigation
-// IndexedDB pass-through for /local-image/ avatar requests
+// Network-First for HTML navigation (so deploys don't strand the
+// previous index.html and its now-deleted bundle URLs); Cache-First
+// for static assets; IndexedDB pass-through for /local-image/ avatar
+// requests. Bumping CACHE_NAME forces the activate phase to delete
+// the old cache so users on a stale bundle pick up the new one.
 
-const CACHE_NAME = 'oceans-symphony-v4';
+const CACHE_NAME = 'oceans-symphony-v5';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
@@ -166,18 +169,30 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // ── Stale-While-Revalidate: HTML navigation (app shell) ──
+  // ── Network-First: HTML navigation (app shell) ──
+  // Why network-first instead of stale-while-revalidate: a cached
+  // index.html references hashed JS bundle filenames (assets/
+  // index-<HASH>.js). After a Vercel deploy those old bundle URLs
+  // are gone from the server, so serving the cached HTML loads
+  // scripts that 404 → blank screen of death. Network-first means
+  // every visit pulls the latest index.html (with the current
+  // bundle hashes); the cache is only used when the user is
+  // genuinely offline.
   if (request.mode === 'navigate' || url.pathname === '/') {
     event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match('/').then((cached) => {
-          const networkFetch = fetch(request).then((response) => {
-            if (response.ok) cache.put('/', response.clone());
-            return response;
-          }).catch(() => cached || caches.match('/offline.html'));
-          return cached || networkFetch;
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((c) => c.put('/', clone));
+          }
+          return response;
         })
-      )
+        .catch(() =>
+          caches.open(CACHE_NAME).then((cache) =>
+            cache.match('/').then((cached) => cached || caches.match('/offline.html'))
+          )
+        )
     );
     return;
   }
