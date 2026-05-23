@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Preview Mode no longer overrides your text-size / accessibility settings. Demo systems' theme presets bake in a default font size that was silently overwriting any custom UI size when their primary fronter \"became\" active, and the previous setting wasn't being restored on exit. Preview now skips applying preset font size, and backs up + restores all accessibility settings (font size, touch target size, nav bar height, heading font) across enter / exit as defence-in-depth.",
+      },
+      {
+        type: "fix",
         text: "Wiki preview banner was lying about being \"up to date\" — it pinned to the live app version, which bumps every PR, but the wiki bios are hardcoded and only get refreshed manually. Now tracks a separate wiki-content version, so when the wiki is behind the app you see \"last refreshed for vX · you're on vY (some new features may be missing)\". Added a Pinned tasks bio while updating it.",
       },
       {

@@ -24,6 +24,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
+import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 
@@ -234,7 +235,13 @@ useEffect(() => {
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
   if (preset.themeMode) setThemeMode(preset.themeMode);
-  if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
+  // Skip accessibility-impacting settings (font size) while Preview
+  // Mode is active. Every preview system's preset includes
+  // `fontSize: "default"`, so without this guard, entering preview
+  // silently overwrites a user's chosen text size, and they'd have
+  // to re-set it after exiting. Accessibility settings belong to
+  // the user, not to demo data.
+  if (preset.fontSize && !isPreviewActive()) setAccessibilityFontSize(preset.fontSize);
   // Apply terminology saved with the preset
   if (preset.terms) {
     const settings = systemSettings?.[0];
