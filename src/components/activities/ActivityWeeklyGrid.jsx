@@ -175,10 +175,17 @@ export default function ActivityWeeklyGrid({
   const [dragSelectActive, setDragSelectActive] = useState(false);
   // Pinch-to-zoom row-height state. Tracks the initial touch
   // distance and rowH so we can scale proportionally on subsequent
-  // touchmoves. touchAction is set to "none" while active so the
-  // browser doesn't fight us with its own pinch-zoom-page gesture.
+  // touchmoves. The active touchmove listener is attached natively
+  // (via useEffect below) with { passive: false } so preventDefault
+  // actually stops the browser's page-zoom gesture from fighting
+  // ours — React's synthetic touchmove is passive by default, and a
+  // passive preventDefault is silently ignored, which is what made
+  // this gesture feel sluggish vs. the timeline's snappy one.
   const pinchStartRef = useRef(null);
   const pinchActiveRef = useRef(false);
+  const gridRef = useRef(null);
+  const rowHRef = useRef(rowH);
+  useEffect(() => { rowHRef.current = rowH; }, [rowH]);
   const lastTapRef     = useRef({ key: "", time: 0 });
   const tooltipTimerRef = useRef(null);
   // Long-press detection for opening the lifecycle popover. We track the
@@ -208,6 +215,59 @@ export default function ActivityWeeklyGrid({
 
   useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
   useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
+
+  // Pinch-to-zoom — native listener with { passive: false } so
+  // preventDefault on touchmove actually stops the browser's page
+  // pan/zoom from competing with our row-height resize. The previous
+  // implementation used React's onTouchMove prop, which is passive
+  // by default; preventDefault was silently ignored and the
+  // browser's own gesture handling added the perceived lag the user
+  // reported ("drag to zoom on the activity tracker is so slow to
+  // respond, it's quick on the timeline though"). Mirrors the
+  // canonical pattern in InfiniteTimeline.jsx.
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) {
+        const [a, b] = e.touches;
+        pinchStartRef.current = {
+          dist: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY),
+          startRowH: rowHRef.current,
+        };
+        pinchActiveRef.current = true;
+      }
+    };
+    const onTouchMove = (e) => {
+      if (e.touches.length === 2 && pinchStartRef.current) {
+        const [a, b] = e.touches;
+        const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+        const ratio = dist / pinchStartRef.current.dist;
+        const next = Math.round(Math.max(6, Math.min(80, pinchStartRef.current.startRowH * ratio)));
+        // Skip the setState when the rounded value hasn't changed —
+        // avoids ~120 no-op re-renders per second of pinching.
+        if (next !== rowHRef.current) setRowH(next);
+        e.preventDefault();
+      }
+    };
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) {
+        pinchStartRef.current = null;
+        pinchActiveRef.current = false;
+      }
+    };
+    el.addEventListener("touchstart", onTouchStart, { passive: true });
+    el.addEventListener("touchmove", onTouchMove, { passive: false });
+    el.addEventListener("touchend", onTouchEnd);
+    el.addEventListener("touchcancel", onTouchEnd);
+    return () => {
+      el.removeEventListener("touchstart", onTouchStart);
+      el.removeEventListener("touchmove", onTouchMove);
+      el.removeEventListener("touchend", onTouchEnd);
+      el.removeEventListener("touchcancel", onTouchEnd);
+    };
+  }, []);
+
   useEffect(() => { lsSet(LS_INTERVAL,   gridInterval); }, [gridInterval]);
   useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn); }, [weekStartsOn]);
   useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);      }, [timeFmt]);
@@ -784,35 +844,13 @@ if (isSameCell) {
         );
       })()}
 
-      {/* Grid */}
+      {/* Grid — pinch-to-zoom listeners are attached natively in the
+          useEffect below so the touchmove handler can preventDefault
+          (React's synthetic touchmove is passive by default). */}
       <div
+        ref={gridRef}
         className="border border-border rounded-lg overflow-hidden flex"
         style={{ maxWidth: "100vw", touchAction: dragSelectActive ? "none" : "pan-x pan-y" }}
-        onTouchStart={(e) => {
-          if (e.touches.length === 2) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            pinchStartRef.current = { dist: Math.hypot(dx, dy), startRowH: rowH };
-            pinchActiveRef.current = true;
-          }
-        }}
-        onTouchMove={(e) => {
-          if (e.touches.length === 2 && pinchStartRef.current) {
-            const dx = e.touches[0].clientX - e.touches[1].clientX;
-            const dy = e.touches[0].clientY - e.touches[1].clientY;
-            const dist = Math.hypot(dx, dy);
-            const ratio = dist / pinchStartRef.current.dist;
-            const next = Math.max(6, Math.min(80, Math.round(pinchStartRef.current.startRowH * ratio)));
-            setRowH(next);
-            e.preventDefault();
-          }
-        }}
-        onTouchEnd={(e) => {
-          if (e.touches.length < 2) {
-            pinchStartRef.current = null;
-            pinchActiveRef.current = false;
-          }
-        }}
       >
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">
