@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Quick Support suggestions screen got two clear footer buttons — \"Browse all techniques →\" and \"← Back to Quick Support\" — instead of the small text links. Also when you open a technique from the suggestions, hitting Back now returns you to your suggestions instead of dumping you in the all-techniques list. A slow breathing-pacer ring fills the empty space at the bottom of the suggestions for a calming visual.",
+      },
+      {
         type: "fix",
         text: "Alter profile header no longer renders pronouns or alias as a separate line when those strings already appear inside the alter's name (e.g. a name like \"dragon < he | dae >\" with pronouns \"he | dae\" used to surface \"he | dae\" twice). Substring check; both views (profile page and bio editor's preview) updated.",
       },
