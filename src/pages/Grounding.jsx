@@ -18,6 +18,41 @@ import {
   BREATHING_PATTERNS, resolveCategory
 } from "@/utils/groundingDefaults";
 
+// Decorative breathing pacer rendered at the bottom of the Quick
+// Support suggestions view. Slowly grows and shrinks an SVG ring on
+// a 5s loop (~2.5s expand = inhale, ~2.5s contract = exhale) — a
+// calming, no-pressure visual without being a full guided exercise.
+// Skips animating entirely when the user has reduce-motion on (the
+// accessibility hook sets the .a11y-reduce-motion root class).
+function CalmingBreathPacer() {
+  return (
+    <div className="flex flex-col items-center gap-2 py-6 select-none" aria-hidden="true">
+      <style>{`
+        @keyframes calmingBreath {
+          0%   { transform: scale(0.85); opacity: 0.55; }
+          50%  { transform: scale(1.10); opacity: 1; }
+          100% { transform: scale(0.85); opacity: 0.55; }
+        }
+        .calming-breath-ring {
+          animation: calmingBreath 5s ease-in-out infinite;
+        }
+        .a11y-reduce-motion .calming-breath-ring {
+          animation: none;
+          opacity: 0.7;
+          transform: scale(1);
+        }
+      `}</style>
+      <div className="relative w-20 h-20 flex items-center justify-center">
+        <div
+          className="calming-breath-ring absolute inset-0 rounded-full border-2 border-primary/40"
+          style={{ background: "radial-gradient(circle, hsl(var(--primary) / 0.18) 0%, transparent 70%)" }}
+        />
+      </div>
+      <p className="text-[0.6875rem] text-muted-foreground italic">Breathe with the ring if it helps.</p>
+    </div>
+  );
+}
+
 // ---- Seed helper — adds new defaults that don't exist yet by name,
 // and (post-restore cleanup) collapses any duplicate is_default rows
 // that share a known-default name. Backups made before 0.17.23
@@ -186,6 +221,12 @@ export default function Grounding({ initialPath = null }) {
   const handleOpenTechnique = (technique, fromLearn = false) => {
     setSelectedTechnique(technique);
     if (fromLearn) setReturnPath("learn");
+    // Remember whether the user opened the technique from the Quick
+    // Support suggestions screen so Back can return there instead of
+    // dumping them at the all-techniques view (which used to lose the
+    // context of the state-check answers they just gave).
+    else if (path === "suggestions") setReturnPath("suggestions");
+    else setReturnPath(null);
     setPath("guided");
   };
 
@@ -285,11 +326,14 @@ export default function Grounding({ initialPath = null }) {
               setReturnPath(null);
               setActiveTab("learn");
               setPath("entry");
+            } else if (returnPath === "suggestions") {
+              setReturnPath(null);
+              setPath("suggestions");
             } else {
               setPath("all");
             }
           }}
-          backLabel={returnPath === "learn" ? "Back to lesson" : undefined}
+          backLabel={returnPath === "learn" ? "Back to lesson" : returnPath === "suggestions" ? "Back to suggestions" : undefined}
           onRate={handleRate}
           onSaveNote={handleSaveNote}
           onToggleFavorite={handleToggleFavorite}
@@ -406,9 +450,33 @@ export default function Grounding({ initialPath = null }) {
         {/* Crisis resources */}
         {hasCrisis && <CrisisResourcesCard />}
 
-        <button onClick={() => setPath("all")} className="text-sm text-primary hover:underline">
-          Browse all techniques →
-        </button>
+        {/* Primary navigation footer — give users two clear exits:
+            browsing all techniques, or fully leaving Quick Support
+            back to the Support entry screen. Previously the only
+            paths out were the small "Change what I'm feeling" link
+            and the "Browse all techniques →" text link, both of
+            which read as continuations rather than escapes. */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => setPath("all")}
+            className="px-3 py-2.5 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 text-sm text-primary font-medium transition-colors"
+          >
+            Browse all techniques →
+          </button>
+          <button
+            onClick={() => setPath("entry")}
+            className="px-3 py-2.5 rounded-xl border border-border/60 bg-card hover:bg-muted/30 text-sm text-muted-foreground font-medium transition-colors"
+          >
+            ← Back to Quick Support
+          </button>
+        </div>
+
+        {/* Calming breathing pacer to fill the trailing space — the
+            ring slowly grows and shrinks on a 4s loop (inhale ~2s,
+            exhale ~2s). Purely decorative; no interaction. Respects
+            prefers-reduced-motion via the .a11y-reduce-motion root
+            class set by the accessibility hook. */}
+        <CalmingBreathPacer />
       </div>
     );
   }
