@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alter profile header no longer renders pronouns or alias as a separate line when those strings already appear inside the alter's name (e.g. a name like \"dragon < he | dae >\" with pronouns \"he | dae\" used to surface \"he | dae\" twice). Substring check; both views (profile page and bio editor's preview) updated.",
+      },
+      {
+        type: "fix",
         text: "Group-management tooltips and the alter profile's Info tab were hardcoded to \"Manage members\" / \"System Fields\" / \"Alter-Specific Fields\"; now use your custom terms. Also the \"Members updated\" toast and the \"Add alter-specific field\" button respect the custom term for alters.",
       },
       {
