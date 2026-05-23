@@ -17,7 +17,7 @@
 import { queryClientInstance } from "./query-client";
 import { setPreviewDb, clearPreviewDb, isPreviewDbActive } from "./localDb";
 import { getPreviewSystem, PREVIEW_SYSTEMS } from "./previewSystems";
-import { resolveFontCss } from "./useAccessibility";
+import { resolveFontCss, initAccessibility } from "./useAccessibility";
 
 const STORAGE_KEY = "symphony_preview_active_system";
 const THEME_BACKUP_KEY = "symphony_preview_saved_theme";
@@ -68,6 +68,22 @@ function applyAlterCustomization(presets, links) {
   }
 }
 
+// Accessibility-related localStorage keys. Preview never *intentionally*
+// touches these — they're user accessibility settings (text size, touch
+// target size, etc.) and shouldn't be overridden by example data. But
+// fronter-linked theme presets in AppLayout used to silently write
+// `fontSize` from a preset whenever the active fronter changed, and
+// since every preview's preset includes `fontSize: "default"`, entering
+// preview wiped any non-default size. Backing them up here is
+// defence-in-depth so anything that DOES write to them during preview
+// gets reverted on exit.
+const A11Y_KEYS = [
+  "symphony_a11y_fontSize",
+  "symphony_a11y_largeTouch",
+  "symphony_a11y_navHeight",
+  "symphony_a11y_headingFont",
+];
+
 function backupCurrentThemeState() {
   if (localStorage.getItem(THEME_BACKUP_KEY)) return;
   const saved = {
@@ -77,6 +93,7 @@ function backupCurrentThemeState() {
     customColors: localStorage.getItem("symphony_customColors"),
     userCustomPresets: localStorage.getItem("symphony_userCustomPresets"),
     alterThemeLinks:   localStorage.getItem("symphony_alterThemeLinks"),
+    a11y: Object.fromEntries(A11Y_KEYS.map((k) => [k, localStorage.getItem(k)])),
   };
   localStorage.setItem(THEME_BACKUP_KEY, JSON.stringify(saved));
 }
@@ -93,7 +110,15 @@ function restoreThemeState() {
     setOrRemove("symphony_customColors",     saved.customColors);
     setOrRemove("symphony_userCustomPresets", saved.userCustomPresets);
     setOrRemove("symphony_alterThemeLinks",   saved.alterThemeLinks);
+    if (saved.a11y) {
+      for (const k of A11Y_KEYS) setOrRemove(k, saved.a11y[k]);
+    }
     document.documentElement.style.setProperty("--font-sans", resolveFontCss(saved.font || "inter"));
+    // Re-apply the restored accessibility settings to the DOM —
+    // localStorage writes alone don't update the matching root
+    // classes (a11y-text-lg, a11y-touch-large, …); initAccessibility
+    // reads localStorage and re-applies all of them.
+    initAccessibility();
   } catch {}
   localStorage.removeItem(THEME_BACKUP_KEY);
 }
