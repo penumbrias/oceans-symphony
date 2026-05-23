@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Wiki preview banner was lying about being \"up to date\" — it pinned to the live app version, which bumps every PR, but the wiki bios are hardcoded and only get refreshed manually. Now tracks a separate wiki-content version, so when the wiki is behind the app you see \"last refreshed for vX · you're on vY (some new features may be missing)\". Added a Pinned tasks bio while updating it.",
+      },
+      {
         type: "improve",
         text: "Activity picker now shows coloured \"follow the trail\" dots on parent rows whose descendants you've selected. Pick \"Drawing\" deep inside Recreation → creative → art, and each of those parent pills gets a dot in Drawing's colour so you can find your selection without expanding every branch.",
       },
