@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities, base44 } from "@/api/base44Client";
 import { format } from "date-fns";
-import { GitMerge, Split, MoonStar, Sunrise, Plus, ArrowRight, Trash2 } from "lucide-react";
+import { GitMerge, Split, MoonStar, Sunrise, Sparkles, Plus, ArrowRight, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { cn } from "@/lib/utils";
@@ -10,10 +10,11 @@ import RecordSystemChangeModal from "@/components/alters/RecordSystemChangeModal
 import { useTerms } from "@/lib/useTerms";
 
 const TYPE_META = {
-  fusion:   { label: "Fusion",    icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20" },
-  split:    { label: "Split",     icon: Split,    color: "text-blue-500",   bg: "bg-blue-500/10 border-blue-500/20" },
-  dormancy: { label: "Dormancy",  icon: MoonStar, color: "text-indigo-500", bg: "bg-indigo-500/10 border-indigo-500/20" },
-  return:   { label: "Return",    icon: Sunrise,  color: "text-amber-500",  bg: "bg-amber-500/10 border-amber-500/20" },
+  fusion:    { label: "Fusion",    icon: GitMerge, color: "text-violet-500", bg: "bg-violet-500/10 border-violet-500/20" },
+  split:     { label: "Split",     icon: Split,    color: "text-blue-500",   bg: "bg-blue-500/10 border-blue-500/20" },
+  dormancy:  { label: "Dormancy",  icon: MoonStar, color: "text-indigo-500", bg: "bg-indigo-500/10 border-indigo-500/20" },
+  return:    { label: "Return",    icon: Sunrise,  color: "text-amber-500",  bg: "bg-amber-500/10 border-amber-500/20" },
+  emergence: { label: "Emergence", icon: Sparkles, color: "text-emerald-500", bg: "bg-emerald-500/10 border-emerald-500/20" },
 };
 
 function AlterPill({ alter }) {
@@ -32,14 +33,19 @@ function AlterPill({ alter }) {
 }
 
 function EventCard({ event, altersById, onDelete }) {
+  // Fallback to fusion ONLY for truly unknown types. Emergence is now
+  // its own entry — previously emergence events rendered as "Fusion"
+  // because the type wasn't in the map.
   const meta = TYPE_META[event.type] || TYPE_META.fusion;
   const Icon = meta.icon;
 
   const sourceAlters = (event.source_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const resultAlters = (event.result_alter_ids || []).map(id => altersById[id]).filter(Boolean);
 
-  // For dormancy/return, source and result are the same — only show once
-  const showResult = event.type !== "dormancy" && event.type !== "return";
+  // For dormancy / return / emergence, "source" and "result" describe
+  // the same alters — collapse the arrow display so we don't render the
+  // same chips twice.
+  const showResult = event.type !== "dormancy" && event.type !== "return" && event.type !== "emergence";
 
   const fusionLabel = event.fusion_type === "absorption" ? "Absorption"
     : event.fusion_type === "new_formation" ? "New Formation"
@@ -93,11 +99,21 @@ function EventCard({ event, altersById, onDelete }) {
 
 function ConnectionsMap({ alterId, events, altersById }) {
   const t = useTerms();
+  // Walk only events that describe a real before → after transition.
+  // Dormancy / return record one alter with the same id in both lists
+  // (no lineage relationship). Emergence stores every co-emerging alter
+  // in BOTH source and result (they appeared together, not from each
+  // other) — including them would falsely render co-emerged alters as
+  // both "From" predecessors AND "Became" successors of this alter.
+  const isTransition = (e) =>
+    e.type !== "dormancy" && e.type !== "return" && e.type !== "emergence";
+
   // Predecessors: alters in source_alter_ids where this alter is in result_alter_ids
   const predecessorIds = useMemo(() => {
     const ids = new Set();
     events.forEach(e => {
-      if ((e.result_alter_ids || []).includes(alterId) && e.type !== "dormancy" && e.type !== "return") {
+      if (!isTransition(e)) return;
+      if ((e.result_alter_ids || []).includes(alterId)) {
         (e.source_alter_ids || []).forEach(id => { if (id !== alterId) ids.add(id); });
       }
     });
@@ -108,7 +124,8 @@ function ConnectionsMap({ alterId, events, altersById }) {
   const successorIds = useMemo(() => {
     const ids = new Set();
     events.forEach(e => {
-      if ((e.source_alter_ids || []).includes(alterId) && e.type !== "dormancy" && e.type !== "return") {
+      if (!isTransition(e)) return;
+      if ((e.source_alter_ids || []).includes(alterId)) {
         (e.result_alter_ids || []).forEach(id => { if (id !== alterId) ids.add(id); });
       }
     });

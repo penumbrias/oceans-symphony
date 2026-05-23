@@ -596,7 +596,18 @@ export default function GroceryListPanel({ lockedMode = false }) {
           <div className="border-t border-neutral-200 dark:border-neutral-800 p-2">
             <button
               type="button"
-              onClick={() => { setCreateListOpen(true); setSwitcherOpen(false); setNewListUnlocked(lockedMode); }}
+              onClick={() => {
+                // Open the modal FIRST (it sits at z-[10001] over the
+                // switcher), then close the switcher on the next
+                // frame. Closing both in the same render causes a
+                // visible "flash" — the switcher dropdown is a
+                // flow-layout block that, when unmounted, lets the
+                // grocery items below jump up before the modal
+                // overlay paints over them.
+                setNewListUnlocked(lockedMode);
+                setCreateListOpen(true);
+                requestAnimationFrame(() => setSwitcherOpen(false));
+              }}
               className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/10"
             >
               <Plus className="w-4 h-4" /> New list…
@@ -718,8 +729,8 @@ export default function GroceryListPanel({ lockedMode = false }) {
 
       {/* New-list dialog */}
       {createListOpen && (
-        <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
-          <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
+        <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6 animate-in fade-in duration-150">
+          <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3 animate-in zoom-in-95 duration-150">
             <h2 className="text-base font-semibold">New list</h2>
             <input
               value={newListName}

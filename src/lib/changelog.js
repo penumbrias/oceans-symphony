@@ -25,6 +25,14 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
+        text: "Alter Lineage tab: Emergence events were rendered as \"Fusion\" because the type wasn't in the icon map; now they show as \"Emergence\" with a sparkles icon. The Connections section also no longer treats co-emerged alters as both predecessors AND successors of each other — emergence doesn't describe a before → after transition, so those events are excluded from the connections walk.",
+      },
+      {
+        type: "fix",
+        text: "Grocery list: tapping \"New list…\" no longer flashes / shifts the layout for a frame before the popup appears. The switcher dropdown was unmounting in the same paint as the modal opened, briefly letting the items below jump up. The modal now opens first; the dropdown closes the next frame. Small fade-in animation polishes the transition.",
+      },
+      {
+        type: "fix",
         text: "Alter profile header no longer renders pronouns or alias as a separate line when those strings already appear inside the alter's name (e.g. a name like \"dragon < he | dae >\" with pronouns \"he | dae\" used to surface \"he | dae\" twice). Substring check; both views (profile page and bio editor's preview) updated.",
       },
       {
