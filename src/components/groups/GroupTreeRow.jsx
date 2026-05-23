@@ -13,6 +13,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import GroupMembersModal from "./GroupMembersModal";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { useTerms } from "@/lib/useTerms";
 import { MAX_GROUP_DEPTH } from "@/lib/groupTreeUtils";
 
 export default function GroupTreeRow({
@@ -37,6 +38,7 @@ export default function GroupTreeRow({
   onSubgroupNameChange = null,
   onDeleteGroup = () => {},
 }) {
+  const terms = useTerms();
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -200,7 +202,7 @@ export default function GroupTreeRow({
               setIsModalOpen(true);
             }}
             className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
-            title="Manage members"
+            title={`Manage ${terms.alters}`}
           >
             <Users className="w-4 h-4" />
           </button>

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Group-management tooltips and the alter profile's Info tab were hardcoded to \"Manage members\" / \"System Fields\" / \"Alter-Specific Fields\"; now use your custom terms. Also the \"Members updated\" toast and the \"Add alter-specific field\" button respect the custom term for alters.",
+      },
+      {
         type: "improve",
         text: "Saved theme presets now capture every Appearance setting: corner style, alter-label mode (name/alias/both), dashboard layout, navigation layout (top bar, bottom bar, dashboard grid), and upcoming-plans surface toggles — in addition to colours, fonts, theme mode, text size, wave colour, and terms. Loading a preset restores the entire Appearance look in one shot.",
       },
