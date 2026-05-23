@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Activity picker now shows coloured \"follow the trail\" dots on parent rows whose descendants you've selected. Pick \"Drawing\" deep inside Recreation → creative → art, and each of those parent pills gets a dot in Drawing's colour so you can find your selection without expanding every branch.",
+      },
+      {
         type: "feature",
         text: "New \"Pinned tasks\" card on the dashboard surfaces your recurring Daily Tasks. Pick auto-by-frequency (e.g. monthly → weekly → daily, hiding completed) or hand-pick specific tasks; tune the card's scrollable height to fit your layout. Tap the circle on a manual task to mark it done without leaving the dashboard.",
       },
