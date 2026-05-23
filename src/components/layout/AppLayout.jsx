@@ -243,9 +243,9 @@ useEffect(() => {
   // to re-set it after exiting. Accessibility settings belong to
   // the user, not to demo data.
   if (preset.fontSize && !isPreviewActive()) setAccessibilityFontSize(preset.fontSize);
-  // Apply terminology + wave colour saved with the preset. Both
-  // live on the singleton SystemSettings row — batch into a single
-  // write.
+  // Apply every SystemSettings-driven Appearance setting saved with
+  // the preset. Batch into one write so fronter-linked themes
+  // restore the full Appearance look in a single round-trip.
   const settingsPatch = {};
   if (preset.terms) {
     settingsPatch.term_system = preset.terms.system || 'system';
@@ -254,6 +254,11 @@ useEffect(() => {
     settingsPatch.term_front  = preset.terms.front  || 'front';
   }
   if (preset.waveColorKey) settingsPatch.wave_color_key = preset.waveColorKey;
+  if (preset.cornerMode) settingsPatch.corner_mode = preset.cornerMode;
+  if (preset.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
+  if (Array.isArray(preset.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
+  if (preset.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
+  if (Array.isArray(preset.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
   if (Object.keys(settingsPatch).length > 0) {
     const settings = systemSettings?.[0];
     const op = settings?.id

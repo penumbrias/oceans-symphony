@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Saved theme presets now capture every Appearance setting: corner style, alter-label mode (name/alias/both), dashboard layout, navigation layout (top bar, bottom bar, dashboard grid), and upcoming-plans surface toggles — in addition to colours, fonts, theme mode, text size, wave colour, and terms. Loading a preset restores the entire Appearance look in one shot.",
+      },
+      {
         type: "fix",
         text: "Pinch-to-zoom on the Activity Tracker grid is now snappy instead of laggy. The previous handler used React's passive touchmove, so its preventDefault was silently ignored and the browser's own page-zoom gesture competed with the row-height resize. Now uses a native non-passive listener — matches the Timeline's responsiveness.",
       },

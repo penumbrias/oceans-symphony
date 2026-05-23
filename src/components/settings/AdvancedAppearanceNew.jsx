@@ -354,9 +354,9 @@ export default function AdvancedAppearance() {
     if (preset?.headingFont) { setCurrentHeadingFont(preset.headingFont); setAccessibilityHeadingFont(preset.headingFont); }
     if (preset?.themeMode) setThemeMode(preset.themeMode);
     if (preset?.fontSize) { setCurrentSize(preset.fontSize); setAccessibilityFontSize(preset.fontSize); }
-    // Apply saved terms + wave colour if present. Both live on the
-    // singleton SystemSettings row, so batch them into one
-    // update/create instead of two separate writes.
+    // Every other Appearance-section setting lives on the singleton
+    // SystemSettings row — batch them all into one write so loading
+    // a preset is a single round-trip.
     const settingsPatch = {};
     if (preset?.terms) {
       settingsPatch.term_system = preset.terms.system || 'system';
@@ -367,6 +367,11 @@ export default function AdvancedAppearance() {
     if (preset?.waveColorKey && WAVE_COLOR_KEYS.includes(preset.waveColorKey)) {
       settingsPatch.wave_color_key = preset.waveColorKey;
     }
+    if (preset?.cornerMode) settingsPatch.corner_mode = preset.cornerMode;
+    if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
+    if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
+    if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
+    if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
     if (Object.keys(settingsPatch).length > 0) {
       if (systemSettings?.id) {
         await base44.entities.SystemSettings.update(systemSettings.id, settingsPatch);
@@ -418,16 +423,21 @@ export default function AdvancedAppearance() {
   // ── Save as named preset ─────────────────────────────────────
   // A saved preset should capture EVERYTHING the user can tune in
   // the Appearance section so re-applying the preset brings the app
-  // back to the exact look they saved. Currently that's:
-  //   - colors (light + dark)
+  // back to the exact look they saved. That's:
+  //   - theme colors (light + dark)
   //   - body font + heading font
   //   - theme mode
   //   - text/UI size
   //   - header wave colour
+  //   - corner style (rounded / sharp)
+  //   - alter-label mode (name / alias / both)
+  //   - dashboard layout (block order + on/off)
+  //   - navigation layout (top bar, bottom bar, dashboard grid)
+  //   - upcoming-plans surfaces (where the planned-activity widget
+  //     surfaces)
   //   - terminology
   // Missing any of these would silently revert that aspect to the
-  // last applied value when loading the preset — confusing for the
-  // user ("why did my heading font / wave colour change back?").
+  // last applied value when loading the preset.
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
@@ -440,11 +450,18 @@ export default function AdvancedAppearance() {
       themeMode,
       fontSize: currentSize,
       waveColorKey: readWaveColorKey(systemSettings),
+      // SystemSettings-driven Appearance items. Stored as-is and
+      // re-applied on preset load via a single SystemSettings patch.
+      cornerMode: systemSettings?.corner_mode,
+      alterLabelMode: systemSettings?.alter_label_mode,
+      dashboardLayout: systemSettings?.dashboard_layout,
+      navigationConfig: systemSettings?.navigation_config,
+      upcomingPlansSurfaces: systemSettings?.upcoming_plans_surfaces,
       terms: { system: t.system, alter: t.alter, switch: t.switch, front: t.front },
     });
     setPresetName('');
     setShowSaveForm(false);
-    toast.success(`Theme "${name}" saved — includes your current Appearance settings`);
+    toast.success(`Theme "${name}" saved — includes every Appearance setting`);
   };
 
   // Collect all presets for display
