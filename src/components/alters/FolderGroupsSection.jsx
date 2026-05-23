@@ -12,6 +12,7 @@ import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -100,6 +101,7 @@ function FolderRow({ group, onClick }) {
 }
 
 export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls }) {
+  const terms = useTerms();
   const [navStack, setNavStack] = useState([]);
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
@@ -193,7 +195,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           variant="ghost"
           size="icon"
           className="flex-shrink-0 w-8 h-8"
-          title="Manage members">
+          title={`Manage ${terms.alters}`}>
             <Users className="w-4 h-4" />
           </Button>
         }

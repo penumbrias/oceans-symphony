@@ -90,7 +90,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
 
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
-      toast.success("Members updated!");
+      toast.success(`${terms.Alters} updated!`);
       onClose();
     } catch (e) {
       toast.error(e.message || "Failed to save");
@@ -104,7 +104,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
       <DialogContent className="max-w-sm max-h-[80vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>
-            <span>Manage Members</span>
+            <span>Manage {terms.Alters}</span>
             {group?.color && (
               <span
                 className="ml-2 inline-block w-3 h-3 rounded-full align-middle"

@@ -6,11 +6,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 
 const FIELD_ORDER_KEY = "_field_order";
 
 export default function InfoTab({ alter, systemFields }) {
+  const terms = useTerms();
   const queryClient = useQueryClient();
   const [editingFieldId, setEditingFieldId] = useState(null);
   const [editValue, setEditValue] = useState("");
@@ -213,7 +215,7 @@ export default function InfoTab({ alter, systemFields }) {
       {systemFields.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">System Fields</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{terms.System} Fields</p>
             {hasCustomOrder && (
               <button onClick={resetFieldOrder}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
@@ -328,9 +330,9 @@ export default function InfoTab({ alter, systemFields }) {
       )}
 
       <div className="space-y-3">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alter-Specific Fields</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{terms.Alter}-Specific Fields</p>
         {alterSpecificFields.length === 0 && !newAlterField && (
-          <p className="text-sm text-muted-foreground/60 italic py-2">No alter-specific fields yet.</p>
+          <p className="text-sm text-muted-foreground/60 italic py-2">No {terms.alter}-specific fields yet.</p>
         )}
         {alterSpecificFields.map((field, idx) => (
           <div key={idx} className="rounded-xl border border-border/50 bg-muted/10 p-3">
@@ -403,7 +405,7 @@ export default function InfoTab({ alter, systemFields }) {
           <Button variant="outline" size="sm" className="gap-1.5 w-full"
             onClick={() => setNewAlterField({ name: "", value: "" })}>
             <Plus className="w-4 h-4" />
-            Add alter-specific field
+            Add {terms.alter}-specific field
           </Button>
         )}
       </div>

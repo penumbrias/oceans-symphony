@@ -5,6 +5,7 @@ import { isValidHexColor } from "@/lib/colorUtils";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { useTerms } from "@/lib/useTerms";
 import ManageMembersModal from "@/components/groups/ManageMembersModal";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 
@@ -80,6 +81,7 @@ function FolderRow({ group, onClick }) {
 }
 
 export default function GroupFolderView({ alters }) {
+  const terms = useTerms();
   const [navStack, setNavStack] = useState([]);
   const [managingGroup, setManagingGroup] = useState(null);
   const [showCreateGroup, setShowCreateGroup] = useState(false);
@@ -133,7 +135,7 @@ export default function GroupFolderView({ alters }) {
         {currentGroup && (
           <button
             onClick={() => setManagingGroup(currentGroup)}
-            title="Manage members"
+            title={`Manage ${terms.alters}`}
             className="flex items-center justify-center w-8 h-8 rounded-lg hover:bg-muted/50 transition-colors text-muted-foreground hover:text-foreground"
           >
             <Users className="w-4 h-4" />
