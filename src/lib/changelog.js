@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Weekly Goals can now target a habit directly, not just an activity category. When creating a new goal, toggle the new \"Activity category\" / \"Habit\" switch at the top of the dialog and pick from your habits list — the goal's progress circle counts that habit's session minutes (start → end of every SymptomSession that started in the goal's week). Addresses bug report #248.",
+      },
+      {
+        type: "feature",
         text: "Sleep Tracker: \"Start sleep\" / \"End sleep\" buttons so you can log bedtime when you actually go to bed and wake time when you wake up, instead of needing to enter both at once after the fact. Start creates a placeholder record with bedtime now; the next time you open the page it shows \"End sleep\" + an in-progress chip with how long it's been running. End opens a small modal pre-filled with the current time so you can confirm + add optional quality / dream / notes. The classic \"+ Add past night\" flow stays for retroactive logging.",
       },
       {
