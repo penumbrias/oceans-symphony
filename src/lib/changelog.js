@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Pinch-to-zoom on the Activity Tracker grid is now snappy instead of laggy. The previous handler used React's passive touchmove, so its preventDefault was silently ignored and the browser's own page-zoom gesture competed with the row-height resize. Now uses a native non-passive listener — matches the Timeline's responsiveness.",
+      },
+      {
         type: "improve",
         text: "Saved theme presets now include every Appearance setting — heading font and wave colour are captured alongside the existing colours, body font, theme mode, text size, and terminology. Re-applying a preset (manually or via a fronter-linked theme) brings the full Appearance look back to exactly what you saved.",
       },
