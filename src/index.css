@@ -203,6 +203,23 @@ html.a11y-high-contrast {
   border-color: var(--color-primary);
 }
 
+/* "Jump-to-session" halo — pulses around the AlterBar's avatar when
+   the user double-tapped a dashboard fronter chip and chose "Jump to
+   session". Three 1-second pulses then auto-clears via the inline
+   timer in AlterBar so the rest of the day reads normally. */
+@keyframes alterBarJumpHalo {
+  0%   { box-shadow: 0 0 0 0 hsl(var(--color-primary) / 0.95), 0 0 16px 4px hsl(var(--color-primary) / 0.85); }
+  50%  { box-shadow: 0 0 0 10px hsl(var(--color-primary) / 0.18), 0 0 24px 12px hsl(var(--color-primary) / 0.35); }
+  100% { box-shadow: 0 0 0 0 hsl(var(--color-primary) / 0), 0 0 0 0 hsl(var(--color-primary) / 0); }
+}
+.alter-bar-jump-halo {
+  animation: alterBarJumpHalo 1s ease-in-out 3;
+}
+.a11y-reduce-motion .alter-bar-jump-halo {
+  animation: none;
+  box-shadow: 0 0 0 4px hsl(var(--color-primary) / 0.7);
+}
+
 /* WYSIWYG editor placeholder */
 .wysiwyg-content:empty::before {
   content: attr(data-placeholder);

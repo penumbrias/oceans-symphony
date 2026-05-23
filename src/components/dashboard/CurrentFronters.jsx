@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
   Check, Loader2, MessageSquare, BookOpen
@@ -64,22 +64,51 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
 
+  // Double-tap detection: open a small "Jump to / Edit session"
+  // popover. First tap still fires onToggleExpand (existing behaviour
+  // — the per-alter panel briefly opens then sits behind the popover).
+  // 350ms is the same threshold the Activity grid uses.
+  const lastTapRef = useRef(0);
+  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+
   // Tap on a currently-fronting chip toggles the per-alter panel (emotions,
   // symptoms, notes, trigger category). Long-press opens the hold menu
-  // (set primary, remove from front, open profile). Swipes do front /
-  // primary actions just like the alters page.
+  // (set primary, remove from front, open profile). Double-tap opens
+  // the jump/edit-session popover. Swipes do front / primary actions
+  // just like the alters page.
   const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => onToggleExpand?.(alter.id),
+    onTap: () => {
+      const now = Date.now();
+      if (now - lastTapRef.current < 350) {
+        lastTapRef.current = 0;
+        if (session?.id) setSessionMenuOpen(true);
+        return;
+      }
+      lastTapRef.current = now;
+      onToggleExpand?.(alter.id);
+    },
     onSwipeRight: () => onSwipeRight?.(alter),
     onSwipeLeft: () => onSwipeLeft?.(alter),
     onLongPress: () => onHold(alter),
   });
 
+  const jumpToSession = () => {
+    setSessionMenuOpen(false);
+    if (!session?.id) return;
+    navigate(`/timeline?focusSessionId=${encodeURIComponent(session.id)}`);
+  };
+  const editSession = () => {
+    setSessionMenuOpen(false);
+    if (!session?.id) return;
+    navigate(`/timeline?focusSessionId=${encodeURIComponent(session.id)}&edit=1`);
+  };
+
   return (
+    <>
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Swipe right to remove from front, swipe left to toggle primary.`}
+      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Double-tap to jump to the session on the Timeline or edit it. Swipe right to remove from front, swipe left to toggle primary.`}
       aria-expanded={!!isExpanded}
       aria-expanded={false}
       {...bind}
@@ -142,6 +171,29 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
         </p>
       </div>
     </div>
+
+    {/* Double-tap action sheet — jump to this session on the Timeline
+        (scrolls to the day + 3s glow halo on the session bar) or open
+        it in the session edit modal. */}
+    <Dialog open={sessionMenuOpen} onOpenChange={(o) => { if (!o) setSessionMenuOpen(false); }}>
+      <DialogContent className="max-w-xs">
+        <DialogHeader>
+          <DialogTitle className="text-base">{alter?.name}'s session</DialogTitle>
+          <DialogDescription className="text-xs">
+            {startTime ? `Started ${formatDistanceToNow(new Date(startTime), { addSuffix: true })}` : "Active session"}
+          </DialogDescription>
+        </DialogHeader>
+        <div className="grid grid-cols-1 gap-2 pt-2">
+          <Button onClick={jumpToSession} className="w-full justify-start">
+            Jump to session on Timeline
+          </Button>
+          <Button onClick={editSession} variant="outline" className="w-full justify-start">
+            Edit session
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 }
 
