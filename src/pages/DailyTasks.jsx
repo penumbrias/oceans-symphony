@@ -130,7 +130,7 @@ export default function DailyTasks() {
   });
   const { data: sleepRows = [] } = useQuery({
     queryKey: ["sleepForDailyTriggers"],
-    queryFn: () => base44.entities.Sleep.list("-end_time", 30),
+    queryFn: () => base44.entities.Sleep.list("-wake_time", 30),
     staleTime: 0,
   });
   const { data: frontingSessions = [] } = useQuery({
@@ -243,10 +243,11 @@ export default function DailyTasks() {
 
   const hasLocationToday = locations.some((l) => localDateKey(l.timestamp) === TODAY);
 
-  // sleep_logged fires when a Sleep row has end_time today (i.e. you woke
-  // up today). Logging a nap also counts. Sleep rows without end_time are
-  // still in progress and don't fire the trigger.
-  const hasSleepToday = sleepRows.some((s) => localDateKey(s.end_time) === TODAY);
+  // sleep_logged fires when a Sleep row has wake_time today (i.e. you
+  // woke up today). Logging a nap also counts. Sleep rows without
+  // wake_time are still in progress (Start-sleep / End-sleep flow) and
+  // don't fire the trigger.
+  const hasSleepToday = sleepRows.some((s) => localDateKey(s.wake_time) === TODAY);
 
   // switch_logged fires when a fronting session started today. We don't
   // gate on is_primary — any new front today counts as "a switch happened

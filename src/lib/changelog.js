@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Sleep Tracker: \"Start sleep\" / \"End sleep\" buttons so you can log bedtime when you actually go to bed and wake time when you wake up, instead of needing to enter both at once after the fact. Start creates a placeholder record with bedtime now; the next time you open the page it shows \"End sleep\" + an in-progress chip with how long it's been running. End opens a small modal pre-filled with the current time so you can confirm + add optional quality / dream / notes. The classic \"+ Add past night\" flow stays for retroactive logging.",
+      },
+      {
+        type: "fix",
+        text: "Daily Task trigger \"Sleep logged\" was checking the wrong field on Sleep records (end_time, which doesn't exist — the entity uses wake_time), so the trigger never fired. Now correctly fires once a sleep is ended on the current day.",
+      },
+      {
         type: "fix",
         text: "Timeline: scrolling down inside a day's grid now flows naturally into the previous day instead of dead-ending at the bottom of the 24-hour block. Each day used to live inside its own viewport-height scroller; now the whole day renders full-height and the page scroll handles moving between days continuously.",
       },
