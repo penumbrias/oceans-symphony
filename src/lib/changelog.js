@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Saved theme presets now include every Appearance setting — heading font and wave colour are captured alongside the existing colours, body font, theme mode, text size, and terminology. Re-applying a preset (manually or via a fronter-linked theme) brings the full Appearance look back to exactly what you saved.",
+      },
+      {
         type: "fix",
         text: "Preview Mode no longer overrides your text-size / accessibility settings. Demo systems' theme presets bake in a default font size that was silently overwriting any custom UI size when their primary fronter \"became\" active, and the previous setting wasn't being restored on exit. Preview now skips applying preset font size, and backs up + restores all accessibility settings (font size, touch target size, nav bar height, heading font) across enter / exit as defence-in-depth.",
       },

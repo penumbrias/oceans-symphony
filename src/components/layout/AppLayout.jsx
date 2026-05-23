@@ -21,7 +21,7 @@ import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
 import { useTheme } from "@/lib/ThemeContext";
-import { setAccessibilityFontFamily, setAccessibilityFontSize } from "@/lib/useAccessibility";
+import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
@@ -234,6 +234,7 @@ useEffect(() => {
   clearCustomColors();
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
+  if (preset.headingFont) setAccessibilityHeadingFont(preset.headingFont);
   if (preset.themeMode) setThemeMode(preset.themeMode);
   // Skip accessibility-impacting settings (font size) while Preview
   // Mode is active. Every preview system's preset includes
@@ -242,18 +243,22 @@ useEffect(() => {
   // to re-set it after exiting. Accessibility settings belong to
   // the user, not to demo data.
   if (preset.fontSize && !isPreviewActive()) setAccessibilityFontSize(preset.fontSize);
-  // Apply terminology saved with the preset
+  // Apply terminology + wave colour saved with the preset. Both
+  // live on the singleton SystemSettings row — batch into a single
+  // write.
+  const settingsPatch = {};
   if (preset.terms) {
+    settingsPatch.term_system = preset.terms.system || 'system';
+    settingsPatch.term_alter  = preset.terms.alter  || 'alter';
+    settingsPatch.term_switch = preset.terms.switch || 'switch';
+    settingsPatch.term_front  = preset.terms.front  || 'front';
+  }
+  if (preset.waveColorKey) settingsPatch.wave_color_key = preset.waveColorKey;
+  if (Object.keys(settingsPatch).length > 0) {
     const settings = systemSettings?.[0];
-    const termData = {
-      term_system: preset.terms.system || 'system',
-      term_alter:  preset.terms.alter  || 'alter',
-      term_switch: preset.terms.switch || 'switch',
-      term_front:  preset.terms.front  || 'front',
-    };
     const op = settings?.id
-      ? base44.entities.SystemSettings.update(settings.id, termData)
-      : base44.entities.SystemSettings.create(termData);
+      ? base44.entities.SystemSettings.update(settings.id, settingsPatch)
+      : base44.entities.SystemSettings.create(settingsPatch);
     op.catch(() => {});
   }
 }, [primaryFronter]);
