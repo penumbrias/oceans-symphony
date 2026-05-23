@@ -6,11 +6,16 @@ import { Input } from "@/components/ui/input";
 import {
   getChildren,
   indexById,
+  getAncestorIds,
   MAX_RENDER_DEPTH,
   getRootCategories,
 } from "@/lib/categoryTreeUtils";
 
-function ActivityPillNode({ category, allCategories, selectedActivities, onToggle, level = 0, expandedIds, onToggleExpanded, seen }) {
+// Max trail dots to render before collapsing the rest into "+N". The
+// pill is narrow; rendering >3 distinct child-colours bloats the row.
+const MAX_TRAIL_DOTS = 3;
+
+function ActivityPillNode({ category, allCategories, selectedActivities, onToggle, level = 0, expandedIds, onToggleExpanded, seen, descendantColorsById }) {
   // Cycle guard — bail if this id already appears further up the
   // render stack (a malformed parent_category_id chain).
   if (seen && seen.has(category.id)) return null;
@@ -21,6 +26,7 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
   nextSeen.add(category.id);
   const isSelected = selectedActivities.includes(category.id);
   const isExpanded = expandedIds.has(category.id);
+  const trailColors = descendantColorsById?.get(category.id) || [];
 
   return (
     <div>
@@ -46,7 +52,29 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
             {category.color && !isSelected && (
               <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: category.color }} />
             )}
-            {category.name}
+            <span className="flex-1">{category.name}</span>
+            {/* "Follow the trail" dots — surface the colour of each
+                selected descendant so the user can find their picks
+                inside a collapsed sub-tree without expanding every
+                branch. Hidden when the row is collapsed and there's
+                nothing selected below; capped at MAX_TRAIL_DOTS plus
+                a "+N" overflow indicator. */}
+            {hasChildren && trailColors.length > 0 && (
+              <span className="flex items-center gap-0.5 ml-auto flex-shrink-0" aria-label={`${trailColors.length} selected below`}>
+                {trailColors.slice(0, MAX_TRAIL_DOTS).map((c, i) => (
+                  <span
+                    key={`${c}-${i}`}
+                    className={`w-2 h-2 rounded-full border ${isSelected ? "border-white/60" : "border-background"}`}
+                    style={{ backgroundColor: c }}
+                  />
+                ))}
+                {trailColors.length > MAX_TRAIL_DOTS && (
+                  <span className={`text-[9px] font-semibold tabular-nums leading-none ${isSelected ? "text-white/80" : "text-muted-foreground"}`}>
+                    +{trailColors.length - MAX_TRAIL_DOTS}
+                  </span>
+                )}
+              </span>
+            )}
           </span>
         </button>
       </div>
@@ -63,6 +91,7 @@ function ActivityPillNode({ category, allCategories, selectedActivities, onToggl
               expandedIds={expandedIds}
               onToggleExpanded={onToggleExpanded}
               seen={nextSeen}
+              descendantColorsById={descendantColorsById}
             />
           ))}
         </div>
@@ -110,6 +139,28 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
     () => getRootCategories(categories),
     [categories],
   );
+
+  // For every parent in the tree, build the ordered list of distinct
+  // colours from the selected descendants below it. Used by
+  // ActivityPillNode to render "follow the trail" dots so the user
+  // can spot where their picks live inside a collapsed branch.
+  // Order preserves the user's selection order so the first pick's
+  // colour stays leftmost. Cycle-safe via getAncestorIds.
+  const descendantColorsById = useMemo(() => {
+    const map = new Map(); // parentId -> string[] (distinct colours, in pick order)
+    if (!selectedActivities.length) return map;
+    for (const selId of selectedActivities) {
+      const sel = byIdAll[selId];
+      if (!sel) continue;
+      const colour = sel.color || "hsl(var(--muted-foreground))";
+      for (const ancId of getAncestorIds(selId, byIdAll)) {
+        const arr = map.get(ancId) || [];
+        if (!arr.includes(colour)) arr.push(colour);
+        map.set(ancId, arr);
+      }
+    }
+    return map;
+  }, [selectedActivities, byIdAll]);
 
   // Flat search results across the entire tree. Matched by name OR by any
   // parent-category name (so searching "Self" finds the "Self Care" leaves
@@ -223,6 +274,7 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
               level={0}
               expandedIds={expandedIds}
               onToggleExpanded={toggleExpanded}
+              descendantColorsById={descendantColorsById}
             />
           ))}
         </div>
