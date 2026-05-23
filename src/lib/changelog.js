@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Pinned tasks widget: tapping a task (the external-link icon on AUTO tasks, or the \"All →\" button) no longer 404s. The widget linked to /daily-tasks but the actual route is /tasks.",
+      },
+      {
         type: "improve",
         text: "Quick Support suggestions screen got two clear footer buttons — \"Browse all techniques →\" and \"← Back to Quick Support\" — instead of the small text links. Also when you open a technique from the suggestions, hitting Back now returns you to your suggestions instead of dumping you in the all-techniques list. A slow breathing-pacer ring fills the empty space at the bottom of the suggestions for a calming visual.",
       },

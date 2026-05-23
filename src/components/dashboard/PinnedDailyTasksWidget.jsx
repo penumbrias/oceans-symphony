@@ -180,7 +180,7 @@ export default function PinnedDailyTasksWidget() {
           >
             <SettingsIcon className="w-4 h-4" />
           </Button>
-          <Link to="/daily-tasks">
+          <Link to="/tasks">
             <Button variant="ghost" size="sm" className="gap-1 h-8">
               All <ArrowRight className="w-3.5 h-3.5" />
             </Button>
@@ -259,7 +259,7 @@ function TaskRow({ template, done, terms, onToggle }) {
       ) : null}
       {isAuto && (
         <Link
-          to="/daily-tasks"
+          to="/tasks"
           aria-label="Open Daily Tasks to refresh auto state"
           className="flex-shrink-0 text-muted-foreground hover:text-foreground"
         >
