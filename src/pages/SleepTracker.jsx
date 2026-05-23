@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Plus, Trash2, AlarmClock, Cloud, ZapOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
-import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval } from "date-fns";
+import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDistanceToNow } from "date-fns";
 import SleepLogModal from "@/components/sleep/SleepLogModal";
 import SleepEditModal from "@/components/sleep/SleepEditModal";
+import SleepEndModal from "@/components/sleep/SleepEndModal";
 
 export default function SleepTracker() {
   const queryClient = useQueryClient();
@@ -17,6 +18,8 @@ export default function SleepTracker() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState(null);
   const [editingSleep, setEditingSleep] = useState(null);
+  const [endingSleep, setEndingSleep] = useState(null);
+  const [startingNow, setStartingNow] = useState(false);
 
   const monthStart = startOfMonth(currentDate);
   const monthEnd = endOfMonth(currentDate);
@@ -38,6 +41,67 @@ export default function SleepTracker() {
     const bedTime = parseISO(sleep.bedtime);
     const wakeTime = parseISO(sleep.wake_time);
     return (wakeTime - bedTime) / (1000 * 60 * 60); // hours
+  };
+
+  // An "in-progress" sleep is the record created by Start sleep —
+  // bedtime is set but wake_time is null (the user hasn't ended the
+  // log yet). The Start/End button switches mode based on whether
+  // one exists. We pick the most recent one if there's somehow more
+  // than one (shouldn't happen in normal use; defensive against
+  // double-tap on Start).
+  const inProgressSleep = useMemo(() => {
+    return [...sleepRecords]
+      .filter((s) => s.bedtime && !s.wake_time)
+      .sort((a, b) => parseISO(b.bedtime) - parseISO(a.bedtime))[0] || null;
+  }, [sleepRecords]);
+
+  const handleStartSleep = async () => {
+    if (inProgressSleep) {
+      // Defensive — shouldn't be reachable when a sleep is in progress
+      // because the button changes label.
+      return;
+    }
+    setStartingNow(true);
+    try {
+      const now = new Date();
+      const nowISO = now.toISOString();
+      const dateStr = format(now, "yyyy-MM-dd");
+      await base44.entities.Sleep.create({
+        date: dateStr,
+        bedtime: nowISO,
+        // wake_time intentionally left null — finalized via SleepEndModal.
+      });
+      queryClient.invalidateQueries({ queryKey: ["sleep"] });
+      toast.success("💤 Sleep started. Tap End sleep when you wake up.");
+    } catch (err) {
+      toast.error(err.message || "Failed to start sleep log");
+    } finally {
+      setStartingNow(false);
+    }
+  };
+
+  const handleEndSleep = () => {
+    if (!inProgressSleep) return;
+    setEndingSleep(inProgressSleep);
+  };
+
+  const handleEndSaved = () => {
+    setEndingSleep(null);
+    queryClient.invalidateQueries({ queryKey: ["sleep"] });
+    queryClient.invalidateQueries({ queryKey: ["activities"] });
+    toast.success("✅ Sleep logged!");
+  };
+
+  const handleCancelInProgress = async () => {
+    if (!inProgressSleep) return;
+    if (!confirm("Discard this in-progress sleep log? Bedtime will be removed; no record will be saved.")) return;
+    try {
+      await base44.entities.Sleep.delete(inProgressSleep.id);
+      queryClient.invalidateQueries({ queryKey: ["sleep"] });
+      toast.success("Sleep log discarded");
+    } catch (err) {
+      toast.error(err.message || "Failed to discard sleep log");
+    }
   };
 
   const handleDelete = async (sleepId) => {
@@ -135,14 +199,58 @@ export default function SleepTracker() {
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
-              <Button
-                onClick={() => handleAddSleep(new Date())}
-                className="w-full bg-primary hover:bg-primary/90"
-              >
-                <Plus className="w-4 h-4 mr-2" />
-                New Record
-              </Button>
+            <CardContent className="pt-6 space-y-2">
+              {/* Start sleep / End sleep — primary one-tap flow for
+                  logging tonight's sleep as it happens. When no log
+                  is in progress, the button starts one (creates a
+                  Sleep record with bedtime=now, wake_time=null);
+                  when a log IS in progress, it opens the End modal
+                  so the user can stamp wake time + optional quality
+                  / dreams / notes. The retroactive "+ New Record"
+                  flow stays available below for "I forgot to start
+                  it" cases. */}
+              {inProgressSleep ? (
+                <>
+                  <Button
+                    onClick={handleEndSleep}
+                    className="w-full bg-primary hover:bg-primary/90"
+                  >
+                    <AlarmClock className="w-4 h-4 mr-2" />
+                    End sleep
+                  </Button>
+                  <p className="text-[0.6875rem] text-center text-muted-foreground">
+                    In progress since {format(parseISO(inProgressSleep.bedtime), "h:mm a")}
+                    {" · "}
+                    <button
+                      type="button"
+                      onClick={handleCancelInProgress}
+                      className="underline hover:text-foreground"
+                    >
+                      discard
+                    </button>
+                  </p>
+                </>
+              ) : (
+                <>
+                  <Button
+                    onClick={handleStartSleep}
+                    disabled={startingNow}
+                    className="w-full bg-primary hover:bg-primary/90"
+                  >
+                    <AlarmClock className="w-4 h-4 mr-2" />
+                    {startingNow ? "Starting…" : "Start sleep"}
+                  </Button>
+                  <Button
+                    onClick={() => handleAddSleep(new Date())}
+                    variant="outline"
+                    size="sm"
+                    className="w-full"
+                  >
+                    <Plus className="w-3.5 h-3.5 mr-1.5" />
+                    Add past night
+                  </Button>
+                </>
+              )}
             </CardContent>
           </Card>
         </div>
@@ -177,12 +285,20 @@ export default function SleepTracker() {
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
                             {format(parseISO(sleep.bedtime), "h:mm a")} -{" "}
-                            {format(parseISO(sleep.wake_time), "h:mm a")}
+                            {sleep.wake_time
+                              ? format(parseISO(sleep.wake_time), "h:mm a")
+                              : <span className="italic text-primary">in progress</span>}
                           </div>
                           <div className="text-sm mt-2 flex gap-4">
-                            <span className="text-primary font-medium">
-                              {duration.toFixed(1)} hours
-                            </span>
+                            {sleep.wake_time ? (
+                              <span className="text-primary font-medium">
+                                {duration.toFixed(1)} hours
+                              </span>
+                            ) : (
+                              <span className="text-primary font-medium italic">
+                                {formatDistanceToNow(parseISO(sleep.bedtime), { addSuffix: false })} so far
+                              </span>
+                            )}
                             {sleep.quality && (
                               <span className="text-accent-foreground">
                                 Quality: {sleep.quality}/10
@@ -264,6 +380,13 @@ export default function SleepTracker() {
           }}
         />
       )}
+
+      <SleepEndModal
+        isOpen={!!endingSleep}
+        sleep={endingSleep}
+        onClose={() => setEndingSleep(null)}
+        onSave={handleEndSaved}
+      />
     </div>
   );
 }
