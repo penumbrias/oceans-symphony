@@ -112,7 +112,7 @@ export default function Chat() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
-  const { data: channels = [] } = useQuery({
+  const { data: channels = [], isSuccess: channelsLoaded } = useQuery({
     queryKey: ["systemChatChannels"],
     queryFn: () => localEntities.SystemChatChannel.list(),
   });
@@ -126,13 +126,22 @@ export default function Chat() {
   });
 
   // Auto-create a default #general channel on first visit so the
-  // page isn't empty. Idempotent: only fires when both channels
-  // and unlocked store are empty.
+  // page isn't empty. CRITICAL: only seed once the query has actually
+  // RESOLVED (channelsLoaded). useQuery returns [] while still
+  // loading, so the old `channels.length === 0` check fired on a cold
+  // cache (app restart / navigating back to Chat) BEFORE the existing
+  // channels loaded — spawning a duplicate "general" every time. The
+  // per-mount bootstrappedRef didn't help across mounts. Belt-and-
+  // braces: also bail if any non-archived "general" already exists.
   const bootstrappedRef = useRef(false);
   useEffect(() => {
     if (bootstrappedRef.current) return;
-    if (channels.length === 0) {
-      bootstrappedRef.current = true;
+    if (!channelsLoaded) return; // wait for the real data
+    bootstrappedRef.current = true;
+    const hasGeneral = channels.some(
+      (c) => !c.is_archived && (c.name || "").trim().toLowerCase() === "general"
+    );
+    if (channels.length === 0 && !hasGeneral) {
       (async () => {
         try {
           await localEntities.SystemChatChannel.create({
@@ -147,11 +156,9 @@ export default function Chat() {
           toast.error(err?.message || "Couldn't create the default channel");
         }
       })();
-    } else {
-      bootstrappedRef.current = true;
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [channels.length]);
+  }, [channelsLoaded, channels.length]);
 
   const sortedChannels = useMemo(
     () => [...channels]
