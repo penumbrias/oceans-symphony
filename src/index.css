@@ -161,13 +161,20 @@ html.a11y-text-xl3 { font-size: 150%; }
 html.a11y-text-xl4 { font-size: 175%; }
 html.a11y-text-xl5 { font-size: 200%; }
 
-html.a11y-touch-comfortable button,
-html.a11y-touch-comfortable [role="button"],
+/* Large-touch min-height is for tappable buttons / links, NOT toggle
+   switches. Radix Switch.Root renders as a <button role="switch">, so
+   without the :not() exclusion the rule stretches the switch track far
+   taller than its designed height — the round thumb then overflows the
+   pill and looks broken (reported on the Daily Tasks toggles). Exclude
+   role="switch" so toggles keep their intended shape; their own hit
+   area is already comfortably tappable. */
+html.a11y-touch-comfortable button:not([role="switch"]),
+html.a11y-touch-comfortable [role="button"]:not([role="switch"]),
 html.a11y-touch-comfortable a[class] {
   min-height: 44px;
 }
-html.a11y-touch-large button,
-html.a11y-touch-large [role="button"],
+html.a11y-touch-large button:not([role="switch"]),
+html.a11y-touch-large [role="button"]:not([role="switch"]),
 html.a11y-touch-large a[class] {
   min-height: 52px;
 }
