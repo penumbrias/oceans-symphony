@@ -13,6 +13,19 @@
 
 export const CHANGELOG = [
   {
+    date: "May 24, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Set Fronters: the Save button is no longer pushed off-screen when you expand the triggered-switch options — the toggles now scroll and the buttons stay pinned.",
+      },
+      {
+        type: "fix",
+        text: "Toggle switches no longer look oversized/broken when large touch targets are on.",
+      },
+    ],
+  },
+  {
     date: "May 23, 2026",
     changes: [
       {

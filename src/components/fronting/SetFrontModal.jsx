@@ -722,7 +722,14 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             </div>
           </div>
 
-          {/* List or Grid View */}
+          {/* List or Grid View — the switch-meta toggles (journal /
+              triggered) and the orange triggered-switch expansion now
+              live INSIDE this scroll region so they can never push the
+              pinned action bar below the modal's clipped bottom edge.
+              Previously they sat in the non-scrolling footer; expanding
+              the triggered-switch box grew the footer past the modal's
+              max-height and overflow-hidden clipped the Save button off
+              the bottom of the screen, leaving no way to save. */}
           <div className="flex-1 overflow-y-auto min-h-0">
             {viewMode === "list" ?
             <div className="space-y-1.5">
@@ -751,85 +758,87 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 ))}
               </div>
             }
+
+            <div className="space-y-2 pt-2 mt-2 border-t border-border/50">
+              <div className="flex items-center gap-2" data-tour="setfront-journal">
+                <Checkbox
+                  id="journal-switch"
+                  checked={journalSwitch}
+                  onCheckedChange={setJournalSwitch}
+                  disabled={isUnsure} />
+                <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                  <BookOpen className="w-3.5 h-3.5" />
+                  Journal this {terms.switch}?
+                </label>
+              </div>
+
+              <div className="flex items-center gap-2" data-tour="setfront-triggered">
+                <Checkbox
+                  id="triggered-switch"
+                  checked={triggeredSwitch}
+                  onCheckedChange={setTriggeredSwitch}
+                  disabled={isUnsure} />
+                <label htmlFor="triggered-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
+                  <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
+                  Triggered {terms.switch}?
+                </label>
+              </div>
+
+              {triggeredSwitch && !isUnsure && (
+                <div className="rounded-xl bg-orange-500/5 border border-orange-400/20 px-3 py-2 space-y-2">
+                  <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
+                    {allTriggerCategories.map(cat => (
+                      <button key={cat.id} type="button"
+                        onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
+                        title={cat.hint}
+                        className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
+                          triggerCategory === cat.id
+                            ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                            : "text-muted-foreground border-border/60 hover:bg-muted/50"
+                        }`}>
+                        {cat.emoji} {cat.label}
+                      </button>
+                    ))}
+                  </div>
+                  <input
+                    value={triggerLabel}
+                    onChange={e => setTriggerLabel(e.target.value)}
+                    placeholder={`Describe what triggered the ${terms.switch}...`}
+                    className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
+                  />
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="space-y-2 pt-2 border-t border-border/50">
-            <div className="flex items-center gap-2" data-tour="setfront-journal">
-              <Checkbox
-                id="journal-switch"
-                checked={journalSwitch}
-                onCheckedChange={setJournalSwitch}
-                disabled={isUnsure} />
-              <label htmlFor="journal-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-                <BookOpen className="w-3.5 h-3.5" />
-                Journal this {terms.switch}?
-              </label>
-            </div>
-
-            <div className="flex items-center gap-2" data-tour="setfront-triggered">
-              <Checkbox
-                id="triggered-switch"
-                checked={triggeredSwitch}
-                onCheckedChange={setTriggeredSwitch}
-                disabled={isUnsure} />
-              <label htmlFor="triggered-switch" className="flex items-center gap-1.5 text-sm text-muted-foreground cursor-pointer select-none">
-                <AlertTriangle className="w-3.5 h-3.5 text-orange-500" />
-                Triggered {terms.switch}?
-              </label>
-            </div>
-
-            {triggeredSwitch && !isUnsure && (
-              <div className="rounded-xl bg-orange-500/5 border border-orange-400/20 px-3 py-2 space-y-2">
-                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto">
-                  {allTriggerCategories.map(cat => (
-                    <button key={cat.id} type="button"
-                      onClick={() => setTriggerCategory(c => c === cat.id ? "" : cat.id)}
-                      title={cat.hint}
-                      className={`flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border transition-all ${
-                        triggerCategory === cat.id
-                          ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
-                          : "text-muted-foreground border-border/60 hover:bg-muted/50"
-                      }`}>
-                      {cat.emoji} {cat.label}
-                    </button>
-                  ))}
-                </div>
-                <input
-                  value={triggerLabel}
-                  onChange={e => setTriggerLabel(e.target.value)}
-                  placeholder={`Describe what triggered the ${terms.switch}...`}
-                  className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
-                />
-              </div>
-            )}
-
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                onClick={() => { setPrimaryId(""); setCoFronterIds([]); setIsUnsure(false); }}
-                disabled={saving}
-                title={`Clear all selected ${terms.fronters}`}
-                className="flex-shrink-0 px-3">
-                <Trash2 className="w-4 h-4" />
-              </Button>
-              <Button
-                variant={isUnsure ? "default" : "outline"}
-                onClick={() => {
-                  setIsUnsure(!isUnsure);
-                  if (!isUnsure) {
-                    setPrimaryId("");
-                    setCoFronterIds([]);
-                  }
-                }}
-                disabled={saving}
-                className="flex-1">
-                <HelpCircle className="w-4 h-4 mr-2" />
-                Unsure
-              </Button>
-              <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-                Set {terms.Front}ers
-              </Button>
-            </div>
+          {/* Pinned action bar — stays at the bottom and reachable no
+              matter how tall the scroll content above grows. */}
+          <div className="flex gap-2 pt-2 border-t border-border/50">
+            <Button
+              variant="outline"
+              onClick={() => { setPrimaryId(""); setCoFronterIds([]); setIsUnsure(false); }}
+              disabled={saving}
+              title={`Clear all selected ${terms.fronters}`}
+              className="flex-shrink-0 px-3">
+              <Trash2 className="w-4 h-4" />
+            </Button>
+            <Button
+              variant={isUnsure ? "default" : "outline"}
+              onClick={() => {
+                setIsUnsure(!isUnsure);
+                if (!isUnsure) {
+                  setPrimaryId("");
+                  setCoFronterIds([]);
+                }
+              }}
+              disabled={saving}
+              className="flex-1">
+              <HelpCircle className="w-4 h-4 mr-2" />
+              Unsure
+            </Button>
+            <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+              Set {terms.Front}ers
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
