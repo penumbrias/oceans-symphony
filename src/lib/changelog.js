@@ -17,99 +17,91 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Weekly Goals can now target a habit directly, not just an activity category. When creating a new goal, toggle the new \"Activity category\" / \"Habit\" switch at the top of the dialog and pick from your habits list — the goal's progress circle counts that habit's session minutes (start → end of every SymptomSession that started in the goal's week). Addresses bug report #248.",
+        text: "Weekly Goals can now target a habit, not just an activity category — the goal circle counts that habit's session time. (#248)",
       },
       {
         type: "feature",
-        text: "Sleep Tracker: \"Start sleep\" / \"End sleep\" buttons so you can log bedtime when you actually go to bed and wake time when you wake up, instead of needing to enter both at once after the fact. Start creates a placeholder record with bedtime now; the next time you open the page it shows \"End sleep\" + an in-progress chip with how long it's been running. End opens a small modal pre-filled with the current time so you can confirm + add optional quality / dream / notes. The classic \"+ Add past night\" flow stays for retroactive logging.",
-      },
-      {
-        type: "fix",
-        text: "Daily Task trigger \"Sleep logged\" was checking the wrong field on Sleep records (end_time, which doesn't exist — the entity uses wake_time), so the trigger never fired. Now correctly fires once a sleep is ended on the current day.",
-      },
-      {
-        type: "fix",
-        text: "Grounding → Browse all techniques: added \"← Back to Quick Support\" at the top so you can return to the entry / state-check flow without using the device back button. Matches the back-link convention already on the state-check and suggestions screens.",
-      },
-      {
-        type: "fix",
-        text: "Timeline: scrolling down inside a day's grid now flows naturally into the previous day instead of dead-ending at the bottom of the 24-hour block. Each day used to live inside its own viewport-height scroller; now the whole day renders full-height and the page scroll handles moving between days continuously.",
+        text: "Sleep Tracker: \"Start sleep\" / \"End sleep\" buttons so you can log bedtime when you go to bed and wake time when you wake up, instead of entering both at once.",
       },
       {
         type: "feature",
-        text: "Alter profile → History tab: double-tap any session card to open the same \"Jump to session\" / \"Edit session\" popover the dashboard fronter chips use. Jump-to scrolls the Timeline to that session's day and pulses a 3-second halo; Edit opens the session editor directly. Same popover component on both surfaces.",
-      },
-      {
-        type: "fix",
-        text: "Web app on oceans-symphony.app: fixed a \"blank screen of death\" that could appear a day or two after a new deploy. The service worker was serving cached HTML that pointed at older JS bundle filenames, but Vercel had already deleted those old bundles, so the browser loaded a page that referenced 404'd scripts. HTML navigation is now network-first (fresh visits always pull the current bundle hashes); cache is only used when actually offline.",
+        text: "New \"Pinned tasks\" card on the dashboard surfaces your recurring Daily Tasks — auto-by-frequency or hand-picked, with a tunable scrollable height.",
       },
       {
         type: "feature",
-        text: "Tapping a notification that navigates to another page now scrolls the destination to the specific source item and pulses a 3-second halo around it, so you can find what the notification was about without scanning the whole page. Wired into the To-Do list so far; other pages adopt the same pattern as they're touched (notifications back to the same dashboard bulletin still use the existing in-place highlight).",
-      },
-      {
-        type: "fix",
-        text: "Pinned tasks widget: tapping a task (the external-link icon on AUTO tasks, or the \"All →\" button) no longer 404s. The widget linked to /daily-tasks but the actual route is /tasks.",
-      },
-      {
-        type: "improve",
-        text: "Quick Support suggestions screen got two clear footer buttons — \"Browse all techniques →\" and \"← Back to Quick Support\" — instead of the small text links. Also when you open a technique from the suggestions, hitting Back now returns you to your suggestions instead of dumping you in the all-techniques list. A slow breathing-pacer ring fills the empty space at the bottom of the suggestions for a calming visual.",
-      },
-      {
-        type: "fix",
-        text: "Alter Lineage tab: Emergence events were rendered as \"Fusion\" because the type wasn't in the icon map; now they show as \"Emergence\" with a sparkles icon. The Connections section also no longer treats co-emerged alters as both predecessors AND successors of each other — emergence doesn't describe a before → after transition, so those events are excluded from the connections walk.",
-      },
-      {
-        type: "fix",
-        text: "Grocery list: tapping \"New list…\" no longer flashes / shifts the layout for a frame before the popup appears. The switcher dropdown was unmounting in the same paint as the modal opened, briefly letting the items below jump up. The modal now opens first; the dropdown closes the next frame. Small fade-in animation polishes the transition.",
-      },
-      {
-        type: "fix",
-        text: "Alter profile header no longer renders pronouns or alias as a separate line when those strings already appear inside the alter's name (e.g. a name like \"dragon < he | dae >\" with pronouns \"he | dae\" used to surface \"he | dae\" twice). Substring check; both views (profile page and bio editor's preview) updated.",
-      },
-      {
-        type: "fix",
-        text: "Group-management tooltips and the alter profile's Info tab were hardcoded to \"Manage members\" / \"System Fields\" / \"Alter-Specific Fields\"; now use your custom terms. Also the \"Members updated\" toast and the \"Add alter-specific field\" button respect the custom term for alters.",
-      },
-      {
-        type: "improve",
-        text: "Saved theme presets now capture every Appearance setting: corner style, alter-label mode (name/alias/both), dashboard layout, navigation layout (top bar, bottom bar, dashboard grid), and upcoming-plans surface toggles — in addition to colours, fonts, theme mode, text size, wave colour, and terms. Loading a preset restores the entire Appearance look in one shot.",
-      },
-      {
-        type: "fix",
-        text: "Pinch-to-zoom on the Activity Tracker grid is now snappy instead of laggy. The previous handler used React's passive touchmove, so its preventDefault was silently ignored and the browser's own page-zoom gesture competed with the row-height resize. Now uses a native non-passive listener — matches the Timeline's responsiveness.",
-      },
-      {
-        type: "improve",
-        text: "Saved theme presets now include every Appearance setting — heading font and wave colour are captured alongside the existing colours, body font, theme mode, text size, and terminology. Re-applying a preset (manually or via a fronter-linked theme) brings the full Appearance look back to exactly what you saved.",
-      },
-      {
-        type: "fix",
-        text: "Preview Mode no longer overrides your text-size / accessibility settings. Demo systems' theme presets bake in a default font size that was silently overwriting any custom UI size when their primary fronter \"became\" active, and the previous setting wasn't being restored on exit. Preview now skips applying preset font size, and backs up + restores all accessibility settings (font size, touch target size, nav bar height, heading font) across enter / exit as defence-in-depth.",
-      },
-      {
-        type: "fix",
-        text: "Wiki preview banner was lying about being \"up to date\" — it pinned to the live app version, which bumps every PR, but the wiki bios are hardcoded and only get refreshed manually. Now tracks a separate wiki-content version, so when the wiki is behind the app you see \"last refreshed for vX · you're on vY (some new features may be missing)\". Added a Pinned tasks bio while updating it.",
-      },
-      {
-        type: "improve",
-        text: "Activity picker now shows coloured \"follow the trail\" dots on parent rows whose descendants you've selected. Pick \"Drawing\" deep inside Recreation → creative → art, and each of those parent pills gets a dot in Drawing's colour so you can find your selection without expanding every branch.",
+        text: "Double-tap a fronter chip (dashboard) or a session card (alter History tab) to jump to that session on the Timeline or edit it; jump-to pulses a glow so you can find it.",
       },
       {
         type: "feature",
-        text: "New \"Pinned tasks\" card on the dashboard surfaces your recurring Daily Tasks. Pick auto-by-frequency (e.g. monthly → weekly → daily, hiding completed) or hand-pick specific tasks; tune the card's scrollable height to fit your layout. Tap the circle on a manual task to mark it done without leaving the dashboard.",
+        text: "Tapping a notification that opens another page now scrolls to and briefly glows the exact item it was about.",
       },
       {
         type: "fix",
-        text: "Quick Check-In's \"Who's fronting?\" list now actually shows your alters when opened from a reminder banner or reminders inbox. Previously those entry points didn't pass the alters list through, so the picker came up empty.",
+        text: "Web app: fixed a \"blank screen of death\" that could appear a day or two after an update (stale cached page pointing at deleted scripts).",
       },
       {
         type: "fix",
-        text: "Editing a check-in that linked to a journal entry (long notes) now loads the FULL journal text instead of the 300-character truncated preview. Saving keeps the journal entry and the check-in's preview in sync.",
+        text: "Pinch-to-zoom on the Activity Tracker grid is now snappy instead of laggy.",
       },
       {
         type: "fix",
-        text: "Adding an Activities, Diary, or Location section to an existing check-in via edit now actually saves — previously these were silently dropped in edit mode. Issue #229.",
+        text: "Timeline: scrolling down now flows continuously into the previous day instead of dead-ending at the bottom of each day.",
+      },
+      {
+        type: "fix",
+        text: "Pinned tasks widget no longer 404s when you tap a task or the \"All\" button.",
+      },
+      {
+        type: "fix",
+        text: "Quick Check-In's \"Who's fronting?\" list now shows your alters when opened from a reminder.",
+      },
+      {
+        type: "fix",
+        text: "Editing a check-in with a long note now loads the full journal text, not the truncated preview. (#229)",
+      },
+      {
+        type: "fix",
+        text: "Adding an Activities, Diary, or Location section to an existing check-in now actually saves. (#229)",
+      },
+      {
+        type: "fix",
+        text: "Lineage tab: Emergence events now show as \"Emergence\" (not \"Fusion\"), and co-emerged alters aren't shown as each other's predecessors/successors.",
+      },
+      {
+        type: "fix",
+        text: "Alter profile header no longer repeats pronouns/alias when they're already inside the alter's name.",
+      },
+      {
+        type: "fix",
+        text: "Group management and the alter Info tab now use your custom terms instead of hardcoded \"members\" / \"System\" / \"Alter\".",
+      },
+      {
+        type: "fix",
+        text: "Grocery list: \"New list…\" popup no longer flashes the layout before appearing.",
+      },
+      {
+        type: "fix",
+        text: "Preview Mode no longer overrides your text-size / accessibility settings.",
+      },
+      {
+        type: "fix",
+        text: "Wiki preview banner now honestly reports when it's behind the current app version instead of always claiming \"up to date\".",
+      },
+      {
+        type: "fix",
+        text: "Daily Task \"Sleep logged\" trigger now fires correctly when you end a sleep.",
+      },
+      {
+        type: "improve",
+        text: "Saved theme presets now capture every Appearance setting (colours, fonts, theme mode, text size, wave colour, corner style, alter-label mode, dashboard + navigation layout, terms) and restore them all in one shot.",
+      },
+      {
+        type: "improve",
+        text: "Quick Support: clearer \"Browse all techniques\" / \"Back to Quick Support\" buttons, a back button on the all-techniques page, and a calming breathing ring on the suggestions screen.",
+      },
+      {
+        type: "improve",
+        text: "Activity picker shows coloured \"follow the trail\" dots on parent rows when you've selected something nested inside them.",
       },
     ],
   },
