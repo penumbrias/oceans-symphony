@@ -35,7 +35,7 @@ import TaskCard from "@/components/tasks/TaskCard";
 import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import PeriodReview from "@/components/tasks/PeriodReview";
 import { Button } from "@/components/ui/button";
-import { Settings, LayoutGrid, CalendarDays } from "lucide-react";
+import { Settings, LayoutGrid, CalendarDays, Eye, EyeOff } from "lucide-react";
 import { toast } from "sonner";
 
 const FREQUENCIES = ["daily", "weekly", "monthly", "yearly"];
@@ -48,6 +48,24 @@ export default function DailyTasks() {
   const [showManager, setShowManager] = useState(false);
   const [activeFreq, setActiveFreq] = useState("daily");
   const [showReview, setShowReview] = useState(false);
+
+  // Persistent "hide tasks once completed" preference (per device).
+  // When on, completed tasks drop out of the list so the user sees
+  // only what's left; a "Show completed" toggle reveals them again
+  // (e.g. to un-toggle one they finished by mistake).
+  const HIDE_COMPLETED_KEY = "symphony_dailytasks_hide_completed_v1";
+  const [hideCompleted, setHideCompleted] = useState(() => {
+    try { return localStorage.getItem(HIDE_COMPLETED_KEY) === "1"; } catch { return false; }
+  });
+  const [showHiddenCompleted, setShowHiddenCompleted] = useState(false);
+  const toggleHideCompleted = () => {
+    setHideCompleted((prev) => {
+      const next = !prev;
+      try { localStorage.setItem(HIDE_COMPLETED_KEY, next ? "1" : "0"); } catch {}
+      if (!next) setShowHiddenCompleted(false); // reset the reveal when turning the feature off
+      return next;
+    });
+  };
 
   // Task templates
   const { data: templates = [], isLoading: templatesLoading } = useQuery({
@@ -806,45 +824,90 @@ export default function DailyTasks() {
           </motion.div>
         ) : (
           <motion.div key={activeFreq} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="space-y-3">
-            {/* Period indicator */}
-            <div className="text-xs text-muted-foreground px-1">
-              {activeFreq === "daily" && `Today · ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`}
-              {activeFreq === "weekly" && `This week · ${currentPeriodKey}`}
-              {activeFreq === "monthly" && `This month · ${new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}`}
-              {activeFreq === "yearly" && `This year · ${new Date().getFullYear()}`}
-              {activeTasks.length > 0 && (
-                <span className="ml-2 font-semibold text-foreground">
-                  {activeTasks.filter(t => {
-                    const done = activeFreq === "daily" ? isTaskCompleted(t, manualCompletedIds, autoTriggers) : manualCompletedIds.has(t.id);
-                    return done;
-                  }).length}/{activeTasks.length} done
-                </span>
-              )}
-            </div>
+            {(() => {
+              const isDone = (t) => activeFreq === "daily"
+                ? isTaskCompleted(t, manualCompletedIds, autoTriggers)
+                : manualCompletedIds.has(t.id);
+              const completedCount = activeTasks.filter(isDone).length;
+              const hiddenCount = hideCompleted && !showHiddenCompleted ? completedCount : 0;
+              const visibleTasks = (hideCompleted && !showHiddenCompleted)
+                ? activeTasks.filter((t) => !isDone(t))
+                : activeTasks;
+              return (
+                <>
+                  {/* Period indicator + done count */}
+                  <div className="flex items-center justify-between gap-2 px-1">
+                    <div className="text-xs text-muted-foreground">
+                      {activeFreq === "daily" && `Today · ${new Date().toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric" })}`}
+                      {activeFreq === "weekly" && `This week · ${currentPeriodKey}`}
+                      {activeFreq === "monthly" && `This month · ${new Date().toLocaleDateString(undefined, { month: "long", year: "numeric" })}`}
+                      {activeFreq === "yearly" && `This year · ${new Date().getFullYear()}`}
+                      {activeTasks.length > 0 && (
+                        <span className="ml-2 font-semibold text-foreground">
+                          {completedCount}/{activeTasks.length} done
+                        </span>
+                      )}
+                    </div>
+                    {activeTasks.length > 0 && (
+                      <button
+                        type="button"
+                        onClick={toggleHideCompleted}
+                        className={`flex items-center gap-1 text-[0.6875rem] font-medium px-2 py-1 rounded-full border transition-colors flex-shrink-0 ${
+                          hideCompleted
+                            ? "border-primary/50 bg-primary/10 text-primary"
+                            : "border-border/60 text-muted-foreground hover:bg-muted/40"
+                        }`}
+                        aria-pressed={hideCompleted}
+                      >
+                        {hideCompleted ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
+                        Hide completed
+                      </button>
+                    )}
+                  </div>
 
-            {activeTasks.length === 0 ? (
-              <div className="text-center py-12 text-muted-foreground space-y-2">
-                <LayoutGrid className="w-10 h-10 mx-auto opacity-30" />
-                <p className="text-sm">No {FREQUENCY_LABELS[activeFreq].toLowerCase()} tasks yet.</p>
-                <p className="text-xs">Open "Edit" to add {activeFreq} tasks.</p>
-              </div>
-            ) : (
-              activeTasks.map(task => (
-                <TaskCard
-                  key={task.id}
-                  task={{
-                    ...task,
-                    title: applyTerms(task.title, terms),
-                    description: applyTerms(task.description, terms),
-                  }}
-                  completed={activeFreq === "daily"
-                    ? isTaskCompleted(task, manualCompletedIds, autoTriggers)
-                    : manualCompletedIds.has(task.id)
-                  }
-                  onToggle={toggleManual}
-                />
-              ))
-            )}
+                  {/* "Show completed" reveal — only when hiding is on and
+                      there's something hidden. Lets the user un-toggle a
+                      task they finished by mistake. */}
+                  {hideCompleted && completedCount > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => setShowHiddenCompleted((v) => !v)}
+                      className="w-full text-xs text-muted-foreground hover:text-foreground border border-dashed border-border/60 rounded-lg py-1.5 transition-colors"
+                    >
+                      {showHiddenCompleted
+                        ? "Hide completed again"
+                        : `Show ${completedCount} completed`}
+                    </button>
+                  )}
+
+                  {activeTasks.length === 0 ? (
+                    <div className="text-center py-12 text-muted-foreground space-y-2">
+                      <LayoutGrid className="w-10 h-10 mx-auto opacity-30" />
+                      <p className="text-sm">No {FREQUENCY_LABELS[activeFreq].toLowerCase()} tasks yet.</p>
+                      <p className="text-xs">Open "Edit" to add {activeFreq} tasks.</p>
+                    </div>
+                  ) : visibleTasks.length === 0 ? (
+                    <div className="text-center py-10 text-muted-foreground space-y-1">
+                      <p className="text-sm">All {FREQUENCY_LABELS[activeFreq].toLowerCase()} tasks done! 🎉</p>
+                      <p className="text-xs">Completed tasks are hidden — tap "Show {completedCount} completed" above to see them.</p>
+                    </div>
+                  ) : (
+                    visibleTasks.map(task => (
+                      <TaskCard
+                        key={task.id}
+                        task={{
+                          ...task,
+                          title: applyTerms(task.title, terms),
+                          description: applyTerms(task.description, terms),
+                        }}
+                        completed={isDone(task)}
+                        onToggle={toggleManual}
+                      />
+                    ))
+                  )}
+                </>
+              );
+            })()}
           </motion.div>
         )}
       </AnimatePresence>
