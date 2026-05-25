@@ -4,7 +4,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Slider } from "@/components/ui/slider";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -169,7 +168,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
 
   return (
     <Dialog open={isOpen} onOpenChange={(o) => { if (!o) onClose?.(); }}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md flex flex-col overflow-hidden">
         <DialogHeader>
           <DialogTitle>End sleep log</DialogTitle>
           <DialogDescription>
@@ -177,7 +176,10 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4">
+        {/* Scrollable body — the action buttons stay pinned below so
+            they're always reachable even on short screens / with the
+            keyboard open. */}
+        <div className="space-y-4 overflow-y-auto min-h-0 flex-1 pr-0.5">
           <label className="block">
             <span className="text-sm font-medium">Wake time</span>
             <Input
@@ -191,11 +193,34 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
             </p>
           </label>
 
+          {/* Quality as tappable 1–10 chips instead of a drag slider.
+              The Radix drag-slider is unreliable on touch inside a
+              modal — the horizontal drag gets swallowed as a scroll
+              gesture and the 6px track is hard to grab — which is why
+              "can't set the sleep quality" was reported. Chips are a
+              plain tap, so they always register. Tapping the current
+              value again clears it (back to unrated). */}
           <div>
-            <label className="text-sm font-medium block mb-2">Quality (1–10, optional)</label>
-            <div className="flex items-center gap-3">
-              <Slider min={0} max={10} step={1} value={[quality]} onValueChange={(v) => setQuality(v[0])} className="flex-1" />
-              <span className="text-sm font-semibold tabular-nums w-6 text-right">{quality || "–"}</span>
+            <label className="text-sm font-medium block mb-2">
+              Quality (optional){quality ? ` — ${quality}/10` : ""}
+            </label>
+            <div className="grid grid-cols-10 gap-1">
+              {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setQuality((q) => (q === n ? 0 : n))}
+                  aria-pressed={quality === n}
+                  aria-label={`Quality ${n} of 10`}
+                  className={`aspect-square rounded-md text-xs font-semibold border transition-colors ${
+                    quality >= n && quality > 0
+                      ? "bg-primary/20 border-primary/60 text-primary"
+                      : "bg-card border-border/60 text-muted-foreground hover:bg-muted/40"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
             </div>
           </div>
 
