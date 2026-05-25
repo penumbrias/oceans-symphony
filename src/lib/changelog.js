@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 25, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity Tracker: tapping an activity in the weekly grid now opens its info popover — on touch it often wouldn't appear before.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker: pinch-to-zoom on the weekly grid is more responsive.",
+      },
+      {
         type: "feature",
         text: "Daily Tasks: one \"Hide completed\" toggle drops finished tasks from the list; tap it again (\"Show completed\") to reveal them. It sticks across sessions.",
       },
