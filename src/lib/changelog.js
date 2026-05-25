@@ -23,6 +23,10 @@ export const CHANGELOG = [
         type: "fix",
         text: "Toggle switches no longer look oversized/broken when large touch targets are on.",
       },
+      {
+        type: "fix",
+        text: "Chat: the default \"general\" channel no longer duplicates itself. Opening Chat on a fresh load could spawn a new \"general\" before existing channels finished loading.",
+      },
     ],
   },
   {
