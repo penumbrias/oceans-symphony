@@ -50,19 +50,17 @@ export default function DailyTasks() {
   const [showReview, setShowReview] = useState(false);
 
   // Persistent "hide tasks once completed" preference (per device).
-  // When on, completed tasks drop out of the list so the user sees
-  // only what's left; a "Show completed" toggle reveals them again
-  // (e.g. to un-toggle one they finished by mistake).
+  // A single toggle: when on, completed tasks drop out of the list so
+  // the user sees only what's left; tapping it again ("Show N
+  // completed") reveals them so a mistaken completion can be undone.
   const HIDE_COMPLETED_KEY = "symphony_dailytasks_hide_completed_v1";
   const [hideCompleted, setHideCompleted] = useState(() => {
     try { return localStorage.getItem(HIDE_COMPLETED_KEY) === "1"; } catch { return false; }
   });
-  const [showHiddenCompleted, setShowHiddenCompleted] = useState(false);
   const toggleHideCompleted = () => {
     setHideCompleted((prev) => {
       const next = !prev;
       try { localStorage.setItem(HIDE_COMPLETED_KEY, next ? "1" : "0"); } catch {}
-      if (!next) setShowHiddenCompleted(false); // reset the reveal when turning the feature off
       return next;
     });
   };
@@ -829,8 +827,7 @@ export default function DailyTasks() {
                 ? isTaskCompleted(t, manualCompletedIds, autoTriggers)
                 : manualCompletedIds.has(t.id);
               const completedCount = activeTasks.filter(isDone).length;
-              const hiddenCount = hideCompleted && !showHiddenCompleted ? completedCount : 0;
-              const visibleTasks = (hideCompleted && !showHiddenCompleted)
+              const visibleTasks = hideCompleted
                 ? activeTasks.filter((t) => !isDone(t))
                 : activeTasks;
               return (
@@ -848,7 +845,7 @@ export default function DailyTasks() {
                         </span>
                       )}
                     </div>
-                    {activeTasks.length > 0 && (
+                    {activeTasks.length > 0 && completedCount > 0 && (
                       <button
                         type="button"
                         onClick={toggleHideCompleted}
@@ -859,26 +856,11 @@ export default function DailyTasks() {
                         }`}
                         aria-pressed={hideCompleted}
                       >
-                        {hideCompleted ? <EyeOff className="w-3 h-3" /> : <Eye className="w-3 h-3" />}
-                        Hide completed
+                        {hideCompleted ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                        {hideCompleted ? `Show ${completedCount} completed` : "Hide completed"}
                       </button>
                     )}
                   </div>
-
-                  {/* "Show completed" reveal — only when hiding is on and
-                      there's something hidden. Lets the user un-toggle a
-                      task they finished by mistake. */}
-                  {hideCompleted && completedCount > 0 && (
-                    <button
-                      type="button"
-                      onClick={() => setShowHiddenCompleted((v) => !v)}
-                      className="w-full text-xs text-muted-foreground hover:text-foreground border border-dashed border-border/60 rounded-lg py-1.5 transition-colors"
-                    >
-                      {showHiddenCompleted
-                        ? "Hide completed again"
-                        : `Show ${completedCount} completed`}
-                    </button>
-                  )}
 
                   {activeTasks.length === 0 ? (
                     <div className="text-center py-12 text-muted-foreground space-y-2">

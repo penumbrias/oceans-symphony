@@ -17,7 +17,11 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Daily Tasks: a \"Hide completed\" toggle that drops finished tasks from the list so you only see what's left. When it's on, a \"Show completed\" button reveals them again — handy if you toggled one off by mistake. The setting sticks across sessions.",
+        text: "Daily Tasks: one \"Hide completed\" toggle drops finished tasks from the list; tap it again (\"Show completed\") to reveal them. It sticks across sessions.",
+      },
+      {
+        type: "improve",
+        text: "Alter profile: the Alias field now notes that it's used as a shorthand for @ mentions and - signposts.",
       },
       {
         type: "improve",
