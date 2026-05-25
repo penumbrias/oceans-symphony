@@ -19,6 +19,10 @@ export const CHANGELOG = [
         type: "feature",
         text: "Daily Tasks: a \"Hide completed\" toggle that drops finished tasks from the list so you only see what's left. When it's on, a \"Show completed\" button reveals them again — handy if you toggled one off by mistake. The setting sticks across sessions.",
       },
+      {
+        type: "improve",
+        text: "Activity Tracker: switching the grid interval (1h / 30m / 15m) now keeps the hour lines in the same place — the row height scales so an hour always occupies the same space. Hour lines are solid and bold, 30-minute lines lighter, and 15-minute lines a light dashed line.",
+      },
     ],
   },
   {
