@@ -183,6 +183,12 @@ export default function ActivityWeeklyGrid({
   // this gesture feel sluggish vs. the timeline's snappy one.
   const pinchStartRef = useRef(null);
   const pinchActiveRef = useRef(false);
+  // Coalesce pinch row-height updates to one per animation frame.
+  // Touch sampling on high-refresh screens fires far faster than the
+  // display refresh; without this, every sample triggered a full grid
+  // re-render and the gesture lagged badly ("super slow to render").
+  const pinchRafRef = useRef(null);
+  const pinchPendingRef = useRef(null);
   const gridRef = useRef(null);
   const rowHRef = useRef(rowH);
   useEffect(() => { rowHRef.current = rowH; }, [rowH]);
@@ -238,15 +244,26 @@ export default function ActivityWeeklyGrid({
         pinchActiveRef.current = true;
       }
     };
+    const commitPinch = () => {
+      pinchRafRef.current = null;
+      if (pinchPendingRef.current != null) {
+        setRowH(pinchPendingRef.current);
+        pinchPendingRef.current = null;
+      }
+    };
     const onTouchMove = (e) => {
       if (e.touches.length === 2 && pinchStartRef.current) {
         const [a, b] = e.touches;
         const dist = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
         const ratio = dist / pinchStartRef.current.dist;
         const next = Math.round(Math.max(6, Math.min(80, pinchStartRef.current.startRowH * ratio)));
-        // Skip the setState when the rounded value hasn't changed —
-        // avoids ~120 no-op re-renders per second of pinching.
-        if (next !== rowHRef.current) setRowH(next);
+        // Stash the target and let one rAF commit it — multiple touch
+        // samples within a frame collapse into a single re-render. Skip
+        // when the rounded value hasn't changed.
+        if (next !== rowHRef.current && next !== pinchPendingRef.current) {
+          pinchPendingRef.current = next;
+          if (pinchRafRef.current == null) pinchRafRef.current = requestAnimationFrame(commitPinch);
+        }
         e.preventDefault();
       }
     };
@@ -254,6 +271,10 @@ export default function ActivityWeeklyGrid({
       if (e.touches.length < 2) {
         pinchStartRef.current = null;
         pinchActiveRef.current = false;
+        // Flush the last pending value so the final size sticks even if
+        // the gesture ended between frames.
+        if (pinchRafRef.current != null) { cancelAnimationFrame(pinchRafRef.current); pinchRafRef.current = null; }
+        if (pinchPendingRef.current != null) { setRowH(pinchPendingRef.current); pinchPendingRef.current = null; }
       }
     };
     el.addEventListener("touchstart", onTouchStart, { passive: true });
@@ -265,6 +286,7 @@ export default function ActivityWeeklyGrid({
       el.removeEventListener("touchmove", onTouchMove);
       el.removeEventListener("touchend", onTouchEnd);
       el.removeEventListener("touchcancel", onTouchEnd);
+      if (pinchRafRef.current != null) { cancelAnimationFrame(pinchRafRef.current); pinchRafRef.current = null; }
     };
   }, []);
 
@@ -390,7 +412,7 @@ export default function ActivityWeeklyGrid({
 
   const slotKey = (date, hour, minute) => `${format(date, "yyyy-MM-dd")}-${hour}-${minute}`;
 
-  const handleCellTap = useCallback((date, hour, minute) => {
+  const handleCellTap = useCallback((date, hour, minute, e) => {
     const key = slotKey(date, hour, minute);
     const now = Date.now();
     const { timed, logged } = getActivitiesForSlot(date, hour, minute);
@@ -448,10 +470,26 @@ if (isSameCell) {
 }
   }
 }
-    // Single-tap on a cell with activities does nothing — users
-    // double-tap a cell to open the details sheet (expand-in-place was
-    // removed because long notes pushed the rest of the day off-screen).
-  }, [addMode, pendingStart, getActivitiesForSlot, onTimeRangeSelect, onActivityClick, onToggleAddMode]);
+    if (addMode) return;
+    // Single-tap on a cell that has anything to show (activities,
+    // emotions, or fronting alters) pins the translucent info popover
+    // at the tap point. Tapping a row inside it opens details; tapping
+    // the same cell again, or the backdrop, dismisses it. Empty cells
+    // do nothing on single tap. (On touch there's no hover, so this tap
+    // is the only way to reach the popover.)
+    const alterIds = getAlterIdsForSlot(date, hour, minute);
+    const emotions = getEmotionsForSlot(date, hour, minute);
+    if (allActs.length === 0 && alterIds.length === 0 && emotions.length === 0) return;
+    const px = e?.clientX, py = e?.clientY;
+    const position = (px != null && py != null)
+      ? { x: Math.min(px + 10, window.innerWidth - 300), y: Math.min(py + 10, window.innerHeight - 200) }
+      : { x: 16, y: 140 };
+    setHoveredCell(prev =>
+      prev && prev.key === key && prev.pinned
+        ? null
+        : { key, date, hour, minute, position, pinned: true }
+    );
+  }, [addMode, pendingStart, getActivitiesForSlot, getAlterIdsForSlot, getEmotionsForSlot, onTimeRangeSelect, onActivityClick, onToggleAddMode]);
 
   const handleToggleAddMode = () => { setPendingStart(null); onToggleAddMode?.(); };
   const handleSetWeekStart = (val) => { setWeekStartsOn(val); onWeekStartChange?.(val); };
@@ -466,26 +504,27 @@ if (isSameCell) {
   const handleCellMouseEnter = useCallback((e, date, hour, minute) => {
     const key = slotKey(date, hour, minute);
     const pos = clampTooltipPos(e.clientX, e.clientY);
-    setHoveredCell({ key, date, hour, minute, position: pos });
+    // Hover-shown popovers are transient (pinned:false) — they clear on
+    // mouse-leave. A tap-pinned popover (pinned:true) is left alone so a
+    // stray hover doesn't replace what the user explicitly opened.
+    setHoveredCell(prev => (prev && prev.pinned) ? prev : { key, date, hour, minute, position: pos, pinned: false });
   }, [clampTooltipPos]);
 
   const handleCellMouseLeave = useCallback(() => {
-    setHoveredCell(null);
+    setHoveredCell(prev => (prev && prev.pinned) ? prev : null);
   }, []);
 
+  // On touch we only record the start position (for long-press slop
+  // detection). The info popover is opened by the trailing tap via
+  // handleCellTap — not a hold-timer, which used to collide with the
+  // 500 ms long-press and was cleared the instant the finger lifted.
   const handleCellTouchStart = useCallback((e, date, hour, minute) => {
     const touch = e.touches[0];
-    const key = slotKey(date, hour, minute);
-    const pos = clampTooltipPos(touch.clientX, touch.clientY);
     touchStartPosRef.current = { x: touch.clientX, y: touch.clientY };
-    tooltipTimerRef.current = setTimeout(() => {
-      setHoveredCell({ key, date, hour, minute, position: pos });
-    }, 500);
-  }, [clampTooltipPos]);
+  }, []);
 
   const handleCellTouchEnd = useCallback(() => {
     if (tooltipTimerRef.current) { clearTimeout(tooltipTimerRef.current); tooltipTimerRef.current = null; }
-    setHoveredCell(null);
     touchStartPosRef.current = null;
   }, []);
 
@@ -785,7 +824,7 @@ if (isSameCell) {
 
       {/* Floating tooltip */}
       {hoveredCell && (() => {
-        const { date, hour, minute, position } = hoveredCell;
+        const { date, hour, minute, position, pinned } = hoveredCell;
         const { timed, logged } = getActivitiesForSlot(date, hour, minute);
         const allLogged = logged;
         const allActs = [...timed, ...allLogged];
@@ -799,6 +838,12 @@ if (isSameCell) {
         const timeRange = `${formatSlotLabel(hour, minute, timeFmt)} – ${formatSlotLabel(slotEnd.getHours(), slotEnd.getMinutes(), timeFmt)}`;
 
         return (
+          <>
+            {/* Tap-pinned popover gets a full-screen catcher so a tap
+                anywhere outside dismisses it (touch has no mouse-leave). */}
+            {pinned && (
+              <div className="fixed inset-0 z-40" onClick={() => setHoveredCell(null)} />
+            )}
           <div
             className="fixed z-50 w-max max-w-[280px]"
             style={{ left: position.x, top: position.y }}
@@ -870,6 +915,7 @@ if (isSameCell) {
               )}
             </div>
           </div>
+          </>
         );
       })()}
 
@@ -1136,14 +1182,18 @@ if (isSameCell) {
                   const showLabel = timed.some(a => isFirstSlotForActivity(a, date, hour, minute));
 
                   return (
-                    <button
+                    // Not a <button>: cells contain nested chip buttons,
+                    // and a button-inside-button is invalid HTML that makes
+                    // taps on the inner chips fire unreliably (the reported
+                    // "popup doesn't appear"). A div with onClick taps fine.
+                    <div
                       key={key}
-                      onClick={() => {
+                      onClick={(e) => {
                         if (longPressFiredRef.current) {
                           longPressFiredRef.current = false;
                           return;
                         }
-                        handleCellTap(date, hour, minute);
+                        handleCellTap(date, hour, minute, e);
                       }}
                       onMouseEnter={(e) => handleCellMouseEnter(e, date, hour, minute)}
                       onMouseLeave={handleCellMouseLeave}
@@ -1349,7 +1399,7 @@ if (isSameCell) {
                                         <button
                                           type="button"
                                           key={pill.id}
-                                          onClick={(e) => { e.stopPropagation(); setDetailsActivity(pill); }}
+                                          onClick={(e) => { e.stopPropagation(); handleCellTap(date, hour, minute, e); }}
                                           onPointerDown={(e) => e.stopPropagation()}
                                           onTouchStart={(e) => e.stopPropagation()}
                                           className="rounded-full flex items-center justify-center flex-shrink-0 text-white font-bold overflow-hidden relative cursor-pointer hover:brightness-110 active:scale-95 transition-all"
@@ -1390,7 +1440,7 @@ if (isSameCell) {
                                   <button
                                     type="button"
                                     key={pill.id}
-                                    onClick={(e) => { e.stopPropagation(); setDetailsActivity(pill); }}
+                                    onClick={(e) => { e.stopPropagation(); handleCellTap(date, hour, minute, e); }}
                                     onPointerDown={(e) => e.stopPropagation()}
                                     onTouchStart={(e) => e.stopPropagation()}
                                     className="rounded-full flex items-center gap-0.5 px-1 text-white font-medium flex-shrink-0 overflow-hidden w-full relative cursor-pointer hover:brightness-110 active:scale-[0.98] transition-all text-left"
@@ -1443,7 +1493,7 @@ if (isSameCell) {
                           <Plus className="w-3 h-3 opacity-0 group-hover:opacity-60 transition-opacity m-auto text-primary" />
                         )}
                       </div>
-                    </button>
+                    </div>
                   );
                 })}
               </div>
