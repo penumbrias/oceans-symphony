@@ -743,6 +743,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname" />
         </div>
       </div>
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-2">
+        Alias is used as a shorthand for @ mentions and - signposts.
+      </p>
 
       {/* Pronouns + Role + Color row */}
       <div className="grid grid-cols-3 gap-3">
