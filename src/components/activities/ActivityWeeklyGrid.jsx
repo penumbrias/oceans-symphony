@@ -297,6 +297,35 @@ export default function ActivityWeeklyGrid({
     return s;
   }, [gridInterval]);
 
+  // Changing the interval scales the row height inversely so the
+  // ONE-HOUR demarcations keep their pixel position. Going 1h → 30m
+  // doubles the rows-per-hour, so each row halves; 30m → 15m halves
+  // again; 15m → 1h quadruples. Clamped to the slider's [6,80] range
+  // (exact hour alignment can drift slightly at the clamp edges,
+  // which is fine).
+  const changeInterval = useCallback((newIv) => {
+    setRowH((prev) => {
+      const scaled = Math.round(prev * (newIv / gridInterval));
+      return Math.max(6, Math.min(80, scaled));
+    });
+    setGridInterval(newIv);
+  }, [gridInterval]);
+
+  // The horizontal line at the BOTTOM of a slot row sits at the slot's
+  // end time. Style it by what kind of boundary that is: a full hour
+  // (solid, full opacity), a half hour (solid, 50%), or a quarter
+  // (dashed, 50%). At the 1h interval every line is an hour line.
+  // Returned as an inline `borderBottom` so ONLY the bottom edge is
+  // affected — the vertical day-separator (border-r) stays solid and
+  // at its own opacity. Matches the Tailwind border colour
+  // (var(--color-muted)).
+  const slotBottomBorderStyle = useCallback((minute) => {
+    const endMin = (minute + gridInterval) % 60;
+    if (endMin === 0) return { borderBottom: "1px solid var(--color-muted)" };
+    if (endMin === 30) return { borderBottom: "1px solid color-mix(in srgb, var(--color-muted) 50%, transparent)" };
+    return { borderBottom: "1px dashed color-mix(in srgb, var(--color-muted) 50%, transparent)" };
+  }, [gridInterval]);
+
   // Quick plans live in the day-header band so they don't paint on top
   // of activities in the time grid. The band is tall enough to fit the
   // most-loaded day in the visible week (capped). Recomputed on every
@@ -697,7 +726,7 @@ if (isSameCell) {
             <div className="flex items-center gap-2">
               <span className="text-muted-foreground font-medium whitespace-nowrap">Interval</span>
               {[15, 30, 60].map(iv => (
-                <button key={iv} onClick={() => setGridInterval(iv)}
+                <button key={iv} onClick={() => changeInterval(iv)}
                   className={`px-2 py-0.5 rounded font-medium transition-colors ${
                     gridInterval === iv ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-accent"
                   }`}>
@@ -865,8 +894,8 @@ if (isSameCell) {
             return (
               <div
                 key={`${hour}-${minute}`}
-                className="px-1.5 text-right border-b border-border/40 flex items-center justify-end flex-shrink-0 whitespace-nowrap"
-                style={{ height: rowH, minHeight: rowH, color: "hsl(var(--muted-foreground))" }}
+                className="px-1.5 text-right flex items-center justify-end flex-shrink-0 whitespace-nowrap"
+                style={{ height: rowH, minHeight: rowH, color: "hsl(var(--muted-foreground))", ...slotBottomBorderStyle(minute) }}
               >
                 {minute === 0 ? (
                   <span className="font-semibold" style={{ fontSize: Math.max(8, Math.min(10, rowH * 0.7)) }}>
@@ -1137,12 +1166,20 @@ if (isSameCell) {
                       data-cell-key={key}
                       ref={(el) => { if (el) registerCellInfo(key, { date, hour, minute }); }}
                         className={`border-r border-border/40 relative flex flex-col items-start justify-start overflow-visible cursor-pointer transition-colors group
-                        ${timedContinues ? "" : "border-b border-border/40"}
                         ${!hasContent && addMode ? "hover:bg-primary/10" : ""}
                         ${!hasContent && !addMode ? "hover:bg-muted/20" : ""}
                         ${isExpanded ? "z-10" : ""}
                       `}
-                      style={{ minHeight: rowH, height: isExpanded ? "auto" : rowH, userSelect: "none" }}
+                      style={{
+                        minHeight: rowH,
+                        height: isExpanded ? "auto" : rowH,
+                        userSelect: "none",
+                        // Bottom gridline — skipped while a timed activity
+                        // block continues into the next slot (so the block
+                        // doesn't get sliced by a divider). Hour / half /
+                        // quarter lines get distinct weight + dash.
+                        ...(timedContinues ? {} : slotBottomBorderStyle(minute)),
+                      }}
                     >
                       {/* Past-time tint — sits behind activity blocks
                           so logged/scheduled colours stay on top, but
