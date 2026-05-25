@@ -26,6 +26,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "End sleep log: sleep quality is now set with tappable 1–10 buttons instead of a drag slider that wouldn't respond to touch, and the modal scrolls so Save stays reachable.",
+      },
+      {
+        type: "fix",
         text: "Set Fronters: the Save button is no longer pushed off-screen when you expand the triggered-switch options — the toggles now scroll and the buttons stay pinned.",
       },
       {
