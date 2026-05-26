@@ -40,6 +40,10 @@ const SystemMap = ({ relationships = [] }) => {
   const [selectedAlter, setSelectedAlter] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
   const [cofronterCount, setCofronterCount] = useState(10);
+  // Local text mirror so the field can be cleared / mid-typed; the real
+  // count is clamped on blur, not on every keystroke (which snapped it
+  // back to 10 and made it impossible to type a new value).
+  const [cofronterCountText, setCofronterCountText] = useState("10");
   const [cofronters, setCofronters] = useState([]);
   const [panelOpen, setPanelOpen] = useState(false);
   const [legendOpen, setLegendOpen] = useState(false);
@@ -901,8 +905,15 @@ const SystemMap = ({ relationships = [] }) => {
                 </div>
                 <div className="flex items-center gap-2 mb-2">
                   <label className="text-xs text-muted-foreground">Show top</label>
-                  <input type="number" min="1" max="30" value={cofronterCount}
-                    onChange={(e) => setCofronterCount(Math.max(1, parseInt(e.target.value) || 10))}
+                  <input type="number" inputMode="numeric" min="1" max="30" value={cofronterCountText}
+                    onChange={(e) => setCofronterCountText(e.target.value)}
+                    onBlur={() => {
+                      const parsed = parseInt(cofronterCountText, 10);
+                      const n = Number.isFinite(parsed) ? Math.max(1, Math.min(30, parsed)) : 10;
+                      setCofronterCount(n);
+                      setCofronterCountText(String(n));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
                     className="w-14 h-7 px-2 border border-border rounded text-xs bg-background" />
                 </div>
                 {cofronters.length > 0 && (
