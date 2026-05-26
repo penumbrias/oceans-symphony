@@ -234,6 +234,17 @@ const SystemMap = ({ relationships = [] }) => {
       const n = items.length;
       if (n === 0) return;
 
+      // Bound the O(n²) collision solver so very large systems (e.g.
+      // polyfragmented, hundreds of alters) don't lock the main thread
+      // when the map opens — the page used to freeze hard on open for
+      // big systems and had to be force-restarted. We keep a fixed total
+      // pairwise-work budget: systems up to ~80 alters still get the full
+      // 300 passes, larger ones scale the pass count down instead of
+      // hanging. The shrink loop below is already bounded (~22 steps), so
+      // capping passes bounds the whole layout.
+      const pairCount = Math.max(1, (n * (n - 1)) / 2);
+      const maxBumperIters = Math.max(1, Math.min(300, Math.floor((300 * 3160) / pairCount)));
+
       // Order angularly by co-fronting similarity
       const ordered = getCoTime ? orderByCoFrontSimilarity(items, getCoTime) : items;
 
@@ -248,7 +259,7 @@ const SystemMap = ({ relationships = [] }) => {
       // Runs many iterations until fully settled or no more progress.
       const runBumper = (nr) => {
         const a = [...angles];
-        for (let iter = 0; iter < 300; iter++) {
+        for (let iter = 0; iter < maxBumperIters; iter++) {
           let moved = false;
           for (let i = 0; i < n; i++) {
             for (let j = i + 1; j < n; j++) {
