@@ -7,7 +7,7 @@ import { HardDrive, Lock, Loader2, ShieldCheck, Eye, Trash2 } from "lucide-react
 import {
   isEncryptionEnabled, setEncryptionEnabled,
 } from "@/lib/storageMode";
-import { enableEncryption, disableEncryption, loadDbDump } from "@/lib/localDb";
+import { enableEncryption, disableEncryption, clearStoredData } from "@/lib/localDb";
 
 export default function StorageModeSettings() {
   const encEnabled = isEncryptionEnabled();
@@ -36,7 +36,10 @@ export default function StorageModeSettings() {
         const { deleteIdentity } = await import("@/lib/friendsApi");
         await deleteIdentity();
       } catch {}
-      await loadDbDump({});
+      // Fully remove the stored DB (not loadDbDump({}), which leaves an
+      // empty record the boot path treats as a returning user) so the
+      // reload below lands on the first-run onboarding screen.
+      await clearStoredData();
       // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
       Object.keys(localStorage).forEach(key => {
         if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen") {

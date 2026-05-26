@@ -494,6 +494,21 @@ export async function loadDbDump(dump) {
   await saveDb();
 }
 
+// Permanently remove the stored DB blob from BOTH IndexedDB and
+// localStorage so the next boot's peekStoredData() reports
+// { exists: false } and the app routes to first-run onboarding.
+// `loadDbDump({})` is not enough on its own — it persists an empty
+// "{}" record, which the boot path reads as a returning (empty) user
+// and skips onboarding. Used by the "Delete all local data" action.
+export async function clearStoredData() {
+  _db = {};
+  try {
+    const idb = await getIdb();
+    await idb.delete(IDB_STORE, STORAGE_KEY);
+  } catch { /* fall through to localStorage cleanup */ }
+  try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+}
+
 // Add-only merge: only inserts records whose IDs don't already exist locally.
 // Existing records are never overwritten.
 //
