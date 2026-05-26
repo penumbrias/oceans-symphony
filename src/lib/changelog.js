@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Cleaned up the dashboard and settings — removed the older-version data-migration banners and the first-launch migration prompt.",
+      },
+      {
         type: "fix",
         text: "Notification position now works — in-app banners appear in the corner you pick under Notifications → Where they appear, instead of always at the top.",
       },

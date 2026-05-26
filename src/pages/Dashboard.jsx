@@ -20,7 +20,6 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
-import BetaTesterBanner from "@/components/dashboard/BetaTesterBanner";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -573,7 +572,6 @@ export default function Dashboard() {
         </div>
       </div>
 
-      <BetaTesterBanner />
       <CriticalPinnedPlans />
       <UnresolvedPlansCard />
       <NotificationHistoryModal

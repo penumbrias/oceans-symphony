@@ -38,7 +38,6 @@ import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
-import MigrationBanner from "@/components/shared/MigrationBanner";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
@@ -306,9 +305,6 @@ export default function Settings() {
           </p>
         </div>
       </details>
-
-      {/* Migration banner */}
-      <div className="mb-4"><MigrationBanner /></div>
 
       {/* Quick Nav */}
       <div data-tour="settings-quick-nav" className="flex flex-wrap gap-2 mb-6 p-3 bg-muted/20 border border-border/40 rounded-xl">
