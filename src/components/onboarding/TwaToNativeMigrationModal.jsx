@@ -22,6 +22,11 @@ import { isNative } from "@/lib/platform";
 const FLAG_KEY = "symphony_twa_to_native_seen_v1";
 
 export function shouldShowTwaToNativeMigration() {
+  // Hidden for the closed-testing rollout — fresh testers have no TWA
+  // data to migrate, so the prompt is just noise. Flip this back to the
+  // real check when re-enabling the TWA→native migration notice.
+  return false;
+  // eslint-disable-next-line no-unreachable
   if (!isNative()) return false;
   try { return !localStorage.getItem(FLAG_KEY); }
   catch { return false; }

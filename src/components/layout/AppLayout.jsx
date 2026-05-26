@@ -1,6 +1,5 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import Base44MigrationBanner from "@/components/shared/MigrationBanner";
 import { Settings, ChevronLeft, Wifi, Menu, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
@@ -579,9 +578,6 @@ const handleNotifClick = (mentionLog) => {
 
         {/* Main content */}
         <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
-          <div className="pt-3 lg:pt-0 pb-2 lg:pb-4">
-            <Base44MigrationBanner />
-          </div>
           <Outlet context={{ setShowFeatureTour }} />
         </main>
 
