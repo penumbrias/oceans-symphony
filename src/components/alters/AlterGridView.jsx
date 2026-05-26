@@ -4,11 +4,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 
-function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, anonymize = "off" }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off" }) {
   const formatAlter = useAlterLabel();
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
@@ -17,7 +17,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
-  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft });
+  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp });
 
   const boxShadow = fronting
     ? isPrimary
@@ -63,8 +63,8 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
         )}
       </div>
       {swipeHint && (
-        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-          {swipeHint === "front" ? (fronting ? "Remove" : "Add") : (isPrimary ? "Demote" : "Promote")}
+        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Promote")}
         </span>
       )}
       {!swipeHint && (
@@ -86,6 +86,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
   const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
+  const replaceFront = (alter) => replaceFrontWith(alter, base44, queryClient, toast);
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
 
@@ -111,6 +112,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           onTap={() => navigate(`/alter/${alter.id}`)}
           onSwipeRight={() => toggleFront(alter)}
           onSwipeLeft={() => togglePrimary(alter)}
+          onSwipeLeftUp={() => replaceFront(alter)}
           anonymize={anonymize}
         />
       ))}
