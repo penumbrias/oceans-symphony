@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useSyncExternalStore } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -221,12 +221,21 @@ export default function PinnedDailyTasksWidget() {
 }
 
 function TaskRow({ template, done, terms, onToggle }) {
+  const navigate = useNavigate();
   const f = template.frequency || "daily";
   const isAuto = template.mode === "AUTO";
   const Icon = done ? CheckCircle2 : Circle;
+  // Tapping a row jumps to the task's associated page — same as
+  // clicking it on the Daily Tasks page (TaskCard navigates to
+  // task.nav_path). AUTO tasks without an explicit nav_path fall back
+  // to the Daily Tasks page so the auto state can be refreshed there.
+  const navPath = template.nav_path || (isAuto ? "/tasks" : null);
+  const goToPage = () => { if (navPath) navigate(navPath); };
   return (
     <div
-      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors ${
+      onClick={navPath ? goToPage : undefined}
+      role={navPath ? "link" : undefined}
+      className={`flex items-center gap-2 px-2.5 py-2 rounded-lg border transition-colors ${navPath ? "cursor-pointer" : ""} ${
         done
           ? "border-border/30 bg-muted/20 opacity-60"
           : "border-border/50 bg-card hover:bg-muted/20"
@@ -234,13 +243,13 @@ function TaskRow({ template, done, terms, onToggle }) {
     >
       <button
         type="button"
-        onClick={onToggle}
+        onClick={(e) => { e.stopPropagation(); onToggle(); }}
         disabled={isAuto}
         aria-label={done ? "Mark not done" : "Mark done"}
         className={`flex-shrink-0 ${isAuto ? "cursor-default" : "cursor-pointer text-muted-foreground hover:text-primary"} ${
           done ? "text-green-500" : ""
         }`}
-        title={isAuto ? "This task is auto-completed — open Daily Tasks to refresh" : undefined}
+        title={isAuto ? "This task is auto-completed — open its page to do it" : undefined}
       >
         <Icon className="w-5 h-5" />
       </button>
@@ -257,14 +266,10 @@ function TaskRow({ template, done, terms, onToggle }) {
           {template.points} XP
         </span>
       ) : null}
-      {isAuto && (
-        <Link
-          to="/tasks"
-          aria-label="Open Daily Tasks to refresh auto state"
-          className="flex-shrink-0 text-muted-foreground hover:text-foreground"
-        >
+      {navPath && (
+        <span className="flex-shrink-0 text-muted-foreground" aria-hidden="true">
           <ExternalLink className="w-3.5 h-3.5" />
-        </Link>
+        </span>
       )}
     </div>
   );

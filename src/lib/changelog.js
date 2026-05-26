@@ -13,6 +13,19 @@
 
 export const CHANGELOG = [
   {
+    date: "May 26, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Daily Tasks: the done/undone toggles no longer look oversized when large touch targets are turned on.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard: tapping a pinned daily task now jumps to its page (Journal, Check-in, etc.), like it does on the Daily Tasks page.",
+      },
+    ],
+  },
+  {
     date: "May 25, 2026",
     changes: [
       {

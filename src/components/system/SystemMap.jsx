@@ -853,7 +853,7 @@ const SystemMap = ({ relationships = [] }) => {
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Archived</label>
-              <button onClick={() => setShowArchived(v => !v)}
+              <button type="button" role="switch" aria-checked={showArchived} aria-label="Show archived alters" onClick={() => setShowArchived(v => !v)}
                 className={`w-10 h-5 rounded-full transition-colors ${showArchived ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showArchived ? "left-5" : "left-0.5"}`} />
               </button>
@@ -861,7 +861,7 @@ const SystemMap = ({ relationships = [] }) => {
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Groups</label>
-              <button onClick={() => setShowGroups(v => !v)}
+              <button type="button" role="switch" aria-checked={showGroups} aria-label="Show groups" onClick={() => setShowGroups(v => !v)}
                 className={`w-10 h-5 rounded-full transition-colors ${showGroups ? "bg-primary" : "bg-muted"} relative flex-shrink-0`}>
                 <div className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${showGroups ? "left-5" : "left-0.5"}`} />
               </button>
