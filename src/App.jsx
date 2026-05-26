@@ -369,7 +369,7 @@ function App() {
             <AuthenticatedApp />
           </Router>
           <Toaster />
-          <SonnerToaster richColors closeButton position="top-center" />
+          <SonnerToaster richColors closeButton />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>
