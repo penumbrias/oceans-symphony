@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Notification position now works — in-app banners appear in the corner you pick under Notifications → Where they appear, instead of always at the top.",
+      },
+      {
+        type: "fix",
         text: "Number fields (like the dashboard's \"show N bulletins\" and the System Map co-fronter count) can now be cleared and typed into — they no longer snap back to the old value.",
       },
       {

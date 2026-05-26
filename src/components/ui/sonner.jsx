@@ -47,10 +47,16 @@ const Toaster = ({
     // prop is documented as reactive but in v2.0.1 the rendered
     // portal sticks to the position it had at first mount. Keying
     // on position guarantees a fresh container at the new corner.
+    // `{...props}` is spread FIRST so the prefs-driven position / duration
+    // / offset below always win. A stray `position="top-center"` passed by
+    // the App.jsx mount used to land after these and silently override the
+    // user's chosen corner — which is why the "where they appear" setting
+    // appeared to do nothing.
     (<Sonner
       key={prefs.position}
       theme={theme}
       className="toaster group"
+      {...props}
       position={prefs.position}
       duration={prefs.durationMs}
       offset={offset}
@@ -65,8 +71,7 @@ const Toaster = ({
           cancelButton:
             "group-[.toast]:bg-muted group-[.toast]:text-muted-foreground",
         },
-      }}
-      {...props} />)
+      }} />)
   );
 }
 
