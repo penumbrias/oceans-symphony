@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "System Map no longer freezes the app when opened by systems with a large number of alters.",
+      },
+      {
+        type: "fix",
         text: "Activity Tracker: tapping an activity in the weekly grid now opens its info popover — on touch it often wouldn't appear before.",
       },
       {
