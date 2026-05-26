@@ -41,6 +41,10 @@ export default function TaskCard({ task, completed, onToggle }) {
 
         {task.mode === "MANUAL" ? (
           <button
+            type="button"
+            role="switch"
+            aria-checked={completed}
+            aria-label={completed ? "Mark task not done" : "Mark task done"}
             onClick={(e) => { e.stopPropagation(); onToggle(task.id); }}
             className={`flex-shrink-0 w-12 h-6 rounded-full transition-all duration-300 relative ${
               completed ? "bg-primary" : "bg-muted"
