@@ -6,7 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -174,6 +174,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
     onTap: () => navigate(`/alter/${alter.id}`),
     onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
+    onSwipeLeftUp: () => replaceFrontWith(alter, base44, queryClient, toast),
   });
 
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
@@ -193,8 +194,8 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
           touchAction: "pan-y",
         }}>
         {swipeHint && (
-          <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : (isPrimary ? "Demote" : "Promote")}
+          <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Promote")}
           </span>
         )}
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"

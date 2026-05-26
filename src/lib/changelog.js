@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Settings → Tracking setup: choose what tapping an alter does — add them as a co-fronter (default) or replace the front entirely. Handy if your system doesn't co-front.",
+        text: "Set front: swipe an alter left then up to clear the current front and make them the sole fronter — handy if your system doesn't co-front. Works on the alters list, dashboard, and Set Fronters screen.",
       },
       {
         type: "fix",

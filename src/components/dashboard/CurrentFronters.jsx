@@ -20,7 +20,7 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 
@@ -52,7 +52,7 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft, isExpanded, onToggleExpand }) {
+function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft, onSwipeLeftUp, isExpanded, onToggleExpand }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
@@ -90,6 +90,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     },
     onSwipeRight: () => onSwipeRight?.(alter),
     onSwipeLeft: () => onSwipeLeft?.(alter),
+    onSwipeLeftUp: () => onSwipeLeftUp?.(alter),
     onLongPress: () => onHold(alter),
   });
 
@@ -113,8 +114,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20 relative"
     >
       {swipeHint && (
-        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-          {swipeHint === "front" ? "Remove" : isPrimary ? "Demote" : "Promote"}
+        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? "Remove" : swipeHint === "solo" ? "Solo" : isPrimary ? "Demote" : "Promote"}
         </span>
       )}
       {/* Avatar with badges */}
@@ -716,6 +717,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                 coFronterLabel={`Co-${terms.fronting}`}
                 onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast)}
                 onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast)}
+                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast)}
                 isExpanded={expandedAlterId === alter.id}
                 onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
               />

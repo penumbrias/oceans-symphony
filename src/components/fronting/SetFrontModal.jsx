@@ -46,7 +46,7 @@ function getContrastColor(hex) {
 // (AlterGridView): tap = toggle selection, swipe right = toggle selection,
 // swipe left = toggle primary. The visual is also avatar-centric so the
 // modal's grid feels identical to the rest of the app.
-function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
+function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -55,6 +55,7 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
     onTap: () => onToggle(),
     onSwipeRight: () => onToggle(),
     onSwipeLeft: () => onSetPrimary(),
+    onSwipeLeftUp: () => onSolePrimary(),
     onLongPress: () => onSetPrimary(),
   });
 
@@ -94,8 +95,8 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
         )}
       </div>
       {swipeHint ? (
-        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
+        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Primary")}
         </span>
       ) : (
         <span
@@ -109,7 +110,7 @@ function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary }
   );
 }
 
-function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
+function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
@@ -125,6 +126,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
     onTap: () => onToggle(),
     onSwipeRight: () => onToggle(),
     onSwipeLeft: () => onSetPrimary(),
+    onSwipeLeftUp: () => onSolePrimary(),
     onLongPress: () => onSetPrimary(),
   });
 
@@ -132,7 +134,7 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}. Swipe left or long-press to toggle primary.`}
+      aria-label={`${selected ? "Deselect" : "Select"} ${alter.name}. Swipe left or long-press to toggle primary. Swipe left then up to make them the sole front.`}
       aria-pressed={selected}
       {...bind}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggle() : undefined}
@@ -147,8 +149,8 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
       "border-border/50 bg-card hover:bg-muted/30"}`
       }>
       {swipeHint && (
-        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : (isPrimary ? "Demote" : "Primary")}
+        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (selected ? "Deselect" : "Select") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Primary")}
         </span>
       )}
 
@@ -184,12 +186,13 @@ function AlterPill({ alter, selected, isPrimary, onToggle, onSetPrimary }) {
 //   swipe right  → deselect / remove from the chip row
 //   swipe left   → toggle primary
 //   long-press   → toggle primary
-function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
+function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove, onSolePrimary }) {
   const formatAlter = useAlterLabel();
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => onSetPrimary(),
     onSwipeRight: () => onRemove(),
     onSwipeLeft: () => onSetPrimary(),
+    onSwipeLeftUp: () => onSolePrimary(),
     onLongPress: () => onSetPrimary(),
   });
   return (
@@ -209,8 +212,8 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove }) {
       className="relative px-3 py-1 text-xs font-medium rounded-full inline-flex items-center gap-1 border select-none cursor-pointer"
     >
       {swipeHint && (
-        <span className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none whitespace-nowrap ${swipeHint === "front" ? "text-emerald-500" : "text-amber-500"}`}>
-          {swipeHint === "front" ? "Remove" : (isPrimary ? "Demote" : "Primary")}
+        <span className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none whitespace-nowrap ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? "Remove" : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Primary")}
         </span>
       )}
       {isPrimary && <Star className="w-3 h-3 text-amber-500 fill-amber-500" />}
@@ -465,6 +468,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     setPrimaryId(id);
   };
 
+  // "Swipe left then up" — clear the whole current selection and make
+  // this alter the sole primary. Mirrors replaceFrontWith on the live
+  // surfaces, but here it only rewrites the modal's pending selection
+  // (it's applied when the user hits Save).
+  const setSolePrimary = (id) => {
+    setIsUnsure(false);
+    setCoFronterIds([]);
+    setPrimaryId(id);
+  };
+
   const handleSave = async () => {
     if (!isUnsure && !primaryId && coFronterIds.length === 0) {
       toast.error(`Select at least one ${terms.fronter} or mark as unsure`);
@@ -669,6 +682,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                     alter={a}
                     isPrimary={id === primaryId}
                     onSetPrimary={() => setPrimary(id)}
+                    onSolePrimary={() => setSolePrimary(id)}
                     onRemove={() => toggleAlter(id)}
                   />
                 );
@@ -680,7 +694,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
 
           <div className="text-xs text-muted-foreground space-y-1">
             <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
-            <p>💡 On mobile: swipe right to toggle, swipe left to set primary</p>
+            <p>💡 On mobile: swipe right to toggle, swipe left to set primary, swipe left then up to make them the sole {terms.front}</p>
             {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
           </div>
 
@@ -740,7 +754,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 selected={selectedIds.has(a.id)}
                 isPrimary={primaryId === a.id}
                 onToggle={() => toggleAlter(a.id)}
-                onSetPrimary={() => setPrimary(a.id)} />
+                onSetPrimary={() => setPrimary(a.id)}
+                onSolePrimary={() => setSolePrimary(a.id)} />
 
               )}
               </div> :
@@ -754,6 +769,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                     isPrimary={primaryId === a.id}
                     onToggle={() => toggleAlter(a.id)}
                     onSetPrimary={() => setPrimary(a.id)}
+                    onSolePrimary={() => setSolePrimary(a.id)}
                   />
                 ))}
               </div>

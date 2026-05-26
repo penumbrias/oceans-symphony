@@ -31,7 +31,6 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import FrontingBehaviorSettings from "@/components/settings/FrontingBehaviorSettings";
 import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
@@ -455,9 +454,6 @@ export default function Settings() {
         {/* ── TRACKING SETUP ── */}
         <Section id="checkin" icon="⚡" label="Tracking setup">
           <QuickActionsConfig />
-          <div className="border-t border-border/30 pt-4">
-            <FrontingBehaviorSettings />
-          </div>
           <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
