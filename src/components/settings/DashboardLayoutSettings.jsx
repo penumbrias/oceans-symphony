@@ -25,6 +25,7 @@ import {
   setBulletinBatchSize,
   BATCH_MIN,
   BATCH_MAX,
+  DEFAULT_BATCH,
 } from "@/lib/bulletinLimit";
 import { toast } from "sonner";
 
@@ -41,6 +42,12 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
     transition,
     zIndex: isDragging ? 50 : "auto",
   };
+  // Local text mirror for the batch field so it can be cleared and
+  // mid-typed freely. The committed value is parsed/clamped/persisted on
+  // blur — not on every keystroke, which made the field snap back to the
+  // old number and feel impossible to change.
+  const [batchText, setBatchText] = useState(String(bulletinBatchSize));
+  useEffect(() => { setBatchText(String(bulletinBatchSize)); }, [bulletinBatchSize]);
   if (!meta) return null;
 
   return (
@@ -75,10 +82,13 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
             <label className="text-[0.6875rem] text-muted-foreground">Show</label>
             <input
               type="number"
+              inputMode="numeric"
               min={BATCH_MIN}
               max={BATCH_MAX}
-              value={bulletinBatchSize}
-              onChange={(e) => onBulletinBatchChange(e.target.value)}
+              value={batchText}
+              onChange={(e) => setBatchText(e.target.value)}
+              onBlur={() => onBulletinBatchChange(batchText)}
+              onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
               className="w-14 h-7 px-2 text-xs rounded-md border border-border/50 bg-background text-foreground"
             />
             <span className="text-[0.6875rem] text-muted-foreground">
@@ -188,11 +198,16 @@ export default function DashboardLayoutSettings() {
     persist(next);
   };
 
+  // Commit (called on blur / Enter): parse, fall back to the default for
+  // empty/invalid, clamp, persist, and sync local state. Previously this
+  // ran on every keystroke AND referenced an undefined `setBatchSize`,
+  // so any valid digit threw and the field never updated.
   const handleBatchChange = (raw) => {
-    const n = parseInt(raw, 10);
-    if (!Number.isFinite(n)) return;
-    setBatchSize(n);
-    setBatchSizeLocal(Math.max(BATCH_MIN, Math.min(BATCH_MAX, n)));
+    const parsed = parseInt(raw, 10);
+    const n = Number.isFinite(parsed) ? parsed : DEFAULT_BATCH;
+    const clamped = Math.max(BATCH_MIN, Math.min(BATCH_MAX, n));
+    setBulletinBatchSize(clamped);
+    setBatchSizeLocal(clamped);
   };
 
   return (

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Number fields (like the dashboard's \"show N bulletins\" and the System Map co-fronter count) can now be cleared and typed into — they no longer snap back to the old value.",
+      },
+      {
         type: "feature",
         text: "Set front: swipe an alter left then up to clear the current front and make them the sole fronter — handy if your system doesn't co-front. Works on the alters list, dashboard, and Set Fronters screen.",
       },
