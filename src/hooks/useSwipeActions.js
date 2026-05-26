@@ -126,16 +126,44 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onLo
  *  These match AlterGridView so behaviour is identical across views. */
 export async function toggleFrontFor(alter, _staleSessions, base44, queryClient, toast) {
   try {
+    const now = new Date().toISOString();
+    // Default front-action mode. "cofront" (default) toggles the tapped
+    // alter alongside anyone already fronting. "replace" makes the tapped
+    // alter the SOLE fronter, ending everyone else — for systems that
+    // don't co-front. Read from the shared systemSettings cache so we
+    // don't add an IDB read to every tap; missing cache → safe default.
+    const ssList = queryClient.getQueryData(["systemSettings"]);
+    const replaceMode = ssList?.[0]?.set_front_mode === "replace";
+
     // Always refetch — never trust the closure-captured snapshot. A rapid
     // second tap can fire after a previous tap's invalidation queued a
     // refetch but before it landed, so the cached array may not yet show
     // the primary that was just created. Match togglePrimaryFor below.
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const mySession = fresh.find(s => s.alter_id === alter.id);
-    if (mySession) {
+
+    if (replaceMode) {
+      const isSoleFronter = !!mySession && fresh.length === 1;
+      // The tap rewrites the whole front, so end every active session.
+      for (const s of fresh) {
+        await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+      }
+      if (isSoleFronter) {
+        // Tapping the only current fronter clears the front entirely.
+        toast.success(`${alter.name} removed from front`);
+      } else {
+        await base44.entities.FrontingSession.create({
+          alter_id: alter.id,
+          is_primary: true,
+          start_time: now,
+          is_active: true,
+        });
+        toast.success(`Now fronting: ${alter.name}`);
+      }
+    } else if (mySession) {
       await base44.entities.FrontingSession.update(mySession.id, {
         is_active: false,
-        end_time: new Date().toISOString(),
+        end_time: now,
       });
       toast.success(`${alter.name} removed from front`);
     } else {
@@ -143,7 +171,7 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
       await base44.entities.FrontingSession.create({
         alter_id: alter.id,
         is_primary: !hasPrimary,
-        start_time: new Date().toISOString(),
+        start_time: now,
         is_active: true,
       });
       toast.success(`${alter.name} added to front`);

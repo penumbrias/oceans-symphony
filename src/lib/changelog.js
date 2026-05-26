@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Settings → Tracking setup: choose what tapping an alter does — add them as a co-fronter (default) or replace the front entirely. Handy if your system doesn't co-front.",
+      },
+      {
         type: "fix",
         text: "Daily Tasks: the done/undone toggles no longer look oversized when large touch targets are turned on.",
       },
