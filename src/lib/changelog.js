@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Analytics map now runs its layout in a background thread, so very large systems no longer freeze the page while it builds. A \"Building layout…\" spinner shows while it works, and you can switch tabs or tap around freely in the meantime.",
+      },
+      {
         type: "feature",
         text: "New \"Show me around\" prompt appears the first time you open each page — explore one page at a time instead of taking the whole tour at once. Toggle or replay in Settings → About & help.",
       },

@@ -3,15 +3,11 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
-import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { ZoomIn, ZoomOut, RotateCcw, X, ChevronUp, ChevronDown, SlidersHorizontal, Loader2 } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { buildAbsorptionMap, foldAbsorptionTimes, foldAbsorptionCofronting } from "@/lib/absorptionUtils";
-import {
-  normalizeSessions,
-  effectiveDurationMs,
-  sliceByOverlap,
-} from "@/lib/sessionNormalizer";
+import { buildAbsorptionMap } from "@/lib/absorptionUtils";
+import useSystemMapLayout from "@/lib/useSystemMapLayout";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -24,6 +20,17 @@ const TIME_MODES = [
   { id: 'primary', label: '⭐ Primary' },
   { id: 'cofronting', label: '👥 Co-front' },
 ];
+
+// Shape returned by useSystemMapLayout while the worker is still
+// computing (or while inputs aren't ready). Frozen so consumers can't
+// accidentally mutate it and pollute a sibling render.
+const EMPTY_LAYOUT = Object.freeze({
+  frontingTime: {},
+  frontingTimeAll: {},
+  cofrontingTime: {},
+  cofrontingTimeAll: {},
+  nodePositions: {},
+});
 
 const SystemMap = ({ relationships = [] }) => {
   const svgRef = useRef(null);
@@ -78,117 +85,14 @@ const SystemMap = ({ relationships = [] }) => {
 
   const absorptionMap = useMemo(() => buildAbsorptionMap(systemChangeEvents), [systemChangeEvents]);
 
-  // Fronting duration per alter broken down by total / primary / cofronting (ms).
-  // Goes through the shared session normaliser so unclosed sessions
-  // older than 48h don't leak their "start-to-now" duration into
-  // every alter's total — which was making every node in the
-  // system map render the same massive size. Range is "all time"
-  // (epoch → now); the stale-session cap is the only thing that
-  // bounds open sessions.
-  const frontingTimeAll = useMemo(() => {
-    const fromMs = 0;
-    const toMs = Date.now();
-    const now = Date.now();
-    const normalised = normalizeSessions(frontingSessions, now);
-    const time = {};
-    for (const s of normalised) {
-      const dur = effectiveDurationMs(s, fromMs, toMs, now);
-      if (dur <= 0) continue;
-      // Attribute exactly like the legacy code did — per-alter on
-      // the row — but with the normaliser handling the clamping
-      // for unclosed/stale rows.
-      for (const id of s.alterIds) {
-        if (!time[id]) time[id] = { total: 0, primary: 0, cofronting: 0 };
-        time[id].total += dur;
-        if (id === s.primaryAlterId) time[id].primary += dur;
-        else time[id].cofronting += dur;
-      }
-    }
-    return foldAbsorptionTimes(time, absorptionMap);
-  }, [frontingSessions, absorptionMap]);
-
-  const frontingTime = useMemo(() => {
-    const result = {};
-    Object.entries(frontingTimeAll).forEach(([id, times]) => {
-      result[id] = times[timeMode] ?? times.total;
-    });
-    return result;
-  }, [frontingTimeAll, timeMode]);
-
-  // cofrontingTime[idA][idB] = { total, primary, cofronting } ms of overlap.
-  // Single sweep-line via sliceByOverlap — each slice represents
-  // a span where the same set of alters was active, so we can
-  // emit pair-overlap durations without doing O(n²) session×session
-  // comparison and without the Date.now() fallback that inflated
-  // unclosed sessions.
-  //
-  // The primary / cofronting breakdown here mirrors the legacy
-  // semantics: for a pair (A, B) co-active during a slice,
-  // map[A][B].primary is the portion where A was THE PRIMARY of
-  // their own session row, and map[A][B].cofronting is the
-  // portion where A was a co-fronter (not primary). We compute
-  // the primary set per slice by walking the contributing
-  // normalised rows and noting which had `primaryAlterId` === A.
-  const cofrontingTimeAll = useMemo(() => {
-    const fromMs = 0;
-    const toMs = Date.now();
-    const now = Date.now();
-    const normalised = normalizeSessions(frontingSessions, now);
-    const map = {};
-    const ensurePair = (idA, idB) => {
-      if (!map[idA]) map[idA] = {};
-      if (!map[idA][idB]) map[idA][idB] = { total: 0, primary: 0, cofronting: 0 };
-    };
-    const slices = sliceByOverlap(normalised, fromMs, toMs, now);
-    // Pre-compute each session's effective [start, end] inside the
-    // window so we can ask "was alter X primary during this slice?"
-    // without re-walking session rows for every slice.
-    const rowSpans = normalised.map((s) => {
-      const start = Math.max(s.startMs, fromMs);
-      const end = s.endMs != null
-        ? Math.min(s.endMs, toMs)
-        : Math.min(now, toMs);
-      return { s, start, end };
-    });
-    for (const slice of slices) {
-      const ids = [...slice.aliveAlterIds];
-      if (ids.length < 2) continue;
-      const dur = slice.endMs - slice.startMs;
-      // Set of alters who were PRIMARY during this slice — any
-      // row whose primaryAlterId === id and whose span covers the
-      // slice window.
-      const primarySet = new Set();
-      for (const { s, start, end } of rowSpans) {
-        if (!s.primaryAlterId) continue;
-        if (start <= slice.startMs && end >= slice.endMs && slice.aliveAlterIds.has(s.primaryAlterId)) {
-          primarySet.add(s.primaryAlterId);
-        }
-      }
-      for (let i = 0; i < ids.length; i++) {
-        for (let j = 0; j < ids.length; j++) {
-          if (i === j) continue;
-          const idA = ids[i];
-          const idB = ids[j];
-          ensurePair(idA, idB);
-          map[idA][idB].total += dur;
-          if (primarySet.has(idA)) map[idA][idB].primary += dur;
-          else map[idA][idB].cofronting += dur;
-        }
-      }
-    }
-    return foldAbsorptionCofronting(map, absorptionMap);
-  }, [frontingSessions, absorptionMap]);
-
-  const cofrontingTime = useMemo(() => {
-    const result = {};
-    Object.entries(cofrontingTimeAll).forEach(([idA, peers]) => {
-      result[idA] = {};
-      Object.entries(peers).forEach(([idB, times]) => {
-        result[idA][idB] = times[timeMode] ?? times.total;
-      });
-    });
-    return result;
-  }, [cofrontingTimeAll, timeMode]);
+  // The heavy compute (frontingTimeAll, cofrontingTimeAll, and the
+  // bumper layout that used to live as `nodePositions` below) now runs
+  // in a Web Worker — see useSystemMapLayout further down. The previous
+  // inline useMemos blocked the main thread for several seconds on
+  // large polyfragmented systems and could crash the tab outright; the
+  // worker keeps the page responsive even mid-compute. The pure compute
+  // logic was extracted to src/lib/systemMapCompute.js so the worker
+  // and any future server / main-thread fallback can share it.
 
   const filteredAlters = useMemo(() => {
     let result = alters.filter(a => showArchived ? true : !a.is_archived);
@@ -207,150 +111,28 @@ const SystemMap = ({ relationships = [] }) => {
     return result;
   }, [alters, groups, selectedGroup, searchQuery, showArchived]);
 
-  const nodePositions = useMemo(() => {
-    const positions = {};
-    const centerX = 600;
-    const centerY = 400;
-    const minRadius = 50;
-    const maxRadius = 320;
-    const nodeR = 32;
-
-    // Order items angularly by co-fronting similarity using a greedy nearest-neighbor chain.
-    // Items that co-front more with each other end up angularly adjacent.
-    const orderByCoFrontSimilarity = (items, getCoTime) => {
-      if (items.length <= 1) return items;
-      const remaining = [...items];
-      const ordered = [remaining.splice(0, 1)[0]];
-      while (remaining.length > 0) {
-        const last = ordered[ordered.length - 1];
-        let bestIdx = 0;
-        let bestScore = -1;
-        remaining.forEach((item, idx) => {
-          const score = getCoTime(last, item);
-          if (score > bestScore) { bestScore = score; bestIdx = idx; }
-        });
-        ordered.push(remaining.splice(bestIdx, 1)[0]);
-      }
-      return ordered;
+  // Memoized worker input. A new reference is what triggers a fresh
+  // worker compute (the hook tears down the previous worker first), so
+  // keeping this useMemo tight on the real deps prevents thrash.
+  // Returns null when the inputs aren't ready yet — the hook treats
+  // null as "idle, don't compute" so the SVG just renders empty.
+  const layoutInput = useMemo(() => {
+    if (!frontingSessions || frontingSessions.length === 0) return null;
+    if (!filteredAlters || filteredAlters.length === 0) return null;
+    return {
+      frontingSessions,
+      absorptionMap,
+      filteredAlters,
+      selectedAlterId: selectedAlter?.id || null,
+      timeMode,
     };
+  }, [frontingSessions, absorptionMap, filteredAlters, selectedAlter, timeMode]);
 
-    const place = (items, getRadius, getCoTime) => {
-      const n = items.length;
-      if (n === 0) return;
-
-      // Bound the O(n²) collision solver so very large systems (e.g.
-      // polyfragmented, hundreds of alters) don't lock the main thread
-      // when the map opens — the page used to freeze hard on open for
-      // big systems and had to be force-restarted. We keep a fixed total
-      // pairwise-work budget: systems up to ~80 alters still get the full
-      // 300 passes, larger ones scale the pass count down instead of
-      // hanging. The shrink loop below is already bounded (~22 steps), so
-      // capping passes bounds the whole layout.
-      const pairCount = Math.max(1, (n * (n - 1)) / 2);
-      const maxBumperIters = Math.max(1, Math.min(300, Math.floor((300 * 3160) / pairCount)));
-
-      // Order angularly by co-fronting similarity
-      const ordered = getCoTime ? orderByCoFrontSimilarity(items, getCoTime) : items;
-
-      // Compute each item's target radius
-      const radii = ordered.map(item => getRadius(item));
-
-      // Start with full-size nodes
-      let effectiveNodeR = nodeR;
-      const angles = ordered.map((_, idx) => (idx / n) * Math.PI * 2 - Math.PI / 2);
-
-      // Run angular bumper: nodes push each other along their own orbit (radius stays fixed).
-      // Runs many iterations until fully settled or no more progress.
-      const runBumper = (nr) => {
-        const a = [...angles];
-        for (let iter = 0; iter < maxBumperIters; iter++) {
-          let moved = false;
-          for (let i = 0; i < n; i++) {
-            for (let j = i + 1; j < n; j++) {
-              const xi = Math.cos(a[i]) * radii[i], yi = Math.sin(a[i]) * radii[i];
-              const xj = Math.cos(a[j]) * radii[j], yj = Math.sin(a[j]) * radii[j];
-              const dx = xj - xi, dy = yj - yi;
-              const dist = Math.sqrt(dx * dx + dy * dy);
-              const minDist = nr * 2.05;
-              if (dist < minDist && dist > 0.001) {
-                const overlap = minDist - dist;
-                // Angular nudge: proportional to overlap, inversely to radius so larger orbits move less
-                const nudgeI = (overlap / Math.max(radii[i], 1)) * 0.6;
-                const nudgeJ = (overlap / Math.max(radii[j], 1)) * 0.6;
-                a[i] -= nudgeI;
-                a[j] += nudgeJ;
-                moved = true;
-              }
-            }
-          }
-          if (!moved) break;
-        }
-        return a;
-      };
-
-      // After bumping, check if ANY pair still physically overlaps (geometry is impossible)
-      const hasOverlap = (a, nr) => {
-        for (let i = 0; i < n; i++) {
-          for (let j = i + 1; j < n; j++) {
-            const xi = Math.cos(a[i]) * radii[i], yi = Math.sin(a[i]) * radii[i];
-            const xj = Math.cos(a[j]) * radii[j], yj = Math.sin(a[j]) * radii[j];
-            const dx = xj - xi, dy = yj - yi;
-            if (Math.sqrt(dx * dx + dy * dy) < nr * 2.0) return true;
-          }
-        }
-        return false;
-      };
-
-      // 1. Try bumping at full node size — angular freedom should resolve most cases
-      let finalAngles = runBumper(effectiveNodeR);
-
-      // 2. Only shrink if bumping truly couldn't resolve overlaps (geometry impossible at this size)
-      //    Shrink 1px at a time, re-bump, until no overlap remains
-      while (effectiveNodeR > 10 && hasOverlap(finalAngles, effectiveNodeR)) {
-        effectiveNodeR -= 1;
-        finalAngles = runBumper(effectiveNodeR);
-      }
-
-      ordered.forEach((item, idx) => {
-        positions[item.id] = {
-          x: centerX + Math.cos(finalAngles[idx]) * radii[idx],
-          y: centerY + Math.sin(finalAngles[idx]) * radii[idx],
-          nodeR: effectiveNodeR,
-        };
-      });
-    };
-
-    if (!selectedAlter) {
-      const maxTime = Math.max(...filteredAlters.map(a => frontingTime[a.id] || 0), 1);
-      // Angular order: alters that co-front most with each other sit adjacent
-      const getCoTime = (a, b) => cofrontingTimeAll[a.id]?.[b.id]?.total || 0;
-      // Radius: linear percentage of max fronting time (more time = closer to center)
-      const getRadius = (a) => {
-        const t = frontingTime[a.id] || 0;
-        const ratio = t / maxTime; // 1 = most time = closest to center
-        return maxRadius - ratio * (maxRadius - minRadius);
-      };
-      place(filteredAlters, getRadius, getCoTime);
-    } else {
-      positions[selectedAlter.id] = { x: centerX, y: centerY, nodeR: 35 };
-      const others = filteredAlters.filter(a => a.id !== selectedAlter.id);
-
-      // Denominator: X's total front time across all modes (never mode-filtered)
-      const xTotalTime = frontingTimeAll[selectedAlter.id]?.total || 1;
-
-      // 0% overlap → maxRadius (edge); 100% overlap → minRadius (center).
-      const getRadius = (a) => {
-        const overlap = cofrontingTime[selectedAlter.id]?.[a.id] || 0;
-        const ratio = Math.min(1, overlap / xTotalTime);
-        return maxRadius - ratio * (maxRadius - minRadius);
-      };
-      // Angular order: alters that co-front most with EACH OTHER sit adjacent
-      const getCoTime = (a, b) => cofrontingTimeAll[a.id]?.[b.id]?.total || 0;
-      place(others, getRadius, getCoTime);
-    }
-
-    return positions;
-  }, [filteredAlters, selectedAlter, frontingTime, frontingTimeAll, cofrontingTime, cofrontingTimeAll]);
+  const layout = useSystemMapLayout(layoutInput);
+  const isComputingLayout = layout.state === "computing";
+  const layoutErrored = layout.state === "error";
+  const layoutData = layout.result || EMPTY_LAYOUT;
+  const { frontingTime, frontingTimeAll, cofrontingTime, cofrontingTimeAll, nodePositions } = layoutData;
 
   const groupData = useMemo(() => {
     if (!showGroups) return [];
@@ -604,6 +386,35 @@ const SystemMap = ({ relationships = [] }) => {
 
       {/* SVG map — fills all available space */}
       <div className="flex-1 relative min-h-0">
+        {/* Overlay shown while the worker is building the layout — kept
+            positioned over the SVG so the existing chrome (zoom, search,
+            etc.) stays visible and tappable. Pointer-events: none on the
+            outer wrapper so the SVG itself can still be panned/clicked. */}
+        {isComputingLayout && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center pointer-events-none">
+            <div className="flex items-center gap-2 px-4 py-2 rounded-full bg-card/95 border border-border shadow-sm pointer-events-auto">
+              <Loader2 className="w-4 h-4 animate-spin text-primary" />
+              <span className="text-xs font-medium text-foreground">Building layout…</span>
+            </div>
+          </div>
+        )}
+        {layoutErrored && (
+          <div className="absolute inset-0 z-10 flex items-center justify-center px-6">
+            <div className="max-w-sm w-full rounded-xl bg-card border border-border p-4 text-center space-y-3 pointer-events-auto">
+              <p className="text-sm font-semibold text-foreground">Couldn't build the map</p>
+              <p className="text-xs text-muted-foreground">
+                {layout.error || "Something went wrong while computing the layout."}
+              </p>
+              <button
+                type="button"
+                onClick={() => layout.restart()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-primary text-primary-foreground text-xs font-medium hover:bg-primary/90"
+              >
+                Try again
+              </button>
+            </div>
+          </div>
+        )}
         <svg
           ref={svgRef}
           className="w-full h-full cursor-grab active:cursor-grabbing"

@@ -12,15 +12,16 @@ import { Map, Globe } from "lucide-react";
 const localMode = isLocalMode ? isLocalMode() : false;
 const db = localMode ? localEntities : base44.entities;
 
-// Above this alter count the analytics-map render becomes risky on
-// less-powerful devices — the O(n²) collision solver still hits the
-// pass-count ceiling, but the SVG node count + the per-alter
-// fronting-time joins start pushing the main thread into freezes that
-// the user can't escape. Show the friendly fallback instead of trying.
-// Below this threshold we still wrap the real render in an error
-// boundary so any throws inside AnalyticsMap don't take down the whole
-// page — the Inner World tab needs to stay reachable either way.
-const ANALYTICS_MAP_TOO_LARGE_THRESHOLD = 200;
+// Hard ceiling above which we don't even try to build the analytics
+// map. The compute now runs in a Web Worker so the main thread stays
+// responsive at any size, BUT the worker itself can still take many
+// minutes on truly extreme systems (the cofronting computation is
+// O(slices × alters²) inside the worker just like it was on main).
+// At ~500 alters the worker would likely run for several minutes —
+// the friendly "taking a breather" fallback is a better experience
+// than a spinner that never resolves. Below this, the worker handles
+// it; the error boundary still wraps the render as defense-in-depth.
+const ANALYTICS_MAP_TOO_LARGE_THRESHOLD = 500;
 
 export default function SystemMapPage() {
   const terms = useTerms();
