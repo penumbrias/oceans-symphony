@@ -12,6 +12,16 @@ import { Map, Globe } from "lucide-react";
 const localMode = isLocalMode ? isLocalMode() : false;
 const db = localMode ? localEntities : base44.entities;
 
+// Above this alter count the analytics-map render becomes risky on
+// less-powerful devices — the O(n²) collision solver still hits the
+// pass-count ceiling, but the SVG node count + the per-alter
+// fronting-time joins start pushing the main thread into freezes that
+// the user can't escape. Show the friendly fallback instead of trying.
+// Below this threshold we still wrap the real render in an error
+// boundary so any throws inside AnalyticsMap don't take down the whole
+// page — the Inner World tab needs to stay reachable either way.
+const ANALYTICS_MAP_TOO_LARGE_THRESHOLD = 200;
+
 export default function SystemMapPage() {
   const terms = useTerms();
   const [tab, setTab] = useState("analytics");
@@ -58,7 +68,27 @@ export default function SystemMapPage() {
 
       {/* Map area */}
       <div className="h-[calc(100vh-280px)] min-h-[400px]">
-        {tab === "analytics" && <AnalyticsMap relationships={relationships} />}
+        {tab === "analytics" && (
+          alters.length > ANALYTICS_MAP_TOO_LARGE_THRESHOLD ? (
+            <AnalyticsMapTooLargeFallback
+              systemTerm={terms.system}
+              alterCount={alters.length}
+              onUseInnerWorld={() => setTab("inner")}
+            />
+          ) : (
+            <AnalyticsMapErrorBoundary
+              fallback={
+                <AnalyticsMapTooLargeFallback
+                  systemTerm={terms.system}
+                  alterCount={alters.length}
+                  onUseInnerWorld={() => setTab("inner")}
+                />
+              }
+            >
+              <AnalyticsMap relationships={relationships} />
+            </AnalyticsMapErrorBoundary>
+          )
+        )}
         {tab === "inner" && (
           <InnerWorldMap
             alters={alters}
@@ -75,6 +105,55 @@ export default function SystemMapPage() {
         locations={locations}
         onRefreshRelationships={refetchRelationships}
       />
+    </div>
+  );
+}
+
+// Class boundary — catches render errors from AnalyticsMap so a crash
+// in that component never takes the whole SystemMap page down. The
+// Inner World tab needs to stay reachable for users whose analytics
+// map can't render. Errors are logged so we can find the root cause
+// later; the user just sees the friendly fallback.
+class AnalyticsMapErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { hasError: false };
+  }
+  static getDerivedStateFromError() {
+    return { hasError: true };
+  }
+  componentDidCatch(error, info) {
+    // Surface in the console so testers reporting "the map didn't load"
+    // have something to attach to bug reports.
+    console.error("[AnalyticsMap] render failed:", error, info);
+  }
+  render() {
+    if (this.state.hasError) return this.props.fallback;
+    return this.props.children;
+  }
+}
+
+function AnalyticsMapTooLargeFallback({ systemTerm, alterCount, onUseInnerWorld }) {
+  return (
+    <div className="flex flex-col items-center justify-center h-full text-center px-6 py-12 rounded-xl border border-dashed border-border/60 bg-muted/15">
+      <Map className="w-10 h-10 text-muted-foreground/50 mb-3" />
+      <p className="text-base font-semibold text-foreground mb-1.5">
+        Analytics map is taking a breather
+      </p>
+      <p className="text-sm text-muted-foreground max-w-md mb-2">
+        It looks like your {systemTerm} might be too large for the analytics map at this time, we're working on it!
+      </p>
+      {typeof alterCount === "number" && alterCount > 0 && (
+        <p className="text-xs text-muted-foreground/70 mb-5">
+          ({alterCount} active alters — the analytics layout struggles past ~{ANALYTICS_MAP_TOO_LARGE_THRESHOLD}.)
+        </p>
+      )}
+      <button
+        onClick={onUseInnerWorld}
+        className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"
+      >
+        <Globe className="w-4 h-4" /> Switch to Inner World map
+      </button>
     </div>
   );
 }

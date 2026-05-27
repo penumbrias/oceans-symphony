@@ -16,6 +16,62 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New \"Show me around\" prompt appears the first time you open each page — explore one page at a time instead of taking the whole tour at once. Toggle or replay in Settings → About & help.",
+      },
+      {
+        type: "improve",
+        text: "Tour and welcome guide are less wordy — trimmed the repeated paragraph spelling out every possible way to interpret fronting.",
+      },
+      {
+        type: "improve",
+        text: "Default dashboard order: Pinned tasks now sit below the Quick Check-In button so the tour can scroll to the check-in without the bottom bar covering it. Existing custom layouts are untouched.",
+      },
+      {
+        type: "fix",
+        text: "Tour layout fixed when it opens a modal — the tour card no longer flies to the top of the screen, and highlights inside modals (sort, triggered, journal in Set Fronters) are now visible.",
+      },
+      {
+        type: "improve",
+        text: "Removed the dismissable \"no right way to set front\" hint that appeared every time the Set Fronters modal opened.",
+      },
+      {
+        type: "improve",
+        text: "Journals: \"New folder\" and \"New entry\" buttons are stacked vertically and a touch smaller, giving more horizontal room for the folder name and entry count.",
+      },
+      {
+        type: "improve",
+        text: "Dashboard: \"Pinned tasks\" now uses the same compact section-label header as Coming up, Pinned, and Active symptoms — no more outlier card with extra padding.",
+      },
+      {
+        type: "improve",
+        text: "Native app: top header is a bit shorter, removing the excess space below the title and icons.",
+      },
+      {
+        type: "improve",
+        text: "Dashboard: pinned to-dos now look the same whether they were pinned from the To-Do page or from the bulletin board.",
+      },
+      {
+        type: "improve",
+        text: "Dashboard: more breathing room between Active Symptoms and the Quick Check-In button.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Data & privacy: Backup & Export and Auto-backup are now the first two items in the section, ahead of storage mode and other less-frequent controls.",
+      },
+      {
+        type: "feature",
+        text: "Coming-up plans on the dashboard now has its own settings cog — tap it to change how many plans show (count or time window) without opening Settings.",
+      },
+      {
+        type: "improve",
+        text: "Active Symptoms popup: severity can now be set to 0 (\"not bothering right now\") without ending the session — handy for quick adjustments while a symptom comes and goes.",
+      },
+      {
+        type: "fix",
+        text: "Very large systems no longer crash the Analytics Map. The Analytics tab now shows a friendly \"taking a breather\" message and the Inner World map stays accessible. Working on a better long-term fix for large systems.",
+      },
+      {
         type: "fix",
         text: "Importing a backup in \"Add new\" mode no longer creates duplicate copies of the default daily tasks.",
       },

@@ -1,14 +1,29 @@
 import React, { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Calendar } from "lucide-react";
+import { Calendar, Settings as SettingsIcon } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription,
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import { isSurfaceEnabled } from "@/lib/upcomingPlansSurfaces";
 import {
   getActiveLimit,
+  getLimitMode,
+  setLimitMode,
+  getLimitCount,
+  setLimitCount,
+  getLimitWindowId,
+  setLimitWindowId,
+  MODE_COUNT,
   MODE_WINDOW,
   WINDOW_MODE_HARD_CAP,
+  WINDOW_OPTIONS,
+  COUNT_MIN,
+  COUNT_MAX,
 } from "@/lib/upcomingPlansLimit";
 
 /**
@@ -29,6 +44,13 @@ import {
  */
 export default function UpcomingPlans({ placement, limit, filterByAlterId = null, title = "📅 Coming up" }) {
   const navigate = useNavigate();
+  const [showSettings, setShowSettings] = useState(false);
+
+  // Surfaces that pass an explicit numeric `limit` (e.g. the alter panel
+  // forces 3) are ignoring the user's preference, so the inline cog
+  // shouldn't appear there — it'd let the user change something they
+  // can't see take effect.
+  const allowInlineSettings = typeof limit !== "number";
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -105,11 +127,24 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Calendar className="w-3 h-3" /> {title}
         </p>
-        <button
-          type="button"
-          onClick={() => navigate("/activities")}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >See all</button>
+        <div className="flex items-center gap-3">
+          {allowInlineSettings && (
+            <button
+              type="button"
+              onClick={() => setShowSettings(true)}
+              aria-label="Upcoming plans settings"
+              title="Adjust how many plans show"
+              className="text-muted-foreground hover:text-foreground"
+            >
+              <SettingsIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => navigate("/activities")}
+            className="text-xs text-muted-foreground hover:text-foreground"
+          >See all</button>
+        </div>
       </div>
       <PlannedActivitiesList
         activities={prefilteredActivities}
@@ -118,6 +153,127 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
         limit={effectiveLimit}
         onClick={(activity) => navigate(activity?.id ? `/activities?activityId=${activity.id}` : "/activities")}
       />
+      {allowInlineSettings && (
+        <UpcomingPlansSettingsDialog
+          open={showSettings}
+          onClose={() => setShowSettings(false)}
+        />
+      )}
     </div>
+  );
+}
+
+// Inline settings dialog — mirrors the pattern used by
+// PinnedDailyTasksWidget so users can adjust how many upcoming plans
+// surface without navigating to Settings → Appearance.
+function UpcomingPlansSettingsDialog({ open, onClose }) {
+  const [mode, setMode] = useState(MODE_COUNT);
+  const [count, setCount] = useState(5);
+  const [windowId, setWindowId] = useState(WINDOW_OPTIONS[0].id);
+
+  useEffect(() => {
+    if (!open) return;
+    // Reload current values every time the dialog opens so the form
+    // doesn't carry over a half-edited draft from a previous open.
+    setMode(getLimitMode());
+    setCount(getLimitCount());
+    setWindowId(getLimitWindowId());
+  }, [open]);
+
+  const handleSave = () => {
+    setLimitMode(mode);
+    if (mode === MODE_COUNT) setLimitCount(count);
+    else setLimitWindowId(windowId);
+    // All UpcomingPlans instances listen for this event and re-read.
+    window.dispatchEvent(new Event("upcoming-plans-limit-changed"));
+    onClose();
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent className="max-w-sm">
+        <DialogHeader>
+          <DialogTitle>Upcoming plans settings</DialogTitle>
+          <DialogDescription>
+            Choose whether to show a fixed number of plans or everything inside a time window.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="upcoming-plans-mode"
+                value={MODE_COUNT}
+                checked={mode === MODE_COUNT}
+                onChange={() => setMode(MODE_COUNT)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Show next N plans</p>
+                <p className="text-xs text-muted-foreground">A fixed cap regardless of how far out they are.</p>
+                {mode === MODE_COUNT && (
+                  <div className="mt-2 flex items-center gap-2">
+                    <Input
+                      type="number"
+                      min={COUNT_MIN}
+                      max={COUNT_MAX}
+                      value={count}
+                      onChange={(e) => {
+                        const raw = e.target.value;
+                        if (raw === "") { setCount(""); return; }
+                        const n = parseInt(raw, 10);
+                        if (Number.isFinite(n)) setCount(n);
+                      }}
+                      onBlur={() => {
+                        const n = parseInt(count, 10);
+                        if (!Number.isFinite(n)) setCount(COUNT_MIN);
+                        else setCount(Math.max(COUNT_MIN, Math.min(COUNT_MAX, n)));
+                      }}
+                      className="w-20 h-8 text-sm"
+                    />
+                    <span className="text-xs text-muted-foreground">plans ({COUNT_MIN}–{COUNT_MAX})</span>
+                  </div>
+                )}
+              </div>
+            </label>
+          </div>
+
+          <div className="space-y-2">
+            <label className="flex items-start gap-2 cursor-pointer">
+              <input
+                type="radio"
+                name="upcoming-plans-mode"
+                value={MODE_WINDOW}
+                checked={mode === MODE_WINDOW}
+                onChange={() => setMode(MODE_WINDOW)}
+                className="mt-1"
+              />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">Show plans in a time window</p>
+                <p className="text-xs text-muted-foreground">Everything coming up inside this range (capped at {WINDOW_MODE_HARD_CAP}).</p>
+                {mode === MODE_WINDOW && (
+                  <select
+                    value={windowId}
+                    onChange={(e) => setWindowId(e.target.value)}
+                    className="mt-2 w-full h-8 text-sm rounded-md border border-border bg-background px-2"
+                  >
+                    {WINDOW_OPTIONS.map((opt) => (
+                      <option key={opt.id} value={opt.id}>{opt.label}</option>
+                    ))}
+                  </select>
+                )}
+              </div>
+            </label>
+          </div>
+        </div>
+
+        <div className="flex justify-end gap-2 pt-2">
+          <Button variant="outline" size="sm" onClick={onClose}>Cancel</Button>
+          <Button size="sm" onClick={handleSave}>Save</Button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }

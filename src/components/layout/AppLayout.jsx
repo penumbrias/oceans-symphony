@@ -19,6 +19,7 @@ import ReminderToast from "@/components/reminders/ReminderToast";
 import { Bell } from "lucide-react";
 import useSwipeBack from "@/hooks/useSwipeBack";
 import FeatureTour from "@/components/onboarding/FeatureTour";
+import PageTutorialBanner from "@/components/onboarding/PageTutorialBanner";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
@@ -56,6 +57,11 @@ export default function AppLayout() {
   // when idx is 0 or unavailable.
   const [historyIdx, setHistoryIdx] = useState(() => (typeof window !== "undefined" ? (window.history.state?.idx ?? 0) : 0));
   const [showFeatureTour, setShowFeatureTour] = useState(false);
+  // Page-scoped tour state — set by PageTutorialBanner when user taps
+  // "Show me around" on a page they haven't seen yet. Separate from the
+  // full-tour state so both can coexist (e.g. the banner shouldn't fire
+  // mid-full-tour).
+  const [pageScopedTourRoute, setPageScopedTourRoute] = useState(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   useRemindersScheduler();
   // Three quick taps anywhere → open Grocery List as a privacy cover.
@@ -408,12 +414,13 @@ const handleNotifClick = (mentionLog) => {
         }}
       >
         <HeaderWaveBlock />
-        {/* Landscape phones have ~360 CSS px of vertical space — shrink
-            the header row from 56px to 44px so the chrome doesn't eat
-            a sixth of the viewport. The 44px inner row still meets the
-            Apple/Google 44x44 minimum tap target for the icon buttons
-            inside. Portrait keeps the more spacious 56px. */}
-        <div className="flex items-center justify-between px-2 h-14 landscape:h-11 relative" style={{ zIndex: 1 }}>
+        {/* Header row sizing: 48px portrait, 44px landscape. Drops the
+            previous 56px portrait height that left visible empty space
+            below the icons / title. 48px still wraps min-h-[44px] tap
+            targets cleanly and matches the Apple/Google 44px minimum.
+            Landscape stays tighter so chrome doesn't eat a sixth of the
+            viewport on the typical ~360 CSS px short edge. */}
+        <div className="flex items-center justify-between px-2 h-12 landscape:h-11 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
@@ -578,6 +585,11 @@ const handleNotifClick = (mentionLog) => {
 
         {/* Main content */}
         <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
+          {!showFeatureTour && !pageScopedTourRoute && (
+            <PageTutorialBanner
+              onLaunch={(route) => setPageScopedTourRoute(route)}
+            />
+          )}
           <Outlet context={{ setShowFeatureTour }} />
         </main>
 
@@ -642,6 +654,12 @@ const handleNotifClick = (mentionLog) => {
       <GroceryListPanel />
       <ReminderToast />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
+      {pageScopedTourRoute && !showFeatureTour && (
+        <FeatureTour
+          restrictToRoute={pageScopedTourRoute}
+          onClose={() => setPageScopedTourRoute(null)}
+        />
+      )}
       <NotificationPopups
         mentionLogs={mentionLogs}
         alters={alters}

@@ -442,12 +442,12 @@ export default function Journals() {
             </p>
           </div>
         </div>
-        <div className="flex gap-2">
-          <Button data-tour="journals-folder-btn" variant="outline" onClick={() => setShowNewFolder(true)} className="gap-1.5">
+        <div className="flex flex-col gap-2 flex-shrink-0">
+          <Button data-tour="journals-folder-btn" variant="outline" size="sm" onClick={() => setShowNewFolder(true)} className="gap-1.5 justify-start">
             <FolderPlus className="w-4 h-4" />
             {viewingFolder ? "New Subfolder" : "New Folder"}
           </Button>
-          <Button data-tour="journals-new-entry" onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5">
+          <Button data-tour="journals-new-entry" size="sm" onClick={() => openNew(viewingFolder)} className="bg-primary hover:bg-primary/90 gap-1.5 justify-start">
             <Plus className="w-4 h-4" />
             New Entry
           </Button>

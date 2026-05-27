@@ -617,7 +617,11 @@ export default function Dashboard() {
             );
           case "quick_checkin":
             return (
-              <div key="quick_checkin" className="relative inline-flex mb-2">
+              // mt-3 + mb-3 gives the Quick Check-In button breathing
+              // room from the Active Symptoms pill row above it (which
+              // can grow tall when several symptoms are running) and
+              // from whatever sits below.
+              <div key="quick_checkin" className="relative inline-flex mt-3 mb-3">
                 <button
                   data-tour="quick-checkin"
                   onPointerDown={startHold}

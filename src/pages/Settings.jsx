@@ -42,6 +42,13 @@ import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
+import { Switch } from "@/components/ui/switch";
+import {
+  arePageTutorialsEnabled,
+  setPageTutorialsEnabled,
+  clearAllSeen as clearAllPageTutorialsSeen,
+  subscribePageTutorials,
+} from "@/lib/pageTutorials";
 
 
 // React context lets the parent <Settings> drive single-accordion
@@ -514,17 +521,20 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
-          <div className="border-t border-border/30 pt-4">
-            <StorageModeSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <GroceryPanicTapsSettings />
-          </div>
+          {/* Backup & Export first — it's the action people open this
+              section to do most often. Auto-backup follows it so both
+              manual and scheduled backups live together. */}
           <div className="border-t border-border/30 pt-4">
             <DataBackupRestore />
           </div>
           <div className="border-t border-border/30 pt-4">
             <AutoBackupSettings />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <StorageModeSettings />
+          </div>
+          <div className="border-t border-border/30 pt-4">
+            <GroceryPanicTapsSettings />
           </div>
           <div className="border-t border-border/30 pt-4">
             <SimplyPluralConnect settings={settings} onSettingsChange={() => {
@@ -561,6 +571,13 @@ export default function Settings() {
 
             <div className="pt-4 border-t border-border/40">
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+                Tour & onboarding
+              </p>
+              <PageTutorialsControls />
+            </div>
+
+            <div className="pt-4 border-t border-border/40">
+              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
                 Medical disclaimer
               </p>
               <MedicalDisclaimer />
@@ -587,6 +604,45 @@ export default function Settings() {
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
     </motion.div>
+  );
+}
+
+// Per-page tutorial banner controls — toggle the banner globally and
+// reset the per-route seen-set so prompts come back on every page.
+// Subscribes to pageTutorials state so a reset from elsewhere keeps
+// the toggle UI in sync.
+function PageTutorialsControls() {
+  const [enabled, setEnabled] = useState(() => arePageTutorialsEnabled());
+  useEffect(() => subscribePageTutorials(() => setEnabled(arePageTutorialsEnabled())), []);
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-muted-foreground leading-relaxed">
+        First-visit page tutorials prompt you on each page so you can explore one at a time instead of taking the whole guided tour at once.
+      </p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-border/40 px-3 py-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Show page-tutorial prompts</p>
+          <p className="text-xs text-muted-foreground">"New to this page? Show me around" banner on first visit.</p>
+        </div>
+        <Switch
+          checked={enabled}
+          onCheckedChange={(next) => {
+            setPageTutorialsEnabled(next);
+            setEnabled(next);
+          }}
+        />
+      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => {
+          clearAllPageTutorialsSeen();
+          toast.success("Page tutorials reset — banners will reappear on every page.");
+        }}
+      >
+        Replay all page tutorials
+      </Button>
+    </div>
   );
 }
 

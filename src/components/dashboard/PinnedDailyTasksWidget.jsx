@@ -162,28 +162,26 @@ export default function PinnedDailyTasksWidget() {
   };
 
   return (
-    <div
-      data-tour="pinned-daily-tasks"
-      className="bg-card rounded-xl border border-border p-4 sm:p-5 space-y-3"
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Sparkles className="w-4 h-4 text-primary" />
-          <h3 className="text-base font-semibold">Pinned tasks</h3>
-        </div>
-        <div className="flex items-center gap-1">
-          <Button
-            variant="ghost" size="icon" className="h-8 w-8"
+    <div data-tour="pinned-daily-tasks" className="mb-3">
+      {/* Compact label-style header — matches the other dashboard section
+          headers (UpcomingPlans, DashboardPins, CurrentSymptoms) so the
+          widget no longer reads as a separate card with its own padding. */}
+      <div className="flex items-center justify-between px-1 mb-1.5">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
+          <Sparkles className="w-3 h-3" /> Pinned tasks
+        </p>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
             onClick={() => setShowSettings(true)}
             aria-label="Pinned tasks settings"
             title="Configure pinned tasks"
+            className="text-muted-foreground hover:text-foreground"
           >
-            <SettingsIcon className="w-4 h-4" />
-          </Button>
-          <Link to="/tasks">
-            <Button variant="ghost" size="sm" className="gap-1 h-8">
-              All <ArrowRight className="w-3.5 h-3.5" />
-            </Button>
+            <SettingsIcon className="w-3.5 h-3.5" />
+          </button>
+          <Link to="/tasks" className="text-xs text-muted-foreground hover:text-foreground">
+            See all
           </Link>
         </div>
       </div>

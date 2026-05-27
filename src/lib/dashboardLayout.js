@@ -64,9 +64,14 @@ export const DEFAULT_LAYOUT = [
   { id: "current_fronters", enabled: true },
   { id: "status_note",      enabled: true },
   { id: "dashboard_pins",   enabled: true },
-  { id: "pinned_daily_tasks", enabled: true },
   { id: "current_symptoms", enabled: true },
   { id: "quick_checkin",    enabled: true },
+  // Pinned tasks default below the Quick Check-In button so the tour's
+  // scroll-into-view leaves room for the bottom-nav + tour card on phones —
+  // when this widget was higher up, the highlighted check-in button could
+  // be hidden behind the bottom chrome. Users who've already saved a
+  // custom layout keep their existing order via resolveLayout.
+  { id: "pinned_daily_tasks", enabled: true },
   { id: "new_features_bar", enabled: true },
   { id: "quick_nav_menu",   enabled: true },
   { id: "bulletin_board",   enabled: true },

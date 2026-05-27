@@ -29,7 +29,10 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(sess.start_time));
   const lastSnapshot = sess.severity_snapshots?.[sess.severity_snapshots.length - 1];
-  const currentSeverity = lastSnapshot?.severity || 0;
+  // null when no snapshot exists — distinct from an explicit 0 severity.
+  // The popup uses this to decide whether to highlight a button and to
+  // render the "Current severity" line.
+  const currentSeverity = typeof lastSnapshot?.severity === "number" ? lastSnapshot.severity : null;
 
   const handleSaveStart = async () => {
     if (!startDraft) return;
@@ -89,12 +92,15 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
-        {currentSeverity > 0 && <p className="text-xs text-muted-foreground">Current severity: {currentSeverity}/5</p>}
+        {currentSeverity != null && <p className="text-xs text-muted-foreground">Current severity: {currentSeverity}/5</p>}
 
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground">Set Severity</p>
+          <p className="text-[0.6875rem] text-muted-foreground/80">
+            0 means "not bothering right now" — the session stays active so you can adjust again later without re-starting it.
+          </p>
           <div className="flex gap-2">
-            {[1, 2, 3, 4, 5].map(i => (
+            {[0, 1, 2, 3, 4, 5].map(i => (
               <button
                 type="button"
                 key={i}
@@ -237,7 +243,7 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
             >
               <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: symptom.color || "#8B5CF6" }} />
               {symptom.label}
-              {severity && <SeverityDots severity={severity} />}
+              {typeof severity === "number" && <SeverityDots severity={severity} />}
               <span className="opacity-60 font-normal">
                 · {formatDistanceToNow(new Date(sess.start_time))}
               </span>

@@ -171,43 +171,50 @@ function PinnedTaskRow({ task }) {
       onTouchEnd={cancelLongPress}
       onTouchMove={cancelLongPress}
       onContextMenu={(e) => { e.preventDefault(); cancelLongPress(); setQuickOpen(true); }}
-      className={`block rounded-xl p-3 transition-colors cursor-pointer select-none ${
+      // Chrome mirrors TaskBulletinCard so to-dos pinned from the To-Do
+      // page render with the same dashed card and urgent treatment as
+      // task-bulletins pinned from the Bulletin Board. Comments + delete
+      // are still bulletin-only — those appear when the same task is
+      // pinned via the board (DashboardPins de-dups so the bulletin form
+      // wins in that case).
+      className={`block border-2 border-dashed rounded-2xl p-3.5 transition-all cursor-pointer select-none ${
         urgent
-          ? "bg-amber-500/10 border-l-4 border-amber-500 hover:bg-amber-500/15"
-          : "bg-card border border-border/50 hover:bg-muted/30"
+          ? "border-amber-500/70 bg-amber-500/10 border-l-4 border-l-amber-500 hover:bg-amber-500/15"
+          : "border-border/60 bg-muted/15 hover:bg-muted/25"
       }`}
     >
-      <div className="flex items-start gap-2.5">
+      {urgent && (
+        <div className="flex items-center gap-1 text-[0.625rem] uppercase tracking-wider font-semibold text-amber-500 mb-1">
+          <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
+          Urgent to-do
+        </div>
+      )}
+      <div className="flex items-start gap-3">
         <button
           type="button"
           onClick={toggleComplete}
           aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
-          className="mt-0.5 p-1 -m-1 hover:bg-muted/40 rounded transition-colors flex-shrink-0"
+          className="mt-0.5 flex-shrink-0 text-muted-foreground hover:text-primary transition-colors"
         >
           {task.completed ? (
             <CheckCircle2 className="w-5 h-5 text-green-500" />
           ) : (
-            <Circle className={`w-5 h-5 ${urgent ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`} />
+            <Circle className={`w-5 h-5 ${urgent ? "text-amber-500" : ""}`} />
           )}
         </button>
         <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold">
-            {urgent ? (
-              <>
-                <Zap className="w-3 h-3 fill-amber-500 text-amber-500" />
-                <span className="text-amber-500">Urgent to-do</span>
-              </>
-            ) : (
-              <>
-                <Pin className="w-3 h-3 fill-primary text-primary" />
-                <span className="text-muted-foreground">Pinned to-do</span>
-              </>
-            )}
-            {task.priority === "high" && <Flag className="w-3 h-3 text-red-500 ml-1" />}
-          </div>
-          <div className={`text-base font-semibold mt-0.5 truncate ${task.completed ? "line-through text-muted-foreground" : ""}`}>{task.title}</div>
+          {!urgent && (
+            <div className="flex items-center gap-1.5 text-[0.625rem] uppercase tracking-wider font-semibold text-muted-foreground mb-0.5">
+              <Pin className="w-3 h-3 fill-primary text-primary" />
+              <span>Pinned to-do</span>
+              {task.priority === "high" && <Flag className="w-3 h-3 text-red-500 ml-1" />}
+            </div>
+          )}
+          <p className={`text-sm font-medium leading-snug ${task.completed ? "line-through text-muted-foreground" : "text-foreground"}`}>
+            {task.title}
+          </p>
           {(task.scheduled_at || task.due_date) && (
-            <div className="text-xs text-muted-foreground mt-0.5 flex flex-wrap items-center gap-x-3">
+            <div className="text-xs text-muted-foreground mt-1 flex flex-wrap items-center gap-x-3">
               {task.scheduled_at && (
                 <span className="flex items-center gap-1">
                   <Clock className="w-3 h-3" />

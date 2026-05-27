@@ -9,7 +9,7 @@ import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
-function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
+export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
   const ai = alterId;
   return [
     // ─── WELCOME ────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🔄",
       title: `Set & Switch ${t.Front}`,
-      body: `The "Switch" button (or "Set ${t.Front}" when nobody is ${t.fronting}) is how you log a ${t.switch}. Tap it to open the ${t.Front} modal where you'll select ${t.alters}, designate a primary, and save. The previous session automatically ends when you save a new one. And there's no "right" way to use this — it's your home. Set an ${t.alter} as ${t.fronting} whenever it feels right: if they come to mind, if they're influencing your thoughts, if they're co-conscious, or if they've taken full executive control. Whatever ${t.fronting} looks like for your ${t.system}, that's what ${t.fronting} means here.`,
+      body: `The "Switch" button (or "Set ${t.Front}" when nobody is ${t.fronting}) is how you log a ${t.switch}. Tap it to open the ${t.Front} modal where you'll select ${t.alters}, designate a primary, and save. The previous session automatically ends when you save a new one.`,
       route: "/", target: "set-front",
       look: `the highlighted Switch / "Set ${t.Front}" button in the ${t.fronting} widget`, action: null,
     },
@@ -51,8 +51,11 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       emoji: "💜",
       title: "Quick Check-In",
       body: `The Quick Check-In button opens a multi-section flow for logging emotions, symptoms, activities, and notes in one go. Any ${t.alter} can use it at any time. It's the fastest way to capture what's happening right now.`,
-      route: "/", target: "quick-checkin",
-      look: `the highlighted Quick Check-In button — it's opening the modal now`, action: "open-quick-checkin",
+      // No target while the modal opens — the trigger button hides behind
+      // the modal so highlighting it would just place an invisible spotlight
+      // on a hidden element and flip the tour card to the top of the screen.
+      route: "/", target: null,
+      look: `the Quick Check-In modal that just opened`, action: "open-quick-checkin",
     },
     {
       section: "dashboard", sectionLabel: "Dashboard",
@@ -117,7 +120,9 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       emoji: "👥",
       title: `Set ${t.Front}ers — Select`,
       body: `The Set ${t.Front}ers modal is now open. All active ${t.alters} appear as a scrollable list. Tap any ${t.alter} to select them — selected ${t.alters} appear as chips at the top. Tap a chip's × to remove them. Long-press a chip to toggle primary status.`,
-      route: "/", target: "set-front",
+      // Target left null so the trigger button (now hidden behind the modal)
+      // doesn't drive the spotlight or flip the tour card to the top.
+      route: "/", target: null,
       look: `the modal — try tapping an ${t.alter} to select them and see their chip appear`, action: "open-set-front",
     },
     {
@@ -804,7 +809,30 @@ function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
   ];
 }
 
-export default function FeatureTour({ onClose }) {
+// `restrictToRoute` — when set, the tour filters down to steps whose `route`
+// matches and drops the global "welcome" + "Tour Complete 🎉" closer. Used
+// by the per-page tutorial banner (PageTutorialBanner) so first-time
+// visitors to a page get a short scoped walkthrough instead of the full
+// linear tour.
+
+// Returns the set of routes that have at least one page-scoped tutorial
+// step. Terms are passed in only because buildSteps uses them in titles /
+// bodies; we don't actually look at those — only the route field matters
+// here — so passing an empty object is fine, but lets us avoid making
+// buildSteps callers depend on useTerms.
+let _routesCache = null;
+export function getRoutesWithTourSteps() {
+  if (_routesCache) return _routesCache;
+  const all = buildSteps({}, null, false);
+  const set = new Set();
+  for (const s of all) {
+    if (s.route && s.section !== "welcome") set.add(s.route);
+  }
+  _routesCache = set;
+  return set;
+}
+
+export default function FeatureTour({ onClose, restrictToRoute = null }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const t = useTerms();
@@ -834,11 +862,25 @@ export default function FeatureTour({ onClose }) {
     }
   }, [altersLoaded]);
 
-  const steps = useMemo(() => buildSteps(t, tourAlterId, tourAlterWasCreated), [t, tourAlterId, tourAlterWasCreated]);
+  const steps = useMemo(() => {
+    const all = buildSteps(t, tourAlterId, tourAlterWasCreated);
+    if (!restrictToRoute) return all;
+    return all.filter(s => s.route === restrictToRoute && s.section !== "welcome");
+  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute]);
   const [step, setStep] = useState(0);
 
-  const current = steps[step];
-  const isLast = step === steps.length - 1;
+  // Safety: if a page-scoped tour ends up with no steps (bad route, or every
+  // step's data-tour anchor was removed), exit instead of crashing on
+  // steps[step].
+  useEffect(() => {
+    if (restrictToRoute && steps.length === 0) onClose?.();
+  }, [restrictToRoute, steps.length, onClose]);
+
+  // Empty-object fallback keeps the useMemos below (which read current.section)
+  // from crashing on the render frame before the no-steps cleanup effect fires.
+  const current = steps[step] || {};
+  const hasSteps = steps.length > 0;
+  const isLast = hasSteps && step === steps.length - 1;
   const isFirst = step === 0;
 
   // Section metadata
@@ -973,6 +1015,10 @@ export default function FeatureTour({ onClose }) {
     onClose();
   }, [steps, step, onClose, tourAlterWasCreated, tourAlterId, queryClient]);
 
+  // Page-scoped run with nothing to show — the cleanup effect above is
+  // already calling onClose; just render nothing in the meantime.
+  if (!hasSteps) return null;
+
   return createPortal(
     <>
       {/* SVG spotlight — renders a full-screen dim with a transparent cutout over
@@ -981,7 +1027,11 @@ export default function FeatureTour({ onClose }) {
       {spotlightRect ? (
         <svg
           className="fixed inset-0 pointer-events-none"
-          style={{ zIndex: 45, width: "100%", height: "100%", overflow: "visible" }}
+          // zIndex 55 sits ABOVE the Radix Dialog overlay (z-50) so the
+          // spotlight dim + cutout render correctly when the highlighted
+          // element is inside a modal (e.g. the SetFrontModal sort button).
+          // Below z-99 / z-100 so the tour card and touch blocker stay on top.
+          style={{ zIndex: 55, width: "100%", height: "100%", overflow: "visible" }}
         >
           <defs>
             <mask id="tour-spotlight-mask" maskUnits="userSpaceOnUse" x="0" y="0" width="100%" height="100%">
@@ -999,7 +1049,7 @@ export default function FeatureTour({ onClose }) {
           <rect width="100%" height="100%" fill="rgba(0,0,0,0.45)" mask="url(#tour-spotlight-mask)" />
         </svg>
       ) : (
-        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 45, background: "rgba(0,0,0,0.3)" }} />
+        <div className="fixed inset-0 pointer-events-none" style={{ zIndex: 55, background: "rgba(0,0,0,0.3)" }} />
       )}
 
       {/* Touch blocker — covers the tour card footprint so nothing behind it gets taps */}
@@ -1072,7 +1122,11 @@ export default function FeatureTour({ onClose }) {
               <button
                 onClick={() => {
                   if (isLast) {
-                    markTourCompletedToday();
+                    // Only the full linear tour counts as "completing the
+                    // tour" for the daily-task trigger. Page-scoped runs
+                    // are smaller walkthroughs and shouldn't satisfy the
+                    // tour_completed marker.
+                    if (!restrictToRoute) markTourCompletedToday();
                     handleClose();
                   } else {
                     goTo(step + 1);
