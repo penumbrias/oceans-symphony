@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Simply Plural import no longer fails with a network error — the data sync now goes through cleanly.",
+      },
+      {
+        type: "fix",
         text: "Deleting all local data now returns you to the welcome/setup screen instead of an empty dashboard.",
       },
       {
