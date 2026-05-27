@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Deleting all local data now returns you to the welcome/setup screen instead of an empty dashboard.",
+      },
+      {
+        type: "fix",
+        text: "Removed a Back button on the first-run setup screen that didn't go anywhere.",
+      },
+      {
         type: "improve",
         text: "Cleaned up the dashboard and settings — removed the older-version data-migration banners and the first-launch migration prompt.",
       },

@@ -232,9 +232,8 @@ function FirstRunSetup({ onComplete }) {
           <p className="text-xs text-muted-foreground">⚠️ If you forget your password, your data cannot be recovered. There is no reset option.</p>
         </div>
       )}
-      <div className="flex gap-2 pt-2">
-        <Button variant="outline" onClick={() => setStep("choose")} className="flex-1">Back</Button>
-        <Button onClick={handleLocalConfirm} disabled={loading || importing} className="flex-1 bg-primary hover:bg-primary/90">
+      <div className="pt-2">
+        <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
           {useEncryption ? "Set Up Encrypted Local" : "Use Local Storage"}
         </Button>
