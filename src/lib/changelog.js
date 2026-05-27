@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Editing a fronter's symptoms from the dashboard no longer wipes symptoms you'd already saved on that session.",
+      },
+      {
+        type: "fix",
         text: "Simply Plural import no longer fails with a network error — the data sync now goes through cleanly.",
       },
       {

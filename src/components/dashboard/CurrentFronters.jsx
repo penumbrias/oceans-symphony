@@ -192,7 +192,21 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
 
   const [showSymptoms, setShowSymptoms] = useState(false);
   const [symptomValues, setSymptomValues] = useState(() => {
-    try { return JSON.parse(session?.session_symptoms || "{}"); } catch { return {}; }
+    // session_symptoms exists on disk in two shapes: the current array of
+    // { id, label, value, type } (what handleSave below writes) and an older
+    // id→value map. Normalise to the map shape we use internally — without
+    // this, re-editing a session loaded as an array dropped every previously
+    // recorded symptom on save.
+    try {
+      const parsed = JSON.parse(session?.session_symptoms || "[]");
+      if (Array.isArray(parsed)) {
+        const map = {};
+        for (const it of parsed) if (it?.id) map[it.id] = it.value;
+        return map;
+      }
+      if (parsed && typeof parsed === "object") return parsed;
+      return {};
+    } catch { return {}; }
   });
 
   const [showTrigger, setShowTrigger] = useState(!!session?.is_triggered_switch);
