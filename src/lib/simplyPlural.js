@@ -1,17 +1,19 @@
 const SP_API_BASE = "https://api.apparyllis.com/v1";
 
 async function spFetch(path, token) {
-  // `cache: "no-store"` is load-bearing — without it, an Android WebView
-  // or aggressive intermediate proxy can serve a stored response from
-  // an earlier import (we've seen a report where a bio that lived on
-  // SP a year ago resurfaced after a fresh-looking sync). Also send
-  // Pragma + Cache-Control headers as belt-and-braces for older
-  // engines that don't fully honour `cache: "no-store"`.
-  const res = await fetch(`${SP_API_BASE}${path}`, {
+  // Cache-busting without CORS-breaking headers. We must NOT send
+  // Cache-Control / Pragma as REQUEST headers: they aren't CORS-safelisted,
+  // so they force a preflight whose Access-Control-Request-Headers the
+  // Simply Plural API rejects (it only allows Authorization). That made
+  // every import call fail with "NetworkError when attempting to fetch
+  // resource" on web and native, even though the token check — which sends
+  // no extra headers — succeeded. Instead rely on `cache: "no-store"` plus
+  // a per-request `_ts` query param, which busts WebView/proxy caches
+  // without adding any non-safelisted header.
+  const sep = path.includes("?") ? "&" : "?";
+  const res = await fetch(`${SP_API_BASE}${path}${sep}_ts=${Date.now()}`, {
     headers: {
       Authorization: token,
-      "Cache-Control": "no-cache, no-store, must-revalidate",
-      Pragma: "no-cache",
     },
     cache: "no-store",
   });
