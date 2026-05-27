@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Pinch-zoom no longer accidentally opens the grocery list cover — multi-finger gestures (pinching the Inner World map, etc.) now clear the privacy-tap counter instead of adding to it.",
+      },
+      {
         type: "improve",
         text: "Analytics map now runs its layout in a background thread, so very large systems no longer freeze the page while it builds. A \"Building layout…\" spinner shows while it works, and you can switch tabs or tap around freely in the meantime.",
       },
