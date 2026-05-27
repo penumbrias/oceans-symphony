@@ -394,21 +394,6 @@ export default function StorageModeSetup({ mode, onComplete }) {
           )}
         </div>
 
-        {/* GitHub link — first run only */}
-        {mode !== "unlock" && (
-          <p className="text-sm text-center mb-4">
-            <strong className="text-foreground">
-              Looking for the latest version?{" "}
-              <span
-                onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
-                className="text-primary underline hover:text-primary/80 transition-colors cursor-pointer"
-              >
-                Check releases on GitHub
-              </span>.
-            </strong>
-          </p>
-        )}
-
         {/* Collapsible privacy notice — first run only */}
         {mode !== "unlock" && (
           <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/5 overflow-hidden">
@@ -427,7 +412,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">📦 What's stored, and where</p>
-                  <p>Everything you log lives in this browser's <strong className="text-foreground">IndexedDB</strong> on this device: {`${'alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, grounding techniques, custom fields, theme / navigation settings, and so on'}`}. A handful of small per-browser preferences also live in <strong className="text-foreground">localStorage</strong> (theme + last-opened list ids, daily-task firing markers, push notification IDs, the friends-server identity, and grocery lists you've explicitly marked "available when locked"). Both stores stay on this device — neither gets uploaded anywhere.</p>
+                  <p>Everything you log lives in this app or browser's <strong className="text-foreground">IndexedDB</strong> on this device: {`${'alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, grounding techniques, custom fields, theme / navigation settings, and so on'}`}. A handful of small per-browser/install preferences also live in <strong className="text-foreground">localStorage</strong> (theme + last-opened list ids, daily-task firing markers, push notification IDs, the friends-server identity, and grocery lists you've explicitly marked "available when locked"). Both stores stay on this device — neither gets uploaded anywhere.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🔒 What encryption protects (and what it doesn't)</p>

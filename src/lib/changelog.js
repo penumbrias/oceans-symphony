@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Importing a backup in \"Add new\" mode no longer creates duplicate copies of the default daily tasks.",
+      },
+      {
+        type: "improve",
+        text: "Privacy notice on the onboarding screen reads correctly whether you're in the app or in a browser.",
+      },
+      {
+        type: "improve",
+        text: "Onboarding screen is a little cleaner — removed the redundant \"Check releases on GitHub\" prompt above the privacy notice.",
+      },
+      {
+        type: "fix",
         text: "Editing a fronter's symptoms from the dashboard no longer wipes symptoms you'd already saved on that session.",
       },
       {

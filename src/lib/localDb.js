@@ -563,6 +563,40 @@ export async function mergeDbDump(dump) {
       // No local record yet — fall through to the regular add path.
     }
 
+    if (entityName === "DailyTaskTemplate") {
+      // The default daily-task templates auto-seed (with fresh random ids)
+      // the first time the Daily Tasks page is opened on an empty DB. A
+      // backup made after the original seed carries the SAME defaults
+      // under different ids, so the plain "skip if id exists" merge below
+      // would let both sets coexist — visible to the user as every preset
+      // task appearing twice. Dedupe by (title, frequency) when local
+      // templates already exist; local row wins so user tweaks (custom
+      // triggers, sort_order, is_active toggles) survive the import.
+      const localIds = Object.keys(_db[entityName]);
+      if (localIds.length > 0) {
+        const seen = new Set();
+        for (const local of Object.values(_db[entityName])) {
+          if (!local || typeof local !== "object") continue;
+          const title = String(local.title || "").trim().toLowerCase();
+          if (!title) continue;
+          const freq = local.frequency || "daily";
+          seen.add(`${title}::${freq}`);
+        }
+        for (const [id, record] of Object.entries(records)) {
+          if (!record || typeof record !== "object") continue;
+          if (_db[entityName][id]) continue;
+          const title = String(record.title || "").trim().toLowerCase();
+          const freq = record.frequency || "daily";
+          const key = title ? `${title}::${freq}` : null;
+          if (key && seen.has(key)) continue;
+          _db[entityName][id] = record;
+          if (key) seen.add(key);
+        }
+        continue;
+      }
+      // No local templates yet — fall through to the regular add path.
+    }
+
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
         _db[entityName][id] = record;
