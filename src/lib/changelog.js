@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Changing the \"front\" terminology now auto-conjugates correctly — typing \"control\" as the base term gives you \"controlling\" / \"controller\" instead of leaving stale \"fronting\" / \"fronter\" overrides in place. (If you already saved a bad value, open Settings → Terminology → Advanced and clear the Fronting / Fronter fields manually.)",
+      },
+      {
+        type: "fix",
         text: "Pinch-zoom no longer accidentally opens the grocery list cover — multi-finger gestures (pinching the Inner World map, etc.) now clear the privacy-tap counter instead of adding to it.",
       },
       {

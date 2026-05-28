@@ -35,6 +35,28 @@ export default function TermsSettings() {
     }));
   };
 
+  // When the user edits a base term, the Advanced override fields that
+  // were just mirroring the OLD base's auto-conjugation should reset to
+  // empty so the new base re-drives them. Without this, typing "control"
+  // into Front would leave `fronting: "fronting"` in the form (from the
+  // initial load), which handleSave then persists as an explicit
+  // override — so useTerms reads "control" + override "fronting" and
+  // surfaces "fronting" instead of "controlling". Explicit overrides
+  // the user typed themselves (e.g. "activating" for base "active") do
+  // NOT match the auto-form, so they're preserved.
+  const setBase = (key, value) => {
+    setVals((prev) => {
+      const next = { ...prev, [key]: value };
+      if (key === "front") {
+        if (prev.fronting && prev.fronting === gerund(prev.front)) next.fronting = "";
+        if (prev.fronter && prev.fronter === agent(prev.front)) next.fronter = "";
+      } else if (key === "switch") {
+        if (prev.switching && prev.switching === gerund(prev.switch)) next.switching = "";
+      }
+      return next;
+    });
+  };
+
   useEffect(() => {
     setVals({
       system: terms.system,
@@ -118,7 +140,7 @@ export default function TermsSettings() {
               <label className="text-xs font-medium text-muted-foreground block mb-1">{label}</label>
               <Input
                 value={vals[key]}
-                onChange={(e) => setVals((p) => ({ ...p, [key]: e.target.value }))}
+                onChange={(e) => setBase(key, e.target.value)}
                 placeholder={hint}
                 className="h-8 text-sm"
               />
