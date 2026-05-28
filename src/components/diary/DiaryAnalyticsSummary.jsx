@@ -705,7 +705,7 @@ export default function DiaryAnalyticsSummary({
             </div>
             {balanceByDay.length >= 2 && (
               <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={balanceByDay}>
+                <BarChart data={balanceByDay} syncId="checkin-log-day" syncMethod="value">
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
                   <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
@@ -762,7 +762,7 @@ export default function DiaryAnalyticsSummary({
             </div>
             {bodyTrendByDay.length >= 2 && (
               <ResponsiveContainer width="100%" height={180}>
-                <BarChart data={bodyTrendByDay}>
+                <BarChart data={bodyTrendByDay} syncId="checkin-log-day" syncMethod="value">
                   <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
                   <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
                   <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
@@ -793,7 +793,7 @@ export default function DiaryAnalyticsSummary({
           <EmptyHint text="Need at least 2 days with entries in this range." />
         ) : (
           <ResponsiveContainer width="100%" height={200}>
-            <BarChart data={frequencyTrend}>
+            <BarChart data={frequencyTrend} syncId="checkin-log-day" syncMethod="value">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
               <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
@@ -848,7 +848,7 @@ export default function DiaryAnalyticsSummary({
             <EmptyHint text="Need at least 2 days of check-ins to show a trend." />
           ) : (
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={distressTrend}>
+              <LineChart data={distressTrend} syncId="checkin-log-day" syncMethod="value">
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
                 <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
                 <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={32} tickFormatter={(v) => `${v}%`} />
@@ -1028,7 +1028,7 @@ export default function DiaryAnalyticsSummary({
           subtitle="Emotional misery vs. joy, from diary cards"
         >
           <ResponsiveContainer width="100%" height={220}>
-            <LineChart data={moodTrend}>
+            <LineChart data={moodTrend} syncId="checkin-log-day" syncMethod="value">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
               <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
               <YAxis domain={[0, 5]} tick={{ fontSize: 11 }} width={24} />

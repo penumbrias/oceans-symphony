@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Check-In Log analytics: hovering a day on any per-day chart now highlights the same day on every other per-day chart — Emotional Balance, Body States, Entry Frequency, Distress Rate, and Mood Trend all share a cursor so you can read across them at once.",
+      },
+      {
         type: "fix",
         text: "Check-In Log analytics distress rate now actually works — it counts check-ins that include an emotion you've marked distressing (Settings → Emotions), instead of relying on a flag that nothing in the app ever sets.",
       },
