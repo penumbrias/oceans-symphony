@@ -20,6 +20,14 @@ export const CHANGELOG = [
         text: "Quick plans always default to today — even when the quick-plan toggle was already on from a previous use. Regular plans still default to tomorrow.",
       },
       {
+        type: "improve",
+        text: "Check-In Log analytics now pulls from check-ins, symptom check-ins, status notes, per-alter session emotions/symptoms, activities, and diary cards — not just diary cards. New \"Entry Frequency\" and \"Distress Rate\" charts replace the always-empty Intensity chart, plus a summary card with totals at the top.",
+      },
+      {
+        type: "fix",
+        text: "Check-In Log analytics now shows a helpful hint when your selected range is empty but you have entries outside it — and the Analytics button is now always available, not gated on diary cards.",
+      },
+      {
         type: "fix",
         text: "Changing the \"front\" terminology now auto-conjugates correctly — typing \"control\" as the base term gives you \"controlling\" / \"controller\" instead of leaving stale \"fronting\" / \"fronter\" overrides in place. (If you already saved a bad value, open Settings → Terminology → Advanced and clear the Fronting / Fronter fields manually.)",
       },

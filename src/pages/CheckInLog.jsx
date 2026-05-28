@@ -1496,7 +1496,13 @@ export default function CheckInLog() {
             <p className="text-muted-foreground text-xs">Track patterns over time</p>
           </div>
         </div>
-        <DiaryAnalyticsSummary cards={diaryCards} checkIns={checkIns} />
+        <DiaryAnalyticsSummary
+          cards={diaryCards}
+          checkIns={checkIns}
+          statusNotes={statusNotes}
+          frontingSessions={frontingSessions}
+          activities={activities}
+        />
       </motion.div>
     );
   }
@@ -1552,11 +1558,14 @@ export default function CheckInLog() {
               </button>
             </DropdownMenuContent>
           </DropdownMenu>
-          {diaryCards.length > 0 && (
-            <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
-              <BarChart2 className="w-4 h-4" /> Analytics
-            </Button>
-          )}
+          {/* Analytics now uses every log source (check-ins, symptom
+              check-ins, status notes, fronting-session entries, activities,
+              diary cards) so we no longer gate the button on diary cards
+              specifically. The component itself handles the empty-state
+              for accounts with no data anywhere. */}
+          <Button variant="outline" onClick={() => setView("analytics")} className="gap-1.5">
+            <BarChart2 className="w-4 h-4" /> Analytics
+          </Button>
         </div>
       </div>
 
