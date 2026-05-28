@@ -11,6 +11,7 @@ import {
   parseSessionSymptoms,
 } from "@/lib/perAlterSessionEntries";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
+import { loadSystemDistressSet } from "@/lib/emotionDistress";
 import { useTerms } from "@/lib/useTerms";
 
 // "Log Analytics" rendered above the Check-In Log. Pulls from every
@@ -61,6 +62,30 @@ const BUILTIN_EMOTION_CATEGORY = (() => {
   }
   return out;
 })();
+
+// Body emotions break further into one of the five nervous-system
+// states (Calm, Flight, Fight, Freeze, Collapse). Each WHEEL.body
+// core's label IS a valid emotion, and so is every entry in its subs
+// array — we map both to the core name.
+const BODY_SUBCATEGORY = (() => {
+  const out = {};
+  const cores = WHEEL.body?.cores || {};
+  for (const [coreName, { subs }] of Object.entries(cores)) {
+    out[coreName] = coreName;
+    for (const sub of subs || []) out[sub] = coreName;
+  }
+  return out;
+})();
+
+const BODY_SUB_ORDER = ["Calm", "Flight", "Fight", "Freeze", "Collapse"];
+
+const BODY_SUB_META = {
+  Calm:     { label: "Calm",     color: "#84cc16" },
+  Flight:   { label: "Flight",   color: "#fbbf24" },
+  Fight:    { label: "Fight",    color: "#f97316" },
+  Freeze:   { label: "Freeze",   color: "#60a5fa" },
+  Collapse: { label: "Collapse", color: "#94a3b8" },
+};
 
 function truncate(str, n = 12) {
   return str && str.length > n ? str.slice(0, n) + "…" : str;
@@ -195,12 +220,39 @@ export default function DiaryAnalyticsSummary({
     return set.size;
   }, [filteredCards, filteredCheckIns, filteredSymptomCheckIns, filteredStatusNotes, filteredActivities]);
 
-  // Distress rate (overall) — used for the summary card pill.
+  // Set of "distressing" emotion labels — combines the system distress
+  // set (built-in labels the user has marked distressing in Settings ->
+  // Emotions) with custom emotions flagged is_distressing. Comparisons
+  // are case-insensitive because the system set is stored lowercase.
+  // Distress in this analytics module is derived FROM the emotion
+  // labels on each check-in (the EmotionCheckIn.is_distress field is
+  // not written by any code path — verified by grepping `is_distress:`
+  // across src/ — so it was always 0%).
+  const distressLabelSet = useMemo(() => {
+    const sys = loadSystemDistressSet(); // already lowercase
+    const custom = new Set();
+    for (const ce of customEmotions) {
+      if (ce && ce.is_distressing && ce.label) custom.add(ce.label.toLowerCase());
+    }
+    return { sys, custom };
+  }, [customEmotions]);
+
+  const isLabelDistressing = (label) => {
+    if (!label || typeof label !== "string") return false;
+    const k = label.toLowerCase();
+    return distressLabelSet.sys.has(k) || distressLabelSet.custom.has(k);
+  };
+
+  const isCheckInDistressing = (ci) =>
+    (ci.emotions || []).some(isLabelDistressing);
+
+  // Distress rate (overall) — share of check-ins whose emotions
+  // include at least one label marked distressing.
   const distressOverall = useMemo(() => {
     if (filteredCheckIns.length === 0) return null;
-    const distressed = filteredCheckIns.filter((ci) => ci.is_distress).length;
+    const distressed = filteredCheckIns.filter(isCheckInDistressing).length;
     return Math.round((distressed / filteredCheckIns.length) * 100);
-  }, [filteredCheckIns]);
+  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Categorize a single emotion label using the merged builtin + custom
   // map. Unknown labels fall back to "neutral" — better than dropping
@@ -213,13 +265,14 @@ export default function DiaryAnalyticsSummary({
     const out = [];
     filteredCheckIns.forEach((ci) => {
       const alterIds = ci.fronting_alter_ids?.length ? ci.fronting_alter_ids : (ci.alter_id ? [ci.alter_id] : []);
+      const wasDistress = isCheckInDistressing(ci);
       (ci.emotions || []).forEach((label) => {
         if (typeof label !== "string") return;
         out.push({
           label,
           timestamp: ci.timestamp,
           alterIds,
-          isDistress: !!ci.is_distress,
+          isDistress: wasDistress,
           source: "checkin",
         });
       });
@@ -264,6 +317,40 @@ export default function DiaryAnalyticsSummary({
     return { counts, total };
   }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // Body & Nervous System breakdown — every body-category emotion falls
+  // into one of Calm / Flight / Fight / Freeze / Collapse via
+  // BODY_SUBCATEGORY. We also build a per-day stacked trend so the user
+  // can watch shifts (e.g. more Collapse over time, more Calm coming
+  // back after stabilisation work).
+  const bodyBreakdown = useMemo(() => {
+    const counts = { Calm: 0, Flight: 0, Fight: 0, Freeze: 0, Collapse: 0 };
+    for (const e of emotionEvents) {
+      if (labelCategory(e.label) !== "body") continue;
+      const sub = BODY_SUBCATEGORY[e.label];
+      if (sub && counts[sub] != null) counts[sub] += 1;
+    }
+    const total = BODY_SUB_ORDER.reduce((s, k) => s + counts[k], 0);
+    return { counts, total };
+  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const bodyTrendByDay = useMemo(() => {
+    const byDay = new Map();
+    for (const e of emotionEvents) {
+      if (labelCategory(e.label) !== "body") continue;
+      const sub = BODY_SUBCATEGORY[e.label];
+      if (!sub) continue;
+      if (!e.timestamp) continue;
+      const day = format(new Date(e.timestamp), "MMM d");
+      const bucket = byDay.get(day) || {
+        date: day,
+        Calm: 0, Flight: 0, Fight: 0, Freeze: 0, Collapse: 0,
+      };
+      bucket[sub] += 1;
+      byDay.set(day, bucket);
+    }
+    return [...byDay.values()];
+  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
   // Time-of-day distribution (hour 0-23) for check-ins. Useful "when
   // do I tend to feel this way" pattern.
   const hourDistribution = useMemo(() => {
@@ -277,10 +364,10 @@ export default function DiaryAnalyticsSummary({
       if (!ci.timestamp) continue;
       const h = new Date(ci.timestamp).getHours();
       buckets[h].total += 1;
-      if (ci.is_distress) buckets[h].distress += 1;
+      if (isCheckInDistressing(ci)) buckets[h].distress += 1;
     }
     return buckets;
-  }, [filteredCheckIns]);
+  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Stacked emotional balance per day. Built from emotionEvents so
   // all three sources (check-ins, diary cards, session emotions)
@@ -305,13 +392,13 @@ export default function DiaryAnalyticsSummary({
       const day = format(new Date(ci.timestamp), "MMM d");
       const bucket = byDay.get(day) || { day, total: 0, distress: 0 };
       bucket.total += 1;
-      if (ci.is_distress) bucket.distress += 1;
+      if (isCheckInDistressing(ci)) bucket.distress += 1;
       byDay.set(day, bucket);
     }
     return [...byDay.values()]
       .filter((b) => b.total > 0)
       .map((b) => ({ date: b.day, rate: Math.round((b.distress / b.total) * 100) }));
-  }, [filteredCheckIns]);
+  }, [filteredCheckIns, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Daily entry count (any kind).
   const frequencyTrend = useMemo(() => {
@@ -415,10 +502,11 @@ export default function DiaryAnalyticsSummary({
     }
     for (const ci of filteredCheckIns) {
       const alterIds = ci.fronting_alter_ids?.length ? ci.fronting_alter_ids : (ci.alter_id ? [ci.alter_id] : []);
+      const wasDistress = isCheckInDistressing(ci);
       for (const id of alterIds) {
         const s = ensure(id);
         s.checkinCount += 1;
-        if (ci.is_distress) s.distress += 1;
+        if (wasDistress) s.distress += 1;
       }
     }
     for (const sess of filteredSessions) {
@@ -449,9 +537,12 @@ export default function DiaryAnalyticsSummary({
 
   // Distress co-occurrence — what other things were logged around the
   // same time as distress check-ins? Looks within +/- 30 minutes of
-  // each distressed check-in.
+  // each distressed check-in. "Distress" now means "the check-in's
+  // emotions include at least one label marked distressing" (system
+  // distress set OR CustomEmotion.is_distressing) — see
+  // distressLabelSet above.
   const distressContext = useMemo(() => {
-    const distressed = filteredCheckIns.filter((ci) => ci.is_distress && ci.timestamp);
+    const distressed = filteredCheckIns.filter((ci) => ci.timestamp && isCheckInDistressing(ci));
     if (distressed.length === 0) return null;
 
     const WINDOW_MS = 30 * 60 * 1000;
@@ -502,7 +593,7 @@ export default function DiaryAnalyticsSummary({
       topSymptoms: top(cooccurringSymptoms),
       topActivities: top(cooccurringActivities),
     };
-  }, [filteredCheckIns, filteredSymptomCheckIns, filteredActivities, symptomById, categoryById]);
+  }, [filteredCheckIns, filteredSymptomCheckIns, filteredActivities, symptomById, categoryById, distressLabelSet]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Mood Trend (diary-only) — kept conditional so the page doesn't
   // get a "Need at least 2 rated diary entries" placeholder.
@@ -636,6 +727,63 @@ export default function DiaryAnalyticsSummary({
         </ChartCard>
       )}
 
+      {/* Body & Nervous System breakdown — only shows when there's any
+          body-category emotion in range. Splits the body slice from the
+          Emotional Balance bar into its five core states (Calm, Flight,
+          Fight, Freeze, Collapse) so the user can see the texture of
+          their somatic activation patterns. */}
+      {bodyBreakdown.total > 0 && (
+        <ChartCard
+          title="Body & Nervous System States"
+          subtitle="Calm / Flight / Fight / Freeze / Collapse — derived from your body-category emotions"
+        >
+          <div className="space-y-3">
+            <div className="flex h-3 rounded-full overflow-hidden border border-border/50">
+              {BODY_SUB_ORDER.map((sub) => {
+                const pct = (bodyBreakdown.counts[sub] / bodyBreakdown.total) * 100;
+                if (pct === 0) return null;
+                return (
+                  <div
+                    key={sub}
+                    title={`${sub}: ${Math.round(pct)}%`}
+                    style={{ background: BODY_SUB_META[sub].color, width: `${pct}%` }}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs">
+              {BODY_SUB_ORDER.map((sub) => (
+                <div key={sub} className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ background: BODY_SUB_META[sub].color }} />
+                  <span className="text-foreground">{sub}</span>
+                  <span className="text-muted-foreground">{bodyBreakdown.counts[sub]}</span>
+                </div>
+              ))}
+            </div>
+            {bodyTrendByDay.length >= 2 && (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={bodyTrendByDay}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
+                  <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-muted)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  {BODY_SUB_ORDER.map((sub) => (
+                    <Bar key={sub} dataKey={sub} stackId="body" name={sub} fill={BODY_SUB_META[sub].color} radius={sub === "Collapse" ? [4, 4, 0, 0] : 0} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </ChartCard>
+      )}
+
       {/* Entry Frequency */}
       <ChartCard
         title="Entry Frequency"
@@ -667,7 +815,7 @@ export default function DiaryAnalyticsSummary({
       {filteredCheckIns.length > 0 && (
         <ChartCard
           title="Time of Day"
-          subtitle="When you tend to check in. Red overlay shows distress share per hour."
+          subtitle="When you check in. Red overlay = check-ins that included an emotion marked distressing."
         >
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={hourDistribution}>
@@ -694,7 +842,7 @@ export default function DiaryAnalyticsSummary({
       {filteredCheckIns.length > 0 && (
         <ChartCard
           title="Distress Rate"
-          subtitle="Share of check-ins flagged as distress, per day"
+          subtitle="Share of check-ins per day that included an emotion you marked distressing in Settings → Emotions"
         >
           {distressTrend.length < 2 ? (
             <EmptyHint text="Need at least 2 days of check-ins to show a trend." />

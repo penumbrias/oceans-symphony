@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Check-In Log analytics distress rate now actually works — it counts check-ins that include an emotion you've marked distressing (Settings → Emotions), instead of relying on a flag that nothing in the app ever sets.",
+      },
+      {
+        type: "improve",
+        text: "Check-In Log analytics: new \"Body & Nervous System States\" card breaks every body-category emotion into Calm / Flight / Fight / Freeze / Collapse, with a balance bar and per-day stacked trend.",
+      },
+      {
         type: "improve",
         text: "Added a Discord support server link to the top of Settings, next to Template gallery and Latest releases.",
       },
