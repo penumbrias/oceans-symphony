@@ -82,10 +82,11 @@ export default function ActivityPlanModal({
   const terms = useTerms();
   const queryClient = useQueryClient();
 
-  // Default to tomorrow noon when there's no explicit start date.
+  // Default to today at noon when there's no explicit start date.
+  // Users overwhelmingly open the planner to add something for today;
+  // defaulting to tomorrow forced an extra tap to roll the date back.
   const defaultedStart = startDateProp || (() => {
     const d = new Date();
-    d.setDate(d.getDate() + 1);
     d.setHours(12, 0, 0, 0);
     return d;
   })();
@@ -178,8 +179,9 @@ export default function ActivityPlanModal({
       setDatePicked(format(startDateProp, "yyyy-MM-dd"));
       setEndDatePicked(format(endDateProp || startDateProp, "yyyy-MM-dd"));
     } else {
+      // Re-open defaults to today (see defaultedStart at the top of
+      // the component for the rationale).
       const d = new Date();
-      d.setDate(d.getDate() + 1);
       d.setHours(12, 0, 0, 0);
       setDatePicked(format(d, "yyyy-MM-dd"));
       setEndDatePicked(format(d, "yyyy-MM-dd"));

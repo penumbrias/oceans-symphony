@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "New plans default to today instead of tomorrow.",
+      },
+      {
         type: "fix",
         text: "Changing the \"front\" terminology now auto-conjugates correctly — typing \"control\" as the base term gives you \"controlling\" / \"controller\" instead of leaving stale \"fronting\" / \"fronter\" overrides in place. (If you already saved a bad value, open Settings → Terminology → Advanced and clear the Fronting / Fronter fields manually.)",
       },
