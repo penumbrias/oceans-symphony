@@ -279,6 +279,9 @@ export default function Settings() {
           </span><p>
           <span onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                 className="text-primary underline cursor-pointer">Latest releases on GitHub →</span>
+          {" · "}
+          <span onClick={() => openExternalUrl("https://discord.gg/S5rFXjrfWG")}
+                className="text-primary underline cursor-pointer">Discord support server →</span>
         </p></p>
       </div>
 
