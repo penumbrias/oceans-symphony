@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Check-In Log analytics: emotions now grouped by Good / Neutral / Bad / Body category (taken from the emotion wheel) with an overall balance bar + per-day stacked trend. New \"Time of Day\" chart shows when you check in and which hours skew distressing. Per-{{alter}} patterns table surfaces each {{alter}}'s dominant emotion category, top emotion, and distress rate. New \"When Distress Showed Up\" section finds the symptoms, emotions, and activities that co-occurred within ±30 minutes of each distress check-in.",
+      },
+      {
+        type: "improve",
         text: "Check-In Log analytics now pulls from check-ins, symptom check-ins, status notes, per-alter session emotions/symptoms, activities, and diary cards — not just diary cards. New \"Entry Frequency\" and \"Distress Rate\" charts replace the always-empty Intensity chart, plus a summary card with totals at the top.",
       },
       {

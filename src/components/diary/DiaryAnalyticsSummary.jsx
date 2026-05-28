@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo } from "react";
 import { format, parseISO, subDays } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -10,17 +10,18 @@ import {
   parseSessionEmotions,
   parseSessionSymptoms,
 } from "@/lib/perAlterSessionEntries";
+import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
+import { useTerms } from "@/lib/useTerms";
 
 // "Log Analytics" rendered above the Check-In Log. Pulls from every
 // entity the log itself surfaces — EmotionCheckIn, SymptomCheckIn,
 // DiaryCard, StatusNote, FrontingSession (incl. session_emotions /
-// session_symptoms), Activity — so the analytics actually reflects
-// what the user has been tracking instead of just the diary subset.
+// session_symptoms), Activity — and surfaces patterns: emotional
+// balance, time-of-day distribution, per-alter breakdowns, and
+// distress co-occurrence.
 //
-// All optional props default to empty so any caller can pass only
-// what they have. We still fall back to internal useQuery for the
-// fields a caller would always want (symptomCheckIns + Symptom
-// catalogue) so the component works even when used standalone.
+// Most aggregations are O(filtered_records) per useMemo, so the page
+// stays snappy even with thousands of records.
 
 const RANGE_OPTIONS = [
   { label: "7d", days: 7 },
@@ -34,6 +35,33 @@ const EMOTION_COLORS = [
   "#ef4444", "#22c55e", "#f97316", "#6366f1", "#a78bfa",
 ];
 
+const CATEGORY_META = {
+  good:    { label: "Good",    color: "#22c55e" },
+  neutral: { label: "Neutral", color: "#6b7280" },
+  bad:     { label: "Bad",     color: "#ef4444" },
+  body:    { label: "Body",    color: "#f97316" },
+};
+
+const CATEGORY_ORDER = ["good", "neutral", "bad", "body"];
+
+// Build a label → category lookup from the WHEEL constant. Built-in
+// emotions live across cores + subs + flat lists; we flatten them all
+// once at module load. Custom emotions get folded in at runtime via
+// the data fetched in the component (CustomEmotion.category).
+const BUILTIN_EMOTION_CATEGORY = (() => {
+  const out = {};
+  for (const [catKey, cat] of Object.entries(WHEEL)) {
+    if (cat.flat) for (const label of cat.flat) out[label] = catKey;
+    if (cat.cores) {
+      for (const [coreName, { subs }] of Object.entries(cat.cores)) {
+        out[coreName] = catKey;
+        for (const sub of subs) out[sub] = catKey;
+      }
+    }
+  }
+  return out;
+})();
+
 function truncate(str, n = 12) {
   return str && str.length > n ? str.slice(0, n) + "…" : str;
 }
@@ -44,8 +72,8 @@ function withinRange(tsLike, cutoff) {
   return Number.isFinite(t) && t >= cutoff;
 }
 
-function formatDay(tsLike) {
-  return format(new Date(tsLike), "MMM d");
+function ymd(tsLike) {
+  return format(new Date(tsLike), "yyyy-MM-dd");
 }
 
 export default function DiaryAnalyticsSummary({
@@ -55,6 +83,7 @@ export default function DiaryAnalyticsSummary({
   frontingSessions = [],
   activities = [],
 }) {
+  const t = useTerms();
   const [rangeDays, setRangeDays] = useState(30);
 
   const { data: symptoms = [] } = useQuery({
@@ -67,19 +96,55 @@ export default function DiaryAnalyticsSummary({
     queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 1000),
   });
 
+  const { data: customEmotions = [] } = useQuery({
+    queryKey: ["customEmotions"],
+    queryFn: () => base44.entities.CustomEmotion.list(),
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
   const symptomById = useMemo(
     () => Object.fromEntries(symptoms.map((s) => [s.id, s])),
     [symptoms]
   );
+
+  const alterById = useMemo(
+    () => Object.fromEntries(alters.map((a) => [a.id, a])),
+    [alters]
+  );
+
+  const categoryById = useMemo(
+    () => Object.fromEntries(activityCategories.map((c) => [c.id, c])),
+    [activityCategories]
+  );
+
+  // Final emotion → category map = builtin + custom (custom wins if a
+  // user has overridden a builtin label, which is unusual but legal).
+  const emotionCategory = useMemo(() => {
+    const out = { ...BUILTIN_EMOTION_CATEGORY };
+    for (const ce of customEmotions) {
+      if (!ce.label) continue;
+      const cat = ce.category && CATEGORY_META[ce.category] ? ce.category : null;
+      if (cat) out[ce.label] = cat;
+    }
+    return out;
+  }, [customEmotions]);
 
   const cutoff = useMemo(
     () => subDays(new Date(), rangeDays).getTime(),
     [rangeDays]
   );
 
-  // Filter each entity by the active range. DiaryCard.date is a yyyy-MM-dd
-  // string; everything else has a timestamp (or start_time for
-  // FrontingSession).
+  // Filter each entity by the active range. DiaryCard.date is yyyy-MM-dd;
+  // everything else uses timestamp / start_time.
   const filteredCards = useMemo(
     () => cards.filter((c) => withinRange(c.date, cutoff)),
     [cards, cutoff]
@@ -105,8 +170,6 @@ export default function DiaryAnalyticsSummary({
     [activities, cutoff]
   );
 
-  // Totals across all sources, used by both the summary card and the
-  // "nothing in this range" hint.
   const totalInRange =
     filteredCards.length +
     filteredCheckIns.length +
@@ -121,23 +184,120 @@ export default function DiaryAnalyticsSummary({
     statusNotes.length +
     activities.length;
 
-  // Days active = unique days with any entry. Useful "engagement" stat.
+  // Days active = unique days with ANY entry.
   const daysActive = useMemo(() => {
     const set = new Set();
     filteredCards.forEach((c) => c.date && set.add(c.date));
-    filteredCheckIns.forEach((ci) => ci.timestamp && set.add(format(new Date(ci.timestamp), "yyyy-MM-dd")));
-    filteredSymptomCheckIns.forEach((sc) => sc.timestamp && set.add(format(new Date(sc.timestamp), "yyyy-MM-dd")));
-    filteredStatusNotes.forEach((n) => n.timestamp && set.add(format(new Date(n.timestamp), "yyyy-MM-dd")));
-    filteredActivities.forEach((a) => a.timestamp && set.add(format(new Date(a.timestamp), "yyyy-MM-dd")));
+    filteredCheckIns.forEach((ci) => ci.timestamp && set.add(ymd(ci.timestamp)));
+    filteredSymptomCheckIns.forEach((sc) => sc.timestamp && set.add(ymd(sc.timestamp)));
+    filteredStatusNotes.forEach((n) => n.timestamp && set.add(ymd(n.timestamp)));
+    filteredActivities.forEach((a) => a.timestamp && set.add(ymd(a.timestamp)));
     return set.size;
   }, [filteredCards, filteredCheckIns, filteredSymptomCheckIns, filteredStatusNotes, filteredActivities]);
 
-  // Distress rate per day. EmotionCheckIn has an `is_distress` flag;
-  // historically intensity was supposed to power a mood-ish chart but
-  // nothing in the codebase actually writes intensity, so the chart was
-  // always empty. Distress rate is a more honest replacement —
-  // 0% means "no distress flagged today", 100% means "every check-in
-  // today was flagged distress".
+  // Distress rate (overall) — used for the summary card pill.
+  const distressOverall = useMemo(() => {
+    if (filteredCheckIns.length === 0) return null;
+    const distressed = filteredCheckIns.filter((ci) => ci.is_distress).length;
+    return Math.round((distressed / filteredCheckIns.length) * 100);
+  }, [filteredCheckIns]);
+
+  // Categorize a single emotion label using the merged builtin + custom
+  // map. Unknown labels fall back to "neutral" — better than dropping
+  // them, since we still want them to count in totals.
+  const labelCategory = (label) => emotionCategory[label] || "neutral";
+
+  // Pull every emotion the user logged across sources, attaching meta
+  // (timestamp, alter_id, source). Used by multiple downstream charts.
+  const emotionEvents = useMemo(() => {
+    const out = [];
+    filteredCheckIns.forEach((ci) => {
+      const alterIds = ci.fronting_alter_ids?.length ? ci.fronting_alter_ids : (ci.alter_id ? [ci.alter_id] : []);
+      (ci.emotions || []).forEach((label) => {
+        if (typeof label !== "string") return;
+        out.push({
+          label,
+          timestamp: ci.timestamp,
+          alterIds,
+          isDistress: !!ci.is_distress,
+          source: "checkin",
+        });
+      });
+    });
+    filteredCards.forEach((c) => {
+      const alterIds = c.alter_id ? [c.alter_id] : [];
+      (c.emotions || []).forEach((label) => {
+        if (typeof label !== "string") return;
+        out.push({
+          label,
+          timestamp: c.date,
+          alterIds,
+          isDistress: false,
+          source: "diary",
+        });
+      });
+    });
+    filteredSessions.forEach((s) => {
+      const alterIds = s.alter_id ? [s.alter_id] : [];
+      parseSessionEmotions(s.session_emotions).forEach((label) => {
+        if (typeof label !== "string") return;
+        out.push({
+          label,
+          timestamp: s.start_time,
+          alterIds,
+          isDistress: false,
+          source: "session",
+        });
+      });
+    });
+    return out;
+  }, [filteredCheckIns, filteredCards, filteredSessions]);
+
+  // ── Aggregations ────────────────────────────────────────────────────
+
+  // Emotional balance — counts per category across emotionEvents. Used
+  // both as a summary stat and as a chart.
+  const balance = useMemo(() => {
+    const counts = { good: 0, neutral: 0, bad: 0, body: 0 };
+    for (const e of emotionEvents) counts[labelCategory(e.label)] += 1;
+    const total = counts.good + counts.neutral + counts.bad + counts.body;
+    return { counts, total };
+  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Time-of-day distribution (hour 0-23) for check-ins. Useful "when
+  // do I tend to feel this way" pattern.
+  const hourDistribution = useMemo(() => {
+    const buckets = Array.from({ length: 24 }, (_, h) => ({
+      hour: h,
+      label: `${h}:00`,
+      total: 0,
+      distress: 0,
+    }));
+    for (const ci of filteredCheckIns) {
+      if (!ci.timestamp) continue;
+      const h = new Date(ci.timestamp).getHours();
+      buckets[h].total += 1;
+      if (ci.is_distress) buckets[h].distress += 1;
+    }
+    return buckets;
+  }, [filteredCheckIns]);
+
+  // Stacked emotional balance per day. Built from emotionEvents so
+  // all three sources (check-ins, diary cards, session emotions)
+  // contribute.
+  const balanceByDay = useMemo(() => {
+    const byDay = new Map();
+    for (const e of emotionEvents) {
+      if (!e.timestamp) continue;
+      const day = format(new Date(e.timestamp), "MMM d");
+      const bucket = byDay.get(day) || { date: day, good: 0, neutral: 0, bad: 0, body: 0 };
+      bucket[labelCategory(e.label)] += 1;
+      byDay.set(day, bucket);
+    }
+    return [...byDay.values()];
+  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Distress trend (daily %).
   const distressTrend = useMemo(() => {
     const byDay = new Map();
     for (const ci of filteredCheckIns) {
@@ -153,8 +313,7 @@ export default function DiaryAnalyticsSummary({
       .map((b) => ({ date: b.day, rate: Math.round((b.distress / b.total) * 100) }));
   }, [filteredCheckIns]);
 
-  // Daily entry count over time (any kind of entry counts as activity).
-  // Useful for spotting tracking habits / gaps.
+  // Daily entry count (any kind).
   const frequencyTrend = useMemo(() => {
     const byDay = new Map();
     const bump = (tsLike) => {
@@ -170,27 +329,21 @@ export default function DiaryAnalyticsSummary({
     return [...byDay.entries()].map(([date, count]) => ({ date, count }));
   }, [filteredCheckIns, filteredSymptomCheckIns, filteredCards, filteredStatusNotes, filteredActivities]);
 
-  // Top emotions — combines EmotionCheckIn.emotions, DiaryCard.emotions,
-  // AND FrontingSession.session_emotions (the per-alter panel writes
-  // there, separately from EmotionCheckIn).
+  // Top emotions overall (with category color attached for nicer chart).
   const topEmotions = useMemo(() => {
     const freq = {};
-    const bump = (label) => {
-      if (!label || typeof label !== "string") return;
-      freq[label] = (freq[label] || 0) + 1;
-    };
-    filteredCards.forEach((c) => (c.emotions || []).forEach(bump));
-    filteredCheckIns.forEach((ci) => (ci.emotions || []).forEach(bump));
-    filteredSessions.forEach((s) => parseSessionEmotions(s.session_emotions).forEach(bump));
+    for (const e of emotionEvents) freq[e.label] = (freq[e.label] || 0) + 1;
     return Object.entries(freq)
       .sort(([, a], [, b]) => b - a)
-      .slice(0, 10)
-      .map(([label, count]) => ({ label, count }));
-  }, [filteredCards, filteredCheckIns, filteredSessions]);
+      .slice(0, 12)
+      .map(([label, count]) => ({
+        label,
+        count,
+        category: labelCategory(label),
+      }));
+  }, [emotionEvents, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Top symptoms — combines SymptomCheckIn (with severity),
-  // DiaryCard.checklist.{symptoms,habits} (boolean / numeric grid), AND
-  // FrontingSession.session_symptoms (array of { id, label, value }).
+  // Top symptoms with severity averages and emotional context.
   const topSymptoms = useMemo(() => {
     const freq = {};
     const bumpEntry = (label, severity) => {
@@ -234,10 +387,125 @@ export default function DiaryAnalyticsSummary({
       .slice(0, 12);
   }, [filteredSymptomCheckIns, filteredCards, filteredSessions, symptomById]);
 
-  // Mood Trend (DiaryCard-only). Kept so users who DO fill out diary
-  // cards still get the emotional_misery / joy line — but moved below
-  // the new always-populated charts so the page doesn't look bare on
-  // its own.
+  // Per-alter patterns. For each alter with any emotion attribution in
+  // range, surface their top emotion category, distress %, and entry
+  // counts. Especially useful for systems tracking per-alter feelings.
+  const perAlterStats = useMemo(() => {
+    const stats = new Map();
+    const ensure = (id) => {
+      if (!stats.has(id)) {
+        stats.set(id, {
+          alterId: id,
+          emotions: { good: 0, neutral: 0, bad: 0, body: 0 },
+          distress: 0,
+          checkinCount: 0,
+          sessionCount: 0,
+          topEmotions: {},
+        });
+      }
+      return stats.get(id);
+    };
+    for (const e of emotionEvents) {
+      const cat = labelCategory(e.label);
+      for (const id of e.alterIds) {
+        const s = ensure(id);
+        s.emotions[cat] += 1;
+        s.topEmotions[e.label] = (s.topEmotions[e.label] || 0) + 1;
+      }
+    }
+    for (const ci of filteredCheckIns) {
+      const alterIds = ci.fronting_alter_ids?.length ? ci.fronting_alter_ids : (ci.alter_id ? [ci.alter_id] : []);
+      for (const id of alterIds) {
+        const s = ensure(id);
+        s.checkinCount += 1;
+        if (ci.is_distress) s.distress += 1;
+      }
+    }
+    for (const sess of filteredSessions) {
+      if (!sess.alter_id) continue;
+      const s = ensure(sess.alter_id);
+      s.sessionCount += 1;
+    }
+    return [...stats.values()]
+      .filter((s) => alterById[s.alterId])
+      .map((s) => {
+        const total = s.emotions.good + s.emotions.neutral + s.emotions.bad + s.emotions.body;
+        const dominantCategory = total === 0
+          ? null
+          : Object.entries(s.emotions).sort((a, b) => b[1] - a[1])[0][0];
+        const topLabel = Object.entries(s.topEmotions).sort((a, b) => b[1] - a[1])[0]?.[0] || null;
+        return {
+          ...s,
+          alter: alterById[s.alterId],
+          totalEmotions: total,
+          dominantCategory,
+          topLabel,
+          distressPct: s.checkinCount > 0 ? Math.round((s.distress / s.checkinCount) * 100) : null,
+        };
+      })
+      .sort((a, b) => (b.checkinCount + b.totalEmotions) - (a.checkinCount + a.totalEmotions))
+      .slice(0, 10);
+  }, [emotionEvents, filteredCheckIns, filteredSessions, alterById, emotionCategory]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Distress co-occurrence — what other things were logged around the
+  // same time as distress check-ins? Looks within +/- 30 minutes of
+  // each distressed check-in.
+  const distressContext = useMemo(() => {
+    const distressed = filteredCheckIns.filter((ci) => ci.is_distress && ci.timestamp);
+    if (distressed.length === 0) return null;
+
+    const WINDOW_MS = 30 * 60 * 1000;
+    const cooccurringSymptoms = {};
+    const cooccurringActivities = {};
+    const cooccurringEmotions = {};
+    const hourBuckets = Array.from({ length: 24 }, () => 0);
+
+    for (const ci of distressed) {
+      const ts = new Date(ci.timestamp).getTime();
+      hourBuckets[new Date(ci.timestamp).getHours()] += 1;
+      // Co-occurring emotions on the same check-in
+      (ci.emotions || []).forEach((label) => {
+        cooccurringEmotions[label] = (cooccurringEmotions[label] || 0) + 1;
+      });
+      // Symptoms logged within window
+      for (const sc of filteredSymptomCheckIns) {
+        if (!sc.timestamp) continue;
+        const dt = Math.abs(new Date(sc.timestamp).getTime() - ts);
+        if (dt > WINDOW_MS) continue;
+        const sym = symptomById[sc.symptom_id];
+        const label = sym?.label || sc.symptom_id;
+        if (!label) continue;
+        cooccurringSymptoms[label] = (cooccurringSymptoms[label] || 0) + 1;
+      }
+      // Activities within window
+      for (const a of filteredActivities) {
+        if (!a.timestamp) continue;
+        const dt = Math.abs(new Date(a.timestamp).getTime() - ts);
+        if (dt > WINDOW_MS) continue;
+        const cat = a.parent_category_id ? categoryById[a.parent_category_id] : null;
+        const label = a.activity_name || cat?.name || "Activity";
+        cooccurringActivities[label] = (cooccurringActivities[label] || 0) + 1;
+      }
+    }
+
+    const top = (obj, n = 5) =>
+      Object.entries(obj)
+        .sort(([, a], [, b]) => b - a)
+        .slice(0, n)
+        .map(([label, count]) => ({ label, count }));
+
+    const peakHour = hourBuckets.indexOf(Math.max(...hourBuckets));
+    return {
+      total: distressed.length,
+      peakHour: hourBuckets[peakHour] > 0 ? peakHour : null,
+      topEmotions: top(cooccurringEmotions),
+      topSymptoms: top(cooccurringSymptoms),
+      topActivities: top(cooccurringActivities),
+    };
+  }, [filteredCheckIns, filteredSymptomCheckIns, filteredActivities, symptomById, categoryById]);
+
+  // Mood Trend (diary-only) — kept conditional so the page doesn't
+  // get a "Need at least 2 rated diary entries" placeholder.
   const moodTrend = useMemo(() => {
     return filteredCards
       .filter((c) => c.body_mind?.emotional_misery !== undefined || c.body_mind?.joy !== undefined)
@@ -248,12 +516,8 @@ export default function DiaryAnalyticsSummary({
       }));
   }, [filteredCards]);
 
-  // Suggest widening the range when the user has data overall but
-  // nothing in the current range — the most common reason the
-  // analytics page looked empty before this rewrite.
   const showRangeHint = totalInRange === 0 && totalAllTime > 0;
 
-  // Truly nothing yet — even "All" has no entries. Different message.
   if (totalAllTime === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-16 text-center">
@@ -266,7 +530,7 @@ export default function DiaryAnalyticsSummary({
 
   return (
     <div className="space-y-5">
-      {/* Range picker + headline counts */}
+      {/* Range picker */}
       <div className="flex items-center gap-2 flex-wrap">
         <span className="text-sm text-muted-foreground">Range:</span>
         <div className="flex gap-1 bg-muted/40 p-1 rounded-xl">
@@ -311,10 +575,68 @@ export default function DiaryAnalyticsSummary({
         <SummaryStat label="Symptoms logged" value={filteredSymptomCheckIns.length} />
         <SummaryStat label="Status notes" value={filteredStatusNotes.length} />
         <SummaryStat label="Activities" value={filteredActivities.length} />
-        <SummaryStat label="Diary cards" value={filteredCards.length} />
+        <SummaryStat
+          label="Distress rate"
+          value={distressOverall != null ? `${distressOverall}%` : "—"}
+          accent={distressOverall != null && distressOverall >= 40 ? "warn" : null}
+        />
       </div>
 
-      {/* Entry frequency trend */}
+      {/* Emotional Balance — pie-style stat row + per-day stacked bars */}
+      {balance.total > 0 && (
+        <ChartCard
+          title="Emotional Balance"
+          subtitle="How your logged emotions split across Good / Neutral / Bad / Body"
+        >
+          <div className="space-y-3">
+            {/* Single-row bar showing % per category */}
+            <div className="flex h-3 rounded-full overflow-hidden border border-border/50">
+              {CATEGORY_ORDER.map((cat) => {
+                const pct = (balance.counts[cat] / balance.total) * 100;
+                if (pct === 0) return null;
+                return (
+                  <div
+                    key={cat}
+                    title={`${CATEGORY_META[cat].label}: ${Math.round(pct)}%`}
+                    style={{ background: CATEGORY_META[cat].color, width: `${pct}%` }}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs">
+              {CATEGORY_ORDER.map((cat) => (
+                <div key={cat} className="flex items-center gap-1.5">
+                  <span className="w-2 h-2 rounded-full" style={{ background: CATEGORY_META[cat].color }} />
+                  <span className="text-foreground">{CATEGORY_META[cat].label}</span>
+                  <span className="text-muted-foreground">{balance.counts[cat]}</span>
+                </div>
+              ))}
+            </div>
+            {balanceByDay.length >= 2 && (
+              <ResponsiveContainer width="100%" height={180}>
+                <BarChart data={balanceByDay}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
+                  <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
+                  <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--color-surface)",
+                      border: "1px solid var(--color-muted)",
+                      borderRadius: 8,
+                      fontSize: 12,
+                    }}
+                  />
+                  {CATEGORY_ORDER.map((cat) => (
+                    <Bar key={cat} dataKey={cat} stackId="emo" name={CATEGORY_META[cat].label} fill={CATEGORY_META[cat].color} radius={cat === "body" ? [4, 4, 0, 0] : 0} />
+                  ))}
+                </BarChart>
+              </ResponsiveContainer>
+            )}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Entry Frequency */}
       <ChartCard
         title="Entry Frequency"
         subtitle="Total entries (any kind) logged per day"
@@ -341,19 +663,17 @@ export default function DiaryAnalyticsSummary({
         )}
       </ChartCard>
 
-      {/* Distress rate */}
-      <ChartCard
-        title="Distress Rate"
-        subtitle="Share of check-ins flagged as distress, per day"
-      >
-        {distressTrend.length < 2 ? (
-          <EmptyHint text="Need at least 2 days of check-ins to show a trend." />
-        ) : (
+      {/* Time-of-Day */}
+      {filteredCheckIns.length > 0 && (
+        <ChartCard
+          title="Time of Day"
+          subtitle="When you tend to check in. Red overlay shows distress share per hour."
+        >
           <ResponsiveContainer width="100%" height={200}>
-            <LineChart data={distressTrend}>
+            <BarChart data={hourDistribution}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
-              <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
-              <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={32} tickFormatter={(v) => `${v}%`} />
+              <XAxis dataKey="hour" tick={{ fontSize: 11 }} interval={2} tickFormatter={(h) => `${h}:00`} />
+              <YAxis tick={{ fontSize: 11 }} width={24} allowDecimals={false} />
               <Tooltip
                 contentStyle={{
                   background: "var(--color-surface)",
@@ -361,15 +681,46 @@ export default function DiaryAnalyticsSummary({
                   borderRadius: 8,
                   fontSize: 12,
                 }}
-                formatter={(v) => [`${v}%`, "Distress rate"]}
+                labelFormatter={(h) => `${h}:00`}
               />
-              <Line type="monotone" dataKey="rate" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
-            </LineChart>
+              <Bar dataKey="total" name="Check-ins" fill="#8b5cf6" radius={[4, 4, 0, 0]} />
+              <Bar dataKey="distress" name="Distress" fill="#ef4444" radius={[4, 4, 0, 0]} />
+            </BarChart>
           </ResponsiveContainer>
-        )}
-      </ChartCard>
+        </ChartCard>
+      )}
 
-      {/* Top emotions */}
+      {/* Distress Rate trend */}
+      {filteredCheckIns.length > 0 && (
+        <ChartCard
+          title="Distress Rate"
+          subtitle="Share of check-ins flagged as distress, per day"
+        >
+          {distressTrend.length < 2 ? (
+            <EmptyHint text="Need at least 2 days of check-ins to show a trend." />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <LineChart data={distressTrend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" />
+                <XAxis dataKey="date" tick={{ fontSize: 11 }} tickFormatter={(v) => truncate(v, 6)} />
+                <YAxis domain={[0, 100]} tick={{ fontSize: 11 }} width={32} tickFormatter={(v) => `${v}%`} />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--color-surface)",
+                    border: "1px solid var(--color-muted)",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                  formatter={(v) => [`${v}%`, "Distress rate"]}
+                />
+                <Line type="monotone" dataKey="rate" stroke="#ef4444" strokeWidth={2} dot={{ r: 3 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          )}
+        </ChartCard>
+      )}
+
+      {/* Top Emotions, coloured by category */}
       <ChartCard
         title="Top Emotions"
         subtitle="Across check-ins, diary cards, and per-alter session entries"
@@ -377,7 +728,7 @@ export default function DiaryAnalyticsSummary({
         {topEmotions.length === 0 ? (
           <EmptyHint text="No emotion data logged in this range." />
         ) : (
-          <ResponsiveContainer width="100%" height={Math.max(140, topEmotions.length * 28)}>
+          <ResponsiveContainer width="100%" height={Math.max(160, topEmotions.length * 28)}>
             <BarChart data={topEmotions} layout="vertical">
               <CartesianGrid strokeDasharray="3 3" stroke="var(--color-muted)" horizontal={false} />
               <XAxis type="number" tick={{ fontSize: 11 }} allowDecimals={false} width={30} />
@@ -397,8 +748,8 @@ export default function DiaryAnalyticsSummary({
                 }}
               />
               <Bar dataKey="count" name="Times logged" radius={[0, 4, 4, 0]}>
-                {topEmotions.map((_, i) => (
-                  <Cell key={i} fill={EMOTION_COLORS[i % EMOTION_COLORS.length]} />
+                {topEmotions.map((e, i) => (
+                  <Cell key={i} fill={CATEGORY_META[e.category]?.color || EMOTION_COLORS[i % EMOTION_COLORS.length]} />
                 ))}
               </Bar>
             </BarChart>
@@ -406,7 +757,7 @@ export default function DiaryAnalyticsSummary({
         )}
       </ChartCard>
 
-      {/* Top symptoms */}
+      {/* Top Symptoms */}
       <ChartCard
         title="Top Symptoms"
         subtitle="Across symptom check-ins, diary checklists, and session symptoms"
@@ -436,9 +787,93 @@ export default function DiaryAnalyticsSummary({
         )}
       </ChartCard>
 
-      {/* Mood Trend (diary only). Conditional — only renders when there's
-          actual diary mood data, since most users haven't filled out
-          the diary card grid. */}
+      {/* Per-Alter patterns */}
+      {perAlterStats.length > 0 && (
+        <ChartCard
+          title={`Per-${t.Alter} Patterns`}
+          subtitle={`Most active ${t.alters} in range, their dominant emotion category, and distress rate`}
+        >
+          <div className="space-y-2">
+            {perAlterStats.map((s) => (
+              <div key={s.alterId} className="flex items-center gap-3 rounded-lg border border-border/40 px-3 py-2">
+                <span
+                  className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                  style={{ background: s.alter?.color || "#8b5cf6" }}
+                />
+                <span className="text-sm text-foreground font-medium truncate flex-1">
+                  {s.alter?.name || "Unknown"}
+                </span>
+                {s.dominantCategory && (
+                  <span
+                    className="text-[0.625rem] uppercase tracking-wider font-semibold px-1.5 py-0.5 rounded-md"
+                    style={{
+                      background: `${CATEGORY_META[s.dominantCategory].color}22`,
+                      color: CATEGORY_META[s.dominantCategory].color,
+                    }}
+                  >
+                    {CATEGORY_META[s.dominantCategory].label}
+                  </span>
+                )}
+                {s.topLabel && (
+                  <span className="text-[0.6875rem] text-muted-foreground hidden sm:inline truncate max-w-[8rem]">
+                    most: {s.topLabel}
+                  </span>
+                )}
+                <span className="text-xs text-muted-foreground tabular-nums">
+                  {s.checkinCount > 0 && `${s.checkinCount} ck`}
+                  {s.checkinCount > 0 && s.totalEmotions > 0 && " · "}
+                  {s.totalEmotions > 0 && `${s.totalEmotions} emo`}
+                </span>
+                {s.distressPct != null && (
+                  <span
+                    className="text-xs font-medium tabular-nums w-12 text-right"
+                    style={{ color: s.distressPct >= 40 ? CATEGORY_META.bad.color : "var(--color-muted-foreground)" }}
+                  >
+                    {s.distressPct}%
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Distress Co-occurrence */}
+      {distressContext && distressContext.total > 0 && (
+        <ChartCard
+          title="When Distress Showed Up"
+          subtitle={`Patterns around the ${distressContext.total} distress check-in${distressContext.total === 1 ? "" : "s"} in this range`}
+        >
+          <div className="space-y-4 text-xs">
+            {distressContext.peakHour != null && (
+              <div className="rounded-lg border border-border/40 px-3 py-2 flex items-center gap-2">
+                <span className="text-muted-foreground">Most common hour:</span>
+                <span className="font-semibold text-foreground">{distressContext.peakHour}:00–{distressContext.peakHour + 1}:00</span>
+              </div>
+            )}
+            {distressContext.topEmotions.length > 0 && (
+              <CoOccurrenceList
+                title="Co-occurring emotions"
+                items={distressContext.topEmotions}
+              />
+            )}
+            {distressContext.topSymptoms.length > 0 && (
+              <CoOccurrenceList
+                title="Symptoms within ±30 min"
+                items={distressContext.topSymptoms}
+              />
+            )}
+            {distressContext.topActivities.length > 0 && (
+              <CoOccurrenceList
+                title="Activities within ±30 min"
+                items={distressContext.topActivities}
+              />
+            )}
+          </div>
+        </ChartCard>
+      )}
+
+      {/* Mood Trend (diary-only) */}
       {moodTrend.length >= 2 && (
         <ChartCard
           title="Mood Trend"
@@ -467,10 +902,10 @@ export default function DiaryAnalyticsSummary({
   );
 }
 
-function SummaryStat({ label, value }) {
+function SummaryStat({ label, value, accent }) {
   return (
     <div>
-      <p className="text-2xl font-semibold text-foreground tabular-nums">{value}</p>
+      <p className={`text-2xl font-semibold tabular-nums ${accent === "warn" ? "text-amber-500" : "text-foreground"}`}>{value}</p>
       <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wider mt-0.5">{label}</p>
     </div>
   );
@@ -484,6 +919,26 @@ function ChartCard({ title, subtitle, children }) {
         {subtitle && <p className="text-xs text-muted-foreground">{subtitle}</p>}
       </div>
       {children}
+    </div>
+  );
+}
+
+function CoOccurrenceList({ title, items }) {
+  const max = items[0]?.count || 1;
+  return (
+    <div className="space-y-1.5">
+      <p className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground">{title}</p>
+      {items.map(({ label, count }) => (
+        <div key={label} className="flex items-center gap-3">
+          <span className="text-xs text-foreground capitalize w-28 flex-shrink-0 truncate" title={label}>
+            {label.length > 18 ? label.slice(0, 18) + "…" : label}
+          </span>
+          <div className="flex-1 bg-muted/50 rounded-full h-2 overflow-hidden">
+            <div className="h-2 rounded-full bg-red-500/60" style={{ width: `${Math.round((count / max) * 100)}%` }} />
+          </div>
+          <span className="text-xs text-muted-foreground w-8 text-right">{count}</span>
+        </div>
+      ))}
     </div>
   );
 }
