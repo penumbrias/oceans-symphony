@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "New plans default to today instead of tomorrow.",
+        text: "Quick plans always default to today — even when the quick-plan toggle was already on from a previous use. Regular plans still default to tomorrow.",
       },
       {
         type: "fix",

@@ -82,11 +82,13 @@ export default function ActivityPlanModal({
   const terms = useTerms();
   const queryClient = useQueryClient();
 
-  // Default to today at noon when there's no explicit start date.
-  // Users overwhelmingly open the planner to add something for today;
-  // defaulting to tomorrow forced an extra tap to roll the date back.
+  // Default to tomorrow noon when there's no explicit start date.
+  // Quick plans get a separate today-snap path (see the open useEffect
+  // below) so making several quick plans in succession doesn't require
+  // re-toggling the quick-plan checkbox to roll the date back to today.
   const defaultedStart = startDateProp || (() => {
     const d = new Date();
+    d.setDate(d.getDate() + 1);
     d.setHours(12, 0, 0, 0);
     return d;
   })();
@@ -179,9 +181,14 @@ export default function ActivityPlanModal({
       setDatePicked(format(startDateProp, "yyyy-MM-dd"));
       setEndDatePicked(format(endDateProp || startDateProp, "yyyy-MM-dd"));
     } else {
-      // Re-open defaults to today (see defaultedStart at the top of
-      // the component for the rationale).
+      // Default to tomorrow noon — UNLESS the quick-plan toggle is
+      // already on (e.g. carried over from the previous time the user
+      // opened this modal). Quick plans are conceptually "today" things;
+      // forcing the user to re-toggle the checkbox just to roll the
+      // date back was the source of the "I keep changing the date back"
+      // complaint that prompted this branch.
       const d = new Date();
+      if (!isQuickPlan) d.setDate(d.getDate() + 1);
       d.setHours(12, 0, 0, 0);
       setDatePicked(format(d, "yyyy-MM-dd"));
       setEndDatePicked(format(d, "yyyy-MM-dd"));
