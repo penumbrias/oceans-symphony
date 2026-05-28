@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Settings → Accessibility now has a toggle to hide the floating Grounding bubble. Grounding is still reachable from the sidebar when the bubble is off.",
+      },
+      {
         type: "improve",
         text: "Check-In Log analytics: hovering a day on any per-day chart now highlights the same day on every other per-day chart — Emotional Balance, Body States, Entry Frequency, Distress Rate, and Mood Trend all share a cursor so you can read across them at once.",
       },

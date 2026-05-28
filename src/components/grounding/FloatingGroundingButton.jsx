@@ -1,6 +1,10 @@
 import { useState, useEffect, useRef } from "react";
 import { X } from "lucide-react";
 import Grounding from "@/pages/Grounding";
+import {
+  isGroundingButtonEnabled,
+  subscribeGroundingButton,
+} from "@/lib/groundingButtonPrefs";
 
 const LS_KEY = "symphony_grounding_btn_pos";
 const BTN_SIZE = 48;
@@ -54,6 +58,12 @@ function loadPos() {
 }
 
 export default function FloatingGroundingButton() {
+  // User can hide this bubble entirely from Settings → Accessibility.
+  // The hook subscribes to the prefs lib so a toggle elsewhere updates
+  // this component live without a reload.
+  const [enabled, setEnabled] = useState(() => isGroundingButtonEnabled());
+  useEffect(() => subscribeGroundingButton(() => setEnabled(isGroundingButtonEnabled())), []);
+
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(() => loadPos());
   const [isDragging, setIsDragging] = useState(false);
@@ -121,6 +131,11 @@ export default function FloatingGroundingButton() {
     cursor: isDragging ? "grabbing" : "grab",
     transition: isDragging ? "none" : "left 0.2s ease, right 0.2s ease",
   };
+
+  // Hidden by user preference — bail out before rendering the button OR
+  // the dialog (the dialog can only open via this button anyway, so a
+  // stale `open === true` after toggling off would just be confusing).
+  if (!enabled) return null;
 
   return (
     <>

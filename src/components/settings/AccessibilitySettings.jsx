@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import {
   getAccessibilitySettings,
@@ -8,6 +8,11 @@ import {
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
 } from "@/lib/useAccessibility";
+import {
+  isGroundingButtonEnabled,
+  setGroundingButtonEnabled,
+  subscribeGroundingButton,
+} from "@/lib/groundingButtonPrefs";
 
 const NAV_HEIGHT_OPTIONS = [
   { value: "compact",    label: "Compact",    desc: "44px — more screen space" },
@@ -38,6 +43,9 @@ const TOUCH_OPTIONS = [
 
 export default function AccessibilitySettings() {
   const [settings, setSettings] = useState(getAccessibilitySettings);
+  const [groundingBubble, setGroundingBubble] = useState(() => isGroundingButtonEnabled());
+
+  useEffect(() => subscribeGroundingButton(() => setGroundingBubble(isGroundingButtonEnabled())), []);
 
   const update = (key, value, setter) => {
     setter(value);
@@ -148,6 +156,20 @@ export default function AccessibilitySettings() {
           <Switch
             checked={settings.highContrast}
             onCheckedChange={v => update("highContrast", v, setAccessibilityHighContrast)}
+          />
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="min-w-0 pr-3">
+            <p className="text-sm font-semibold">Floating Grounding bubble</p>
+            <p className="text-xs text-muted-foreground">The persistent quick-support button in the corner. Turn off if it gets in the way — Grounding is still reachable from the sidebar.</p>
+          </div>
+          <Switch
+            checked={groundingBubble}
+            onCheckedChange={(v) => {
+              setGroundingButtonEnabled(v);
+              setGroundingBubble(v);
+            }}
           />
         </div>
       </div>
