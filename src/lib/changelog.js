@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Added a Discord support server link to the top of Settings, next to Template gallery and Latest releases.",
+      },
+      {
+        type: "improve",
         text: "Quick plans always default to today — even when the quick-plan toggle was already on from a previous use. Regular plans still default to tomorrow.",
       },
       {
