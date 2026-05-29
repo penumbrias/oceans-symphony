@@ -184,7 +184,7 @@ function addOverview(doc, overview, y) {
     [`${overview.frontingCount}`, "fronting sessions recorded"],
     [`${overview.checkInCount}`, "emotion check-ins"],
     [`${overview.journalCount}`, "journal entries"],
-    [`${overview.diaryCardCount}`, "diary cards"],
+    [`${overview.diaryCardCount}`, "DBT tracking entries"],
     [`${overview.alterCount}`, "system members"],
   ];
 
@@ -462,14 +462,17 @@ function addJournalsSection(doc, journalData, journalDetail, y) {
   return y + 2;
 }
 
-// ── DIARY CARDS ───────────────────────────────────────────────────────────────
+// ── DBT TRACKING ──────────────────────────────────────────────────────────────
+// The underlying DiaryCard entity is now produced by Quick Check-In
+// rather than a standalone "diary card" feature, so the section is
+// labelled "DBT Tracking" in the report.
 
 function addDiarySection(doc, diaryData, y) {
   y = checkPageBreak(doc, y, 20);
-  y = sectionHeader(doc, "Diary Card Log", y);
+  y = sectionHeader(doc, "DBT Tracking", y);
   if (diaryData.length === 0) {
     doc.setFontSize(8); doc.setTextColor(...MUTED);
-    doc.text("No diary cards in this period.", MARGIN, y); return y + 10;
+    doc.text("No DBT tracking entries in this period.", MARGIN, y); return y + 10;
   }
   y = drawTable(doc, ["Date", "Emotions", "Urges", "Body/Mind", "Flags"],
     diaryData.map(d => [d.date, d.emotions?.slice(0, 20) || "—", d.urges?.slice(0, 20) || "—", d.bodyMind?.slice(0, 20) || "—", d.flags.join(", ") || "—"]), y,
@@ -752,7 +755,7 @@ function formatAsPlainText({
     text += `${o.frontingCount} fronting sessions recorded\n`;
     text += `${o.checkInCount} emotion check-ins\n`;
     text += `${o.journalCount} journal entries\n`;
-    text += `${o.diaryCardCount} diary cards\n`;
+    text += `${o.diaryCardCount} DBT tracking entries\n`;
     text += `${o.alterCount} system members\n\n`;
   }
 
@@ -876,9 +879,10 @@ function formatAsPlainText({
     text += "\n";
   }
 
-  // Diary Cards
+  // DBT Tracking — underlying records are DiaryCard, now produced by
+  // Quick Check-In.
   if (enabledSections.has("diary") && sections.diary) {
-    text += `DIARY CARD LOG\n${"--------".padEnd(60, "-")}\n`;
+    text += `DBT TRACKING\n${"--------".padEnd(60, "-")}\n`;
     if (sections.diary.length > 0) {
       sections.diary.forEach(d => {
         text += `\n  ${d.date}:\n`;
@@ -888,7 +892,7 @@ function formatAsPlainText({
         if (d.flags?.length > 0) text += `    Flags: ${d.flags.join(", ")}\n`;
       });
     } else {
-      text += "No diary cards in this period.\n";
+      text += "No DBT tracking entries in this period.\n";
     }
     text += "\n";
   }

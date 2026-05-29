@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Therapy report: \"Diary Cards\" section relabelled to \"DBT tracking\" — the underlying data still flows through, but the standalone Diary Card feature is gone (it's collected automatically when you use Quick Check-In now). PDF, plain-text, and section picker all updated.",
+      },
+      {
+        type: "improve",
         text: "System Check-In step 2 (\"Notice who's near\"): \"Feelings noticed\" is now the same emotion-wheel picker used in Quick Check-In, instead of a free-text box. Past notes still display correctly.",
       },
       {

@@ -126,12 +126,12 @@ const buildSectionDefs = (t) => [
   },
   {
     id: "diary",
-    label: "Diary Cards",
-    desc: "DBT-style diary card data including urges, emotions, body/mind",
+    label: "DBT tracking",
+    desc: "DBT-style daily data (urges, emotions, body/mind) — captured automatically when you use Quick Check-In.",
     subOptions: (opts, set) => (
       <RadioGroup value={opts.diaryDetail} onChange={v => set("diaryDetail", v)} options={[
         { value: "noteworthy", label: "Noteworthy entries only (high urges / distress)" },
-        { value: "all", label: "All diary cards" },
+        { value: "all", label: "All entries" },
       ]} />
     ),
   },
