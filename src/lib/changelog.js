@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System Check-In feelings now save as a full Quick Check-In — the alters present in Step 2 attach as the check-in's fronting alters, and the sensations + notes text folds into the EmotionCheckIn note. Means analytics, therapy reports, and the Check-In Log all see the full context instead of just an unattributed emotion list.",
+      },
+      {
+        type: "improve",
         text: "Therapy report: \"Diary Cards\" section relabelled to \"DBT tracking\" — the underlying data still flows through, but the standalone Diary Card feature is gone (it's collected automatically when you use Quick Check-In now). PDF, plain-text, and section picker all updated.",
       },
       {

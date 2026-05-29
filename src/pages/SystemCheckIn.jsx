@@ -165,10 +165,14 @@ export default function SystemCheckInPage() {
 }
 
 
-    // Sync feelings to EmotionCheckIn so they appear in analytics.
-    // Step 2 now uses the EmotionWheelPicker so feelings is an array
-    // of labels; older records still carry a comma/semicolon-separated
-    // string — handle both shapes for back-compat.
+    // Sync feelings to EmotionCheckIn so they appear in analytics
+    // exactly the same way a Quick Check-In does — fronting alters from
+    // Step 2's "alters present" picker, plus the sensations and notes
+    // text folded into the EmotionCheckIn note so therapy reports,
+    // analytics, and the check-in log all show the context.
+    //
+    // Legacy back-compat: Step 2 used to store feelings as a comma/
+    // semicolon-separated string instead of an array.
     const feelings = formData.step2_notice?.feelings;
     let emotionLabels = [];
     if (Array.isArray(feelings)) {
@@ -177,12 +181,17 @@ export default function SystemCheckInPage() {
       emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
     }
     if (emotionLabels.length > 0) {
+      const sensations = (formData.step2_notice?.sensations || "").trim();
+      const stepNotes = (formData.step2_notice?.notes || "").trim();
+      const noteParts = ["From system check-in"];
+      if (sensations) noteParts.push(`Sensations: ${sensations}`);
+      if (stepNotes) noteParts.push(`Notes: ${stepNotes}`);
       try {
         await base44.entities.EmotionCheckIn.create({
           timestamp: new Date().toISOString(),
           emotions: emotionLabels,
-          fronting_alter_ids: [],
-          note: `From system check-in`,
+          fronting_alter_ids: alterIds,
+          note: noteParts.join(". "),
         });
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       } catch {}
