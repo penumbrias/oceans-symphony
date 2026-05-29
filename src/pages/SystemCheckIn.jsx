@@ -165,21 +165,27 @@ export default function SystemCheckInPage() {
 }
 
 
-    // Sync feelings to EmotionCheckIn so they appear in analytics
+    // Sync feelings to EmotionCheckIn so they appear in analytics.
+    // Step 2 now uses the EmotionWheelPicker so feelings is an array
+    // of labels; older records still carry a comma/semicolon-separated
+    // string — handle both shapes for back-compat.
     const feelings = formData.step2_notice?.feelings;
-    if (feelings?.trim()) {
-      const emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
-      if (emotionLabels.length > 0) {
-        try {
-          await base44.entities.EmotionCheckIn.create({
-            timestamp: new Date().toISOString(),
-            emotions: emotionLabels,
-            fronting_alter_ids: [],
-            note: `From system check-in`,
-          });
-          queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-        } catch {}
-      }
+    let emotionLabels = [];
+    if (Array.isArray(feelings)) {
+      emotionLabels = feelings.filter((s) => typeof s === "string" && s.trim()).map((s) => s.trim());
+    } else if (typeof feelings === "string" && feelings.trim()) {
+      emotionLabels = feelings.split(/[,;]+/).map(s => s.trim()).filter(Boolean);
+    }
+    if (emotionLabels.length > 0) {
+      try {
+        await base44.entities.EmotionCheckIn.create({
+          timestamp: new Date().toISOString(),
+          emotions: emotionLabels,
+          fronting_alter_ids: [],
+          note: `From system check-in`,
+        });
+        queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      } catch {}
     }
   };
 
@@ -289,7 +295,19 @@ export default function SystemCheckInPage() {
                       </div>
                     </div>
                   )}
-                  {currentCheckIn.step2_notice.feelings && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Feelings: </span>{currentCheckIn.step2_notice.feelings}</p>}
+                  {(() => {
+                    // feelings is an array of labels (new format) or a
+                    // string (legacy). Render as a comma-joined string
+                    // either way.
+                    const f = currentCheckIn.step2_notice.feelings;
+                    const text = Array.isArray(f) ? f.join(", ") : (typeof f === "string" ? f : "");
+                    if (!text) return null;
+                    return (
+                      <p className="text-sm text-foreground mb-1">
+                        <span className="text-muted-foreground text-xs">Feelings: </span>{text}
+                      </p>
+                    );
+                  })()}
                   {currentCheckIn.step2_notice.sensations && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Sensations: </span>{currentCheckIn.step2_notice.sensations}</p>}
                   {currentCheckIn.step2_notice.notes && <p className="text-sm text-foreground">{currentCheckIn.step2_notice.notes}</p>}
                 </CardContent>

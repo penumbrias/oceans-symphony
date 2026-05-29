@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "System Check-In step 2 (\"Notice who's near\"): \"Feelings noticed\" is now the same emotion-wheel picker used in Quick Check-In, instead of a free-text box. Past notes still display correctly.",
+      },
+      {
         type: "feature",
         text: "Settings → Accessibility now has a toggle to hide the floating Grounding bubble. Grounding is still reachable from the sidebar when the bubble is off.",
       },
