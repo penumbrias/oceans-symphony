@@ -8,7 +8,7 @@ function buildSectionLabels(terms) {
     symptoms: "Symptoms & habits",
     activities: "Activities",
     journals: "Journal entries",
-    diary: "Diary cards",
+    diary: "DBT tracking",
     patterns: "Patterns summary",
     alterAppendix: `${terms.Alter} profiles (appendix)`,
   };

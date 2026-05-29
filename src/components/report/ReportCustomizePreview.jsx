@@ -92,7 +92,7 @@ const AGGREGATE_SECTIONS = [
   { key: "symptoms",   label: "Symptom averages & noteworthy" },
   { key: "activities", label: "Activities summary" },
   { key: "plans",      label: "Plan completion" },
-  { key: "diary",      label: "Diary cards summary" },
+  { key: "diary",      label: "DBT tracking summary" },
   { key: "locations",  label: "Locations" },
   { key: "sleep",      label: "Sleep" },
   { key: "tasks",      label: "Tasks summary" },
