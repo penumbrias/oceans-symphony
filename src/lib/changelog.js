@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Bulletin posts and comments now show the actual day and time of day next to the \"N days ago\" — e.g. \"May 26 at 3:42 PM · 2 hours ago\".",
+      },
+      {
+        type: "improve",
         text: "System Check-In feelings now save as a full Quick Check-In — the alters present in Step 2 attach as the check-in's fronting alters, and the sensations + notes text folds into the EmotionCheckIn note. Means analytics, therapy reports, and the Check-In Log all see the full context instead of just an unattributed emotion list.",
       },
       {

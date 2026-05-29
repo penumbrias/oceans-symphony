@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { Pin, Trash2, ChevronDown, ChevronUp, MessageCircle, ExternalLink } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { useNavigate, Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
@@ -56,7 +56,11 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
     : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
 const rawDate = bulletin.created_date;
-const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
+const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+// Absolute (Mmm d at h:mm a) + relative — therapists / users wanted
+// the exact day and time, not just "N days ago". The relative form
+// still helps gauge recency at a glance.
+const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
 
   // Normalize `currentAlterId` to an empty string when there's no active
   // fronter so reacting / voting still works system-wide. Without this the

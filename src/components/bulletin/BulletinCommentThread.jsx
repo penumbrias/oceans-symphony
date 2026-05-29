@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import AuthorsRow from "./AuthorsRow";
@@ -239,7 +239,8 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const shouldRenderChildren = maxDepth === null || depth < maxDepth;
   const reactions = comment.reactions || {};
   const rawDate = comment.created_date;
-  const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
+  const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+  const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
   // Authors are FIXED to whatever was saved on the comment at post time
   // (current front or signposts). Never fall back to the live
   // frontingAlterIds — the comment shouldn't appear to switch authors

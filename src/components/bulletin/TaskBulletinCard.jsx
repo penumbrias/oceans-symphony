@@ -2,7 +2,7 @@ import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { CheckSquare, Square, Loader2, Trash2, Pin, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
-import { formatDistanceToNow } from "date-fns";
+import { formatDistanceToNow, format } from "date-fns";
 import AuthorsRow from "./AuthorsRow";
 import BulletinCommentThread from "./BulletinCommentThread";
 import BulletinActionMenu from "./BulletinActionMenu";
@@ -35,7 +35,8 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
     : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
 const rawDate = bulletin.created_date;
-const timeAgo = formatDistanceToNow(new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z"), { addSuffix: true });
+const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
   const isCompleted = parsed.completed;
 
   const handleToggle = async (e) => {
