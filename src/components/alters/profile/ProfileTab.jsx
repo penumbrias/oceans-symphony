@@ -477,7 +477,7 @@ useEffect(() => {
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
-                  {alter.name}
+                  {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
                 </h2>
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>

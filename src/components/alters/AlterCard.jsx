@@ -213,7 +213,9 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{formatAlter(alter)}</p>
+            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>
+              {alter.emoji ? <span className="mr-1">{alter.emoji}</span> : null}{formatAlter(alter)}
+            </p>
             {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
           </div>
           {alter.role && (() => {

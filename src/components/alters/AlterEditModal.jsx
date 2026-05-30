@@ -34,7 +34,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
-    birthday: "", origin_year: "", is_pinned: false,
+    birthday: "", origin_year: "", is_pinned: false, emoji: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -58,10 +58,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "",
-        birthday, origin_year, is_pinned: !!alter.is_pinned,
+        birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "",
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "" });
     }
   }, [alter, open, isNew]);
 
@@ -229,9 +229,22 @@ const handleAvatarUpload = async (e) => {
             <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
           )}
 
-          <div className="space-y-2">
-            <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
+          <div className="flex gap-2">
+            <div className="space-y-2 w-20 flex-shrink-0">
+              <Label>Emoji</Label>
+              <Input
+                value={form.emoji}
+                onChange={(e) => set("emoji", e.target.value)}
+                placeholder="✨"
+                maxLength={8}
+                className="text-center text-lg"
+                aria-label="Profile emoji or symbol"
+              />
+            </div>
+            <div className="space-y-2 flex-1 min-w-0">
+              <Label>Name *</Label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
+            </div>
           </div>
 
           <div className="space-y-2">

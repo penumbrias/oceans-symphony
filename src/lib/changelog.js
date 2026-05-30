@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Alters can have an emoji/symbol — set it next to the name in the edit screen, and it shows beside their name on the profile and in lists.",
+      },
+      {
+        type: "feature",
         text: "Pin alters! Turn on \"Pin to top\" in an alter's edit screen and they show up in a quick-access gallery at the top of the alters page. It's just a shortcut — they stay in their group and list too.",
       },
       {

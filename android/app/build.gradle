@@ -11,8 +11,8 @@ android {
         // upload — Play rejects duplicates. Bump for every Play
         // release; mirror versionName from src/lib/appVersion.js so
         // the displayed version chip matches the Play release.
-        versionCode 356
-        versionName "0.26.62"
+        versionCode 357
+        versionName "0.26.63"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
