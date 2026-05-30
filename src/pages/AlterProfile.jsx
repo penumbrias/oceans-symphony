@@ -216,13 +216,11 @@ function AlterProfileInner() {
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
       <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
-        <div className="flex items-center justify-between mb-4">
-          <Link to="/Home">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+        {/* The app header already provides a Back button on this route,
+            so the page-level "Back" here was redundant (two identical
+            back buttons stacked). Removed it; Prev/Next + the message
+            button stay right-aligned via justify-end. */}
+        <div className="flex items-center justify-end mb-4">
           <div className="flex items-center gap-2">
             {prevAlter && (
               <Link to={`/alter/${prevAlter.id}`}>

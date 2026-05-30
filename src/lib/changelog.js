@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Removed the duplicate \"Back\" button on alter profiles — the app header already has one.",
+      },
+      {
         type: "improve",
         text: "Bulletin posts and comments now show the actual day and time of day next to the \"N days ago\" — e.g. \"May 26 at 3:42 PM · 2 hours ago\".",
       },
