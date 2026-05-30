@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Pin alters more easily: press and hold an alter in the list for a second to open a quick Pin / Unpin menu (no need to dig into the edit screen).",
+      },
+      {
+        type: "improve",
+        text: "In the pinned gallery, tap an alter to toggle their front and hold to set them primary — and it won't misfire while you scroll the row sideways.",
+      },
+      {
+        type: "improve",
+        text: "The pinned-alters gallery can now be added to the Dashboard too — turn it on under Settings → Appearance → Dashboard layout.",
+      },
+      {
+        type: "fix",
+        text: "Markdown in text custom fields now renders on the alter's Profile tab, not just the Info tab.",
+      },
+      {
         type: "feature",
         text: "Alters can have an emoji/symbol — set it next to the name in the edit screen, and it shows beside their name on the profile and in lists.",
       },

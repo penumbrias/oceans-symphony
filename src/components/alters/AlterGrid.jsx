@@ -13,13 +13,11 @@ import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
-import { useAlterLabel } from "@/lib/useAlterLabel";
-import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import PinnedAltersGallery from "./PinnedAltersGallery";
 
 export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
   const terms = useTerms();
-  const formatAlter = useAlterLabel();
   const isDemo = alters.length === 0 && !!window.__tourActive;
   const effectiveAlters = isDemo ? TOUR_DEMO_ALTERS : alters;
   const [search, setSearch] = useState("");
@@ -144,16 +142,6 @@ export default function AlterGrid({ alters }) {
     return sortMode === "alpha-asc" ? cmp : -cmp;
   });
 
-  // Pinned alters — surfaced in a non-moving quick-access gallery above
-  // groups. Pinning is purely a shortcut; it does NOT remove them from
-  // their normal group / grid position below.
-  const pinnedAlters = useMemo(
-    () => effectiveAlters
-      .filter((a) => a.is_pinned && !a.is_archived)
-      .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [effectiveAlters]
-  );
-
   // Root-level groups for display
   const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
 
@@ -227,22 +215,8 @@ export default function AlterGrid({ alters }) {
       {/* Content */}
       <div className="space-y-4">
         {/* Pinned alters — quick-access gallery, sits above groups.
-            Hidden entirely when nothing is pinned. */}
-        {pinnedAlters.length > 0 && (
-          <div data-tour="pinned-alters">
-            <div className="flex items-center gap-2 mb-2 px-1">
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
-                <Pin className="w-3 h-3 fill-primary text-primary" /> Pinned
-              </p>
-              <div className="flex-1 h-px bg-border/50" />
-            </div>
-            <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
-              {pinnedAlters.map((a) => (
-                <PinnedAlterChip key={a.id} alter={a} anonymize={anonymize} formatAlter={formatAlter} />
-              ))}
-            </div>
-          </div>
-        )}
+            Self-contained component; renders nothing when none pinned. */}
+        <PinnedAltersGallery />
 
         {/* Groups section — header always visible */}
         <div>
@@ -323,46 +297,4 @@ export default function AlterGrid({ alters }) {
       />
     </div>);
 
-}
-
-// One avatar+name tile in the pinned gallery. Its own component so the
-// avatar-resolution hook can run per-tile. Respects the screenshot
-// anonymize mode like the rest of the page.
-function PinnedAlterChip({ alter, anonymize, formatAlter }) {
-  const navigate = useNavigate();
-  const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
-  const blurNames = anonymize !== "off";
-  const blurAvatar = anonymize === "all";
-  const label = formatAlter(alter);
-  return (
-    <button
-      type="button"
-      onClick={() => navigate(`/alter/${alter.id}`)}
-      className="flex flex-col items-center gap-1 w-16 flex-shrink-0"
-      title={label}
-    >
-      <div
-        className="w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center"
-        style={{
-          borderColor: alter.color || "hsl(var(--border))",
-          backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
-        }}
-      >
-        {resolvedAvatar ? (
-          <img
-            src={resolvedAvatar}
-            alt={label}
-            className={`w-full h-full object-cover ${blurAvatar ? "blur-md" : ""}`}
-          />
-        ) : (
-          <span className="text-lg font-semibold text-foreground">
-            {(alter.name || "?").charAt(0).toUpperCase()}
-          </span>
-        )}
-      </div>
-      <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>
-        {label}
-      </span>
-    </button>
-  );
 }

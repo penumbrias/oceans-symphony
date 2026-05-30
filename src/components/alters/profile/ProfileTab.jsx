@@ -18,6 +18,7 @@ import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getPageBackground, adjustForContrast } from "@/lib/contrast";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
+import MarkdownText from "@/components/shared/MarkdownText";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -684,7 +685,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">
+                    {/* div (not span) so text-type fields can host the
+                        block-level MarkdownText without invalid nesting. */}
+                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
                       {field.field_type === "boolean"
                         ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
                         : field.field_type === "list" && typeof customFieldValues[field.id] === "string"
@@ -695,14 +698,18 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                               ))}
                             </span>
                           )
-                          : customFieldValues[field.id]}
-                    </span>
+                          : field.field_type === "text"
+                            ? <MarkdownText>{String(customFieldValues[field.id])}</MarkdownText>
+                            : <span className="whitespace-pre-wrap break-words">{customFieldValues[field.id]}</span>}
+                    </div>
                   </div>
                 ))}
                 {alterSpecific.map((field, idx) => (
                   <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">{field.value}</span>
+                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
+                      <MarkdownText>{String(field.value)}</MarkdownText>
+                    </div>
                   </div>
                 ))}
               </div>

@@ -20,6 +20,10 @@ export const DASHBOARD_ELEMENTS = {
     label: "Currently fronting",
     description: "Active fronter list with switch / co-front / set-front controls.",
   },
+  pinned_alters: {
+    label: "Pinned alters",
+    description: "Quick-access gallery of alters you've pinned. Tap to toggle front, hold to set primary.",
+  },
   status_note: {
     label: "Custom status",
     description: "The 'What's happening right now…' field. Useful even when you're not tracking fronting.",
@@ -62,6 +66,9 @@ export const DASHBOARD_ELEMENTS = {
 export const DEFAULT_LAYOUT = [
   { id: "upcoming_top",     enabled: true },
   { id: "current_fronters", enabled: true },
+  // Pinned alters default OFF on the dashboard — it already lives on the
+  // alters page; users opt in via Settings → Appearance → Dashboard layout.
+  { id: "pinned_alters",    enabled: false },
   { id: "status_note",      enabled: true },
   { id: "dashboard_pins",   enabled: true },
   { id: "current_symptoms", enabled: true },
