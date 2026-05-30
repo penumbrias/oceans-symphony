@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Text-type custom fields (and alter-specific fields) now support Markdown — use **bold**, *italics*, lists, and links in them. Other field types are unchanged.",
+      },
+      {
         type: "fix",
         text: "Removed the duplicate \"Back\" button on alter profiles — the app header already has one.",
       },
