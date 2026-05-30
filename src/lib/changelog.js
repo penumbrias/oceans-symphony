@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Pin alters! Turn on \"Pin to top\" in an alter's edit screen and they show up in a quick-access gallery at the top of the alters page. It's just a shortcut — they stay in their group and list too.",
+      },
+      {
+        type: "feature",
         text: "Text-type custom fields (and alter-specific fields) now support Markdown — use **bold**, *italics*, lists, and links in them. Other field types are unchanged.",
       },
       {
@@ -65,7 +69,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Check-In Log analytics: emotions now grouped by Good / Neutral / Bad / Body category (taken from the emotion wheel) with an overall balance bar + per-day stacked trend. New \"Time of Day\" chart shows when you check in and which hours skew distressing. Per-{{alter}} patterns table surfaces each {{alter}}'s dominant emotion category, top emotion, and distress rate. New \"When Distress Showed Up\" section finds the symptoms, emotions, and activities that co-occurred within ±30 minutes of each distress check-in.",
+        text: "Check-In Log analytics: emotions now grouped by Good / Neutral / Bad / Body category (taken from the emotion wheel) with an overall balance bar + per-day stacked trend. New \"Time of Day\" chart shows when you check in and which hours skew distressing. Per-alter patterns table surfaces each alter's dominant emotion category, top emotion, and distress rate. New \"When Distress Showed Up\" section finds the symptoms, emotions, and activities that co-occurred within ±30 minutes of each distress check-in.",
       },
       {
         type: "improve",

@@ -5,7 +5,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
@@ -33,7 +34,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
-    birthday: "", origin_year: "",
+    birthday: "", origin_year: "", is_pinned: false,
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -57,10 +58,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "",
-        birthday, origin_year,
+        birthday, origin_year, is_pinned: !!alter.is_pinned,
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "" });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false });
     }
   }, [alter, open, isNew]);
 
@@ -348,6 +349,21 @@ const handleAvatarUpload = async (e) => {
               )}
             </div>
           )}
+
+          {/* Pin shortcut — surfaces this {alter} in a quick-access
+              gallery at the top of the {alters} page (and the Set Front
+              modal). Doesn't change their position anywhere else. */}
+          <div className="flex items-center justify-between rounded-xl border border-border/50 px-3 py-2.5">
+            <Label htmlFor="alter-pin-toggle" className="flex items-center gap-1.5 cursor-pointer">
+              <Pin className={`w-3.5 h-3.5 ${form.is_pinned ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              Pin to top of {t.alters} page
+            </Label>
+            <Switch
+              id="alter-pin-toggle"
+              checked={!!form.is_pinned}
+              onCheckedChange={(v) => set("is_pinned", v)}
+            />
+          </div>
         </div>
 
         {/* Fixed footer */}
