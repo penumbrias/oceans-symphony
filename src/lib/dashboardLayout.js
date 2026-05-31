@@ -66,9 +66,12 @@ export const DASHBOARD_ELEMENTS = {
 export const DEFAULT_LAYOUT = [
   { id: "upcoming_top",     enabled: true },
   { id: "current_fronters", enabled: true },
-  // Pinned alters default OFF on the dashboard — it already lives on the
-  // alters page; users opt in via Settings → Appearance → Dashboard layout.
-  { id: "pinned_alters",    enabled: false },
+  // Pinned alters defaults ON and sits right below Currently Fronting.
+  // The gallery component renders nothing when no alter is pinned, so
+  // "enabled by default" effectively means "appears automatically once
+  // you pin someone." An explicit toggle-off in Settings → Appearance →
+  // Dashboard layout is still respected (saved as enabled: false).
+  { id: "pinned_alters",    enabled: true },
   { id: "status_note",      enabled: true },
   { id: "dashboard_pins",   enabled: true },
   { id: "current_symptoms", enabled: true },

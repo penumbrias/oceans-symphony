@@ -16,8 +16,16 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the app becoming unresponsive — header and bottom nav not tapping — after pinning an alter. A pin popup could get stuck over the screen; pinning is now a direct hold-to-pin toggle with no overlay.",
+      },
+      {
         type: "improve",
-        text: "Pin alters more easily: press and hold an alter in the list for a second to open a quick Pin / Unpin menu (no need to dig into the edit screen).",
+        text: "Pin alters more easily: press and hold an alter in the list for a second to pin or unpin them.",
+      },
+      {
+        type: "improve",
+        text: "Once you've pinned an alter, the pinned gallery now appears on the dashboard automatically, just below Currently Fronting. Hide it anytime in Settings → Appearance → Dashboard layout.",
       },
       {
         type: "improve",

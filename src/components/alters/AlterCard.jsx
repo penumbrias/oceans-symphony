@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
-import { User, ChevronRight, Zap, Pin } from "lucide-react";
+import { User, ChevronRight, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
@@ -169,7 +169,6 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const textColor = hasColor ? getContrastColor(alter.color) : null;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [pinMenuOpen, setPinMenuOpen] = useState(false);
 
   const togglePinned = async () => {
     try {
@@ -179,7 +178,6 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
     } catch (e) {
       toast.error(e.message || "Failed to update pin");
     }
-    setPinMenuOpen(false);
   };
 
   const { bind, dragX, swipeHint } = useSwipeActions({
@@ -187,9 +185,12 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
     onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeftUp: () => replaceFrontWith(alter, base44, queryClient, toast),
-    // Hold for 1s to open the quick pin menu (kept longer than the
-    // 500ms default so it doesn't collide with the swipe gestures).
-    onLongPress: () => setPinMenuOpen(true),
+    // Hold ~1s to pin/unpin directly (toast feedback, no overlay). The
+    // previous version opened a fixed inset-0 z-60 popup which — when a
+    // mobile long-press suppressed the dismiss tap — could stick above
+    // the nav and eat every tap (the input-death regression). A direct
+    // toggle has no overlay so it can't trap the UI.
+    onLongPress: () => togglePinned(),
     longPressMs: 1000,
   });
 
@@ -198,7 +199,6 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const isPrimary = mySession?.is_primary ?? false;
 
   return (
-    <>
     <motion.div
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
@@ -257,43 +257,5 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       </div>
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </motion.div>
-
-    {/* Hold-to-open quick pin menu. */}
-    {pinMenuOpen && (
-      <div
-        className="fixed inset-0 z-[60] flex items-center justify-center bg-black/40 p-4"
-        onClick={() => setPinMenuOpen(false)}
-      >
-        <div
-          className="bg-card border border-border rounded-2xl w-full max-w-xs p-4 space-y-2.5"
-          onClick={(e) => e.stopPropagation()}
-        >
-          <p className="font-semibold text-sm text-center truncate">{formatAlter(alter)}</p>
-          <button
-            type="button"
-            onClick={togglePinned}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg bg-primary/10 text-primary font-medium text-sm hover:bg-primary/20 transition-colors"
-          >
-            <Pin className={`w-4 h-4 ${alter.is_pinned ? "fill-primary" : ""}`} />
-            {alter.is_pinned ? "Unpin from top" : "Pin to top"}
-          </button>
-          <button
-            type="button"
-            onClick={() => { setPinMenuOpen(false); navigate(`/alter/${alter.id}`); }}
-            className="w-full py-2 rounded-lg bg-muted/50 text-foreground text-sm hover:bg-muted transition-colors"
-          >
-            Open profile
-          </button>
-          <button
-            type="button"
-            onClick={() => setPinMenuOpen(false)}
-            className="w-full py-2 rounded-lg text-muted-foreground text-sm hover:bg-muted/40 transition-colors"
-          >
-            Cancel
-          </button>
-        </div>
-      </div>
-    )}
-    </>
   );
 }
