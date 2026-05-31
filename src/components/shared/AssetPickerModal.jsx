@@ -1,62 +1,104 @@
-import React, { useState, useRef, useMemo } from "react";
+import React, { useState, useRef, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Upload, Loader2, Trash2, ImagePlus, Images } from "lucide-react";
+import { X, Upload, Loader2, ImagePlus, Images } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { isLocalMode } from "@/lib/storageMode";
-import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import {
+  processUploadedImage, saveLocalImage, createLocalImageUrl,
+  getAllLocalImages, getLocalImageId,
+} from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-// A reusable library of locally-stored images. Upload once (in bulk if you
-// like), organise into folders, and re-use any image anywhere that takes a
-// picture — without re-uploading or duplicating storage (assets reference
-// the same /local-image/<id> the rest of the app uses).
+// Auto-folder names from the id prefix our upload paths use (kept in sync
+// with the Assets page) so EVERY stored image — not just curated assets —
+// shows up here, sorted sensibly.
+const PREFIX_FOLDERS = {
+  avatar: "Avatars", fixed: "Avatars",
+  bg: "Backgrounds", header: "Headers & banners",
+  bioimg: "Bio images", bulletinimg: "Bulletin images",
+  chatimg: "Chat images", commentimg: "Comment images",
+  group: "Group images", asset: "Library uploads",
+};
+function autoFolderFor(id) {
+  return PREFIX_FOLDERS[String(id).split("-")[0]] || "Other";
+}
 
-function AssetThumb({ asset, onSelect, onDelete }) {
-  const resolved = useResolvedAvatarUrl(asset.image_url);
+function AssetThumb({ item, onSelect }) {
+  const resolved = useResolvedAvatarUrl(item.url);
   return (
-    <div className="relative group">
-      <button type="button" onClick={() => onSelect(asset.image_url)}
-        className="w-full aspect-square rounded-lg overflow-hidden border border-border/50 bg-muted/30 hover:ring-2 hover:ring-primary transition-all">
-        {resolved
-          ? <img src={resolved} alt={asset.name} className="w-full h-full object-cover" />
-          : <span className="w-full h-full flex items-center justify-center text-muted-foreground"><ImagePlus className="w-5 h-5" /></span>}
-      </button>
-      {asset.is_gif && <span className="absolute bottom-1 left-1 text-[0.5rem] font-bold px-1 rounded bg-black/60 text-white">GIF</span>}
-      <button type="button" onClick={() => onDelete(asset)} aria-label="Remove asset"
-        className="absolute top-1 right-1 w-5 h-5 rounded-full bg-black/50 text-white flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
-        <Trash2 className="w-3 h-3" />
-      </button>
-      {asset.name && <p className="text-[0.625rem] text-muted-foreground truncate mt-0.5 px-0.5">{asset.name}</p>}
-    </div>
+    <button type="button" onClick={() => onSelect(item.url)}
+      className="relative w-full aspect-square rounded-lg overflow-hidden border border-border/50 bg-muted/30 hover:ring-2 hover:ring-primary transition-all">
+      {resolved
+        ? <img src={resolved} alt={item.name} className="w-full h-full object-cover" loading="lazy" />
+        : <span className="w-full h-full flex items-center justify-center text-muted-foreground"><ImagePlus className="w-5 h-5" /></span>}
+      {item.isGif && <span className="absolute bottom-1 left-1 text-[0.5rem] font-bold px-1 rounded bg-black/60 text-white">GIF</span>}
+    </button>
   );
 }
 
 export default function AssetPickerModal({ open, onClose, onSelect }) {
   const qc = useQueryClient();
   const t = useTerms();
-  const { data: assets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
-  });
+  const [rawImages, setRawImages] = useState({});
   const [search, setSearch] = useState("");
   const [folder, setFolder] = useState("all");
   const [uploadFolder, setUploadFolder] = useState("");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  const { data: assets = [] } = useQuery({
+    queryKey: ["imageAssets"],
+    queryFn: () => base44.entities.ImageAsset.list("-created_date"),
+    enabled: open,
+  });
+
+  const loadImages = async () => { try { setRawImages(await getAllLocalImages()); } catch { setRawImages({}); } };
+  useEffect(() => { if (open) loadImages(); }, [open]);
+
+  const assetByImageId = useMemo(() => {
+    const m = {};
+    for (const a of assets) { const id = a.image_url ? getLocalImageId(a.image_url) : null; if (id) m[id] = a; }
+    return m;
+  }, [assets]);
+
+  // Every stored image + any asset record not backed by a stored image.
+  const items = useMemo(() => {
+    const out = [];
+    for (const id of Object.keys(rawImages)) {
+      const asset = assetByImageId[id];
+      const data = rawImages[id];
+      out.push({
+        key: id,
+        url: `/local-image/${encodeURIComponent(id)}`,
+        name: asset?.name || id,
+        folder: (asset?.folder || "").trim() || autoFolderFor(id),
+        isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
+      });
+    }
+    for (const a of assets) {
+      const lid = a.image_url ? getLocalImageId(a.image_url) : null;
+      if (lid && rawImages[lid] !== undefined) continue;
+      out.push({
+        key: `asset-${a.id}`, url: a.image_url,
+        name: a.name || "Image", folder: (a.folder || "").trim() || "Library uploads", isGif: !!a.is_gif,
+      });
+    }
+    return out;
+  }, [rawImages, assets, assetByImageId]);
+
   const folders = useMemo(
-    () => [...new Set(assets.map((a) => (a.folder || "").trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b)),
-    [assets]
+    () => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b))),
+    [items]
   );
-  const filtered = useMemo(
-    () => assets.filter((a) =>
-      (folder === "all" || (a.folder || "") === folder) &&
-      (!search || (a.name || "").toLowerCase().includes(search.toLowerCase()))
-    ),
-    [assets, folder, search]
-  );
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((i) =>
+      (folder === "all" || i.folder === folder) &&
+      (!q || (i.name || "").toLowerCase().includes(q))
+    );
+  }, [items, folder, search]);
 
   const handleFiles = async (e) => {
     const files = [...(e.target.files || [])];
@@ -82,19 +124,12 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
           created_date: new Date().toISOString(),
         });
         added++;
-      } catch { /* skip bad file */ }
+      } catch { /* skip */ }
     }
     qc.invalidateQueries({ queryKey: ["imageAssets"] });
+    await loadImages();
     setUploading(false);
-    if (added) toast.success(`${added} image${added === 1 ? "" : "s"} added to your assets`);
-  };
-
-  const del = async (asset) => {
-    if (!window.confirm(`Remove "${asset.name}" from your assets? Anywhere already using it keeps it.`)) return;
-    try {
-      await base44.entities.ImageAsset.delete(asset.id);
-      qc.invalidateQueries({ queryKey: ["imageAssets"] });
-    } catch (err) { toast.error(err?.message || "Couldn't remove"); }
+    if (added) toast.success(`${added} image${added === 1 ? "" : "s"} added`);
   };
 
   if (!open) return null;
@@ -104,12 +139,12 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
       <div onClick={(e) => e.stopPropagation()}
         className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[82vh] flex flex-col overflow-hidden">
         <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
-          <span className="font-semibold text-sm flex items-center gap-1.5"><Images className="w-4 h-4" /> Image assets</span>
+          <span className="font-semibold text-sm flex items-center gap-1.5"><Images className="w-4 h-4" /> Choose an image</span>
           <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
         <div className="px-4 py-2.5 border-b border-border/50 space-y-2">
-          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search assets…"
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search images…"
             className="w-full h-8 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
           <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
             <button type="button" onClick={() => setFolder("all")}
@@ -136,11 +171,11 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
         <div className="flex-1 overflow-y-auto overscroll-contain p-3" style={{ WebkitOverflowScrolling: "touch" }}>
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
-              {assets.length === 0 ? "No assets yet — upload some images to reuse them anywhere." : "No assets match."}
+              {items.length === 0 ? "No images stored yet — upload one above." : "No images match."}
             </div>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
-              {filtered.map((a) => <AssetThumb key={a.id} asset={a} onSelect={onSelect} onDelete={del} />)}
+              {filtered.map((it) => <AssetThumb key={it.key} item={it} onSelect={onSelect} />)}
             </div>
           )}
         </div>
@@ -149,8 +184,8 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
   );
 }
 
-// Small trigger button that opens the asset picker and hands the chosen
-// image URL back via onPick. Drop next to any upload control.
+// Small trigger button that opens the picker and hands the chosen image
+// URL back via onPick. Drop next to any upload control.
 export function AssetButton({ onPick, className = "", title = "Choose from assets" }) {
   const [open, setOpen] = useState(false);
   return (

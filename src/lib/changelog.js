@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The 🖼 \"choose from assets\" picker was showing empty — it now lists every stored image (avatars, backgrounds, uploads, and more), like the Assets page, sorted into folders.",
+      },
+      {
         type: "improve",
         text: "Image Assets page: folders are now collapsible, you can create/rename/reorder your own folders, and big folders load more images as you scroll.",
       },
