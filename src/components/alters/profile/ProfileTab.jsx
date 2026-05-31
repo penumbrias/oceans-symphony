@@ -21,7 +21,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getPageBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, haloColor, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 
@@ -1030,7 +1030,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                   type="button"
                   onClick={() => navigate(`/group/${g.id}`)}
                   className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
-                  style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
+                  style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: groupNameColor(g.color) || "hsl(var(--foreground))" }}
                   title="Open profile"
                 >
                   <GroupIcon group={g} className="w-3 h-3" /> {g.name}

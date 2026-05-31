@@ -8,6 +8,7 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
+import { groupNameColor } from "@/lib/contrast";
 
 // Popup for acting on a subsystem (an alter-owned group). Used by the
 // alters-list long-press, the alters-grid "manage" tile, and anywhere a
@@ -55,7 +56,7 @@ export default function SubsystemActionMenu({ group, onClose }) {
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
           <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
           <span className="flex-1 min-w-0">
-            <span className="block font-medium text-sm truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
+            <span className="block font-medium text-sm truncate" style={{ color: groupNameColor(group.color) }}>{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
             {owner && <span className="text-[0.625rem] text-muted-foreground inline-flex items-center gap-1"><Crown className="w-2.5 h-2.5 text-amber-500" /> {owner.name}'s {subTerm}</span>}
           </span>
           <button onClick={close} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>

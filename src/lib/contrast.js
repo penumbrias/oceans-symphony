@@ -95,6 +95,18 @@ export function getSurfaceBackground() {
   return getCssVar("--color-surface", "#101820");
 }
 
+// Colour for a group/subsystem NAME drawn against the page background.
+// Returns the group's own colour (hue-preserving, lightness-nudged only
+// if it's too low-contrast to read), or undefined when the group has no
+// valid colour — in which case callers leave the default text colour in
+// place (`style={{ color: undefined }}` is a no-op in React). Safe to
+// call in render: it's a pure read of the live CSS background var.
+export function groupNameColor(color) {
+  if (typeof color !== "string" || !/^#[0-9a-f]{6}$/i.test(color.trim())) return undefined;
+  try { return adjustForContrast(color.trim(), getPageBackground()); }
+  catch { return color.trim(); }
+}
+
 function rgbToHsl(r, g, b) {
   r /= 255; g /= 255; b /= 255;
   const max = Math.max(r, g, b), min = Math.min(r, g, b);

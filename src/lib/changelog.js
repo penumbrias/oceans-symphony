@@ -16,6 +16,26 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity tracker day view: the hour labels now sit at the top of each hour's cell (where the hour begins) instead of floating in the middle.",
+      },
+      {
+        type: "feature",
+        text: "New \"Rich text\" custom field type — write formatted notes (bold, lists, links, images) on a profile and they show up formatted.",
+      },
+      {
+        type: "feature",
+        text: "Your system now has its own profile — add a banner image and a longer formatted bio (Settings → System Profile), shown at the top of the alters page.",
+      },
+      {
+        type: "improve",
+        text: "Added 14 more fonts (Quicksand, Comfortaa, EB Garamond, Bebas Neue, JetBrains Mono…) as an optional one-time download in Settings → Appearance, so they don't bloat the app for everyone.",
+      },
+      {
+        type: "improve",
+        text: "Groups and subsystems now show their name in their own colour across the app — in folders, breadcrumbs, profiles, and menus — kept readable against your theme.",
+      },
+      {
         type: "feature",
         text: "Make a quick plan right from the bulletin board — type a title to schedule it for today, with optional time, category, length, and more behind tap-to-expand pills.",
       },

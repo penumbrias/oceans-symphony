@@ -8,6 +8,7 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
+import { groupNameColor } from "@/lib/contrast";
 import { wouldCreateOwnershipCycle } from "@/lib/subsystemUtils";
 
 // Popup for acting on a regular group folder (parity with the alter and
@@ -62,7 +63,7 @@ export default function GroupActionMenu({ group, onClose }) {
         className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
           <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
-          <span className="flex-1 min-w-0 font-medium text-sm truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
+          <span className="flex-1 min-w-0 font-medium text-sm truncate" style={{ color: groupNameColor(group.color) }}>{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
           <button onClick={close} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 

@@ -33,7 +33,7 @@ import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
 } from "@/lib/subsystemUtils";
-import { needsHalo, getPageBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -273,7 +273,7 @@ function GroupProfileInner() {
         </Button>
         <div className="flex items-center gap-2.5">
           <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
-          <span className="font-display text-lg font-semibold truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
+          <span className="font-display text-lg font-semibold truncate" style={{ color: groupNameColor(group.color) }}>{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
         </div>
         {tabBar}
         {tab === "board" ? (
@@ -657,7 +657,8 @@ function ViewHeader({ group, bgColor, bgImage, bgOpacity, headerImage, ownerAlte
       <div className={`relative z-10 flex gap-4 items-start ${hasBg || headerImage ? "p-4" : ""}`}>
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
         <div className="flex-1 min-w-0 space-y-1">
-          <h2 className="font-display text-2xl font-semibold flex items-center gap-2">
+          <h2 className="font-display text-2xl font-semibold flex items-center gap-2"
+            style={{ color: (hasBg || headerImage) ? undefined : groupNameColor(group.color) }}>
             {group.emoji ? <span>{group.emoji}</span> : null}{group.name}
           </h2>
           {ownerAlter && (

@@ -1,7 +1,7 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, MoreVertical, GripVertical, Pencil, Check } from "lucide-react";
+import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, FileText, MoreVertical, GripVertical, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -29,6 +29,7 @@ const TYPE_ICONS = {
   number: Hash,
   boolean: ToggleLeft,
   list: Tags,
+  richtext: FileText,
 };
 
 const TYPE_LABELS = {
@@ -36,6 +37,7 @@ const TYPE_LABELS = {
   number: "Number",
   boolean: "Yes/No",
   list: "List",
+  richtext: "Rich text",
 };
 
 function SortableFieldRow({ field, isEditing, editName, editType, setEditName, setEditType, onStartEdit, onSaveEdit, onCancelEdit, onDelete }) {

@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
@@ -83,24 +84,22 @@ export default function Home() {
   return (
     <div>
       <motion.div
+        data-tour="system-profile"
         initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }} className="mb-3 flex items-start justify-between">
-
-        
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">
-            {systemSettings?.system_name || `Your ${terms.System}`}
-          </h1>
-        </div>
-        <Button
-          data-tour="alter-add-btn"
-          size="sm"
-          onClick={() => setShowAddAlter(true)}
-          className="bg-primary hover:bg-primary/90 gap-1.5">
-          
-          <Plus className="w-4 h-4" />
-          Add {terms.Alter}
-        </Button>
+        animate={{ opacity: 1, y: 0 }}>
+        <SystemHeaderCard
+          settings={systemSettings}
+          action={
+            <Button
+              data-tour="alter-add-btn"
+              size="sm"
+              onClick={() => setShowAddAlter(true)}
+              className="bg-primary hover:bg-primary/90 gap-1.5">
+              <Plus className="w-4 h-4" />
+              Add {terms.Alter}
+            </Button>
+          }
+        />
       </motion.div>
 
       <div className="mb-4">

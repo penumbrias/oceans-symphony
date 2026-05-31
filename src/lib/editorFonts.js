@@ -50,3 +50,8 @@ import '@fontsource/nanum-gothic/latin-400.css'; // latin-ext not published
 import '@fontsource/amiri/latin-400.css';
 import '@fontsource/amiri/latin-ext-400.css';
 import '@fontsource/tajawal/latin-400.css'; // latin-ext not published
+
+// NOTE: the 14 "extra" fonts (Quicksand, Comfortaa, EB Garamond, Indie
+// Flower, Bebas Neue, JetBrains Mono, …) are intentionally NOT imported
+// here. They're an optional download fetched from Google Fonts on demand
+// (src/lib/fontPacks.js) so they don't bloat the bundled app.
