@@ -300,6 +300,8 @@ export default function AlterGrid({ alters }) {
               alters={effectiveAlters.filter((a) => !a.is_archived)}
               sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
               activeSessions={activeSessions}
+              anonymize={anonymize}
+              displayMode={displayMode}
             />
           )}
           {rootGroups.length === 0 && (

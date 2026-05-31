@@ -15,6 +15,10 @@ import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@
 import { useTerms } from "@/lib/useTerms";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import useLongPress from "@/hooks/useLongPress";
+import AlterCard from "./AlterCard";
+import SubsystemAlterList from "./SubsystemAlterList";
+import AlterGridView from "./AlterGridView";
+import GroupActionMenu from "./GroupActionMenu";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -122,9 +126,10 @@ function FolderRow({ group, onClick, onLongOpen }) {
 
 }
 
-export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls, anonymize = "off", displayMode = "list" }) {
   const terms = useTerms();
   const [navStack, setNavStack] = useState([]);
+  const [menuGroup, setMenuGroup] = useState(null); // group folder for the actions popup
   // Subsystems (alter-owned groups) are hidden from the root groups list by
   // default — they live under their owner in the alters list. Toggle to
   // surface them here too. Persisted so the choice sticks.
@@ -291,38 +296,48 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         transition={{ duration: 0.15 }}
         className="space-y-2">
 
-        {/* Subsystem owner (parent) — pinned at the top of an owned group. */}
+        {/* Subsystem root (parent) — pinned at the top of an owned group.
+            Rendered with the full AlterCard so it gets the same swipe /
+            long-press / blur behaviour as anywhere else. */}
         {ownerAlter && (
           <div className="space-y-1">
             <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground px-1 flex items-center gap-1">
-              <Crown className="w-3 h-3 text-amber-500" /> Parent of this {terms.system === "system" ? "subsystem" : `sub${terms.system}`}
+              <Crown className="w-3 h-3 text-amber-500" /> Root of this {terms.system === "system" ? "subsystem" : `sub${terms.system}`}
             </p>
-            <MemberRow
-              alter={ownerAlter}
-              activeSessions={activeSessions}
-              onClick={() => navigate(`/alter/${ownerAlter.id}`)} />
+            <AlterCard alter={ownerAlter} index={0} activeSessions={activeSessions} anonymize={anonymize} />
             <div className="h-px bg-border/40 my-1" />
           </div>
         )}
 
+        {/* Group folders — tap to drill in, hold for the actions popup. */}
         {childGroups.map((g) =>
-        <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => navigate(`/group/${grp.id}`)} />
+        <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} />
         )}
 
-           {memberAlters.map((alter) => {
-        // If this member owns their own subsystem, surface a folder
-        // button to drill into it (nested navigation via the breadcrumb).
-        const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
-        return (
-          <MemberRow
-            key={alter.id}
-            alter={alter}
-            activeSessions={activeSessions}
-            ownedSubsystem={ownedSub}
-            onOpenSubsystem={navigateTo}
-            onClick={() => navigate(`/alter/${alter.id}`)} />
-        );
-        })}
+        {/* Member alters — rendered with the exact same components as the
+            alters section, so they get swipe-to-front, the long-press
+            action menu, anonymize blur, subsystem nesting, and the
+            grid/list display mode. */}
+        {memberAlters.length > 0 && (
+          displayMode === "list" ? (
+            <SubsystemAlterList
+              topAlters={memberAlters}
+              allAlters={alters}
+              allGroups={allGroups}
+              activeSessions={activeSessions}
+              anonymize={anonymize}
+            />
+          ) : (
+            <AlterGridView
+              alters={memberAlters}
+              activeSessions={activeSessions}
+              allAlters={alters}
+              allGroups={allGroups}
+              cols={parseInt(displayMode) || 3}
+              anonymize={anonymize}
+            />
+          )
+        )}
 
         {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 &&
         <div className="flex flex-col items-center justify-center py-8 text-center">
@@ -331,6 +346,8 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           </div>
         }
       </motion.div>
+
+      {menuGroup && <GroupActionMenu group={menuGroup} onClose={() => setMenuGroup(null)} />}
 
       {/* Modals */}
       <CreateGroupModal

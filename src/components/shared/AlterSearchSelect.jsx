@@ -17,6 +17,7 @@ export default function AlterSearchSelect({
   disabledIds = null,        // Set of alter ids that can't be picked
   disabledLabel = "unavailable",
   buttonClassName = "",
+  zIndex = 60,               // raise when nested inside another overlay
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -75,10 +76,10 @@ export default function AlterSearchSelect({
 
       {open && (
         <>
-          <div className="fixed inset-0 z-[60]" onClick={() => setOpen(false)} />
+          <div className="fixed inset-0" style={{ zIndex }} onClick={() => setOpen(false)} />
           <div
-            className="z-[61] bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
+            className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+            style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
           >
             <div className="px-3 py-2 border-b border-border/50">
               <input

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, Folder, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -109,6 +109,10 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const compact = cols >= 4;
   const [expandedOwners, setExpandedOwners] = useState(new Set());
   const [subsystemMenuGroup, setSubsystemMenuGroup] = useState(null);
+  // For owners with multiple subsystems: which one's members are shown
+  // (keyed by alter id). Absent → show the chooser.
+  const [gridActiveSub, setGridActiveSub] = useState({});
+  const setActiveSubFor = (alterId, subId) => setGridActiveSub((m) => ({ ...m, [alterId]: subId }));
 
   const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
   const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
@@ -151,13 +155,16 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   // which can itself expand. Cycle-guarded by a per-branch visited set and
   // the hard depth clamp; past MAX_GRID_INLINE_DEPTH the chevron opens the
   // subsystem's profile instead of nesting another card.
-  const renderNode = (alter, visited, depth) => {
-    const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+    const ICON = (compact ? "w-14 h-14" : "w-16 h-16");
+    const renderNode = (alter, visited, depth) => {
+    const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
     const loopOrTooDeep = visited.has(alter.id) || depth > MAX_SUBSYSTEM_DEPTH;
-    const hasSub = !!ownedSub && !loopOrTooDeep;
+    const hasSub = ownedSubs.length > 0 && !loopOrTooDeep;
+    const multi = ownedSubs.length > 1;
     const inlineExpandable = hasSub && depth < MAX_GRID_INLINE_DEPTH;
     const expanded = inlineExpandable && expandedOwners.has(alter.id);
-    const members = expanded ? getMemberAlters(ownedSub, allAlters) : [];
+    const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === gridActiveSub[alter.id]) || null : ownedSubs[0]);
+    const members = (expanded && activeSub) ? getMemberAlters(activeSub, allAlters) : [];
     const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
     const low = needsHalo(ownerColor, surfaceBg);
     const borderColor = low ? adjustForContrast(ownerColor, surfaceBg) : ownerColor;
@@ -171,7 +178,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           ownsSubsystem={hasSub}
           expanded={!!expanded}
           onToggleExpand={() =>
-            inlineExpandable ? toggleExpand(alter.id) : navigate(`/group/${ownedSub.id}`)
+            inlineExpandable ? toggleExpand(alter.id) : navigate(`/group/${ownedSubs[0].id}`)
           }
         />
         {expanded && (
@@ -183,23 +190,46 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
             }}
             className="rounded-2xl p-3"
           >
-            <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">{ownedSub.name}</p>
-            <div className={`grid ${colsClass} gap-3`}>
-              {members.map((m) => renderNode(m, nextVisited, depth + 1))}
-              {/* Trailing tile: manage the subsystem (add/create members,
-                  open profile). When empty, it's the only tile. */}
-              <button
-                type="button"
-                onClick={() => setSubsystemMenuGroup(ownedSub)}
-                className="flex flex-col items-center gap-2 select-none"
-                title={`Manage ${ownedSub.name}`}
-              >
-                <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${compact ? "w-14 h-14" : "w-16 h-16"}`}>
-                  <Plus className="w-5 h-5" />
-                </span>
-                <span className="text-xs text-center font-medium text-muted-foreground">{members.length === 0 ? "Add member" : "Manage"}</span>
-              </button>
-            </div>
+            {multi && !activeSub ? (
+              // Chooser: tiles for each of the alter's subsystems.
+              <>
+                <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">Subsystems</p>
+                <div className={`grid ${colsClass} gap-3`}>
+                  {ownedSubs.map((sub) => (
+                    <button key={sub.id} type="button" onClick={() => setActiveSubFor(alter.id, sub.id)}
+                      className="flex flex-col items-center gap-2 select-none" title={sub.name}>
+                      <span className={`rounded-full border-2 flex items-center justify-center ${ICON}`}
+                        style={{ borderColor: sub.color || "hsl(var(--border))", backgroundColor: sub.color ? `${sub.color}20` : "hsl(var(--muted))" }}>
+                        <Folder className="w-5 h-5" style={{ color: sub.color || "hsl(var(--muted-foreground))" }} />
+                      </span>
+                      <span className="text-xs text-center font-medium truncate w-full px-1">{sub.name}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : activeSub ? (
+              <>
+                <div className="flex items-center justify-between mb-2 px-1">
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground truncate">{activeSub.name}</p>
+                  {multi && (
+                    <button type="button" onClick={() => setActiveSubFor(alter.id, null)}
+                      className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 flex-shrink-0">
+                      <ArrowLeft className="w-3 h-3" /> All
+                    </button>
+                  )}
+                </div>
+                <div className={`grid ${colsClass} gap-3`}>
+                  {members.map((m) => renderNode(m, nextVisited, depth + 1))}
+                  <button type="button" onClick={() => setSubsystemMenuGroup(activeSub)}
+                    className="flex flex-col items-center gap-2 select-none" title={`Manage ${activeSub.name}`}>
+                    <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
+                      <Plus className="w-5 h-5" />
+                    </span>
+                    <span className="text-xs text-center font-medium text-muted-foreground">{members.length === 0 ? "Add member" : "Manage"}</span>
+                  </button>
+                </div>
+              </>
+            ) : null}
           </div>
         )}
       </React.Fragment>

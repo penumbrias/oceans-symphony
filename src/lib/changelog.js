@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Alters with more than one subsystem now show a list of those subsystems first — pick one to view its members (in both list and grid views).",
+      },
+      {
+        type: "improve",
+        text: "The groups section of the alters page now behaves like the alters section: swipe a member to set front, press and hold for the quick menu, names/icons blur with screenshot mode, and the grid/list view applies.",
+      },
+      {
+        type: "feature",
+        text: "Press and hold a group folder for a popup to manage members, assign a \"root\" (turn it into a subsystem), or open its profile.",
+      },
+      {
         type: "improve",
         text: "Group profile: the \"Owner\" field is now called \"Root\" and uses a searchable alter picker instead of a plain dropdown.",
       },
