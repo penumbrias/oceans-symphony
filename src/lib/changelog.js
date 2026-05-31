@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Alters grid: expanding a nested subsystem no longer expands every other copy of that alter, and you can now keep expanding nested subsystems inline (instead of being bounced to the subsystem's profile).",
+        text: "Alters grid: expanding a nested subsystem no longer expands every other copy of that alter. Deeper subsystems now drill in with a breadcrumb (like the list view) instead of redirecting to their profile.",
       },
     ],
   },

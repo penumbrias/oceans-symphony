@@ -362,7 +362,7 @@ export default function AlterGrid({ alters }) {
 
           // Grid: nest subsystems in the default view; in a flat/filtered
           // view pass no groups so cards render unnested.
-          <AlterGridView alters={visibleAlters} activeSessions={activeSessions} allAlters={effectiveAlters} allGroups={showFlat ? [] : allGroups} cols={parseInt(displayMode)} anonymize={anonymize} /> :
+          <AlterGridView alters={visibleAlters} activeSessions={activeSessions} allAlters={effectiveAlters} allGroups={showFlat ? [] : allGroups} cols={parseInt(displayMode)} anonymize={anonymize} persistKey="altersMainGrid" /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">

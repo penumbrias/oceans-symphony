@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTerms } from "@/lib/useTerms";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
@@ -15,9 +16,11 @@ import SubsystemActionMenu from "./SubsystemActionMenu";
 import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
-// Past this nesting depth, stop expanding inline (a tinted card inside a
-// tinted card inside… gets unreadable on a phone) and open the deeper
-// subsystem's profile instead.
+// Past this nesting depth the tinted-card-inside-tinted-card shrinks toward
+// half the screen width and gets cramped on a phone — so instead of nesting
+// another level inline, the whole grid "drills in" with a breadcrumb (exactly
+// like the list view and the groups section): the deeper subsystem becomes a
+// fresh top-level view you can back out of, no redirect to its profile.
 const MAX_GRID_INLINE_DEPTH = 3;
 
 function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
@@ -104,16 +107,60 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
   );
 }
 
-export default function AlterGridView({ alters, activeSessions = [], allAlters = [], allGroups = [], cols = 3, anonymize = "off" }) {
+export default function AlterGridView({ alters, activeSessions = [], allAlters = [], allGroups = [], cols = 3, anonymize = "off", persistKey }) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const t = useTerms();
   const compact = cols >= 4;
   const [expandedOwners, setExpandedOwners] = useState(new Set());
   const [subsystemMenuGroup, setSubsystemMenuGroup] = useState(null);
   // For owners with multiple subsystems: which one's members are shown
-  // (keyed by alter id). Absent → show the chooser.
+  // (keyed by node PATH, not alter id — the same alter can appear in more
+  // than one branch and each instance expands independently). Absent → chooser.
   const [gridActiveSub, setGridActiveSub] = useState({});
-  const setActiveSubFor = (alterId, subId) => setGridActiveSub((m) => ({ ...m, [alterId]: subId }));
+  const setActiveSubFor = (path, subId) => setGridActiveSub((m) => ({ ...m, [path]: subId }));
+
+  // Breadcrumb drill-in stack of subsystems (groups). Empty = top level.
+  // Once inline nesting would get too cramped, drilling resets the grid to
+  // that subsystem's members at the top with a breadcrumb — same model as
+  // the list view. Persisted to sessionStorage when persistKey is set so
+  // leaving for a profile and coming back lands you where you were.
+  const storeKey = persistKey ? `gridSubsysNav_${persistKey}` : null;
+  const [navStack, setNavStack] = useState(() => {
+    if (!storeKey) return [];
+    try { const raw = sessionStorage.getItem(storeKey); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
+  useEffect(() => {
+    if (!storeKey) return;
+    try { sessionStorage.setItem(storeKey, JSON.stringify(navStack)); } catch { /* storage off */ }
+  }, [navStack, storeKey]);
+  // Drop breadcrumb entries whose group was deleted while away.
+  useEffect(() => {
+    if (!storeKey || navStack.length === 0 || allGroups.length === 0) return;
+    const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
+    if (valid.length !== navStack.length) setNavStack(valid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allGroups, storeKey]);
+
+  const current = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+  const displayAlters = current ? getMemberAlters(current, allAlters) : alters;
+
+  // Drilling into a subsystem replaces the view (breadcrumb) instead of
+  // nesting another level. Guard against pushing a group already in the trail.
+  const drillInto = (group) => {
+    if (!group || navStack.some((g) => g.id === group.id)) return;
+    setNavStack((s) => [...s, group]);
+    // Collapse inline expansion state so the new top level starts clean.
+    setExpandedOwners(new Set());
+    setGridActiveSub({});
+  };
+  // Seed the visited set with the breadcrumb owners so a member can't
+  // re-expand an ancestor and loop.
+  const baseVisited = useMemo(() => {
+    const s = new Set();
+    for (const g of navStack) if (g.owner_alter_id) s.add(g.owner_alter_id);
+    return s;
+  }, [navStack]);
 
   const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
   const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
@@ -169,9 +216,11 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     const loopOrTooDeep = visited.has(alter.id) || depth > MAX_SUBSYSTEM_DEPTH;
     const hasSub = ownedSubs.length > 0 && !loopOrTooDeep;
     const multi = ownedSubs.length > 1;
+    // Inline = members nest here; otherwise drilling in resets the view.
+    const inlineExpandable = hasSub && depth < MAX_GRID_INLINE_DEPTH;
     const expanded = hasSub && expandedOwners.has(path);
     const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === gridActiveSub[path]) || null : ownedSubs[0]);
-    const members = (expanded && activeSub) ? getMemberAlters(activeSub, allAlters) : [];
+    const members = (expanded && activeSub && inlineExpandable) ? getMemberAlters(activeSub, allAlters) : [];
     const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
     const low = needsHalo(ownerColor, surfaceBg);
     const borderColor = low ? adjustForContrast(ownerColor, surfaceBg) : ownerColor;
@@ -184,7 +233,11 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
           {...cardProps(alter)}
           ownsSubsystem={hasSub}
           expanded={!!expanded}
-          onToggleExpand={() => toggleExpand(path)}
+          // Multi → toggle the chooser (shallow, fine at any depth). Single &
+          // shallow → nest inline. Single & too deep → drill in (breadcrumb).
+          onToggleExpand={() =>
+            multi || inlineExpandable ? toggleExpand(path) : drillInto(ownedSubs[0])
+          }
         />
         {expanded && (
           <div
@@ -201,7 +254,8 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                 <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">Subsystems</p>
                 <div className={`grid ${colsClass} gap-3`}>
                   {ownedSubs.map((sub) => (
-                    <button key={sub.id} type="button" onClick={() => setActiveSubFor(path, sub.id)}
+                    <button key={sub.id} type="button"
+                      onClick={() => (inlineExpandable ? setActiveSubFor(path, sub.id) : drillInto(sub))}
                       className="flex flex-col items-center gap-2 select-none" title={sub.name}>
                       <GroupIcon group={sub} boxed className={ICON} boxClassName="rounded-full border-2 border-border/50" iconClassName="w-5 h-5" />
                       <span className="text-xs text-center font-medium truncate w-full px-1">{sub.name}</span>
@@ -240,8 +294,39 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   return (
     <>
+      {navStack.length > 0 && (
+        <div className="flex items-center gap-1 text-xs border-b border-border/50 pb-1.5 mb-3 min-w-0">
+          <button onClick={() => setNavStack([])} className="text-muted-foreground hover:text-foreground flex items-center gap-1 flex-shrink-0">
+            <ArrowLeft className="w-3.5 h-3.5" /> All {t.alters}
+          </button>
+          {navStack.map((g, i) => {
+            const isLast = i === navStack.length - 1;
+            return (
+              <React.Fragment key={g.id}>
+                <span className="text-muted-foreground/40 flex-shrink-0">/</span>
+                {isLast ? (
+                  <span className="font-medium text-foreground truncate min-w-0 px-0.5">{g.name}</span>
+                ) : (
+                  <button onClick={() => setNavStack(navStack.slice(0, i + 1))} className="text-muted-foreground hover:text-foreground truncate min-w-0 max-w-[7rem] px-0.5">
+                    {g.name}
+                  </button>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
       <div className={`grid ${colsClass} gap-3`}>
-        {alters.map((alter) => renderNode(alter, EMPTY_SET, 0, alter.id))}
+        {displayAlters.map((alter) => renderNode(alter, baseVisited, 0, alter.id))}
+        {current && (
+          <button type="button" onClick={() => setSubsystemMenuGroup(current)}
+            className="flex flex-col items-center gap-2 select-none" title={`Manage ${current.name}`}>
+            <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
+              <Plus className="w-5 h-5" />
+            </span>
+            <span className="text-xs text-center font-medium text-muted-foreground">{displayAlters.length === 0 ? "Add member" : "Manage"}</span>
+          </button>
+        )}
       </div>
       {subsystemMenuGroup && <SubsystemActionMenu group={subsystemMenuGroup} onClose={() => setSubsystemMenuGroup(null)} />}
     </>
