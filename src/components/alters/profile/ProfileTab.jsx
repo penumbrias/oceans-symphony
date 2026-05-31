@@ -576,14 +576,16 @@ useEffect(() => {
                 const halo = g.color && needsHalo(g.color, pageBg);
                 const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
                 return (
-                <span key={g.id} className="px-2.5 py-1 rounded-full text-xs font-medium border"
+                <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
+                  title={`Open ${g.name}`}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium border hover:brightness-110 transition"
                   style={{
                     backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
                     borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                     color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                   }}>
                   {g.name}
-                </span>
+                </button>
                 );
               })}
             </div>
@@ -1062,14 +1064,16 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
               const halo = g.color && needsHalo(g.color, pageBg);
               const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
               return (
-              <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
+                title={`Open ${g.name}`}
+                className="px-2 py-0.5 rounded-full text-xs font-medium border hover:brightness-110 transition"
                 style={{
                   backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
                   borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                   color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                 }}>
                 {g.name}
-              </span>
+              </button>
               );
             })}
           </div>

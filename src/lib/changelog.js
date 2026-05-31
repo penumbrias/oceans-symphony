@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Group & subsystem profiles now have tabs: Profile, Board, and Notes. Each group gets its own private bulletin board (posts, comments, polls — just like the main one, but isolated to that group) and its own notes.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a group or subsystem on an alter's profile now opens that group/subsystem's profile page.",
+      },
+      {
         type: "fix",
         text: "System Map: filtering by a group now correctly shows that group's members — it was collapsing to a single alter. You can now filter by subsystem too.",
       },

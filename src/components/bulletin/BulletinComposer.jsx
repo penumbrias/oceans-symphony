@@ -27,7 +27,7 @@ function parseSignposts(content, alters, systemKeywords) {
   return { authors, cleanContent: cleanText };
 }
 
-export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "" }) {
+export default function BulletinComposer({ alters, authorAlterId, frontingAlterIds = [], onClose, initialContent = "", groupId = null }) {
   const qc = useQueryClient();
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
@@ -252,6 +252,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       content: cleanContent,
       mentioned_alter_ids: mentionedIds,
       is_rich: richMode,
+      group_id: groupId || null,
       is_pinned: pinned,
       reactions: {},
       read_by_alter_ids: signpostHeadIsSystem
@@ -282,8 +283,10 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         tally_mode: tallyDefault,
         // New polls posted to the Bulletin Board auto-pin themselves to
         // the board so the question is hard to miss; the user can unpin
-        // anytime from either surface.
-        pinned_to_dashboard: true,
+        // anytime from either surface. A group/subsystem board's polls
+        // stay within that board (the bulletin is group-scoped) rather
+        // than pinning to the system dashboard.
+        pinned_to_dashboard: !groupId,
         // In tally mode there's no per-alter accounting — leave the
         // creator alter null even if a fronter is set.
         created_by_alter_id: tallyDefault ? null : (finalAuthorIds[0] || authorAlterId || null),

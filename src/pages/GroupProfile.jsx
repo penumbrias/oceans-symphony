@@ -5,7 +5,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, AtSign,
+  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, AtSign, MessageSquare, FileText, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import { Textarea } from "@/components/ui/textarea";
 import AlterCard from "@/components/alters/AlterCard";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
@@ -106,6 +108,7 @@ function GroupProfileInner() {
   const queryClient = useQueryClient();
   const t = useTerms();
   const [editMode, setEditMode] = useState(false);
+  const [tab, setTab] = useState("profile"); // profile | board | notes
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
@@ -131,7 +134,9 @@ function GroupProfileInner() {
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
 
-  const group = allGroups.find((g) => String(g.id) === String(groupId)) || null;
+  // Resolve by entity id OR sp_id — alter.groups stores `sp_id || id`, so a
+  // chip tapped from an alter profile can arrive with either.
+  const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
 
   const [form, setForm] = useState(null);
   useEffect(() => {
@@ -238,6 +243,52 @@ function GroupProfileInner() {
   const bgImage = cf[BG_IMAGE_KEY] || "";
   const bgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  const frontingAlterIds = activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean);
+
+  const TABS = [
+    { id: "profile", label: "Profile", icon: User },
+    { id: "board", label: "Board", icon: MessageSquare },
+    { id: "notes", label: "Notes", icon: FileText },
+  ];
+  const tabBar = (
+    <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+      {TABS.map((tb) => {
+        const Icon = tb.icon;
+        return (
+          <button key={tb.id} onClick={() => { setTab(tb.id); if (tb.id !== "profile") setEditMode(false); }}
+            className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium whitespace-nowrap transition-all flex-shrink-0 ${tab === tb.id ? "bg-primary/10 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/50"}`}>
+            <Icon className="w-4 h-4" /> {tb.label}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // ---------- BOARD / NOTES TABS ----------
+  if (tab === "board" || tab === "notes") {
+    return (
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 relative">
+        <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
+          <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+        </Button>
+        <div className="flex items-center gap-2.5">
+          <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
+          <span className="font-display text-lg font-semibold truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
+        </div>
+        {tabBar}
+        {tab === "board" ? (
+          <BulletinBoard
+            alters={alters.filter((a) => !a.is_archived)}
+            currentAlterId={frontingAlterIds[0] || null}
+            frontingAlterIds={frontingAlterIds}
+            groupId={group.id}
+          />
+        ) : (
+          <GroupNotesTab groupId={group.id} />
+        )}
+      </motion.div>
+    );
+  }
 
   // ---------- VIEW MODE ----------
   if (!editMode) {
@@ -251,6 +302,8 @@ function GroupProfileInner() {
             <Pencil className="w-3.5 h-3.5" /> Edit
           </Button>
         </div>
+
+        {tabBar}
 
         <ViewHeader group={group} bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} headerImage={headerImage}
           ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
@@ -340,6 +393,8 @@ function GroupProfileInner() {
           {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
         </Button>
       </div>
+
+      {tabBar}
 
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
@@ -505,6 +560,62 @@ function ToggleRow({ icon: Icon, checked, onChange, label, hint }) {
         {hint && <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{hint}</span>}
       </span>
     </button>
+  );
+}
+
+// Per-group notes — a private notebook for this group/subsystem, separate
+// from its bulletin board.
+function GroupNotesTab({ groupId }) {
+  const qc = useQueryClient();
+  const [text, setText] = useState("");
+  const [saving, setSaving] = useState(false);
+  const { data: notes = [] } = useQuery({
+    queryKey: ["groupNotes", groupId],
+    queryFn: async () => {
+      const all = await base44.entities.GroupNote.list("-created_date");
+      return all.filter((n) => n.group_id === groupId);
+    },
+  });
+  const add = async () => {
+    if (!text.trim()) return;
+    setSaving(true);
+    try {
+      await base44.entities.GroupNote.create({ group_id: groupId, content: text.trim(), created_date: new Date().toISOString() });
+      setText("");
+      qc.invalidateQueries({ queryKey: ["groupNotes", groupId] });
+    } catch (e) { toast.error(e?.message || "Couldn't save note"); }
+    finally { setSaving(false); }
+  };
+  const del = async (id) => {
+    if (!window.confirm("Delete this note?")) return;
+    try { await base44.entities.GroupNote.delete(id); qc.invalidateQueries({ queryKey: ["groupNotes", groupId] }); } catch (e) { toast.error(e?.message || "Couldn't delete"); }
+  };
+  return (
+    <div className="space-y-3">
+      <div className="rounded-xl border border-border/50 bg-card p-2 space-y-2">
+        <Textarea value={text} onChange={(e) => setText(e.target.value)} placeholder="Add a note for this group…" className="min-h-[70px] text-sm resize-none" />
+        <div className="flex justify-end">
+          <Button size="sm" onClick={add} disabled={saving || !text.trim()} className="bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-4 h-4 mr-1.5 animate-spin" /> : <Send className="w-3.5 h-3.5 mr-1.5" />} Add note
+          </Button>
+        </div>
+      </div>
+      {notes.length === 0 ? (
+        <p className="text-sm text-muted-foreground text-center py-8">No notes yet for this group.</p>
+      ) : (
+        <div className="space-y-2">
+          {notes.map((n) => (
+            <div key={n.id} className="rounded-xl border border-border/40 bg-muted/10 p-3">
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-sm text-foreground whitespace-pre-wrap break-words flex-1">{n.content}</p>
+                <button type="button" onClick={() => del(n.id)} aria-label="Delete note" className="text-muted-foreground/50 hover:text-destructive flex-shrink-0"><Trash2 className="w-3.5 h-3.5" /></button>
+              </div>
+              {n.created_date && <p className="text-[0.625rem] text-muted-foreground mt-1.5">{new Date(n.created_date).toLocaleString()}</p>}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
