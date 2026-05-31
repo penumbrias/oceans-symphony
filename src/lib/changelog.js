@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Alters grid view: a subsystem owner now has a \"Members\" chevron — expanding it shows the subsystem's members in a tinted card (in the owner's colour) right below them, so it's clear who belongs to it.",
+      },
+      {
         type: "improve",
         text: "Manage Groups now has a separate Subsystems tab, so alter-owned subsystems no longer mix in with your regular groups. Tap one to manage its members.",
       },

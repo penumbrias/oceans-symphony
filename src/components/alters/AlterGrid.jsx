@@ -301,7 +301,7 @@ export default function AlterGrid({ alters }) {
             />
           )) :
 
-          <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} cols={parseInt(displayMode)} anonymize={anonymize} /> :
+          <AlterGridView alters={topLevelAlters} activeSessions={activeSessions} allAlters={effectiveAlters} allGroups={allGroups} cols={parseInt(displayMode)} anonymize={anonymize} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
