@@ -157,14 +157,20 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   // the hard depth clamp; past MAX_GRID_INLINE_DEPTH the chevron opens the
   // subsystem's profile instead of nesting another card.
     const ICON = (compact ? "w-14 h-14" : "w-16 h-16");
-    const renderNode = (alter, visited, depth) => {
+    // `path` uniquely identifies THIS instance of the alter in the tree
+    // (ancestor ids joined). Expansion state is keyed by path, not by
+    // alter.id — otherwise expanding one instance of an alter expanded
+    // every other instance of them too. Members expand inline at any
+    // depth (the cards stay full-size in full-width tinted cards, so it
+    // doesn't get cramped like the indented list); bounded only by the
+    // cycle guard + hard depth clamp.
+    const renderNode = (alter, visited, depth, path) => {
     const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
     const loopOrTooDeep = visited.has(alter.id) || depth > MAX_SUBSYSTEM_DEPTH;
     const hasSub = ownedSubs.length > 0 && !loopOrTooDeep;
     const multi = ownedSubs.length > 1;
-    const inlineExpandable = hasSub && depth < MAX_GRID_INLINE_DEPTH;
-    const expanded = inlineExpandable && expandedOwners.has(alter.id);
-    const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === gridActiveSub[alter.id]) || null : ownedSubs[0]);
+    const expanded = hasSub && expandedOwners.has(path);
+    const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === gridActiveSub[path]) || null : ownedSubs[0]);
     const members = (expanded && activeSub) ? getMemberAlters(activeSub, allAlters) : [];
     const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
     const low = needsHalo(ownerColor, surfaceBg);
@@ -172,15 +178,13 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     const nextVisited = hasSub ? new Set(visited).add(alter.id) : visited;
 
     return (
-      <React.Fragment key={alter.id}>
+      <React.Fragment key={path}>
         <AlterCard
           alter={alter}
           {...cardProps(alter)}
           ownsSubsystem={hasSub}
           expanded={!!expanded}
-          onToggleExpand={() =>
-            inlineExpandable ? toggleExpand(alter.id) : navigate(`/group/${ownedSubs[0].id}`)
-          }
+          onToggleExpand={() => toggleExpand(path)}
         />
         {expanded && (
           <div
@@ -197,7 +201,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                 <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">Subsystems</p>
                 <div className={`grid ${colsClass} gap-3`}>
                   {ownedSubs.map((sub) => (
-                    <button key={sub.id} type="button" onClick={() => setActiveSubFor(alter.id, sub.id)}
+                    <button key={sub.id} type="button" onClick={() => setActiveSubFor(path, sub.id)}
                       className="flex flex-col items-center gap-2 select-none" title={sub.name}>
                       <GroupIcon group={sub} boxed className={ICON} boxClassName="rounded-full border-2 border-border/50" iconClassName="w-5 h-5" />
                       <span className="text-xs text-center font-medium truncate w-full px-1">{sub.name}</span>
@@ -210,14 +214,14 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                 <div className="flex items-center justify-between mb-2 px-1">
                   <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground truncate">{activeSub.name}</p>
                   {multi && (
-                    <button type="button" onClick={() => setActiveSubFor(alter.id, null)}
+                    <button type="button" onClick={() => setActiveSubFor(path, null)}
                       className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 flex-shrink-0">
                       <ArrowLeft className="w-3 h-3" /> All
                     </button>
                   )}
                 </div>
                 <div className={`grid ${colsClass} gap-3`}>
-                  {members.map((m) => renderNode(m, nextVisited, depth + 1))}
+                  {members.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
                   <button type="button" onClick={() => setSubsystemMenuGroup(activeSub)}
                     className="flex flex-col items-center gap-2 select-none" title={`Manage ${activeSub.name}`}>
                     <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
@@ -237,7 +241,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   return (
     <>
       <div className={`grid ${colsClass} gap-3`}>
-        {alters.map((alter) => renderNode(alter, EMPTY_SET, 0))}
+        {alters.map((alter) => renderNode(alter, EMPTY_SET, 0, alter.id))}
       </div>
       {subsystemMenuGroup && <SubsystemActionMenu group={subsystemMenuGroup} onClose={() => setSubsystemMenuGroup(null)} />}
     </>

@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "May 31, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Alters grid: expanding a nested subsystem no longer expands every other copy of that alter, and you can now keep expanding nested subsystems inline (instead of being bounced to the subsystem's profile).",
+      },
+    ],
+  },
+  {
     date: "May 30, 2026",
     changes: [
       {
