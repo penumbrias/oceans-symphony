@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Press and hold an alter on the alters page for a quick menu: open their profile, create or open their subsystem, add/remove from front, make/demote primary, or add them to groups.",
+      },
+      {
+        type: "improve",
+        text: "An alter's subsystems now show on their profile, just below Groups.",
+      },
+      {
+        type: "improve",
+        text: "The profile's group editor is now labelled \"Edit groups\" and splits Groups and subsystems into separate tabs.",
+      },
+      {
+        type: "feature",
         text: "Bulletin comments and replies now have a Fancy mode too — tap the ✨ button by the box for a formatting toolbar plus image/GIF upload. Comments also show @mentions as links now.",
       },
       {

@@ -586,6 +586,28 @@ useEffect(() => {
           );
         })()}
 
+        {ownedSubsystems.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
+            </p>
+            <div className="space-y-1.5">
+              {ownedSubsystems.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => navigate(`/group/${g.id}`)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
+                  style={{ borderLeftColor: g.color || "transparent", borderLeftWidth: g.color ? 3 : 1 }}
+                >
+                  <Folder className="w-4 h-4 flex-shrink-0" style={{ color: g.color || "hsl(var(--muted-foreground))" }} />
+                  <span className="text-sm flex-1 truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
         {presetAnswerRows.length > 0 && (
           <div>
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
@@ -968,7 +990,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
-          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit →</button>
+          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
         </div>
 
         {/* Subsystems this alter owns + a create button. A subsystem is a

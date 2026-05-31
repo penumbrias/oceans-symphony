@@ -10,6 +10,7 @@ import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } f
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import AlterActionMenu from "./AlterActionMenu";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -169,16 +170,17 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const textColor = hasColor ? getContrastColor(alter.color) : null;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Pinning is NOT a card gesture — it lives as a pin toggle on the
-  // alter's profile page (see AlterProfile). Long-press here is left
-  // unused so it can't collide with the front/primary swipe gestures
-  // or the grid view (which has no long-press).
+  // Long-press opens the quick-actions menu (profile, subsystem, front,
+  // primary, add to groups). The swipe hook cancels the long-press on any
+  // movement, so it never collides with the front/primary swipe gestures.
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
     onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeftUp: () => replaceFrontWith(alter, base44, queryClient, toast),
+    onLongPress: () => setMenuOpen(true),
   });
 
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
@@ -244,6 +246,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       </div>
       {rightAccessory}
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
+      {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
     </motion.div>
   );
 }

@@ -10,6 +10,7 @@ import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import AlterActionMenu from "./AlterActionMenu";
 
 const EMPTY_SET = new Set();
 // Past this nesting depth, stop expanding inline (a tinted card inside a
@@ -17,8 +18,9 @@ const EMPTY_SET = new Set();
 // subsystem's profile instead.
 const MAX_GRID_INLINE_DEPTH = 3;
 
-function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
   const formatAlter = useAlterLabel();
+  const [menuOpen, setMenuOpen] = useState(false);
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
   // malformed alter doesn't render as a blank uncoloured tile next
@@ -26,7 +28,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
-  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp });
+  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, onLongPress: () => setMenuOpen(true) });
 
   const boxShadow = fronting
     ? isPrimary
@@ -95,6 +97,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
           {expanded ? "Hide" : "Members"}
         </button>
       )}
+      {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }
@@ -138,6 +141,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     onSwipeLeft: () => togglePrimary(alter),
     onSwipeLeftUp: () => replaceFront(alter),
     anonymize,
+    activeSessions,
   });
 
   // Recursive node: a card, plus (when expanded) a full-width tinted
