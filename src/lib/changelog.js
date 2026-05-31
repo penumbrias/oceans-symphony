@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Image Assets page: folders are now collapsible, you can create/rename/reorder your own folders, and big folders load more images as you scroll.",
+      },
+      {
+        type: "improve",
+        text: "Global search now also finds grounding techniques and inner-world map locations.",
+      },
+      {
         type: "feature",
         text: "New Image Assets page (in the menu): every image you've stored in the app, auto-sorted into folders. Rename, organise into folders, bulk-upload, delete, and reuse any image anywhere.",
       },

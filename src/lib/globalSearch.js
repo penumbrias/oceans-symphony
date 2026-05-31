@@ -405,6 +405,28 @@ export function buildGroupRecords({ items = [], alters = [] }) {
   });
 }
 
+export function buildGroundingTechniqueRecords({ items = [] }) {
+  return items.map((g) => ({
+    type: "grounding",
+    id: g.id,
+    title: g.name || "Technique",
+    subtitle: g.category ? `Grounding · ${g.category}` : "Grounding technique",
+    path: "/grounding",
+    searchableText: joinNonEmpty([g.name, g.category, g.instructions, g.description]).toLowerCase(),
+  }));
+}
+
+export function buildInnerWorldLocationRecords({ items = [] }) {
+  return items.map((l) => ({
+    type: "innerworld",
+    id: l.id,
+    title: l.name || "Location",
+    subtitle: snippet(l.description) || "Inner world location",
+    path: "/system-map",
+    searchableText: joinNonEmpty([l.name, l.description]).toLowerCase(),
+  }));
+}
+
 export function buildChatMessageRecords({ items = [], channels = [] }) {
   const chanById = Object.fromEntries((channels || []).map((c) => [c.id, c]));
   return items
@@ -598,6 +620,7 @@ export function buildSearchIndex(sources = {}) {
     reminders,
     groceries,
     chatMessages, chatChannels,
+    groundingTechniques, innerWorldLocations,
   } = sources;
 
   const records = [];
@@ -625,6 +648,8 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
+  records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
+  records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   return records;
 }
 

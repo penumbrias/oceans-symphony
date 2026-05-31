@@ -2,7 +2,10 @@ import React, { useState, useEffect, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search } from "lucide-react";
+import {
+  Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search,
+  ChevronDown, ChevronRight, ArrowUp, ArrowDown, X,
+} from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
@@ -14,8 +17,7 @@ import { isLocalMode } from "@/lib/storageMode";
 // Auto-folder names derived from the id prefix our upload paths use, so
 // every image the app has stored is pre-sorted into something sensible.
 const PREFIX_FOLDERS = {
-  avatar: "Avatars",
-  fixed: "Avatars",
+  avatar: "Avatars", fixed: "Avatars",
   bg: "Backgrounds",
   header: "Headers & banners",
   bioimg: "Bio images",
@@ -25,10 +27,17 @@ const PREFIX_FOLDERS = {
   group: "Group images",
   asset: "Library uploads",
 };
+const AUTO_FOLDERS = new Set([...Object.values(PREFIX_FOLDERS), "Other"]);
 function autoFolderFor(id) {
-  const prefix = String(id).split("-")[0];
-  return PREFIX_FOLDERS[prefix] || "Other";
+  return PREFIX_FOLDERS[String(id).split("-")[0]] || "Other";
 }
+
+const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
+const COLLAPSED_KEY = "asset_collapsed_folders_v1";
+const PAGE = 24; // lazy-load page size per folder
+
+const loadArr = (k) => { try { return JSON.parse(localStorage.getItem(k) || "[]"); } catch { return []; } };
+const saveArr = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* off */ } };
 
 function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -65,6 +74,13 @@ export default function AssetsLibrary() {
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
 
+  const [folderOrder, setFolderOrder] = useState(() => loadArr(ORDER_KEY));   // user folder names, ordered
+  const [collapsed, setCollapsed] = useState(() => new Set(loadArr(COLLAPSED_KEY)));
+  const [limits, setLimits] = useState({}); // per-folder render cap
+
+  useEffect(() => { saveArr(ORDER_KEY, folderOrder); }, [folderOrder]);
+  useEffect(() => { saveArr(COLLAPSED_KEY, [...collapsed]); }, [collapsed]);
+
   const { data: assets = [] } = useQuery({
     queryKey: ["imageAssets"],
     queryFn: () => base44.entities.ImageAsset.list("-created_date"),
@@ -77,27 +93,19 @@ export default function AssetsLibrary() {
   };
   useEffect(() => { loadImages(); }, []);
 
-  // Map stored-image id → its ImageAsset record (when one exists), so we
-  // know which raw images are already curated.
   const assetByImageId = useMemo(() => {
     const m = {};
-    for (const a of assets) {
-      const id = a.image_url ? getLocalImageId(a.image_url) : null;
-      if (id) m[id] = a;
-    }
+    for (const a of assets) { const id = a.image_url ? getLocalImageId(a.image_url) : null; if (id) m[id] = a; }
     return m;
   }, [assets]);
 
-  // Unified item list: every stored image, plus any ImageAsset whose image
-  // isn't a stored-local-image (e.g. a data: URL asset).
   const items = useMemo(() => {
     const out = [];
     for (const id of Object.keys(rawImages)) {
       const asset = assetByImageId[id];
       const data = rawImages[id];
       out.push({
-        key: id,
-        id,
+        key: id, id,
         url: `/local-image/${encodeURIComponent(id)}`,
         asset: asset || null,
         name: asset?.name || id,
@@ -105,21 +113,12 @@ export default function AssetsLibrary() {
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
       });
     }
-    // Assets not backed by a stored local image (data: URLs / external).
     for (const a of assets) {
       const lid = a.image_url ? getLocalImageId(a.image_url) : null;
-      if (lid && rawImages[lid] !== undefined) continue; // already represented
-      if (isLocalImageUrl(a.image_url) && lid && rawImages[lid] === undefined) {
-        // image bytes missing — still show the asset record
-      }
+      if (lid && rawImages[lid] !== undefined) continue;
       out.push({
-        key: `asset-${a.id}`,
-        id: a.id,
-        url: a.image_url,
-        asset: a,
-        name: a.name || "Image",
-        folder: (a.folder || "").trim() || "Library uploads",
-        isGif: !!a.is_gif,
+        key: `asset-${a.id}`, id: a.id, url: a.image_url, asset: a,
+        name: a.name || "Image", folder: (a.folder || "").trim() || "Library uploads", isGif: !!a.is_gif,
       });
     }
     return out;
@@ -130,13 +129,59 @@ export default function AssetsLibrary() {
     return q ? items.filter((i) => (i.name || "").toLowerCase().includes(q) || i.folder.toLowerCase().includes(q)) : items;
   }, [items, search]);
 
-  // Group into folders (sorted, with "Other" last).
-  const grouped = useMemo(() => {
+  // Group items by folder, then build the ordered folder list: user
+  // folders (in saved order, even if empty) first, then auto folders that
+  // have items (Other last).
+  const { byFolder, orderedFolders } = useMemo(() => {
     const map = {};
     for (const it of filtered) (map[it.folder] ||= []).push(it);
-    const names = Object.keys(map).sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
-    return names.map((n) => [n, map[n]]);
-  }, [filtered]);
+
+    const userFromItems = [...new Set(filtered.map((i) => i.folder).filter((f) => !AUTO_FOLDERS.has(f)))];
+    const userNames = [...folderOrder];
+    for (const n of userFromItems) if (!userNames.includes(n)) userNames.push(n);
+
+    const autoNames = Object.keys(map)
+      .filter((f) => AUTO_FOLDERS.has(f))
+      .sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
+
+    return { byFolder: map, orderedFolders: [...userNames, ...autoNames] };
+  }, [filtered, folderOrder]);
+
+  const toggleCollapse = (name) => setCollapsed((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
+  const isUser = (name) => !AUTO_FOLDERS.has(name);
+
+  const createFolder = () => {
+    const name = window.prompt("New folder name:")?.trim();
+    if (!name) return;
+    if (AUTO_FOLDERS.has(name)) { toast.error("That name is reserved."); return; }
+    if (folderOrder.includes(name)) { toast.info("Folder already exists."); return; }
+    setFolderOrder((o) => [...o, name]);
+  };
+
+  const renameFolder = async (oldName) => {
+    if (!isUser(oldName)) return;
+    const next = window.prompt("Rename folder:", oldName)?.trim();
+    if (!next || next === oldName) return;
+    if (AUTO_FOLDERS.has(next)) { toast.error("That name is reserved."); return; }
+    // Move every asset in the folder, then update the order list.
+    const moving = assets.filter((a) => (a.folder || "") === oldName);
+    for (const a of moving) { try { await base44.entities.ImageAsset.update(a.id, { folder: next }); } catch {} }
+    setFolderOrder((o) => o.map((n) => (n === oldName ? next : n)).filter((n, i, arr) => arr.indexOf(n) === i));
+    qc.invalidateQueries({ queryKey: ["imageAssets"] });
+    toast.success("Folder renamed");
+  };
+
+  const moveFolder = (name, dir) => {
+    setFolderOrder((o) => {
+      const arr = [...new Set([...o, ...orderedFolders.filter(isUser)])]; // ensure all user folders present
+      const i = arr.indexOf(name);
+      if (i === -1) return o;
+      const j = i + dir;
+      if (j < 0 || j >= arr.length) return arr;
+      [arr[i], arr[j]] = [arr[j], arr[i]];
+      return arr;
+    });
+  };
 
   const handleFiles = async (e) => {
     const files = [...(e.target.files || [])];
@@ -156,8 +201,7 @@ export default function AssetsLibrary() {
         }
         await base44.entities.ImageAsset.create({
           name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Image",
-          image_url: url, folder: uploadFolder.trim(), is_gif: isGif,
-          created_date: new Date().toISOString(),
+          image_url: url, folder: uploadFolder.trim(), is_gif: isGif, created_date: new Date().toISOString(),
         });
         added++;
       } catch { /* skip */ }
@@ -168,7 +212,6 @@ export default function AssetsLibrary() {
     if (added) toast.success(`${added} image${added === 1 ? "" : "s"} uploaded`);
   };
 
-  // Promote a raw stored image into a named, foldered ImageAsset.
   const saveToLibrary = async (item) => {
     const name = window.prompt("Name this image:", item.name && item.name !== item.id ? item.name : "");
     if (name === null) return;
@@ -179,21 +222,18 @@ export default function AssetsLibrary() {
       toast.success("Saved to your library");
     } catch (e) { toast.error(e?.message || "Couldn't save"); }
   };
-
-  const rename = async (item) => {
+  const renameAsset = async (item) => {
     if (!item.asset) return;
     const name = window.prompt("Rename:", item.name);
     if (name === null) return;
     try { await base44.entities.ImageAsset.update(item.asset.id, { name: name.trim() || "Image" }); qc.invalidateQueries({ queryKey: ["imageAssets"] }); } catch (e) { toast.error(e?.message || "Failed"); }
   };
-
-  const move = async (item) => {
+  const moveAsset = async (item) => {
     if (!item.asset) return;
     const folder = window.prompt("Move to folder (blank = none):", item.asset.folder || "");
     if (folder === null) return;
     try { await base44.entities.ImageAsset.update(item.asset.id, { folder: folder.trim() }); qc.invalidateQueries({ queryKey: ["imageAssets"] }); } catch (e) { toast.error(e?.message || "Failed"); }
   };
-
   const del = async (item) => {
     if (!window.confirm("Permanently delete this image? If it's used as an avatar, background, or in a post, that will break. This can't be undone.")) return;
     try {
@@ -206,12 +246,12 @@ export default function AssetsLibrary() {
   };
 
   return (
-    <div className="max-w-3xl mx-auto pb-24">
+    <div className="max-w-3xl mx-auto pb-24" data-tour="assets-library">
       <div className="flex items-center gap-2 mb-1">
         <Images className="w-5 h-5 text-primary" />
         <h1 className="text-lg font-semibold">Image assets</h1>
       </div>
-      <p className="text-xs text-muted-foreground mb-3">Every image stored in the app, sorted into folders. Reuse any of them anywhere a picture is accepted (tap the 🖼 button there). Name and organise images, or save raw ones to your library.</p>
+      <p className="text-xs text-muted-foreground mb-3">Every image stored in the app, in collapsible folders. Make your own folders, reorder them, and reuse any image anywhere a picture is accepted (the 🖼 button there).</p>
 
       <div className="space-y-2 mb-4 sticky top-0 bg-background/95 backdrop-blur z-10 py-2">
         <div className="relative">
@@ -220,6 +260,10 @@ export default function AssetsLibrary() {
         </div>
         <div className="flex items-center gap-2">
           <Input value={uploadFolder} onChange={(e) => setUploadFolder(e.target.value)} placeholder="Upload into folder (optional)" className="flex-1 h-9 text-sm" />
+          <button type="button" onClick={createFolder} title="New folder"
+            className="h-9 px-2.5 flex items-center gap-1 rounded-lg border border-border bg-card/50 text-xs text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0">
+            <FolderPlus className="w-4 h-4" /> Folder
+          </button>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
             className="h-9 px-3 flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 flex-shrink-0">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
@@ -230,22 +274,57 @@ export default function AssetsLibrary() {
 
       {loadingImages ? (
         <div className="flex items-center justify-center py-16"><Loader2 className="w-6 h-6 animate-spin text-muted-foreground" /></div>
-      ) : grouped.length === 0 ? (
+      ) : orderedFolders.length === 0 ? (
         <div className="text-center py-16 text-sm text-muted-foreground">
           {items.length === 0 ? "No images stored yet — upload some, or add avatars/backgrounds anywhere in the app." : "No images match."}
         </div>
       ) : (
-        <div className="space-y-5">
-          {grouped.map(([folder, list]) => (
-            <div key={folder}>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">{folder} <span className="font-normal normal-case text-muted-foreground/60">· {list.length}</span></p>
-              <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
-                {list.map((item) => (
-                  <Thumb key={item.key} item={item} onSaveToLibrary={saveToLibrary} onRename={rename} onMove={move} onDelete={del} />
-                ))}
+        <div className="space-y-2">
+          {orderedFolders.map((folder, idx) => {
+            const list = byFolder[folder] || [];
+            const open = !collapsed.has(folder);
+            const limit = limits[folder] || PAGE;
+            const userFolder = isUser(folder);
+            return (
+              <div key={folder} className="rounded-xl border border-border/40 overflow-hidden">
+                <div className="flex items-center gap-1 px-2 py-2 bg-muted/20">
+                  <button type="button" onClick={() => toggleCollapse(folder)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
+                    {open ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
+                    <span className="text-sm font-medium truncate">{folder}</span>
+                    <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">· {list.length}</span>
+                  </button>
+                  {userFolder && (
+                    <div className="flex items-center gap-0.5 flex-shrink-0">
+                      <button type="button" onClick={() => moveFolder(folder, -1)} title="Move up" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowUp className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => moveFolder(folder, 1)} title="Move down" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowDown className="w-3.5 h-3.5" /></button>
+                      <button type="button" onClick={() => renameFolder(folder)} title="Rename folder" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><Pencil className="w-3.5 h-3.5" /></button>
+                    </div>
+                  )}
+                </div>
+                {open && (
+                  <div className="p-3">
+                    {list.length === 0 ? (
+                      <p className="text-xs text-muted-foreground py-2">Empty — upload into this folder, or move images here with the folder button on a thumbnail.</p>
+                    ) : (
+                      <>
+                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
+                          {list.slice(0, limit).map((item) => (
+                            <Thumb key={item.key} item={item} onSaveToLibrary={saveToLibrary} onRename={renameAsset} onMove={moveAsset} onDelete={del} />
+                          ))}
+                        </div>
+                        {list.length > limit && (
+                          <button type="button" onClick={() => setLimits((m) => ({ ...m, [folder]: limit + PAGE }))}
+                            className="mt-2 w-full py-2 rounded-lg border border-border/50 text-xs text-muted-foreground hover:text-foreground hover:bg-muted/30">
+                            Show {Math.min(PAGE, list.length - limit)} more ({list.length - limit} left)
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>

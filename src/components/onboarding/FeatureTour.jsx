@@ -201,6 +201,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "alters", sectionLabel: t.Alters,
+      emoji: "🖼️",
+      title: "Image Assets",
+      body: `Every image you've stored — avatars, banners, backgrounds, bio and chat pictures — lives here, auto-sorted into collapsible folders. Make your own folders, reorder and rename them, bulk-upload, and reuse any image anywhere a picture is accepted by tapping the 🖼 button on that upload. No re-uploading and no duplicate storage.`,
+      route: "/assets", target: "assets-library",
+      look: "the Image Assets page", action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
       emoji: "📋",
       title: `${t.Alter} Profile — Tab Bar`,
       body: `Tap any ${t.alter} card to open their profile. The tab bar at the top gives access to: Profile (bio + custom fields), Info, Board (${t.system}-wide messages to this ${t.alter}), Messages (private messages), History (${t.fronting} sessions), Notes, Lineage, and Options. Swipe the tab bar to see all tabs.`,
