@@ -50,3 +50,32 @@ import '@fontsource/nanum-gothic/latin-400.css'; // latin-ext not published
 import '@fontsource/amiri/latin-400.css';
 import '@fontsource/amiri/latin-ext-400.css';
 import '@fontsource/tajawal/latin-400.css'; // latin-ext not published
+
+// --- Added v0.28.8: more UI / serif / handwriting / display / mono / fun ---
+import '@fontsource/quicksand/latin-400.css';
+import '@fontsource/quicksand/latin-ext-400.css';
+import '@fontsource/comfortaa/latin-400.css';
+import '@fontsource/comfortaa/latin-ext-400.css';
+import '@fontsource/josefin-sans/latin-400.css';
+import '@fontsource/josefin-sans/latin-ext-400.css';
+import '@fontsource/work-sans/latin-400.css';
+import '@fontsource/work-sans/latin-ext-400.css';
+import '@fontsource/eb-garamond/latin-400.css';
+import '@fontsource/eb-garamond/latin-ext-400.css';
+import '@fontsource/bitter/latin-400.css';
+import '@fontsource/bitter/latin-ext-400.css';
+import '@fontsource/indie-flower/latin-400.css';
+import '@fontsource/indie-flower/latin-ext-400.css';
+import '@fontsource/shadows-into-light/latin-400.css';
+import '@fontsource/shadows-into-light/latin-ext-400.css';
+import '@fontsource/patrick-hand/latin-400.css';
+import '@fontsource/patrick-hand/latin-ext-400.css';
+import '@fontsource/bebas-neue/latin-400.css';
+import '@fontsource/bebas-neue/latin-ext-400.css';
+import '@fontsource/abril-fatface/latin-400.css';
+import '@fontsource/abril-fatface/latin-ext-400.css';
+import '@fontsource/jetbrains-mono/latin-400.css';
+import '@fontsource/jetbrains-mono/latin-ext-400.css';
+import '@fontsource/bangers/latin-400.css';
+import '@fontsource/bangers/latin-ext-400.css';
+import '@fontsource/permanent-marker/latin-400.css'; // latin-ext not published

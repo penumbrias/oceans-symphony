@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Added 14 more font choices for the app and headings — including Quicksand, Comfortaa, EB Garamond, Indie Flower, Bebas Neue, and JetBrains Mono.",
+      },
+      {
+        type: "improve",
         text: "Groups and subsystems now show their name in their own colour across the app — in folders, breadcrumbs, profiles, and menus — kept readable against your theme.",
       },
       {
