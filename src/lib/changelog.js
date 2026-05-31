@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Bulletin board now has a Fancy mode — a formatting toolbar (bold, colours, headings, boxes, fonts) plus image and GIF upload. Toggle Simple/Fancy above the box; @mentions and -signposts work exactly the same either way.",
+      },
+      {
         type: "improve",
         text: "In the alters list, the subsystem expander now sits next to the activity bolt (instead of below the chip) and can show the subsystem's own avatar — matching the groups section.",
       },

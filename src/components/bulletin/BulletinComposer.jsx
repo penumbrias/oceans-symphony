@@ -4,13 +4,16 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Send, Pin, BarChart2, X, Plus, AtSign } from "lucide-react";
+import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { isLocalMode } from "@/lib/storageMode";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
 
@@ -54,6 +57,47 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [showSignpostMenu, setShowSignpostMenu] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
   const textareaRef = useRef(null);
+  const imageInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  // "Fancy" mode adds a formatting toolbar + image/GIF upload over the SAME
+  // text box — the @mention/-signpost typing + parsing below is completely
+  // unchanged either way. Persisted so the last choice sticks.
+  const [richMode, setRichMode] = useState(() => {
+    try { return localStorage.getItem("symphony_bulletin_rich_mode") === "1"; } catch { return false; }
+  });
+  const setMode = (rich) => {
+    setRichMode(rich);
+    try { localStorage.setItem("symphony_bulletin_rich_mode", rich ? "1" : "0"); } catch {}
+  };
+  // Insert HTML around the current textarea selection (toolbar buttons +
+  // image upload go through this). Plain setContent — does NOT run mention
+  // detection, which is correct: inserting formatting shouldn't pop the
+  // mention/signpost menus.
+  const insertHtml = useTextareaInsert(textareaRef, content, setContent);
+
+  const handleComposerImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
+    setUploadingImage(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
+      let url = dataUrl;
+      if (isLocalMode()) {
+        const id = `bulletinimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(id, dataUrl);
+        url = createLocalImageUrl(id);
+      }
+      insertHtml(`<img src="${url}" alt="" />`, "");
+      toast.success(isGif ? "GIF added!" : "Image added!");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't add that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
   // First-compose discoverability hint for the Pin / Poll buttons. Stored
   // in localStorage so it only shows once per device.
   const [showHint, setShowHint] = useState(() => {
@@ -197,6 +241,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       mentioned_alter_ids: mentionedIds,
+      is_rich: richMode,
       is_pinned: pinned,
       reactions: {},
       read_by_alter_ids: signpostHeadIsSystem
@@ -294,6 +339,17 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         )}
       </div>
 
+      <div className="flex items-center gap-1 mb-2">
+        <button type="button" onClick={() => setMode(false)}
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${!richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+          <Type className="w-3.5 h-3.5" /> Simple
+        </button>
+        <button type="button" onClick={() => setMode(true)}
+          className={`flex items-center gap-1 text-xs px-2.5 py-1 rounded-lg border transition-all ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+          <Sparkles className="w-3.5 h-3.5" /> Fancy
+        </button>
+      </div>
+
       <div className="relative">
         <Textarea
           ref={textareaRef}
@@ -340,6 +396,22 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
           </div>
         )}
       </div>
+
+      {richMode && (
+        <div className="mt-1.5 rounded-lg border border-border/50 overflow-hidden">
+          <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
+            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => imageInputRef.current?.click()}
+              className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+            </button>
+            <span className="text-[0.625rem] text-muted-foreground/70 ml-1">Select text, then tap a style. @mentions and -signposts still work.</span>
+          </div>
+          <MiniToolbar onInsert={insertHtml} />
+          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+        </div>
+      )}
 
       <div className="flex gap-1 mt-2 flex-wrap">
         {QUICK_EMOJIS.map(e => (
