@@ -232,10 +232,13 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         </span>
       )}
       <div
-        className="relative w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center"
+        className="relative w-14 h-14 rounded-full overflow-hidden flex items-center justify-center"
         style={{
-          borderColor: ringColor,
-          boxShadow: fronting ? `0 0 0 2px ${ringColor}55` : "none",
+          // Fronting alters get a bold glowing ring (thicker + soft halo);
+          // non-fronting get a thin neutral border. Clear at-a-glance
+          // "who's active" signal.
+          border: fronting ? `3px solid ${ringColor}` : "2px solid hsl(var(--border))",
+          boxShadow: fronting ? `0 0 8px 1px ${ringColor}99` : "none",
           backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
           transform: `translateY(${dragY}px)`,
           transition: dragY === 0 ? "transform 150ms ease-out" : "none",

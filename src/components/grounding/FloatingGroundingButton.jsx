@@ -100,6 +100,33 @@ export default function FloatingGroundingButton() {
     localStorage.setItem(LS_KEY, JSON.stringify(pos));
   }, [pos]);
 
+  // Holds the current drag's teardown so it can be force-run if the
+  // drag is interrupted (see the abort effect below).
+  const dragCleanupRef = useRef(null);
+
+  // Abort any in-flight drag when the app backgrounds (phone sleep /
+  // tab hidden) or the component unmounts. Without this, a drag whose
+  // touchend never arrives (lost across a sleep/wake) leaves the window
+  // move/up listeners attached and body overflow stuck "hidden" — which
+  // is exactly the kind of state that wedges touch handling after wake.
+  // Belt-and-braces: always force overflow back on too.
+  useEffect(() => {
+    const abort = () => {
+      if (dragCleanupRef.current) dragCleanupRef.current();
+      document.body.style.overflow = "";
+    };
+    const onVis = () => { if (document.hidden) abort(); };
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("blur", abort);
+    window.addEventListener("pagehide", abort);
+    return () => {
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("blur", abort);
+      window.removeEventListener("pagehide", abort);
+      abort();
+    };
+  }, []);
+
   const onPointerDown = (e) => {
     const start = getEventXY(e);
     const startY = posRef.current.y;
@@ -126,15 +153,20 @@ export default function FloatingGroundingButton() {
       }
     };
 
-    const onUp = () => {
+    const cleanup = () => {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
       window.removeEventListener("touchmove", onMove);
       window.removeEventListener("touchend", onUp);
       document.body.style.overflow = "";
       setIsDragging(false);
+      dragCleanupRef.current = null;
+    };
 
-      if (moved) {
+    const onUp = () => {
+      const didMove = moved;
+      cleanup();
+      if (didMove) {
         const side = currentX < window.innerWidth / 2 ? "left" : "right";
         setPos((prev) => ({ ...prev, side }));
       } else {
@@ -142,6 +174,7 @@ export default function FloatingGroundingButton() {
       }
     };
 
+    dragCleanupRef.current = cleanup;
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
     window.addEventListener("touchmove", onMove, { passive: false });

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Hardened against a rare freeze where the app stopped responding to taps (but still scrolled) after the phone slept and woke. An interrupted drag of the floating Grounding bubble could leave touch handling wedged; that state is now always cleaned up when the app goes to the background.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery: fronting alters now have a bold glowing ring so it's clear at a glance who's active.",
+      },
+      {
         type: "improve",
         text: "Pinned gallery: the sole-fronter gesture is now a deliberate swipe up, THEN left (not a loose upper-left diagonal), so it won't fire by accident.",
       },
