@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Make a quick plan right from the bulletin board — type a title to schedule it for today, with optional time, category, length, and more behind tap-to-expand pills.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin board: the full post box now opens as soon as you tap the field, not once you start typing.",
+      },
+      {
         type: "improve",
         text: "Logging an activity: if your search doesn't match anything, you can now create that activity right there — everywhere activities are picked.",
       },
