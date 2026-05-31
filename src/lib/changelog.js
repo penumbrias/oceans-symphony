@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Bio editor: a help button (?) now explains what the Plain / Simple / Blocks / Raw editing modes each do.",
+      },
+      {
         type: "fix",
         text: "Opening a subsystem no longer lists every alter — it now correctly shows just that subsystem's members.",
       },
