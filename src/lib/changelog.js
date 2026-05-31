@@ -13,19 +13,19 @@
 
 export const CHANGELOG = [
   {
-    date: "May 26, 2026",
+    date: "May 30, 2026",
     changes: [
+      {
+        type: "fix",
+        text: "The floating Grounding bubble can no longer be dragged up behind the top header where it got stuck — it now stays clear of the header, and any bubble already stuck there is freed on next open.",
+      },
       {
         type: "feature",
         text: "Subsystems (first part): an alter can own a group as their subsystem. Create one from the alter's profile (Groups section → Create subsystem); when you open that group the parent alter shows at the top. More subsystem tools are on the way.",
       },
       {
         type: "fix",
-        text: "Fixed the app becoming unresponsive — header and bottom nav not tapping — after pinning an alter. A pin popup could get stuck over the screen; pinning is now a direct hold-to-pin toggle with no overlay.",
-      },
-      {
-        type: "improve",
-        text: "Pin alters more easily: press and hold an alter in the list for a second to pin or unpin them.",
+        text: "Fixed the app becoming unresponsive — header and bottom nav not tapping — after pinning an alter. A pin popup could get stuck over the screen; that popup is gone, and pinning now lives as a Pin button on the alter's profile.",
       },
       {
         type: "improve",
@@ -49,7 +49,7 @@ export const CHANGELOG = [
       },
       {
         type: "feature",
-        text: "Pin alters! Turn on \"Pin to top\" in an alter's edit screen and they show up in a quick-access gallery at the top of the alters page. It's just a shortcut — they stay in their group and list too.",
+        text: "Pin alters! Tap the Pin button at the top-left of an alter's profile and they appear in a quick-access gallery at the top of the alters page (and on the dashboard). It's just a shortcut — they stay in their group and list too.",
       },
       {
         type: "feature",
@@ -59,6 +59,11 @@ export const CHANGELOG = [
         type: "fix",
         text: "Removed the duplicate \"Back\" button on alter profiles — the app header already has one.",
       },
+    ],
+  },
+  {
+    date: "May 26, 2026",
+    changes: [
       {
         type: "improve",
         text: "Bulletin posts and comments now show the actual day and time of day next to the \"N days ago\" — e.g. \"May 26 at 3:42 PM · 2 hours ago\".",

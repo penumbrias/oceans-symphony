@@ -170,28 +170,15 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
-  const togglePinned = async () => {
-    try {
-      await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
-      queryClient.invalidateQueries({ queryKey: ["alters"] });
-      toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to top`);
-    } catch (e) {
-      toast.error(e.message || "Failed to update pin");
-    }
-  };
-
+  // Pinning is NOT a card gesture — it lives as a pin toggle on the
+  // alter's profile page (see AlterProfile). Long-press here is left
+  // unused so it can't collide with the front/primary swipe gestures
+  // or the grid view (which has no long-press).
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
     onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
     onSwipeLeftUp: () => replaceFrontWith(alter, base44, queryClient, toast),
-    // Hold ~1s to pin/unpin directly (toast feedback, no overlay). The
-    // previous version opened a fixed inset-0 z-60 popup which — when a
-    // mobile long-press suppressed the dismiss tap — could stick above
-    // the nav and eat every tap (the input-death regression). A direct
-    // toggle has no overlay so it can't trap the UI.
-    onLongPress: () => togglePinned(),
-    longPressMs: 1000,
   });
 
   const mySession = activeSessions.find(s => s.alter_id === alter.id);

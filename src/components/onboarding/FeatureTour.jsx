@@ -163,7 +163,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "📌",
       title: `Pinned ${t.Alters}`,
-      body: `Turn on "Pin to top" in any ${t.alter}'s edit screen and they'll appear in a quick-access gallery at the top of this page (and in the Set ${t.Front} screen). Pinning is just a shortcut — it doesn't move them out of their group or the main list.`,
+      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list.`,
       route: "/Home", target: "pinned-alters",
       look: `the Pinned row at the top of the ${t.alters} page — only shows once you've pinned someone`, action: null,
     },

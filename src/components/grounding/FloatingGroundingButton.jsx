@@ -35,6 +35,29 @@ function getBottomNavGuard() {
   }
 }
 
+// The sticky top header sits at z-50; this button is z-40, so if it's
+// dragged up into the header band it vanishes BEHIND the header and
+// can't be grabbed again (the "stuck behind the header" bug). Mirror
+// the bottom-nav guard: keep the button below the header + top
+// safe-area inset. Header row is ~48px on mobile / ~64px on desktop —
+// use 64 so it clears both, plus the inset and a margin. Applied during
+// drag AND in loadPos, so a button already stuck up there is hoisted
+// back into reach on the next open.
+function getTopGuard() {
+  try {
+    const probe = document.createElement("div");
+    probe.style.height = "env(safe-area-inset-top, 0px)";
+    probe.style.position = "absolute";
+    probe.style.visibility = "hidden";
+    document.body.appendChild(probe);
+    const inset = probe.getBoundingClientRect().height || 0;
+    probe.remove();
+    return inset + 64 + EDGE_MARGIN;
+  } catch {
+    return 64 + EDGE_MARGIN;
+  }
+}
+
 function getEventXY(e) {
   if (e.changedTouches?.length) return { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY };
   if (e.touches?.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -50,7 +73,7 @@ function loadPos() {
       // Re-clamp persisted positions — users on a previous build may
       // have left the button dragged into where the bottom nav now
       // sits. Hoist it above the nav on next mount.
-      const clampedY = Math.max(EDGE_MARGIN, Math.min(window.innerHeight - BTN_SIZE - guard, saved.y));
+      const clampedY = Math.max(getTopGuard(), Math.min(window.innerHeight - BTN_SIZE - guard, saved.y));
       return { ...saved, y: clampedY };
     }
   } catch {}
@@ -96,7 +119,7 @@ export default function FloatingGroundingButton() {
         ev.preventDefault();
         currentX = x;
         const clampedY = Math.max(
-          EDGE_MARGIN,
+          getTopGuard(),
           Math.min(window.innerHeight - BTN_SIZE - getBottomNavGuard(), startY + dy)
         );
         setPos((prev) => ({ ...prev, y: clampedY }));
