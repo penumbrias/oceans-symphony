@@ -81,6 +81,35 @@ export function wouldCreateOwnershipCycle(groups, alters, groupId, ownerAlterId)
   return false;
 }
 
+// Would ADDING `candidateAlterId` as a MEMBER of `group` create an
+// ownership cycle? Only meaningful for subsystems (groups with an owner).
+// A loop forms when the candidate is an ANCESTOR of the group's owner —
+// i.e. the owner is reachable as a descendant of the candidate. Then the
+// candidate would be both above and below the owner. Also blocks adding
+// the owner as their own member. Cycle-guarded with a visited set + depth
+// clamp so the check can't hang on pre-existing bad data.
+export function wouldAddingMemberCycle(groups, alters, group, candidateAlterId) {
+  if (!group || !candidateAlterId) return false;
+  const ownerId = group.owner_alter_id;
+  if (!ownerId) return false; // plain group — no ownership tree, no cycle
+  if (candidateAlterId === ownerId) return true; // owner can't be their own child
+
+  const visited = new Set();
+  const stack = getSubsystemsOwnedBy(groups, candidateAlterId).map((g) => ({ g, depth: 0 }));
+  while (stack.length) {
+    const { g, depth } = stack.pop();
+    if (!g || visited.has(g.id) || depth > MAX_SUBSYSTEM_DEPTH) continue;
+    visited.add(g.id);
+    for (const m of getMemberAlters(g, alters)) {
+      if (m.id === ownerId) return true; // owner sits below candidate → cycle
+      for (const owned of getSubsystemsOwnedBy(groups, m.id)) {
+        if (!visited.has(owned.id)) stack.push({ g: owned, depth: depth + 1 });
+      }
+    }
+  }
+  return false;
+}
+
 // Build the subsystem tree rooted at an alter, for recursive rendering.
 // Returns { alter, subsystems: [{ group, children: [node...] }] } with a
 // hard depth clamp and a visited-alter set so a cycle (should one slip

@@ -10,9 +10,10 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Grid3X3, List } from "lucide-react";
+import { Grid3X3, List, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
+import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
 
 export default function GroupMembersModal({ group, allGroups, isOpen, onClose }) {
   const terms = useTerms();
@@ -65,6 +66,25 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
     );
   }, [alters, groupKeysToMatch]);
 
+  // When this group is a subsystem (alter-owned), adding certain alters
+  // would create an ownership loop (they're an ancestor of the owner).
+  // Pre-compute those so the picker can grey them out with an explanation
+  // instead of letting the user corrupt the tree.
+  const subsystem = isSubsystem(group);
+  const owner = useMemo(
+    () => (subsystem ? alters.find((a) => a.id === group.owner_alter_id) : null),
+    [subsystem, alters, group.owner_alter_id]
+  );
+  const blockedAlterIds = useMemo(() => {
+    if (!subsystem) return new Set();
+    const ids = new Set();
+    for (const a of alters) {
+      if (altersInGroup.has(a.id)) continue; // already in → always removable
+      if (wouldAddingMemberCycle(allGroups, alters, group, a.id)) ids.add(a.id);
+    }
+    return ids;
+  }, [subsystem, alters, altersInGroup, allGroups, group]);
+
   const filteredAlters = useMemo(() => {
     return alters
       .filter((alter) => {
@@ -89,6 +109,15 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
       const alter = alters.find((a) => a.id === alterId);
       if (!alter) return;
 
+      // Cycle guard: refuse to add an alter that would loop the ownership
+      // tree (the owner is already nested inside this alter's subsystem).
+      if (isAdding && blockedAlterIds.has(alterId)) {
+        toast.error(
+          `Can't add ${alter.name} — ${owner?.name || "the owner"} is already inside ${alter.name}'s ${terms.system}, so this would create a loop.`
+        );
+        return;
+      }
+
       let updatedGroups = alter.groups || [];
       if (isAdding) {
         if (!updatedGroups.find((g) => g.id === group.id || g.sp_id === group.id)) {
@@ -112,6 +141,12 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
         <DialogHeader>
           <DialogTitle>Manage {group.name} Members</DialogTitle>
         </DialogHeader>
+        {subsystem && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            {owner?.name ? `${owner.name} owns this ${terms.system}. ` : ""}
+            Greyed-out {terms.alters} can't be added — they'd create a loop (the owner is already nested inside their own {terms.system}).
+          </p>
+        )}
 
         {/* Controls */}
         <div className="space-y-3">
@@ -190,6 +225,23 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
           ) : viewMode === "list" ? (
             filteredAlters.map((alter) => {
               const inGroup = altersInGroup.has(alter.id);
+              const blocked = blockedAlterIds.has(alter.id);
+              if (blocked) {
+                return (
+                  <div
+                    key={alter.id}
+                    title={`${owner?.name || "The owner"} is already inside ${alter.name}'s ${terms.system} — adding them would loop.`}
+                    className="flex items-center gap-3 p-2 rounded-lg opacity-50 cursor-not-allowed"
+                  >
+                    <Ban className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    {alter.avatar_url && (
+                      <img src={alter.avatar_url} alt={alter.name} className="w-8 h-8 rounded-full object-cover grayscale" />
+                    )}
+                    <span className="text-sm flex-1 line-through">{alter.name}</span>
+                    <span className="text-[0.625rem] text-muted-foreground italic flex-shrink-0">would loop</span>
+                  </div>
+                );
+              }
               return (
               <div
                 key={alter.id}
@@ -222,6 +274,26 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
           ) : (
             filteredAlters.map((alter) => {
               const inGroup = altersInGroup.has(alter.id);
+              const blocked = blockedAlterIds.has(alter.id);
+              if (blocked) {
+                return (
+                  <div
+                    key={alter.id}
+                    title={`${owner?.name || "The owner"} is already inside ${alter.name}'s ${terms.system} — adding them would loop.`}
+                    className="relative flex flex-col items-center gap-1.5 p-2 rounded-lg opacity-50 cursor-not-allowed"
+                  >
+                    <Ban className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-muted-foreground" />
+                    {alter.avatar_url ? (
+                      <img src={alter.avatar_url} alt={alter.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 grayscale" />
+                    ) : (
+                      <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold grayscale" style={{ backgroundColor: alter.color || "#9333ea" }}>
+                        {alter.name?.charAt(0)?.toUpperCase()}
+                      </div>
+                    )}
+                    <span className="text-xs text-center font-medium w-full truncate leading-tight line-through">{alter.alias || alter.name}</span>
+                  </div>
+                );
+              }
               return (
                 <div
                   key={alter.id}

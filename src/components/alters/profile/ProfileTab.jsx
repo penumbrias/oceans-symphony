@@ -8,11 +8,12 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
+import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
@@ -50,23 +51,10 @@ function AvatarModal({ src, onSave, onClose }) {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const compressImage = (file, maxWidth = 400, quality = 0.85) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const u = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(u);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = u;
-      });
-      const dataUrl = await compressImage(file);
+      // GIF-aware: animated GIFs are stored raw so they keep moving;
+      // stills are compressed. (processUploadedImage handles the split.)
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 400, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -74,7 +62,7 @@ function AvatarModal({ src, onSave, onClose }) {
       } else {
         setUrl(dataUrl);
       }
-      toast.success("Image ready!");
+      toast.success(isGif ? "GIF ready!" : "Image ready!");
     } catch { toast.error("Failed to process image"); }
     finally { setUploading(false); e.target.value = ""; }
   };
@@ -159,6 +147,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [creatingSubsystem, setCreatingSubsystem] = useState(false);
+  const [managingSubsystem, setManagingSubsystem] = useState(null);
   const bgFileInputRef = useRef(null);
   const headerFileInputRef = useRef(null);
   const navigate = useNavigate();
@@ -279,24 +268,10 @@ useEffect(() => {
     setUploadingBg(true);
     try {
       const sizeMB = file.size / (1024 * 1024);
-      const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
-      const dataUrl = await compressImage(file);
+      if (sizeMB > 1 && file.type !== "image/gif") toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
+      // GIF-aware: GIF backgrounds stay raw (animated); stills compressed.
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.8);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -304,7 +279,7 @@ useEffect(() => {
       } else {
         setBgField(BG_IMAGE_KEY, dataUrl);
       }
-      toast.success("Background image saved!");
+      toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
     } catch (err) {
       toast.error("Failed to process background image");
     } finally { setUploadingBg(false); e.target.value = ""; }
@@ -314,23 +289,9 @@ useEffect(() => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploadingHeader(true);
     try {
-      const compressImage = (file, maxWidth = 1200, quality = 0.85) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      const dataUrl = await compressImage(file);
+      // GIF-aware: GIF banners stay raw (animated); stills compressed.
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -338,7 +299,7 @@ useEffect(() => {
       } else {
         setBgField(HEADER_IMAGE_KEY, dataUrl);
       }
-      toast.success("Header image saved!");
+      toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
     } catch { toast.error("Failed to process header image"); }
     finally { setUploadingHeader(false); e.target.value = ""; }
   };
@@ -1032,10 +993,10 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 <button
                   key={g.id}
                   type="button"
-                  onClick={() => navigate("/groups")}
+                  onClick={() => setManagingSubsystem(g)}
                   className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
                   style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
-                  title="Open in Groups manager"
+                  title="Manage members"
                 >
                   <Folder className="w-3 h-3" /> {g.name}
                 </button>
@@ -1148,6 +1109,14 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       </div>
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
+      {managingSubsystem && (
+        <GroupMembersModal
+          group={managingSubsystem}
+          allGroups={allGroups}
+          isOpen={!!managingSubsystem}
+          onClose={() => setManagingSubsystem(null)}
+        />
+      )}
       {showAvatarModal && <AvatarModal src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}

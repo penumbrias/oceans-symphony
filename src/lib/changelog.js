@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Animated GIFs now stay animated when set as a profile picture, banner, or background (they were being flattened to a still). Large GIFs show a quick storage warning.",
+      },
+      {
+        type: "fix",
+        text: "Tapping a subsystem on an alter's profile now opens the member editor right there, instead of jumping you to the Groups page.",
+      },
+      {
+        type: "improve",
+        text: "When adding members to a subsystem, alters that would create a loop are greyed out with a short explanation, so the nesting can't get corrupted.",
+      },
+      {
         type: "feature",
         text: "Alters grid view: a subsystem owner now has a \"Members\" chevron — expanding it shows the subsystem's members in a tinted card (in the owner's colour) right below them, so it's clear who belongs to it.",
       },
