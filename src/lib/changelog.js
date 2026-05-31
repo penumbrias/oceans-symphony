@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System Chat now supports formatting and image/GIF uploads — a toolbar sits under the message box. @mentions and -signposts work exactly as before.",
+      },
+      {
         type: "improve",
         text: "Press and hold a subsystem in the alters list (or a group in the groups section) to jump straight to its profile page. Holding is ignored while you're scrolling.",
       },

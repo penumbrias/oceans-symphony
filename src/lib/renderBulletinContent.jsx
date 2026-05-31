@@ -82,13 +82,13 @@ function renderTextWithMentions(text, alters, baseKey) {
   });
 }
 
-function nodeToReact(node, alters, key) {
+function nodeToReact(node, key, renderText) {
   if (node.nodeType === 3) {
-    return renderTextWithMentions(node.textContent, alters, key);
+    return renderText(node.textContent, key);
   }
   if (node.nodeType !== 1) return null;
   const tag = node.tagName.toLowerCase();
-  const children = Array.from(node.childNodes).map((c, i) => nodeToReact(c, alters, `${key}-${i}`));
+  const children = Array.from(node.childNodes).map((c, i) => nodeToReact(c, `${key}-${i}`, renderText));
   if (!ALLOWED_TAGS.has(tag)) {
     // Strip the tag, keep its children inline.
     return <React.Fragment key={key}>{children}</React.Fragment>;
@@ -130,14 +130,25 @@ function nodeToReact(node, alters, key) {
   return React.createElement(tag, props, children);
 }
 
-export function renderBulletinContent(content, alters = [], terms = null) {
+// Generic rich renderer: walks the (sanitised) HTML and renders each text
+// node through the supplied `renderText(textString, key)` callback — so
+// each surface (bulletins, chat) can plug in its own @mention highlighter
+// while sharing the tag allowlist, style sanitisation, and <img> safety.
+export function renderRichContent(content, { renderText, terms = null } = {}) {
   const processed = applyTerms(content, terms);
+  const rt = renderText || ((text, key) => <React.Fragment key={key}>{text}</React.Fragment>);
   if (typeof window === "undefined" || !window.DOMParser) {
-    // SSR / no-DOM fallback: render as plain text with mentions.
-    return renderTextWithMentions(processed, alters, "bn");
+    return rt(processed, "rc");
   }
   const doc = new DOMParser().parseFromString(`<div>${processed}</div>`, "text/html");
   const root = doc.body.firstChild;
   if (!root) return null;
-  return Array.from(root.childNodes).map((n, i) => nodeToReact(n, alters, `bn-${i}`));
+  return Array.from(root.childNodes).map((n, i) => nodeToReact(n, `rc-${i}`, rt));
+}
+
+export function renderBulletinContent(content, alters = [], terms = null) {
+  return renderRichContent(content, {
+    terms,
+    renderText: (text, key) => renderTextWithMentions(text, alters, key),
+  });
 }

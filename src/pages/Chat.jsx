@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,11 @@ import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthor
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { isLocalMode } from "@/lib/storageMode";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { renderRichContent } from "@/lib/renderBulletinContent";
 
 // Brighten / darken alter colours that are too close to the page
 // background so the name text stays legible. Memoise the page bg
@@ -727,9 +732,13 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
             </div>
           </div>
         ) : (
-          <p className={`text-sm whitespace-pre-wrap break-words ${isDeleted ? "italic text-muted-foreground" : ""}`}>
-            {isDeleted ? "[message deleted]" : renderWithMentions(msg.content, alters)}
-          </p>
+          <div className={`text-sm whitespace-pre-wrap break-words wysiwyg-content ${isDeleted ? "italic text-muted-foreground" : ""}`}>
+            {isDeleted
+              ? "[message deleted]"
+              : renderRichContent(msg.content, {
+                  renderText: (t, k) => <React.Fragment key={k}>{renderWithMentions(t, alters)}</React.Fragment>,
+                })}
+          </div>
         )}
       </div>
 
@@ -829,6 +838,44 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   const [showSignpostMenu, setShowSignpostMenu] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
 
+  // Alters hidden from mention/signpost suggestions via a group's
+  // "hide from mentions" toggle. Typing a full name still resolves.
+  const { data: composerGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const hiddenFromMentions = useMemo(
+    () => getAlterIdsByGroupFlag(composerGroups, alters, "hide_from_mentions"),
+    [composerGroups, alters]
+  );
+
+  // Fancy text (always on) + image/GIF upload — insert HTML around the
+  // textarea selection. The @mention/-signpost typing + parsing is
+  // untouched (this only inserts formatting / images).
+  const insertHtml = useTextareaInsert(textareaRef, text, setText);
+  const imageInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const handleComposerImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
+    setUploadingImage(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
+      let url = dataUrl;
+      if (isLocalMode()) {
+        const id = `chatimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(id, dataUrl);
+        url = createLocalImageUrl(id);
+      }
+      insertHtml(`<img src="${url}" alt="" />`, "");
+      toast.success(isGif ? "GIF added!" : "Image added!");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't add that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleTextChange = (e) => {
     const val = e.target.value;
     setText(val);
@@ -856,23 +903,23 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 
   const filteredMentions = useMemo(
     () => alters
-      .filter((a) => !a.is_archived)
+      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
       .filter((a) =>
         a.name?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
         (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
       )
       .slice(0, 8),
-    [alters, mentionQuery]
+    [alters, mentionQuery, hiddenFromMentions]
   );
   const filteredSignposts = useMemo(
     () => alters
-      .filter((a) => !a.is_archived)
+      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
       .filter((a) =>
         a.name?.toLowerCase().includes(signpostQuery.toLowerCase()) ||
         (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
       )
       .slice(0, 8),
-    [alters, signpostQuery]
+    [alters, signpostQuery, hiddenFromMentions]
   );
   const systemSignpostMatches = useMemo(() => {
     const q = (signpostQuery || "").toLowerCase();
@@ -1075,6 +1122,23 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
         <Button onClick={handleSubmit} disabled={!text.trim()} className="h-10 px-3">
           <Send className="w-4 h-4" />
         </Button>
+      </div>
+
+      {/* Formatting + image/GIF toolbar — always available, fills the space
+          under the entry box. Inserts HTML around the textarea selection;
+          @mention/-signpost typing above is unaffected. */}
+      <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
+        <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
+          <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => imageInputRef.current?.click()}
+            className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+          </button>
+          <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
+        </div>
+        <MiniToolbar onInsert={insertHtml} />
+        <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
       </div>
     </div>
   );
