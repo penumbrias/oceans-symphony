@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New \"Rich text\" custom field type — write formatted notes (bold, lists, links, images) on a profile and they show up formatted.",
+      },
+      {
+        type: "feature",
         text: "Your system now has its own profile — add a banner image and a longer formatted bio (Settings → System Profile), shown at the top of the alters page.",
       },
       {

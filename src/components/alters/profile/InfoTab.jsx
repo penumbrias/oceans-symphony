@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
+import WysiwygEditor from "@/components/shared/WysiwygEditor";
 
 const FIELD_ORDER_KEY = "_field_order";
 
@@ -255,7 +256,20 @@ export default function InfoTab({ alter, systemFields }) {
                     )}
                   </div>
                 </div>
-                {editingFieldId === field.id ? (
+                {editingFieldId === field.id && field.field_type === "richtext" ? (
+                  <div className="mt-1 space-y-2">
+                    <WysiwygEditor value={editValue} onChange={setEditValue} placeholder="Write…" />
+                    <div className="flex justify-end gap-1">
+                      <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90"
+                        onClick={() => saveSystemField(field.id)} disabled={saving}>
+                        <Check className="w-3.5 h-3.5" />
+                      </Button>
+                      <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setEditingFieldId(null)}>
+                        <X className="w-3.5 h-3.5" />
+                      </Button>
+                    </div>
+                  </div>
+                ) : editingFieldId === field.id ? (
                   <div className="flex gap-2 mt-1">
                     {field.field_type === "text" ? (
                       <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
@@ -320,9 +334,10 @@ export default function InfoTab({ alter, systemFields }) {
                           </div>
                         );
                       }
-                      // text-type fields render as Markdown; number (the
-                      // only remaining type) stays plain.
-                      if (field.field_type === "text") {
+                      // text & rich-text fields render as Markdown/HTML
+                      // (MarkdownText sanitises raw HTML from the rich
+                      // editor); number stays plain.
+                      if (field.field_type === "text" || field.field_type === "richtext") {
                         return <MarkdownText>{String(value)}</MarkdownText>;
                       }
                       return <span className="whitespace-pre-wrap break-words">{value}</span>;
