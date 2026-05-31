@@ -138,7 +138,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
-    description: "", color: "", avatar_url: "",
+    description: "", color: "", avatar_url: "", emoji: "",
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -199,6 +199,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       description: alter.description || "",
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
+      emoji: alter.emoji || "",
       custom_fields: alter.custom_fields || {},
     });
   }, [alter]);
@@ -756,8 +757,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         </button>
       </div>
 
-      {/* Name + Alias row */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Emoji + Name + Alias row */}
+      <div className="grid grid-cols-[3.5rem_1fr_1fr] gap-3">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Emoji</label>
+          <Input value={form.emoji} onChange={(e) => set("emoji", e.target.value)} placeholder="✨" maxLength={8} className="text-center text-lg" aria-label="Profile emoji or symbol" />
+        </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Name *</label>
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />

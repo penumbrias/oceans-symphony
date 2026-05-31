@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { Users, UserPlus, FolderTree, Folder, Crown, X, Loader2 } from "lucide-react";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useTerms } from "@/lib/useTerms";
 
 // Popup for acting on a subsystem (an alter-owned group). Used by the
@@ -17,7 +18,7 @@ export default function SubsystemActionMenu({ group, onClose }) {
   const t = useTerms();
   const openedAt = useRef(Date.now());
   const [showMembers, setShowMembers] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [showCreate, setShowCreate] = useState(false);
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -27,31 +28,15 @@ export default function SubsystemActionMenu({ group, onClose }) {
   const close = () => onClose?.();
   const backdropClick = () => { if (Date.now() - openedAt.current > 350) close(); };
 
-  // Create a brand-new alter already inside this subsystem, then open its
-  // profile so the user can fill in the details.
-  const createMember = async () => {
-    setCreating(true);
-    try {
-      const created = await base44.entities.Alter.create({
-        name: "New member",
-        color: group.color || "#8b5cf6",
-        groups: [{ id: group.id, name: group.name, color: group.color || "" }],
-      });
-      qc.invalidateQueries({ queryKey: ["alters"] });
-      qc.invalidateQueries({ queryKey: ["groups"] });
-      toast.success(`New member added to ${group.name} — set their details here.`);
-      navigate(`/alter/${created.id}`);
-      close();
-    } catch (e) {
-      toast.error(e.message || "Failed to create member");
-      setCreating(false);
-    }
-  };
-
-  // While managing members, render only the picker (avoids any z-index
-  // fight) and close the whole menu when it's dismissed.
+  // While managing members or creating, render only that modal (avoids any
+  // z-index fight) and close the whole menu when it's dismissed.
   if (showMembers) {
     return <GroupMembersModal group={group} allGroups={allGroups} isOpen onClose={() => { setShowMembers(false); close(); }} />;
+  }
+  if (showCreate) {
+    // Opens the full "Add New" modal prefilled into this subsystem, so the
+    // user can fill out the whole profile and it lands in the subsystem.
+    return <AlterEditModal alter={null} open mode="create" initialGroupIds={[group.id]} onClose={() => { setShowCreate(false); close(); }} />;
   }
 
   const Item = ({ icon: Icon, label, onClick, busy }) => (
@@ -79,7 +64,7 @@ export default function SubsystemActionMenu({ group, onClose }) {
         </div>
         <div className="py-1">
           <Item icon={Users} label="Manage members" onClick={() => setShowMembers(true)} />
-          <Item icon={UserPlus} label={`Create a new member`} onClick={createMember} busy={creating} />
+          <Item icon={UserPlus} label={`Create a new member`} onClick={() => setShowCreate(true)} />
           <Item icon={FolderTree} label="Go to profile" onClick={() => { navigate(`/group/${group.id}`); close(); }} />
         </div>
       </div>

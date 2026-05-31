@@ -16,8 +16,16 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
-        type: "feature",
-        text: "Alters with more than one subsystem now show a list of those subsystems first — pick one to view its members (in both list and grid views).",
+        type: "improve",
+        text: "Creating a member from a subsystem now opens the full \"Add new\" form prefilled into that subsystem, so you can fill out the whole profile at once. That form can now also drop the new alter into groups/subsystems.",
+      },
+      {
+        type: "fix",
+        text: "You can now set an alter's emoji from their edit profile page, not only when first adding them.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, expanding a subsystem now highlights its icon in a brighter shade of the subsystem's own colour instead of a blue ring.",
       },
       {
         type: "improve",

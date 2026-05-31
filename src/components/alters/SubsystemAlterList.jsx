@@ -27,17 +27,32 @@ const INDENT_PX = 16;
 const MAX_INLINE_DEPTH = 3;
 const EMPTY_SET = new Set();
 
+// Lighten a hex colour toward white for the "expanded" ring — a brighter
+// version of the subsystem's (or alter's) own colour rather than a generic
+// blue focus ring.
+function brighten(hex, amt = 0.45) {
+  if (typeof hex !== "string") return null;
+  const c = hex.replace("#", "");
+  if (c.length !== 6 || /[^0-9a-f]/i.test(c)) return null;
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  const up = (x) => Math.round(x + (255 - x) * amt).toString(16).padStart(2, "0");
+  return `#${up(r)}${up(g)}${up(b)}`;
+}
+
 // Round folder/avatar button beside the activity bolt. Tap toggles inline
 // expansion (or opens the profile when too deep); press-and-hold opens the
 // subsystem actions popup. For an alter that owns multiple subsystems it
 // shows a stacked-folder icon with a count instead of a single avatar.
-function SubsystemAccessory({ group, count = 1, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
+function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
   const [resolved, setResolved] = useState(null);
   useEffect(() => {
     if (count > 1 || !group?.avatar_url) { setResolved(null); return; }
     resolveImageUrl(group.avatar_url).then(setResolved).catch(() => setResolved(null));
   }, [group?.avatar_url, count]);
-  const color = group?.color || undefined;
+  const color = group?.color || tint || undefined;
+  const ring = brighten(color) || "#a5b4fc";
   const press = useLongPress({
     onClick: () => (inlineExpandable ? onToggle() : onOpen()),
     onLongPress: () => onMenu(),
@@ -50,10 +65,11 @@ function SubsystemAccessory({ group, count = 1, expanded, inlineExpandable, onTo
       title={count > 1
         ? `${count} subsystems — tap to ${expanded ? "hide" : "list"}`
         : (inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group?.name} — hold for options` : `Open ${group?.name} — hold for options`)}
-      className={`flex-shrink-0 ${count > 1 ? "px-1.5 gap-0.5" : "w-8"} h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105 ${expanded ? "ring-2 ring-primary/50" : ""}`}
+      className={`flex-shrink-0 ${count > 1 ? "px-1.5 gap-0.5" : "w-8"} h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105`}
       style={{
         backgroundColor: resolved ? "transparent" : color ? `${color}20` : "hsl(var(--muted))",
         borderColor: color ? `${color}55` : "hsl(var(--border))",
+        boxShadow: expanded ? `0 0 0 2px ${ring}` : undefined,
         touchAction: "pan-y",
       }}
     >
@@ -121,6 +137,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
           <SubsystemAccessory
             group={multi ? null : ownedSubs[0]}
             count={ownedSubs.length}
+            tint={(multi ? alter.color : ownedSubs[0]?.color) || undefined}
             expanded={expanded}
             inlineExpandable={inlineExpandable}
             onToggle={() => setExpanded((v) => !v)}
