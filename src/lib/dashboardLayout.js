@@ -110,17 +110,27 @@ export function resolveLayout(storedLayout) {
     seen.add(entry.id);
   }
   // Second pass: backfill any elements that weren't in the stored
-  // layout (defaults or newly-introduced ids) at their default position
-  // relative to the rest of DEFAULT_LAYOUT.
-  for (const def of DEFAULT_LAYOUT) {
-    if (seen.has(def.id)) continue;
+  // layout (defaults or newly-introduced ids) at their INTENDED
+  // position — right after the nearest earlier DEFAULT_LAYOUT sibling
+  // that's already present. Previously these were appended at the end,
+  // which made a newly-added element (e.g. pinned_alters) land at the
+  // bottom of every existing user's dashboard instead of next to its
+  // neighbour (just below Currently Fronting).
+  DEFAULT_LAYOUT.forEach((def, defIdx) => {
+    if (seen.has(def.id)) return;
     const meta = DASHBOARD_ELEMENTS[def.id];
-    out.push({
-      id: def.id,
-      enabled: meta.locked ? true : def.enabled,
-    });
+    const entry = { id: def.id, enabled: meta.locked ? true : def.enabled };
+    // Find the nearest earlier default that's already in `out` and
+    // insert right after it. If none is present, fall back to the
+    // front (these are early-in-order elements).
+    let insertAt = 0;
+    for (let i = defIdx - 1; i >= 0; i--) {
+      const pos = out.findIndex((e) => e.id === DEFAULT_LAYOUT[i].id);
+      if (pos !== -1) { insertAt = pos + 1; break; }
+    }
+    out.splice(insertAt, 0, entry);
     seen.add(def.id);
-  }
+  });
   return out;
 }
 

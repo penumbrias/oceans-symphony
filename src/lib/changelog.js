@@ -33,7 +33,11 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "In the pinned gallery, tap an alter to toggle their front and hold to set them primary — and it won't misfire while you scroll the row sideways.",
+        text: "Pinned gallery gestures: tap an alter to open them, swipe up to add to front (or toggle primary if they're already fronting), swipe down to remove from front, and swipe up-and-right to make them the sole fronter. The chip follows your finger — so if you grab one by accident while scrolling, you can move it back to the middle and nothing happens.",
+      },
+      {
+        type: "fix",
+        text: "Pinned gallery on the dashboard now lands just below Currently Fronting instead of at the bottom of the page.",
       },
       {
         type: "improve",

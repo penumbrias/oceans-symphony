@@ -1,25 +1,37 @@
-import React from "react";
+import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Pin, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
+import { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
-// alters directory (above groups) AND as a toggleable Dashboard
-// element, so it fetches its own data and renders nothing when no
-// alter is pinned.
+// alters directory (above groups) AND as a Dashboard element, so it
+// fetches its own data and renders nothing when no alter is pinned.
 //
-// Gestures per chip (mobile-first):
-//   - tap            → toggle this alter's front
-//   - hold (~400ms)  → toggle primary
-// Horizontal scrolling of the strip does NOT fire a tap: useSwipeActions
-// only treats a release as a tap when the finger moved < ~10px, and it
-// cancels the long-press timer as soon as the finger moves, so dragging
-// to scroll is safe.
+// Per-chip gestures (mobile, vertical — the strip itself scrolls
+// horizontally so vertical is free):
+//   - tap            → open the alter's profile
+//   - swipe UP       → add to front, or toggle primary if already fronting
+//   - swipe DOWN     → remove from front
+//   - swipe UP+RIGHT → make them the sole fronter
+// The chip follows the finger (translateY) with the same recoverable
+// feel as the alters grid: a hint label shows what will fire, and
+// releasing near the middle does nothing — so an accidental scroll-grab
+// can be backed out of.
+
+const V_SWIPE_THRESHOLD = 40;       // px up/down to trigger an action
+const V_TAP_THRESHOLD = 10;         // px below which a release counts as a tap
+const CORNER_RIGHT_THRESHOLD = 30;  // px right (with up) to arm sole-front
+
+// Module-level recent-touch deadline so the synthetic click after a
+// touch gesture doesn't double-fire onTap. Scoped to this gallery.
+let galleryRecentTouchUntil = 0;
+
 export default function PinnedAltersGallery({ showHeader = true, className = "" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -50,7 +62,8 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
           <div className="flex-1 h-px bg-border/50" />
         </div>
       )}
-      <div className="flex gap-3 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
+      {/* pt-5 leaves room for the swipe-up hint label above a chip. */}
+      <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
         {pinned.map((a) => (
           <PinnedAlterChip
             key={a.id}
@@ -66,7 +79,78 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
   );
 }
 
+// Vertical swipe handler — mirrors useSwipeActions' structure (drag
+// offset + hint + tap suppression) but on the Y axis, so it coexists
+// with the gallery's horizontal scroll.
+function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
+  const startX = useRef(0);
+  const startY = useRef(0);
+  const recentTouch = useRef(false);
+  const [dragY, setDragY] = useState(0);
+  const [hint, setHint] = useState(null); // 'up' | 'down' | 'solo' | null
+
+  const onTouchStart = (e) => {
+    const t = e.touches[0];
+    startX.current = t.clientX;
+    startY.current = t.clientY;
+    setDragY(0);
+    setHint(null);
+  };
+  const onTouchMove = (e) => {
+    const t = e.touches[0];
+    const dx = t.clientX - startX.current;
+    const dy = t.clientY - startY.current;
+    // Only follow the finger for vertical-dominant movement; horizontal
+    // is the gallery scrolling.
+    if (Math.abs(dy) >= Math.abs(dx)) {
+      setDragY(Math.max(-60, Math.min(60, dy)));
+    }
+    if (dy <= -V_SWIPE_THRESHOLD && dx >= CORNER_RIGHT_THRESHOLD) setHint("solo");
+    else if (dy <= -V_SWIPE_THRESHOLD) setHint("up");
+    else if (dy >= V_SWIPE_THRESHOLD) setHint("down");
+    else setHint(null);
+  };
+  const onTouchEnd = (e) => {
+    const t = e.changedTouches[0];
+    const dx = t.clientX - startX.current;
+    const dy = t.clientY - startY.current;
+    const adx = Math.abs(dx);
+    const ady = Math.abs(dy);
+    setDragY(0);
+    setHint(null);
+    recentTouch.current = true;
+    galleryRecentTouchUntil = Date.now() + 500;
+    setTimeout(() => { recentTouch.current = false; }, 500);
+
+    if (dy <= -V_SWIPE_THRESHOLD && dx >= CORNER_RIGHT_THRESHOLD) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      onUpRight?.();
+    } else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      onUp?.();
+    } else if (dy >= V_SWIPE_THRESHOLD && ady > adx) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      onDown?.();
+    } else if (adx < V_TAP_THRESHOLD && ady < V_TAP_THRESHOLD) {
+      if (typeof e.preventDefault === "function") e.preventDefault();
+      onTap?.();
+    }
+  };
+  const onTouchCancel = () => { setDragY(0); setHint(null); };
+  const onClick = () => {
+    if (recentTouch.current || Date.now() < galleryRecentTouchUntil) return;
+    onTap?.();
+  };
+
+  return {
+    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onClick },
+    dragY,
+    hint,
+  };
+}
+
 function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient }) {
+  const navigate = useNavigate();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
@@ -75,30 +159,55 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const blurAvatar = anonymize === "all";
   const label = formatAlter(alter);
 
-  const { bind } = useSwipeActions({
-    onTap: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
-    onLongPress: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
-    longPressMs: 400,
+  const { bind, dragY, hint } = useVerticalChipSwipe({
+    onTap: () => navigate(`/alter/${alter.id}`),
+    onUp: () =>
+      fronting
+        ? togglePrimaryFor(alter, activeSessions, base44, queryClient, toast)
+        : toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
+    onDown: () => {
+      // Swipe-down only means anything when they're fronting (it removes
+      // them). toggleFrontFor removes when a session exists.
+      if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
+    },
+    onUpRight: () => replaceFrontWith(alter, base44, queryClient, toast),
   });
 
   const ringColor = fronting
     ? (isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6"))
     : (alter.color || "hsl(var(--border))");
 
+  const hintText =
+    hint === "solo" ? "Solo" :
+    hint === "down" ? "Remove" :
+    hint === "up" ? (fronting ? "Primary" : "Front") :
+    null;
+  const hintColor =
+    hint === "solo" ? "text-primary" :
+    hint === "down" ? "text-amber-500" :
+    "text-emerald-500";
+
   return (
     <button
       type="button"
       {...bind}
-      title={`${label} — tap to toggle ${fronting ? "off" : "on"} front, hold to set primary`}
-      className="flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
+      title={`${label} — swipe up for front/primary, down to remove, up-right for sole front; tap to open`}
+      className="relative flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
       style={{ touchAction: "pan-x" }}
     >
+      {hintText && (
+        <span className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${hintColor}`}>
+          {hintText}
+        </span>
+      )}
       <div
         className="relative w-14 h-14 rounded-full overflow-hidden border-2 flex items-center justify-center"
         style={{
           borderColor: ringColor,
           boxShadow: fronting ? `0 0 0 2px ${ringColor}55` : "none",
           backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
+          transform: `translateY(${dragY}px)`,
+          transition: dragY === 0 ? "transform 150ms ease-out" : "none",
         }}
       >
         {resolvedAvatar ? (
