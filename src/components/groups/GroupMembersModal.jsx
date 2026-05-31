@@ -134,7 +134,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
       // tree (the owner is already nested inside this alter's subsystem).
       if (isAdding && blockedAlterIds.has(alterId)) {
         toast.error(
-          `Can't add ${alter.name} — ${owner?.name || "the owner"} is already inside ${alter.name}'s ${terms.system}, so this would create a loop.`
+          `Can't add ${alter.name} — ${owner?.name || "the root"} is already inside ${alter.name}'s ${terms.system}, so this would create a loop.`
         );
         return;
       }
@@ -164,8 +164,8 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
         </DialogHeader>
         {subsystem && (
           <p className="text-xs text-muted-foreground -mt-1">
-            {owner?.name ? `${owner.name} owns this ${terms.system}. ` : ""}
-            Greyed-out {terms.alters} can't be added — they'd create a loop (the owner is already nested inside their own {terms.system}).
+            {owner?.name ? `${owner.name} is the root of this ${terms.system}. ` : ""}
+            Greyed-out {terms.alters} can't be added — they'd create a loop (the root is already nested inside their own {terms.system}).
           </p>
         )}
 

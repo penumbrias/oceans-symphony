@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Group profile: the \"Owner\" field is now called \"Root\" and uses a searchable alter picker instead of a plain dropdown.",
+      },
+      {
+        type: "fix",
+        text: "Journals: the author filter's alter list can now be scrolled (it was getting clipped).",
+      },
+      {
+        type: "improve",
         text: "Subsystems are now manageable like groups: press and hold one in the alters list (or tap its tile in grid view, or open it in Manage Groups) for a popup to manage members, create a new member, or open its profile.",
       },
       {

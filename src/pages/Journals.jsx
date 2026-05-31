@@ -48,6 +48,11 @@ export default function Journals() {
   const [selectedAuthorId, setSelectedAuthorId] = useState(null);
   const [showAuthorFilter, setShowAuthorFilter] = useState(false);
   const [authorFilterSearch, setAuthorFilterSearch] = useState("");
+  // The author dropdown is fixed-positioned (anchored to its trigger) so
+  // it escapes the toolbar's overflow-x clipping — otherwise its scroll
+  // area was clipped and the list couldn't be scrolled.
+  const authorMenuTriggerRef = useRef(null);
+  const [authorMenuPos, setAuthorMenuPos] = useState({ top: 0, left: 0, width: 208 });
   const [fronterOnly, setFronterOnly] = useState(false);
   // Fronter-view refinement menu. `fronterFilterIds === null` means
   // "auto-track currently-fronting alters"; a Set means the user has
@@ -328,6 +333,32 @@ export default function Journals() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fronterMenuOpen]);
 
+  // Anchor + clamp the author dropdown to its trigger (fixed-positioned).
+  useEffect(() => {
+    if (!showAuthorFilter) return undefined;
+    const compute = () => {
+      const node = authorMenuTriggerRef.current;
+      if (!node) return;
+      const r = node.getBoundingClientRect();
+      const width = 208;
+      let left = r.left;
+      const maxLeft = window.innerWidth - width - 8;
+      if (maxLeft >= 8) left = Math.min(Math.max(left, 8), maxLeft);
+      else left = 8;
+      setAuthorMenuPos({ top: r.bottom + 4, left, width });
+    };
+    compute();
+    const onResize = () => compute();
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    window.addEventListener("scroll", onResize, true);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+      window.removeEventListener("scroll", onResize, true);
+    };
+  }, [showAuthorFilter]);
+
   // Refetch active fronters at the moment the menu opens (don't trust the
   // cached `activeSessions` query — it may be stale). Mirrors the
   // SetFrontModal / useSwipeActions "refetch before write" pattern from
@@ -479,7 +510,7 @@ export default function Journals() {
 
         {/* Author filter */}
         {authoredAlterIds.length > 0 && (
-          <div className="relative">
+          <div ref={authorMenuTriggerRef} className="relative">
             <Button
               variant={selectedAuthorId ? "default" : "outline"}
               size="sm"
@@ -511,7 +542,10 @@ export default function Journals() {
             {showAuthorFilter && (
               <>
                 <div className="fixed inset-0 z-40" onClick={() => setShowAuthorFilter(false)} />
-                <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-52 max-w-[calc(100vw-2rem)] overflow-hidden">
+                <div
+                  className="z-50 bg-popover border border-border rounded-xl shadow-xl max-w-[calc(100vw-1rem)] overflow-hidden"
+                  style={{ position: "fixed", top: authorMenuPos.top, left: authorMenuPos.left, width: authorMenuPos.width }}
+                >
                   <div className="px-3 py-2 border-b border-border/50">
                     <input
                       autoFocus
@@ -521,7 +555,7 @@ export default function Journals() {
                       className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
                     />
                   </div>
-                  <div className="max-h-52 overflow-y-auto">
+                  <div className="max-h-52 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
                     <button
                       type="button"
                       onClick={() => { setSelectedAuthorId(null); setShowAuthorFilter(false); }}

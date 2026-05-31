@@ -23,6 +23,7 @@ import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
@@ -318,6 +319,11 @@ function GroupProfileInner() {
 
   // ---------- EDIT MODE ----------
   const ownerCandidates = alters.filter((a) => !a.is_archived);
+  // Alters that would close an ownership loop if made the root — greyed
+  // out in the picker.
+  const rootDisabledIds = new Set(
+    ownerCandidates.filter((a) => wouldCreateOwnershipCycle(allGroups, alters, group.id, a.id)).map((a) => a.id)
+  );
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 relative">
       <div className="flex items-center justify-between">
@@ -368,28 +374,23 @@ function GroupProfileInner() {
         </div>
       </div>
 
-      {/* Owner / subsystem */}
+      {/* Root / subsystem */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2">
         <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-          <Crown className="w-3.5 h-3.5 text-amber-500" /> Owner — makes this a {subTerm}
+          <Crown className="w-3.5 h-3.5 text-amber-500" /> Root — makes this a {subTerm}
         </label>
-        <select
-          value={form.owner_alter_id}
-          onChange={(e) => setForm((f) => ({ ...f, owner_alter_id: e.target.value }))}
-          className="w-full text-sm rounded-lg border border-border bg-background px-2 py-2"
-        >
-          <option value="">No owner (regular group)</option>
-          {ownerCandidates.map((a) => {
-            const cycles = wouldCreateOwnershipCycle(allGroups, alters, group.id, a.id);
-            return (
-              <option key={a.id} value={a.id} disabled={cycles}>
-                {a.name}{cycles ? " — would loop" : ""}
-              </option>
-            );
-          })}
-        </select>
+        <AlterSearchSelect
+          alters={ownerCandidates}
+          value={form.owner_alter_id || null}
+          onChange={(id) => setForm((f) => ({ ...f, owner_alter_id: id || "" }))}
+          terms={t}
+          placeholder="No root (regular group)"
+          noneLabel="No root (regular group)"
+          disabledIds={rootDisabledIds}
+          disabledLabel="would loop"
+        />
         <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-          The owner becomes the parent of this {subTerm}; its members are their inner {t.alters}. Owners that would create a loop are disabled.
+          The root becomes the parent of this {subTerm}; its members are their inner {t.alters}. {t.Alters} that would create a loop are greyed out.
         </p>
       </div>
 
