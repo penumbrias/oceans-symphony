@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Subsystems now nest right in the alters list: an alter that owns a subsystem shows an expander on their row, and tapping it reveals the members indented beneath (deeper subsystems keep expanding, switching to an \"open\" link once the nesting gets too deep to stay readable).",
+      },
+      {
         type: "fix",
         text: "Alters listed inside a group on the alters page now render as a single clean row (matching the main alters list) instead of a doubled-up box-in-a-box.",
       },

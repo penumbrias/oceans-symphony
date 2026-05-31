@@ -14,6 +14,8 @@ import { useTerms } from "@/lib/useTerms";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
+import SubsystemAlterList from "./SubsystemAlterList";
+import { getAltersInsideSubsystems } from "@/lib/subsystemUtils";
 
 export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
@@ -145,6 +147,17 @@ export default function AlterGrid({ alters }) {
   // Root-level groups for display
   const rootGroups = allGroups.filter((g) => !g.parent || g.parent === "" || g.parent === "root");
 
+  // Alters that live inside someone's subsystem — by default they show
+  // nested under their owner in the list (not flat at the top level).
+  const insideSubsystems = useMemo(
+    () => getAltersInsideSubsystems(allGroups, effectiveAlters),
+    [allGroups, effectiveAlters]
+  );
+  // Top-level list = filtered alters that aren't inside a subsystem.
+  // Only collapse them under owners when NOT searching, so a search
+  // still surfaces matches that happen to live inside a subsystem.
+  const topLevelAlters = search ? filtered : filtered.filter((a) => !insideSubsystems.has(a.id));
+
   const groupControls = (active) => (
     <div data-tour="alter-groups-controls" className="flex items-center gap-0.5">
       <button
@@ -269,11 +282,24 @@ export default function AlterGrid({ alters }) {
           </div>
           {filtered.length > 0 ?
           displayMode === "list" ?
-          <div className="mx-auto flex flex-col gap-2">
-            {filtered.map((alter, i) =>
-              <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} anonymize={anonymize} />
-            )}
-          </div> :
+          // List view nests subsystems: owners show an expander, members
+          // render indented beneath. When searching, falls back to a flat
+          // list so matches inside subsystems still appear.
+          (search ? (
+            <div className="mx-auto flex flex-col gap-2">
+              {filtered.map((alter, i) =>
+                <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} anonymize={anonymize} />
+              )}
+            </div>
+          ) : (
+            <SubsystemAlterList
+              topAlters={topLevelAlters}
+              allAlters={effectiveAlters}
+              allGroups={allGroups}
+              activeSessions={activeSessions}
+              anonymize={anonymize}
+            />
+          )) :
 
           <AlterGridView alters={filtered} activeSessions={activeSessions} allAlters={effectiveAlters} cols={parseInt(displayMode)} anonymize={anonymize} /> :
 
