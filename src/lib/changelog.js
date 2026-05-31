@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Manage Groups now has a separate Subsystems tab, so alter-owned subsystems no longer mix in with your regular groups. Tap one to manage its members.",
+      },
+      {
         type: "feature",
         text: "Bio editor (Plain mode): an image button in the toolbar lets you upload a picture straight into your bio — no need to switch to the Blocks editor. Animated GIFs keep their animation.",
       },

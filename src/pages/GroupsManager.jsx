@@ -3,13 +3,19 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, List, FolderTree, ArrowUpFromLine } from "lucide-react";
+import { Plus, List, FolderTree, ArrowUpFromLine, Users, Crown } from "lucide-react";
 import { toast } from "sonner";
 import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
+import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import { findRootGroups, findOrphanGroups, wouldCreateCycle, isRootParent } from "@/lib/groupTreeUtils";
+import { useTerms } from "@/lib/useTerms";
 
 export default function GroupsManager() {
   const queryClient = useQueryClient();
+  const terms = useTerms();
+  // Top-level tab: regular groups vs subsystems (groups owned by an alter).
+  const [mainTab, setMainTab] = useState("groups");
+  const [managingSubsystem, setManagingSubsystem] = useState(null);
   const [expandedGroups, setExpandedGroups] = useState(new Set());
   const [selectedGroupId, setSelectedGroupId] = useState(null);
   const [newGroupName, setNewGroupName] = useState("");
@@ -25,17 +31,30 @@ export default function GroupsManager() {
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
   });
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+
+  // Subsystems (owned by an alter) live in their own tab; the regular
+  // group tree below only deals with un-owned groups.
+  const unownedGroups = useMemo(() => allGroups.filter((g) => !g.owner_alter_id), [allGroups]);
+  const ownedGroups = useMemo(
+    () => allGroups.filter((g) => g.owner_alter_id).sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+    [allGroups]
+  );
 
   // findRootGroups returns true roots PLUS orphans (groups whose
   // parent chain is broken or cyclic), so a buried group always
   // renders at the top level — never invisible. The previous filter
   // only matched literal root parents, which is how groups got
   // "lost" in the abyss.
-  const rootGroups = useMemo(() => findRootGroups(allGroups), [allGroups]);
-  const orphanGroups = useMemo(() => findOrphanGroups(allGroups), [allGroups]);
+  const rootGroups = useMemo(() => findRootGroups(unownedGroups), [unownedGroups]);
+  const orphanGroups = useMemo(() => findOrphanGroups(unownedGroups), [unownedGroups]);
   const flatGroups = useMemo(
-    () => [...allGroups].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [allGroups]
+    () => [...unownedGroups].sort((a, b) => (a.name || "").localeCompare(b.name || "")),
+    [unownedGroups]
   );
 
   const toggleExpanded = (groupId) => {
@@ -194,6 +213,57 @@ export default function GroupsManager() {
           </div>
         </div>
 
+        {/* Main tab: regular groups vs subsystems (owned by an alter). */}
+        <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm mb-4">
+          <button
+            type="button"
+            onClick={() => setMainTab("groups")}
+            className={`px-3 py-1.5 transition-colors ${mainTab === "groups" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}
+          >
+            Groups
+          </button>
+          <button
+            type="button"
+            onClick={() => setMainTab("subsystems")}
+            className={`inline-flex items-center gap-1 px-3 py-1.5 border-l border-border transition-colors ${mainTab === "subsystems" ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"}`}
+          >
+            <Crown className="w-3.5 h-3.5" /> {`Sub${terms.System}s`}{ownedGroups.length > 0 ? ` (${ownedGroups.length})` : ""}
+          </button>
+        </div>
+
+        {mainTab === "subsystems" ? (
+          <div className="space-y-2 bg-card rounded-lg p-4 border border-border">
+            {ownedGroups.length === 0 ? (
+              <div className="text-center py-8 text-muted-foreground text-sm">
+                No sub{terms.system}s yet — create one from an {terms.alter}'s profile.
+              </div>
+            ) : (
+              ownedGroups.map((g) => {
+                const owner = alterById[g.owner_alter_id];
+                return (
+                  <button
+                    key={g.id}
+                    type="button"
+                    onClick={() => setManagingSubsystem(g)}
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors text-left"
+                  >
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.color || "hsl(var(--muted))" }} />
+                    <span className="flex-1 min-w-0">
+                      <span className="block text-sm font-medium text-foreground truncate">{g.name}</span>
+                      {owner && (
+                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                          <Crown className="w-3 h-3 text-amber-500" /> {owner.name}
+                        </span>
+                      )}
+                    </span>
+                    <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  </button>
+                );
+              })
+            )}
+          </div>
+        ) : (
+        <>
         {/* Orphan-recovery banner — surfaces buried groups (broken
             parent chains, cycles, self-parents) so they can be
             rescued back to root with one tap. */}
@@ -308,6 +378,20 @@ export default function GroupsManager() {
               Cancel
             </Button>
           </div>
+        )}
+        </>
+        )}
+
+        {managingSubsystem && (
+          <GroupMembersModal
+            group={managingSubsystem}
+            allGroups={allGroups}
+            isOpen={!!managingSubsystem}
+            onClose={() => {
+              setManagingSubsystem(null);
+              queryClient.invalidateQueries({ queryKey: ["groups"] });
+            }}
+          />
         )}
       </div>
     </div>
