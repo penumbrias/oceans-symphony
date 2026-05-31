@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import React, { useState, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronRight, Folder, FolderTree, Plus, ArrowLeft, Settings2 } from "lucide-react";
 import AlterCard from "./AlterCard";
 import SubsystemActionMenu from "./SubsystemActionMenu";
@@ -13,11 +12,12 @@ import {
 } from "@/lib/subsystemUtils";
 
 // Renders the alters-section list with subsystems nested inline. An alter
-// that owns a subsystem gets an expander beside the activity bolt. If they
-// own MORE than one subsystem, expanding first shows a chooser of those
-// subsystems; picking one shows its members (with a back link). Members
-// who own their own subsystem expand further, until the indentation gets
-// too deep to stay readable (then the chip opens the profile instead).
+// that owns a subsystem gets an expander beside the activity bolt; owning
+// more than one shows a chooser first. Members nest inline UNTIL the
+// indentation would get too deep to stay readable — at which point, rather
+// than opening the subsystem's profile, the whole list "drills in" with a
+// breadcrumb (exactly like the groups section): the chosen subsystem
+// becomes a fresh top-level view you can back out of.
 //
 // SAFETY: recursion is bounded by a per-branch visited-alter set AND a
 // hard depth clamp, so an ownership loop renders as a truncated branch
@@ -27,9 +27,6 @@ const INDENT_PX = 16;
 const MAX_INLINE_DEPTH = 3;
 const EMPTY_SET = new Set();
 
-// Lighten a hex colour toward white for the "expanded" ring — a brighter
-// version of the subsystem's (or alter's) own colour rather than a generic
-// blue focus ring.
 function brighten(hex, amt = 0.45) {
   if (typeof hex !== "string") return null;
   const c = hex.replace("#", "");
@@ -41,10 +38,6 @@ function brighten(hex, amt = 0.45) {
   return `#${up(r)}${up(g)}${up(b)}`;
 }
 
-// Round folder/avatar button beside the activity bolt. Tap toggles inline
-// expansion (or opens the profile when too deep); press-and-hold opens the
-// subsystem actions popup. For an alter that owns multiple subsystems it
-// shows a stacked-folder icon with a count instead of a single avatar.
 function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
   const [resolved, setResolved] = useState(null);
   useEffect(() => {
@@ -85,27 +78,89 @@ function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable
 }
 
 export default function SubsystemAlterList({ topAlters, allAlters, allGroups, activeSessions, anonymize }) {
+  const t = useTerms();
+  // Breadcrumb drill-in stack of subsystems (groups). Empty = top level.
+  const [navStack, setNavStack] = useState([]);
+  const [rootMenuGroup, setRootMenuGroup] = useState(null);
+
+  const current = navStack.length > 0 ? navStack[navStack.length - 1] : null;
+  const displayAlters = current ? getMemberAlters(current, allAlters) : topAlters;
+  const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
+
+  // Drilling into a subsystem replaces the view (breadcrumb) instead of
+  // indenting further. Guard against pushing a group already in the trail.
+  const drillInto = (group) => {
+    if (!group || navStack.some((g) => g.id === group.id)) return;
+    setNavStack((s) => [...s, group]);
+  };
+
+  // Seed the visited set with the owners along the breadcrumb so a member
+  // can't re-expand an ancestor and loop.
+  const baseVisited = useMemo(() => {
+    const s = new Set();
+    for (const g of navStack) if (g.owner_alter_id) s.add(g.owner_alter_id);
+    return s;
+  }, [navStack]);
+
   return (
     <div className="flex flex-col gap-2">
-      {topAlters.map((alter, i) => (
+      {navStack.length > 0 && (
+        <div className="flex items-center gap-1 text-xs border-b border-border/50 pb-1.5 min-w-0">
+          <button onClick={() => setNavStack([])} className="text-muted-foreground hover:text-foreground flex items-center gap-1 flex-shrink-0">
+            <ArrowLeft className="w-3.5 h-3.5" /> All {t.alters}
+          </button>
+          {navStack.map((g, i) => {
+            const isLast = i === navStack.length - 1;
+            return (
+              <React.Fragment key={g.id}>
+                <span className="text-muted-foreground/40 flex-shrink-0">/</span>
+                {isLast ? (
+                  <span className="font-medium text-foreground truncate min-w-0 px-0.5">{g.name}</span>
+                ) : (
+                  <button onClick={() => setNavStack(navStack.slice(0, i + 1))} className="text-muted-foreground hover:text-foreground truncate min-w-0 max-w-[7rem] px-0.5">
+                    {g.name}
+                  </button>
+                )}
+              </React.Fragment>
+            );
+          })}
+        </div>
+      )}
+
+      {displayAlters.map((alter, i) => (
         <SubsystemNode
           key={alter.id}
           alter={alter}
           index={i}
           depth={0}
-          visited={EMPTY_SET}
+          visited={baseVisited}
           allAlters={allAlters}
           allGroups={allGroups}
           activeSessions={activeSessions}
           anonymize={anonymize}
+          onDrillInto={drillInto}
         />
       ))}
+
+      {current && displayAlters.length === 0 && (
+        <button
+          type="button"
+          onClick={() => setRootMenuGroup(current)}
+          className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-colors text-sm"
+        >
+          <span className="w-7 h-7 rounded-full border border-dashed border-current flex items-center justify-center flex-shrink-0">
+            <Plus className="w-4 h-4" />
+          </span>
+          Add a member to {current.name}
+        </button>
+      )}
+
+      {rootMenuGroup && <SubsystemActionMenu group={rootMenuGroup} onClose={() => setRootMenuGroup(null)} />}
     </div>
   );
 }
 
-function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize }) {
-  const navigate = useNavigate();
+function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize, onDrillInto }) {
   const t = useTerms();
   const [expanded, setExpanded] = useState(false);
   const [activeSubId, setActiveSubId] = useState(null);
@@ -115,15 +170,13 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
   const loopOrTooDeep = visited.has(alter.id) || depth > MAX_SUBSYSTEM_DEPTH;
   const hasSub = ownedSubs.length > 0 && !loopOrTooDeep;
   const multi = ownedSubs.length > 1;
+  // Inline = members nest here; otherwise drilling in resets the view.
   const inlineExpandable = hasSub && depth < MAX_INLINE_DEPTH;
   const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
 
-  // Which subsystem's members are shown: the only one (single), or the
-  // chosen one (multi). Null in multi mode means "show the chooser".
   const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === activeSubId) || null : ownedSubs[0]);
-  const members = (expanded && activeSub) ? getMemberAlters(activeSub, allAlters) : [];
+  const members = (expanded && activeSub && inlineExpandable) ? getMemberAlters(activeSub, allAlters) : [];
   const nextVisited = hasSub ? new Set(visited).add(alter.id) : visited;
-
   const indentStyle = { marginLeft: INDENT_PX, paddingLeft: INDENT_PX / 2 };
 
   return (
@@ -141,7 +194,9 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
             expanded={expanded}
             inlineExpandable={inlineExpandable}
             onToggle={() => setExpanded((v) => !v)}
-            onOpen={() => (multi ? setExpanded((v) => !v) : navigate(`/group/${ownedSubs[0].id}`))}
+            // Single, too deep to nest → drill in (breadcrumb). Multi → just
+            // toggle the chooser (it's shallow, fine at any depth).
+            onOpen={() => (multi ? setExpanded((v) => !v) : onDrillInto?.(ownedSubs[0]))}
             onMenu={() => (multi ? setExpanded(true) : setMenuGroup(ownedSubs[0]))}
           />
         ) : null}
@@ -150,14 +205,15 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
       {hasSub && expanded && (
         <div className="border-l-2 border-border/40 mt-2 flex flex-col gap-2" style={indentStyle}>
           {multi && !activeSub ? (
-            // Chooser: list the alter's subsystems; pick one to view.
             ownedSubs.map((sub) => {
               const count = getMemberAlters(sub, allAlters).length;
               return (
                 <div key={sub.id} className="flex items-center gap-2">
                   <button
                     type="button"
-                    onClick={() => setActiveSubId(sub.id)}
+                    // At the depth cap, picking a subsystem drills in
+                    // (breadcrumb); otherwise it shows members inline.
+                    onClick={() => (inlineExpandable ? setActiveSubId(sub.id) : onDrillInto?.(sub))}
                     className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
                     style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
                   >
@@ -173,7 +229,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                 </div>
               );
             })
-          ) : activeSub ? (
+          ) : activeSub && inlineExpandable ? (
             <>
               {multi && (
                 <button type="button" onClick={() => setActiveSubId(null)}
@@ -193,6 +249,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                     allGroups={allGroups}
                     activeSessions={activeSessions}
                     anonymize={anonymize}
+                    onDrillInto={onDrillInto}
                   />
                 ))
               ) : (

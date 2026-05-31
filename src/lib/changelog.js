@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "In the alters list, deeply nested subsystems now \"drill in\" with a breadcrumb (like the groups section) instead of opening the subsystem's profile — so you can keep exploring on the same page and tap the breadcrumb to back out.",
+      },
+      {
+        type: "improve",
         text: "Creating a member from a subsystem now opens the full \"Add new\" form prefilled into that subsystem, so you can fill out the whole profile at once. That form can now also drop the new alter into groups/subsystems.",
       },
       {
