@@ -39,7 +39,13 @@ export function getMemberAlters(group, alters) {
   return (alters || []).filter((a) => {
     if (a.id === group.owner_alter_id) return false; // owner is parent, not child
     const inGroupMembers = a.sp_id && memberSpIds.has(a.sp_id);
-    const inAlterGroups = (a.groups || []).some((g) => g.id === groupId || g.sp_id === group.sp_id);
+    // Guard the sp_id comparison: local groups have no sp_id, so an
+    // unguarded `g.sp_id === group.sp_id` is `undefined === undefined`
+    // === true, which matched every alter that's in ANY sp_id-less
+    // group — that's why a brand-new subsystem listed the whole system.
+    const inAlterGroups = (a.groups || []).some(
+      (g) => g.id === groupId || (!!group.sp_id && g.sp_id === group.sp_id)
+    );
     return inGroupMembers || inAlterGroups;
   });
 }

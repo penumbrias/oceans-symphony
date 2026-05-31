@@ -68,6 +68,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
   const filteredAlters = useMemo(() => {
     return alters
       .filter((alter) => {
+        if (alter.is_archived) return false; // archived alters don't belong in the member picker
         const inGroup = altersInGroup.has(alter.id);
         if (filterMode === "in" && !inGroup) return false;
         if (filterMode === "not-in" && inGroup) return false;
@@ -187,16 +188,25 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
               No alters found
             </div>
           ) : viewMode === "list" ? (
-            filteredAlters.map((alter) => (
+            filteredAlters.map((alter) => {
+              const inGroup = altersInGroup.has(alter.id);
+              return (
               <div
                 key={alter.id}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => handleToggleAlter(alter.id, !inGroup)}
+                role="button"
+                tabIndex={0}
+                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                  inGroup ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted"
+                }`}
               >
+                {/* Whole row toggles; checkbox is a visual indicator only
+                    (pointer-events-none) so taps anywhere on the row work
+                    without having to hit the small box. */}
                 <Checkbox
-                  checked={altersInGroup.has(alter.id)}
-                  onCheckedChange={(checked) =>
-                    handleToggleAlter(alter.id, checked)
-                  }
+                  checked={inGroup}
+                  className="pointer-events-none flex-shrink-0"
+                  tabIndex={-1}
                 />
                 {alter.avatar_url && (
                   <img
@@ -207,21 +217,25 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                 )}
                 <span className="text-sm flex-1">{alter.name}</span>
               </div>
-            ))
+              );
+            })
           ) : (
             filteredAlters.map((alter) => {
               const inGroup = altersInGroup.has(alter.id);
               return (
-                <label
+                <div
                   key={alter.id}
+                  onClick={() => handleToggleAlter(alter.id, !inGroup)}
+                  role="button"
+                  tabIndex={0}
                   className={`relative flex flex-col items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-colors ${
                     inGroup ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted"
                   }`}
                 >
                   <Checkbox
                     checked={inGroup}
-                    onCheckedChange={(checked) => handleToggleAlter(alter.id, checked)}
-                    className="absolute top-1.5 right-1.5 w-3.5 h-3.5"
+                    className="absolute top-1.5 right-1.5 w-3.5 h-3.5 pointer-events-none"
+                    tabIndex={-1}
                   />
                   {alter.avatar_url ? (
                     <img
@@ -240,7 +254,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                   <span className="text-xs text-center font-medium w-full truncate leading-tight">
                     {alter.alias || alter.name}
                   </span>
-                </label>
+                </div>
               );
             })
           )}

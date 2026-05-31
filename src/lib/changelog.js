@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Opening a subsystem no longer lists every alter — it now correctly shows just that subsystem's members.",
+      },
+      {
+        type: "fix",
+        text: "The Manage Group Members picker no longer lists archived alters.",
+      },
+      {
+        type: "improve",
+        text: "Manage Group Members: tap anywhere on an alter's row to add/remove them — no need to hit the small checkbox.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery: fronting alters are now shown with a larger icon (like the alters grid) instead of a glow.",
+      },
+      {
         type: "feature",
         text: "Subsystems now nest right in the alters list: an alter that owns a subsystem shows an expander on their row, and tapping it reveals the members indented beneath (deeper subsystems keep expanding, switching to an \"open\" link once the nesting gets too deep to stay readable).",
       },

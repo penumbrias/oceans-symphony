@@ -1041,11 +1041,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 </button>
               ))}
             </div>
-          ) : (
-            <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-              A {subsystemTerm} makes {alter.name} the parent of a group — useful for facets, alter-egos, or nested {t.systems}.
-            </p>
-          )}
+          ) : null}
         </div>
         {alter.groups && alter.groups.length > 0 ? (() => {
           const pageBg = getPageBackground();
