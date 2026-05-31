@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Press and hold a pinned alter for the same quick menu as the alters list — open profile, set/remove front, make primary, unpin, add to groups, and more.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where a barely-started swipe on a pinned alter could leave taps unresponsive (only scrolling worked). Abandoned swipes now cleanly do nothing.",
+      },
+      {
         type: "fix",
         text: "The 🖼 \"choose from assets\" picker was showing empty — it now lists every stored image (avatars, backgrounds, uploads, and more), like the Assets page, sorted into folders.",
       },

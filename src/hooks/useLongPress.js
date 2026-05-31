@@ -12,6 +12,7 @@ function swallowNextClick(windowMs = 600) {
     if (done) return;
     done = true;
     document.removeEventListener("click", handler, true);
+    document.removeEventListener("pointerdown", onDown, true);
     clearTimeout(timer);
   };
   const handler = (ev) => {
@@ -19,8 +20,13 @@ function swallowNextClick(windowMs = 600) {
     ev.preventDefault();
     cleanup();
   };
+  // A brand-new interaction means the trailing ghost-click window is over —
+  // tear down immediately so the swallower can NEVER linger into a later,
+  // legitimate tap (which would look like "taps stopped working").
+  const onDown = () => cleanup();
   const timer = setTimeout(cleanup, windowMs);
   document.addEventListener("click", handler, true);
+  document.addEventListener("pointerdown", onDown, true);
 }
 
 // Press-and-hold detection that is safe to attach to scrollable lists.

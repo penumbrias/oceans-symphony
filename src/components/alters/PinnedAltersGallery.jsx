@@ -8,6 +8,7 @@ import { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useS
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
+import AlterActionMenu from "./AlterActionMenu";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -86,20 +87,31 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
 // Vertical swipe handler — mirrors useSwipeActions' structure (drag
 // offset + hint + tap suppression) but on the Y axis, so it coexists
 // with the gallery's horizontal scroll.
-function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
+const LONG_PRESS_MS = 450;
+
+function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
   const startX = useRef(0);
   const startY = useRef(0);
   const recentTouch = useRef(false);
-  // "Up then left" corner tracking. `upReached` flips once the finger
-  // rises past the swipe threshold; `upAnchorX` records X at that moment
-  // so the subsequent leftward leg is measured from there. `cornerFired`
-  // latches once the left leg clears its threshold. Tracked via raw
-  // finger deltas so it still works even if the strip scrolls.
+  const moved = useRef(false);            // finger left the tap radius
+  const longPressTimer = useRef(null);
+  const longPressFired = useRef(false);
   const upReached = useRef(false);
   const upAnchorX = useRef(0);
   const cornerFired = useRef(false);
   const [dragY, setDragY] = useState(0);
   const [hint, setHint] = useState(null); // 'up' | 'down' | 'solo' | null
+
+  const cancelLongPress = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
+  // Only suppress the trailing synthetic click when we actually acted on
+  // the gesture — an abandoned/return-to-centre swipe leaves NO lingering
+  // state, so it can't break later taps.
+  const suppressClick = () => {
+    recentTouch.current = true;
+    galleryRecentTouchUntil = Date.now() + 500;
+    setTimeout(() => { recentTouch.current = false; }, 500);
+  };
+  const reset = () => { cancelLongPress(); upReached.current = false; cornerFired.current = false; setDragY(0); setHint(null); };
 
   const onTouchStart = (e) => {
     const t = e.touches[0];
@@ -107,28 +119,37 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
     startY.current = t.clientY;
     upReached.current = false;
     cornerFired.current = false;
+    moved.current = false;
+    longPressFired.current = false;
     setDragY(0);
     setHint(null);
+    cancelLongPress();
+    if (onLongPress) {
+      longPressTimer.current = setTimeout(() => {
+        longPressTimer.current = null;
+        if (moved.current) return;
+        longPressFired.current = true;
+        onLongPress();
+      }, LONG_PRESS_MS);
+    }
   };
   const onTouchMove = (e) => {
     const t = e.touches[0];
     const dx = t.clientX - startX.current;
     const dy = t.clientY - startY.current;
-    // Follow the finger vertically (the visual drag). Horizontal is the
-    // gallery's scroll, so we don't translate on X.
+    if (Math.abs(dx) > V_TAP_THRESHOLD || Math.abs(dy) > V_TAP_THRESHOLD) {
+      moved.current = true;
+      cancelLongPress();
+    }
     if (Math.abs(dy) >= Math.abs(dx)) {
       setDragY(Math.max(-60, Math.min(60, dy)));
     }
-    // Up leg: arm once the finger has risen past the threshold.
     if (!upReached.current && dy <= -V_SWIPE_THRESHOLD) {
       upReached.current = true;
       upAnchorX.current = t.clientX;
     }
-    // Left leg: from the up-anchor, moving left far enough fires the corner.
     if (upReached.current && !cornerFired.current) {
-      if (upAnchorX.current - t.clientX >= CORNER_LEFT_THRESHOLD) {
-        cornerFired.current = true;
-      }
+      if (upAnchorX.current - t.clientX >= CORNER_LEFT_THRESHOLD) cornerFired.current = true;
     }
     if (cornerFired.current) setHint("solo");
     else if (dy <= -V_SWIPE_THRESHOLD) setHint("up");
@@ -136,6 +157,7 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
     else setHint(null);
   };
   const onTouchEnd = (e) => {
+    cancelLongPress();
     const t = e.changedTouches[0];
     const dx = t.clientX - startX.current;
     const dy = t.clientY - startY.current;
@@ -143,31 +165,18 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
     const ady = Math.abs(dy);
     setDragY(0);
     setHint(null);
-    recentTouch.current = true;
-    galleryRecentTouchUntil = Date.now() + 500;
-    setTimeout(() => { recentTouch.current = false; }, 500);
 
-    // Corner (up then left) wins — it implies an up leg too.
-    if (cornerFired.current) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      onSolo?.();
-    } else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      onUp?.();
-    } else if (dy >= V_SWIPE_THRESHOLD && ady > adx) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      onDown?.();
-    } else if (adx < V_TAP_THRESHOLD && ady < V_TAP_THRESHOLD) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
-      onTap?.();
-    }
+    if (longPressFired.current) { suppressClick(); return; }
+
+    let fired = false;
+    const pd = () => { if (typeof e.preventDefault === "function") e.preventDefault(); };
+    if (cornerFired.current) { pd(); onSolo?.(); fired = true; }
+    else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) { pd(); onUp?.(); fired = true; }
+    else if (dy >= V_SWIPE_THRESHOLD && ady > adx) { pd(); onDown?.(); fired = true; }
+    else if (!moved.current && adx < V_TAP_THRESHOLD && ady < V_TAP_THRESHOLD) { pd(); onTap?.(); fired = true; }
+    if (fired) suppressClick();
   };
-  const onTouchCancel = () => {
-    upReached.current = false;
-    cornerFired.current = false;
-    setDragY(0);
-    setHint(null);
-  };
+  const onTouchCancel = () => { reset(); };
   const onClick = () => {
     if (recentTouch.current || Date.now() < galleryRecentTouchUntil) return;
     onTap?.();
@@ -183,6 +192,7 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
 function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient }) {
   const navigate = useNavigate();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
+  const [menuOpen, setMenuOpen] = useState(false);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
@@ -202,6 +212,9 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
       if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
     },
     onSolo: () => replaceFrontWith(alter, base44, queryClient, toast),
+    // Press-and-hold → the same quick-actions menu as the alters page
+    // (profile, subsystem, front/primary, add to groups, pin/unpin).
+    onLongPress: () => setMenuOpen(true),
   });
 
   const ringColor = fronting
@@ -219,10 +232,11 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
     "text-emerald-500";
 
   return (
+    <>
     <button
       type="button"
       {...bind}
-      title={`${label} — swipe up for front/primary, down to remove, up-then-left for sole front; tap to open`}
+      title={`${label} — swipe up for front/primary, down to remove, up-then-left for sole front; tap to open, hold for options`}
       className="relative flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
       style={{ touchAction: "pan-x" }}
     >
@@ -263,5 +277,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         {label}
       </span>
     </button>
+    {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
+    </>
   );
 }
