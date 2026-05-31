@@ -4,7 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, List, FolderTree, ArrowUpFromLine, Users, Crown } from "lucide-react";
+import { Plus, List, FolderTree, ArrowUpFromLine, Users, Crown, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
@@ -243,23 +243,29 @@ export default function GroupsManager() {
               ownedGroups.map((g) => {
                 const owner = alterById[g.owner_alter_id];
                 return (
-                  <button
+                  <div
                     key={g.id}
-                    type="button"
-                    onClick={() => navigate(`/group/${g.id}`)}
-                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors text-left"
+                    className="w-full flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors"
                   >
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.color || "hsl(var(--muted))" }} />
-                    <span className="flex-1 min-w-0">
-                      <span className="block text-sm font-medium text-foreground truncate">{g.name}</span>
-                      {owner && (
-                        <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
-                          <Crown className="w-3 h-3 text-amber-500" /> {owner.name}
-                        </span>
-                      )}
-                    </span>
-                    <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-                  </button>
+                    {/* Main tap manages members in place (like the Groups
+                        tab); the arrow opens the rich profile page. */}
+                    <button type="button" onClick={() => setManagingSubsystem(g)} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.color || "hsl(var(--muted))" }} />
+                      <span className="flex-1 min-w-0">
+                        <span className="block text-sm font-medium text-foreground truncate">{g.name}</span>
+                        {owner && (
+                          <span className="text-xs text-muted-foreground inline-flex items-center gap-1">
+                            <Crown className="w-3 h-3 text-amber-500" /> {owner.name}
+                          </span>
+                        )}
+                      </span>
+                      <Users className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                    </button>
+                    <button type="button" onClick={() => navigate(`/group/${g.id}`)} title="Open profile"
+                      className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors">
+                      <ExternalLink className="w-4 h-4" />
+                    </button>
+                  </div>
                 );
               })
             )}

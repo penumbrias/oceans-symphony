@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -11,6 +11,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import AlterActionMenu from "./AlterActionMenu";
+import SubsystemActionMenu from "./SubsystemActionMenu";
 
 const EMPTY_SET = new Set();
 // Past this nesting depth, stop expanding inline (a tinted card inside a
@@ -107,6 +108,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const queryClient = useQueryClient();
   const compact = cols >= 4;
   const [expandedOwners, setExpandedOwners] = useState(new Set());
+  const [subsystemMenuGroup, setSubsystemMenuGroup] = useState(null);
 
   const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
   const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
@@ -182,13 +184,22 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
             className="rounded-2xl p-3"
           >
             <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">{ownedSub.name}</p>
-            {members.length === 0 ? (
-              <p className="text-xs text-muted-foreground px-1 py-2">No members yet.</p>
-            ) : (
-              <div className={`grid ${colsClass} gap-3`}>
-                {members.map((m) => renderNode(m, nextVisited, depth + 1))}
-              </div>
-            )}
+            <div className={`grid ${colsClass} gap-3`}>
+              {members.map((m) => renderNode(m, nextVisited, depth + 1))}
+              {/* Trailing tile: manage the subsystem (add/create members,
+                  open profile). When empty, it's the only tile. */}
+              <button
+                type="button"
+                onClick={() => setSubsystemMenuGroup(ownedSub)}
+                className="flex flex-col items-center gap-2 select-none"
+                title={`Manage ${ownedSub.name}`}
+              >
+                <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${compact ? "w-14 h-14" : "w-16 h-16"}`}>
+                  <Plus className="w-5 h-5" />
+                </span>
+                <span className="text-xs text-center font-medium text-muted-foreground">{members.length === 0 ? "Add member" : "Manage"}</span>
+              </button>
+            </div>
           </div>
         )}
       </React.Fragment>
@@ -196,8 +207,11 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   };
 
   return (
-    <div className={`grid ${colsClass} gap-3`}>
-      {alters.map((alter) => renderNode(alter, EMPTY_SET, 0))}
-    </div>
+    <>
+      <div className={`grid ${colsClass} gap-3`}>
+        {alters.map((alter) => renderNode(alter, EMPTY_SET, 0))}
+      </div>
+      {subsystemMenuGroup && <SubsystemActionMenu group={subsystemMenuGroup} onClose={() => setSubsystemMenuGroup(null)} />}
+    </>
   );
 }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { ChevronDown, Folder, Plus } from "lucide-react";
 import AlterCard from "./AlterCard";
-import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import SubsystemActionMenu from "./SubsystemActionMenu";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import useLongPress from "@/hooks/useLongPress";
 import {
@@ -34,7 +34,7 @@ const EMPTY_SET = new Set();
 // Round folder/avatar button matching the groups-section MemberRow look,
 // sized to sit beside the activity bolt. Toggles inline expansion when
 // shallow enough, otherwise opens the subsystem's profile.
-function SubsystemAccessory({ group, expanded, inlineExpandable, onToggle, onOpen }) {
+function SubsystemAccessory({ group, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
   const [resolved, setResolved] = useState(null);
   useEffect(() => {
     if (!group?.avatar_url) { setResolved(null); return; }
@@ -42,18 +42,18 @@ function SubsystemAccessory({ group, expanded, inlineExpandable, onToggle, onOpe
   }, [group?.avatar_url]);
   const color = group?.color || undefined;
   // Tap toggles inline expansion (or opens the profile when too deep to
-  // expand); press-and-hold always opens the subsystem's profile page.
-  // Scroll-safe: the hook cancels on movement.
+  // expand); press-and-hold opens the subsystem actions popup (manage
+  // members, create a member, open profile). Scroll-safe via the hook.
   const press = useLongPress({
     onClick: () => (inlineExpandable ? onToggle() : onOpen()),
-    onLongPress: () => onOpen(),
+    onLongPress: () => onMenu(),
   });
   return (
     <button
       type="button"
       {...press}
       aria-expanded={inlineExpandable ? expanded : undefined}
-      title={inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group.name} — hold to open its page` : `Open ${group.name}`}
+      title={inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group.name} — hold for options` : `Open ${group.name} — hold for options`}
       className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105 ${expanded ? "ring-2 ring-primary/50" : ""}`}
       style={{
         backgroundColor: resolved ? "transparent" : color ? `${color}20` : "hsl(var(--muted))",
@@ -93,7 +93,7 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
 function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize }) {
   const navigate = useNavigate();
   const [expanded, setExpanded] = useState(false);
-  const [manageOpen, setManageOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
   // Guard: don't expand an alter we've already expanded up this branch
@@ -120,6 +120,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
             inlineExpandable={inlineExpandable}
             onToggle={() => setExpanded((v) => !v)}
             onOpen={() => navigate(`/group/${ownedSub.id}`)}
+            onMenu={() => setMenuOpen(true)}
           />
         ) : null}
       />
@@ -144,11 +145,11 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
               />
             ))
           ) : (
-            // Empty subsystem → an "add member" slot so the user can
-            // populate it without leaving the alters list.
+            // Empty subsystem → a slot that opens the actions popup so the
+            // user can add or create a member without leaving the list.
             <button
               type="button"
-              onClick={() => setManageOpen(true)}
+              onClick={() => setMenuOpen(true)}
               className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-colors text-sm"
             >
               <span className="w-7 h-7 rounded-full border border-dashed border-current flex items-center justify-center flex-shrink-0">
@@ -160,14 +161,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
         </div>
       )}
 
-      {manageOpen && (
-        <GroupMembersModal
-          group={ownedSub}
-          allGroups={allGroups}
-          isOpen={manageOpen}
-          onClose={() => setManageOpen(false)}
-        />
-      )}
+      {menuOpen && <SubsystemActionMenu group={ownedSub} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }

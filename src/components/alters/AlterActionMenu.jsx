@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2 } from "lucide-react";
+import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin } from "lucide-react";
 import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
@@ -34,6 +34,17 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   const close = () => onClose?.();
   const backdropClick = () => { if (Date.now() - openedAt.current > 350) close(); };
   const go = (fn) => { fn?.(); close(); };
+
+  const togglePin = async () => {
+    try {
+      await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
+      qc.invalidateQueries({ queryKey: ["alters"] });
+      qc.invalidateQueries({ queryKey: ["alter", alter.id] });
+      toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to top`);
+    } catch (e) {
+      toast.error(e.message || "Failed to update pin");
+    }
+  };
 
   const createSubsystem = async () => {
     setCreating(true);
@@ -86,6 +97,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
         </div>
         <div className="py-1">
           <Item icon={User} label="Go to profile" onClick={() => go(() => navigate(`/alter/${alter.id}`))} />
+          <Item icon={Pin} label={alter.is_pinned ? "Unpin from top" : "Pin to top"} onClick={() => go(togglePin)} />
           {ownedSub
             ? <Item icon={FolderTree} label={`Go to ${ownedSub.name}`} onClick={() => go(() => navigate(`/group/${ownedSub.id}`))} />
             : <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />}

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Subsystems are now manageable like groups: press and hold one in the alters list (or tap its tile in grid view, or open it in Manage Groups) for a popup to manage members, create a new member, or open its profile.",
+      },
+      {
+        type: "improve",
+        text: "The alter press-and-hold menu can now pin or unpin an alter to the top of the alters page.",
+      },
+      {
         type: "fix",
         text: "GIFs now stay animated when set as a profile background (not just the header) — some uploads weren't being recognised as GIFs and got flattened.",
       },
