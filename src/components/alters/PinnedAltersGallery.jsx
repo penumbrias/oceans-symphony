@@ -15,18 +15,22 @@ import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 //
 // Per-chip gestures (mobile, vertical — the strip itself scrolls
 // horizontally so vertical is free):
-//   - tap            → open the alter's profile
-//   - swipe UP       → add to front, or toggle primary if already fronting
-//   - swipe DOWN     → remove from front
-//   - swipe UP+RIGHT → make them the sole fronter
+//   - tap                  → open the alter's profile
+//   - swipe UP             → add to front, or toggle primary if fronting
+//   - swipe DOWN           → remove from front
+//   - swipe UP, THEN LEFT  → make them the sole fronter
+// The sole-front gesture is a deliberate two-leg "corner": the finger
+// must travel UP past the threshold first, THEN move LEFT from that
+// point. A casual upper-left diagonal does NOT trigger it. This mirrors
+// the alters grid's "left then up" corner gesture.
 // The chip follows the finger (translateY) with the same recoverable
-// feel as the alters grid: a hint label shows what will fire, and
-// releasing near the middle does nothing — so an accidental scroll-grab
-// can be backed out of.
+// feel as the grid: a hint label shows what will fire, and releasing
+// near the middle does nothing — so an accidental scroll-grab can be
+// backed out of.
 
-const V_SWIPE_THRESHOLD = 40;       // px up/down to trigger an action
-const V_TAP_THRESHOLD = 10;         // px below which a release counts as a tap
-const CORNER_RIGHT_THRESHOLD = 30;  // px right (with up) to arm sole-front
+const V_SWIPE_THRESHOLD = 40;      // px up/down to trigger an action
+const V_TAP_THRESHOLD = 10;        // px below which a release counts as a tap
+const CORNER_LEFT_THRESHOLD = 35;  // px LEFT after the up leg to arm sole-front
 
 // Module-level recent-touch deadline so the synthetic click after a
 // touch gesture doesn't double-fire onTap. Scoped to this gallery.
@@ -82,10 +86,18 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
 // Vertical swipe handler — mirrors useSwipeActions' structure (drag
 // offset + hint + tap suppression) but on the Y axis, so it coexists
 // with the gallery's horizontal scroll.
-function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
+function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap }) {
   const startX = useRef(0);
   const startY = useRef(0);
   const recentTouch = useRef(false);
+  // "Up then left" corner tracking. `upReached` flips once the finger
+  // rises past the swipe threshold; `upAnchorX` records X at that moment
+  // so the subsequent leftward leg is measured from there. `cornerFired`
+  // latches once the left leg clears its threshold. Tracked via raw
+  // finger deltas so it still works even if the strip scrolls.
+  const upReached = useRef(false);
+  const upAnchorX = useRef(0);
+  const cornerFired = useRef(false);
   const [dragY, setDragY] = useState(0);
   const [hint, setHint] = useState(null); // 'up' | 'down' | 'solo' | null
 
@@ -93,6 +105,8 @@ function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
     const t = e.touches[0];
     startX.current = t.clientX;
     startY.current = t.clientY;
+    upReached.current = false;
+    cornerFired.current = false;
     setDragY(0);
     setHint(null);
   };
@@ -100,12 +114,23 @@ function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
     const t = e.touches[0];
     const dx = t.clientX - startX.current;
     const dy = t.clientY - startY.current;
-    // Only follow the finger for vertical-dominant movement; horizontal
-    // is the gallery scrolling.
+    // Follow the finger vertically (the visual drag). Horizontal is the
+    // gallery's scroll, so we don't translate on X.
     if (Math.abs(dy) >= Math.abs(dx)) {
       setDragY(Math.max(-60, Math.min(60, dy)));
     }
-    if (dy <= -V_SWIPE_THRESHOLD && dx >= CORNER_RIGHT_THRESHOLD) setHint("solo");
+    // Up leg: arm once the finger has risen past the threshold.
+    if (!upReached.current && dy <= -V_SWIPE_THRESHOLD) {
+      upReached.current = true;
+      upAnchorX.current = t.clientX;
+    }
+    // Left leg: from the up-anchor, moving left far enough fires the corner.
+    if (upReached.current && !cornerFired.current) {
+      if (upAnchorX.current - t.clientX >= CORNER_LEFT_THRESHOLD) {
+        cornerFired.current = true;
+      }
+    }
+    if (cornerFired.current) setHint("solo");
     else if (dy <= -V_SWIPE_THRESHOLD) setHint("up");
     else if (dy >= V_SWIPE_THRESHOLD) setHint("down");
     else setHint(null);
@@ -122,9 +147,10 @@ function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
     galleryRecentTouchUntil = Date.now() + 500;
     setTimeout(() => { recentTouch.current = false; }, 500);
 
-    if (dy <= -V_SWIPE_THRESHOLD && dx >= CORNER_RIGHT_THRESHOLD) {
+    // Corner (up then left) wins — it implies an up leg too.
+    if (cornerFired.current) {
       if (typeof e.preventDefault === "function") e.preventDefault();
-      onUpRight?.();
+      onSolo?.();
     } else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) {
       if (typeof e.preventDefault === "function") e.preventDefault();
       onUp?.();
@@ -136,7 +162,12 @@ function useVerticalChipSwipe({ onUp, onDown, onUpRight, onTap }) {
       onTap?.();
     }
   };
-  const onTouchCancel = () => { setDragY(0); setHint(null); };
+  const onTouchCancel = () => {
+    upReached.current = false;
+    cornerFired.current = false;
+    setDragY(0);
+    setHint(null);
+  };
   const onClick = () => {
     if (recentTouch.current || Date.now() < galleryRecentTouchUntil) return;
     onTap?.();
@@ -170,7 +201,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
       // them). toggleFrontFor removes when a session exists.
       if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
     },
-    onUpRight: () => replaceFrontWith(alter, base44, queryClient, toast),
+    onSolo: () => replaceFrontWith(alter, base44, queryClient, toast),
   });
 
   const ringColor = fronting
@@ -191,7 +222,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
     <button
       type="button"
       {...bind}
-      title={`${label} — swipe up for front/primary, down to remove, up-right for sole front; tap to open`}
+      title={`${label} — swipe up for front/primary, down to remove, up-then-left for sole front; tap to open`}
       className="relative flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
       style={{ touchAction: "pan-x" }}
     >

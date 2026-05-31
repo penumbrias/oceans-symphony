@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Pinned gallery: the sole-fronter gesture is now a deliberate swipe up, THEN left (not a loose upper-left diagonal), so it won't fire by accident.",
+      },
+      {
+        type: "feature",
+        text: "Subsystems: when an alter inside a subsystem owns their own subsystem, a folder button on their row lets you drill into it — nested navigation with breadcrumbs, like groups.",
+      },
+      {
         type: "fix",
         text: "The floating Grounding bubble can no longer be dragged up behind the top header where it got stuck — it now stays clear of the header, and any bubble already stuck there is freed on next open.",
       },

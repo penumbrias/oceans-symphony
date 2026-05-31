@@ -13,6 +13,7 @@ import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useTerms } from "@/lib/useTerms";
+import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -24,7 +25,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter, onClick, activeSessions }) {
+function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsystem }) {
   const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
@@ -74,6 +75,17 @@ function MemberRow({ alter, onClick, activeSessions }) {
           })()}
         </div>
       </motion.div>
+      {ownedSubsystem && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenSubsystem?.(ownedSubsystem); }}
+          title={`Open ${ownedSubsystem.name}`}
+          aria-label={`Open ${ownedSubsystem.name}`}
+          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        >
+          <Folder className="w-4 h-4" style={{ color: ownedSubsystem.color || undefined }} />
+        </button>
+      )}
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </div>);
 
@@ -147,7 +159,13 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   }) :
   [];
 
-  const navigateTo = (group) => setNavStack([...navStack, group]);
+  const navigateTo = (group) => {
+    if (!group) return;
+    // Never push a group already in the breadcrumb — defends against any
+    // ownership loop turning subsystem drill-down into an endless chain.
+    if (navStack.some((g) => g.id === group.id)) return;
+    setNavStack([...navStack, group]);
+  };
   const navigateBack = () => setNavStack(navStack.slice(0, -1));
 
   return (
@@ -246,14 +264,20 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         <FolderRow key={g.id} group={g} onClick={navigateTo} />
         )}
 
-           {memberAlters.map((alter) =>
-        <MemberRow
-          key={alter.id}
-          alter={alter}
-          activeSessions={activeSessions}
-          onClick={() => navigate(`/alter/${alter.id}`)} />
-
-        )}
+           {memberAlters.map((alter) => {
+        // If this member owns their own subsystem, surface a folder
+        // button to drill into it (nested navigation via the breadcrumb).
+        const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+        return (
+          <MemberRow
+            key={alter.id}
+            alter={alter}
+            activeSessions={activeSessions}
+            ownedSubsystem={ownedSub}
+            onOpenSubsystem={navigateTo}
+            onClick={() => navigate(`/alter/${alter.id}`)} />
+        );
+        })}
 
         {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 &&
         <div className="flex flex-col items-center justify-center py-8 text-center">
