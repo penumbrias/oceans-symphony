@@ -971,6 +971,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <ActivityPillSelector selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
+            allowCreate={false}
             duration={activityDuration} onDurationChange={setActivityDuration} />
               <Textarea
                 placeholder="Add a note about this activity... (optional)"

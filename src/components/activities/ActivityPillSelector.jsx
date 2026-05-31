@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, ChevronRight, Search, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, X, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import {
   getChildren,
@@ -124,14 +125,48 @@ function buildCategoryPath(category, byId) {
   return parts.join(" › ");
 }
 
-export default function ActivityPillSelector({ selectedActivities = [], onActivityChange }) {
+export default function ActivityPillSelector({ selectedActivities = [], onActivityChange, allowCreate = true }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [search, setSearch] = useState("");
+  const [creating, setCreating] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data: categories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
+
+  // Create a brand-new top-level activity from whatever the user typed when
+  // their search finds no exact match — so they're never stuck unable to log
+  // an activity that doesn't exist yet (same affordance as the Quick Check-In
+  // screen). Reuses an existing same-name category instead of duplicating.
+  const handleCreate = async () => {
+    const name = search.trim();
+    if (!name || creating) return;
+    const existing = categories.find(
+      (c) => (c.name || "").trim().toLowerCase() === name.toLowerCase()
+    );
+    if (existing) {
+      if (!selectedActivities.includes(existing.id)) onActivityChange([...selectedActivities, existing.id]);
+      setSearch("");
+      return;
+    }
+    setCreating(true);
+    try {
+      const newCat = await base44.entities.ActivityCategory.create({
+        name,
+        color: "#8b5cf6",
+        parent_category_id: null,
+      });
+      await queryClient.invalidateQueries({ queryKey: ["activityCategories"] });
+      onActivityChange([...selectedActivities, newCat.id]);
+      setSearch("");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't create the activity");
+    } finally {
+      setCreating(false);
+    }
+  };
 
   const byIdAll = useMemo(() => indexById(categories), [categories]);
 
@@ -204,7 +239,15 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
     });
   };
 
-  if (!categories.length) return null;
+  // When create is allowed, still render even with no categories yet so the
+  // user can make their first one. Otherwise keep the old "hide if empty".
+  if (!categories.length && !allowCreate) return null;
+
+  const trimmedSearch = search.trim();
+  const canCreate =
+    allowCreate &&
+    !!trimmedSearch &&
+    !categories.some((c) => (c.name || "").trim().toLowerCase() === trimmedSearch.toLowerCase());
 
   return (
     <div>
@@ -229,7 +272,7 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
         )}
       </div>
       {search.trim() ? (
-        searchResults.length > 0 ? (
+        searchResults.length > 0 || canCreate ? (
           <div className="flex flex-wrap gap-1.5">
             {searchResults.map(({ cat, path }) => {
               const isSelected = selectedActivities.includes(cat.id);
@@ -258,6 +301,17 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
                 </button>
               );
             })}
+            {canCreate && (
+              <button
+                type="button"
+                onClick={handleCreate}
+                disabled={creating}
+                className="px-3 py-1.5 rounded-full text-sm font-medium border border-dashed border-primary/60 text-primary hover:bg-primary/10 transition-all inline-flex items-center gap-1 disabled:opacity-50"
+              >
+                <Plus className="w-3.5 h-3.5" />
+                Create &ldquo;{trimmedSearch}&rdquo;
+              </button>
+            )}
           </div>
         ) : (
           <p className="text-xs text-muted-foreground italic">No matching activity.</p>

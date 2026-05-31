@@ -95,6 +95,7 @@ function AlterProfileInner() {
   const [showComposeMessage, setShowComposeMessage] = useState(false);
   const [avatarSrc, setAvatarSrc] = useState(null);
   const [resolvedHeaderImage, setResolvedHeaderImage] = useState(null);
+  const [resolvedBgImage, setResolvedBgImage] = useState(null);
   const saveRef = useRef(null);
 
   const queryClient = useQueryClient();
@@ -143,6 +144,16 @@ function AlterProfileInner() {
     if (img) resolveImageUrl(img).then(setResolvedHeaderImage).catch(() => setResolvedHeaderImage(null));
     else setResolvedHeaderImage(null);
   }, [alter?.custom_fields?.[HEADER_IMAGE_KEY]]);
+
+  // Resolve page background image URL. Like the header above, this MUST go
+  // through resolveImageUrl — a raw local-image:// (legacy) value can't be
+  // consumed by a CSS background-image, which is why some backgrounds showed
+  // up in the header but never behind the page.
+  useEffect(() => {
+    const img = alter?.custom_fields?.[BG_IMAGE_KEY];
+    if (img) resolveImageUrl(img).then(setResolvedBgImage).catch(() => setResolvedBgImage(null));
+    else setResolvedBgImage(null);
+  }, [alter?.custom_fields?.[BG_IMAGE_KEY]]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -201,9 +212,9 @@ function AlterProfileInner() {
           {pageBgColor && (
             <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: pageBgOpacity }} />
           )}
-          {pageBgImage && (
+          {pageBgImage && resolvedBgImage && (
             <div className="absolute inset-0" style={{
-              backgroundImage: `url("${pageBgImage}")`,
+              backgroundImage: `url("${resolvedBgImage}")`,
               backgroundSize: "cover",
               backgroundPosition: "center",
               backgroundRepeat: "no-repeat",

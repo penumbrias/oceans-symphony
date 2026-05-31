@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format, formatDistanceToNow } from "date-fns";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
-import { ZapOff, Cloud, AlarmClock, BookOpen } from "lucide-react";
+import { ZapOff, Cloud, AlarmClock, BookOpen, X } from "lucide-react";
 
 // Finalize an in-progress sleep record. Mirrors the fields of
 // SleepLogModal but starts from an existing Sleep entity with
@@ -35,6 +35,79 @@ function TogglePill({ icon: Icon, label, value, onChange, activeClass }) {
   );
 }
 
+// Mirrors the InterruptionDetails in SleepLogModal / SleepEditModal so the
+// "End sleep log" flow can capture how many times (and at what times) sleep
+// was interrupted — previously the Interrupted toggle here revealed nothing.
+function InterruptionDetails({ count, onCount, interruptionTimes, onTimesChange }) {
+  const [newTime, setNewTime] = useState("");
+
+  const addTime = () => {
+    const t = newTime.trim();
+    if (!t) return;
+    const updated = [...interruptionTimes, t];
+    onTimesChange(updated);
+    if (updated.length > count) onCount(updated.length);
+    setNewTime("");
+  };
+
+  const removeTime = (i) => onTimesChange(interruptionTimes.filter((_, idx) => idx !== i));
+
+  return (
+    <div className="mt-2 space-y-3 pl-1">
+      {/* Count stepper */}
+      <div className="flex items-center justify-between">
+        <span className="text-xs text-muted-foreground">How many times?</span>
+        <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => onCount(Math.max(0, count - 1))}
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors text-base leading-none"
+          >−</button>
+          <span className="text-sm font-semibold w-4 text-center tabular-nums">{count || 0}</span>
+          <button
+            type="button"
+            onClick={() => onCount((count || 0) + 1)}
+            className="w-7 h-7 rounded-full border border-border flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border/80 transition-colors text-base leading-none"
+          >+</button>
+        </div>
+      </div>
+
+      {/* Specific times — optional */}
+      <div>
+        <div className="flex items-center gap-2">
+          <input
+            type="time"
+            value={newTime}
+            onChange={e => setNewTime(e.target.value)}
+            onKeyDown={e => e.key === "Enter" && addTime()}
+            className="flex-1 rounded-lg border border-border bg-transparent px-2.5 py-1.5 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-primary/40"
+          />
+          <button
+            type="button"
+            onClick={addTime}
+            className="text-xs text-muted-foreground hover:text-foreground border border-border rounded-lg px-2.5 py-1.5 transition-colors whitespace-nowrap"
+          >
+            + Add time
+          </button>
+        </div>
+        {interruptionTimes.length > 0 && (
+          <div className="flex flex-wrap gap-1.5 mt-2">
+            {interruptionTimes.map((t, i) => (
+              <span key={i} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-500 border border-orange-500/20">
+                {t}
+                <button type="button" onClick={() => removeTime(i)} className="hover:opacity-70 leading-none">
+                  <X className="w-2.5 h-2.5" />
+                </button>
+              </span>
+            ))}
+          </div>
+        )}
+        <p className="text-xs text-muted-foreground/60 mt-1.5">Specific times are optional</p>
+      </div>
+    </div>
+  );
+}
+
 function toLocalDatetime(iso) {
   if (!iso) return "";
   const d = new Date(iso);
@@ -47,10 +120,17 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
   const [quality, setQuality] = useState(0);
   const [notes, setNotes] = useState("");
   const [isInterrupted, setIsInterrupted] = useState(false);
+  const [interruptionCount, setInterruptionCount] = useState(0);
+  const [interruptionTimes, setInterruptionTimes] = useState([]);
   const [dreamed, setDreamed] = useState(false);
   const [hadNightmare, setHadNightmare] = useState(false);
   const [saveAsDream, setSaveAsDream] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleInterruptedToggle = (val) => {
+    setIsInterrupted(val);
+    if (!val) { setInterruptionCount(0); setInterruptionTimes([]); }
+  };
 
   // Default wake time to "now" the moment the modal opens. We
   // intentionally don't pre-fill from `sleep.wake_time` because the
@@ -62,6 +142,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
     setQuality(0);
     setNotes("");
     setIsInterrupted(false);
+    setInterruptionCount(0);
+    setInterruptionTimes([]);
     setDreamed(false);
     setHadNightmare(false);
     setSaveAsDream(false);
@@ -123,6 +205,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         quality: quality || null,
         notes: notes || null,
         is_interrupted: isInterrupted,
+        interruption_count: isInterrupted ? (interruptionCount || interruptionTimes.length || null) : null,
+        interruption_times: isInterrupted && interruptionTimes.length > 0 ? interruptionTimes : null,
         dreamed,
         had_nightmare: hadNightmare,
         journal_entry_id: journalEntryId,
@@ -142,7 +226,9 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         }
         if (sleep.linked_activity_id) {
           await base44.entities.Activity.update(sleep.linked_activity_id, {
+            timestamp: bedtimeISO,
             duration_minutes: durationMinutes,
+            notes: notes || null,
           });
         } else {
           const newAct = await base44.entities.Activity.create({
@@ -151,6 +237,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
             duration_minutes: durationMinutes,
             activity_category_ids: [sleepCat.id],
             color: sleepCat.color,
+            notes: notes || null,
+            source_sleep_id: sleep.id,
           });
           await base44.entities.Sleep.update(sleep.id, { linked_activity_id: newAct.id });
         }
@@ -224,49 +312,73 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
             </div>
           </div>
 
-          <div className="grid grid-cols-3 gap-2">
-            <TogglePill
-              icon={AlarmClock}
-              label="Interrupted"
-              value={isInterrupted}
-              onChange={setIsInterrupted}
-              activeClass="border-orange-500/60 bg-orange-500/10 text-orange-500"
-            />
-            <TogglePill
-              icon={Cloud}
-              label="Dreamed"
-              value={dreamed}
-              onChange={(v) => { setDreamed(v); if (!v) setHadNightmare(false); }}
-              activeClass="border-blue-500/60 bg-blue-500/10 text-blue-500"
-            />
-            <TogglePill
-              icon={ZapOff}
-              label="Nightmare"
-              value={hadNightmare}
-              onChange={(v) => { setHadNightmare(v); if (v) setDreamed(true); }}
-              activeClass="border-red-500/60 bg-red-500/10 text-red-500"
-            />
+          <div>
+            <div className="grid grid-cols-3 gap-2">
+              <TogglePill
+                icon={AlarmClock}
+                label="Interrupted"
+                value={isInterrupted}
+                onChange={handleInterruptedToggle}
+                activeClass="border-orange-500/60 bg-orange-500/10 text-orange-500"
+              />
+              <TogglePill
+                icon={Cloud}
+                label="Dreamed"
+                value={dreamed}
+                onChange={(v) => { setDreamed(v); if (!v) setHadNightmare(false); }}
+                activeClass="border-blue-500/60 bg-blue-500/10 text-blue-500"
+              />
+              <TogglePill
+                icon={ZapOff}
+                label="Nightmare"
+                value={hadNightmare}
+                onChange={(v) => { setHadNightmare(v); if (v) setDreamed(true); }}
+                activeClass="border-red-500/60 bg-red-500/10 text-red-500"
+              />
+            </div>
+
+            {/* Interruption details — only when "Interrupted" is on */}
+            {isInterrupted && (
+              <InterruptionDetails
+                count={interruptionCount}
+                onCount={setInterruptionCount}
+                interruptionTimes={interruptionTimes}
+                onTimesChange={setInterruptionTimes}
+              />
+            )}
           </div>
 
           <div>
-            <label className="text-sm font-medium block mb-1">Notes (optional)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium">Notes (optional)</label>
+              {/* Same always-available "Save to Dream Journal" toggle as the
+                  past-log modal — previously this was a checkbox hidden until
+                  you'd marked a dream and typed a note, so the option was easy
+                  to miss when ending a sleep. */}
+              <button
+                type="button"
+                onClick={() => setSaveAsDream((v) => !v)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all",
+                  saveAsDream
+                    ? "border-violet-500/60 bg-violet-500/10 text-violet-500"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                )}
+              >
+                <BookOpen className="w-3 h-3" />
+                {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
+              </button>
+            </div>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="How did you sleep? Any dreams?"
               rows={3}
             />
-            {(dreamed || hadNightmare) && notes.trim() && (
-              <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveAsDream}
-                  onChange={(e) => setSaveAsDream(e.target.checked)}
-                  className="w-4 h-4 accent-primary"
-                />
-                <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm">Also save the note as a Dream journal entry</span>
-              </label>
+            {saveAsDream && !notes.trim() && (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                Add a note above and it'll be saved as a Dream journal entry too.
+              </p>
             )}
           </div>
         </div>

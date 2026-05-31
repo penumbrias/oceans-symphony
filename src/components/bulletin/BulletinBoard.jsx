@@ -6,6 +6,7 @@ import TaskBulletinCard from "./TaskBulletinCard";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
+import QuickPlanComposer from "./QuickPlanComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -192,13 +193,12 @@ export default function BulletinBoard({
     currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
   ).length;
 
-  const handleInlineType = (e) => {
-    const val = e.target.value;
-    if (val.trim()) {
-      setComposeInitial(val);
-      e.target.value = "";
-      setComposing(true);
-    }
+  // Open the full composer as soon as the user taps into the box (on
+  // focus), not once they start typing — the empty composer autofocuses
+  // its own textarea so typing continues seamlessly.
+  const handleInlineFocus = () => {
+    setComposeInitial("");
+    setComposing(true);
   };
 
   return (
@@ -236,7 +236,7 @@ export default function BulletinBoard({
         <input
           className="bg-transparent text-foreground mb-2 px-3 text-sm rounded-xl w-full h-9 border border-border/50 placeholder:text-muted-foreground outline-none focus:ring-1 focus:ring-primary/50"
           placeholder="type here… use @ to mention, -name to sign as author"
-          onChange={handleInlineType}
+          onFocus={handleInlineFocus}
         />
       }
 
@@ -256,6 +256,10 @@ export default function BulletinBoard({
 
       {/* Quick Task Add — system board only (tasks aren't group-scoped) */}
       {!groupId && <QuickTaskAdd frontingAlterIds={frontingAlterIds} />}
+
+      {/* Quick Plan — schedules an Activity for today straight from the
+          board. System board only (plans aren't group-scoped). */}
+      {!groupId && <QuickPlanComposer />}
 
       {/* Mention alerts */}
       {currentAlterId &&
