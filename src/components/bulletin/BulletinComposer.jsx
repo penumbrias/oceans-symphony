@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -118,7 +119,15 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
   }, []);
 
-  const activeAlters = alters.filter(a => !a.is_archived);
+  // Alters hidden from @mention / -signpost suggestions via a group's
+  // "hide from mentions" toggle. Typing a full name still resolves — this
+  // only trims the suggestion lists.
+  const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const hiddenFromMentions = React.useMemo(
+    () => getAlterIdsByGroupFlag(allGroups, alters, "hide_from_mentions"),
+    [allGroups, alters]
+  );
+  const activeAlters = alters.filter(a => !a.is_archived && !hiddenFromMentions.has(a.id));
 
   const filteredMentions = activeAlters.filter(a =>
     a.name.toLowerCase().includes(mentionQuery.toLowerCase()) ||

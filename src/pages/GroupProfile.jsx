@@ -4,8 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
-  ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile,
+  ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
+  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, AtSign,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -136,6 +136,8 @@ function GroupProfileInner() {
       avatar_url: group.avatar_url || "",
       owner_alter_id: group.owner_alter_id || "",
       parent: group.parent || "",
+      hide_from_lists: !!group.hide_from_lists,
+      hide_from_mentions: !!group.hide_from_mentions,
       custom_fields: group.custom_fields || {},
     });
   }, [group?.id]);
@@ -181,6 +183,8 @@ function GroupProfileInner() {
         avatar_url: form.avatar_url,
         owner_alter_id: form.owner_alter_id || "",
         parent: form.parent || "",
+        hide_from_lists: !!form.hide_from_lists,
+        hide_from_mentions: !!form.hide_from_mentions,
         custom_fields: form.custom_fields,
       });
       toast.success("Saved!");
@@ -409,6 +413,25 @@ function GroupProfileInner() {
         </select>
       </div>
 
+      {/* Member visibility — group-level list/mention filtering */}
+      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5" /> Member visibility</label>
+        <ToggleRow
+          icon={Eye}
+          checked={form.hide_from_lists}
+          onChange={(v) => setForm((f) => ({ ...f, hide_from_lists: v }))}
+          label={`Hide members from ${t.alter} lists`}
+          hint={`They won't show in the main ${t.alters} list — still reachable through this group.`}
+        />
+        <ToggleRow
+          icon={AtSign}
+          checked={form.hide_from_mentions}
+          onChange={(v) => setForm((f) => ({ ...f, hide_from_mentions: v }))}
+          label="Hide members from @mentions & -signposts"
+          hint="They won't appear in mention or signpost suggestions."
+        />
+      </div>
+
       {/* Profile style */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
         <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5 text-primary" /> Profile Style</label>
@@ -454,6 +477,26 @@ function GroupProfileInner() {
       {showBgColorPicker && <ColorPickerModal color={form.custom_fields[BG_COLOR_KEY] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
     </motion.div>
+  );
+}
+
+function ToggleRow({ icon: Icon, checked, onChange, label, hint }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!checked)}
+      className="w-full flex items-start gap-2.5 text-left"
+    >
+      <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
+        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${checked ? "left-[1.125rem]" : "left-0.5"}`} />
+      </span>
+      <span className="flex-1 min-w-0">
+        <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+          {Icon ? <Icon className="w-3.5 h-3.5 text-muted-foreground" /> : null}{label}
+        </span>
+        {hint && <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{hint}</span>}
+      </span>
+    </button>
   );
 }
 

@@ -148,3 +148,17 @@ export function getAltersInsideSubsystems(groups, alters) {
   }
   return ids;
 }
+
+// Set of alter ids that belong to any group carrying the given boolean
+// flag — used for the group-level visibility controls (e.g.
+// `hide_from_lists`, `hide_from_mentions`) configured on a group's
+// profile. An alter hidden by one group is hidden even if another of
+// their groups isn't flagged.
+export function getAlterIdsByGroupFlag(groups, alters, flag) {
+  const ids = new Set();
+  for (const g of groups || []) {
+    if (!g[flag]) continue;
+    for (const m of getMemberAlters(g, alters)) ids.add(m.id);
+  }
+  return ids;
+}

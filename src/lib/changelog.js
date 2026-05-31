@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Press and hold a subsystem in the alters list (or a group in the groups section) to jump straight to its profile page. Holding is ignored while you're scrolling.",
+      },
+      {
+        type: "feature",
+        text: "Groups can now hide their members from the alters list and/or from @mention & -signpost suggestions — toggle these on the group's profile page.",
+      },
+      {
+        type: "feature",
+        text: "The alters page has a new filter next to search: show just one group's or subsystem's members, or list every alter flat (unnested).",
+      },
+      {
         type: "feature",
         text: "Bulletin board now has a Fancy mode — a formatting toolbar (bold, colours, headings, boxes, fonts) plus image and GIF upload. Toggle Simple/Fancy above the box; @mentions and -signposts work exactly the same either way.",
       },

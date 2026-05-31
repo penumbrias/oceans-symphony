@@ -14,6 +14,7 @@ import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useTerms } from "@/lib/useTerms";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
+import useLongPress from "@/hooks/useLongPress";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -93,15 +94,22 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
 
 }
 
-function FolderRow({ group, onClick }) {
+function FolderRow({ group, onClick, onLongOpen }) {
   const color = group.color || "";
+  // Tap drills into the group (breadcrumb browse); press-and-hold opens
+  // the group's profile page. Scroll-safe via useLongPress.
+  const press = useLongPress({
+    onClick: () => onClick(group),
+    onLongPress: () => onLongOpen?.(group),
+  });
   return (
     <motion.button
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      onClick={() => onClick(group)}
+      {...press}
+      title={`${group.name} — tap to open, hold for its profile`}
       className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}>
+      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1, touchAction: "pan-y" }}>
       <div className="rounded-xl w-9 h-9 flex items-center justify-center flex-shrink-0"
       style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
         <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
@@ -298,7 +306,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         )}
 
         {childGroups.map((g) =>
-        <FolderRow key={g.id} group={g} onClick={navigateTo} />
+        <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => navigate(`/group/${grp.id}`)} />
         )}
 
            {memberAlters.map((alter) => {

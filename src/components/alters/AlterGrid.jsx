@@ -15,7 +15,7 @@ import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
 import SubsystemAlterList from "./SubsystemAlterList";
-import { getAltersInsideSubsystems } from "@/lib/subsystemUtils";
+import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 export default function AlterGrid({ alters }) {
   const navigate = useNavigate();
@@ -45,6 +45,10 @@ export default function AlterGrid({ alters }) {
   const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
+  // Listing filter: "all" (default — nested, hides flagged groups),
+  // "flat" (every alter, unnested), or "group:<id>" / "subsystem:<id>"
+  // to show just one group's members.
+  const [listFilter, setListFilter] = useState("all");
 
   const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
   const cycleDisplayMode = () => {
@@ -153,10 +157,39 @@ export default function AlterGrid({ alters }) {
     () => getAltersInsideSubsystems(allGroups, effectiveAlters),
     [allGroups, effectiveAlters]
   );
-  // Top-level list = filtered alters that aren't inside a subsystem.
-  // Only collapse them under owners when NOT searching, so a search
-  // still surfaces matches that happen to live inside a subsystem.
-  const topLevelAlters = search ? filtered : filtered.filter((a) => !insideSubsystems.has(a.id));
+  // Alters hidden from the main list via a group's "hide from lists"
+  // toggle (configured on the group profile). Excluded from the default
+  // view; still visible when searching, in the flat view, or when that
+  // group is the active filter.
+  const hiddenFromLists = useMemo(
+    () => getAlterIdsByGroupFlag(allGroups, effectiveAlters, "hide_from_lists"),
+    [allGroups, effectiveAlters]
+  );
+
+  // Active listing filter (group/subsystem/flat).
+  const [filterType, filterGroupId] = listFilter.split(":");
+  const filterGroup = filterGroupId ? allGroups.find((g) => g.id === filterGroupId) : null;
+  const filterMemberIds = useMemo(
+    () => (filterGroup ? new Set(getMemberAlters(filterGroup, effectiveAlters).map((a) => a.id)) : null),
+    [filterGroup, effectiveAlters]
+  );
+  const isExplicitFilter = filterType === "flat" || filterType === "group" || filterType === "subsystem";
+  // When searching or an explicit filter is on, render a flat (unnested)
+  // list; otherwise nest subsystems under their owners.
+  const showFlat = !!search || isExplicitFilter;
+
+  // Top-level list = filtered alters that aren't inside a subsystem and
+  // aren't hidden by a group flag. Only collapse/hide when NOT searching.
+  const topLevelAlters = search
+    ? filtered
+    : filtered.filter((a) => !insideSubsystems.has(a.id) && !hiddenFromLists.has(a.id));
+  // Flat set honours an active group/subsystem filter; "flat" and search
+  // show everything (including otherwise-hidden members).
+  const flatAlters = filterMemberIds ? filtered.filter((a) => filterMemberIds.has(a.id)) : filtered;
+  const visibleAlters = showFlat ? flatAlters : topLevelAlters;
+
+  const regularGroups = allGroups.filter((g) => !g.owner_alter_id);
+  const subsystemGroups = allGroups.filter((g) => g.owner_alter_id);
 
   const groupControls = (active) => (
     <div data-tour="alter-groups-controls" className="flex items-center gap-0.5">
@@ -223,6 +256,29 @@ export default function AlterGrid({ alters }) {
           <FolderMinus className="w-4 h-4" />
         </button>
 
+        {/* Filter by group / subsystem, or list everyone flat */}
+        {(regularGroups.length > 0 || subsystemGroups.length > 0) && (
+          <select
+            value={listFilter}
+            onChange={(e) => setListFilter(e.target.value)}
+            title="Filter the list"
+            className={`flex-shrink-0 h-9 rounded-xl border bg-card/50 text-xs px-2 max-w-[8.5rem] transition-colors ${listFilter !== "all" ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50"}`}
+          >
+            <option value="all">All {terms.alters}</option>
+            <option value="flat">All (flat)</option>
+            {regularGroups.length > 0 && (
+              <optgroup label="Groups">
+                {regularGroups.map((g) => <option key={g.id} value={`group:${g.id}`}>{g.name}</option>)}
+              </optgroup>
+            )}
+            {subsystemGroups.length > 0 && (
+              <optgroup label={`Sub${terms.system}s`}>
+                {subsystemGroups.map((g) => <option key={g.id} value={`subsystem:${g.id}`}>{g.name}</option>)}
+              </optgroup>
+            )}
+          </select>
+        )}
+
       </div>
 
       {/* Content */}
@@ -280,14 +336,14 @@ export default function AlterGrid({ alters }) {
               </button>
             </div>
           </div>
-          {filtered.length > 0 ?
+          {visibleAlters.length > 0 ?
           displayMode === "list" ?
           // List view nests subsystems: owners show an expander, members
-          // render indented beneath. When searching, falls back to a flat
-          // list so matches inside subsystems still appear.
-          (search ? (
+          // render indented beneath. When searching or an explicit filter
+          // is active, falls back to a flat list.
+          (showFlat ? (
             <div className="mx-auto flex flex-col gap-2">
-              {filtered.map((alter, i) =>
+              {visibleAlters.map((alter, i) =>
                 <AlterCard key={alter.id} alter={alter} index={i} activeSessions={activeSessions} anonymize={anonymize} />
               )}
             </div>
@@ -301,16 +357,18 @@ export default function AlterGrid({ alters }) {
             />
           )) :
 
-          <AlterGridView alters={topLevelAlters} activeSessions={activeSessions} allAlters={effectiveAlters} allGroups={allGroups} cols={parseInt(displayMode)} anonymize={anonymize} /> :
+          // Grid: nest subsystems in the default view; in a flat/filtered
+          // view pass no groups so cards render unnested.
+          <AlterGridView alters={visibleAlters} activeSessions={activeSessions} allAlters={effectiveAlters} allGroups={showFlat ? [] : allGroups} cols={parseInt(displayMode)} anonymize={anonymize} /> :
 
 
           <div className="flex flex-col items-center justify-center py-20 text-center px-4">
-              <div className="text-4xl mb-3">{search ? "🔍" : hideGrouped ? "📁" : "👥"}</div>
+              <div className="text-4xl mb-3">{search ? "🔍" : isExplicitFilter ? "🔎" : hideGrouped ? "📁" : "👥"}</div>
               <p className="text-sm font-medium text-foreground mb-1">
-                {search ? "No matches found" : hideGrouped ? `All ${terms.alters} are in groups` : `No ${terms.alters} yet`}
+                {search ? "No matches found" : isExplicitFilter ? `No ${terms.alters} in this filter` : hideGrouped ? `All ${terms.alters} are in groups` : `No ${terms.alters} yet`}
               </p>
               <p className="text-xs text-muted-foreground">
-                {search ? `Try a different search term` : hideGrouped ? `Toggle the group filter to see them` : `Add your first ${terms.alter} to get started`}
+                {search ? `Try a different search term` : isExplicitFilter ? `Pick a different filter above` : hideGrouped ? `Toggle the group filter to see them` : `Add your first ${terms.alter} to get started`}
               </p>
             </div>
           }

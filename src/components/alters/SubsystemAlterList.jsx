@@ -4,6 +4,7 @@ import { ChevronDown, Folder, Plus } from "lucide-react";
 import AlterCard from "./AlterCard";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import useLongPress from "@/hooks/useLongPress";
 import {
   getSubsystemsOwnedBy,
   getMemberAlters,
@@ -40,16 +41,24 @@ function SubsystemAccessory({ group, expanded, inlineExpandable, onToggle, onOpe
     resolveImageUrl(group.avatar_url).then(setResolved).catch(() => setResolved(null));
   }, [group?.avatar_url]);
   const color = group?.color || undefined;
+  // Tap toggles inline expansion (or opens the profile when too deep to
+  // expand); press-and-hold always opens the subsystem's profile page.
+  // Scroll-safe: the hook cancels on movement.
+  const press = useLongPress({
+    onClick: () => (inlineExpandable ? onToggle() : onOpen()),
+    onLongPress: () => onOpen(),
+  });
   return (
     <button
       type="button"
-      onClick={(e) => { e.stopPropagation(); inlineExpandable ? onToggle() : onOpen(); }}
+      {...press}
       aria-expanded={inlineExpandable ? expanded : undefined}
-      title={inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group.name}` : `Open ${group.name}`}
+      title={inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group.name} — hold to open its page` : `Open ${group.name}`}
       className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105 ${expanded ? "ring-2 ring-primary/50" : ""}`}
       style={{
         backgroundColor: resolved ? "transparent" : color ? `${color}20` : "hsl(var(--muted))",
         borderColor: color ? `${color}55` : "hsl(var(--border))",
+        touchAction: "pan-y",
       }}
     >
       {resolved
