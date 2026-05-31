@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Logging an activity: if your search doesn't match anything, you can now create that activity right there — everywhere activities are picked.",
+      },
+      {
         type: "fix",
         text: "System Chat: removed an empty gap that appeared below the channel list and message box until you scrolled.",
       },

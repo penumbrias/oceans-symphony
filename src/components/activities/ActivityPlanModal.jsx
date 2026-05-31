@@ -17,7 +17,6 @@ import {
   PLAN_REMINDER_OFFSETS,
   readPlanRemindersEnabled,
   readPlanRemindersDefaultOffset,
-  schedulePlanReminder,
 } from "@/lib/planReminderScheduler";
 import {
   RECURRENCE_BRANCHES,
@@ -844,6 +843,7 @@ export default function ActivityPlanModal({
           <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
+            allowCreate={false}
           />
 
           {showNewActivity ? (
