@@ -35,6 +35,7 @@ import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as 
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
+import BioEditor from "@/components/alters/BioEditor";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
@@ -166,6 +167,12 @@ export default function Settings() {
   const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
   const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
+  // Banner + rich bio — the system's own profile, mirroring an alter's
+  // header image + bio. Surfaced on the alters directory (/Home) header.
+  const [systemBannerUrl, setSystemBannerUrl] = useState("");
+  const [uploadingSysBanner, setUploadingSysBanner] = useState(false);
+  const resolvedSysBanner = useResolvedAvatarUrl(systemBannerUrl);
+  const [systemBio, setSystemBio] = useState("");
   // Alter count is hidden by default — the raw number can feel clinical or
   // invasive depending on how the user relates to their system. The reveal
   // toggle is local-only (intentionally not persisted) so each visit starts
@@ -177,6 +184,8 @@ export default function Settings() {
     if (settings?.system_name) setSystemName(settings.system_name);
     if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
     if (settings?.system_avatar_url !== undefined) setSystemAvatarUrl(settings.system_avatar_url || "");
+    if (settings?.system_banner_url !== undefined) setSystemBannerUrl(settings.system_banner_url || "");
+    if (settings?.system_bio !== undefined) setSystemBio(settings.system_bio || "");
   }, [settings]);
 
   // Upload + compress a new system-wide avatar. Mirrors the alter
@@ -214,6 +223,38 @@ export default function Settings() {
     finally { setUploadingSysAvatar(false); e.target.value = ""; }
   };
 
+  // Banner is wider than the avatar — keep more horizontal resolution.
+  const handleSystemBannerUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingSysBanner(true);
+    try {
+      const compress = (f, maxWidth = 1200, quality = 0.82) => new Promise((resolve, reject) => {
+        const img = new window.Image();
+        const u = URL.createObjectURL(f);
+        img.onload = () => {
+          const canvas = document.createElement("canvas");
+          let { width, height } = img;
+          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
+          canvas.width = width; canvas.height = height;
+          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
+          URL.revokeObjectURL(u);
+          resolve(encodeCanvasForMime(canvas, f.type, quality));
+        };
+        img.onerror = reject;
+        img.src = u;
+      });
+      const dataUrl = await compress(file);
+      if (isLocalMode()) {
+        const imageId = `system-banner-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setSystemBannerUrl(createLocalImageUrl(imageId));
+      } else {
+        setSystemBannerUrl(dataUrl);
+      }
+    } catch { toast.error("Failed to process image"); }
+    finally { setUploadingSysBanner(false); e.target.value = ""; }
+  };
+
   const [saved, setSaved] = useState(false);
   const [showBugReport, setShowBugReport] = useState(false);
 
@@ -223,6 +264,8 @@ export default function Settings() {
       system_name: systemName,
       system_description: systemDescription,
       system_avatar_url: systemAvatarUrl || null,
+      system_banner_url: systemBannerUrl || null,
+      system_bio: systemBio || "",
     };
     try {
       if (settings?.id) {
@@ -397,14 +440,59 @@ export default function Settings() {
               />
             </div>
             <div>
+              <Label className="text-sm font-medium">{terms.System} Banner</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                A wide header image shown at the top of your {terms.alter} directory.
+              </p>
+              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted aspect-[3/1] flex items-center justify-center">
+                {resolvedSysBanner ? (
+                  <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" />
+                ) : (
+                  <span className="text-xs text-muted-foreground">No banner yet</span>
+                )}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
+                  {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                  {uploadingSysBanner ? "Uploading…" : "Upload"}
+                  <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
+                </label>
+                {systemBannerUrl && (
+                  <button
+                    type="button"
+                    onClick={() => setSystemBannerUrl("")}
+                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                  >
+                    <XIcon className="w-4 h-4" /> Remove
+                  </button>
+                )}
+              </div>
+              <Input
+                placeholder="Or paste an image URL…"
+                value={systemBannerUrl}
+                onChange={e => setSystemBannerUrl(e.target.value)}
+                className="mt-2 text-xs"
+              />
+            </div>
+            <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
               <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}
                 onChange={e => setSystemName(e.target.value)} className="mt-2" />
             </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Description</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">A short tagline shown under your {terms.system} name.</p>
               <Textarea placeholder={`Describe your ${terms.system}...`} value={systemDescription}
-                onChange={e => setSystemDescription(e.target.value)} className="mt-2 min-h-[100px]" />
+                onChange={e => setSystemDescription(e.target.value)} className="mt-2 min-h-[80px]" />
+            </div>
+            <div>
+              <Label className="text-sm font-medium">{terms.System} Bio</Label>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                A longer, formatted bio — shown under the banner on your {terms.alter} directory.
+              </p>
+              <div className="mt-2">
+                <BioEditor value={systemBio} onChange={setSystemBio} />
+              </div>
             </div>
             <Button onClick={handleSaveName} disabled={saving || saved} size="sm"
               className={saved ? "bg-green-600 hover:bg-green-600 text-white" : "bg-primary hover:bg-primary/90"}>

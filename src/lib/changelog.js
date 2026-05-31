@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Your system now has its own profile — add a banner image and a longer formatted bio (Settings → System Profile), shown at the top of the alters page.",
+      },
+      {
         type: "improve",
         text: "Added 14 more font choices for the app and headings — including Quicksand, Comfortaa, EB Garamond, Indie Flower, Bebas Neue, and JetBrains Mono.",
       },

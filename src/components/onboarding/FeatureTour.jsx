@@ -153,6 +153,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     // ─── ALTERS ─────────────────────────────────────────────────────────────
     {
       section: "alters", sectionLabel: t.Alters,
+      emoji: "🪪",
+      title: `Your ${t.System}'s Profile`,
+      body: `The top of the ${t.alters} page is your ${t.system}'s own profile — give it a banner image, avatar, name, a short tagline, and a longer formatted bio in Settings → Profile. Tap "About this ${t.system}" to expand the bio.`,
+      route: "/Home", target: "system-profile",
+      look: `the highlighted header at the top of the ${t.alters} page`, action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
       emoji: "👤",
       title: `${t.Alter} Grid`,
       body: `The ${t.Alters} page shows every member of your ${t.system}. Each card displays name, pronouns, role, color, and avatar. Currently ${t.fronting} ${t.alters} float to the top with a glowing color border. Archived ${t.alters} are hidden here — manage them in Settings → ${t.Alters} & Fields.`,
