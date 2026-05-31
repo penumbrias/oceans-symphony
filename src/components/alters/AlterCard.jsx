@@ -160,7 +160,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
   );
 }
 
-export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off", rightAccessory = null }) {
+export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off", rightAccessory = null, hideFront = false }) {
   const formatAlter = useAlterLabel();
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
@@ -175,11 +175,15 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   // Long-press opens the quick-actions menu (profile, subsystem, front,
   // primary, add to groups). The swipe hook cancels the long-press on any
   // movement, so it never collides with the front/primary swipe gestures.
+  // hideFront removes the inline front/primary controls (the bolt + the
+  // swipe gestures) — used where adjusting front from the chip doesn't
+  // belong, e.g. a group/subsystem members list. Tap (open) and long-press
+  // (menu) still work.
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
-    onSwipeRight: () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeft: () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeftUp: () => replaceFrontWith(alter, base44, queryClient, toast),
+    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
+    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
+    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast),
     onLongPress: () => setMenuOpen(true),
   });
 
@@ -195,11 +199,11 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       className="flex items-center gap-2">
       <div className="flex-1 min-w-0 relative" {...bind}
         style={{
-          transform: `translateX(${dragX}px)`,
+          transform: hideFront ? undefined : `translateX(${dragX}px)`,
           transition: dragX === 0 ? "transform 150ms ease-out" : "none",
           touchAction: "pan-y",
         }}>
-        {swipeHint && (
+        {!hideFront && swipeHint && (
           <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
             {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Promote")}
           </span>
@@ -245,7 +249,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         </div>
       </div>
       {rightAccessory}
-      <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
+      {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} />}
       {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
     </motion.div>
   );

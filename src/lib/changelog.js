@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "System Map: filtering by a group now correctly shows that group's members — it was collapsing to a single alter. You can now filter by subsystem too.",
+      },
+      {
+        type: "improve",
+        text: "Group & subsystem profiles: the members list now uses the same chips as the alters page (with correct avatars). Front/primary can't be changed from there, but press-and-hold opens the full menu.",
+      },
+      {
+        type: "improve",
+        text: "The press-and-hold alter menu can now remove an alter from a subsystem they belong to.",
+      },
+      {
         type: "feature",
         text: "Press and hold a pinned alter for the same quick menu as the alters list — open profile, set/remove front, make primary, unpin, add to groups, and more.",
       },

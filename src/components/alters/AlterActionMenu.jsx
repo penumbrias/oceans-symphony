@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin } from "lucide-react";
+import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus } from "lucide-react";
 import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
@@ -26,6 +26,32 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+  // Subsystems this alter is a MEMBER of (not the owner) — so they can be
+  // removed from here.
+  const memberOfSubs = allGroups.filter((g) =>
+    g.owner_alter_id && g.owner_alter_id !== alter.id && (
+      (alter.groups || []).some((ag) => ag.id === g.id || ag.sp_id === g.id) ||
+      (g.member_sp_ids || []).includes(alter.sp_id || alter.id)
+    )
+  );
+
+  const leaveSubsystem = async (g) => {
+    try {
+      const key = alter.sp_id || alter.id;
+      await base44.entities.Alter.update(alter.id, {
+        groups: (alter.groups || []).filter((x) => x.id !== g.id && x.sp_id !== g.id),
+      });
+      await base44.entities.Group.update(g.id, {
+        member_sp_ids: (g.member_sp_ids || []).filter((id) => id !== key),
+      });
+      qc.invalidateQueries({ queryKey: ["alters"] });
+      qc.invalidateQueries({ queryKey: ["alter", alter.id] });
+      qc.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`${alter.name} removed from ${g.name}`);
+    } catch (e) {
+      toast.error(e.message || "Failed to remove");
+    }
+  };
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const isFronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
@@ -106,6 +132,9 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
           <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
             onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast))} />
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
+          {memberOfSubs.map((g) => (
+            <Item key={g.id} icon={UserMinus} label={`Remove from ${g.name}`} onClick={() => go(() => leaveSubsystem(g))} />
+          ))}
         </div>
       </div>
     </div>

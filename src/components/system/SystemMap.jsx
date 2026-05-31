@@ -8,6 +8,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import useSystemMapLayout from "@/lib/useSystemMapLayout";
+import { getMemberAlters } from "@/lib/subsystemUtils";
+import { useTerms } from "@/lib/useTerms";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -46,6 +48,7 @@ const SystemMap = ({ relationships = [] }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedAlter, setSelectedAlter] = useState(null);
   const [selectedGroup, setSelectedGroup] = useState(null);
+  const t = useTerms();
   const [cofronterCount, setCofronterCount] = useState(10);
   // Local text mirror so the field can be cleared / mid-typed; the real
   // count is clamped on blur, not on every keystroke (which snapped it
@@ -98,8 +101,14 @@ const SystemMap = ({ relationships = [] }) => {
     let result = alters.filter(a => showArchived ? true : !a.is_archived);
     if (selectedGroup) {
       const group = groups.find((g) => g.id === selectedGroup);
-      if (group?.member_sp_ids) {
-        result = result.filter((a) => group.member_sp_ids.includes(a.sp_id));
+      if (group) {
+        // Match membership the robust way (alter.groups OR member_sp_ids,
+        // owner included for a subsystem) — the old member_sp_ids-only
+        // check matched almost nothing for local alters (no sp_id), which
+        // is why filtering by a group collapsed to a single node.
+        const memberIds = new Set(getMemberAlters(group, result).map((a) => a.id));
+        if (group.owner_alter_id) memberIds.add(group.owner_alter_id);
+        result = result.filter((a) => memberIds.has(a.id));
       }
     }
     if (searchQuery) {
@@ -693,7 +702,7 @@ const SystemMap = ({ relationships = [] }) => {
               <div className="flex flex-wrap gap-1.5">
                 <Badge variant={selectedGroup ? "outline" : "secondary"} className="cursor-pointer text-xs"
                   onClick={() => setSelectedGroup(null)}>All</Badge>
-                {groups.map((group) => (
+                {groups.filter((g) => !g.owner_alter_id).map((group) => (
                   <Badge key={group.id}
                     variant={selectedGroup === group.id ? "default" : "outline"}
                     className="cursor-pointer text-xs"
@@ -703,6 +712,23 @@ const SystemMap = ({ relationships = [] }) => {
                 ))}
               </div>
             </div>
+            {groups.some((g) => g.owner_alter_id) && (
+              <div>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">
+                  Filter by {t.system === "system" ? "Subsystem" : `Sub${t.system}`}
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {groups.filter((g) => g.owner_alter_id).map((group) => (
+                    <Badge key={group.id}
+                      variant={selectedGroup === group.id ? "default" : "outline"}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setSelectedGroup(selectedGroup === group.id ? null : group.id)}>
+                      {group.name}
+                    </Badge>
+                  ))}
+                </div>
+              </div>
+            )}
 
             {selectedAlter && (
               <div>

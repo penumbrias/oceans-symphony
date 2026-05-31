@@ -26,6 +26,7 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import AlterCard from "@/components/alters/AlterCard";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
@@ -124,6 +125,10 @@ function GroupProfileInner() {
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
+  });
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
 
   const group = allGroups.find((g) => String(g.id) === String(groupId)) || null;
@@ -288,24 +293,23 @@ function GroupProfileInner() {
           {members.length === 0 ? (
             <p className="text-xs text-muted-foreground">No members yet. Tap Manage to add some.</p>
           ) : (
-            <div className="space-y-1.5">
-              {members.map((m) => {
+            <div className="space-y-2">
+              {members.map((m, i) => {
                 const ownedSub = getSubsystemsOwnedBy(allGroups, m.id)[0] || null;
                 return (
-                  <div key={m.id} className="flex items-center gap-2">
-                    <button type="button" onClick={() => navigate(`/alter/${m.id}`)}
-                      className="flex-1 flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
-                      style={{ borderLeftColor: m.color || "transparent", borderLeftWidth: m.color ? 3 : 1 }}>
-                      <MemberAvatar alter={m} />
-                      <span className="text-sm flex-1 truncate">{m.emoji ? `${m.emoji} ` : ""}{m.name}</span>
-                    </button>
-                    {ownedSub && (
+                  <AlterCard
+                    key={m.id}
+                    alter={m}
+                    index={i}
+                    activeSessions={activeSessions}
+                    hideFront
+                    rightAccessory={ownedSub ? (
                       <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
                         className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
                         <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
                       </button>
-                    )}
-                  </div>
+                    ) : null}
+                  />
                 );
               })}
             </div>
