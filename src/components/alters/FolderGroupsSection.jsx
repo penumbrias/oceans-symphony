@@ -35,8 +35,10 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
       <motion.div
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={onClick} className="bg-card px-4 py-2 rounded-xl flex-1 flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
-        
+        onClick={onClick} className="flex-1 min-w-0">
+        {/* Single card — matches the alters-section AlterCard row exactly
+            (was double-boxed: an outer bg-card/border wrapping an inner
+            bg-card/border, which read as a box-in-a-box). */}
         <div
           className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>

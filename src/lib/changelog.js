@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alters listed inside a group on the alters page now render as a single clean row (matching the main alters list) instead of a doubled-up box-in-a-box.",
+      },
+      {
+        type: "fix",
         text: "Hardened against a rare freeze where the app stopped responding to taps (but still scrolled) after the phone slept and woke. An interrupted drag of the floating Grounding bubble could leave touch handling wedged; that state is now always cleaned up when the app goes to the background.",
       },
       {
