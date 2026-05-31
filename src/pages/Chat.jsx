@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus, ImagePlus, Loader2 } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -259,20 +259,14 @@ export default function Chat() {
   }, [activeFront, activeFronterIds, alters]);
 
   return (
-    <div
-      className="flex flex-col h-full"
-      style={{
-        // The bottom nav is `position: fixed` and covers the bottom
-        // `bottom-nav-height + safe-area` of the viewport, so the
-        // composer needs that much padding below it to clear the bar.
-        paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
-        // The chat must also be at least the height of the visible
-        // area below the AppLayout's mobile header so the flex
-        // layout has room to push the composer to the bottom (rather
-        // than letting it bunch up below short message lists).
-        minHeight: "calc(100dvh - 56px - env(safe-area-inset-top, 0px))",
-      }}
-    >
+    // Fill the scroll container exactly — `.app-content-main` already
+    // reserves space for the fixed bottom nav (and the safe-area) via its
+    // mobile `padding-bottom`, so the chat shell just needs `h-full` to sit
+    // flush in the visible area. Previously this also set its own
+    // `minHeight: 100dvh - header` AND a second `paddingBottom` for the nav,
+    // double-counting the reserved space — that overflow was the empty gap
+    // that appeared below the channel list / composer until you scrolled.
+    <div className="flex flex-col h-full min-h-0">
       <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
         <h1 className="text-base font-semibold flex items-center gap-2 flex-1 min-w-0">
           <MessageSquare className="w-4 h-4 text-primary flex-shrink-0" />

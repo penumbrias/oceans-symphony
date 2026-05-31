@@ -226,7 +226,9 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
         }
         if (sleep.linked_activity_id) {
           await base44.entities.Activity.update(sleep.linked_activity_id, {
+            timestamp: bedtimeISO,
             duration_minutes: durationMinutes,
+            notes: notes || null,
           });
         } else {
           const newAct = await base44.entities.Activity.create({
@@ -235,6 +237,8 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
             duration_minutes: durationMinutes,
             activity_category_ids: [sleepCat.id],
             color: sleepCat.color,
+            notes: notes || null,
+            source_sleep_id: sleep.id,
           });
           await base44.entities.Sleep.update(sleep.id, { linked_activity_id: newAct.id });
         }
@@ -345,24 +349,36 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium block mb-1">Notes (optional)</label>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-sm font-medium">Notes (optional)</label>
+              {/* Same always-available "Save to Dream Journal" toggle as the
+                  past-log modal — previously this was a checkbox hidden until
+                  you'd marked a dream and typed a note, so the option was easy
+                  to miss when ending a sleep. */}
+              <button
+                type="button"
+                onClick={() => setSaveAsDream((v) => !v)}
+                className={cn(
+                  "inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-all",
+                  saveAsDream
+                    ? "border-violet-500/60 bg-violet-500/10 text-violet-500"
+                    : "border-border text-muted-foreground hover:border-border/80"
+                )}
+              >
+                <BookOpen className="w-3 h-3" />
+                {saveAsDream ? "Saving to Dream Journal" : "Save to Dream Journal"}
+              </button>
+            </div>
             <Textarea
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               placeholder="How did you sleep? Any dreams?"
               rows={3}
             />
-            {(dreamed || hadNightmare) && notes.trim() && (
-              <label className="flex items-center gap-2 mt-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={saveAsDream}
-                  onChange={(e) => setSaveAsDream(e.target.checked)}
-                  className="w-4 h-4 accent-primary"
-                />
-                <BookOpen className="w-3.5 h-3.5 text-muted-foreground" />
-                <span className="text-sm">Also save the note as a Dream journal entry</span>
-              </label>
+            {saveAsDream && !notes.trim() && (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                Add a note above and it'll be saved as a Dream journal entry too.
+              </p>
             )}
           </div>
         </div>

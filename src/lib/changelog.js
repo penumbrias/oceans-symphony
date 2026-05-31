@@ -17,11 +17,15 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Alter profile background images now show behind the whole page again, not just the header — including ones that previously appeared blank.",
+        text: "System Chat: removed an empty gap that appeared below the channel list and message box until you scrolled.",
       },
       {
         type: "fix",
-        text: "Ending a sleep log now lets you add how many times (and at what times) you were interrupted, matching the past-log and edit screens.",
+        text: "Alter profile background images now show behind the whole page again, not just the header — including ones that previously appeared blank.",
+      },
+      {
+        type: "improve",
+        text: "Ending a sleep log now works just like logging a past sleep — set interruption counts/times, save the note to your Dream Journal, and it records your notes correctly.",
       },
       {
         type: "improve",
