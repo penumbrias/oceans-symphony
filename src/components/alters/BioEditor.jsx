@@ -293,10 +293,10 @@ export default function BioEditor({ value, onChange }) {
           overlay) so it can't trap input. */}
       {showModeHelp && (
         <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-xs text-muted-foreground space-y-1.5 max-w-prose">
-          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Type className="w-3 h-3" /> Plain</span> — a simple write-and-format box. Type your bio with light formatting; easiest for most people.</p>
-          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Eye className="w-3 h-3" /> Simple</span> — a lightweight view that edits your bio as clean stacked sections of text and images.</p>
-          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><LayoutGrid className="w-3 h-3" /> Blocks</span> — full layout control: add, reorder and arrange blocks (text, side-by-side images, galleries).</p>
-          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Code className="w-3 h-3" /> Raw</span> — edit the underlying HTML directly. For pasting templates or fine-tuning the markup.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Type className="w-3 h-3" /> Plain</span> — best for general use. A simple write-and-format box for typing your bio with light formatting.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Eye className="w-3 h-3" /> Simple</span> — only lets you edit the parts wrapped in <code className="px-1 rounded bg-muted text-[0.625rem]">&lt;span data-edit="true"&gt;</code> (add that wrap easily with the pencil button in the toolbar). Good for filling in imported templates without disturbing their layout.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><LayoutGrid className="w-3 h-3" /> Blocks</span> — for complex editing: add, reorder and arrange blocks. Templates can be pasted into a text block or brought in with the "Import template" button.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Code className="w-3 h-3" /> Raw</span> — like Blocks but raw HTML. Best for those with some coding knowledge who want full freedom.</p>
           <p className="text-[0.6875rem] text-muted-foreground/80 pt-0.5">Your bio is the same underneath — these are just different ways to edit it. Switch anytime.</p>
         </div>
       )}

@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "fix",
+        text: "GIFs now stay animated when set as a profile background (not just the header) — some uploads weren't being recognised as GIFs and got flattened.",
+      },
+      {
+        type: "fix",
+        text: "Member avatars now display correctly in the Manage Group Members picker.",
+      },
+      {
+        type: "improve",
+        text: "The bio editor's mode help now accurately explains Plain, Simple (edit only template-marked spots), Blocks, and Raw.",
+      },
+      {
         type: "improve",
         text: "The alters page filter is now a proper popup: switch between nested/flat lists, multi-select groups and subsystems (searchable pills), match Any or All of them, and Clear all.",
       },

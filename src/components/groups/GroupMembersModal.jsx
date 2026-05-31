@@ -14,6 +14,27 @@ import { Grid3X3, List, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Avatar that resolves local-image:// (and the SW /local-image/ path) the
+// way the rest of the app does — a raw <img src> on a legacy
+// local-image:// URL renders broken, which is why member pictures weren't
+// showing in this picker.
+function MemberThumb({ alter, size = "w-8 h-8", grayscale = false, fallbackInitial = false }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  if (resolved) {
+    return <img src={resolved} alt={alter?.name || ""} className={`${size} rounded-full object-cover flex-shrink-0 ${grayscale ? "grayscale" : ""}`} />;
+  }
+  if (fallbackInitial) {
+    return (
+      <div className={`${size} rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold ${grayscale ? "grayscale" : ""}`}
+        style={{ backgroundColor: alter?.color || "#9333ea" }}>
+        {alter?.name?.charAt(0)?.toUpperCase()}
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function GroupMembersModal({ group, allGroups, isOpen, onClose }) {
   const terms = useTerms();
@@ -234,9 +255,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                     className="flex items-center gap-3 p-2 rounded-lg opacity-50 cursor-not-allowed"
                   >
                     <Ban className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
-                    {alter.avatar_url && (
-                      <img src={alter.avatar_url} alt={alter.name} className="w-8 h-8 rounded-full object-cover grayscale" />
-                    )}
+                    <MemberThumb alter={alter} grayscale />
                     <span className="text-sm flex-1 line-through">{alter.name}</span>
                     <span className="text-[0.625rem] text-muted-foreground italic flex-shrink-0">would loop</span>
                   </div>
@@ -260,13 +279,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                   className="pointer-events-none flex-shrink-0"
                   tabIndex={-1}
                 />
-                {alter.avatar_url && (
-                  <img
-                    src={alter.avatar_url}
-                    alt={alter.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                )}
+                <MemberThumb alter={alter} />
                 <span className="text-sm flex-1">{alter.name}</span>
               </div>
               );
@@ -283,13 +296,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                     className="relative flex flex-col items-center gap-1.5 p-2 rounded-lg opacity-50 cursor-not-allowed"
                   >
                     <Ban className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-muted-foreground" />
-                    {alter.avatar_url ? (
-                      <img src={alter.avatar_url} alt={alter.name} className="w-12 h-12 rounded-full object-cover flex-shrink-0 grayscale" />
-                    ) : (
-                      <div className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold grayscale" style={{ backgroundColor: alter.color || "#9333ea" }}>
-                        {alter.name?.charAt(0)?.toUpperCase()}
-                      </div>
-                    )}
+                    <MemberThumb alter={alter} size="w-12 h-12" grayscale fallbackInitial />
                     <span className="text-xs text-center font-medium w-full truncate leading-tight line-through">{alter.alias || alter.name}</span>
                   </div>
                 );
@@ -309,20 +316,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
                     className="absolute top-1.5 right-1.5 w-3.5 h-3.5 pointer-events-none"
                     tabIndex={-1}
                   />
-                  {alter.avatar_url ? (
-                    <img
-                      src={alter.avatar_url}
-                      alt={alter.name}
-                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold"
-                      style={{ backgroundColor: alter.color || "#9333ea" }}
-                    >
-                      {alter.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                  )}
+                  <MemberThumb alter={alter} size="w-12 h-12" fallbackInitial />
                   <span className="text-xs text-center font-medium w-full truncate leading-tight">
                     {alter.alias || alter.name}
                   </span>

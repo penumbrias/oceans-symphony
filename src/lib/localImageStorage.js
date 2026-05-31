@@ -178,7 +178,17 @@ export function fileToDataUrl(file) {
 // background upload paths share so GIF handling stays consistent.
 export async function processUploadedImage(file, maxDim = 512, quality = 0.82) {
   const raw = await fileToDataUrl(file);
-  const isGif = file.type === 'image/gif';
+  // Detect GIF robustly. Some file pickers (notably Android's) don't set
+  // file.type to "image/gif", so we also check the filename extension and
+  // sniff the data-URL: a base64 GIF always begins "R0lGOD" ("GIF8"), and
+  // the mime may be present as data:image/gif. Without this, a GIF whose
+  // mime came through blank fell into the canvas path and was flattened —
+  // which is why GIF backgrounds sometimes wouldn't animate.
+  const isGif =
+    file.type === 'image/gif' ||
+    /\.gif$/i.test(file.name || '') ||
+    /^data:image\/gif/i.test(raw) ||
+    (typeof raw === 'string' && raw.startsWith('data:') && raw.includes('base64,R0lGOD'));
   const dataUrl = isGif ? raw : await compressImageDataUrl(raw, maxDim, quality);
   return { dataUrl, isGif, sizeKB: Math.round((dataUrl?.length || 0) / 1024) };
 }
