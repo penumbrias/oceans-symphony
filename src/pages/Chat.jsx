@@ -1150,20 +1150,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 // the top.
 function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
   const formatAlter = useAlterLabel();
-  const triggerRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
   const chipColor = useReadableColor(selectedAuthors[0]?.color);
-
-  useEffect(() => {
-    if (!open) return;
-    const t = triggerRef.current;
-    if (!t) return;
-    const rect = t.getBoundingClientRect();
-    const width = Math.max(240, Math.min(320, window.innerWidth - 24));
-    const top = Math.max(8, rect.top - 360); // popover above the composer
-    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
-    setPos({ top, left, width });
-  }, [open]);
 
   const sortedAlters = useMemo(
     () => [...alters]
@@ -1176,7 +1163,6 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
   return (
     <>
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(!open)}
         className="flex items-center gap-1.5 px-1.5 py-1 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 max-w-[10rem]"
@@ -1190,27 +1176,29 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={() => onOpenChange(false)} />
+        // Top-anchored modal — keeps the list above the on-screen keyboard
+        // (the old version floated at a fixed offset and hid behind it).
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-start justify-center p-4 pt-[10vh]" onClick={() => onOpenChange(false)}>
           <div
-            className="z-[61] bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxHeight: "70vh", display: "flex", flexDirection: "column" }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-sm max-h-[75vh] flex flex-col overflow-hidden"
           >
-            <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                Choose speaker(s)
-              </span>
+            <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose speaker(s)</span>
+              <button type="button" onClick={() => onOpenChange(false)} aria-label="Close" className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="px-3 py-2 border-b border-border/50">
+            <div className="px-4 py-2.5 border-b border-border/50">
               <input
                 autoFocus
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={`Search ${terms.alters || "alters"}…`}
-                className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
               {/* -system pseudo-option always at top */}
               <SpeakerRow
                 alter={SYSTEM_AUTHOR}
@@ -1227,17 +1215,17 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
                 />
               ))}
             </div>
-            <div className="px-3 py-2 border-t border-border/50 flex justify-end">
+            <div className="px-4 py-2.5 border-t border-border/50 flex justify-end">
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-sm font-medium text-primary hover:underline"
               >
                 Done
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </>
   );

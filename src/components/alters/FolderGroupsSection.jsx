@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Folder, ChevronRight, User, ArrowLeft, Plus, Users, Crown, ExternalLink } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -128,7 +128,11 @@ function FolderRow({ group, onClick, onLongOpen }) {
 
 export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls, anonymize = "off", displayMode = "list" }) {
   const terms = useTerms();
-  const [navStack, setNavStack] = useState([]);
+  // Breadcrumb stack, persisted so returning from an alter profile lands
+  // back in the folder you were browsing.
+  const [navStack, setNavStack] = useState(() => {
+    try { const raw = sessionStorage.getItem("groupsNav"); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
   const [menuGroup, setMenuGroup] = useState(null); // group folder for the actions popup
   // Subsystems (alter-owned groups) are hidden from the root groups list by
   // default — they live under their owner in the alters list. Toggle to
@@ -145,6 +149,18 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list()
   });
+
+  // Persist + prune the breadcrumb so it survives a trip to an alter
+  // profile and back, but drops groups deleted while away.
+  useEffect(() => {
+    try { sessionStorage.setItem("groupsNav", JSON.stringify(navStack)); } catch { /* storage off */ }
+  }, [navStack]);
+  useEffect(() => {
+    if (navStack.length === 0 || allGroups.length === 0) return;
+    const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
+    if (valid.length !== navStack.length) setNavStack(valid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allGroups]);
 
   const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
   const currentGroupKey = currentGroup ? currentGroup.id : null;

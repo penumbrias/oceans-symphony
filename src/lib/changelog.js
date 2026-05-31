@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System Chat: the \"choose speaker(s)\" picker is now a clean centered popup with search, instead of floating behind the keyboard.",
+      },
+      {
+        type: "improve",
+        text: "Coming back from an alter's profile now returns you to where you were in the alters list — the nested subsystem or group you were browsing — instead of jumping to the top.",
+      },
+      {
+        type: "improve",
         text: "In the alters list, deeply nested subsystems now \"drill in\" with a breadcrumb (like the groups section) instead of opening the subsystem's profile — so you can keep exploring on the same page and tap the breadcrumb to back out.",
       },
       {

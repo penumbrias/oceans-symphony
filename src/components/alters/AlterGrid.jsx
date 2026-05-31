@@ -357,6 +357,7 @@ export default function AlterGrid({ alters }) {
               allGroups={allGroups}
               activeSessions={activeSessions}
               anonymize={anonymize}
+              persistKey="altersMain"
             />
           )) :
 

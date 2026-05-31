@@ -77,11 +77,30 @@ function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable
   );
 }
 
-export default function SubsystemAlterList({ topAlters, allAlters, allGroups, activeSessions, anonymize }) {
+export default function SubsystemAlterList({ topAlters, allAlters, allGroups, activeSessions, anonymize, persistKey }) {
   const t = useTerms();
   // Breadcrumb drill-in stack of subsystems (groups). Empty = top level.
-  const [navStack, setNavStack] = useState([]);
+  // Persisted to sessionStorage (when persistKey is set) so leaving for an
+  // alter profile and coming back lands you where you were.
+  const storeKey = persistKey ? `subsysNav_${persistKey}` : null;
+  const [navStack, setNavStack] = useState(() => {
+    if (!storeKey) return [];
+    try { const raw = sessionStorage.getItem(storeKey); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
   const [rootMenuGroup, setRootMenuGroup] = useState(null);
+
+  useEffect(() => {
+    if (!storeKey) return;
+    try { sessionStorage.setItem(storeKey, JSON.stringify(navStack)); } catch { /* storage off */ }
+  }, [navStack, storeKey]);
+
+  // Drop any breadcrumb entries whose group was deleted while away.
+  useEffect(() => {
+    if (!storeKey || navStack.length === 0 || allGroups.length === 0) return;
+    const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
+    if (valid.length !== navStack.length) setNavStack(valid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allGroups, storeKey]);
 
   const current = navStack.length > 0 ? navStack[navStack.length - 1] : null;
   const displayAlters = current ? getMemberAlters(current, allAlters) : topAlters;
