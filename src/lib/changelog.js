@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alter profile background images now show behind the whole page again, not just the header — including ones that previously appeared blank.",
+      },
+      {
+        type: "fix",
+        text: "Ending a sleep log now lets you add how many times (and at what times) you were interrupted, matching the past-log and edit screens.",
+      },
+      {
+        type: "improve",
+        text: "Wider image support: WebP, AVIF and animated images now keep their transparency and animation instead of being flattened.",
+      },
+      {
+        type: "fix",
         text: "Alters grid: expanding a nested subsystem no longer expands every other copy of that alter. Deeper subsystems now drill in with a breadcrumb (like the list view) instead of redirecting to their profile.",
       },
     ],

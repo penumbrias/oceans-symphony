@@ -122,17 +122,33 @@ export async function restoreLocalImages(imagesMap) {
   }
 }
 
-// Resize + re-encode a data URL to JPEG. Returns original if it's an SVG,
+// True for image formats we must never push through the canvas: vector
+// (SVG — rasterising it loses scalability) and any format that can carry
+// animation and/or an alpha channel that a JPEG re-encode would destroy.
+// drawImage only captures a single frame and toDataURL('image/jpeg') has no
+// transparency, so re-encoding GIF / WebP / AVIF / APNG silently flattens the
+// animation and/or paints transparent pixels black. Keeping them raw is what
+// lets the app support these types end-to-end (callers cap size separately).
+export function isUncompressibleImage(dataUrl) {
+  if (!dataUrl || typeof dataUrl !== 'string') return false;
+  const head = dataUrl.slice(0, 40).toLowerCase();
+  return (
+    head.startsWith('data:image/svg') ||
+    head.startsWith('data:image/gif') ||
+    head.startsWith('data:image/webp') ||
+    head.startsWith('data:image/avif') ||
+    head.startsWith('data:image/apng')
+  );
+}
+
+// Resize + re-encode a data URL. Returns the original untouched for the
+// formats isUncompressibleImage() flags (SVG/GIF/WebP/AVIF/APNG), if it's
 // already small enough, or if canvas fails. maxDim caps the longer edge.
 // Preserves transparency when the input is a PNG by re-encoding as PNG;
-// other formats get encoded as JPEG (smaller, no transparency support).
+// remaining formats (JPEG/BMP/etc.) get encoded as JPEG (smaller).
 export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
-  if (dataUrl.startsWith('data:image/svg')) return dataUrl;
-  // Animated GIFs MUST bypass the canvas — drawImage only captures the
-  // first frame, so re-encoding here would silently flatten the
-  // animation to a still. Keep them raw (callers cap size separately).
-  if (dataUrl.startsWith('data:image/gif')) return dataUrl;
+  if (isUncompressibleImage(dataUrl)) return dataUrl;
   const inputIsPng = dataUrl.startsWith('data:image/png');
   return new Promise((resolve) => {
     const img = new Image();
@@ -219,9 +235,9 @@ export async function recompressAllStoredImages(maxDim = 512, quality = 0.82, on
 
   for (const key of keys) {
     const current = await getLocalImage(key);
-    // Skip SVGs (vector, nothing to gain) and GIFs (canvas re-encode would
-    // flatten the animation — see compressImageDataUrl).
-    if (typeof current === 'string' && current.startsWith('data:') && !current.startsWith('data:image/svg') && !current.startsWith('data:image/gif')) {
+    // Skip the formats canvas re-encoding would damage — vector SVGs and
+    // animation/alpha-capable GIF/WebP/AVIF/APNG (see compressImageDataUrl).
+    if (typeof current === 'string' && current.startsWith('data:') && !isUncompressibleImage(current)) {
       try {
         const compressed = await compressImageDataUrl(current, maxDim, quality);
         if (compressed.length < current.length) {
