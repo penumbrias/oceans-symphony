@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Subsystems (first part): an alter can own a group as their subsystem. Create one from the alter's profile (Groups section → Create subsystem); when you open that group the parent alter shows at the top. More subsystem tools are on the way.",
+      },
+      {
         type: "fix",
         text: "Fixed the app becoming unresponsive — header and bottom nav not tapping — after pinning an alter. A pin popup could get stuck over the screen; pinning is now a direct hold-to-pin toggle with no overlay.",
       },

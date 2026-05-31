@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -156,8 +158,40 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
+  const [creatingSubsystem, setCreatingSubsystem] = useState(false);
   const bgFileInputRef = useRef(null);
   const headerFileInputRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Subsystems this alter owns (groups with owner_alter_id === this alter).
+  const { data: allGroups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+  const ownedSubsystems = getSubsystemsOwnedBy(allGroups, alter.id);
+
+  // Create a new subsystem owned by this alter. The term is "sub" + the
+  // user's system term (subsystem / subcollective / …).
+  const subsystemTerm = `sub${t.system}`;
+  const createSubsystem = async () => {
+    setCreatingSubsystem(true);
+    try {
+      const name = `${alter.name}'s ${subsystemTerm}`;
+      await base44.entities.Group.create({
+        name,
+        color: alter.color || "#8b5cf6",
+        parent: "",
+        member_sp_ids: [],
+        owner_alter_id: alter.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`Created ${name}`);
+    } catch (e) {
+      toast.error(e.message || "Failed to create subsystem");
+    } finally {
+      setCreatingSubsystem(false);
+    }
+  };
 
   useEffect(() => {
     let birthday = alter.birthday || "";
@@ -974,6 +1008,44 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
           <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit →</button>
+        </div>
+
+        {/* Subsystems this alter owns + a create button. A subsystem is a
+            group this alter parents — see subsystemUtils. */}
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Folder className="w-3.5 h-3.5" /> {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={createSubsystem}
+              disabled={creatingSubsystem}
+              className="text-xs text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <FolderPlus className="w-3.5 h-3.5" /> Create {subsystemTerm}
+            </button>
+          </div>
+          {ownedSubsystems.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {ownedSubsystems.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => navigate("/groups")}
+                  className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
+                  style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
+                  title="Open in Groups manager"
+                >
+                  <Folder className="w-3 h-3" /> {g.name}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+              A {subsystemTerm} makes {alter.name} the parent of a group — useful for facets, alter-egos, or nested {t.systems}.
+            </p>
+          )}
         </div>
         {alter.groups && alter.groups.length > 0 ? (() => {
           const pageBg = getPageBackground();

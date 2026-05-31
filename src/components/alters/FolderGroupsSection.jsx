@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Folder, ChevronRight, User, ArrowLeft, Plus, Users } from "lucide-react";
+import { Folder, ChevronRight, User, ArrowLeft, Plus, Users, Crown } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -128,9 +128,17 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   }).
   sort((a, b) => (a.order || 0) - (b.order || 0));
 
+  // The owner alter of a subsystem group, if any. Shown as the "parent"
+  // at the top, and excluded from the member list below so they don't
+  // appear twice.
+  const ownerAlter = currentGroup?.owner_alter_id
+    ? alters.find((a) => a.id === currentGroup.owner_alter_id)
+    : null;
+
   // Get members in current group (check both alter's groups array and Group entity's member_sp_ids)
   const memberAlters = currentGroup ?
   alters.filter((a) => {
+    if (a.id === currentGroup.owner_alter_id) return false; // owner is the parent, not a child
     // Check if alter's groups array contains this group
     const inAlterGroups = (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey);
     // Check if this group's member_sp_ids contains the alter's sp_id
@@ -219,7 +227,21 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         exit={{ opacity: 0, x: -20 }}
         transition={{ duration: 0.15 }}
         className="space-y-2">
-        
+
+        {/* Subsystem owner (parent) — pinned at the top of an owned group. */}
+        {ownerAlter && (
+          <div className="space-y-1">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground px-1 flex items-center gap-1">
+              <Crown className="w-3 h-3 text-amber-500" /> Parent of this {terms.system === "system" ? "subsystem" : `sub${terms.system}`}
+            </p>
+            <MemberRow
+              alter={ownerAlter}
+              activeSessions={activeSessions}
+              onClick={() => navigate(`/alter/${ownerAlter.id}`)} />
+            <div className="h-px bg-border/40 my-1" />
+          </div>
+        )}
+
         {childGroups.map((g) =>
         <FolderRow key={g.id} group={g} onClick={navigateTo} />
         )}
