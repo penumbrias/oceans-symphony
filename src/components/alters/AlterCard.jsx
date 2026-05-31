@@ -159,7 +159,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
   );
 }
 
-export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off" }) {
+export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off", rightAccessory = null }) {
   const formatAlter = useAlterLabel();
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
@@ -242,6 +242,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
           })()}
         </div>
       </div>
+      {rightAccessory}
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </motion.div>
   );

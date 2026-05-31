@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "In the alters list, the subsystem expander now sits next to the activity bolt (instead of below the chip) and can show the subsystem's own avatar — matching the groups section.",
+      },
+      {
+        type: "fix",
+        text: "Member profile pictures now display correctly on group/subsystem profile pages.",
+      },
+      {
+        type: "improve",
+        text: "Expanding an empty subsystem in the alters list now shows an \"add a member\" slot so you can populate it right there.",
+      },
+      {
+        type: "improve",
+        text: "You can now open a group or subsystem's profile straight from Manage Groups (an open-profile button on the selected group).",
+      },
+      {
         type: "feature",
         text: "Groups and subsystems now have their own profile page — give them a name, emoji, colour, avatar, banner/background, description, an owner (which makes it a subsystem), and manage members, just like an alter's profile. Tap a subsystem to open it.",
       },

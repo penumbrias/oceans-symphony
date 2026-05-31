@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users, Plus, Trash2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { ChevronDown, ChevronRight, ArrowLeft, ArrowUp, Users, Plus, Trash2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -39,6 +40,7 @@ export default function GroupTreeRow({
   onDeleteGroup = () => {},
 }) {
   const terms = useTerms();
+  const navigate = useNavigate();
   const [isDropTarget, setIsDropTarget] = useState(false);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -191,6 +193,20 @@ export default function GroupTreeRow({
             title="Move here"
           >
             <ArrowLeft className="w-4 h-4" />
+          </button>
+        )}
+
+        {/* Open profile if selected */}
+        {isSelected && (
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate(`/group/${group.id}`);
+            }}
+            className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            title="Open group profile"
+          >
+            <ExternalLink className="w-4 h-4" />
           </button>
         )}
 

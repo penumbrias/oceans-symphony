@@ -14,6 +14,7 @@ import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
@@ -64,11 +65,7 @@ function wouldCreateGroupParentCycle(groups, childId, candidateParentId) {
 }
 
 function GroupAvatar({ url, color, emoji, size = "w-24 h-24", iconSize = "w-10 h-10" }) {
-  const [resolved, setResolved] = useState(null);
-  useEffect(() => {
-    if (!url) { setResolved(null); return; }
-    resolveImageUrl(url).then(setResolved).catch(() => setResolved(null));
-  }, [url]);
+  const resolved = useResolvedAvatarUrl(url);
   const textColor = isValidHexColor(color) ? getContrastColor(color) : "hsl(var(--muted-foreground))";
   return (
     <div className={`${size} rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center`}
@@ -78,6 +75,23 @@ function GroupAvatar({ url, color, emoji, size = "w-24 h-24", iconSize = "w-10 h
         : emoji
           ? <span className="text-3xl">{emoji}</span>
           : <Folder className={iconSize} style={{ color: textColor }} />}
+    </div>
+  );
+}
+
+// Member avatar that resolves local-image:// (and the SW /local-image/
+// path) the same way the rest of the app does — a raw <img src> on a
+// legacy local-image:// URL renders broken, which is why member pictures
+// weren't showing on the group profile.
+function MemberAvatar({ alter, size = "w-9 h-9", rounded = "rounded-lg" }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  const color = alter?.color;
+  return (
+    <div className={`${size} ${rounded} overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40`}
+      style={{ backgroundColor: isValidHexColor(color) ? color : "hsl(var(--muted))" }}>
+      {resolved
+        ? <img src={resolved} alt="" className="w-full h-full object-cover" />
+        : <User className="w-4 h-4" style={{ color: isValidHexColor(color) ? getContrastColor(color) : "hsl(var(--muted-foreground))" }} />}
     </div>
   );
 }
@@ -275,10 +289,7 @@ function GroupProfileInner() {
                     <button type="button" onClick={() => navigate(`/alter/${m.id}`)}
                       className="flex-1 flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
                       style={{ borderLeftColor: m.color || "transparent", borderLeftWidth: m.color ? 3 : 1 }}>
-                      <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
-                        style={{ backgroundColor: m.color || "hsl(var(--muted))" }}>
-                        {m.avatar_url ? <img src={m.avatar_url} alt="" className="w-full h-full object-cover" /> : <User className="w-4 h-4" style={{ color: m.color ? getContrastColor(m.color) : "hsl(var(--muted-foreground))" }} />}
-                      </div>
+                      <MemberAvatar alter={m} />
                       <span className="text-sm flex-1 truncate">{m.emoji ? `${m.emoji} ` : ""}{m.name}</span>
                     </button>
                     {ownedSub && (
