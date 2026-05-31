@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New Image Assets page (in the menu): every image you've stored in the app, auto-sorted into folders. Rename, organise into folders, bulk-upload, delete, and reuse any image anywhere.",
+      },
+      {
+        type: "improve",
+        text: "You can now insert images from your assets into bios, bulletins, comments and chat — tap the 🖼 button in the toolbar.",
+      },
+      {
+        type: "improve",
+        text: "Global search now finds subsystems (opening their profile) and your chat messages too.",
+      },
+      {
+        type: "feature",
         text: "New image Assets library: upload images once (in bulk too), sort them into folders, and reuse any of them anywhere that takes a picture — tap the 🖼 button next to any image upload. No re-uploading or duplicate storage, and they're included in backups.",
       },
       {

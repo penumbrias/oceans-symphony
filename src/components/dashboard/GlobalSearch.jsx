@@ -41,6 +41,7 @@ const TYPE_ICONS = {
   note:      "📝",
   reminder:  "⏰",
   grocery:   "🛒",
+  chat:      "💬",
 };
 
 function getTypeLabels(t) {
@@ -61,6 +62,7 @@ function getTypeLabels(t) {
     note:      `${t.Alter} Notes`,
     reminder:  "Reminders",
     grocery:   "Grocery List",
+    chat:      "Chat Messages",
   };
 }
 
@@ -220,6 +222,16 @@ export default function GlobalSearch() {
     queryFn: () => safeList(localEntities.GroceryItem),
     staleTime: stale, enabled,
   });
+  const { data: chatMessages = [] } = useQuery({
+    queryKey: ["searchChatMessages"],
+    queryFn: () => safeList(localEntities.SystemChatMessage),
+    staleTime: stale, enabled,
+  });
+  const { data: chatChannels = [] } = useQuery({
+    queryKey: ["searchChatChannels"],
+    queryFn: () => safeList(localEntities.SystemChatChannel),
+    staleTime: stale, enabled,
+  });
 
   const index = useMemo(() => buildSearchIndex({
     alters, customFieldDefs,
@@ -237,6 +249,7 @@ export default function GlobalSearch() {
     alterNotes, alterMessages,
     reminders,
     groceries,
+    chatMessages, chatChannels,
   }), [
     alters, customFieldDefs,
     journals, supportJournals,
@@ -253,6 +266,7 @@ export default function GlobalSearch() {
     alterNotes, alterMessages,
     reminders,
     groceries,
+    chatMessages, chatChannels,
   ]);
 
   const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
@@ -285,7 +299,7 @@ export default function GlobalSearch() {
   const TYPE_ORDER = [
     "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "grocery",
+    "location", "syschange", "symptom", "group", "chat", "grocery",
   ];
 
   return (

@@ -2,11 +2,12 @@ import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X, ImagePlus, Loader2,
+  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X, ImagePlus, Loader2, Images,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ColorPickerModal, PRESET_COLORS, PRESET_HIGHLIGHTS, FONTS } from "@/components/shared/MiniToolbar";
 import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -48,6 +49,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const [showMore, setShowMore] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
+  const [showAssetPicker, setShowAssetPicker] = useState(false);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -225,6 +227,12 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             className="hidden"
             onChange={handleImageFile}
           />
+          {/* Insert from the reusable asset library */}
+          <button type="button" title="Insert from assets"
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); setShowAssetPicker(true); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
+            <Images className="w-3.5 h-3.5" />
+          </button>
           {sep}
           {/* Text color */}
           <button type="button" title="Text color" onMouseDown={(e) => { e.preventDefault(); openColorModal("fg"); }}
@@ -331,6 +339,17 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           mode={colorModal}
           onApply={applyColor}
           onClose={() => setColorModal(null)}
+        />
+      )}
+
+      {showAssetPicker && (
+        <AssetPickerModal
+          open
+          onClose={() => setShowAssetPicker(false)}
+          onSelect={(url) => {
+            insertHTML(`<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0;" />`, "");
+            setShowAssetPicker(false);
+          }}
         />
       )}
     </div>
