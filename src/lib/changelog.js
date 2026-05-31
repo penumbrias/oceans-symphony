@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Bio editor (Plain mode): an image button in the toolbar lets you upload a picture straight into your bio — no need to switch to the Blocks editor. Animated GIFs keep their animation.",
+      },
+      {
         type: "improve",
         text: "Bio editor: a help button (?) now explains what the Plain / Simple / Blocks / Raw editing modes each do.",
       },
