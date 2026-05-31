@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Bulletin comments and replies now have a Fancy mode too — tap the ✨ button by the box for a formatting toolbar plus image/GIF upload. Comments also show @mentions as links now.",
+      },
+      {
+        type: "feature",
         text: "System Chat now supports formatting and image/GIF uploads — a toolbar sits under the message box. @mentions and -signposts work exactly as before.",
       },
       {
