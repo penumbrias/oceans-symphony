@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Pin } from "lucide-react";
+import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Pin, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
 import SubsystemAlterList from "./SubsystemAlterList";
+import AlterFilterPopup from "./AlterFilterPopup";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 export default function AlterGrid({ alters }) {
@@ -45,10 +46,11 @@ export default function AlterGrid({ alters }) {
   const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
-  // Listing filter: "all" (default — nested, hides flagged groups),
-  // "flat" (every alter, unnested), or "group:<id>" / "subsystem:<id>"
-  // to show just one group's members.
-  const [listFilter, setListFilter] = useState("all");
+  // Listing filter: nested vs flat, plus multi-select group/subsystem
+  // membership with Any (union) / All (intersection) matching. Edited
+  // through the AlterFilterPopup.
+  const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], mode: "any" });
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
   const cycleDisplayMode = () => {
@@ -166,30 +168,41 @@ export default function AlterGrid({ alters }) {
     [allGroups, effectiveAlters]
   );
 
-  // Active listing filter (group/subsystem/flat).
-  const [filterType, filterGroupId] = listFilter.split(":");
-  const filterGroup = filterGroupId ? allGroups.find((g) => g.id === filterGroupId) : null;
-  const filterMemberIds = useMemo(
-    () => (filterGroup ? new Set(getMemberAlters(filterGroup, effectiveAlters).map((a) => a.id)) : null),
-    [filterGroup, effectiveAlters]
-  );
-  const isExplicitFilter = filterType === "flat" || filterType === "group" || filterType === "subsystem";
-  // When searching or an explicit filter is on, render a flat (unnested)
-  // list; otherwise nest subsystems under their owners.
-  const showFlat = !!search || isExplicitFilter;
+  const regularGroups = allGroups.filter((g) => !g.owner_alter_id);
+  const subsystemGroups = allGroups.filter((g) => g.owner_alter_id);
+
+  // Selected group/subsystem ids → the set of alter ids that match, using
+  // Any (union) or All (intersection) of the selected memberships.
+  const selectedFilterIds = [...filters.groupIds, ...filters.subsystemIds];
+  const hasMembershipFilter = selectedFilterIds.length > 0;
+  const filterMemberIds = useMemo(() => {
+    if (!hasMembershipFilter) return null;
+    const sets = selectedFilterIds.map((id) => {
+      const g = allGroups.find((x) => x.id === id);
+      return g ? new Set(getMemberAlters(g, effectiveAlters).map((a) => a.id)) : new Set();
+    });
+    if (filters.mode === "all") {
+      return sets.reduce((acc, s) => (acc === null ? s : new Set([...acc].filter((id) => s.has(id)))), null) || new Set();
+    }
+    const union = new Set();
+    sets.forEach((s) => s.forEach((id) => union.add(id)));
+    return union;
+  }, [allGroups, effectiveAlters, selectedFilterIds.join(","), filters.mode]);
+
+  const isExplicitFilter = hasMembershipFilter;
+  const activeFilterCount = selectedFilterIds.length;
+  const filterActive = activeFilterCount > 0 || !filters.nested;
+  // Flat (unnested) list when searching, when a membership filter is on,
+  // or when the user chose the flat list style.
+  const showFlat = !!search || hasMembershipFilter || !filters.nested;
 
   // Top-level list = filtered alters that aren't inside a subsystem and
-  // aren't hidden by a group flag. Only collapse/hide when NOT searching.
+  // aren't hidden by a group flag (nested view only).
   const topLevelAlters = search
     ? filtered
     : filtered.filter((a) => !insideSubsystems.has(a.id) && !hiddenFromLists.has(a.id));
-  // Flat set honours an active group/subsystem filter; "flat" and search
-  // show everything (including otherwise-hidden members).
   const flatAlters = filterMemberIds ? filtered.filter((a) => filterMemberIds.has(a.id)) : filtered;
   const visibleAlters = showFlat ? flatAlters : topLevelAlters;
-
-  const regularGroups = allGroups.filter((g) => !g.owner_alter_id);
-  const subsystemGroups = allGroups.filter((g) => g.owner_alter_id);
 
   const groupControls = (active) => (
     <div data-tour="alter-groups-controls" className="flex items-center gap-0.5">
@@ -256,27 +269,15 @@ export default function AlterGrid({ alters }) {
           <FolderMinus className="w-4 h-4" />
         </button>
 
-        {/* Filter by group / subsystem, or list everyone flat */}
+        {/* Filter — opens a popup for nested/flat + group/subsystem multi-select */}
         {(regularGroups.length > 0 || subsystemGroups.length > 0) && (
-          <select
-            value={listFilter}
-            onChange={(e) => setListFilter(e.target.value)}
+          <button
+            onClick={() => setFilterOpen(true)}
             title="Filter the list"
-            className={`flex-shrink-0 h-9 rounded-xl border bg-card/50 text-xs px-2 max-w-[8.5rem] transition-colors ${listFilter !== "all" ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50"}`}
-          >
-            <option value="all">All {terms.alters}</option>
-            <option value="flat">All (flat)</option>
-            {regularGroups.length > 0 && (
-              <optgroup label="Groups">
-                {regularGroups.map((g) => <option key={g.id} value={`group:${g.id}`}>{g.name}</option>)}
-              </optgroup>
-            )}
-            {subsystemGroups.length > 0 && (
-              <optgroup label={`Sub${terms.system}s`}>
-                {subsystemGroups.map((g) => <option key={g.id} value={`subsystem:${g.id}`}>{g.name}</option>)}
-              </optgroup>
-            )}
-          </select>
+            className={`flex-shrink-0 flex items-center justify-center gap-1 h-9 px-2.5 rounded-xl border transition-colors ${filterActive ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50 bg-card/50 hover:text-foreground hover:bg-accent"}`}>
+            <Filter className="w-4 h-4" />
+            {activeFilterCount > 0 && <span className="text-xs font-semibold">{activeFilterCount}</span>}
+          </button>
         )}
 
       </div>
@@ -379,6 +380,17 @@ export default function AlterGrid({ alters }) {
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
       />
+
+      {filterOpen && (
+        <AlterFilterPopup
+          filters={filters}
+          onChange={setFilters}
+          regularGroups={regularGroups}
+          subsystemGroups={subsystemGroups}
+          terms={terms}
+          onClose={() => setFilterOpen(false)}
+        />
+      )}
     </div>);
 
 }

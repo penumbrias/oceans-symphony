@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The alters page filter is now a proper popup: switch between nested/flat lists, multi-select groups and subsystems (searchable pills), match Any or All of them, and Clear all.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where tapping a group in the groups section could carry through and open an alter's profile that appeared underneath it.",
+      },
+      {
         type: "feature",
         text: "Press and hold an alter on the alters page for a quick menu: open their profile, create or open their subsystem, add/remove from front, make/demote primary, or add them to groups.",
       },
