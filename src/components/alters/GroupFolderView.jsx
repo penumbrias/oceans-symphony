@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Folder, ChevronRight, ArrowLeft, User, Users, FolderPlus } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
+import { groupNameColor } from "@/lib/contrast";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -73,7 +74,7 @@ function FolderRow({ group, onClick }) {
         <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
       </div>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
+        <p className="font-medium text-sm text-foreground group-hover:opacity-80 transition-opacity" style={{ color: groupNameColor(group.color) }}>{group.name}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
     </motion.div>

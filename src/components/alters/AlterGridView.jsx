@@ -10,7 +10,7 @@ import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } f
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
-import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import AlterActionMenu from "./AlterActionMenu";
 import SubsystemActionMenu from "./SubsystemActionMenu";
 import GroupIcon from "@/components/shared/GroupIcon";
@@ -258,7 +258,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                       onClick={() => (inlineExpandable ? setActiveSubFor(path, sub.id) : drillInto(sub))}
                       className="flex flex-col items-center gap-2 select-none" title={sub.name}>
                       <GroupIcon group={sub} boxed className={ICON} boxClassName="rounded-full border-2 border-border/50" iconClassName="w-5 h-5" />
-                      <span className="text-xs text-center font-medium truncate w-full px-1">{sub.name}</span>
+                      <span className="text-xs text-center font-medium truncate w-full px-1" style={{ color: groupNameColor(sub.color) }}>{sub.name}</span>
                     </button>
                   ))}
                 </div>
@@ -266,7 +266,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
             ) : activeSub ? (
               <>
                 <div className="flex items-center justify-between mb-2 px-1">
-                  <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground truncate">{activeSub.name}</p>
+                  <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground truncate" style={{ color: groupNameColor(activeSub.color) }}>{activeSub.name}</p>
                   {multi && (
                     <button type="button" onClick={() => setActiveSubFor(path, null)}
                       className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 flex-shrink-0">
@@ -305,7 +305,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
               <React.Fragment key={g.id}>
                 <span className="text-muted-foreground/40 flex-shrink-0">/</span>
                 {isLast ? (
-                  <span className="font-medium text-foreground truncate min-w-0 px-0.5">{g.name}</span>
+                  <span className="font-medium text-foreground truncate min-w-0 px-0.5" style={{ color: groupNameColor(g.color) }}>{g.name}</span>
                 ) : (
                   <button onClick={() => setNavStack(navStack.slice(0, i + 1))} className="text-muted-foreground hover:text-foreground truncate min-w-0 max-w-[7rem] px-0.5">
                     {g.name}

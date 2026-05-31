@@ -11,7 +11,7 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
-import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { useTerms } from "@/lib/useTerms";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import useLongPress from "@/hooks/useLongPress";
@@ -117,7 +117,7 @@ function FolderRow({ group, onClick, onLongOpen }) {
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1, touchAction: "pan-y" }}>
       <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-xl border border-border/40" />
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
+        <p className="font-medium text-sm text-foreground group-hover:opacity-80 transition-opacity" style={{ color: groupNameColor(group.color) }}>{group.name}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
     </motion.button>);
@@ -239,7 +239,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
                   <React.Fragment key={group.id}>
                     <span className="text-muted-foreground/40 flex-shrink-0">/</span>
                     {isLast ? (
-                      <span className="font-medium text-foreground truncate min-w-0 px-1">{group.name}</span>
+                      <span className="font-medium text-foreground truncate min-w-0 px-1" style={{ color: groupNameColor(group.color) }}>{group.name}</span>
                     ) : (
                       <button
                         onClick={() => setNavStack(navStack.slice(0, i + 1))}

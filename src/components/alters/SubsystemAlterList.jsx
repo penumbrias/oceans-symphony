@@ -6,6 +6,7 @@ import GroupIcon from "@/components/shared/GroupIcon";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import useLongPress from "@/hooks/useLongPress";
 import { useTerms } from "@/lib/useTerms";
+import { groupNameColor } from "@/lib/contrast";
 import {
   getSubsystemsOwnedBy,
   getMemberAlters,
@@ -139,7 +140,7 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
               <React.Fragment key={g.id}>
                 <span className="text-muted-foreground/40 flex-shrink-0">/</span>
                 {isLast ? (
-                  <span className="font-medium text-foreground truncate min-w-0 px-0.5">{g.name}</span>
+                  <span className="font-medium text-foreground truncate min-w-0 px-0.5" style={{ color: groupNameColor(g.color) }}>{g.name}</span>
                 ) : (
                   <button onClick={() => setNavStack(navStack.slice(0, i + 1))} className="text-muted-foreground hover:text-foreground truncate min-w-0 max-w-[7rem] px-0.5">
                     {g.name}
@@ -243,7 +244,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                     style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
                   >
                     <GroupIcon group={sub} className="w-4 h-4" />
-                    <span className="text-sm flex-1 truncate">{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
+                    <span className="text-sm flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
                     <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{count}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
                   </button>

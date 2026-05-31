@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Groups and subsystems now show their name in their own colour across the app — in folders, breadcrumbs, profiles, and menus — kept readable against your theme.",
+      },
+      {
         type: "feature",
         text: "Make a quick plan right from the bulletin board — type a title to schedule it for today, with optional time, category, length, and more behind tap-to-expand pills.",
       },
