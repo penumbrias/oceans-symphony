@@ -993,10 +993,10 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 <button
                   key={g.id}
                   type="button"
-                  onClick={() => setManagingSubsystem(g)}
+                  onClick={() => navigate(`/group/${g.id}`)}
                   className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
                   style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
-                  title="Manage members"
+                  title="Open profile"
                 >
                   <Folder className="w-3 h-3" /> {g.name}
                 </button>

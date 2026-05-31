@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Groups and subsystems now have their own profile page — give them a name, emoji, colour, avatar, banner/background, description, an owner (which makes it a subsystem), and manage members, just like an alter's profile. Tap a subsystem to open it.",
+      },
+      {
+        type: "fix",
+        text: "You can now expand a nested subsystem right inside the alters grid — before, it only opened the profile.",
+      },
+      {
+        type: "improve",
+        text: "Subsystems are hidden from the Groups list by default now; a Subsystems toggle reveals them there when you want.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, the subsystem expander shows the subsystem's own folder icon (or its avatar, if you set one), matching the groups section.",
+      },
+      {
         type: "fix",
         text: "Animated GIFs now stay animated when set as a profile picture, banner, or background (they were being flattened to a still). Large GIFs show a quick storage warning.",
       },

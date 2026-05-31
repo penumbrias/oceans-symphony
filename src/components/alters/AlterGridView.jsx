@@ -8,8 +8,14 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getSubsystemsOwnedBy, getMemberAlters } from "@/lib/subsystemUtils";
+import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+
+const EMPTY_SET = new Set();
+// Past this nesting depth, stop expanding inline (a tinted card inside a
+// tinted card inside… gets unreadable on a phone) and open the deeper
+// subsystem's profile instead.
+const MAX_GRID_INLINE_DEPTH = 3;
 
 function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand }) {
   const formatAlter = useAlterLabel();
@@ -134,64 +140,60 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     anonymize,
   });
 
-  return (
-    <div className={`grid ${colsClass} gap-3`}>
-      {alters.map((alter) => {
-        const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
-        const expanded = ownedSub && expandedOwners.has(alter.id);
-        const members = expanded ? getMemberAlters(ownedSub, allAlters) : [];
-        // Container tint = owner's colour at ~0.3, with a contrast-aware
-        // border so it stays visible against the page background.
-        const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
-        const low = needsHalo(ownerColor, surfaceBg);
-        const borderColor = low ? adjustForContrast(ownerColor, surfaceBg) : ownerColor;
+  // Recursive node: a card, plus (when expanded) a full-width tinted
+  // container holding the subsystem's members as their own grid — each of
+  // which can itself expand. Cycle-guarded by a per-branch visited set and
+  // the hard depth clamp; past MAX_GRID_INLINE_DEPTH the chevron opens the
+  // subsystem's profile instead of nesting another card.
+  const renderNode = (alter, visited, depth) => {
+    const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+    const loopOrTooDeep = visited.has(alter.id) || depth > MAX_SUBSYSTEM_DEPTH;
+    const hasSub = !!ownedSub && !loopOrTooDeep;
+    const inlineExpandable = hasSub && depth < MAX_GRID_INLINE_DEPTH;
+    const expanded = inlineExpandable && expandedOwners.has(alter.id);
+    const members = expanded ? getMemberAlters(ownedSub, allAlters) : [];
+    const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
+    const low = needsHalo(ownerColor, surfaceBg);
+    const borderColor = low ? adjustForContrast(ownerColor, surfaceBg) : ownerColor;
+    const nextVisited = hasSub ? new Set(visited).add(alter.id) : visited;
 
-        return (
-          <React.Fragment key={alter.id}>
-            <AlterCard
-              alter={alter}
-              {...cardProps(alter)}
-              ownsSubsystem={!!ownedSub}
-              expanded={!!expanded}
-              onToggleExpand={() => toggleExpand(alter.id)}
-            />
-            {expanded && (
-              // Full-width container that breaks the grid flow and pushes
-              // the rest down; a tinted card visually unites the
-              // subsystem's members beneath their parent.
-              <div
-                style={{
-                  gridColumn: "1 / -1",
-                  backgroundColor: `${ownerColor}26`, // ~0.15–0.3 tint
-                  border: `1px solid ${borderColor}`,
-                }}
-                className="rounded-2xl p-3"
-              >
-                <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">{ownedSub.name}</p>
-                {members.length === 0 ? (
-                  <p className="text-xs text-muted-foreground px-1 py-2">No members yet.</p>
-                ) : (
-                  <div className={`grid ${colsClass} gap-3`}>
-                    {members.map((m) => (
-                      <AlterCard
-                        key={m.id}
-                        alter={m}
-                        {...cardProps(m)}
-                        // Members who own their own subsystem get a chevron
-                        // that opens their profile (grid keeps one level of
-                        // inline expansion to stay readable).
-                        ownsSubsystem={getSubsystemsOwnedBy(allGroups, m.id).length > 0}
-                        expanded={false}
-                        onToggleExpand={() => navigate(`/alter/${m.id}`)}
-                      />
-                    ))}
-                  </div>
-                )}
+    return (
+      <React.Fragment key={alter.id}>
+        <AlterCard
+          alter={alter}
+          {...cardProps(alter)}
+          ownsSubsystem={hasSub}
+          expanded={!!expanded}
+          onToggleExpand={() =>
+            inlineExpandable ? toggleExpand(alter.id) : navigate(`/group/${ownedSub.id}`)
+          }
+        />
+        {expanded && (
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              backgroundColor: `${ownerColor}26`, // ~0.15–0.3 tint
+              border: `1px solid ${borderColor}`,
+            }}
+            className="rounded-2xl p-3"
+          >
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">{ownedSub.name}</p>
+            {members.length === 0 ? (
+              <p className="text-xs text-muted-foreground px-1 py-2">No members yet.</p>
+            ) : (
+              <div className={`grid ${colsClass} gap-3`}>
+                {members.map((m) => renderNode(m, nextVisited, depth + 1))}
               </div>
             )}
-          </React.Fragment>
-        );
-      })}
+          </div>
+        )}
+      </React.Fragment>
+    );
+  };
+
+  return (
+    <div className={`grid ${colsClass} gap-3`}>
+      {alters.map((alter) => renderNode(alter, EMPTY_SET, 0))}
     </div>
   );
 }

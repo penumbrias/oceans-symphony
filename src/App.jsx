@@ -20,6 +20,7 @@ import Journals from '@/pages/Journals';
 import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks.jsx';
 import GroupsManager from '@/pages/GroupsManager';
+import GroupProfile from '@/pages/GroupProfile';
 import SystemCheckIn from '@/pages/SystemCheckIn';
 import ActivityTracker from '@/pages/ActivityTracker';
 import SleepTracker from '@/pages/SleepTracker';
@@ -156,6 +157,7 @@ const AuthenticatedApp = () => {
         <Route path="/tasks" element={<DailyTasks />} />
         <Route path="/todo" element={<ToDoList />} />
         <Route path="/groups" element={<GroupsManager />} />
+        <Route path="/group/:id" element={<GroupProfile />} />
         <Route path="/system-checkin" element={<SystemCheckIn />} />
         <Route path="/activities" element={<ActivityTracker />} />
         <Route path="/sleep" element={<SleepTracker />} />

@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { motion } from "framer-motion";
-import { Folder, ChevronRight, User, ArrowLeft, Plus, Users, Crown } from "lucide-react";
+import { Folder, ChevronRight, User, ArrowLeft, Plus, Users, Crown, ExternalLink } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -117,6 +117,10 @@ function FolderRow({ group, onClick }) {
 export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls }) {
   const terms = useTerms();
   const [navStack, setNavStack] = useState([]);
+  // Subsystems (alter-owned groups) are hidden from the root groups list by
+  // default — they live under their owner in the alters list. Toggle to
+  // surface them here too. Persisted so the choice sticks.
+  const [showSubsystems, setShowSubsystems] = useState(() => localStorage.getItem("alter_show_subsystems") === "true");
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const [setFrontOpen, setSetFrontOpen] = useState(false);
@@ -136,11 +140,17 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   const childGroups = allGroups.
   filter((g) => {
     if (currentGroupKey === null) {
-      return !g.parent || g.parent === "" || g.parent === "root";
+      const isRoot = !g.parent || g.parent === "" || g.parent === "root";
+      // At the top level, keep subsystems out unless the toggle is on.
+      if (isRoot && g.owner_alter_id && !showSubsystems) return false;
+      return isRoot;
     }
     return g.parent && (g.parent === currentGroupKey || g.parent === currentGroup?.sp_id);
   }).
   sort((a, b) => (a.order || 0) - (b.order || 0));
+
+  // Are there any subsystems at root that the toggle could reveal?
+  const rootSubsystemCount = allGroups.filter((g) => (!g.parent || g.parent === "" || g.parent === "root") && g.owner_alter_id).length;
 
   // The owner alter of a subsystem group, if any. Shown as the "parent"
   // at the top, and excluded from the member list below so they don't
@@ -217,6 +227,31 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           )}
         </div>
 
+        {navStack.length === 0 && rootSubsystemCount > 0 && (
+          <Button
+            onClick={() => {
+              const next = !showSubsystems;
+              setShowSubsystems(next);
+              try { localStorage.setItem("alter_show_subsystems", String(next)); } catch {}
+            }}
+            variant="ghost"
+            size="sm"
+            className={`gap-1.5 flex-shrink-0 px-2 ${showSubsystems ? "text-amber-500" : "text-muted-foreground"}`}
+            title={showSubsystems ? `Hide sub${terms.system}s` : `Show sub${terms.system}s (${rootSubsystemCount})`}>
+            <Crown className="w-3.5 h-3.5" />
+            {showSubsystems ? "Hide" : `Sub${terms.system}s`}
+          </Button>
+        )}
+        {currentGroup &&
+        <Button
+          onClick={() => navigate(`/group/${currentGroup.id}`)}
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 w-8 h-8"
+          title="Open group profile">
+            <ExternalLink className="w-4 h-4" />
+          </Button>
+        }
         {currentGroup &&
         <Button
           onClick={() => setManageMembersOpen(true)}

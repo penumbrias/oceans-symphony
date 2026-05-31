@@ -1,12 +1,33 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { ChevronRight, ChevronDown, FolderTree } from "lucide-react";
+import { ChevronRight, ChevronDown, Folder } from "lucide-react";
 import AlterCard from "./AlterCard";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import {
   getSubsystemsOwnedBy,
   getMemberAlters,
   MAX_SUBSYSTEM_DEPTH,
 } from "@/lib/subsystemUtils";
+
+// Round folder/avatar button matching the groups-section MemberRow look.
+// Shows the subsystem's own avatar when set, else a colour-tinted folder.
+function SubsystemIcon({ group }) {
+  const [resolved, setResolved] = useState(null);
+  useEffect(() => {
+    if (!group?.avatar_url) { setResolved(null); return; }
+    resolveImageUrl(group.avatar_url).then(setResolved).catch(() => setResolved(null));
+  }, [group?.avatar_url]);
+  return (
+    <span
+      className="w-7 h-7 rounded-full flex items-center justify-center overflow-hidden flex-shrink-0 border border-border/40"
+      style={{ backgroundColor: resolved ? "transparent" : group?.color ? `${group.color}20` : "hsl(var(--muted))" }}
+    >
+      {resolved
+        ? <img src={resolved} alt="" className="w-full h-full object-cover" />
+        : <Folder className="w-3.5 h-3.5" style={{ color: group?.color || "hsl(var(--muted-foreground))" }} />}
+    </span>
+  );
+}
 
 // Renders the alters-section list with subsystems nested inline:
 // top-level alters, and under any alter that owns a subsystem an
@@ -73,19 +94,23 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
               type="button"
               onClick={() => setExpanded((v) => !v)}
               aria-expanded={expanded}
-              className="flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
+              title={`${expanded ? "Hide" : "Show"} ${ownedSub.name}`}
+              className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full text-xs font-medium text-foreground hover:bg-muted/50 transition-colors"
             >
-              {expanded ? <ChevronDown className="w-3.5 h-3.5" /> : <ChevronRight className="w-3.5 h-3.5" />}
-              {ownedSub.name}
+              <SubsystemIcon group={ownedSub} />
+              <span className="truncate max-w-[10rem]">{ownedSub.name}</span>
+              {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground" />}
             </button>
           ) : (
             <button
               type="button"
-              onClick={() => navigate(`/alter/${alter.id}`)}
+              onClick={() => navigate(`/group/${ownedSub.id}`)}
               title={`Open ${ownedSub.name}`}
-              className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-foreground"
+              className="flex items-center gap-1.5 pl-1 pr-2 py-0.5 rounded-full text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
             >
-              <FolderTree className="w-3.5 h-3.5" /> {ownedSub.name} →
+              <SubsystemIcon group={ownedSub} />
+              <span className="truncate max-w-[10rem]">{ownedSub.name}</span>
+              <ChevronRight className="w-3.5 h-3.5" />
             </button>
           )}
         </div>

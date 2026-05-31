@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 
 export default function GroupsManager() {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const terms = useTerms();
   // Top-level tab: regular groups vs subsystems (groups owned by an alter).
   const [mainTab, setMainTab] = useState("groups");
@@ -244,7 +246,7 @@ export default function GroupsManager() {
                   <button
                     key={g.id}
                     type="button"
-                    onClick={() => setManagingSubsystem(g)}
+                    onClick={() => navigate(`/group/${g.id}`)}
                     className="w-full flex items-center gap-3 px-3 py-2 rounded-lg border border-border/50 hover:bg-muted/30 transition-colors text-left"
                   >
                     <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: g.color || "hsl(var(--muted))" }} />
