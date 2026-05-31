@@ -1,3 +1,5 @@
+import { loadExtraFontsIfInstalled } from "./fontPacks";
+
 const LS_FONT_SIZE     = "symphony_a11y_fontSize";
 const LS_REDUCE_MOTION = "symphony_a11y_reduceMotion";
 const LS_HIGH_CONTRAST = "symphony_a11y_highContrast";
@@ -33,38 +35,25 @@ export const APP_FONT_OPTIONS = [
   { label: "Poppins",                value: "Poppins, sans-serif",                                              category: "ui" },
   { label: "Raleway",                value: "Raleway, sans-serif",                                              category: "ui" },
   { label: "Noto Sans",              value: "'Noto Sans', sans-serif",                                          category: "ui" },
-  { label: "Quicksand",              value: "Quicksand, sans-serif",                                            category: "ui" },
-  { label: "Comfortaa",              value: "Comfortaa, sans-serif",                                            category: "ui" },
-  { label: "Josefin Sans",           value: "'Josefin Sans', sans-serif",                                       category: "ui" },
-  { label: "Work Sans",              value: "'Work Sans', sans-serif",                                          category: "ui" },
   // Serif
   { label: "Playfair Display",       value: "'Playfair Display', serif",                                        category: "serif" },
   { label: "Lora",                   value: "Lora, serif",                                                      category: "serif" },
   { label: "Merriweather",           value: "Merriweather, serif",                                              category: "serif" },
   { label: "Noto Serif",             value: "'Noto Serif', serif",                                              category: "serif" },
   { label: "Amiri",                  value: "Amiri, serif",                                                     category: "serif" },
-  { label: "EB Garamond",            value: "'EB Garamond', serif",                                             category: "serif" },
-  { label: "Bitter",                 value: "Bitter, serif",                                                    category: "serif" },
   // Handwriting
   { label: "Caveat",                 value: "Caveat, cursive",                                                  category: "handwriting" },
   { label: "Dancing Script",         value: "'Dancing Script', cursive",                                        category: "handwriting" },
   { label: "Pacifico",               value: "Pacifico, cursive",                                               category: "handwriting" },
   { label: "Satisfy",                value: "Satisfy, cursive",                                                 category: "handwriting" },
-  { label: "Indie Flower",           value: "'Indie Flower', cursive",                                          category: "handwriting" },
-  { label: "Shadows Into Light",     value: "'Shadows Into Light', cursive",                                    category: "handwriting" },
-  { label: "Patrick Hand",           value: "'Patrick Hand', cursive",                                          category: "handwriting" },
-  { label: "Permanent Marker",       value: "'Permanent Marker', cursive",                                      category: "handwriting" },
   // Monospace
   { label: "Fira Code",              value: "'Fira Code', monospace",                                           category: "mono" },
   { label: "Space Mono",             value: "'Space Mono', monospace",                                          category: "mono" },
-  { label: "JetBrains Mono",         value: "'JetBrains Mono', monospace",                                      category: "mono" },
   // Display / decorative
   { label: "Righteous",              value: "Righteous, cursive",                                               category: "display" },
   { label: "Lobster",                value: "Lobster, cursive",                                                 category: "display" },
   { label: "Bungee",                 value: "Bungee, display",                                                  category: "display" },
   { label: "Orbitron",               value: "Orbitron, sans-serif",                                             category: "display" },
-  { label: "Bebas Neue",             value: "'Bebas Neue', sans-serif",                                         category: "display" },
-  { label: "Abril Fatface",          value: "'Abril Fatface', serif",                                           category: "display" },
   // Cultural / multilingual
   { label: "Nanum Gothic",           value: "'Nanum Gothic', sans-serif",                                       category: "other" },
   { label: "Sawarabi Mincho",        value: "'Sawarabi Mincho', serif",                                         category: "other" },
@@ -72,7 +61,28 @@ export const APP_FONT_OPTIONS = [
   // Fun (affects readability)
   { label: "VT323",                  value: "VT323, monospace",                                                 category: "fun" },
   { label: "Press Start 2P",         value: "'Press Start 2P', cursive",                                        category: "fun" },
-  { label: "Bangers",                value: "Bangers, cursive",                                                 category: "fun" },
+];
+
+// Optional extra fonts — NOT bundled into the app. Downloaded on demand
+// from Google Fonts only when the user opts in (Settings → Appearance →
+// "Extra fonts"), so they don't bloat the install for people who don't
+// want them. See src/lib/fontPacks.js for the loader. The families here
+// must match the ones requested in that file's Google Fonts URL.
+export const EXTRA_FONT_OPTIONS = [
+  { label: "Quicksand",          value: "Quicksand, sans-serif",          category: "ui" },
+  { label: "Comfortaa",          value: "Comfortaa, sans-serif",          category: "ui" },
+  { label: "Josefin Sans",       value: "'Josefin Sans', sans-serif",     category: "ui" },
+  { label: "Work Sans",          value: "'Work Sans', sans-serif",        category: "ui" },
+  { label: "EB Garamond",        value: "'EB Garamond', serif",           category: "serif" },
+  { label: "Bitter",             value: "Bitter, serif",                  category: "serif" },
+  { label: "Indie Flower",       value: "'Indie Flower', cursive",        category: "handwriting" },
+  { label: "Shadows Into Light", value: "'Shadows Into Light', cursive",  category: "handwriting" },
+  { label: "Patrick Hand",       value: "'Patrick Hand', cursive",        category: "handwriting" },
+  { label: "Permanent Marker",   value: "'Permanent Marker', cursive",    category: "handwriting" },
+  { label: "JetBrains Mono",     value: "'JetBrains Mono', monospace",    category: "mono" },
+  { label: "Bebas Neue",         value: "'Bebas Neue', sans-serif",       category: "display" },
+  { label: "Abril Fatface",      value: "'Abril Fatface', serif",         category: "display" },
+  { label: "Bangers",            value: "Bangers, cursive",               category: "fun" },
 ];
 
 export const FONT_CATEGORY_LABELS = {
@@ -90,9 +100,9 @@ export function resolveFontCss(value) {
   return LEGACY_FONT_MAP[value] || value || "'Inter', sans-serif";
 }
 
-/** Find the APP_FONT_OPTIONS entry that matches a stored value. */
+/** Find the matching font option (bundled OR optional extra) for a stored value. */
 export function findFontOption(storedValue) {
-  return APP_FONT_OPTIONS.find(
+  return [...APP_FONT_OPTIONS, ...EXTRA_FONT_OPTIONS].find(
     f => f.value === storedValue || (f.legacy && f.legacy === storedValue)
   ) || APP_FONT_OPTIONS[0];
 }
@@ -141,10 +151,6 @@ export const HEADING_FONT_OPTIONS = [
   { label: "Poppins",               value: "Poppins, sans-serif",                        category: "ui" },
   { label: "Raleway",               value: "Raleway, sans-serif",                        category: "ui" },
   { label: "Noto Sans",             value: "'Noto Sans', sans-serif",                    category: "ui" },
-  { label: "Quicksand",             value: "Quicksand, sans-serif",                      category: "ui" },
-  { label: "Comfortaa",             value: "Comfortaa, sans-serif",                      category: "ui" },
-  { label: "Josefin Sans",          value: "'Josefin Sans', sans-serif",                 category: "ui" },
-  { label: "Work Sans",             value: "'Work Sans', sans-serif",                    category: "ui" },
   // Serif
   { label: "DM Serif Display",      value: "'DM Serif Display', serif",                  category: "serif" },
   { label: "Playfair Display",      value: "'Playfair Display', serif",                  category: "serif" },
@@ -152,28 +158,19 @@ export const HEADING_FONT_OPTIONS = [
   { label: "Merriweather",          value: "Merriweather, serif",                        category: "serif" },
   { label: "Noto Serif",            value: "'Noto Serif', serif",                        category: "serif" },
   { label: "Amiri",                 value: "Amiri, serif",                               category: "serif" },
-  { label: "EB Garamond",           value: "'EB Garamond', serif",                       category: "serif" },
-  { label: "Bitter",                value: "Bitter, serif",                              category: "serif" },
   // Handwriting
   { label: "Caveat",                value: "Caveat, cursive",                            category: "handwriting" },
   { label: "Dancing Script",        value: "'Dancing Script', cursive",                  category: "handwriting" },
   { label: "Pacifico",              value: "Pacifico, cursive",                          category: "handwriting" },
   { label: "Satisfy",               value: "Satisfy, cursive",                           category: "handwriting" },
-  { label: "Indie Flower",          value: "'Indie Flower', cursive",                    category: "handwriting" },
-  { label: "Shadows Into Light",    value: "'Shadows Into Light', cursive",              category: "handwriting" },
-  { label: "Patrick Hand",          value: "'Patrick Hand', cursive",                    category: "handwriting" },
-  { label: "Permanent Marker",      value: "'Permanent Marker', cursive",                category: "handwriting" },
   // Monospace
   { label: "Fira Code",             value: "'Fira Code', monospace",                     category: "mono" },
   { label: "Space Mono",            value: "'Space Mono', monospace",                    category: "mono" },
-  { label: "JetBrains Mono",        value: "'JetBrains Mono', monospace",                category: "mono" },
   // Display / decorative
   { label: "Righteous",             value: "Righteous, cursive",                         category: "display" },
   { label: "Lobster",               value: "Lobster, cursive",                           category: "display" },
   { label: "Bungee",                value: "Bungee, display",                            category: "display" },
   { label: "Orbitron",              value: "Orbitron, sans-serif",                       category: "display" },
-  { label: "Bebas Neue",            value: "'Bebas Neue', sans-serif",                   category: "display" },
-  { label: "Abril Fatface",         value: "'Abril Fatface', serif",                     category: "display" },
   // Cultural / multilingual
   { label: "Nanum Gothic",          value: "'Nanum Gothic', sans-serif",                 category: "other" },
   { label: "Sawarabi Mincho",       value: "'Sawarabi Mincho', serif",                   category: "other" },
@@ -181,7 +178,6 @@ export const HEADING_FONT_OPTIONS = [
   // Fun
   { label: "VT323",                 value: "VT323, monospace",                           category: "fun" },
   { label: "Press Start 2P",        value: "'Press Start 2P', cursive",                  category: "fun" },
-  { label: "Bangers",               value: "Bangers, cursive",                           category: "fun" },
 ];
 
 function applyHeadingFont(value) {
@@ -202,6 +198,9 @@ export function initAccessibility() {
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
   applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
   applyHeadingFont(localStorage.getItem(LS_HEADING_FONT) || "default");
+  // If the user previously opted into the optional extra-font pack, re-inject
+  // its stylesheet so their chosen extra font keeps rendering after launch.
+  loadExtraFontsIfInstalled();
 }
 
 export function getAccessibilitySettings() {

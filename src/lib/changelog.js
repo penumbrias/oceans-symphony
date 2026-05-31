@@ -29,7 +29,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Added 14 more font choices for the app and headings — including Quicksand, Comfortaa, EB Garamond, Indie Flower, Bebas Neue, and JetBrains Mono.",
+        text: "Added 14 more fonts (Quicksand, Comfortaa, EB Garamond, Bebas Neue, JetBrains Mono…) as an optional one-time download in Settings → Appearance, so they don't bloat the app for everyone.",
       },
       {
         type: "improve",

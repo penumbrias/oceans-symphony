@@ -2,16 +2,17 @@ import React, { useState, useMemo, useRef, useEffect } from 'react';
 import { useTheme } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
 import {
-  APP_FONT_OPTIONS, FONT_CATEGORY_LABELS,
+  APP_FONT_OPTIONS, EXTRA_FONT_OPTIONS, FONT_CATEGORY_LABELS,
   getAccessibilitySettings, setAccessibilityFontFamily, setAccessibilityFontSize, findFontOption,
   setAccessibilityHeadingFont, HEADING_FONT_OPTIONS,
 } from '@/lib/useAccessibility';
+import { isExtraFontsInstalled, installExtraFonts, uninstallExtraFonts } from '@/lib/fontPacks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save } from 'lucide-react';
+import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTerms } from '@/lib/useTerms';
-import '@/lib/editorFonts.js'; // ensure all fonts are loaded
+import '@/lib/editorFonts.js'; // ensure all bundled fonts are loaded
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from '@/lib/waveColorKey';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
@@ -250,6 +251,36 @@ export default function AdvancedAppearance() {
   const [currentSize, setCurrentSize] = useState(a11y.fontSize);
   const [currentHeadingFont, setCurrentHeadingFont] = useState(a11y.headingFont);
 
+  // Optional extra-fonts pack (downloaded on demand, not bundled).
+  const [extraInstalled, setExtraInstalled] = useState(isExtraFontsInstalled());
+  const [installingFonts, setInstallingFonts] = useState(false);
+  // Once installed, the extra fonts become selectable in both pickers.
+  const appFontOptions = useMemo(
+    () => extraInstalled ? [...APP_FONT_OPTIONS, ...EXTRA_FONT_OPTIONS] : APP_FONT_OPTIONS,
+    [extraInstalled]);
+  const headingFontOptions = useMemo(
+    () => extraInstalled ? [...HEADING_FONT_OPTIONS, ...EXTRA_FONT_OPTIONS] : HEADING_FONT_OPTIONS,
+    [extraInstalled]);
+
+  const handleInstallExtraFonts = async () => {
+    setInstallingFonts(true);
+    try {
+      await installExtraFonts();
+      setExtraInstalled(true);
+      toast.success("Extra fonts downloaded");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't download the extra fonts");
+    } finally {
+      setInstallingFonts(false);
+    }
+  };
+
+  const handleRemoveExtraFonts = () => {
+    uninstallExtraFonts();
+    setExtraInstalled(false);
+    toast.success("Extra fonts removed");
+  };
+
   const handleHeadingFontSelect = (value) => {
     setCurrentHeadingFont(value);
     setAccessibilityHeadingFont(value);
@@ -478,7 +509,7 @@ export default function AdvancedAppearance() {
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div className="space-y-2 min-w-0">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
-          <FontPicker currentFont={currentFont} onSelect={handleFontSelect} />
+          <FontPicker currentFont={currentFont} onSelect={handleFontSelect} options={appFontOptions} />
           <p className="text-xs text-muted-foreground">
             Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
               The quick brown fox jumps over the lazy dog
@@ -490,8 +521,8 @@ export default function AdvancedAppearance() {
           <FontPicker
             currentFont={currentHeadingFont}
             onSelect={handleHeadingFontSelect}
-            options={HEADING_FONT_OPTIONS}
-            resolveCurrent={(v) => HEADING_FONT_OPTIONS.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
+            options={headingFontOptions}
+            resolveCurrent={(v) => headingFontOptions.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
           />
           <p className="text-xs text-muted-foreground">
             Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'DM Serif Display', 'Playfair Display', serif" : currentHeadingFont }}>
@@ -503,6 +534,43 @@ export default function AdvancedAppearance() {
       <p className="text-xs text-muted-foreground -mt-1">
         Heading font is used for page titles and the app name. Body text uses the Font Family.
       </p>
+
+      {/* ── Optional extra fonts (downloaded on demand, not bundled) ─── */}
+      <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
+        <div className="flex items-center justify-between gap-3">
+          <div className="min-w-0">
+            <p className="text-sm font-medium text-foreground">Extra fonts</p>
+            <p className="text-xs text-muted-foreground">
+              14 more styles (Quicksand, Comfortaa, EB Garamond, Bebas Neue, JetBrains Mono…). A one-time
+              download (needs internet) so the app stays small for everyone else.
+            </p>
+          </div>
+          {extraInstalled ? (
+            <button
+              type="button"
+              onClick={handleRemoveExtraFonts}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+            >
+              <Trash2 className="w-4 h-4" /> Remove
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={handleInstallExtraFonts}
+              disabled={installingFonts}
+              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+            >
+              {installingFonts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              {installingFonts ? "Downloading…" : "Download"}
+            </button>
+          )}
+        </div>
+        {extraInstalled && (
+          <p className="text-[0.6875rem] text-emerald-600 dark:text-emerald-400">
+            Installed — the extra fonts now appear in the pickers above.
+          </p>
+        )}
+      </div>
 
       {/* ── Theme Mode (light / dark / system) ─────────────────── */}
       <div className="space-y-2">
