@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupIcon from "@/components/shared/GroupIcon";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
@@ -82,6 +83,7 @@ function AvatarModal({ src, onSave, onClose }) {
         )}
         <div className="flex gap-2">
           <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste image URL..." className="flex-1 text-sm" />
+          <AssetButton onPick={(u) => setUrl(u)} className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
             className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-muted-foreground" />}
@@ -139,7 +141,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
-    description: "", color: "", avatar_url: "", emoji: "",
+    description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -201,6 +203,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
       emoji: alter.emoji || "",
+      subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
     });
   }, [alter]);
@@ -943,6 +946,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex gap-2">
             <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <AssetButton onPick={(url) => setBgField(HEADER_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
             <button type="button" onClick={() => headerFileInputRef.current?.click()} disabled={uploadingHeader}
               className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
               {uploadingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
@@ -958,6 +962,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex gap-2">
             <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <AssetButton onPick={(url) => setBgField(BG_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
             <button type="button" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg}
               className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
               {uploadingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
@@ -1031,6 +1036,23 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
               ))}
             </div>
           ) : null}
+          {/* When this alter owns several subsystems, the alters-list chip
+              shows a stacked-folder icon — let the user pick a custom image
+              for it (from their assets). */}
+          {ownedSubsystems.length > 1 && (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="w-7 h-7 rounded-full overflow-hidden border border-border/40 flex items-center justify-center flex-shrink-0 bg-muted/30">
+                {form.subsystems_icon
+                  ? <img src={form.subsystems_icon} alt="" className="w-full h-full object-cover" />
+                  : <Folder className="w-3.5 h-3.5 text-muted-foreground" />}
+              </span>
+              <span className="text-[0.6875rem] text-muted-foreground flex-1 leading-snug">Icon for the “{ownedSubsystems.length} {subsystemTerm}s” chip</span>
+              <AssetButton onPick={(url) => set("subsystems_icon", url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 flex-shrink-0" />
+              {form.subsystems_icon && (
+                <button type="button" onClick={() => set("subsystems_icon", "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+              )}
+            </div>
+          )}
         </div>
         {alter.groups && alter.groups.length > 0 ? (() => {
           const pageBg = getPageBackground();

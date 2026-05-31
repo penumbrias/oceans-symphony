@@ -25,6 +25,7 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
@@ -339,7 +340,7 @@ function GroupProfileInner() {
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
       {/* Avatar */}
-      <div className="flex justify-center">
+      <div className="flex justify-center items-center gap-3">
         <button type="button" onClick={() => avatarInputRef.current?.click()}
           className="relative rounded-2xl overflow-hidden group" disabled={uploadingAvatar}>
           <GroupAvatar url={form.avatar_url} color={form.color} emoji={form.emoji} />
@@ -348,6 +349,7 @@ function GroupProfileInner() {
           </div>
         </button>
         <input ref={avatarInputRef} type="file" accept="image/*" hidden onChange={(e) => handleUpload(e, "avatar")} />
+        <AssetButton onPick={(url) => setForm((f) => ({ ...f, avatar_url: url }))} />
       </div>
       {form.avatar_url && (
         <div className="flex justify-center -mt-2">
@@ -508,6 +510,7 @@ function StyleImageRow({ label, busy, inputRef, value, onClear, onChange, onText
       <label className="text-xs text-muted-foreground font-medium">{label}</label>
       <div className="flex gap-2">
         <Input value={value || ""} onChange={(e) => onText(e.target.value)} placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+        <AssetButton onPick={onText} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 flex-shrink-0" />
         <button type="button" onClick={() => inputRef.current?.click()} disabled={busy}
           className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 flex-shrink-0">
           {busy ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}

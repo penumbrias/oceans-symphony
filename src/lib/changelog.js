@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "May 30, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New image Assets library: upload images once (in bulk too), sort them into folders, and reuse any of them anywhere that takes a picture — tap the 🖼 button next to any image upload. No re-uploading or duplicate storage, and they're included in backups.",
+      },
+      {
+        type: "improve",
+        text: "Avatars, headers and backgrounds (on alter and group profiles, and the add-new form) now have a \"choose from assets\" button beside Upload.",
+      },
+      {
+        type: "feature",
+        text: "If an alter owns several subsystems, you can set a custom image for their combined subsystems chip — pick it from your assets in their edit profile.",
+      },
+      {
         type: "improve",
         text: "The alters page search bar and filters now sit just above the alters list (below the groups section).",
       },

@@ -14,6 +14,7 @@ import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, encodeCanvasForMime } from "@/lib/localImageStorage";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { Link2 } from "lucide-react";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
@@ -340,6 +341,7 @@ const handleAvatarUpload = async (e) => {
             <Label>Avatar</Label>
             <div className="flex gap-2">
               <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+              <AssetButton onPick={(url) => set("avatar_url", url)} className="h-10 w-10 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted/60 transition-colors flex-shrink-0" />
               <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label={uploadingAvatar ? "Uploading avatar…" : "Upload avatar image"}>
                 {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               </Button>

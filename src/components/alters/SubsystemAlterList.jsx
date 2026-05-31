@@ -39,14 +39,18 @@ function brighten(hex, amt = 0.45) {
   return `#${up(r)}${up(g)}${up(b)}`;
 }
 
-function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
+function SubsystemAccessory({ group, count = 1, tint, iconUrl, expanded, inlineExpandable, onToggle, onOpen, onMenu }) {
   const [resolved, setResolved] = useState(null);
+  // Single: the subsystem's own avatar. Multi: the alter's optional
+  // "subsystems icon" (set on their profile, picked from assets).
   useEffect(() => {
-    if (count > 1 || !group?.avatar_url) { setResolved(null); return; }
-    resolveImageUrl(group.avatar_url).then(setResolved).catch(() => setResolved(null));
-  }, [group?.avatar_url, count]);
+    const src = count > 1 ? iconUrl : group?.avatar_url;
+    if (!src) { setResolved(null); return; }
+    resolveImageUrl(src).then(setResolved).catch(() => setResolved(null));
+  }, [group?.avatar_url, iconUrl, count]);
   const color = group?.color || tint || undefined;
   const ring = brighten(color) || "#a5b4fc";
+  const showImg = !!resolved;
   const press = useLongPress({
     onClick: () => (inlineExpandable ? onToggle() : onOpen()),
     onLongPress: () => onMenu(),
@@ -59,18 +63,18 @@ function SubsystemAccessory({ group, count = 1, tint, expanded, inlineExpandable
       title={count > 1
         ? `${count} subsystems — tap to ${expanded ? "hide" : "list"}`
         : (inlineExpandable ? `${expanded ? "Hide" : "Show"} ${group?.name} — hold for options` : `Open ${group?.name} — hold for options`)}
-      className={`flex-shrink-0 ${count > 1 ? "px-1.5 gap-0.5" : "w-8"} h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105`}
+      className={`flex-shrink-0 ${(count > 1 && !showImg) ? "px-1.5 gap-0.5" : "w-8"} h-8 rounded-full flex items-center justify-center overflow-hidden border transition-all hover:scale-105`}
       style={{
-        backgroundColor: resolved ? "transparent" : color ? `${color}20` : "hsl(var(--muted))",
+        backgroundColor: showImg ? "transparent" : color ? `${color}20` : "hsl(var(--muted))",
         borderColor: color ? `${color}55` : "hsl(var(--border))",
         boxShadow: expanded ? `0 0 0 2px ${ring}` : undefined,
         touchAction: "pan-y",
       }}
     >
-      {count > 1 ? (
-        <><FolderTree className="w-3.5 h-3.5" style={{ color }} /><span className="text-[0.625rem] font-semibold" style={{ color }}>{count}</span></>
-      ) : resolved ? (
+      {showImg ? (
         <img src={resolved} alt="" className="w-full h-full object-cover" />
+      ) : count > 1 ? (
+        <><FolderTree className="w-3.5 h-3.5" style={{ color }} /><span className="text-[0.625rem] font-semibold" style={{ color }}>{count}</span></>
       ) : (inlineExpandable && expanded
         ? <ChevronDown className="w-4 h-4" style={{ color }} />
         : <Folder className="w-4 h-4" style={{ color }} />)}
@@ -211,6 +215,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
             group={multi ? null : ownedSubs[0]}
             count={ownedSubs.length}
             tint={(multi ? alter.color : ownedSubs[0]?.color) || undefined}
+            iconUrl={alter.subsystems_icon || undefined}
             expanded={expanded}
             inlineExpandable={inlineExpandable}
             onToggle={() => setExpanded((v) => !v)}

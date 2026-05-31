@@ -100,6 +100,7 @@ const ENTITY_NAMES = [
   "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "GroceryList", "QuickAction",
   "UnblendQuestion", "HiddenUnblendQuestion",
   "SystemChatChannel", "SystemChatMessage",
+  "ImageAsset",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -137,7 +138,7 @@ const EXPORT_CATEGORIES = [
   { id: "lineage",      label: "System Change Events",      entities: ["SystemChangeEvent"],                                                   desc: "Fusion, split, dormancy events" },
   { id: "groceries",    label: "Grocery Lists",             entities: ["GroceryList", "GroceryItem", "GroceryFavorite"],                       desc: "Grocery / privacy-cover lists, their items, and frequent-purchase favourites. Lists marked \"available when locked\" live in localStorage and are NOT included here — they ride along with browser data instead." },
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage"],                              desc: "Chat channels and every message in them." },
-  { id: "images",        label: "Local Images",             entities: [],                                                                    desc: "Uploaded images (local mode only)", isImages: true },
+  { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset"],                                                        desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
 ];
 
 async function downloadJson(data, filename, format = "json", mode = "save") {
