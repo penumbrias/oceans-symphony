@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, ChevronLeft, User, ChevronDown, ChevronUp, FolderPlus, ImagePlus, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -15,6 +15,12 @@ import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthor
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { isLocalMode } from "@/lib/storageMode";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { renderRichContent } from "@/lib/renderBulletinContent";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 
 // Brighten / darken alter colours that are too close to the page
 // background so the name text stays legible. Memoise the page bg
@@ -727,9 +733,13 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
             </div>
           </div>
         ) : (
-          <p className={`text-sm whitespace-pre-wrap break-words ${isDeleted ? "italic text-muted-foreground" : ""}`}>
-            {isDeleted ? "[message deleted]" : renderWithMentions(msg.content, alters)}
-          </p>
+          <div className={`text-sm whitespace-pre-wrap break-words wysiwyg-content ${isDeleted ? "italic text-muted-foreground" : ""}`}>
+            {isDeleted
+              ? "[message deleted]"
+              : renderRichContent(msg.content, {
+                  renderText: (t, k) => <React.Fragment key={k}>{renderWithMentions(t, alters)}</React.Fragment>,
+                })}
+          </div>
         )}
       </div>
 
@@ -829,6 +839,44 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
   const [showSignpostMenu, setShowSignpostMenu] = useState(false);
   const [signpostQuery, setSignpostQuery] = useState("");
 
+  // Alters hidden from mention/signpost suggestions via a group's
+  // "hide from mentions" toggle. Typing a full name still resolves.
+  const { data: composerGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const hiddenFromMentions = useMemo(
+    () => getAlterIdsByGroupFlag(composerGroups, alters, "hide_from_mentions"),
+    [composerGroups, alters]
+  );
+
+  // Fancy text (always on) + image/GIF upload — insert HTML around the
+  // textarea selection. The @mention/-signpost typing + parsing is
+  // untouched (this only inserts formatting / images).
+  const insertHtml = useTextareaInsert(textareaRef, text, setText);
+  const imageInputRef = useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const handleComposerImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
+    setUploadingImage(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
+      let url = dataUrl;
+      if (isLocalMode()) {
+        const id = `chatimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(id, dataUrl);
+        url = createLocalImageUrl(id);
+      }
+      insertHtml(`<img src="${url}" alt="" />`, "");
+      toast.success(isGif ? "GIF added!" : "Image added!");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't add that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleTextChange = (e) => {
     const val = e.target.value;
     setText(val);
@@ -856,23 +904,23 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 
   const filteredMentions = useMemo(
     () => alters
-      .filter((a) => !a.is_archived)
+      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
       .filter((a) =>
         a.name?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
         (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
       )
       .slice(0, 8),
-    [alters, mentionQuery]
+    [alters, mentionQuery, hiddenFromMentions]
   );
   const filteredSignposts = useMemo(
     () => alters
-      .filter((a) => !a.is_archived)
+      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
       .filter((a) =>
         a.name?.toLowerCase().includes(signpostQuery.toLowerCase()) ||
         (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
       )
       .slice(0, 8),
-    [alters, signpostQuery]
+    [alters, signpostQuery, hiddenFromMentions]
   );
   const systemSignpostMatches = useMemo(() => {
     const q = (signpostQuery || "").toLowerCase();
@@ -1076,6 +1124,24 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           <Send className="w-4 h-4" />
         </Button>
       </div>
+
+      {/* Formatting + image/GIF toolbar — always available, fills the space
+          under the entry box. Inserts HTML around the textarea selection;
+          @mention/-signpost typing above is unaffected. */}
+      <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
+        <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
+          <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => imageInputRef.current?.click()}
+            className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+          </button>
+          <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+          <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
+        </div>
+        <MiniToolbar onInsert={insertHtml} />
+        <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
+      </div>
     </div>
   );
 }
@@ -1086,20 +1152,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
 // the top.
 function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
   const formatAlter = useAlterLabel();
-  const triggerRef = useRef(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
   const chipColor = useReadableColor(selectedAuthors[0]?.color);
-
-  useEffect(() => {
-    if (!open) return;
-    const t = triggerRef.current;
-    if (!t) return;
-    const rect = t.getBoundingClientRect();
-    const width = Math.max(240, Math.min(320, window.innerWidth - 24));
-    const top = Math.max(8, rect.top - 360); // popover above the composer
-    const left = Math.max(8, Math.min(window.innerWidth - width - 8, rect.left));
-    setPos({ top, left, width });
-  }, [open]);
 
   const sortedAlters = useMemo(
     () => [...alters]
@@ -1112,7 +1165,6 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
   return (
     <>
       <button
-        ref={triggerRef}
         type="button"
         onClick={() => onOpenChange(!open)}
         className="flex items-center gap-1.5 px-1.5 py-1 rounded-md border border-border/50 bg-muted/20 hover:bg-muted/40 max-w-[10rem]"
@@ -1126,27 +1178,29 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
         <ChevronDown className="w-3 h-3 text-muted-foreground flex-shrink-0" />
       </button>
       {open && (
-        <>
-          <div className="fixed inset-0 z-[60]" onClick={() => onOpenChange(false)} />
+        // Top-anchored modal — keeps the list above the on-screen keyboard
+        // (the old version floated at a fixed offset and hid behind it).
+        <div className="fixed inset-0 z-[70] bg-black/40 flex items-start justify-center p-4 pt-[10vh]" onClick={() => onOpenChange(false)}>
           <div
-            className="z-[61] bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
-            style={{ position: "fixed", top: pos.top, left: pos.left, width: pos.width, maxHeight: "70vh", display: "flex", flexDirection: "column" }}
+            onClick={(e) => e.stopPropagation()}
+            className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-sm max-h-[75vh] flex flex-col overflow-hidden"
           >
-            <div className="px-3 py-2 border-b border-border/50 flex items-center justify-between gap-2">
-              <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-                Choose speaker(s)
-              </span>
+            <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Choose speaker(s)</span>
+              <button type="button" onClick={() => onOpenChange(false)} aria-label="Close" className="text-muted-foreground hover:text-foreground">
+                <X className="w-4 h-4" />
+              </button>
             </div>
-            <div className="px-3 py-2 border-b border-border/50">
+            <div className="px-4 py-2.5 border-b border-border/50">
               <input
                 autoFocus
                 value={search}
                 onChange={(e) => onSearchChange(e.target.value)}
                 placeholder={`Search ${terms.alters || "alters"}…`}
-                className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
               />
             </div>
-            <div className="overflow-y-auto" style={{ maxHeight: "50vh" }}>
+            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
               {/* -system pseudo-option always at top */}
               <SpeakerRow
                 alter={SYSTEM_AUTHOR}
@@ -1163,17 +1217,17 @@ function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSe
                 />
               ))}
             </div>
-            <div className="px-3 py-2 border-t border-border/50 flex justify-end">
+            <div className="px-4 py-2.5 border-t border-border/50 flex justify-end">
               <button
                 type="button"
                 onClick={() => onOpenChange(false)}
-                className="text-xs font-medium text-primary hover:underline"
+                className="text-sm font-medium text-primary hover:underline"
               >
                 Done
               </button>
             </div>
           </div>
-        </>
+        </div>
       )}
     </>
   );

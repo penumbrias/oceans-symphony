@@ -161,6 +161,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "alters", sectionLabel: t.Alters,
+      emoji: "📌",
+      title: `Pinned ${t.Alters}`,
+      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list.`,
+      route: "/Home", target: "pinned-alters",
+      look: `the Pinned row at the top of the ${t.alters} page — only shows once you've pinned someone`, action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
       emoji: "🔃",
       title: `Sort ${t.Alters}`,
       body: `The sort button (↕ arrow icon) cycles through A→Z, Z→A, Most ${t.fronting} time first, and Least ${t.fronting} time first. Active ${t.alters} always pin to the top regardless of which sort mode is active.`,
@@ -190,6 +198,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, pronouns, role, color, avatar URL, bio, origin year, and any custom fields. You can also connect a Simply Plural member ID to sync data from Simply Plural.`,
       route: "/Home", target: "alter-add-btn",
       look: `the highlighted "+ Add ${t.Alter}" button in the top-right`, action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
+      emoji: "🖼️",
+      title: "Image Assets",
+      body: `Every image you've stored — avatars, banners, backgrounds, bio and chat pictures — lives here, auto-sorted into collapsible folders. Make your own folders, reorder and rename them, bulk-upload, and reuse any image anywhere a picture is accepted by tapping the 🖼 button on that upload. No re-uploading and no duplicate storage.`,
+      route: "/assets", target: "assets-library",
+      look: "the Image Assets page", action: null,
     },
     {
       section: "alters", sectionLabel: t.Alters,

@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { Folder, ChevronRight, User, ArrowLeft, Plus, Users } from "lucide-react";
+import { Folder, ChevronRight, User, ArrowLeft, Plus, Users, Crown, ExternalLink } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -13,6 +13,13 @@ import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useTerms } from "@/lib/useTerms";
+import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
+import useLongPress from "@/hooks/useLongPress";
+import AlterCard from "./AlterCard";
+import SubsystemAlterList from "./SubsystemAlterList";
+import AlterGridView from "./AlterGridView";
+import GroupActionMenu from "./GroupActionMenu";
+import GroupIcon from "@/components/shared/GroupIcon";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -24,7 +31,7 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-function MemberRow({ alter, onClick, activeSessions }) {
+function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsystem }) {
   const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
@@ -34,8 +41,10 @@ function MemberRow({ alter, onClick, activeSessions }) {
       <motion.div
         initial={{ opacity: 0, x: -10 }}
         animate={{ opacity: 1, x: 0 }}
-        onClick={onClick} className="bg-card px-4 py-2 rounded-xl flex-1 flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group">
-        
+        onClick={onClick} className="flex-1 min-w-0">
+        {/* Single card — matches the alters-section AlterCard row exactly
+            (was double-boxed: an outer bg-card/border wrapping an inner
+            bg-card/border, which read as a box-in-a-box). */}
         <div
           className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
@@ -74,24 +83,39 @@ function MemberRow({ alter, onClick, activeSessions }) {
           })()}
         </div>
       </motion.div>
+      {ownedSubsystem && (
+        <button
+          type="button"
+          onClick={(e) => { e.stopPropagation(); onOpenSubsystem?.(ownedSubsystem); }}
+          title={`Open ${ownedSubsystem.name}`}
+          aria-label={`Open ${ownedSubsystem.name}`}
+          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors"
+        >
+          <Folder className="w-4 h-4" style={{ color: ownedSubsystem.color || undefined }} />
+        </button>
+      )}
       <FrontingToggleButton alter={alter} activeSessions={activeSessions} />
     </div>);
 
 }
 
-function FolderRow({ group, onClick }) {
+function FolderRow({ group, onClick, onLongOpen }) {
   const color = group.color || "";
+  // Tap drills into the group (breadcrumb browse); press-and-hold opens
+  // the group's profile page. Scroll-safe via useLongPress.
+  const press = useLongPress({
+    onClick: () => onClick(group),
+    onLongPress: () => onLongOpen?.(group),
+  });
   return (
     <motion.button
       initial={{ opacity: 0, x: -10 }}
       animate={{ opacity: 1, x: 0 }}
-      onClick={() => onClick(group)}
+      {...press}
+      title={`${group.name} — tap to open, hold for its profile`}
       className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1 }}>
-      <div className="rounded-xl w-9 h-9 flex items-center justify-center flex-shrink-0"
-      style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
-        <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
-      </div>
+      style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1, touchAction: "pan-y" }}>
+      <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-xl border border-border/40" />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
       </div>
@@ -100,9 +124,18 @@ function FolderRow({ group, onClick }) {
 
 }
 
-export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls }) {
+export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls, anonymize = "off", displayMode = "list" }) {
   const terms = useTerms();
-  const [navStack, setNavStack] = useState([]);
+  // Breadcrumb stack, persisted so returning from an alter profile lands
+  // back in the folder you were browsing.
+  const [navStack, setNavStack] = useState(() => {
+    try { const raw = sessionStorage.getItem("groupsNav"); return raw ? JSON.parse(raw) : []; } catch { return []; }
+  });
+  const [menuGroup, setMenuGroup] = useState(null); // group folder for the actions popup
+  // Subsystems (alter-owned groups) are hidden from the root groups list by
+  // default — they live under their owner in the alters list. Toggle to
+  // surface them here too. Persisted so the choice sticks.
+  const [showSubsystems, setShowSubsystems] = useState(() => localStorage.getItem("alter_show_subsystems") === "true");
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [manageMembersOpen, setManageMembersOpen] = useState(false);
   const [setFrontOpen, setSetFrontOpen] = useState(false);
@@ -115,6 +148,18 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
     queryFn: () => base44.entities.Group.list()
   });
 
+  // Persist + prune the breadcrumb so it survives a trip to an alter
+  // profile and back, but drops groups deleted while away.
+  useEffect(() => {
+    try { sessionStorage.setItem("groupsNav", JSON.stringify(navStack)); } catch { /* storage off */ }
+  }, [navStack]);
+  useEffect(() => {
+    if (navStack.length === 0 || allGroups.length === 0) return;
+    const valid = navStack.filter((g) => allGroups.some((x) => x.id === g.id));
+    if (valid.length !== navStack.length) setNavStack(valid);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allGroups]);
+
   const currentGroup = navStack.length > 0 ? navStack[navStack.length - 1] : null;
   const currentGroupKey = currentGroup ? currentGroup.id : null;
 
@@ -122,15 +167,29 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   const childGroups = allGroups.
   filter((g) => {
     if (currentGroupKey === null) {
-      return !g.parent || g.parent === "" || g.parent === "root";
+      const isRoot = !g.parent || g.parent === "" || g.parent === "root";
+      // At the top level, keep subsystems out unless the toggle is on.
+      if (isRoot && g.owner_alter_id && !showSubsystems) return false;
+      return isRoot;
     }
     return g.parent && (g.parent === currentGroupKey || g.parent === currentGroup?.sp_id);
   }).
   sort((a, b) => (a.order || 0) - (b.order || 0));
 
+  // Are there any subsystems at root that the toggle could reveal?
+  const rootSubsystemCount = allGroups.filter((g) => (!g.parent || g.parent === "" || g.parent === "root") && g.owner_alter_id).length;
+
+  // The owner alter of a subsystem group, if any. Shown as the "parent"
+  // at the top, and excluded from the member list below so they don't
+  // appear twice.
+  const ownerAlter = currentGroup?.owner_alter_id
+    ? alters.find((a) => a.id === currentGroup.owner_alter_id)
+    : null;
+
   // Get members in current group (check both alter's groups array and Group entity's member_sp_ids)
   const memberAlters = currentGroup ?
   alters.filter((a) => {
+    if (a.id === currentGroup.owner_alter_id) return false; // owner is the parent, not a child
     // Check if alter's groups array contains this group
     const inAlterGroups = (a.groups || []).some((g) => g.id === currentGroupKey || g.sp_id === currentGroupKey);
     // Check if this group's member_sp_ids contains the alter's sp_id
@@ -139,7 +198,13 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
   }) :
   [];
 
-  const navigateTo = (group) => setNavStack([...navStack, group]);
+  const navigateTo = (group) => {
+    if (!group) return;
+    // Never push a group already in the breadcrumb — defends against any
+    // ownership loop turning subsystem drill-down into an endless chain.
+    if (navStack.some((g) => g.id === group.id)) return;
+    setNavStack([...navStack, group]);
+  };
   const navigateBack = () => setNavStack(navStack.slice(0, -1));
 
   return (
@@ -189,6 +254,31 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           )}
         </div>
 
+        {navStack.length === 0 && rootSubsystemCount > 0 && (
+          <Button
+            onClick={() => {
+              const next = !showSubsystems;
+              setShowSubsystems(next);
+              try { localStorage.setItem("alter_show_subsystems", String(next)); } catch {}
+            }}
+            variant="ghost"
+            size="sm"
+            className={`gap-1.5 flex-shrink-0 px-2 ${showSubsystems ? "text-amber-500" : "text-muted-foreground"}`}
+            title={showSubsystems ? `Hide sub${terms.system}s` : `Show sub${terms.system}s (${rootSubsystemCount})`}>
+            <Crown className="w-3.5 h-3.5" />
+            {showSubsystems ? "Hide" : `Sub${terms.system}s`}
+          </Button>
+        )}
+        {currentGroup &&
+        <Button
+          onClick={() => navigate(`/group/${currentGroup.id}`)}
+          variant="ghost"
+          size="icon"
+          className="flex-shrink-0 w-8 h-8"
+          title="Open group profile">
+            <ExternalLink className="w-4 h-4" />
+          </Button>
+        }
         {currentGroup &&
         <Button
           onClick={() => setManageMembersOpen(true)}
@@ -219,18 +309,48 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         exit={{ opacity: 0, x: -20 }}
         transition={{ duration: 0.15 }}
         className="space-y-2">
-        
-        {childGroups.map((g) =>
-        <FolderRow key={g.id} group={g} onClick={navigateTo} />
+
+        {/* Subsystem root (parent) — pinned at the top of an owned group.
+            Rendered with the full AlterCard so it gets the same swipe /
+            long-press / blur behaviour as anywhere else. */}
+        {ownerAlter && (
+          <div className="space-y-1">
+            <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground px-1 flex items-center gap-1">
+              <Crown className="w-3 h-3 text-amber-500" /> Root of this {terms.system === "system" ? "subsystem" : `sub${terms.system}`}
+            </p>
+            <AlterCard alter={ownerAlter} index={0} activeSessions={activeSessions} anonymize={anonymize} />
+            <div className="h-px bg-border/40 my-1" />
+          </div>
         )}
 
-           {memberAlters.map((alter) =>
-        <MemberRow
-          key={alter.id}
-          alter={alter}
-          activeSessions={activeSessions}
-          onClick={() => navigate(`/alter/${alter.id}`)} />
+        {/* Group folders — tap to drill in, hold for the actions popup. */}
+        {childGroups.map((g) =>
+        <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} />
+        )}
 
+        {/* Member alters — rendered with the exact same components as the
+            alters section, so they get swipe-to-front, the long-press
+            action menu, anonymize blur, subsystem nesting, and the
+            grid/list display mode. */}
+        {memberAlters.length > 0 && (
+          displayMode === "list" ? (
+            <SubsystemAlterList
+              topAlters={memberAlters}
+              allAlters={alters}
+              allGroups={allGroups}
+              activeSessions={activeSessions}
+              anonymize={anonymize}
+            />
+          ) : (
+            <AlterGridView
+              alters={memberAlters}
+              activeSessions={activeSessions}
+              allAlters={alters}
+              allGroups={allGroups}
+              cols={parseInt(displayMode) || 3}
+              anonymize={anonymize}
+            />
+          )
         )}
 
         {childGroups.length === 0 && memberAlters.length === 0 && navStack.length > 0 &&
@@ -240,6 +360,8 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           </div>
         }
       </motion.div>
+
+      {menuGroup && <GroupActionMenu group={menuGroup} onClose={() => setMenuGroup(null)} />}
 
       {/* Modals */}
       <CreateGroupModal

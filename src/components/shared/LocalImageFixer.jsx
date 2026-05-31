@@ -1,7 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, Check } from "lucide-react";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime, processUploadedImage } from "@/lib/localImageStorage";
 
 /**
  * Shows a small amber "⚠️ Fix image" pill when:
@@ -62,7 +62,10 @@ export default function LocalImageFixer({
     e.target.value = "";
     setLoading(true);
     try {
-      const dataUrl = await compressImage(file);
+      // GIF-aware: animated GIFs are stored raw (canvas would flatten them
+      // to a still); everything else is compressed via the canvas path.
+      const { dataUrl, isGif } = await processUploadedImage(file, maxWidth, quality);
+      void isGif; // detection handled inside processUploadedImage
       const imageId = `fixed-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(imageId, dataUrl);
       const localUrl = createLocalImageUrl(imageId);

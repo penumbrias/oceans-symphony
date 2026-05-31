@@ -10,9 +10,31 @@ import {
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Grid3X3, List } from "lucide-react";
+import { Grid3X3, List, Ban } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
+import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Avatar that resolves local-image:// (and the SW /local-image/ path) the
+// way the rest of the app does — a raw <img src> on a legacy
+// local-image:// URL renders broken, which is why member pictures weren't
+// showing in this picker.
+function MemberThumb({ alter, size = "w-8 h-8", grayscale = false, fallbackInitial = false }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  if (resolved) {
+    return <img src={resolved} alt={alter?.name || ""} className={`${size} rounded-full object-cover flex-shrink-0 ${grayscale ? "grayscale" : ""}`} />;
+  }
+  if (fallbackInitial) {
+    return (
+      <div className={`${size} rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold ${grayscale ? "grayscale" : ""}`}
+        style={{ backgroundColor: alter?.color || "#9333ea" }}>
+        {alter?.name?.charAt(0)?.toUpperCase()}
+      </div>
+    );
+  }
+  return null;
+}
 
 export default function GroupMembersModal({ group, allGroups, isOpen, onClose }) {
   const terms = useTerms();
@@ -65,9 +87,29 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
     );
   }, [alters, groupKeysToMatch]);
 
+  // When this group is a subsystem (alter-owned), adding certain alters
+  // would create an ownership loop (they're an ancestor of the owner).
+  // Pre-compute those so the picker can grey them out with an explanation
+  // instead of letting the user corrupt the tree.
+  const subsystem = isSubsystem(group);
+  const owner = useMemo(
+    () => (subsystem ? alters.find((a) => a.id === group.owner_alter_id) : null),
+    [subsystem, alters, group.owner_alter_id]
+  );
+  const blockedAlterIds = useMemo(() => {
+    if (!subsystem) return new Set();
+    const ids = new Set();
+    for (const a of alters) {
+      if (altersInGroup.has(a.id)) continue; // already in → always removable
+      if (wouldAddingMemberCycle(allGroups, alters, group, a.id)) ids.add(a.id);
+    }
+    return ids;
+  }, [subsystem, alters, altersInGroup, allGroups, group]);
+
   const filteredAlters = useMemo(() => {
     return alters
       .filter((alter) => {
+        if (alter.is_archived) return false; // archived alters don't belong in the member picker
         const inGroup = altersInGroup.has(alter.id);
         if (filterMode === "in" && !inGroup) return false;
         if (filterMode === "not-in" && inGroup) return false;
@@ -87,6 +129,15 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
     try {
       const alter = alters.find((a) => a.id === alterId);
       if (!alter) return;
+
+      // Cycle guard: refuse to add an alter that would loop the ownership
+      // tree (the owner is already nested inside this alter's subsystem).
+      if (isAdding && blockedAlterIds.has(alterId)) {
+        toast.error(
+          `Can't add ${alter.name} — ${owner?.name || "the root"} is already inside ${alter.name}'s ${terms.system}, so this would create a loop.`
+        );
+        return;
+      }
 
       let updatedGroups = alter.groups || [];
       if (isAdding) {
@@ -111,6 +162,12 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
         <DialogHeader>
           <DialogTitle>Manage {group.name} Members</DialogTitle>
         </DialogHeader>
+        {subsystem && (
+          <p className="text-xs text-muted-foreground -mt-1">
+            {owner?.name ? `${owner.name} is the root of this ${terms.system}. ` : ""}
+            Greyed-out {terms.alters} can't be added — they'd create a loop (the root is already nested inside their own {terms.system}).
+          </p>
+        )}
 
         {/* Controls */}
         <div className="space-y-3">
@@ -187,60 +244,83 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
               No alters found
             </div>
           ) : viewMode === "list" ? (
-            filteredAlters.map((alter) => (
+            filteredAlters.map((alter) => {
+              const inGroup = altersInGroup.has(alter.id);
+              const blocked = blockedAlterIds.has(alter.id);
+              if (blocked) {
+                return (
+                  <div
+                    key={alter.id}
+                    title={`${owner?.name || "The owner"} is already inside ${alter.name}'s ${terms.system} — adding them would loop.`}
+                    className="flex items-center gap-3 p-2 rounded-lg opacity-50 cursor-not-allowed"
+                  >
+                    <Ban className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+                    <MemberThumb alter={alter} grayscale />
+                    <span className="text-sm flex-1 line-through">{alter.name}</span>
+                    <span className="text-[0.625rem] text-muted-foreground italic flex-shrink-0">would loop</span>
+                  </div>
+                );
+              }
+              return (
               <div
                 key={alter.id}
-                className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted transition-colors"
+                onClick={() => handleToggleAlter(alter.id, !inGroup)}
+                role="button"
+                tabIndex={0}
+                className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition-colors ${
+                  inGroup ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted"
+                }`}
               >
+                {/* Whole row toggles; checkbox is a visual indicator only
+                    (pointer-events-none) so taps anywhere on the row work
+                    without having to hit the small box. */}
                 <Checkbox
-                  checked={altersInGroup.has(alter.id)}
-                  onCheckedChange={(checked) =>
-                    handleToggleAlter(alter.id, checked)
-                  }
+                  checked={inGroup}
+                  className="pointer-events-none flex-shrink-0"
+                  tabIndex={-1}
                 />
-                {alter.avatar_url && (
-                  <img
-                    src={alter.avatar_url}
-                    alt={alter.name}
-                    className="w-8 h-8 rounded-full object-cover"
-                  />
-                )}
+                <MemberThumb alter={alter} />
                 <span className="text-sm flex-1">{alter.name}</span>
               </div>
-            ))
+              );
+            })
           ) : (
             filteredAlters.map((alter) => {
               const inGroup = altersInGroup.has(alter.id);
+              const blocked = blockedAlterIds.has(alter.id);
+              if (blocked) {
+                return (
+                  <div
+                    key={alter.id}
+                    title={`${owner?.name || "The owner"} is already inside ${alter.name}'s ${terms.system} — adding them would loop.`}
+                    className="relative flex flex-col items-center gap-1.5 p-2 rounded-lg opacity-50 cursor-not-allowed"
+                  >
+                    <Ban className="absolute top-1.5 right-1.5 w-3.5 h-3.5 text-muted-foreground" />
+                    <MemberThumb alter={alter} size="w-12 h-12" grayscale fallbackInitial />
+                    <span className="text-xs text-center font-medium w-full truncate leading-tight line-through">{alter.alias || alter.name}</span>
+                  </div>
+                );
+              }
               return (
-                <label
+                <div
                   key={alter.id}
+                  onClick={() => handleToggleAlter(alter.id, !inGroup)}
+                  role="button"
+                  tabIndex={0}
                   className={`relative flex flex-col items-center gap-1.5 p-2 rounded-lg cursor-pointer transition-colors ${
                     inGroup ? "bg-primary/10 hover:bg-primary/15" : "hover:bg-muted"
                   }`}
                 >
                   <Checkbox
                     checked={inGroup}
-                    onCheckedChange={(checked) => handleToggleAlter(alter.id, checked)}
-                    className="absolute top-1.5 right-1.5 w-3.5 h-3.5"
+                    className="absolute top-1.5 right-1.5 w-3.5 h-3.5 pointer-events-none"
+                    tabIndex={-1}
                   />
-                  {alter.avatar_url ? (
-                    <img
-                      src={alter.avatar_url}
-                      alt={alter.name}
-                      className="w-12 h-12 rounded-full object-cover flex-shrink-0"
-                    />
-                  ) : (
-                    <div
-                      className="w-12 h-12 rounded-full flex-shrink-0 flex items-center justify-center text-white text-lg font-bold"
-                      style={{ backgroundColor: alter.color || "#9333ea" }}
-                    >
-                      {alter.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                  )}
+                  <MemberThumb alter={alter} size="w-12 h-12" fallbackInitial />
                   <span className="text-xs text-center font-medium w-full truncate leading-tight">
                     {alter.alias || alter.name}
                   </span>
-                </label>
+                </div>
               );
             })
           )}

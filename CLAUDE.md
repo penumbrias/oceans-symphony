@@ -214,7 +214,7 @@ Versioning rules:
 - The version is shown in Settings upper-right next to an "alpha" chip. Testers reference it when reporting issues, so keep it accurate.
 
 Rules:
-- Add a new date block at the top of the `CHANGELOG` array when starting a new session's work.
+- **Group entries by date — one block per calendar day, newest block first.** The "What's new" bar and Settings → Recent Updates group the changelog by its date blocks and surface the most recent block as "the latest batch." If you keep appending to a stale date block, that batch grows unbounded and the date grouping breaks (everything reads as one giant release — exactly the bug that prompted this rule). So **before adding an entry, compare the top block's `date` to today's actual date (see the `currentDate` context at the top of the conversation). If they differ, create a NEW date block at the top of the `CHANGELOG` array with today's date and put the entry there.** Only append to the existing top block when it is already dated today. Never reuse an old/stale date for new work, and never let one date block accumulate an entire multi-day backlog.
 - Use `type: "feature"` for new capabilities, `"improve"` for enhancements, `"fix"` for user-visible bug fixes, `"hotfix"` for minor/internal fixes (brief text only).
 - For hotfixes, write "Hotfix: [brief description]" — no need for detail.
 - **HARD LIMIT: every changelog entry is 1–2 short sentences. No exceptions.** Aim for one. The changelog renders inline on the dashboard "What's new" bar and in Settings → Recent Updates, and testers copy it to share — long paragraphs are unreadable on a phone and make the list exhausting. If an entry runs past ~2 lines on a phone, it's too long; cut it. Skip implementation details, internal field/route/component names, "Previously…/Root cause…" explanations, version numbers, and how-it-works mechanics — all of that belongs in the PR description, NOT the changelog. The entry says only what the user will notice. Reference an issue with a bare "(#229)" at the end if relevant.
@@ -840,10 +840,13 @@ See "Critical: Data Backup / Restore Coverage" at top for the ENTITY_NAMES + EXP
 
 **Adding a new entity.**
 1. Add `build<Name>Records({ items, … })` returning `[{ type, id, title, subtitle, path, searchableText, sortDate }]`.
-2. Call it from `buildSearchIndex()`.
-3. Add label/icon + `TYPE_ORDER` entries in `GlobalSearch.jsx`.
+2. Call it from `buildSearchIndex()` (and destructure the new source there).
+3. Fetch the entity in `GlobalSearch.jsx` (a `useQuery` + `safeList`), pass it into the `buildSearchIndex({ … })` call AND its dependency array.
+4. Add label/icon + a `TYPE_ORDER` entry in `GlobalSearch.jsx`.
 
-**Gotchas.** `searchableText` is pre-built per record — case-insensitive substring scan, no Fuse/Lunr. Date strings are baked in multiple formats so users can query "March 2025" / "2025-03" / "Mar 12". Don't move filtering into render — keep it in the index.
+**CRITICAL — keep global search current.** Global search is meant to find *everything*. Whenever you add a new content-bearing entity or a new findable surface (a new page, a new kind of record, a new profile type like subsystems), you MUST add it to global search in the same change — steps 1–4 above. When you add a profile/detail route, point existing records at it (e.g. groups + subsystems now route to `/group/:id`, not `/groups`). If a surface holds user-authored text or names, it should be searchable. Don't let search silently fall behind the feature set.
+
+**Gotchas.** `searchableText` is pre-built per record — case-insensitive substring scan, no Fuse/Lunr. Strip HTML out of rich content (chat/bulletin) before indexing. Date strings are baked in multiple formats so users can query "March 2025" / "2025-03" / "Mar 12". Don't move filtering into render — keep it in the index.
 
 ---
 
@@ -938,6 +941,13 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 ### Alter selection menus
 
 When building a UI that lets the user pick one or more alters, follow the existing pattern in `SetFrontModal.jsx` (the cleanest current implementation — look there first before building from scratch). Specifically: refetch the current-fronters list when the menu opens (`base44.entities.FrontingSession.filter({ is_active: true })` — don't trust a closure-captured prop or the stale `["activeFront"]` query), pre-select current fronters when the menu is for "filter by who's fronting"-style flows, render the alter rows with the same chip/list shape so the UI feels consistent across features, and route every "alter" / "fronter" / "fronting" label through `useTerms()`. The Fronter-view filter dropdown in `Journals.jsx` is another reference implementation (lighter weight — just a popover, no full-screen dialog).
+
+**NEVER ship a bare/unsearchable alter `<select>` or a plain scrolling list for alter selection.** Systems can have dozens of members — an unfiltered list is unusable. Every alter-selection input MUST be searchable and scrollable, and should reuse one of the standard components rather than rolling its own:
+
+- **Single-select** → `AlterSearchSelect` (`src/components/shared/AlterSearchSelect.jsx`): trigger button + fixed-positioned, searchable, scrollable dropdown; supports a "none" option, `disabledIds` (greys out cycle-creating/invalid options), and a `zIndex` prop for nesting inside another overlay. Used by the group profile "Root" picker and the `GroupActionMenu` assign-root flow.
+- **Multi-select** → the searchable picker pattern (search box + scrollable checkbox rows + Done), e.g. the chat `SpeakerPicker` (top-anchored modal, keyboard-safe) or `GroupMembersModal`. Don't reinvent it; lift/parameterise one of these.
+
+Rules that keep them feeling synchronous and proper: (1) fixed/modal positioning that escapes parent `overflow` clipping and never floats behind the on-screen keyboard (top-anchored modal or a viewport-clamped fixed popover — NOT `position:absolute` inside a scrollable toolbar); (2) a search box that filters by name/alias; (3) a scrollable list with `overscroll-contain`; (4) labels through `useTerms()`; (5) avatars resolved via `useResolvedAvatarUrl` (raw `<img src>` breaks legacy `local-image://`). If an existing surface still uses the old cruddy list, migrate it to these when you touch it.
 
 ### Running multiple agents in parallel (Claude Code on the web specifically)
 

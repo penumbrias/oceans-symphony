@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -216,13 +217,34 @@ function AlterProfileInner() {
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
       <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
+        {/* Header row: pin toggle on the left (the app header already
+            provides Back, so the page-level Back was removed); Prev/Next
+            + message button on the right. */}
         <div className="flex items-center justify-between mb-4">
-          <Link to="/Home">
-            <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground -ml-2">
-              <ArrowLeft className="w-4 h-4 mr-2" />
-              Back
-            </Button>
-          </Link>
+          <button
+            type="button"
+            onClick={async () => {
+              try {
+                await base44.entities.Alter.update(alter.id, { is_pinned: !alter.is_pinned });
+                queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+                toast.success(alter.is_pinned ? `${alter.name} unpinned` : `${alter.name} pinned to top`);
+              } catch (e) {
+                toast.error(e?.message || "Failed to update pin");
+              }
+            }}
+            aria-pressed={!!alter.is_pinned}
+            title={alter.is_pinned ? "Unpin from top of the alters page" : "Pin to top of the alters page"}
+            className={cn(
+              "flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors flex-shrink-0",
+              alter.is_pinned
+                ? "text-primary bg-primary/10 hover:bg-primary/15"
+                : "text-muted-foreground hover:text-foreground hover:bg-muted/50"
+            )}
+          >
+            <Pin className={cn("w-4 h-4", alter.is_pinned && "fill-primary")} />
+            {alter.is_pinned ? "Pinned" : "Pin"}
+          </button>
           <div className="flex items-center gap-2">
             {prevAlter && (
               <Link to={`/alter/${prevAlter.id}`}>

@@ -388,15 +388,61 @@ export function buildSymptomCheckInRecords({ items = [] }) {
   }));
 }
 
-export function buildGroupRecords({ items = [] }) {
+export function buildGroupRecords({ items = [], alters = [] }) {
+  const byId = Object.fromEntries((alters || []).map((a) => [a.id, a]));
+  return items.map((g) => {
+    const owner = g.owner_alter_id ? byId[g.owner_alter_id] : null;
+    const isSub = !!g.owner_alter_id;
+    return {
+      type: "group",
+      id: g.id,
+      title: g.name || "Group",
+      subtitle: isSub ? (owner ? `Subsystem · ${owner.name}` : "Subsystem") : (snippet(g.description) || "Group"),
+      // Both groups and subsystems now have a profile page.
+      path: `/group/${g.id}`,
+      searchableText: joinNonEmpty([g.name, g.description, isSub ? "subsystem" : "group", owner?.name]).toLowerCase(),
+    };
+  });
+}
+
+export function buildGroundingTechniqueRecords({ items = [] }) {
   return items.map((g) => ({
-    type: "group",
+    type: "grounding",
     id: g.id,
-    title: g.name || "Group",
-    subtitle: snippet(g.description) || "Group",
-    path: `/groups`,
-    searchableText: joinNonEmpty([g.name, g.description]).toLowerCase(),
+    title: g.name || "Technique",
+    subtitle: g.category ? `Grounding · ${g.category}` : "Grounding technique",
+    path: "/grounding",
+    searchableText: joinNonEmpty([g.name, g.category, g.instructions, g.description]).toLowerCase(),
   }));
+}
+
+export function buildInnerWorldLocationRecords({ items = [] }) {
+  return items.map((l) => ({
+    type: "innerworld",
+    id: l.id,
+    title: l.name || "Location",
+    subtitle: snippet(l.description) || "Inner world location",
+    path: "/system-map",
+    searchableText: joinNonEmpty([l.name, l.description]).toLowerCase(),
+  }));
+}
+
+export function buildChatMessageRecords({ items = [], channels = [] }) {
+  const chanById = Object.fromEntries((channels || []).map((c) => [c.id, c]));
+  return items
+    .filter((m) => m && !m.is_deleted && m.content)
+    .map((m) => {
+      const text = String(m.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      const chan = chanById[m.channel_id];
+      return {
+        type: "chat",
+        id: m.id,
+        title: snippet(text) || "Message",
+        subtitle: chan ? `#${chan.name}` : "Chat",
+        path: m.channel_id ? `/chat?channel=${m.channel_id}` : "/chat",
+        searchableText: joinNonEmpty([text, chan?.name]).toLowerCase(),
+      };
+    });
 }
 
 export function buildDiaryCardRecords({ items = [] }) {
@@ -573,6 +619,8 @@ export function buildSearchIndex(sources = {}) {
     alterNotes, alterMessages,
     reminders,
     groceries,
+    chatMessages, chatChannels,
+    groundingTechniques, innerWorldLocations,
   } = sources;
 
   const records = [];
@@ -590,7 +638,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildEmotionCheckInRecords({ items: emotionCheckIns || [] }));
   records.push(...buildSymptomRecords({ items: symptoms || [] }));
   records.push(...buildSymptomCheckInRecords({ items: symptomCheckIns || [] }));
-  records.push(...buildGroupRecords({ items: groups || [] }));
+  records.push(...buildGroupRecords({ items: groups || [], alters: alters || [] }));
   records.push(...buildDiaryCardRecords({ items: diaryCards || [] }));
   records.push(...buildSystemCheckInRecords({ items: systemCheckIns || [] }));
   records.push(...buildLocationRecords({ items: locations || [] }));
@@ -599,6 +647,9 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildAlterNoteRecords({ items: alterMessages || [], alters: alters || [] }));
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
+  records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
+  records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
+  records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   return records;
 }
 

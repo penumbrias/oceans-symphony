@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -27,6 +27,7 @@ export const ALL_PAGES = [
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },
   { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
+  { id: "assets", label: "Image Assets", path: "/assets", icon: Images },
 ];
 
 export const DEFAULT_CONFIG = {
@@ -56,6 +57,7 @@ export const DEFAULT_CONFIG = {
     "location-history",
     "analytics",
     "groups",
+    "assets",
     "system-map",
     "system-history",
     "polls",

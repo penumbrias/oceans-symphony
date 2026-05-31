@@ -1,16 +1,21 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
+import GroupIcon from "@/components/shared/GroupIcon";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
+import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
@@ -18,6 +23,7 @@ import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getPageBackground, adjustForContrast } from "@/lib/contrast";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
+import MarkdownText from "@/components/shared/MarkdownText";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -47,23 +53,10 @@ function AvatarModal({ src, onSave, onClose }) {
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const compressImage = (file, maxWidth = 400, quality = 0.85) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const u = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(u);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = u;
-      });
-      const dataUrl = await compressImage(file);
+      // GIF-aware: animated GIFs are stored raw so they keep moving;
+      // stills are compressed. (processUploadedImage handles the split.)
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 400, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -71,7 +64,7 @@ function AvatarModal({ src, onSave, onClose }) {
       } else {
         setUrl(dataUrl);
       }
-      toast.success("Image ready!");
+      toast.success(isGif ? "GIF ready!" : "Image ready!");
     } catch { toast.error("Failed to process image"); }
     finally { setUploading(false); e.target.value = ""; }
   };
@@ -90,6 +83,7 @@ function AvatarModal({ src, onSave, onClose }) {
         )}
         <div className="flex gap-2">
           <Input value={url} onChange={e => setUrl(e.target.value)} placeholder="Paste image URL..." className="flex-1 text-sm" />
+          <AssetButton onPick={(u) => setUrl(u)} className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
             className="h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4 text-muted-foreground" />}
@@ -147,7 +141,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showAvatarModal, setShowAvatarModal] = useState(false);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
-    description: "", color: "", avatar_url: "",
+    description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -155,8 +149,41 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
+  const [creatingSubsystem, setCreatingSubsystem] = useState(false);
+  const [managingSubsystem, setManagingSubsystem] = useState(null);
   const bgFileInputRef = useRef(null);
   const headerFileInputRef = useRef(null);
+  const navigate = useNavigate();
+
+  // Subsystems this alter owns (groups with owner_alter_id === this alter).
+  const { data: allGroups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+  const ownedSubsystems = getSubsystemsOwnedBy(allGroups, alter.id);
+
+  // Create a new subsystem owned by this alter. The term is "sub" + the
+  // user's system term (subsystem / subcollective / …).
+  const subsystemTerm = `sub${t.system}`;
+  const createSubsystem = async () => {
+    setCreatingSubsystem(true);
+    try {
+      const name = `${alter.name}'s ${subsystemTerm}`;
+      await base44.entities.Group.create({
+        name,
+        color: alter.color || "#8b5cf6",
+        parent: "",
+        member_sp_ids: [],
+        owner_alter_id: alter.id,
+      });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      toast.success(`Created ${name}`);
+    } catch (e) {
+      toast.error(e.message || "Failed to create subsystem");
+    } finally {
+      setCreatingSubsystem(false);
+    }
+  };
 
   useEffect(() => {
     let birthday = alter.birthday || "";
@@ -175,6 +202,8 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       description: alter.description || "",
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
+      emoji: alter.emoji || "",
+      subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
     });
   }, [alter]);
@@ -244,24 +273,10 @@ useEffect(() => {
     setUploadingBg(true);
     try {
       const sizeMB = file.size / (1024 * 1024);
-      const compressImage = (file, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      if (sizeMB > 1) toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
-      const dataUrl = await compressImage(file);
+      if (sizeMB > 1 && file.type !== "image/gif") toast.info(`Compressing background image (${sizeMB.toFixed(1)}MB)…`);
+      // GIF-aware: GIF backgrounds stay raw (animated); stills compressed.
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.8);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -269,7 +284,7 @@ useEffect(() => {
       } else {
         setBgField(BG_IMAGE_KEY, dataUrl);
       }
-      toast.success("Background image saved!");
+      toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
     } catch (err) {
       toast.error("Failed to process background image");
     } finally { setUploadingBg(false); e.target.value = ""; }
@@ -279,23 +294,9 @@ useEffect(() => {
     const file = e.target.files?.[0]; if (!file) return;
     setUploadingHeader(true);
     try {
-      const compressImage = (file, maxWidth = 1200, quality = 0.85) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(file);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          // Preserve PNG transparency — JPEG would flatten it to black.
-          resolve(encodeCanvasForMime(canvas, file.type, quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      const dataUrl = await compressImage(file);
+      // GIF-aware: GIF banners stay raw (animated); stills compressed.
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
       if (isLocalMode()) {
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
@@ -303,7 +304,7 @@ useEffect(() => {
       } else {
         setBgField(HEADER_IMAGE_KEY, dataUrl);
       }
-      toast.success("Header image saved!");
+      toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
     } catch { toast.error("Failed to process header image"); }
     finally { setUploadingHeader(false); e.target.value = ""; }
   };
@@ -477,7 +478,7 @@ useEffect(() => {
               </div>
               <div className="flex-1 min-w-0 space-y-1">
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
-                  {alter.name}
+                  {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
                 </h2>
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
@@ -575,20 +576,44 @@ useEffect(() => {
                 const halo = g.color && needsHalo(g.color, pageBg);
                 const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
                 return (
-                <span key={g.id} className="px-2.5 py-1 rounded-full text-xs font-medium border"
+                <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
+                  title={`Open ${g.name}`}
+                  className="px-2.5 py-1 rounded-full text-xs font-medium border hover:brightness-110 transition"
                   style={{
                     backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
                     borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                     color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                   }}>
                   {g.name}
-                </span>
+                </button>
                 );
               })}
             </div>
           </div>
           );
         })()}
+
+        {ownedSubsystems.length > 0 && (
+          <div>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+              {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
+            </p>
+            <div className="space-y-1.5">
+              {ownedSubsystems.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => navigate(`/group/${g.id}`)}
+                  className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
+                  style={{ borderLeftColor: g.color || "transparent", borderLeftWidth: g.color ? 3 : 1 }}
+                >
+                  <Folder className="w-4 h-4 flex-shrink-0" style={{ color: g.color || "hsl(var(--muted-foreground))" }} />
+                  <span className="text-sm flex-1 truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
 
         {presetAnswerRows.length > 0 && (
           <div>
@@ -684,7 +709,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">
+                    {/* div (not span) so text-type fields can host the
+                        block-level MarkdownText without invalid nesting. */}
+                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
                       {field.field_type === "boolean"
                         ? (customFieldValues[field.id] === "true" ? "Yes" : "No")
                         : field.field_type === "list" && typeof customFieldValues[field.id] === "string"
@@ -695,14 +722,18 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                               ))}
                             </span>
                           )
-                          : customFieldValues[field.id]}
-                    </span>
+                          : field.field_type === "text"
+                            ? <MarkdownText>{String(customFieldValues[field.id])}</MarkdownText>
+                            : <span className="whitespace-pre-wrap break-words">{customFieldValues[field.id]}</span>}
+                    </div>
                   </div>
                 ))}
                 {alterSpecific.map((field, idx) => (
                   <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
-                    <span className="text-xs text-foreground flex-1 leading-relaxed whitespace-pre-wrap break-words">{field.value}</span>
+                    <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
+                      <MarkdownText>{String(field.value)}</MarkdownText>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -732,8 +763,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         </button>
       </div>
 
-      {/* Name + Alias row */}
-      <div className="grid grid-cols-2 gap-3">
+      {/* Emoji + Name + Alias row */}
+      <div className="grid grid-cols-[3.5rem_1fr_1fr] gap-3">
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Emoji</label>
+          <Input value={form.emoji} onChange={(e) => set("emoji", e.target.value)} placeholder="✨" maxLength={8} className="text-center text-lg" aria-label="Profile emoji or symbol" />
+        </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Name *</label>
           <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
@@ -913,6 +948,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex gap-2">
             <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <AssetButton onPick={(url) => setBgField(HEADER_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
             <button type="button" onClick={() => headerFileInputRef.current?.click()} disabled={uploadingHeader}
               className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
               {uploadingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
@@ -928,6 +964,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="flex gap-2">
             <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
               placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
+            <AssetButton onPick={(url) => setBgField(BG_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
             <button type="button" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg}
               className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
               {uploadingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
@@ -966,7 +1003,58 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       <div className="space-y-2">
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
-          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit →</button>
+          <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
+        </div>
+
+        {/* Subsystems this alter owns + a create button. A subsystem is a
+            group this alter parents — see subsystemUtils. */}
+        <div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground flex items-center gap-1.5">
+              <Folder className="w-3.5 h-3.5" /> {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
+            </span>
+            <button
+              type="button"
+              onClick={createSubsystem}
+              disabled={creatingSubsystem}
+              className="text-xs text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1 disabled:opacity-50"
+            >
+              <FolderPlus className="w-3.5 h-3.5" /> Create {subsystemTerm}
+            </button>
+          </div>
+          {ownedSubsystems.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {ownedSubsystems.map((g) => (
+                <button
+                  key={g.id}
+                  type="button"
+                  onClick={() => navigate(`/group/${g.id}`)}
+                  className="px-2 py-0.5 rounded-full text-xs font-medium border inline-flex items-center gap-1"
+                  style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
+                  title="Open profile"
+                >
+                  <GroupIcon group={g} className="w-3 h-3" /> {g.name}
+                </button>
+              ))}
+            </div>
+          ) : null}
+          {/* When this alter owns several subsystems, the alters-list chip
+              shows a stacked-folder icon — let the user pick a custom image
+              for it (from their assets). */}
+          {ownedSubsystems.length > 1 && (
+            <div className="flex items-center gap-2 pt-1">
+              <span className="w-7 h-7 rounded-full overflow-hidden border border-border/40 flex items-center justify-center flex-shrink-0 bg-muted/30">
+                {form.subsystems_icon
+                  ? <img src={form.subsystems_icon} alt="" className="w-full h-full object-cover" />
+                  : <Folder className="w-3.5 h-3.5 text-muted-foreground" />}
+              </span>
+              <span className="text-[0.6875rem] text-muted-foreground flex-1 leading-snug">Icon for the “{ownedSubsystems.length} {subsystemTerm}s” chip</span>
+              <AssetButton onPick={(url) => set("subsystems_icon", url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 flex-shrink-0" />
+              {form.subsystems_icon && (
+                <button type="button" onClick={() => set("subsystems_icon", "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3.5 h-3.5" /></button>
+              )}
+            </div>
+          )}
         </div>
         {alter.groups && alter.groups.length > 0 ? (() => {
           const pageBg = getPageBackground();
@@ -976,14 +1064,16 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
               const halo = g.color && needsHalo(g.color, pageBg);
               const fillColor = halo ? adjustForContrast(g.color, pageBg) : g.color;
               return (
-              <span key={g.id} className="px-2 py-0.5 rounded-full text-xs font-medium border"
+              <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
+                title={`Open ${g.name}`}
+                className="px-2 py-0.5 rounded-full text-xs font-medium border hover:brightness-110 transition"
                 style={{
                   backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "18"}` : "hsl(var(--muted))",
                   borderColor: fillColor ? `${fillColor}${halo ? "" : "40"}` : "hsl(var(--border))",
                   color: halo ? "hsl(var(--foreground))" : (g.color || "hsl(var(--foreground))"),
                 }}>
                 {g.name}
-              </span>
+              </button>
               );
             })}
           </div>
@@ -1073,6 +1163,14 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       </div>
 
       <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
+      {managingSubsystem && (
+        <GroupMembersModal
+          group={managingSubsystem}
+          allGroups={allGroups}
+          isOpen={!!managingSubsystem}
+          onClose={() => setManagingSubsystem(null)}
+        />
+      )}
       {showAvatarModal && <AvatarModal src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}

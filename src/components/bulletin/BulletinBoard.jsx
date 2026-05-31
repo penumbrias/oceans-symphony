@@ -69,6 +69,10 @@ export default function BulletinBoard({
   // larger default batch + IntersectionObserver auto-load-more on
   // scroll. Default (false) is the dashboard widget.
   pageMode = false,
+  // groupId set → an isolated board for that group/subsystem: shows only
+  // its own bulletins and posts are tagged with it. Null (default) → the
+  // system-wide board, which excludes any group-scoped bulletins.
+  groupId = null,
 }) {
   const [composing, setComposing] = useState(false);
   const [composeInitial, setComposeInitial] = useState("");
@@ -138,8 +142,9 @@ export default function BulletinBoard({
     queryFn: () => base44.entities.Poll.filter({ pinned_to_dashboard: true }, "-created_date"),
   });
   const standalonePinnedPolls = useMemo(
-    () => allPinnedPolls.filter((p) => !p.bulletin_id),
-    [allPinnedPolls]
+    // Standalone pinned polls belong to the system board only.
+    () => (groupId ? [] : allPinnedPolls.filter((p) => !p.bulletin_id)),
+    [allPinnedPolls, groupId]
   );
 
   // One query for every comment on the board so each card can show a
@@ -163,7 +168,10 @@ export default function BulletinBoard({
     }, 100);
   }, [highlightBulletinId, bulletins.length]);
 
-  const filteredBulletins = bulletins.filter((b) =>
+  // Scope to this group's board, or (system board) exclude any
+  // group-scoped bulletins so they don't leak into the main feed.
+  const scopedBulletins = bulletins.filter((b) => (groupId ? b.group_id === groupId : !b.group_id));
+  const filteredBulletins = scopedBulletins.filter((b) =>
     !searchQuery || b.content?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
@@ -180,7 +188,7 @@ export default function BulletinBoard({
       })
     : filteredRecent;
 
-  const unreadCount = bulletins.filter((b) =>
+  const unreadCount = scopedBulletins.filter((b) =>
     currentAlterId && b.mentioned_alter_ids?.includes(currentAlterId) && !b.read_by_alter_ids?.includes(currentAlterId)
   ).length;
 
@@ -240,13 +248,14 @@ export default function BulletinBoard({
             authorAlterId={currentAlterId}
             frontingAlterIds={frontingAlterIds}
             initialContent={composeInitial}
+            groupId={groupId}
             onClose={() => { setComposing(false); setComposeInitial(""); }}
           />
         </div>
       }
 
-      {/* Quick Task Add */}
-      <QuickTaskAdd frontingAlterIds={frontingAlterIds} />
+      {/* Quick Task Add — system board only (tasks aren't group-scoped) */}
+      {!groupId && <QuickTaskAdd frontingAlterIds={frontingAlterIds} />}
 
       {/* Mention alerts */}
       {currentAlterId &&

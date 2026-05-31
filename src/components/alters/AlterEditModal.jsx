@@ -5,14 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, Crown, Folder, X } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, encodeCanvasForMime } from "@/lib/localImageStorage";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { Link2 } from "lucide-react";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
@@ -25,21 +27,32 @@ function extractYear(str) {
   return m ? m[1] : "";
 }
 
-export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) {
+export default function AlterEditModal({ alter, open, onClose, mode = "edit", initialGroupIds = [] }) {
   const queryClient = useQueryClient();
   const t = useTerms();
   const isNew = mode === "create";
+  const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
-    birthday: "", origin_year: "",
+    birthday: "", origin_year: "", is_pinned: false, emoji: "",
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const fileInputRef = useRef(null);
+  // Create-mode group/subsystem membership (edit mode uses GroupPickerModal
+  // on the existing alter). Prefilled from initialGroupIds — e.g. when
+  // "create a new member" is launched from a subsystem.
+  const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const [selectedGroupIds, setSelectedGroupIds] = useState(new Set());
+  useEffect(() => {
+    if (open && isNew) setSelectedGroupIds(new Set(initialGroupIds || []));
+  }, [open, isNew, JSON.stringify(initialGroupIds)]);
+  const addGroup = (id) => setSelectedGroupIds((s) => new Set(s).add(id));
+  const removeGroup = (id) => setSelectedGroupIds((s) => { const n = new Set(s); n.delete(id); return n; });
 
   useEffect(() => {
     if (alter && !isNew) {
@@ -57,10 +70,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit" }) 
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "",
-        birthday, origin_year,
+        birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "",
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "" });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "" });
     }
   }, [alter, open, isNew]);
 
@@ -141,7 +154,23 @@ const handleAvatarUpload = async (e) => {
     const formData = { ...form, origin_year: form.origin_year ? parseInt(form.origin_year, 10) : null };
     try {
       if (isNew) {
-        await base44.entities.Alter.create({ ...formData, is_archived: false });
+        const created = await base44.entities.Alter.create({ ...formData, is_archived: false });
+        // Apply selected group / subsystem memberships to the new alter.
+        if (selectedGroupIds.size > 0 && created?.id) {
+          const memberKey = created.sp_id || created.id;
+          const newGroups = [];
+          for (const g of allGroups) {
+            if (!selectedGroupIds.has(g.id)) continue;
+            const members = new Set(g.member_sp_ids || []);
+            members.add(memberKey);
+            try { await base44.entities.Group.update(g.id, { member_sp_ids: [...members] }); } catch { /* keep going */ }
+            newGroups.push({ id: g.sp_id || g.id, name: g.name, color: g.color || "" });
+          }
+          if (newGroups.length) {
+            try { await base44.entities.Alter.update(created.id, { groups: newGroups }); } catch { /* non-fatal */ }
+          }
+          queryClient.invalidateQueries({ queryKey: ["groups"] });
+        }
         toast.success(`✅ ${t.Alter} created!`);
       } else {
         await base44.entities.Alter.update(alter.id, formData);
@@ -228,9 +257,22 @@ const handleAvatarUpload = async (e) => {
             <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
           )}
 
-          <div className="space-y-2">
-            <Label>Name *</Label>
-            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
+          <div className="flex gap-2">
+            <div className="space-y-2 w-20 flex-shrink-0">
+              <Label>Emoji</Label>
+              <Input
+                value={form.emoji}
+                onChange={(e) => set("emoji", e.target.value)}
+                placeholder="✨"
+                maxLength={8}
+                className="text-center text-lg"
+                aria-label="Profile emoji or symbol"
+              />
+            </div>
+            <div className="space-y-2 flex-1 min-w-0">
+              <Label>Name *</Label>
+              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
+            </div>
           </div>
 
           <div className="space-y-2">
@@ -299,6 +341,7 @@ const handleAvatarUpload = async (e) => {
             <Label>Avatar</Label>
             <div className="flex gap-2">
               <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
+              <AssetButton onPick={(url) => set("avatar_url", url)} className="h-10 w-10 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted/60 transition-colors flex-shrink-0" />
               <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label={uploadingAvatar ? "Uploading avatar…" : "Upload avatar image"}>
                 {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
               </Button>
@@ -322,6 +365,38 @@ const handleAvatarUpload = async (e) => {
             <Textarea value={form.description} onChange={(e) => set("description", e.target.value)}
               placeholder="Write a description..." className="min-h-[100px] resize-none" />
           </div>
+
+          {isNew && (
+            <div className="space-y-2">
+              <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups &amp; {subTerm}s</Label>
+              {selectedGroupIds.size > 0 && (
+                <div className="flex flex-wrap gap-1.5">
+                  {[...selectedGroupIds].map((id) => {
+                    const g = allGroups.find((x) => x.id === id);
+                    if (!g) return null;
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
+                        style={{ backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))", borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}>
+                        {g.owner_alter_id ? <Crown className="w-3 h-3 text-amber-500" /> : <Folder className="w-3 h-3" />}
+                        {g.name}
+                        <button type="button" onClick={() => removeGroup(id)} aria-label={`Remove ${g.name}`} className="-mr-0.5 hover:text-destructive"><X className="w-3 h-3" /></button>
+                      </span>
+                    );
+                  })}
+                </div>
+              )}
+              <select
+                value=""
+                onChange={(e) => { if (e.target.value) { addGroup(e.target.value); e.target.value = ""; } }}
+                className="w-full text-sm rounded-lg border border-input bg-background px-2 py-2"
+              >
+                <option value="">Add to a group / {subTerm}…</option>
+                {allGroups.filter((g) => !selectedGroupIds.has(g.id)).map((g) => (
+                  <option key={g.id} value={g.id}>{g.owner_alter_id ? "◦ " : ""}{g.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
 
           {!isNew && alter && (
             <div className="space-y-2">
@@ -348,6 +423,21 @@ const handleAvatarUpload = async (e) => {
               )}
             </div>
           )}
+
+          {/* Pin shortcut — surfaces this {alter} in a quick-access
+              gallery at the top of the {alters} page (and the Set Front
+              modal). Doesn't change their position anywhere else. */}
+          <div className="flex items-center justify-between rounded-xl border border-border/50 px-3 py-2.5">
+            <Label htmlFor="alter-pin-toggle" className="flex items-center gap-1.5 cursor-pointer">
+              <Pin className={`w-3.5 h-3.5 ${form.is_pinned ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+              Pin to top of {t.alters} page
+            </Label>
+            <Switch
+              id="alter-pin-toggle"
+              checked={!!form.is_pinned}
+              onCheckedChange={(v) => set("is_pinned", v)}
+            />
+          </div>
         </div>
 
         {/* Fixed footer */}

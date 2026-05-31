@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
+import MarkdownText from "@/components/shared/MarkdownText";
 
 const FIELD_ORDER_KEY = "_field_order";
 
@@ -319,6 +320,11 @@ export default function InfoTab({ alter, systemFields }) {
                           </div>
                         );
                       }
+                      // text-type fields render as Markdown; number (the
+                      // only remaining type) stays plain.
+                      if (field.field_type === "text") {
+                        return <MarkdownText>{String(value)}</MarkdownText>;
+                      }
                       return <span className="whitespace-pre-wrap break-words">{value}</span>;
                     })()}
                   </div>
@@ -378,9 +384,13 @@ export default function InfoTab({ alter, systemFields }) {
                 </div>
               </div>
             ) : (
-              <p className="text-sm text-foreground min-h-[1.25rem] whitespace-pre-wrap break-words">
-                {field.value || <span className="text-muted-foreground/50 italic">Not filled</span>}
-              </p>
+              // Alter-specific ad-hoc fields are always free text, so they
+              // render as Markdown like text-type system fields.
+              <div className="text-sm text-foreground min-h-[1.25rem]">
+                {field.value
+                  ? <MarkdownText>{String(field.value)}</MarkdownText>
+                  : <span className="text-muted-foreground/50 italic">Not filled</span>}
+              </div>
             )}
           </div>
         ))}

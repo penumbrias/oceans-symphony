@@ -41,6 +41,9 @@ const TYPE_ICONS = {
   note:      "📝",
   reminder:  "⏰",
   grocery:   "🛒",
+  chat:      "💬",
+  grounding: "🌱",
+  innerworld:"🗺️",
 };
 
 function getTypeLabels(t) {
@@ -61,6 +64,9 @@ function getTypeLabels(t) {
     note:      `${t.Alter} Notes`,
     reminder:  "Reminders",
     grocery:   "Grocery List",
+    chat:      "Chat Messages",
+    grounding: "Grounding",
+    innerworld: `${t.System} Map`,
   };
 }
 
@@ -220,6 +226,26 @@ export default function GlobalSearch() {
     queryFn: () => safeList(localEntities.GroceryItem),
     staleTime: stale, enabled,
   });
+  const { data: chatMessages = [] } = useQuery({
+    queryKey: ["searchChatMessages"],
+    queryFn: () => safeList(localEntities.SystemChatMessage),
+    staleTime: stale, enabled,
+  });
+  const { data: chatChannels = [] } = useQuery({
+    queryKey: ["searchChatChannels"],
+    queryFn: () => safeList(localEntities.SystemChatChannel),
+    staleTime: stale, enabled,
+  });
+  const { data: groundingTechniques = [] } = useQuery({
+    queryKey: ["searchGrounding"],
+    queryFn: () => safeList(localEntities.GroundingTechnique),
+    staleTime: stale, enabled,
+  });
+  const { data: innerWorldLocations = [] } = useQuery({
+    queryKey: ["searchInnerWorld"],
+    queryFn: () => safeList(localEntities.InnerWorldLocation),
+    staleTime: stale, enabled,
+  });
 
   const index = useMemo(() => buildSearchIndex({
     alters, customFieldDefs,
@@ -237,6 +263,8 @@ export default function GlobalSearch() {
     alterNotes, alterMessages,
     reminders,
     groceries,
+    chatMessages, chatChannels,
+    groundingTechniques, innerWorldLocations,
   }), [
     alters, customFieldDefs,
     journals, supportJournals,
@@ -253,6 +281,8 @@ export default function GlobalSearch() {
     alterNotes, alterMessages,
     reminders,
     groceries,
+    chatMessages, chatChannels,
+    groundingTechniques, innerWorldLocations,
   ]);
 
   const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
@@ -285,7 +315,7 @@ export default function GlobalSearch() {
   const TYPE_ORDER = [
     "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "grocery",
+    "location", "syschange", "symptom", "group", "chat", "grounding", "innerworld", "grocery",
   ];
 
   return (

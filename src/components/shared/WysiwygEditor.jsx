@@ -2,9 +2,21 @@ import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X,
+  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X, ImagePlus, Loader2, Images,
 } from "lucide-react";
+import { toast } from "sonner";
 import { ColorPickerModal, PRESET_COLORS, PRESET_HIGHLIGHTS, FONTS } from "@/components/shared/MiniToolbar";
+import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
+
+function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const r = new FileReader();
+    r.onload = () => resolve(r.result);
+    r.onerror = reject;
+    r.readAsDataURL(file);
+  });
+}
 
 const BASIC_TOOLS = [
   { icon: Bold,          cmd: "bold",                title: "Bold (Ctrl+B)" },
@@ -32,9 +44,12 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const editorRef = useRef(null);
   const lastHtml = useRef(value);
   const savedRangeRef = useRef(null);
+  const imageInputRef = useRef(null);
   const [colorModal, setColorModal] = useState(null); // "fg" | "hl" | null
   const [showMore, setShowMore] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [showAssetPicker, setShowAssetPicker] = useState(false);
 
   useEffect(() => {
     if (editorRef.current) {
@@ -109,6 +124,39 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     setShowFontPicker(false);
   };
 
+  // Direct image upload from the plain editor's toolbar — stores the
+  // image in the local image store (same pipeline as everywhere else)
+  // and drops an <img> at the cursor, so users don't have to switch to
+  // the Blocks editor just to add a picture. Animated GIFs are stored
+  // raw (canvas compression would flatten them); other formats are
+  // compressed to keep IndexedDB / backups lean.
+  const handleImageFile = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-picking the same file
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      toast.error("That doesn't look like an image file.");
+      return;
+    }
+    setUploadingImage(true);
+    try {
+      const rawDataUrl = await fileToDataUrl(file);
+      const isGif = file.type === "image/gif";
+      const stored = isGif ? rawDataUrl : await compressImageDataUrl(rawDataUrl, 800, 0.85);
+      const id = `bioimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(id, stored);
+      const url = createLocalImageUrl(id);
+      insertHTML(
+        `<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0;" />`,
+        ""
+      );
+    } catch (err) {
+      toast.error(err?.message || "Couldn't add that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
+
   const handleKeyDown = (e) => {
     if (e.ctrlKey || e.metaKey) {
       if (e.key === "b") { e.preventDefault(); execCmd("bold"); }
@@ -165,6 +213,25 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
             onMouseDown={(e) => { e.preventDefault(); const url = prompt("URL:"); if (url) execCmd("createLink", url); }}
             className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
             <Link className="w-3.5 h-3.5" />
+          </button>
+          {/* Image upload — inserts a picture inline without switching to Blocks */}
+          <button type="button" title="Insert image" disabled={uploadingImage}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); imageInputRef.current?.click(); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0 disabled:opacity-50">
+            {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />}
+          </button>
+          <input
+            ref={imageInputRef}
+            type="file"
+            accept="image/*"
+            className="hidden"
+            onChange={handleImageFile}
+          />
+          {/* Insert from the reusable asset library */}
+          <button type="button" title="Insert from assets"
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); setShowAssetPicker(true); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
+            <Images className="w-3.5 h-3.5" />
           </button>
           {sep}
           {/* Text color */}
@@ -272,6 +339,17 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           mode={colorModal}
           onApply={applyColor}
           onClose={() => setColorModal(null)}
+        />
+      )}
+
+      {showAssetPicker && (
+        <AssetPickerModal
+          open
+          onClose={() => setShowAssetPicker(false)}
+          onSelect={(url) => {
+            insertHTML(`<img src="${url}" alt="" style="max-width:100%;height:auto;border-radius:8px;display:block;margin:6px 0;" />`, "");
+            setShowAssetPicker(false);
+          }}
         />
       )}
     </div>

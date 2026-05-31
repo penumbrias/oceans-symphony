@@ -10,6 +10,7 @@ import { Heart, Inbox } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CriticalPinnedPlans from "@/components/dashboard/CriticalPinnedPlans";
 import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
@@ -599,6 +600,8 @@ export default function Dashboard() {
                 hideStatusNote={layoutEnabled.status_note}
               />
             );
+          case "pinned_alters":
+            return <PinnedAltersGallery key="pinned_alters" />;
           case "status_note":
             return <StatusNoteCard key="status_note" />;
           case "dashboard_pins":

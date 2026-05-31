@@ -129,6 +129,10 @@ export async function restoreLocalImages(imagesMap) {
 export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82) {
   if (!dataUrl || typeof dataUrl !== 'string' || !dataUrl.startsWith('data:')) return dataUrl;
   if (dataUrl.startsWith('data:image/svg')) return dataUrl;
+  // Animated GIFs MUST bypass the canvas — drawImage only captures the
+  // first frame, so re-encoding here would silently flatten the
+  // animation to a still. Keep them raw (callers cap size separately).
+  if (dataUrl.startsWith('data:image/gif')) return dataUrl;
   const inputIsPng = dataUrl.startsWith('data:image/png');
   return new Promise((resolve) => {
     const img = new Image();
@@ -153,6 +157,40 @@ export async function compressImageDataUrl(dataUrl, maxDim = 512, quality = 0.82
     img.onerror = () => resolve(dataUrl);
     img.src = dataUrl;
   });
+}
+
+// Read a File/Blob to a data-URL string.
+export function fileToDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(new Error('Failed to read file'));
+    reader.readAsDataURL(file);
+  });
+}
+
+// Process an uploaded image File for storage. Animated GIFs are kept RAW
+// (canvas re-encoding flattens them to a single still frame — see
+// compressImageDataUrl); every other format is resized/compressed to keep
+// IndexedDB and backups lean. Returns { dataUrl, isGif, sizeKB } so the
+// caller can warn about large GIFs (which we can't shrink without a
+// gif-aware encoder). This is the single entry point the avatar / header /
+// background upload paths share so GIF handling stays consistent.
+export async function processUploadedImage(file, maxDim = 512, quality = 0.82) {
+  const raw = await fileToDataUrl(file);
+  // Detect GIF robustly. Some file pickers (notably Android's) don't set
+  // file.type to "image/gif", so we also check the filename extension and
+  // sniff the data-URL: a base64 GIF always begins "R0lGOD" ("GIF8"), and
+  // the mime may be present as data:image/gif. Without this, a GIF whose
+  // mime came through blank fell into the canvas path and was flattened —
+  // which is why GIF backgrounds sometimes wouldn't animate.
+  const isGif =
+    file.type === 'image/gif' ||
+    /\.gif$/i.test(file.name || '') ||
+    /^data:image\/gif/i.test(raw) ||
+    (typeof raw === 'string' && raw.startsWith('data:') && raw.includes('base64,R0lGOD'));
+  const dataUrl = isGif ? raw : await compressImageDataUrl(raw, maxDim, quality);
+  return { dataUrl, isGif, sizeKB: Math.round((dataUrl?.length || 0) / 1024) };
 }
 
 // Picks the right canvas output mime for a file or canvas based on the
@@ -181,7 +219,9 @@ export async function recompressAllStoredImages(maxDim = 512, quality = 0.82, on
 
   for (const key of keys) {
     const current = await getLocalImage(key);
-    if (typeof current === 'string' && current.startsWith('data:') && !current.startsWith('data:image/svg')) {
+    // Skip SVGs (vector, nothing to gain) and GIFs (canvas re-encode would
+    // flatten the animation — see compressImageDataUrl).
+    if (typeof current === 'string' && current.startsWith('data:') && !current.startsWith('data:image/svg') && !current.startsWith('data:image/gif')) {
       try {
         const compressed = await compressImageDataUrl(current, maxDim, quality);
         if (compressed.length < current.length) {

@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -172,6 +172,7 @@ export default function BioEditor({ value, onChange }) {
   const originalValue = useRef(value || "");
   const hasBlocks = value?.includes('data-blocks=');
   const [editorMode, setEditorMode] = useState(hasBlocks ? "simple" : "plain"); // "plain" = wysiwyg, "raw" = html textarea
+  const [showModeHelp, setShowModeHelp] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
@@ -277,7 +278,28 @@ export default function BioEditor({ value, onChange }) {
           className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
           <Code className="w-3 h-3" /> Raw
         </button>
+        <button
+          type="button"
+          onClick={() => setShowModeHelp((v) => !v)}
+          aria-label="What do these editing modes do?"
+          aria-expanded={showModeHelp}
+          className={`flex items-center justify-center w-7 px-1 rounded-md transition-colors ${showModeHelp ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <HelpCircle className="w-3.5 h-3.5" />
+        </button>
       </div>
+
+      {/* Inline help for the editing modes. Plain inline panel (no
+          overlay) so it can't trap input. */}
+      {showModeHelp && (
+        <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-xs text-muted-foreground space-y-1.5 max-w-prose">
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Type className="w-3 h-3" /> Plain</span> — best for general use. A simple write-and-format box for typing your bio with light formatting.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Eye className="w-3 h-3" /> Simple</span> — only lets you edit the parts wrapped in <code className="px-1 rounded bg-muted text-[0.625rem]">&lt;span data-edit="true"&gt;</code> (add that wrap easily with the pencil button in the toolbar). Good for filling in imported templates without disturbing their layout.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><LayoutGrid className="w-3 h-3" /> Blocks</span> — for complex editing: add, reorder and arrange blocks. Templates can be pasted into a text block or brought in with the "Import template" button.</p>
+          <p><span className="font-semibold text-foreground inline-flex items-center gap-1"><Code className="w-3 h-3" /> Raw</span> — like Blocks but raw HTML. Best for those with some coding knowledge who want full freedom.</p>
+          <p className="text-[0.6875rem] text-muted-foreground/80 pt-0.5">Your bio is the same underneath — these are just different ways to edit it. Switch anytime.</p>
+        </div>
+      )}
 
       {editorMode === "plain" ? (
         <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />

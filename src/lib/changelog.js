@@ -13,6 +13,344 @@
 
 export const CHANGELOG = [
   {
+    date: "May 31, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Alters grid: expanding a nested subsystem no longer expands every other copy of that alter. Deeper subsystems now drill in with a breadcrumb (like the list view) instead of redirecting to their profile.",
+      },
+    ],
+  },
+  {
+    date: "May 30, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Group & subsystem profiles now have tabs: Profile, Board, and Notes. Each group gets its own private bulletin board (posts, comments, polls — just like the main one, but isolated to that group) and its own notes.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a group or subsystem on an alter's profile now opens that group/subsystem's profile page.",
+      },
+      {
+        type: "fix",
+        text: "System Map: filtering by a group now correctly shows that group's members — it was collapsing to a single alter. You can now filter by subsystem too.",
+      },
+      {
+        type: "improve",
+        text: "Group & subsystem profiles: the members list now uses the same chips as the alters page (with correct avatars). Front/primary can't be changed from there, but press-and-hold opens the full menu.",
+      },
+      {
+        type: "improve",
+        text: "The press-and-hold alter menu can now remove an alter from a subsystem they belong to.",
+      },
+      {
+        type: "feature",
+        text: "Press and hold a pinned alter for the same quick menu as the alters list — open profile, set/remove front, make primary, unpin, add to groups, and more.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where a barely-started swipe on a pinned alter could leave taps unresponsive (only scrolling worked). Abandoned swipes now cleanly do nothing.",
+      },
+      {
+        type: "fix",
+        text: "The 🖼 \"choose from assets\" picker was showing empty — it now lists every stored image (avatars, backgrounds, uploads, and more), like the Assets page, sorted into folders.",
+      },
+      {
+        type: "improve",
+        text: "Image Assets page: folders are now collapsible, you can create/rename/reorder your own folders, and big folders load more images as you scroll.",
+      },
+      {
+        type: "improve",
+        text: "Global search now also finds grounding techniques and inner-world map locations.",
+      },
+      {
+        type: "feature",
+        text: "New Image Assets page (in the menu): every image you've stored in the app, auto-sorted into folders. Rename, organise into folders, bulk-upload, delete, and reuse any image anywhere.",
+      },
+      {
+        type: "improve",
+        text: "You can now insert images from your assets into bios, bulletins, comments and chat — tap the 🖼 button in the toolbar.",
+      },
+      {
+        type: "improve",
+        text: "Global search now finds subsystems (opening their profile) and your chat messages too.",
+      },
+      {
+        type: "feature",
+        text: "New image Assets library: upload images once (in bulk too), sort them into folders, and reuse any of them anywhere that takes a picture — tap the 🖼 button next to any image upload. No re-uploading or duplicate storage, and they're included in backups.",
+      },
+      {
+        type: "improve",
+        text: "Avatars, headers and backgrounds (on alter and group profiles, and the add-new form) now have a \"choose from assets\" button beside Upload.",
+      },
+      {
+        type: "feature",
+        text: "If an alter owns several subsystems, you can set a custom image for their combined subsystems chip — pick it from your assets in their edit profile.",
+      },
+      {
+        type: "improve",
+        text: "The alters page search bar and filters now sit just above the alters list (below the groups section).",
+      },
+      {
+        type: "improve",
+        text: "Groups and subsystems now show their own custom image (when set) everywhere their icon appears — folders, choosers, menus and chips — not just in a couple of spots.",
+      },
+      {
+        type: "improve",
+        text: "System Chat: the \"choose speaker(s)\" picker is now a clean centered popup with search, instead of floating behind the keyboard.",
+      },
+      {
+        type: "improve",
+        text: "Coming back from an alter's profile now returns you to where you were in the alters list — the nested subsystem or group you were browsing — instead of jumping to the top.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, deeply nested subsystems now \"drill in\" with a breadcrumb (like the groups section) instead of opening the subsystem's profile — so you can keep exploring on the same page and tap the breadcrumb to back out.",
+      },
+      {
+        type: "improve",
+        text: "Creating a member from a subsystem now opens the full \"Add new\" form prefilled into that subsystem, so you can fill out the whole profile at once. That form can now also drop the new alter into groups/subsystems.",
+      },
+      {
+        type: "fix",
+        text: "You can now set an alter's emoji from their edit profile page, not only when first adding them.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, expanding a subsystem now highlights its icon in a brighter shade of the subsystem's own colour instead of a blue ring.",
+      },
+      {
+        type: "improve",
+        text: "The groups section of the alters page now behaves like the alters section: swipe a member to set front, press and hold for the quick menu, names/icons blur with screenshot mode, and the grid/list view applies.",
+      },
+      {
+        type: "feature",
+        text: "Press and hold a group folder for a popup to manage members, assign a \"root\" (turn it into a subsystem), or open its profile.",
+      },
+      {
+        type: "improve",
+        text: "Group profile: the \"Owner\" field is now called \"Root\" and uses a searchable alter picker instead of a plain dropdown.",
+      },
+      {
+        type: "fix",
+        text: "Journals: the author filter's alter list can now be scrolled (it was getting clipped).",
+      },
+      {
+        type: "improve",
+        text: "Subsystems are now manageable like groups: press and hold one in the alters list (or tap its tile in grid view, or open it in Manage Groups) for a popup to manage members, create a new member, or open its profile.",
+      },
+      {
+        type: "improve",
+        text: "The alter press-and-hold menu can now pin or unpin an alter to the top of the alters page.",
+      },
+      {
+        type: "fix",
+        text: "GIFs now stay animated when set as a profile background (not just the header) — some uploads weren't being recognised as GIFs and got flattened.",
+      },
+      {
+        type: "fix",
+        text: "Member avatars now display correctly in the Manage Group Members picker.",
+      },
+      {
+        type: "improve",
+        text: "The bio editor's mode help now accurately explains Plain, Simple (edit only template-marked spots), Blocks, and Raw.",
+      },
+      {
+        type: "improve",
+        text: "The alters page filter is now a proper popup: switch between nested/flat lists, multi-select groups and subsystems (searchable pills), match Any or All of them, and Clear all.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where tapping a group in the groups section could carry through and open an alter's profile that appeared underneath it.",
+      },
+      {
+        type: "feature",
+        text: "Press and hold an alter on the alters page for a quick menu: open their profile, create or open their subsystem, add/remove from front, make/demote primary, or add them to groups.",
+      },
+      {
+        type: "improve",
+        text: "An alter's subsystems now show on their profile, just below Groups.",
+      },
+      {
+        type: "improve",
+        text: "The profile's group editor is now labelled \"Edit groups\" and splits Groups and subsystems into separate tabs.",
+      },
+      {
+        type: "feature",
+        text: "Bulletin comments and replies now have a Fancy mode too — tap the ✨ button by the box for a formatting toolbar plus image/GIF upload. Comments also show @mentions as links now.",
+      },
+      {
+        type: "feature",
+        text: "System Chat now supports formatting and image/GIF uploads — a toolbar sits under the message box. @mentions and -signposts work exactly as before.",
+      },
+      {
+        type: "improve",
+        text: "Press and hold a subsystem in the alters list (or a group in the groups section) to jump straight to its profile page. Holding is ignored while you're scrolling.",
+      },
+      {
+        type: "feature",
+        text: "Groups can now hide their members from the alters list and/or from @mention & -signpost suggestions — toggle these on the group's profile page.",
+      },
+      {
+        type: "feature",
+        text: "The alters page has a new filter next to search: show just one group's or subsystem's members, or list every alter flat (unnested).",
+      },
+      {
+        type: "feature",
+        text: "Bulletin board now has a Fancy mode — a formatting toolbar (bold, colours, headings, boxes, fonts) plus image and GIF upload. Toggle Simple/Fancy above the box; @mentions and -signposts work exactly the same either way.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, the subsystem expander now sits next to the activity bolt (instead of below the chip) and can show the subsystem's own avatar — matching the groups section.",
+      },
+      {
+        type: "fix",
+        text: "Member profile pictures now display correctly on group/subsystem profile pages.",
+      },
+      {
+        type: "improve",
+        text: "Expanding an empty subsystem in the alters list now shows an \"add a member\" slot so you can populate it right there.",
+      },
+      {
+        type: "improve",
+        text: "You can now open a group or subsystem's profile straight from Manage Groups (an open-profile button on the selected group).",
+      },
+      {
+        type: "feature",
+        text: "Groups and subsystems now have their own profile page — give them a name, emoji, colour, avatar, banner/background, description, an owner (which makes it a subsystem), and manage members, just like an alter's profile. Tap a subsystem to open it.",
+      },
+      {
+        type: "fix",
+        text: "You can now expand a nested subsystem right inside the alters grid — before, it only opened the profile.",
+      },
+      {
+        type: "improve",
+        text: "Subsystems are hidden from the Groups list by default now; a Subsystems toggle reveals them there when you want.",
+      },
+      {
+        type: "improve",
+        text: "In the alters list, the subsystem expander shows the subsystem's own folder icon (or its avatar, if you set one), matching the groups section.",
+      },
+      {
+        type: "fix",
+        text: "Animated GIFs now stay animated when set as a profile picture, banner, or background (they were being flattened to a still). Large GIFs show a quick storage warning.",
+      },
+      {
+        type: "fix",
+        text: "Tapping a subsystem on an alter's profile now opens the member editor right there, instead of jumping you to the Groups page.",
+      },
+      {
+        type: "improve",
+        text: "When adding members to a subsystem, alters that would create a loop are greyed out with a short explanation, so the nesting can't get corrupted.",
+      },
+      {
+        type: "feature",
+        text: "Alters grid view: a subsystem owner now has a \"Members\" chevron — expanding it shows the subsystem's members in a tinted card (in the owner's colour) right below them, so it's clear who belongs to it.",
+      },
+      {
+        type: "improve",
+        text: "Manage Groups now has a separate Subsystems tab, so alter-owned subsystems no longer mix in with your regular groups. Tap one to manage its members.",
+      },
+      {
+        type: "feature",
+        text: "Bio editor (Plain mode): an image button in the toolbar lets you upload a picture straight into your bio — no need to switch to the Blocks editor. Animated GIFs keep their animation.",
+      },
+      {
+        type: "improve",
+        text: "Bio editor: a help button (?) now explains what the Plain / Simple / Blocks / Raw editing modes each do.",
+      },
+      {
+        type: "fix",
+        text: "Opening a subsystem no longer lists every alter — it now correctly shows just that subsystem's members.",
+      },
+      {
+        type: "fix",
+        text: "The Manage Group Members picker no longer lists archived alters.",
+      },
+      {
+        type: "improve",
+        text: "Manage Group Members: tap anywhere on an alter's row to add/remove them — no need to hit the small checkbox.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery: fronting alters are now shown with a larger icon (like the alters grid) instead of a glow.",
+      },
+      {
+        type: "feature",
+        text: "Subsystems now nest right in the alters list: an alter that owns a subsystem shows an expander on their row, and tapping it reveals the members indented beneath (deeper subsystems keep expanding, switching to an \"open\" link once the nesting gets too deep to stay readable).",
+      },
+      {
+        type: "fix",
+        text: "Alters listed inside a group on the alters page now render as a single clean row (matching the main alters list) instead of a doubled-up box-in-a-box.",
+      },
+      {
+        type: "fix",
+        text: "Hardened against a rare freeze where the app stopped responding to taps (but still scrolled) after the phone slept and woke. An interrupted drag of the floating Grounding bubble could leave touch handling wedged; that state is now always cleaned up when the app goes to the background.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery: fronting alters now have a bold glowing ring so it's clear at a glance who's active.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery: the sole-fronter gesture is now a deliberate swipe up, THEN left (not a loose upper-left diagonal), so it won't fire by accident.",
+      },
+      {
+        type: "feature",
+        text: "Subsystems: when an alter inside a subsystem owns their own subsystem, a folder button on their row lets you drill into it — nested navigation with breadcrumbs, like groups.",
+      },
+      {
+        type: "fix",
+        text: "The floating Grounding bubble can no longer be dragged up behind the top header where it got stuck — it now stays clear of the header, and any bubble already stuck there is freed on next open.",
+      },
+      {
+        type: "feature",
+        text: "Subsystems (first part): an alter can own a group as their subsystem. Create one from the alter's profile (Groups section → Create subsystem); when you open that group the parent alter shows at the top. More subsystem tools are on the way.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the app becoming unresponsive — header and bottom nav not tapping — after pinning an alter. A pin popup could get stuck over the screen; that popup is gone, and pinning now lives as a Pin button on the alter's profile.",
+      },
+      {
+        type: "improve",
+        text: "Once you've pinned an alter, the pinned gallery now appears on the dashboard automatically, just below Currently Fronting. Hide it anytime in Settings → Appearance → Dashboard layout.",
+      },
+      {
+        type: "improve",
+        text: "Pinned gallery gestures: tap an alter to open them, swipe up to add to front (or toggle primary if they're already fronting), swipe down to remove from front, and swipe up-and-right to make them the sole fronter. The chip follows your finger — so if you grab one by accident while scrolling, you can move it back to the middle and nothing happens.",
+      },
+      {
+        type: "fix",
+        text: "Pinned gallery on the dashboard now lands just below Currently Fronting instead of at the bottom of the page.",
+      },
+      {
+        type: "improve",
+        text: "The pinned-alters gallery can now be added to the Dashboard too — turn it on under Settings → Appearance → Dashboard layout.",
+      },
+      {
+        type: "fix",
+        text: "Markdown in text custom fields now renders on the alter's Profile tab, not just the Info tab.",
+      },
+      {
+        type: "feature",
+        text: "Alters can have an emoji/symbol — set it next to the name in the edit screen, and it shows beside their name on the profile and in lists.",
+      },
+      {
+        type: "feature",
+        text: "Pin alters! Tap the Pin button at the top-left of an alter's profile and they appear in a quick-access gallery at the top of the alters page (and on the dashboard). It's just a shortcut — they stay in their group and list too.",
+      },
+      {
+        type: "feature",
+        text: "Text-type custom fields (and alter-specific fields) now support Markdown — use **bold**, *italics*, lists, and links in them. Other field types are unchanged.",
+      },
+      {
+        type: "fix",
+        text: "Removed the duplicate \"Back\" button on alter profiles — the app header already has one.",
+      },
+    ],
+  },
+  {
     date: "May 26, 2026",
     changes: [
       {
@@ -57,7 +395,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Check-In Log analytics: emotions now grouped by Good / Neutral / Bad / Body category (taken from the emotion wheel) with an overall balance bar + per-day stacked trend. New \"Time of Day\" chart shows when you check in and which hours skew distressing. Per-{{alter}} patterns table surfaces each {{alter}}'s dominant emotion category, top emotion, and distress rate. New \"When Distress Showed Up\" section finds the symptoms, emotions, and activities that co-occurred within ±30 minutes of each distress check-in.",
+        text: "Check-In Log analytics: emotions now grouped by Good / Neutral / Bad / Body category (taken from the emotion wheel) with an overall balance bar + per-day stacked trend. New \"Time of Day\" chart shows when you check in and which hours skew distressing. Per-alter patterns table surfaces each alter's dominant emotion category, top emotion, and distress rate. New \"When Distress Showed Up\" section finds the symptoms, emotions, and activities that co-occurred within ±30 minutes of each distress check-in.",
       },
       {
         type: "improve",

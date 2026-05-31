@@ -2,14 +2,20 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2 } from "lucide-react";
+import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 import { useTerms } from "@/lib/useTerms";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
+import { isLocalMode } from "@/lib/storageMode";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -27,6 +33,44 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const [showMenu, setShowMenu] = useState(false);
   const [menuMode, setMenuMode] = useState("signpost");
   const [query, setQuery] = useState("");
+  // "Fancy" mode: a formatting toolbar + image/GIF upload over the same
+  // box (the @mention/-signpost typing + parsing below is unchanged).
+  // Persisted so the choice sticks across comments.
+  const [richMode, setRichMode] = useState(() => {
+    try { return localStorage.getItem("symphony_bulletin_comment_rich_mode") === "1"; } catch { return false; }
+  });
+  const toggleRich = () => setRichMode((v) => {
+    const next = !v;
+    try { localStorage.setItem("symphony_bulletin_comment_rich_mode", next ? "1" : "0"); } catch {}
+    return next;
+  });
+  const inputRef = React.useRef(null);
+  const imageInputRef = React.useRef(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const insertHtml = useTextareaInsert(inputRef, text, setText);
+  const handleImage = async (e) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    if (!file.type.startsWith("image/")) { toast.error("That doesn't look like an image."); return; }
+    setUploadingImage(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`Large GIF (${(sizeKB / 1024).toFixed(1)}MB) — grows your storage & backups.`);
+      let url = dataUrl;
+      if (isLocalMode()) {
+        const id = `commentimg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(id, dataUrl);
+        url = createLocalImageUrl(id);
+      }
+      insertHtml(`<img src="${url}" alt="" />`, "");
+      toast.success(isGif ? "GIF added!" : "Image added!");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't add that image.");
+    } finally {
+      setUploadingImage(false);
+    }
+  };
 
   const systemKeywords = React.useMemo(() => {
     const out = [];
@@ -139,6 +183,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
+      is_rich: richMode,
       reactions: {},
     });
 
@@ -181,22 +226,60 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
 
   return (
     <div className="relative">
-      <div className="flex gap-2">
-        <input
-          className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-          placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign (Cmd+Enter)" : "Add a comment… use @ to mention, -name to sign (Cmd+Enter)"}
-          value={text}
-          onChange={handleChange}
-          onKeyDown={handleKeyDown}
-        />
+      <div className="flex gap-2 items-end">
+        {richMode ? (
+          <textarea
+            ref={inputRef}
+            className="flex-1 min-h-[56px] max-h-40 px-3 py-2 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign" : "Add a comment… use @ to mention, -name to sign"}
+            value={text}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+          />
+        ) : (
+          <input
+            ref={inputRef}
+            className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
+            placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign (Cmd+Enter)" : "Add a comment… use @ to mention, -name to sign (Cmd+Enter)"}
+            value={text}
+            onChange={handleChange}
+            onKeyDown={handleKeyDown}
+          />
+        )}
+        <button
+          type="button"
+          onClick={toggleRich}
+          title={richMode ? "Switch to plain comment" : "Fancy formatting + image/GIF"}
+          aria-pressed={richMode}
+          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${richMode ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
+        >
+          <Sparkles className="w-3.5 h-3.5" />
+        </button>
         <button
           onClick={handleSubmit}
           disabled={saving || !text.trim()}
-          className="text-xs px-3 py-1 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 font-medium"
+          className="text-xs px-3 h-8 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 font-medium flex-shrink-0"
         >
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
       </div>
+
+      {richMode && (
+        <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">
+          <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10">
+            <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => imageInputRef.current?.click()}
+              className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+              {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+            </button>
+            <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
+            <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
+          </div>
+          <MiniToolbar onInsert={insertHtml} />
+          <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImage} />
+        </div>
+      )}
       {showMenu && (filteredAlters.length > 0 || systemSignpostMatches) && (
         <div className="absolute z-50 left-0 right-16 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-36 overflow-y-auto">
           <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
@@ -229,6 +312,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
 
 function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters, currentAlterId, frontingAlterIds, onRefresh, isFullPage, pendingDeletes, onDeleteTap, onUndoDelete, highlightedCommentId }) {
   const qc = useQueryClient();
+  const terms = useTerms();
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [childrenCollapsed, setChildrenCollapsed] = useState(false);
@@ -298,7 +382,9 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
             </button>
           )}
         </div>
-        <p className="text-xs text-foreground leading-relaxed mt-1">{comment.content}</p>
+        <div className="text-xs text-foreground leading-relaxed mt-1 break-words wysiwyg-content">
+          {renderBulletinContent(comment.content, alters, terms)}
+        </div>
 
         <div className="flex flex-wrap gap-1 mt-1.5 items-center">
           {Object.entries(reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => (
