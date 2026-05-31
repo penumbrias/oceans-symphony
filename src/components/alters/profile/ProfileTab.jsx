@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
+import GroupIcon from "@/components/shared/GroupIcon";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
@@ -1025,7 +1026,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                   style={{ borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}
                   title="Open profile"
                 >
-                  <Folder className="w-3 h-3" /> {g.name}
+                  <GroupIcon group={g} className="w-3 h-3" /> {g.name}
                 </button>
               ))}
             </div>

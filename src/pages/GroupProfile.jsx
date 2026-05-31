@@ -24,6 +24,7 @@ import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import GroupIcon from "@/components/shared/GroupIcon";
 import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
@@ -266,7 +267,7 @@ function GroupProfileInner() {
                 <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
                   className="w-full flex items-center gap-2.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
                   style={{ borderLeftColor: g.color || "transparent", borderLeftWidth: g.color ? 3 : 1 }}>
-                  <Folder className="w-4 h-4 flex-shrink-0" style={{ color: g.color || "hsl(var(--muted-foreground))" }} />
+                  <GroupIcon group={g} className="w-4 h-4" />
                   <span className="text-sm flex-1 truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>
                 </button>
               ))}

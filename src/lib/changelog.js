@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The alters page search bar and filters now sit just above the alters list (below the groups section).",
+      },
+      {
+        type: "improve",
+        text: "Groups and subsystems now show their own custom image (when set) everywhere their icon appears — folders, choosers, menus and chips — not just in a couple of spots.",
+      },
+      {
+        type: "improve",
         text: "System Chat: the \"choose speaker(s)\" picker is now a clean centered popup with search, instead of floating behind the keyboard.",
       },
       {

@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Users, Crown, FolderTree, Folder, X, ArrowLeft } from "lucide-react";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
 import { wouldCreateOwnershipCycle } from "@/lib/subsystemUtils";
 
@@ -60,10 +61,7 @@ export default function GroupActionMenu({ group, onClose }) {
       <div onClick={(e) => e.stopPropagation()}
         className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: group.color ? `${group.color}20` : "hsl(var(--muted))" }}>
-            <Folder className="w-4 h-4" style={{ color: group.color || "hsl(var(--muted-foreground))" }} />
-          </div>
+          <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
           <span className="flex-1 min-w-0 font-medium text-sm truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
           <button onClick={close} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>

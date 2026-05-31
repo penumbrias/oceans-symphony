@@ -12,6 +12,7 @@ import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/li
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import AlterActionMenu from "./AlterActionMenu";
 import SubsystemActionMenu from "./SubsystemActionMenu";
+import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
 // Past this nesting depth, stop expanding inline (a tinted card inside a
@@ -198,10 +199,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
                   {ownedSubs.map((sub) => (
                     <button key={sub.id} type="button" onClick={() => setActiveSubFor(alter.id, sub.id)}
                       className="flex flex-col items-center gap-2 select-none" title={sub.name}>
-                      <span className={`rounded-full border-2 flex items-center justify-center ${ICON}`}
-                        style={{ borderColor: sub.color || "hsl(var(--border))", backgroundColor: sub.color ? `${sub.color}20` : "hsl(var(--muted))" }}>
-                        <Folder className="w-5 h-5" style={{ color: sub.color || "hsl(var(--muted-foreground))" }} />
-                      </span>
+                      <GroupIcon group={sub} boxed className={ICON} boxClassName="rounded-full border-2 border-border/50" iconClassName="w-5 h-5" />
                       <span className="text-xs text-center font-medium truncate w-full px-1">{sub.name}</span>
                     </button>
                   ))}

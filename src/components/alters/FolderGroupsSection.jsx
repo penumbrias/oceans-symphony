@@ -19,6 +19,7 @@ import AlterCard from "./AlterCard";
 import SubsystemAlterList from "./SubsystemAlterList";
 import AlterGridView from "./AlterGridView";
 import GroupActionMenu from "./GroupActionMenu";
+import GroupIcon from "@/components/shared/GroupIcon";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--foreground))";
@@ -114,10 +115,7 @@ function FolderRow({ group, onClick, onLongOpen }) {
       title={`${group.name} — tap to open, hold for its profile`}
       className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1, touchAction: "pan-y" }}>
-      <div className="rounded-xl w-9 h-9 flex items-center justify-center flex-shrink-0"
-      style={{ backgroundColor: color ? `${color}20` : "hsl(var(--muted))" }}>
-        <Folder className="w-4 h-4" style={{ color: color || "hsl(var(--muted-foreground))" }} />
-      </div>
+      <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-xl border border-border/40" />
       <div className="flex-1 min-w-0">
         <p className="font-medium text-sm text-foreground group-hover:text-primary transition-colors">{group.name}</p>
       </div>

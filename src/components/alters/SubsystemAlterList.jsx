@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { ChevronDown, ChevronRight, Folder, FolderTree, Plus, ArrowLeft, Settings2 } from "lucide-react";
 import AlterCard from "./AlterCard";
 import SubsystemActionMenu from "./SubsystemActionMenu";
+import GroupIcon from "@/components/shared/GroupIcon";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import useLongPress from "@/hooks/useLongPress";
 import { useTerms } from "@/lib/useTerms";
@@ -236,7 +237,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                     className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
                     style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
                   >
-                    <Folder className="w-4 h-4 flex-shrink-0" style={{ color: sub.color || "hsl(var(--muted-foreground))" }} />
+                    <GroupIcon group={sub} className="w-4 h-4" />
                     <span className="text-sm flex-1 truncate">{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
                     <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{count}</span>
                     <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

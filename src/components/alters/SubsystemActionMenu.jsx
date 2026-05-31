@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Users, UserPlus, FolderTree, Folder, Crown, X, Loader2 } from "lucide-react";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
 
 // Popup for acting on a subsystem (an alter-owned group). Used by the
@@ -52,10 +53,7 @@ export default function SubsystemActionMenu({ group, onClose }) {
       <div onClick={(e) => e.stopPropagation()}
         className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
-          <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
-            style={{ backgroundColor: group.color ? `${group.color}20` : "hsl(var(--muted))" }}>
-            <Folder className="w-4 h-4" style={{ color: group.color || "hsl(var(--muted-foreground))" }} />
-          </div>
+          <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-lg border border-border/40" />
           <span className="flex-1 min-w-0">
             <span className="block font-medium text-sm truncate">{group.emoji ? `${group.emoji} ` : ""}{group.name}</span>
             {owner && <span className="text-[0.625rem] text-muted-foreground inline-flex items-center gap-1"><Crown className="w-2.5 h-2.5 text-amber-500" /> {owner.name}'s {subTerm}</span>}

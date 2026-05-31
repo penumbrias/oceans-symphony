@@ -234,55 +234,7 @@ export default function AlterGrid({ alters }) {
           Tour Preview — sample {terms.alters}
         </div>
       )}
-      {/* Toolbar — search, sort, view mode only */}
-      <div className="my-1 flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
-        <div className="relative flex-1 min-w-0">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
-          <Input
-            placeholder={`Search ${terms.alters}...`}
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="pl-9 pr-3 h-9 border-border/50 bg-transparent" />
-        </div>
-
-        {/* Sort */}
-        <button
-          data-tour="alter-sort"
-          onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
-          title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
-          className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
-          {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
-          {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
-          {sortMode === "most" && <TrendingDown className="w-4 h-4" />}
-          {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
-        </button>
-
-        {/* Hide grouped */}
-        <button
-          onClick={() => {
-            const next = !hideGrouped;
-            setHideGrouped(next);
-            localStorage.setItem("alter_hide_grouped", next ? "true" : "false");
-          }}
-          title={hideGrouped ? `Show all ${terms.alters}` : `Hide ${terms.alters} already in a group`}
-          className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${hideGrouped ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
-          <FolderMinus className="w-4 h-4" />
-        </button>
-
-        {/* Filter — opens a popup for nested/flat + group/subsystem multi-select */}
-        {(regularGroups.length > 0 || subsystemGroups.length > 0) && (
-          <button
-            onClick={() => setFilterOpen(true)}
-            title="Filter the list"
-            className={`flex-shrink-0 flex items-center justify-center gap-1 h-9 px-2.5 rounded-xl border transition-colors ${filterActive ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50 bg-card/50 hover:text-foreground hover:bg-accent"}`}>
-            <Filter className="w-4 h-4" />
-            {activeFilterCount > 0 && <span className="text-xs font-semibold">{activeFilterCount}</span>}
-          </button>
-        )}
-
-      </div>
-
-      {/* Content */}
+      {/* Content (search + filters live just above the alters list, below groups) */}
       <div className="space-y-4">
         {/* Pinned alters — quick-access gallery, sits above groups.
             Self-contained component; renders nothing when none pinned. */}
@@ -306,6 +258,53 @@ export default function AlterGrid({ alters }) {
           )}
           {rootGroups.length === 0 && (
             <p className="text-xs text-muted-foreground px-1 pb-1">No groups yet — tap + to create one.</p>
+          )}
+        </div>
+
+        {/* Search + filters — sits right above the alters list, below groups */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
+          <div className="relative flex-1 min-w-0">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground pointer-events-none" />
+            <Input
+              placeholder={`Search ${terms.alters}...`}
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="pl-9 pr-3 h-9 border-border/50 bg-transparent" />
+          </div>
+
+          {/* Sort */}
+          <button
+            data-tour="alter-sort"
+            onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
+            title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
+            className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
+            {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
+            {sortMode === "most" && <TrendingDown className="w-4 h-4" />}
+            {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
+          </button>
+
+          {/* Hide grouped */}
+          <button
+            onClick={() => {
+              const next = !hideGrouped;
+              setHideGrouped(next);
+              localStorage.setItem("alter_hide_grouped", next ? "true" : "false");
+            }}
+            title={hideGrouped ? `Show all ${terms.alters}` : `Hide ${terms.alters} already in a group`}
+            className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${hideGrouped ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
+            <FolderMinus className="w-4 h-4" />
+          </button>
+
+          {/* Filter — opens a popup for nested/flat + group/subsystem multi-select */}
+          {(regularGroups.length > 0 || subsystemGroups.length > 0) && (
+            <button
+              onClick={() => setFilterOpen(true)}
+              title="Filter the list"
+              className={`flex-shrink-0 flex items-center justify-center gap-1 h-9 px-2.5 rounded-xl border transition-colors ${filterActive ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground border-border/50 bg-card/50 hover:text-foreground hover:bg-accent"}`}>
+              <Filter className="w-4 h-4" />
+              {activeFilterCount > 0 && <span className="text-xs font-semibold">{activeFilterCount}</span>}
+            </button>
           )}
         </div>
 
