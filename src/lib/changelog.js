@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity tracker week view: the hour labels now line up with the top of each row (where the hour begins) instead of the middle.",
+      },
+      {
         type: "improve",
         text: "Bulletin board \"Plan something…\" is now a single line that expands when you tap it, with a Quick-plan toggle — and it now properly creates the plan in your Activity Tracker.",
       },
