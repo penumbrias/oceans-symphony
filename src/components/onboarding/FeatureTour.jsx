@@ -409,6 +409,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     // ─── BULLETIN BOARD ─────────────────────────────────────────────────────
     {
       section: "bulletin", sectionLabel: "Bulletin Board",
+      emoji: "🗓️",
+      title: "Quick Plan",
+      body: `Above the board, "Plan something…" is a quick way to schedule a plan without opening the Activity Tracker. Tap it and it expands: keep it a Quick plan (no set time, shown as a pill on the day) or flip the toggle off to give it a start time and length — then optionally add a date, category, who it's for, or a note. Saving creates the matching plan in your Activity Tracker.`,
+      route: "/", target: "quick-plan",
+      look: `the highlighted "Plan something…" box just above the bulletin board`, action: null,
+    },
+    {
+      section: "bulletin", sectionLabel: "Bulletin Board",
       emoji: "📋",
       title: "Bulletin Board",
       body: `The Bulletin Board on the home screen is for ${t.system}-wide messages — announcements, reminders, notes visible to everyone. Unlike private messages (which target one specific ${t.alter}), bulletins are always visible to the whole ${t.system}.`,

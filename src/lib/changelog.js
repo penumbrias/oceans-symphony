@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Bulletin board \"Plan something…\" is now a single line that expands when you tap it, with a Quick-plan toggle — and it now properly creates the plan in your Activity Tracker.",
+      },
+      {
         type: "fix",
         text: "Fixed editing a profile bio template: typing into a template field in the Simple editor now saves instead of being silently discarded.",
       },
