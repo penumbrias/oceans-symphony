@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "fix",
+        text: "System Chat: the message box and formatting bar no longer get pushed off the bottom of the screen as messages pile up.",
+      },
+      {
         type: "improve",
         text: "Simplified the chat/text formatting bar: clearer icons and just the basics by default, with structural tools (headings, lists, quote, alignment…) under \"More\" and the decorative effects under a nested \"Fun\". A \"?\" guide explains them.",
       },

@@ -598,24 +598,24 @@ const handleNotifClick = (mentionLog) => {
           </nav>
         </aside>
 
-        {/* Main content. `relative` so the SystemBanner can anchor
-            edge-to-edge at the top and sit BEHIND the content (z-0 vs the
-            content wrapper's z-10). Horizontal/desktop-vertical padding
-            moved onto the inner wrapper so the banner is truly full-bleed;
-            the mobile bottom-nav clearance stays on <main> via the
-            .app-content-main rule (it's the scroll container). */}
-        <main className="app-content-main relative flex-1 min-w-0 py-0 overflow-auto">
+        {/* Main content. Padding lives on <main> (as it originally did) and
+            the Outlet is a DIRECT child, so full-height pages (e.g. System
+            Chat) that use `h-full` still get a bounded height — wrapping the
+            Outlet in an extra block div broke that cascade and let the chat
+            message list shove the composer off-screen. The SystemBanner sits
+            BEHIND content via a negative z-index inside main's `isolate`
+            stacking context (and negative insets to reach edge-to-edge past
+            the padding), so no content wrapper is needed. */}
+        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
-          <div className="relative z-10 px-4 lg:px-6 lg:py-8">
-            {!showFeatureTour && !pageScopedTourRoute && (
-              <PageTutorialBanner
-                onLaunch={(route) => setPageScopedTourRoute(route)}
-              />
-            )}
-            <Outlet context={{ setShowFeatureTour }} />
-          </div>
+          {!showFeatureTour && !pageScopedTourRoute && (
+            <PageTutorialBanner
+              onLaunch={(route) => setPageScopedTourRoute(route)}
+            />
+          )}
+          <Outlet context={{ setShowFeatureTour }} />
         </main>
 
       </div>

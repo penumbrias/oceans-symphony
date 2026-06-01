@@ -12,7 +12,10 @@ export default function SystemBanner({ url, height = 140, position = 50 }) {
   return (
     <div
       aria-hidden
-      className="absolute top-0 left-0 right-0 z-0 overflow-hidden pointer-events-none"
+      // Negative insets cancel <main>'s px-4 / lg:px-6 padding so the banner
+      // reaches edge-to-edge; -z-10 (inside main's isolate context) keeps it
+      // behind the page content without needing a positioned content wrapper.
+      className="absolute top-0 -left-4 -right-4 lg:-left-6 lg:-right-6 -z-10 overflow-hidden pointer-events-none"
       style={{ height }}
     >
       <img
