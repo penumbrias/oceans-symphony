@@ -461,9 +461,14 @@ export default function Settings() {
               <p className="text-xs text-muted-foreground mt-0.5">
                 A wide image shown edge-to-edge behind the top of your pages.
               </p>
-              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center" style={{ height: 96 }}>
+              {/* Preview box is exactly as tall as the configured banner, so
+                  dragging the height slider visually shows how far it extends. */}
+              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center transition-[height] relative" style={{ height: systemBannerUrl ? systemBannerHeight : 96 }}>
                 {resolvedSysBanner ? (
-                  <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                  <>
+                    <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                    <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
+                  </>
                 ) : (
                   <span className="text-xs text-muted-foreground">No banner yet</span>
                 )}

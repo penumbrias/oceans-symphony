@@ -253,7 +253,7 @@ export default function ActivityTracker() {
     // that corner case, and is a no-op on web/TWA where the env
     // evaluates to 0.
     <div
-      className="min-h-screen bg-background p-4"
+      className="min-h-screen p-4"
       style={{
         // AppLayout's header + <main> already reserve safe-area-inset-top;
         // adding it again here stacked a redundant gap below the page

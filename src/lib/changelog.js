@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The Activity Tracker no longer paints over your system banner — it now shows behind the top of the page like everywhere else.",
+      },
+      {
+        type: "improve",
+        text: "The banner height slider now previews the real height as you drag it.",
+      },
+      {
         type: "improve",
         text: "Your system banner now shows edge-to-edge behind the top of your pages, with controls for its height, image position, and which pages it appears on (Settings → System Profile).",
       },
