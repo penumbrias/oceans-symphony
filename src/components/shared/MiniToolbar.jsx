@@ -1,6 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
-import { X, ChevronDown } from "lucide-react";
+import { X, ChevronDown, HelpCircle } from "lucide-react";
 import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
 
 export const PRESET_COLORS = [
@@ -109,14 +109,103 @@ export function useTextareaInsert(ref, value, onChange) {
   }, [ref, value, onChange]);
 }
 
+// Touch-friendly legend for the toolbar. Native `title` tooltips don't
+// appear on phones (no hover), so the "?" button opens this — the basics
+// up top, the advanced tools tucked under an expandable "More".
+const SIMPLE_HELP = [
+  { k: "B", d: "Bold" },
+  { k: "I", d: "Italic" },
+  { k: "S̶", d: "Strikethrough" },
+  { k: "U", d: "Underline" },
+  { k: "H1 H2 H3", d: "Headings (largest → smallest)" },
+  { k: "↵", d: "Line break" },
+  { k: "—", d: "Horizontal divider line" },
+  { k: "🔗", d: "Link to a web page" },
+  { k: "🧩", d: "Link to a page inside the app" },
+  { k: "✎", d: "Mark text as a fill-in field (editable in Simple mode)" },
+  { k: "A▁", d: "Text colour" },
+  { k: "A (highlighted)", d: "Highlight colour" },
+  { k: "▼ More", d: "Show / hide the advanced toolbar below" },
+];
+const ADVANCED_HELP = [
+  { k: "◀ ■ ▶", d: "Align left / center / right" },
+  { k: "xs sm lg xl", d: "Text size" },
+  { k: "X² X₂", d: "Superscript / subscript" },
+  { k: "❝", d: "Blockquote" },
+  { k: "</>", d: "Inline code" },
+  { k: "✨ 🌊 🔥 🌿", d: "Gradient text — rainbow / ocean / fire / nature" },
+  { k: "🔲 💠 🟣 🌑", d: "Boxes — dark / glass / purple / dark-radial" },
+  { k: "⚡ 💥 🌀 〰", d: "Effects — float / glow / spin / wave" },
+  { k: "👻 📦 blur rot", d: "Effects — faded / boxed / blur / slight rotation" },
+  { k: "Aa ▾", d: "Pick a font for the selected text" },
+];
+
+function HelpPopup({ onClose }) {
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const Row = ({ k, d }) => (
+    <div className="flex items-start gap-2 py-1">
+      <span className="flex-shrink-0 min-w-[3.5rem] text-xs font-semibold text-foreground">{k}</span>
+      <span className="text-xs text-muted-foreground">{d}</span>
+    </div>
+  );
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
+      <div className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 flex-shrink-0">
+          <h3 className="font-semibold text-sm">Formatting tools</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="overflow-y-auto p-4">
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">Basics</p>
+          <div className="divide-y divide-border/30">
+            {SIMPLE_HELP.map((r) => <Row key={r.k} {...r} />)}
+          </div>
+          <button
+            type="button"
+            onClick={() => setShowAdvanced((v) => !v)}
+            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
+          >
+            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
+            {showAdvanced ? "Hide advanced tools" : "More — advanced tools"}
+          </button>
+          {showAdvanced && (
+            <div className="mt-2 divide-y divide-border/30">
+              {ADVANCED_HELP.map((r) => <Row key={r.k} {...r} />)}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MiniToolbar({ onInsert, onInsertLink }) {
   const [colorModal, setColorModal] = useState(null);
   const [showAdvanced, setShowAdvanced] = useState(() => {
     try { return localStorage.getItem("os_toolbar_advanced") === "true"; } catch { return false; }
   });
   const [showFontPicker, setShowFontPicker] = useState(false);
+  const [fontPickerPos, setFontPickerPos] = useState(null);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const savedSelection = useRef(null);
+  const fontBtnRef = useRef(null);
+
+  // Open the font menu as a FIXED-positioned popover anchored above the
+  // button, so it escapes the chat composer's overflow clipping (where an
+  // absolute dropdown was hidden behind other elements). Recompute on open.
+  const openFontPicker = () => {
+    if (showFontPicker) { setShowFontPicker(false); return; }
+    const r = fontBtnRef.current?.getBoundingClientRect();
+    if (r) {
+      const WIDTH = 192;
+      setFontPickerPos({
+        left: Math.max(8, Math.min(r.left, window.innerWidth - WIDTH - 8)),
+        bottom: Math.max(8, window.innerHeight - r.top + 4),
+      });
+    }
+    setShowFontPicker(true);
+  };
 
   const toggleAdvanced = () => {
     const next = !showAdvanced;
@@ -204,6 +293,11 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
           className={`h-6 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showAdvanced ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
           {showAdvanced ? "▲" : "▼"} More
         </button>
+        {/* Help — touch-friendly legend of what every button does */}
+        <button type="button" title="What do these buttons do?" onMouseDown={e => e.preventDefault()} onClick={() => setShowHelp(true)}
+          className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 ml-auto">
+          <HelpCircle className="w-4 h-4" />
+        </button>
       </div>
 
       {/* Advanced toolbar */}
@@ -249,31 +343,40 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
           {btn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
           {btn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
           {sep}
-          {/* Font picker */}
-          <div className="relative flex-shrink-0">
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowFontPicker(f => !f)}
+          {/* Font picker — button stays in-flow; the menu is FIXED-positioned
+              (below) so it isn't clipped by the editor/chat composer overflow. */}
+          <div className="flex-shrink-0">
+            <button ref={fontBtnRef} type="button" onMouseDown={e => e.preventDefault()} onClick={openFontPicker}
               className="h-6 px-1.5 flex items-center gap-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
               Aa <ChevronDown className="w-2.5 h-2.5" />
             </button>
-            {showFontPicker && (
-              <div className="absolute bottom-full left-0 mb-1 w-48 bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden z-[70]">
-                <div className="max-h-64 overflow-y-auto p-1 space-y-0.5">
-                  {FONTS.map(f => (
-                    <button key={f.value} type="button"
-                      onMouseDown={e => e.preventDefault()}
-                      onClick={() => applyFont(f.value)}
-                      className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-sm"
-                      style={{ fontFamily: f.value }}>
-                      {f.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
       )}
 
+      {/* Fixed-positioned font menu + click-away backdrop (escapes overflow). */}
+      {showFontPicker && fontPickerPos && (
+        <>
+          <div className="fixed inset-0 z-[199]" onMouseDown={() => setShowFontPicker(false)} />
+          <div
+            className="fixed w-48 bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden z-[200]"
+            style={{ left: fontPickerPos.left, bottom: fontPickerPos.bottom }}
+          >
+            <div className="max-h-64 overflow-y-auto p-1 space-y-0.5">
+              {FONTS.map(f => (
+                <button key={f.value} type="button"
+                  onMouseDown={e => e.preventDefault()}
+                  onClick={() => applyFont(f.value)}
+                  className="w-full text-left px-3 py-1.5 rounded-lg hover:bg-muted/50 transition-colors text-sm"
+                  style={{ fontFamily: f.value }}>
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
+      {showHelp && <HelpPopup onClose={() => setShowHelp(false)} />}
       {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
       {showLinkPicker && (
         <InternalLinkPicker

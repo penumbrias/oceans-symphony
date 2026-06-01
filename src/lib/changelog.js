@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Formatting toolbar: added a \"?\" button that explains what each tool does (advanced tools tucked under \"More\"), and the font menu no longer hides behind other elements in the system chat.",
+      },
+      {
+        type: "improve",
         text: "System banner: added a soft readability wash behind the top of the page so titles and headers stay legible over the image.",
       },
       {
