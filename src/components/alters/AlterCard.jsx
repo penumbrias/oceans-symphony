@@ -185,9 +185,9 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   // (menu) still work.
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
-    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast),
+    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast, terms),
     onLongPress: () => setMenuOpen(true),
   });
 

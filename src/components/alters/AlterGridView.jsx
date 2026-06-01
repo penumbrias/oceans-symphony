@@ -162,9 +162,9 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     return s;
   }, [navStack]);
 
-  const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
-  const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast);
-  const replaceFront = (alter) => replaceFrontWith(alter, base44, queryClient, toast);
+  const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, t);
+  const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, t);
+  const replaceFront = (alter) => replaceFrontWith(alter, base44, queryClient, toast, t);
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
   const isPrimaryOf = (alterId) => activeSessions.some(s => s.alter_id === alterId && s.is_primary);

@@ -130,9 +130,9 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
             ? <Item icon={FolderTree} label={`Go to ${ownedSub.name}`} onClick={() => go(() => navigate(`/group/${ownedSub.id}`))} />
             : <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />}
           <Item icon={Zap} label={isFronting ? `Remove from ${t.front}` : `Add to ${t.front}`}
-            onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast))} />
+            onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
-            onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast))} />
+            onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
           {memberOfSubs.map((g) => (
             <Item key={g.id} icon={UserMinus} label={`Remove from ${g.name}`} onClick={() => go(() => leaveSubsystem(g))} />

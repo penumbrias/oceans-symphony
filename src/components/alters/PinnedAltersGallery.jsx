@@ -6,6 +6,7 @@ import { Pin, Star, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import AlterActionMenu from "./AlterActionMenu";
@@ -191,6 +192,7 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
 
 function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient }) {
   const navigate = useNavigate();
+  const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
   const [menuOpen, setMenuOpen] = useState(false);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
@@ -204,14 +206,14 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
     onTap: () => navigate(`/alter/${alter.id}`),
     onUp: () =>
       fronting
-        ? togglePrimaryFor(alter, activeSessions, base44, queryClient, toast)
-        : toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
+        ? togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms)
+        : toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
     onDown: () => {
       // Swipe-down only means anything when they're fronting (it removes
       // them). toggleFrontFor removes when a session exists.
-      if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast);
+      if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms);
     },
-    onSolo: () => replaceFrontWith(alter, base44, queryClient, toast),
+    onSolo: () => replaceFrontWith(alter, base44, queryClient, toast, terms),
     // Press-and-hold → the same quick-actions menu as the alters page
     // (profile, subsystem, front/primary, add to groups, pin/unpin).
     onLongPress: () => setMenuOpen(true),

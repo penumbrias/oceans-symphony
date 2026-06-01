@@ -563,7 +563,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
-    } catch { toast.error("Failed to update primary fronter"); }
+    } catch { toast.error(`Failed to update primary ${terms.fronter}`); }
   };
 
   const handleRemoveFromFront = async (alter) => {
@@ -581,7 +581,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      toast.success(`${alter.name} removed from front`);
+      toast.success(`${alter.name} removed from ${terms.front}`);
     } catch { toast.error("Failed to remove"); }
     setHoldMenuAlter(null);
   };
@@ -730,9 +730,9 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                 session={alterSession}
                 onHold={setHoldMenuAlter}
                 coFronterLabel={`Co-${terms.fronting}`}
-                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast)}
-                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast)}
-                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast)}
+                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
+                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms)}
+                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
                 isExpanded={expandedAlterId === alter.id}
                 onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
               />
@@ -851,7 +851,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                 }}
                 className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
               >
-                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : "Make Primary"}
+                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : `Make Primary ${terms.Fronter}`}
               </button>
               <button
                 onClick={() => handleRemoveFromFront(holdMenuAlter)}

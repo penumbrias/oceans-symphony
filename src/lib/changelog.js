@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Front/primary pop-up messages and buttons now use your custom terms (e.g. \"headmate\" instead of \"fronter\") instead of the hardcoded defaults.",
+      },
+      {
+        type: "fix",
         text: "The link button in the Plain bio editor now opens a proper input box (it used a browser prompt that did nothing in the app).",
       },
       {
