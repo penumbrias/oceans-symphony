@@ -1,6 +1,10 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
-import { X, ChevronDown, HelpCircle } from "lucide-react";
+import {
+  X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
+  Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
+  CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles,
+} from "lucide-react";
 import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
 
 export const PRESET_COLORS = [
@@ -109,30 +113,22 @@ export function useTextareaInsert(ref, value, onChange) {
   }, [ref, value, onChange]);
 }
 
-// Touch-friendly legend for the toolbar. Native `title` tooltips don't
-// appear on phones (no hover), so the "?" button opens this — the basics
-// up top, the advanced tools tucked under an expandable "More".
-const SIMPLE_HELP = [
-  { k: "B", d: "Bold" },
-  { k: "I", d: "Italic" },
-  { k: "S̶", d: "Strikethrough" },
-  { k: "U", d: "Underline" },
+// The basics (bold/italic/underline/strike/link/colour) are self-explanatory
+// icons, so the "?" legend only needs to explain the "More" and "Fun" tiers.
+const MORE_HELP = [
   { k: "H1 H2 H3", d: "Headings (largest → smallest)" },
+  { k: "• / 1.", d: "Bullet list / numbered list" },
+  { k: "❝", d: "Block quote" },
   { k: "↵", d: "Line break" },
   { k: "—", d: "Horizontal divider line" },
-  { k: "🔗", d: "Link to a web page" },
-  { k: "🧩", d: "Link to a page inside the app" },
-  { k: "✎", d: "Mark text as a fill-in field (editable in Simple mode)" },
-  { k: "A▁", d: "Text colour" },
-  { k: "A (highlighted)", d: "Highlight colour" },
-  { k: "▼ More", d: "Show / hide the advanced toolbar below" },
-];
-const ADVANCED_HELP = [
   { k: "◀ ■ ▶", d: "Align left / center / right" },
   { k: "xs sm lg xl", d: "Text size" },
   { k: "X² X₂", d: "Superscript / subscript" },
-  { k: "❝", d: "Blockquote" },
   { k: "</>", d: "Inline code" },
+  { k: "🧩", d: "Link to a page inside the app" },
+  { k: "✎", d: "Mark text as a fill-in field (editable in Simple mode)" },
+];
+const FUN_HELP = [
   { k: "✨ 🌊 🔥 🌿", d: "Gradient text — rainbow / ocean / fire / nature" },
   { k: "🔲 💠 🟣 🌑", d: "Boxes — dark / glass / purple / dark-radial" },
   { k: "⚡ 💥 🌀 〰", d: "Effects — float / glow / spin / wave" },
@@ -141,7 +137,6 @@ const ADVANCED_HELP = [
 ];
 
 function HelpPopup({ onClose }) {
-  const [showAdvanced, setShowAdvanced] = useState(false);
   const Row = ({ k, d }) => (
     <div className="flex items-start gap-2 py-1">
       <span className="flex-shrink-0 min-w-[3.5rem] text-xs font-semibold text-foreground">{k}</span>
@@ -156,23 +151,11 @@ function HelpPopup({ onClose }) {
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
         <div className="overflow-y-auto p-4">
-          <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">Basics</p>
-          <div className="divide-y divide-border/30">
-            {SIMPLE_HELP.map((r) => <Row key={r.k} {...r} />)}
-          </div>
-          <button
-            type="button"
-            onClick={() => setShowAdvanced((v) => !v)}
-            className="mt-3 inline-flex items-center gap-1 text-xs font-medium text-primary hover:text-primary/80"
-          >
-            <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showAdvanced ? "rotate-180" : ""}`} />
-            {showAdvanced ? "Hide advanced tools" : "More — advanced tools"}
-          </button>
-          {showAdvanced && (
-            <div className="mt-2 divide-y divide-border/30">
-              {ADVANCED_HELP.map((r) => <Row key={r.k} {...r} />)}
-            </div>
-          )}
+          <p className="text-xs text-muted-foreground mb-2">The basic buttons (bold, italic, underline, strikethrough, link, colour) do what their icons show. The extras:</p>
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">More</p>
+          <div className="divide-y divide-border/30">{MORE_HELP.map((r) => <Row key={r.k} {...r} />)}</div>
+          <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mt-3 mb-1">Fun</p>
+          <div className="divide-y divide-border/30">{FUN_HELP.map((r) => <Row key={r.k} {...r} />)}</div>
         </div>
       </div>
     </div>
@@ -181,9 +164,12 @@ function HelpPopup({ onClose }) {
 
 export function MiniToolbar({ onInsert, onInsertLink }) {
   const [colorModal, setColorModal] = useState(null);
-  const [showAdvanced, setShowAdvanced] = useState(() => {
+  // "More" reveals the structural tools; "Fun" (nested inside More) reveals
+  // the decorative effects. Default collapsed so the chat stays clean.
+  const [showMore, setShowMore] = useState(() => {
     try { return localStorage.getItem("os_toolbar_advanced") === "true"; } catch { return false; }
   });
+  const [showFun, setShowFun] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [fontPickerPos, setFontPickerPos] = useState(null);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
@@ -191,9 +177,14 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
   const savedSelection = useRef(null);
   const fontBtnRef = useRef(null);
 
+  const toggleMore = () => {
+    const next = !showMore;
+    setShowMore(next);
+    try { localStorage.setItem("os_toolbar_advanced", String(next)); } catch {}
+  };
+
   // Open the font menu as a FIXED-positioned popover anchored above the
-  // button, so it escapes the chat composer's overflow clipping (where an
-  // absolute dropdown was hidden behind other elements). Recompute on open.
+  // button, so it escapes the chat composer's overflow clipping.
   const openFontPicker = () => {
     if (showFontPicker) { setShowFontPicker(false); return; }
     const r = fontBtnRef.current?.getBoundingClientRect();
@@ -206,21 +197,6 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
     }
     setShowFontPicker(true);
   };
-
-  const toggleAdvanced = () => {
-    const next = !showAdvanced;
-    setShowAdvanced(next);
-    try { localStorage.setItem("os_toolbar_advanced", String(next)); } catch {}
-  };
-
-  const btn = (label, before, after, title) => (
-    <button type="button" title={title}
-      onMouseDown={e => e.preventDefault()}
-      onClick={() => onInsert(before, after)}
-      className="h-6 px-1 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold flex-shrink-0">
-      {label}
-    </button>
-  );
 
   const openColorModal = (mode) => {
     const ta = document.activeElement;
@@ -243,114 +219,147 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
     setShowFontPicker(false);
   };
 
+  const openInternalLink = () => {
+    const ta = document.activeElement;
+    if (ta && (ta.tagName === "TEXTAREA" || ta.tagName === "INPUT")) {
+      savedSelection.current = { el: ta, start: ta.selectionStart, end: ta.selectionEnd };
+    }
+    setShowLinkPicker(true);
+  };
+
+  // Icon button (intuitive lucide glyph) and small text button (xs/sm/…).
+  const iconBtn = (Icon, before, after, title) => (
+    <button key={title} type="button" title={title}
+      onMouseDown={e => e.preventDefault()}
+      onClick={() => onInsert(before, after)}
+      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
+  const txtBtn = (label, before, after, title) => (
+    <button key={title} type="button" title={title}
+      onMouseDown={e => e.preventDefault()}
+      onClick={() => onInsert(before, after)}
+      className="h-7 px-1.5 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0">
+      {label}
+    </button>
+  );
+  const emojiBtn = (emoji, before, after, title) => (
+    <button key={title} type="button" title={title}
+      onMouseDown={e => e.preventDefault()}
+      onClick={() => onInsert(before, after)}
+      className="h-7 px-1 flex items-center justify-center rounded hover:bg-muted/60 transition-colors text-xs flex-shrink-0">
+      {emoji}
+    </button>
+  );
+
   const sep = <div className="w-px h-4 bg-border/40 mx-0.5 flex-shrink-0" />;
 
   return (
     <>
-      {/* Simple toolbar */}
+      {/* ── Basic row (always visible) ── */}
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
-        {btn("B", "<strong>", "</strong>", "Bold")}
-        {btn("I", "<em>", "</em>", "Italic")}
-        {btn("S̶", "<s>", "</s>", "Strikethrough")}
-        {btn("U", "<u>", "</u>", "Underline")}
+        {iconBtn(Bold, "<strong>", "</strong>", "Bold")}
+        {iconBtn(Italic, "<em>", "</em>", "Italic")}
+        {iconBtn(Underline, "<u>", "</u>", "Underline")}
+        {iconBtn(Strikethrough, "<s>", "</s>", "Strikethrough")}
         {sep}
-        {btn("H1", "<h1>", "</h1>", "Heading 1")}
-        {btn("H2", "<h2>", "</h2>", "Heading 2")}
-        {btn("H3", "<h3>", "</h3>", "Heading 3")}
-        {sep}
-        {btn("↵", "<br />", "", "Line break")}
-        {btn("—", '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
-        {sep}
-        {btn("🔗", '<a href="https://">', "</a>", "Link")}
-        <button type="button" title="Insert internal link"
-          onMouseDown={e => e.preventDefault()}
-          onClick={() => {
-            const ta = document.activeElement;
-            if (ta && (ta.tagName === "TEXTAREA" || ta.tagName === "INPUT")) {
-              savedSelection.current = { el: ta, start: ta.selectionStart, end: ta.selectionEnd };
-            }
-            setShowLinkPicker(true);
-          }}
-          className="h-6 px-1 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold flex-shrink-0">
-          🧩
-        </button>
-        {btn("✎", '<span data-edit="true">', "</span>", "Make editable in Simple mode")}
-        {sep}
+        {iconBtn(Link2, '<a href="https://">', "</a>", "Web link")}
         {/* Text color */}
         <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
-          className="w-6 h-6 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0 flex-shrink-0">
+          className="w-7 h-7 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0 flex-shrink-0">
           <span className="text-xs font-bold" style={{ lineHeight: 1 }}>A</span>
           <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
         </button>
         {/* Highlight */}
         <button type="button" title="Highlight color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("hl")}
-          className="w-6 h-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+          className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
           <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
         </button>
-        {sep}
-        {/* Advanced toggle */}
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={toggleAdvanced}
-          className={`h-6 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showAdvanced ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
-          {showAdvanced ? "▲" : "▼"} More
-        </button>
-        {/* Help — touch-friendly legend of what every button does */}
-        <button type="button" title="What do these buttons do?" onMouseDown={e => e.preventDefault()} onClick={() => setShowHelp(true)}
-          className="h-6 w-6 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 ml-auto">
-          <HelpCircle className="w-4 h-4" />
+        {/* More toggle */}
+        <button type="button" onMouseDown={e => e.preventDefault()} onClick={toggleMore}
+          className={`h-7 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ml-auto ${showMore ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+          <ChevronDown className={`w-3 h-3 transition-transform ${showMore ? "rotate-180" : ""}`} /> More
         </button>
       </div>
 
-      {/* Advanced toolbar */}
-      {showAdvanced && (
-        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
-          {/* Alignment */}
-          {btn("◀", '<div style="text-align:left;">', "</div>", "Align left")}
-          {btn("■", '<div style="text-align:center;">', "</div>", "Align center")}
-          {btn("▶", '<div style="text-align:right;">', "</div>", "Align right")}
-          {sep}
-          {/* Size */}
-          {btn("xs", '<span style="font-size:0.7em;">', "</span>", "Extra small")}
-          {btn("sm", '<span style="font-size:0.85em;">', "</span>", "Small")}
-          {btn("lg", '<span style="font-size:1.3em;">', "</span>", "Large")}
-          {btn("xl", '<span style="font-size:1.8em;font-weight:bold;">', "</span>", "Extra large")}
-          {sep}
-          {/* Super/sub */}
-          {btn("X²", "<sup>", "</sup>", "Superscript")}
-          {btn("X₂", "<sub>", "</sub>", "Subscript")}
-          {sep}
-          {/* Block */}
-          {btn("❝", '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Blockquote")}
-          {btn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
-          {sep}
-          {/* Styling */}
-          {btn("✨", '<span style="background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Rainbow gradient text")}
-          {btn("🌊", '<span style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Ocean gradient text")}
-          {btn("🔥", '<span style="background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Fire gradient text")}
-          {btn("🌿", '<span style="background:linear-gradient(90deg,#00c853,#64dd17,#b2ff59);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Nature gradient text")}
-          {sep}
-          {btn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
-          {btn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
-          {btn("🟣", '<div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);border-radius:12px;padding:16px;border:1px solid rgba(147,51,234,0.3);">', "</div>", "Purple dark box")}
-          {btn("🌑", '<div style="background:radial-gradient(ellipse at top,#1a0533,#000);border-radius:16px;padding:20px;">', "</div>", "Dark radial box")}
-          {sep}
-          {/* Effects */}
-          {btn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Float animation")}
-          {btn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow")}
-          {btn("🌀", '<span style="display:inline-block;animation:spin 3s linear infinite;">', "</span>", "Spin")}
-          {btn("〰", '<span style="display:inline-block;animation:wave 1s ease-in-out infinite alternate;transform-origin:bottom;">', "</span>", "Wave")}
-          {btn("👻", '<span style="opacity:0.6;">', "</span>", "Faded/ghost")}
-          {btn("📦", '<span style="border:1px solid currentColor;border-radius:4px;padding:1px 6px;">', "</span>", "Boxed text")}
-          {btn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
-          {btn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
-          {sep}
-          {/* Font picker — button stays in-flow; the menu is FIXED-positioned
-              (below) so it isn't clipped by the editor/chat composer overflow. */}
-          <div className="flex-shrink-0">
-            <button ref={fontBtnRef} type="button" onMouseDown={e => e.preventDefault()} onClick={openFontPicker}
-              className="h-6 px-1.5 flex items-center gap-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
-              Aa <ChevronDown className="w-2.5 h-2.5" />
+      {/* ── More section (structural tools) ── */}
+      {showMore && (
+        <div className="px-1.5 py-1 border-t border-border/20 bg-muted/5 space-y-1">
+          <div className="flex items-center gap-0.5 flex-wrap">
+            {iconBtn(Heading1, "<h1>", "</h1>", "Heading 1")}
+            {iconBtn(Heading2, "<h2>", "</h2>", "Heading 2")}
+            {iconBtn(Heading3, "<h3>", "</h3>", "Heading 3")}
+            {sep}
+            {iconBtn(List, "<ul><li>", "</li></ul>", "Bullet list")}
+            {iconBtn(ListOrdered, "<ol><li>", "</li></ol>", "Numbered list")}
+            {iconBtn(Quote, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Block quote")}
+            {sep}
+            {iconBtn(CornerDownLeft, "<br />", "", "Line break")}
+            {iconBtn(Minus, '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
+            {sep}
+            {iconBtn(AlignLeft, '<div style="text-align:left;">', "</div>", "Align left")}
+            {iconBtn(AlignCenter, '<div style="text-align:center;">', "</div>", "Align center")}
+            {iconBtn(AlignRight, '<div style="text-align:right;">', "</div>", "Align right")}
+          </div>
+          <div className="flex items-center gap-0.5 flex-wrap">
+            {txtBtn("xs", '<span style="font-size:0.7em;">', "</span>", "Extra small")}
+            {txtBtn("sm", '<span style="font-size:0.85em;">', "</span>", "Small")}
+            {txtBtn("lg", '<span style="font-size:1.3em;">', "</span>", "Large")}
+            {txtBtn("xl", '<span style="font-size:1.8em;font-weight:bold;">', "</span>", "Extra large")}
+            {sep}
+            {txtBtn("X²", "<sup>", "</sup>", "Superscript")}
+            {txtBtn("X₂", "<sub>", "</sub>", "Subscript")}
+            {txtBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
+            {sep}
+            {/* Internal link (opens picker) + make-editable (template field) */}
+            <button type="button" title="Link to a page in the app" onMouseDown={e => e.preventDefault()} onClick={openInternalLink}
+              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+              <Puzzle className="w-3.5 h-3.5" />
+            </button>
+            {iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
+            {sep}
+            {/* Fun toggle */}
+            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowFun(v => !v)}
+              className={`h-7 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showFun ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+              <Sparkles className="w-3 h-3" /> Fun
+            </button>
+            {/* Help — explains the More + Fun tools */}
+            <button type="button" title="What do these buttons do?" onMouseDown={e => e.preventDefault()} onClick={() => setShowHelp(true)}
+              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 ml-auto">
+              <HelpCircle className="w-4 h-4" />
             </button>
           </div>
+
+          {/* ── Fun section (decorative effects, nested in More) ── */}
+          {showFun && (
+            <div className="flex items-center gap-0.5 flex-wrap pt-1 border-t border-border/20">
+              {emojiBtn("✨", '<span style="background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Rainbow gradient text")}
+              {emojiBtn("🌊", '<span style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Ocean gradient text")}
+              {emojiBtn("🔥", '<span style="background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Fire gradient text")}
+              {emojiBtn("🌿", '<span style="background:linear-gradient(90deg,#00c853,#64dd17,#b2ff59);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Nature gradient text")}
+              {sep}
+              {emojiBtn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
+              {emojiBtn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
+              {emojiBtn("🟣", '<div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);border-radius:12px;padding:16px;border:1px solid rgba(147,51,234,0.3);">', "</div>", "Purple dark box")}
+              {emojiBtn("🌑", '<div style="background:radial-gradient(ellipse at top,#1a0533,#000);border-radius:16px;padding:20px;">', "</div>", "Dark radial box")}
+              {sep}
+              {emojiBtn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Float animation")}
+              {emojiBtn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow")}
+              {emojiBtn("🌀", '<span style="display:inline-block;animation:spin 3s linear infinite;">', "</span>", "Spin")}
+              {emojiBtn("〰", '<span style="display:inline-block;animation:wave 1s ease-in-out infinite alternate;transform-origin:bottom;">', "</span>", "Wave")}
+              {emojiBtn("👻", '<span style="opacity:0.6;">', "</span>", "Faded/ghost")}
+              {emojiBtn("📦", '<span style="border:1px solid currentColor;border-radius:4px;padding:1px 6px;">', "</span>", "Boxed text")}
+              {txtBtn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
+              {txtBtn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
+              {sep}
+              {/* Font picker */}
+              <button ref={fontBtnRef} type="button" onMouseDown={e => e.preventDefault()} onClick={openFontPicker}
+                className="h-7 px-1.5 flex items-center gap-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+                Aa <ChevronDown className="w-2.5 h-2.5" />
+              </button>
+            </div>
+          )}
         </div>
       )}
 

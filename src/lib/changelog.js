@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Simplified the chat/text formatting bar: clearer icons and just the basics by default, with structural tools (headings, lists, quote, alignment…) under \"More\" and the decorative effects under a nested \"Fun\". A \"?\" guide explains them.",
+      },
+      {
         type: "fix",
         text: "Alter avatars now show everywhere again — the alters list, group/subsystem member lists, current-fronters chips, and the press-and-hold menu were showing a blank icon for some saved images.",
       },
