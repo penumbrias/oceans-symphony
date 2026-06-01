@@ -46,6 +46,8 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const savedRangeRef = useRef(null);
   const imageInputRef = useRef(null);
   const [colorModal, setColorModal] = useState(null); // "fg" | "hl" | null
+  const [linkModal, setLinkModal] = useState(false);
+  const [linkUrl, setLinkUrl] = useState("");
   const [showMore, setShowMore] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -208,9 +210,10 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           {sep}
           {ALIGN_TOOLS.map(t => toolBtn(t.icon, t.cmd, null, t.title))}
           {sep}
-          {/* Link */}
+          {/* Link — opens an inline modal (window.prompt is suppressed in
+              the native app / in-app browsers, so the old prompt did nothing). */}
           <button type="button" title="Insert link"
-            onMouseDown={(e) => { e.preventDefault(); const url = prompt("URL:"); if (url) execCmd("createLink", url); }}
+            onMouseDown={(e) => { e.preventDefault(); saveSelection(); setLinkUrl("https://"); setLinkModal(true); }}
             className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
             <Link className="w-3.5 h-3.5" />
           </button>
@@ -340,6 +343,40 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           onApply={applyColor}
           onClose={() => setColorModal(null)}
         />
+      )}
+
+      {linkModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[70] p-4" onMouseDown={() => setLinkModal(false)}>
+          <div className="bg-background border-2 border-border rounded-xl p-5 space-y-4 max-w-sm w-full shadow-2xl" onMouseDown={(e) => e.stopPropagation()}>
+            <h3 className="font-semibold text-sm">Add a link</h3>
+            <input
+              autoFocus
+              type="url"
+              value={linkUrl}
+              onChange={(e) => setLinkUrl(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  const url = linkUrl.trim();
+                  setLinkModal(false);
+                  if (url && url !== "https://") { restoreSelection(); execCmd("createLink", url); }
+                }
+              }}
+              placeholder="https://…"
+              className="w-full h-10 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            <div className="flex gap-2">
+              <button type="button" onClick={() => setLinkModal(false)} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
+              <button type="button"
+                onClick={() => {
+                  const url = linkUrl.trim();
+                  setLinkModal(false);
+                  if (url && url !== "https://") { restoreSelection(); execCmd("createLink", url); }
+                }}
+                className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium">Add link</button>
+            </div>
+          </div>
+        </div>
       )}
 
       {showAssetPicker && (

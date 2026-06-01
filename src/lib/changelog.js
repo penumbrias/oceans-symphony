@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "The link button in the Plain bio editor now opens a proper input box (it used a browser prompt that did nothing in the app).",
+      },
+      {
+        type: "fix",
         text: "Weekly goal progress now counts only this week's activities that actually happened (scheduled/skipped/cancelled plans no longer inflate it).",
       },
       {
