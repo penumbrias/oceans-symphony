@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "System banner: added a soft readability wash behind the top of the page so titles and headers stay legible over the image.",
+      },
+      {
         type: "fix",
         text: "The Activity Tracker no longer paints over your system banner — it now shows behind the top of the page like everywhere else.",
       },
