@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "fix",
+        text: "PluralKit import no longer duplicates alters that came from Simply Plural — it now matches existing alters by name and links them to PluralKit, so re-imports update them in place. (Existing duplicates can still be merged via System History.)",
+      },
+      {
         type: "improve",
         text: "Formatting toolbar: added a \"?\" button that explains what each tool does (advanced tools tucked under \"More\"), and the font menu no longer hides behind other elements in the system chat.",
       },

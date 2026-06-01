@@ -136,6 +136,10 @@ export function mapPkMemberToAlter(member, groupsByMemberId = {}) {
   const customFields = banner ? { _header_image: banner } : {};
   return {
     pk_id: member.id,
+    // PK's short id (member.id) is mutable (changes if the system is
+    // regenerated); uuid is permanent. Store both and prefer uuid when
+    // de-duping so a changed HID can't spawn duplicates.
+    pk_uuid: member.uuid || null,
     name: member.name || "Unknown",
     display_name: member.display_name || "",
     pronouns: member.pronouns || "",

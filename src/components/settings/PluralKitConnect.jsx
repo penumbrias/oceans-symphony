@@ -154,8 +154,23 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const byPkId = Object.fromEntries(
         existing.filter((a) => a.pk_id).map((a) => [a.pk_id, a])
       );
+      const byPkUuid = Object.fromEntries(
+        existing.filter((a) => a.pk_uuid).map((a) => [a.pk_uuid, a])
+      );
+      // Name fallback (lowercased/trimmed, first match wins). This is what
+      // heals the "doubling" bug: alters imported from Simply Plural carry
+      // only an sp_id (no pk_id), so a PK import keyed solely on pk_id never
+      // matched them and re-created every member. Matching by name lets the
+      // PK import recognise those rows and UPDATE them (backfilling pk_id /
+      // pk_uuid so all future imports from either source update in place).
+      const byName = {};
+      for (const a of existing) {
+        const key = (a.name || "").trim().toLowerCase();
+        if (key && !(key in byName)) byName[key] = a;
+      }
       let created = 0;
       let updated = 0;
+      let matchedByName = 0;
       let avatarsCached = 0;
       let avatarsSkippedDiscord = 0;
       let avatarsFailed = 0;
@@ -195,8 +210,19 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
           }
         }
 
-        const match = byPkId[m.id];
+        // Match priority: permanent uuid → short pk_id → name fallback.
+        const nameKey = (m.name || "").trim().toLowerCase();
+        const byUuid = m.uuid ? byPkUuid[m.uuid] : null;
+        const byId = byPkId[m.id];
+        const byNm = (!byUuid && !byId && nameKey) ? byName[nameKey] : null;
+        const match = byUuid || byId || byNm;
         if (match) {
+          if (byNm) {
+            matchedByName += 1;
+            // Consume this existing row so a second PK member with the same
+            // name creates a new alter rather than clobbering the same one.
+            delete byName[nameKey];
+          }
           // Merge custom_fields: preserve local-only `_*` keys (profile-
           // style settings like _bg_color, _hide_header, …) while letting
           // PK authoritatively set `_header_image` from the banner.
@@ -204,7 +230,10 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             Object.entries(match.custom_fields || {}).filter(([k]) => k.startsWith("_"))
           );
           mapped.custom_fields = { ...localOnly, ...(mapped.custom_fields || {}) };
-          await localEntities.Alter.update(match.id, mapped);
+          // Never un-archive on re-import — preserve the local archive flag
+          // (the mapper hardcodes is_archived:false for the create path only).
+          const { is_archived, ...updatePayload } = mapped;
+          await localEntities.Alter.update(match.id, updatePayload);
           updated += 1;
         } else {
           await localEntities.Alter.create(mapped);
@@ -217,9 +246,16 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const summary = [
         `${created} created`,
         `${updated} updated`,
+        matchedByName > 0 ? `${matchedByName} matched by name` : null,
         avatarsCached > 0 ? `${avatarsCached} avatars cached locally` : null,
       ].filter(Boolean).join(" · ");
       toast.success(`Import complete · ${summary}`);
+      if (matchedByName > 0) {
+        toast.info(
+          `${matchedByName} existing ${matchedByName === 1 ? "alter was" : "alters were"} linked to PluralKit by name (e.g. imported from Simply Plural). Future imports will update them in place instead of duplicating.`,
+          { duration: 11000 }
+        );
+      }
       if (avatarsSkippedDiscord > 0) {
         toast.warning(
           `${avatarsSkippedDiscord} ${avatarsSkippedDiscord === 1 ? "avatar is" : "avatars are"} still on Discord's CDN and won't display. Re-upload them in PluralKit (which migrates them to pluralkit.me) and run import again.`,
