@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "@mentions no longer fire for the wrong alter — mentioning \"@Sam\" no longer also pings \"Samantha\" (and vice-versa).",
+      },
+      {
+        type: "fix",
         text: "System banner no longer overflows the screen width (it was causing the whole app to scroll sideways).",
       },
       {

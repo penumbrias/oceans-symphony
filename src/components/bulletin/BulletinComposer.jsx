@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -202,13 +202,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
   };
 
-  const extractMentionedIds = (text) => {
-    const mentioned = new Set();
-    alters.forEach(a => {
-      if (text.includes(`@${a.name}`) || (a.alias && text.includes(`@${a.alias}`))) mentioned.add(a.id);
-    });
-    return Array.from(mentioned);
-  };
+  // Mention detection uses the shared, boundary-aware matcher from
+  // mentionUtils (so "@Sam" no longer matches inside "@Samantha").
 
   const handlePost = async () => {
     if (!content.trim()) return;
@@ -244,7 +239,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
-    const mentionedIds = extractMentionedIds(cleanContent);
+    const mentionedIds = extractMentionedIds(cleanContent, alters);
 
     const data = {
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || authorAlterId || null),

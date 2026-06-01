@@ -1,12 +1,37 @@
 import { base44 } from "@/api/base44Client";
 
+// A character that can be part of a name/alias (letters, numbers, _ — any
+// script). Used to require a boundary AFTER a matched @mention so "@Sam"
+// doesn't falsely match inside "@Samantha".
+const WORD_CHAR = /[\p{L}\p{N}_]/u;
+
 export function extractMentionedIds(content, alters) {
+  if (!content) return [];
+  // Candidate tokens, longest first, so a longer name wins over a shorter
+  // one that's a prefix of it (e.g. "@Sam Jones" beats "@Sam").
+  const tokens = [];
+  for (const a of alters) {
+    if (a.name) tokens.push({ token: `@${a.name}`, id: a.id });
+    if (a.alias) tokens.push({ token: `@${a.alias}`, id: a.id });
+  }
+  tokens.sort((x, y) => y.token.length - x.token.length);
+
   const mentioned = new Set();
-  alters.forEach((a) => {
-    if (content.includes(`@${a.name}`) || (a.alias && content.includes(`@${a.alias}`))) {
-      mentioned.add(a.id);
+  for (let i = 0; i < content.length; i++) {
+    if (content[i] !== "@") continue;
+    for (const t of tokens) {
+      if (content.startsWith(t.token, i)) {
+        // Only a real mention if the char right after the name is a
+        // boundary (end of string, space, punctuation) — not another letter.
+        const after = content[i + t.token.length];
+        if (!after || !WORD_CHAR.test(after)) {
+          mentioned.add(t.id);
+          i += t.token.length - 1; // consume the matched token
+          break;
+        }
+      }
     }
-  });
+  }
   return Array.from(mentioned);
 }
 
