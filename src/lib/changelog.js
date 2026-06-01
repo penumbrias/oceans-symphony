@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The @mention picker is smarter everywhere it appears (check-ins, tasks, activities, journals): it now works when you edit mid-text — not just at the end — and shows avatars, your custom alter labels, and respects \"hide from mentions\".",
+      },
+      {
         type: "feature",
         text: "New censor bar: wrap text in ||double bars|| (or tap the new toolbar button) to hide it behind a bar that reveals when tapped — handy for sensitive info, in bios, bulletins, and chat.",
       },
