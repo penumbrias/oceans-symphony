@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,6 +57,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   // Mirror the anonymize toggle from the Alters page so the chips here
   // blur the same way for screenshots.
   const { mode: anonymize } = useAnonymizeMode();
@@ -123,8 +125,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
           className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center border border-border/30 ${blurAvatar ? "blur-sm" : ""}`}
           style={{ backgroundColor: bg || "hsl(var(--muted))" }}
         >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          {resolvedAvatar ? (
+            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
           ) : (
             <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
           )}

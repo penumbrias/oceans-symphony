@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alter avatars now show everywhere again — the alters list, group/subsystem member lists, current-fronters chips, and the press-and-hold menu were showing a blank icon for some saved images.",
+      },
+      {
+        type: "fix",
         text: "Deleting a bulletin comment no longer fails behind the scenes (it was throwing an error and not refreshing).",
       },
       {

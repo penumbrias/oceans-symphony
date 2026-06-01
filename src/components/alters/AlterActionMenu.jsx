@@ -8,6 +8,7 @@ import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // Long-press popup for an alter chip/icon on the alters page. Actions:
 // go to profile, create/open subsystem, toggle front, toggle primary,
@@ -17,6 +18,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useTerms();
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   // Ignore the synthetic click the WebView fires right after the
   // long-press — without this it could hit the backdrop and close the
   // menu the instant it opens.
@@ -114,8 +116,8 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
           <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-border/40 flex-shrink-0"
             style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-            {alter.avatar_url
-              ? <img src={alter.avatar_url} alt="" className="w-full h-full object-cover" />
+            {resolvedAvatar
+              ? <img src={resolvedAvatar} alt="" className="w-full h-full object-cover" />
               : <User className="w-4 h-4 text-white" />}
           </div>
           <span className="font-medium text-sm flex-1 truncate">{alter.emoji ? `${alter.emoji} ` : ""}{alter.name}</span>
