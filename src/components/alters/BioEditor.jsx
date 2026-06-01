@@ -315,7 +315,7 @@ export default function BioEditor({ value, onChange }) {
             placeholder="Write a bio..."
             className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
             spellCheck={false} />
-          <MiniToolbar onInsert={insert} />
+          <MiniToolbar onInsert={insert} templateField />
         </div>
       ) : editorMode === "simple" ? (
         <SimplePreview

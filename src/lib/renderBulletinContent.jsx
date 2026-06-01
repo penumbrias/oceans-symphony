@@ -45,6 +45,15 @@ function cssStringToStyleObject(styleStr) {
 
 // Term placeholders authors can drop into bulletin content so a system that
 // renames "alter" to e.g. "headmate" still reads correctly.
+// Convert Discord-style ||spoiler|| markers into a censor span. The bar is
+// styled by the global `.spoiler` CSS and revealed on tap by the delegated
+// handler in AppLayout. Applied by every rich renderer so the syntax works
+// everywhere it's typed (bios, bulletins, chat).
+export function spoilersToHtml(content) {
+  if (!content || typeof content !== "string") return content || "";
+  return content.replace(/\|\|([^|]+?)\|\|/g, '<span class="spoiler">$1</span>');
+}
+
 function applyTerms(content, terms) {
   if (!terms || !content) return content || "";
   const map = {
@@ -127,6 +136,9 @@ function nodeToReact(node, key, renderText) {
   const styleObj = cssStringToStyleObject(node.getAttribute("style"));
   const props = { key };
   if (styleObj) props.style = styleObj;
+  // Preserve the whitelisted "spoiler" class so censor bars survive (class
+  // is otherwise dropped). Safe — a class name can't execute anything.
+  if (/\bspoiler\b/.test(node.getAttribute("class") || "")) props.className = "spoiler";
   return React.createElement(tag, props, children);
 }
 
@@ -135,7 +147,7 @@ function nodeToReact(node, key, renderText) {
 // each surface (bulletins, chat) can plug in its own @mention highlighter
 // while sharing the tag allowlist, style sanitisation, and <img> safety.
 export function renderRichContent(content, { renderText, terms = null } = {}) {
-  const processed = applyTerms(content, terms);
+  const processed = spoilersToHtml(applyTerms(content, terms));
   const rt = renderText || ((text, key) => <React.Fragment key={key}>{text}</React.Fragment>);
   if (typeof window === "undefined" || !window.DOMParser) {
     return rt(processed, "rc");

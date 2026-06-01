@@ -117,6 +117,37 @@ body {
   }
 }
 
+/* Text-effect keyframes for the formatting toolbar's "fun" effects.
+   Tailwind already ships `spin`; `float` and `wave` were referenced by the
+   toolbar but never defined, so those buttons did nothing — define them
+   here so the effects actually animate. */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes wave {
+  from { transform: rotate(-8deg); }
+  to   { transform: rotate(8deg); }
+}
+
+/* Censor / spoiler bar — `||text||` renders as a redaction bar that reveals
+   when tapped (toggled by a delegated click handler in AppLayout). The bar
+   uses the theme text colour so it's visible in both light and dark. */
+.spoiler {
+  background: var(--color-text-primary, #333);
+  color: transparent;
+  border-radius: 3px;
+  padding: 0 3px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease;
+}
+.spoiler.revealed {
+  background: transparent;
+  color: inherit;
+  user-select: auto;
+}
+
 /* ─── App header decoration ──────────────────────────────────────────
  * The header has a slightly lighter wash on its top half whose bottom
  * edge is wavy and scrolls slowly sideways — calm-waves motion,

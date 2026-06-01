@@ -2,7 +2,7 @@ import React, { useRef, useEffect, useCallback, useState } from "react";
 import {
   Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X, ImagePlus, Loader2, Images,
+  AlignLeft, AlignCenter, AlignRight, Link, ChevronDown, X, ImagePlus, Loader2, Images, EyeOff,
 } from "lucide-react";
 import { toast } from "sonner";
 import { ColorPickerModal, PRESET_COLORS, PRESET_HIGHLIGHTS, FONTS } from "@/components/shared/MiniToolbar";
@@ -247,6 +247,13 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           <button type="button" title="Highlight color" onMouseDown={(e) => { e.preventDefault(); openColorModal("hl"); }}
             className="w-7 h-7 flex items-center justify-center rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
             <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
+          </button>
+          {sep}
+          {/* Censor bar — wraps selection in ||…|| (a black bar that reveals on tap) */}
+          <button type="button" title="Censor bar — hide until tapped"
+            onMouseDown={(e) => { e.preventDefault(); insertHTML("||", "||"); }}
+            className="p-1.5 rounded hover:bg-muted transition-colors text-muted-foreground hover:text-foreground flex-shrink-0">
+            <EyeOff className="w-3.5 h-3.5" />
           </button>
           {sep}
           {/* Clear formatting */}

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New censor bar: wrap text in ||double bars|| (or tap the new toolbar button) to hide it behind a bar that reveals when tapped — handy for sensitive info, in bios, bulletins, and chat.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar: the \"?\" guide now shows the real button icons, the float/wave text effects actually animate now, and the bio-only \"make editable\" button no longer clutters the chat box.",
+      },
+      {
         type: "fix",
         text: "Editing a repeating plan's whole series no longer forces one occurrence's done/scheduled state onto the others — each keeps the status that fits its own date.",
       },

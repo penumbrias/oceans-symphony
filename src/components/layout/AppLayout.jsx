@@ -72,6 +72,18 @@ export default function AppLayout() {
   // the Set Fronters modal don't sit with stuck data forever.
   useFrontSessionSweep();
 
+  // Censor/spoiler reveal — tapping a `||text||` redaction bar (rendered as
+  // a .spoiler span anywhere: bios, bulletins, chat) toggles it open/closed.
+  // One delegated listener covers every surface regardless of how it rendered.
+  useEffect(() => {
+    const handler = (e) => {
+      const sp = e.target?.closest?.(".spoiler");
+      if (sp) sp.classList.toggle("revealed");
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, []);
+
   // Poll friends every 60 s and show in-app banner when a friend's front changes.
   // On first run (app open) this replaces the old one-time check.
   useEffect(() => {

@@ -3,7 +3,7 @@ import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles,
+  CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff,
 } from "lucide-react";
 import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
 
@@ -115,34 +115,42 @@ export function useTextareaInsert(ref, value, onChange) {
 
 // The basics (bold/italic/underline/strike/link/colour) are self-explanatory
 // icons, so the "?" legend only needs to explain the "More" and "Fun" tiers.
+// `icons` renders the ACTUAL toolbar lucide glyphs so the guide matches the
+// buttons; `glyph` is used for the text/emoji buttons (which already match).
 const MORE_HELP = [
-  { k: "H1 H2 H3", d: "Headings (largest → smallest)" },
-  { k: "• / 1.", d: "Bullet list / numbered list" },
-  { k: "❝", d: "Block quote" },
-  { k: "↵", d: "Line break" },
-  { k: "—", d: "Horizontal divider line" },
-  { k: "◀ ■ ▶", d: "Align left / center / right" },
-  { k: "xs sm lg xl", d: "Text size" },
-  { k: "X² X₂", d: "Superscript / subscript" },
-  { k: "</>", d: "Inline code" },
-  { k: "🧩", d: "Link to a page inside the app" },
-  { k: "✎", d: "Mark text as a fill-in field (editable in Simple mode)" },
+  { icons: [Heading1, Heading2, Heading3], d: "Headings (largest → smallest)" },
+  { icons: [List, ListOrdered], d: "Bullet list / numbered list" },
+  { icons: [Quote], d: "Block quote" },
+  { icons: [CornerDownLeft], d: "Line break" },
+  { icons: [Minus], d: "Divider line" },
+  { icons: [AlignLeft, AlignCenter, AlignRight], d: "Align left / center / right" },
+  { glyph: "xs sm lg xl", d: "Text size" },
+  { glyph: "X² X₂", d: "Superscript / subscript" },
+  { glyph: "</>", d: "Inline code" },
+  { icons: [EyeOff], d: "Censor bar — hides text behind a bar until tapped" },
+  { icons: [Puzzle], d: "Link to a page inside the app" },
+  { icons: [Pencil], d: "Mark text as a fill-in field (bio templates)" },
 ];
 const FUN_HELP = [
-  { k: "✨ 🌊 🔥 🌿", d: "Gradient text — rainbow / ocean / fire / nature" },
-  { k: "🔲 💠 🟣 🌑", d: "Boxes — dark / glass / purple / dark-radial" },
-  { k: "⚡ 💥 🌀 〰", d: "Effects — float / glow / spin / wave" },
-  { k: "👻 📦 blur rot", d: "Effects — faded / boxed / blur / slight rotation" },
-  { k: "Aa ▾", d: "Pick a font for the selected text" },
+  { glyph: "✨ 🌊 🔥 🌿", d: "Gradient text — rainbow / ocean / fire / nature" },
+  { glyph: "🔲 💠 🟣 🌑", d: "Boxes — dark / glass / purple / dark-radial" },
+  { glyph: "⚡ 💥 🌀 〰", d: "Effects — float / glow / spin / wave" },
+  { glyph: "👻 📦 blur rot", d: "Effects — faded / boxed / blur / rotate" },
+  { glyph: "Aa", d: "Pick a font for the selected text" },
 ];
 
-function HelpPopup({ onClose }) {
-  const Row = ({ k, d }) => (
+function HelpRow({ icons, glyph, d }) {
+  return (
     <div className="flex items-start gap-2 py-1">
-      <span className="flex-shrink-0 min-w-[3.5rem] text-xs font-semibold text-foreground">{k}</span>
+      <span className="flex-shrink-0 min-w-[3.5rem] flex items-center gap-1 text-xs font-semibold text-foreground">
+        {icons ? icons.map((Ic, i) => <Ic key={i} className="w-3.5 h-3.5" />) : glyph}
+      </span>
       <span className="text-xs text-muted-foreground">{d}</span>
     </div>
   );
+}
+
+function HelpPopup({ onClose }) {
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }} onClick={(e) => e.stopPropagation()}>
@@ -153,16 +161,16 @@ function HelpPopup({ onClose }) {
         <div className="overflow-y-auto p-4">
           <p className="text-xs text-muted-foreground mb-2">The basic buttons (bold, italic, underline, strikethrough, link, colour) do what their icons show. The extras:</p>
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">More</p>
-          <div className="divide-y divide-border/30">{MORE_HELP.map((r) => <Row key={r.k} {...r} />)}</div>
+          <div className="divide-y divide-border/30">{MORE_HELP.map((r, i) => <HelpRow key={i} {...r} />)}</div>
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mt-3 mb-1">Fun</p>
-          <div className="divide-y divide-border/30">{FUN_HELP.map((r) => <Row key={r.k} {...r} />)}</div>
+          <div className="divide-y divide-border/30">{FUN_HELP.map((r, i) => <HelpRow key={i} {...r} />)}</div>
         </div>
       </div>
     </div>
   );
 }
 
-export function MiniToolbar({ onInsert, onInsertLink }) {
+export function MiniToolbar({ onInsert, onInsertLink, templateField = false }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
   // the decorative effects. Default collapsed so the chat stays clean.
@@ -312,12 +320,16 @@ export function MiniToolbar({ onInsert, onInsertLink }) {
             {txtBtn("X₂", "<sub>", "</sub>", "Subscript")}
             {txtBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
             {sep}
-            {/* Internal link (opens picker) + make-editable (template field) */}
+            {/* Censor bar — wraps selection in ||…|| (hidden until tapped) */}
+            {iconBtn(EyeOff, "||", "||", "Censor bar — hide until tapped")}
+            {/* Internal link (opens picker) */}
             <button type="button" title="Link to a page in the app" onMouseDown={e => e.preventDefault()} onClick={openInternalLink}
               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
               <Puzzle className="w-3.5 h-3.5" />
             </button>
-            {iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
+            {/* Make-editable (bio template field) — only useful where a
+                Simple-mode editor exists, so hidden unless the host opts in. */}
+            {templateField && iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
             {sep}
             {/* Fun toggle */}
             <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowFun(v => !v)}
