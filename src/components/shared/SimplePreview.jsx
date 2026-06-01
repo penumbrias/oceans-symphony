@@ -60,7 +60,12 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
     // Only open editor when a [data-edit] span (template variable) is clicked
     const editSpan = e.target.closest("[data-edit]");
     if (editSpan) {
-      setEditModal({ block, field, span: editSpan, mode: "span" });
+      // Capture the span's INDEX among this block's edit-spans so commit can
+      // target the exact field even when several fields are blank or share
+      // the same text (matching by text content alone hit the wrong field).
+      const allSpans = [...e.currentTarget.querySelectorAll("[data-edit]")];
+      const spanIndex = allSpans.indexOf(editSpan);
+      setEditModal({ block, field, span: editSpan, spanIndex, mode: "span" });
       setEditValue(editSpan.textContent);
     }
     // Static template text outside spans is not editable here — clicking it does nothing
@@ -68,22 +73,28 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
 
   const commitEdit = () => {
     if (!editModal) return;
-    const { block, field, span, mode } = editModal;
+    const { block, field, span, spanIndex, mode } = editModal;
     const html = field === "content" ? block.content : block.text;
 
     if (mode === "span" && span) {
       // Replace just the text inside the specific data-edit span
       const tmp = document.createElement("div");
       tmp.innerHTML = html || "";
-      // Find matching span by its original text content
       const spans = tmp.querySelectorAll("[data-edit]");
-      for (const s of spans) {
-        if (s.textContent === span.textContent) {
-          s.textContent = editValue;
-          break;
+      // Prefer the exact span by index (robust to blank/duplicate fields);
+      // fall back to matching by original text content.
+      let target = null;
+      if (typeof spanIndex === "number" && spanIndex >= 0 && spanIndex < spans.length) {
+        target = spans[spanIndex];
+      } else {
+        for (const s of spans) {
+          if (s.textContent === span.textContent) { target = s; break; }
         }
       }
-      onBlockChange(block.id, { [field]: tmp.innerHTML });
+      if (target) {
+        target.textContent = editValue;
+        onBlockChange(block.id, { [field]: tmp.innerHTML });
+      }
     }
     setEditModal(null);
   };

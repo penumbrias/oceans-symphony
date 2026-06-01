@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed editing a profile bio template: typing into a template field in the Simple editor now saves instead of being silently discarded.",
+      },
+      {
+        type: "fix",
         text: "Activity tracker day view: the hour labels now sit at the top of each hour's cell (where the hour begins) instead of floating in the middle.",
       },
       {
