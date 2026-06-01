@@ -13,7 +13,7 @@
 
 export const CHANGELOG = [
   {
-    date: "May 31, 2026",
+    date: "June 1, 2026",
     changes: [
       {
         type: "fix",
@@ -123,6 +123,11 @@ export const CHANGELOG = [
         type: "fix",
         text: "Fixed editing a profile bio template: typing into a template field in the Simple editor now saves instead of being silently discarded.",
       },
+    ],
+  },
+  {
+    date: "May 31, 2026",
+    changes: [
       {
         type: "fix",
         text: "Activity tracker day view: the hour labels now sit at the top of each hour's cell (where the hour begins) instead of floating in the middle.",
