@@ -940,8 +940,11 @@ if (isSameCell) {
             return (
               <div
                 key={`${hour}-${minute}`}
-                className="px-1.5 text-right flex items-center justify-end flex-shrink-0 whitespace-nowrap"
-                style={{ height: rowH, minHeight: rowH, color: "hsl(var(--muted-foreground))", ...slotBottomBorderStyle(minute) }}
+                // Top-aligned: a slot's label marks where that slot BEGINS
+                // (the line at the TOP of the row), so the time reads in line
+                // with that demarcation rather than floating in the middle.
+                className="px-1.5 text-right flex items-start justify-end flex-shrink-0 whitespace-nowrap"
+                style={{ height: rowH, minHeight: rowH, paddingTop: 1, color: "hsl(var(--muted-foreground))", ...slotBottomBorderStyle(minute) }}
               >
                 {minute === 0 ? (
                   <span className="font-semibold" style={{ fontSize: Math.max(8, Math.min(10, rowH * 0.7)) }}>

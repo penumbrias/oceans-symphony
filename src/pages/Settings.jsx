@@ -163,7 +163,6 @@ export default function Settings() {
 
   const settings = settingsList[0] || null;
   const [systemName, setSystemName] = useState("");
-  const [systemDescription, setSystemDescription] = useState("");
   const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
   const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
@@ -173,6 +172,11 @@ export default function Settings() {
   const [uploadingSysBanner, setUploadingSysBanner] = useState(false);
   const resolvedSysBanner = useResolvedAvatarUrl(systemBannerUrl);
   const [systemBio, setSystemBio] = useState("");
+  // Banner display config: how tall it is, where the image sits vertically
+  // (0 = show the top, 100 = show the bottom), and which pages it shows on.
+  const [systemBannerHeight, setSystemBannerHeight] = useState(150);
+  const [systemBannerPosition, setSystemBannerPosition] = useState(50);
+  const [systemBannerScope, setSystemBannerScope] = useState("home");
   // Alter count is hidden by default — the raw number can feel clinical or
   // invasive depending on how the user relates to their system. The reveal
   // toggle is local-only (intentionally not persisted) so each visit starts
@@ -182,10 +186,16 @@ export default function Settings() {
 
   React.useEffect(() => {
     if (settings?.system_name) setSystemName(settings.system_name);
-    if (settings?.system_description !== undefined) setSystemDescription(settings.system_description || "");
     if (settings?.system_avatar_url !== undefined) setSystemAvatarUrl(settings.system_avatar_url || "");
     if (settings?.system_banner_url !== undefined) setSystemBannerUrl(settings.system_banner_url || "");
-    if (settings?.system_bio !== undefined) setSystemBio(settings.system_bio || "");
+    // Bio is the single source now — fall back to the old plain description
+    // so existing systems keep their text (it gets merged on next save).
+    if (settings?.system_bio || settings?.system_description) {
+      setSystemBio(settings.system_bio || settings.system_description || "");
+    }
+    if (typeof settings?.system_banner_height === "number") setSystemBannerHeight(settings.system_banner_height);
+    if (typeof settings?.system_banner_position === "number") setSystemBannerPosition(settings.system_banner_position);
+    if (settings?.system_banner_scope) setSystemBannerScope(settings.system_banner_scope);
   }, [settings]);
 
   // Upload + compress a new system-wide avatar. Mirrors the alter
@@ -260,12 +270,19 @@ export default function Settings() {
 
   const handleSaveName = async () => {
     setSaving(true);
+    // The bio is now the single source of truth. Keep system_description in
+    // sync as a plain-text derivative so heuristics that read it (e.g. the
+    // friends identity resolver) stay current.
+    const bioPlain = (systemBio || "").replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
     const data = {
       system_name: systemName,
-      system_description: systemDescription,
+      system_description: bioPlain,
       system_avatar_url: systemAvatarUrl || null,
       system_banner_url: systemBannerUrl || null,
       system_bio: systemBio || "",
+      system_banner_height: systemBannerHeight,
+      system_banner_position: systemBannerPosition,
+      system_banner_scope: systemBannerScope,
     };
     try {
       if (settings?.id) {
@@ -442,11 +459,16 @@ export default function Settings() {
             <div>
               <Label className="text-sm font-medium">{terms.System} Banner</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                A wide header image shown at the top of your {terms.alter} directory.
+                A wide image shown edge-to-edge behind the top of your pages.
               </p>
-              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted aspect-[3/1] flex items-center justify-center">
+              {/* Preview box is exactly as tall as the configured banner, so
+                  dragging the height slider visually shows how far it extends. */}
+              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center transition-[height] relative" style={{ height: systemBannerUrl ? systemBannerHeight : 96 }}>
                 {resolvedSysBanner ? (
-                  <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" />
+                  <>
+                    <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                    <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
+                  </>
                 ) : (
                   <span className="text-xs text-muted-foreground">No banner yet</span>
                 )}
@@ -473,6 +495,54 @@ export default function Settings() {
                 onChange={e => setSystemBannerUrl(e.target.value)}
                 className="mt-2 text-xs"
               />
+              {systemBannerUrl && (
+                <div className="mt-3 space-y-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Banner height</Label>
+                      <span className="text-xs text-muted-foreground">{systemBannerHeight}px</span>
+                    </div>
+                    <input type="range" min={80} max={360} step={10} value={systemBannerHeight}
+                      onChange={e => setSystemBannerHeight(Number(e.target.value))}
+                      className="w-full mt-1 accent-primary" />
+                    <p className="text-[0.625rem] text-muted-foreground">How far down the banner extends.</p>
+                  </div>
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <Label className="text-xs font-medium">Image position</Label>
+                      <span className="text-xs text-muted-foreground">
+                        {systemBannerPosition <= 33 ? "Top" : systemBannerPosition >= 67 ? "Bottom" : "Center"}
+                      </span>
+                    </div>
+                    <input type="range" min={0} max={100} step={5} value={systemBannerPosition}
+                      onChange={e => setSystemBannerPosition(Number(e.target.value))}
+                      className="w-full mt-1 accent-primary" />
+                    <p className="text-[0.625rem] text-muted-foreground">Which part of the image shows (top ↔ bottom).</p>
+                  </div>
+                  <div>
+                    <Label className="text-xs font-medium">Show banner on</Label>
+                    <div className="mt-1 flex flex-wrap gap-1.5">
+                      {[
+                        { id: "home", label: "Home pages" },
+                        { id: "all", label: "All pages" },
+                        { id: "off", label: "Off" },
+                      ].map((opt) => (
+                        <button key={opt.id} type="button" onClick={() => setSystemBannerScope(opt.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                            systemBannerScope === opt.id
+                              ? "bg-primary/10 border-primary/40 text-primary"
+                              : "border-border/50 text-muted-foreground hover:text-foreground"
+                          }`}>
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                    <p className="text-[0.625rem] text-muted-foreground mt-1">
+                      "Home pages" = your dashboard and {terms.alters} directory.
+                    </p>
+                  </div>
+                </div>
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
@@ -480,15 +550,9 @@ export default function Settings() {
                 onChange={e => setSystemName(e.target.value)} className="mt-2" />
             </div>
             <div>
-              <Label className="text-sm font-medium">{terms.System} Description</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">A short tagline shown under your {terms.system} name.</p>
-              <Textarea placeholder={`Describe your ${terms.system}...`} value={systemDescription}
-                onChange={e => setSystemDescription(e.target.value)} className="mt-2 min-h-[80px]" />
-            </div>
-            <div>
               <Label className="text-sm font-medium">{terms.System} Bio</Label>
               <p className="text-xs text-muted-foreground mt-0.5">
-                A longer, formatted bio — shown under the banner on your {terms.alter} directory.
+                Your {terms.system}'s bio — a tagline or a longer, formatted write-up. Shown on your {terms.alter} directory.
               </p>
               <div className="mt-2">
                 <BioEditor value={systemBio} onChange={setSystemBio} />

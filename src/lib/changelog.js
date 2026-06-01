@@ -17,6 +17,34 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "The Activity Tracker no longer paints over your system banner — it now shows behind the top of the page like everywhere else.",
+      },
+      {
+        type: "improve",
+        text: "The banner height slider now previews the real height as you drag it.",
+      },
+      {
+        type: "improve",
+        text: "Your system banner now shows edge-to-edge behind the top of your pages, with controls for its height, image position, and which pages it appears on (Settings → System Profile).",
+      },
+      {
+        type: "improve",
+        text: "Merged the separate system description into the system bio — now just one place to write about your system.",
+      },
+      {
+        type: "fix",
+        text: "Activity tracker week view: the hour labels now line up with the top of each row (where the hour begins) instead of the middle.",
+      },
+      {
+        type: "improve",
+        text: "Bulletin board \"Plan something…\" is now a single line that expands when you tap it, with a Quick-plan toggle — and it now properly creates the plan in your Activity Tracker.",
+      },
+      {
+        type: "fix",
+        text: "Fixed editing a profile bio template: typing into a template field in the Simple editor now saves instead of being silently discarded.",
+      },
+      {
+        type: "fix",
         text: "Activity tracker day view: the hour labels now sit at the top of each hour's cell (where the hour begins) instead of floating in the middle.",
       },
       {

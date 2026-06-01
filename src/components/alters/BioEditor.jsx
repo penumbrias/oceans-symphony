@@ -223,14 +223,20 @@ export default function BioEditor({ value, onChange }) {
   }, [handleChange]);
 
   const handleBlockChange = useCallback((id, patch) => {
+    // IMPORTANT: operate on the SAME previewBlocks array that SimplePreview
+    // was rendered from. htmlToBlocks() assigns a fresh random id on every
+    // call, so re-parsing currentHTML here would produce blocks whose ids
+    // no longer match the `id` captured when the field was clicked — the
+    // .map/.filter would then match nothing and the edit would be silently
+    // dropped (the "I type into a template field but it doesn't save" bug).
     if (patch.__remove) {
-      const blocks = htmlToBlocks(currentHTML).filter(b => b.id !== id);
+      const blocks = previewBlocks.filter(b => b.id !== id);
       handleChange(blocksToHTML(blocks.length ? blocks : []));
     } else {
-      const updated = htmlToBlocks(currentHTML).map(b => b.id === id ? { ...b, ...patch } : b);
+      const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
       handleChange(blocksToHTML(updated));
     }
-  }, [currentHTML, handleChange]);
+  }, [previewBlocks, handleChange]);
 
   const canUndo = historyRef.current.index > 0;
   const hasChanges = currentHTML !== originalValue.current;

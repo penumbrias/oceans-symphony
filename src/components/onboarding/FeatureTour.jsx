@@ -155,7 +155,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "🪪",
       title: `Your ${t.System}'s Profile`,
-      body: `The top of the ${t.alters} page is your ${t.system}'s own profile — give it a banner image, avatar, name, a short tagline, and a longer formatted bio in Settings → Profile. Tap "About this ${t.system}" to expand the bio.`,
+      body: `The top of the ${t.alters} page is your ${t.system}'s own profile — set a name, avatar, formatted bio, and a banner image in Settings → ${t.System} Profile. The banner shows edge-to-edge behind your pages (you choose its height, position, and which pages it appears on). Tap "About this ${t.system}" to expand the bio.`,
       route: "/Home", target: "system-profile",
       look: `the highlighted header at the top of the ${t.alters} page`, action: null,
     },
@@ -407,6 +407,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
 
     // ─── BULLETIN BOARD ─────────────────────────────────────────────────────
+    {
+      section: "bulletin", sectionLabel: "Bulletin Board",
+      emoji: "🗓️",
+      title: "Quick Plan",
+      body: `Above the board, "Plan something…" is a quick way to schedule a plan without opening the Activity Tracker. Tap it and it expands: keep it a Quick plan (no set time, shown as a pill on the day) or flip the toggle off to give it a start time and length — then optionally add a date, category, who it's for, or a note. Saving creates the matching plan in your Activity Tracker.`,
+      route: "/", target: "quick-plan",
+      look: `the highlighted "Plan something…" box just above the bulletin board`, action: null,
+    },
     {
       section: "bulletin", sectionLabel: "Bulletin Board",
       emoji: "📋",

@@ -9,6 +9,7 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
+import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
 import SidebarNav from "@/components/layout/SidebarNav";
@@ -156,6 +157,20 @@ const { data: mentionLogs = [] } = useQuery({
 const navConfig = useMemo(() => {
   return systemSettings?.[0]?.navigation_config || DEFAULT_CONFIG;
 }, [systemSettings]);
+
+// System banner — a full-bleed image behind the top of the page on the
+// pages the user picked. Scope: "home" (Dashboard + alters directory),
+// "all", or "off" (default home). Height + image vertical position are
+// configurable in Settings → System Profile.
+const settings0 = systemSettings?.[0];
+const bannerUrl = settings0?.system_banner_url || "";
+const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
+const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
+const bannerScope = settings0?.system_banner_scope || "home";
+const bannerVisible =
+  !!bannerUrl &&
+  bannerScope !== "off" &&
+  (bannerScope === "all" || location.pathname === "/" || location.pathname === "/Home");
 
 const termMap = useMemo(() => ({
   alters:           terms.Alters,
@@ -583,14 +598,24 @@ const handleNotifClick = (mentionLog) => {
           </nav>
         </aside>
 
-        {/* Main content */}
-        <main className="app-content-main flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
-          {!showFeatureTour && !pageScopedTourRoute && (
-            <PageTutorialBanner
-              onLaunch={(route) => setPageScopedTourRoute(route)}
-            />
+        {/* Main content. `relative` so the SystemBanner can anchor
+            edge-to-edge at the top and sit BEHIND the content (z-0 vs the
+            content wrapper's z-10). Horizontal/desktop-vertical padding
+            moved onto the inner wrapper so the banner is truly full-bleed;
+            the mobile bottom-nav clearance stays on <main> via the
+            .app-content-main rule (it's the scroll container). */}
+        <main className="app-content-main relative flex-1 min-w-0 py-0 overflow-auto">
+          {bannerVisible && (
+            <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
-          <Outlet context={{ setShowFeatureTour }} />
+          <div className="relative z-10 px-4 lg:px-6 lg:py-8">
+            {!showFeatureTour && !pageScopedTourRoute && (
+              <PageTutorialBanner
+                onLaunch={(route) => setPageScopedTourRoute(route)}
+              />
+            )}
+            <Outlet context={{ setShowFeatureTour }} />
+          </div>
         </main>
 
       </div>
