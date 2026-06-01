@@ -461,6 +461,7 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
 }
 
 export default function BulletinCommentThread({ comments, bulletinId, alters, currentAlterId, frontingAlterIds, onRefresh, maxDepth = 2, isFullPage = false, highlightedCommentId = null }) {
+  const qc = useQueryClient();
   const [sortOrder, setSortOrder] = useState("oldest");
   const [pendingDeletes, setPendingDeletes] = useState({});
   const [deleteTapCounts, setDeleteTapCounts] = useState({});

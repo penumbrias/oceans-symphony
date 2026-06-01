@@ -62,7 +62,7 @@ export default function MentionAlertBanner({ bulletins, currentAlterId, alters, 
           </p>
           <p className="text-xs text-muted-foreground mt-0.5">
             {unread.length} bulletin{unread.length > 1 ? "s" : ""} mentioned you while you were away.
-            {unread[0] && (
+            {unread[0]?.content && (
               <span className="block mt-1 italic text-foreground/70 truncate">
                 "{unread[0].content.slice(0, 60)}{unread[0].content.length > 60 ? "…" : ""}"
               </span>

@@ -68,8 +68,10 @@ export function installExtraFonts() {
     };
     link.addEventListener("load", () => done(true), { once: true });
     link.addEventListener("error", () => done(false), { once: true });
-    // Safety net: don't hang forever if neither event fires.
-    setTimeout(() => done(true), 8000);
+    // Safety net: if neither event fires within 8s, treat it as a SUCCESS
+    // only if the stylesheet actually parsed (link.sheet is set); otherwise
+    // fail so the UI doesn't claim "downloaded" while offline/blocked.
+    setTimeout(() => done(!!link.sheet), 8000);
   });
 }
 

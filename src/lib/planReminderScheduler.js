@@ -103,9 +103,10 @@ function nativeIdFor(activityId, fireMs) {
   // Offset by a fixed prefix so our ids never collide with the user-
   // reminder scheduler's. (Both schedulers hash into int31, and a
   // collision would let one cancel the other.)
-  const positive = Math.abs(h) % 1_000_000_000;
-  // 1_500_000_000 + n keeps us above the reminder scheduler's natural
-  // range (max ≈ 2e9 modulo there) while staying inside int32.
+  // Plan scheduler owns [1.5e9, 2.1e9): disjoint from the reminder
+  // scheduler's [1, 1e9), and capped under int32 max (2,147,483,647) so the
+  // OS scheduler never receives an overflowed/negative id.
+  const positive = Math.abs(h) % 600_000_000;
   return 1_500_000_000 + positive;
 }
 

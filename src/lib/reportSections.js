@@ -185,7 +185,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
       date: fmtDateTime(c.timestamp || c.created_date),
       emotions: (c.emotions || []).join(", "),
       note: c.note || "",
-      who: alterName(c.fronting_alter_id, alters, includeAlterInfo),
+      who: alterName(c.alter_id || c.fronting_alter_id, alters, includeAlterInfo),
       label: "Crisis check-in",
     }));
 
@@ -193,7 +193,7 @@ export function buildEmotionSection({ dateFrom, dateTo, emotionCheckIns, alters,
     date: fmtDateTime(c.timestamp || c.created_date),
     emotions: (c.emotions || []).join(", "),
     note: c.note || "",
-    who: includeAlterInfo ? alterName(c.fronting_alter_id, alters, includeAlterInfo) : null,
+    who: includeAlterInfo ? alterName(c.alter_id || c.fronting_alter_id, alters, includeAlterInfo) : null,
   }));
 
   return { topEmotions, checkInList, noteworthy, totalCheckIns: checkins.length };
@@ -573,25 +573,32 @@ export function buildLocationsSection({ dateFrom, dateTo, locations = [] }) {
 // ── SECTION: SLEEP LOG ────────────────────────────────────────────────────────
 
 export function buildSleepSection({ dateFrom, dateTo, sleepLogs = [] }) {
+  // The Sleep entity uses start_time / end_time (old code looked for
+  // date / bedtime / wake_time, which don't exist — leaving the section
+  // empty/blank). Keep the legacy names as fallbacks just in case.
+  const startOf = (s) => s.start_time || s.bedtime || s.date || s.created_date;
+  const endOf = (s) => s.end_time || s.wake_time;
   const logs = sleepLogs
-    .filter(s => inRange(s.date || s.created_date, dateFrom, dateTo))
-    .sort((a, b) => new Date(a.date || a.created_date) - new Date(b.date || b.created_date));
+    .filter(s => inRange(startOf(s), dateFrom, dateTo))
+    .sort((a, b) => new Date(startOf(a)) - new Date(startOf(b)));
 
   if (logs.length === 0) return { logs: [], stats: null };
 
   const withDuration = logs.map(s => {
+    const start = startOf(s);
+    const end = endOf(s);
     let durationHours = null;
-    if (s.bedtime && s.wake_time) {
-      const diff = new Date(s.wake_time) - new Date(s.bedtime);
+    if (start && end) {
+      const diff = new Date(end) - new Date(start);
       if (diff > 0) durationHours = diff / 3600000;
     }
     const durStr = durationHours != null
       ? `${Math.floor(durationHours)}h ${Math.round((durationHours % 1) * 60)}m`
       : null;
     return {
-      date: fmtDate(s.date || s.created_date),
-      bedtime: s.bedtime ? format(new Date(s.bedtime), "h:mm a") : null,
-      wakeTime: s.wake_time ? format(new Date(s.wake_time), "h:mm a") : null,
+      date: fmtDate(start),
+      bedtime: start ? format(new Date(start), "h:mm a") : null,
+      wakeTime: end ? format(new Date(end), "h:mm a") : null,
       duration: durStr,
       quality: s.quality != null ? s.quality : null,
       isInterrupted: !!s.is_interrupted,

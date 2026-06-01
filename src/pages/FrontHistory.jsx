@@ -6,6 +6,7 @@ import { format, intervalToDuration } from "date-fns";
 import { Star, User, Clock } from "lucide-react";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import { subDays, startOfDay, endOfDay } from "date-fns";
+import { parseSessionNote } from "@/lib/perAlterSessionEntries";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -100,12 +101,17 @@ function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
         {durationLabel(session.start_time, session.end_time)}
       </p>
 
-      {/* Custom status note on hover */}
-      {session.note && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[0.625rem] text-foreground whitespace-nowrap shadow-lg z-10">
-          {session.note}
-        </div>
-      )}
+      {/* Notes on hover. `note` is a JSON-stringified [{text,timestamp}]
+          array — parse it (never render the raw JSON) and join the texts. */}
+      {(() => {
+        const noteText = parseSessionNote(session.note).map((n) => n?.text).filter(Boolean).join(" · ");
+        if (!noteText) return null;
+        return (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[0.625rem] text-foreground max-w-[14rem] whitespace-pre-wrap shadow-lg z-10">
+            {noteText}
+          </div>
+        );
+      })()}
     </div>
   );
 }

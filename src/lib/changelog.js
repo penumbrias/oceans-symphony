@@ -17,6 +17,30 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Deleting a bulletin comment no longer fails behind the scenes (it was throwing an error and not refreshing).",
+      },
+      {
+        type: "fix",
+        text: "Therapy report: the emotion check-in \"who\" column and the Sleep section now fill in correctly instead of coming up blank.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin Board and To-Do List are now listed in the side menu.",
+      },
+      {
+        type: "fix",
+        text: "Your system banner no longer gets covered up on the Groups manager and Privacy pages.",
+      },
+      {
+        type: "fix",
+        text: "Front history: hovering a session shows its note text instead of raw code, and downloading the extra fonts now reports failure correctly when you're offline.",
+      },
+      {
+        type: "hotfix",
+        text: "Deleted chat messages no longer show up in search; separated reminder/plan notification id ranges; corrected the encryption detail in the privacy notice.",
+      },
+      {
+        type: "fix",
         text: "PluralKit import no longer duplicates alters that came from Simply Plural — it now matches existing alters by name and links them to PluralKit, so re-imports update them in place. (Existing duplicates can still be merged via System History.)",
       },
       {
