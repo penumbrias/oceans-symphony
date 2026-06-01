@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import { isSurfaceEnabled } from "@/lib/upcomingPlansSurfaces";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import {
   getActiveLimit,
   getLimitMode,
@@ -104,6 +105,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   } else if (limitConfig.mode === MODE_WINDOW) {
     const cutoff = Date.now() + limitConfig.windowMs;
     prefilteredActivities = visibleActivities.filter(a => {
+      if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
       const ts = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
       return ts > 0 && ts <= cutoff;
     });
@@ -115,7 +117,12 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   // Compose the list — but only render the wrapper if there's at least one
   // upcoming item, so empty surfaces stay hidden.
   const now = Date.now();
+  // Only count still-SCHEDULED future plans, matching what
+  // PlannedActivitiesList actually renders — otherwise a future plan
+  // already marked done/skipped/cancelled would show the header with an
+  // empty list under it (and eat window-mode slots).
   const upcomingCount = prefilteredActivities.filter(a => {
+    if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
     const ts = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     return ts > now;
   }).length;

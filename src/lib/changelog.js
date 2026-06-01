@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Weekly goal progress now counts only this week's activities that actually happened (scheduled/skipped/cancelled plans no longer inflate it).",
+      },
+      {
+        type: "fix",
+        text: "\"Upcoming plans\" no longer shows an empty header for plans you've already marked done/skipped, and a same-day quick plan stays \"scheduled\" all day instead of flipping to logged late at night.",
+      },
+      {
+        type: "fix",
         text: "@mentions no longer fire for the wrong alter — mentioning \"@Sam\" no longer also pings \"Samantha\" (and vice-versa).",
       },
       {

@@ -9,6 +9,7 @@ import { Plus, Trash2, Loader2, Pencil, Activity as ActivityIcon, Zap } from "lu
 import CircularProgressBar from "@/components/activities/CircularProgressBar";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format, startOfWeek, endOfWeek } from "date-fns";
+import { countableMinutes } from "@/lib/activityStatus";
 
 export default function ActivityGoalsPanel({ weekStart }) {
   const qc = useQueryClient();
@@ -87,10 +88,17 @@ export default function ActivityGoalsPanel({ weekStart }) {
         }, 0);
         return { ...goal, currentMinutes: totalMinutes };
       }
-      const goalActivities = activities.filter((a) =>
-        (a.activity_category_ids || []).includes(goal.activity_category_id)
-      );
-      const totalMinutes = goalActivities.reduce((sum, a) => sum + (a.duration_minutes || 0), 0);
+      // Weekly target → only count THIS week's activities, and only ones
+      // that actually happened (logged/done/partial). Scheduled, skipped
+      // and cancelled contribute 0; partial uses actual_duration_minutes.
+      // (Previously this summed duration_minutes for every matching row in
+      // all of history, regardless of status — wildly inflating progress.)
+      const goalActivities = activities.filter((a) => {
+        if (!(a.activity_category_ids || []).includes(goal.activity_category_id)) return false;
+        const ts = a.timestamp ? new Date(a.timestamp) : null;
+        return ts && ts >= weekStartDate && ts <= weekEndDate;
+      });
+      const totalMinutes = goalActivities.reduce((sum, a) => sum + countableMinutes(a), 0);
       return { ...goal, currentMinutes: totalMinutes };
     });
   }, [goals, activities, symptomSessions, weekStartDate, weekEndDate]);
