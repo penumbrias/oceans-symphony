@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "System banner no longer overflows the screen width (it was causing the whole app to scroll sideways).",
+      },
+      {
+        type: "fix",
         text: "System Chat: the message box and formatting bar no longer get pushed off the bottom of the screen as messages pile up.",
       },
       {

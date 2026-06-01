@@ -606,7 +606,7 @@ const handleNotifClick = (mentionLog) => {
             BEHIND content via a negative z-index inside main's `isolate`
             stacking context (and negative insets to reach edge-to-edge past
             the padding), so no content wrapper is needed. */}
-        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-auto">
+        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
