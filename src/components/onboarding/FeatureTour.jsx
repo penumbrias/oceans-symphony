@@ -155,7 +155,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "🪪",
       title: `Your ${t.System}'s Profile`,
-      body: `The top of the ${t.alters} page is your ${t.system}'s own profile — give it a banner image, avatar, name, a short tagline, and a longer formatted bio in Settings → Profile. Tap "About this ${t.system}" to expand the bio.`,
+      body: `The top of the ${t.alters} page is your ${t.system}'s own profile — set a name, avatar, formatted bio, and a banner image in Settings → ${t.System} Profile. The banner shows edge-to-edge behind your pages (you choose its height, position, and which pages it appears on). Tap "About this ${t.system}" to expand the bio.`,
       route: "/Home", target: "system-profile",
       look: `the highlighted header at the top of the ${t.alters} page`, action: null,
     },

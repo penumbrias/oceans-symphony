@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "May 31, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Your system banner now shows edge-to-edge behind the top of your pages, with controls for its height, image position, and which pages it appears on (Settings → System Profile).",
+      },
+      {
+        type: "improve",
+        text: "Merged the separate system description into the system bio — now just one place to write about your system.",
+      },
+      {
         type: "fix",
         text: "Activity tracker week view: the hour labels now line up with the top of each row (where the hour begins) instead of the middle.",
       },
