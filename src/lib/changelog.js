@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Editing a repeating plan's whole series no longer forces one occurrence's done/scheduled state onto the others — each keeps the status that fits its own date.",
+      },
+      {
+        type: "hotfix",
+        text: "Internal hardening: safer encryption-password changes, an image-block parsing fix, and grounding-preference import de-duplication.",
+      },
+      {
+        type: "fix",
         text: "Front/primary pop-up messages and buttons now use your custom terms (e.g. \"headmate\" instead of \"fronter\") instead of the hardcoded defaults.",
       },
       {

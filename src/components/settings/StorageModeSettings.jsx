@@ -82,12 +82,29 @@ export default function StorageModeSettings() {
     if (newPassword.length < 6) { setError("Password must be at least 6 characters."); return; }
     setLoading(true);
     try {
-      await disableEncryption(oldPassword);
-      await enableEncryption(newPassword);
+      // Step 1 — decrypt with the old password. A wrong password throws here
+      // BEFORE any data is rewritten (initLocalDb refuses to clear the key),
+      // so the data stays safely encrypted.
+      try {
+        await disableEncryption(oldPassword);
+      } catch {
+        setError("Incorrect current password.");
+        return;
+      }
+      // Step 2 — the data is now plaintext on disk; re-encrypt with the new
+      // password. If THIS fails (rare), don't pretend it's still encrypted —
+      // reflect that it's currently unencrypted so the user can re-enable.
+      try {
+        await enableEncryption(newPassword);
+      } catch {
+        setEncryptionEnabled(false);
+        setError("Couldn't set the new password — your data is currently UNENCRYPTED. Re-enable encryption from Data Storage to protect it again.");
+        return;
+      }
       setSuccess("Password changed successfully.");
       setShowPasswordForm(null);
       setOldPassword(""); setNewPassword(""); setConfirmPassword("");
-    } catch { setError("Incorrect current password."); } finally { setLoading(false); }
+    } finally { setLoading(false); }
   };
 
   const resetForm = () => {

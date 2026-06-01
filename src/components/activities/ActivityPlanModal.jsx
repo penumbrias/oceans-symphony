@@ -379,13 +379,28 @@ export default function ActivityPlanModal({
           // call (audit trail confusion). Just mutate this pivot's
           // timestamp + reschedule history; siblings keep their times.
           const members = membersForBranch(allActivities || [], editingPlan, branch);
-          // Edit applied to siblings excludes the time/reschedule fields.
-          const siblingEdits = {
-            ...editsCommon,
-            status: nextStatus,
-          };
+          // Non-time-dependent edits apply uniformly; the time-dependent
+          // fields (is_planned / assigned_alter_ids / status) are recomputed
+          // PER SIBLING from its own timestamp — otherwise the edited
+          // occurrence's planned/logged state would be forced onto siblings
+          // whose own dates are in the past (or future). Resolved statuses
+          // (done/partial/skipped/cancelled) on a sibling are preserved.
+          const { is_planned: _ip, assigned_alter_ids: _aa, ...commonNoTime } = editsCommon;
           const siblings = members.filter((m) => m.id !== editingPlan.id);
-          await applyEditToSeries(siblings, siblingEdits);
+          await applyEditToSeries(siblings, (m) => {
+            const sibTs = m.timestamp ? new Date(m.timestamp).getTime() : 0;
+            const sibPlanned = sibTs > Date.now();
+            let sibStatus = m.status;
+            if (!sibStatus || sibStatus === ACTIVITY_STATUSES.SCHEDULED || sibStatus === ACTIVITY_STATUSES.LOGGED) {
+              sibStatus = sibPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED;
+            }
+            return {
+              ...commonNoTime,
+              is_planned: sibPlanned,
+              assigned_alter_ids: sibPlanned ? selectedAlters : [],
+              status: sibStatus,
+            };
+          });
           // Pivot gets time + reschedule.
           await base44.entities.Activity.update(editingPlan.id, {
             ...editsCommon,

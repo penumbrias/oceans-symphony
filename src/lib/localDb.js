@@ -597,6 +597,31 @@ export async function mergeDbDump(dump) {
       // No local templates yet — fall through to the regular add path.
     }
 
+    if (entityName === "GroundingPreference") {
+      // One preference per technique_id. A same-device backup carries the
+      // same prefs under different ids, so the plain id-skip merge would let
+      // two rows for one technique coexist — the per-technique read map then
+      // silently picks one, hiding the other's rating/notes/favorite.
+      // Dedupe by technique_id when local prefs exist; local row wins.
+      const localIds = Object.keys(_db[entityName]);
+      if (localIds.length > 0) {
+        const seen = new Set();
+        for (const local of Object.values(_db[entityName])) {
+          if (local?.technique_id) seen.add(String(local.technique_id));
+        }
+        for (const [id, record] of Object.entries(records)) {
+          if (!record || typeof record !== "object") continue;
+          if (_db[entityName][id]) continue;
+          const key = record.technique_id ? String(record.technique_id) : null;
+          if (key && seen.has(key)) continue;
+          _db[entityName][id] = record;
+          if (key) seen.add(key);
+        }
+        continue;
+      }
+      // No local prefs yet — fall through to the regular add path.
+    }
+
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
         _db[entityName][id] = record;
