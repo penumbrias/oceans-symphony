@@ -308,6 +308,9 @@ export default function Chat() {
   const [editingCategory, setEditingCategory] = useState(null);
   const [showChannels, setShowChannels] = useState(true);
   const [editMode, setEditMode] = useState(false);
+  // Private channels the user has chosen to "view anyway" this session
+  // (granted access even though no member is currently fronting).
+  const [revealedPrivate, setRevealedPrivate] = useState(() => new Set());
 
   // Default author for the composer: primary fronter, else first
   // active fronter, else first alter. User can pick another (or
@@ -326,6 +329,33 @@ export default function Chat() {
       || activeFront.find((s) => s.primary_alter_id)?.primary_alter_id;
     return primary || activeFronterIds[0] || alters[0]?.id || null;
   }, [activeFront, activeFronterIds, alters]);
+
+  // ── Private-channel access gate ──────────────────────────────────────────
+  // A private channel is visible (name shown, opens freely) when one of its
+  // members is currently fronting, OR the user already chose "view anyway"
+  // this session. Otherwise its name is censored in the sidebar and opening
+  // it asks for confirmation first — a privacy safeguard for systems sharing
+  // a device (e.g. keeping an adult channel out of a little's view).
+  const frontSet = useMemo(() => new Set(activeFronterIds), [activeFronterIds]);
+  const privateUnlocked = (c) => (c.member_alter_ids || []).some((id) => frontSet.has(id));
+  const privateVisible = (c) => !c?.is_private || privateUnlocked(c) || revealedPrivate.has(c.id);
+  const privateMemberNames = (c) => (c.member_alter_ids || [])
+    .map((id) => { const a = alters.find((x) => x.id === id); return a ? (a.alias || a.name) : null; })
+    .filter(Boolean).join(", ");
+  const revealPrivate = (c) => setRevealedPrivate((prev) => new Set(prev).add(c.id));
+  const openPrivate = (c) => {
+    if (privateVisible(c)) {
+      setSearchParams({ channel: c.id }, { replace: true });
+      setShowChannels(false);
+      return;
+    }
+    const who = privateMemberNames(c) || `specific ${terms.alters || "alters"}`;
+    if (window.confirm(`This channel is private to ${who}. View anyway?`)) {
+      revealPrivate(c);
+      setSearchParams({ channel: c.id }, { replace: true });
+      setShowChannels(false);
+    }
+  };
 
   return (
     // Fill the scroll container exactly — `.app-content-main` already
@@ -420,35 +450,44 @@ export default function Chat() {
                   <Lock className="w-3 h-3" /> Direct Messages
                 </div>
                 <ul>
-                  {privateChannels.map((c) => (
-                    <li key={c.id}>
-                      <div
-                        className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
-                          activeChannel?.id === c.id
-                            ? "bg-primary/15 text-foreground"
-                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
-                          onContextMenu={(e) => { e.preventDefault(); setEditingChannel(c); }}
-                          className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
+                  {privateChannels.map((c) => {
+                    const visible = privateVisible(c);
+                    return (
+                      <li key={c.id}>
+                        <div
+                          className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
+                            activeChannel?.id === c.id
+                              ? "bg-primary/15 text-foreground"
+                              : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                          }`}
                         >
-                          <Lock className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span className="truncate flex-1">{c.name}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingChannel(c)}
-                          aria-label={`Edit ${c.name}`}
-                          className="p-0.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </li>
-                  ))}
+                          <button
+                            type="button"
+                            onClick={() => openPrivate(c)}
+                            onContextMenu={(e) => { e.preventDefault(); if (visible) setEditingChannel(c); }}
+                            className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
+                          >
+                            <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                            {visible ? (
+                              <span className="truncate flex-1">{c.name}</span>
+                            ) : (
+                              <span className="truncate flex-1 italic select-none text-muted-foreground/70" style={{ filter: "blur(4px)" }} aria-label="Private channel — hidden">{c.name || "Private"}</span>
+                            )}
+                          </button>
+                          {visible && (
+                            <button
+                              type="button"
+                              onClick={() => setEditingChannel(c)}
+                              aria-label={`Edit ${c.name}`}
+                              className="p-0.5 text-muted-foreground hover:text-foreground"
+                            >
+                              <Pencil className="w-3 h-3" />
+                            </button>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
                 </ul>
               </div>
             )}
@@ -460,7 +499,22 @@ export default function Chat() {
 
         {/* Active channel */}
         <section className={`${showChannels ? "hidden" : "flex"} lg:flex flex-1 min-w-0 flex-col`}>
-          {activeChannel ? (
+          {!activeChannel ? (
+            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground italic px-6 text-center">
+              Create a channel from the panel on the left to start chatting.
+            </div>
+          ) : (activeChannel.is_private && !privateVisible(activeChannel)) ? (
+            <div className="flex-1 flex flex-col items-center justify-center text-center px-6 gap-3">
+              <div className="w-12 h-12 rounded-full bg-muted/40 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-muted-foreground" />
+              </div>
+              <p className="text-sm font-medium">This channel is private to {privateMemberNames(activeChannel) || `specific ${terms.alters || "alters"}`}.</p>
+              <p className="text-xs text-muted-foreground max-w-xs">
+                It's hidden because none of those {terms.alters || "alters"} are currently {terms.fronting || "fronting"}.
+              </p>
+              <Button size="sm" onClick={() => revealPrivate(activeChannel)}>View anyway</Button>
+            </div>
+          ) : (
             <ChannelView
               channel={activeChannel}
               alters={alters}
@@ -477,10 +531,6 @@ export default function Chat() {
                 setSearchParams(next, { replace: true });
               }}
             />
-          ) : (
-            <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground italic px-6 text-center">
-              Create a channel from the panel on the left to start chatting.
-            </div>
           )}
         </section>
       </div>

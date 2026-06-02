@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Private chat channels now double as a privacy safeguard: when none of their alters are fronting, the channel name is hidden in the sidebar and opening it asks \"this channel is private to X — view anyway?\". When a member is fronting it's fully open with no prompt.",
+      },
+      {
         type: "fix",
         text: "The \"Who's fronting?\" picker in Quick Check-In now has the same swipe gestures as the Set Fronters modal — tap to toggle, swipe-left (or hold) for primary, swipe-left-then-up to solo.",
       },
