@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The bulletin Quick task's activity picker is now a nested, expandable list that keeps your category folders — the same as the Quick Check-In.",
+      },
+      {
+        type: "improve",
+        text: "Tidied the bulletin Quick task: Due date and Scheduled now share one pill, and Pin-to-dashboard + Mark-urgent moved inside the Priority pill.",
+      },
+      {
         type: "fix",
         text: "Activity day view no longer repeats your check-in emotions under every activity (and on every hour a long activity spans) — they now appear once, at the time you logged them.",
       },
