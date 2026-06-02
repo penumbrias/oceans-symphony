@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity day view no longer repeats your check-in emotions under every activity (and on every hour a long activity spans) — they now appear once, at the time you logged them.",
+      },
+      {
+        type: "improve",
+        text: "You can now choose how long \"infer presence from authored content\" counts around each post (30 minutes up to 6 hours) in Settings → Appearance.",
+      },
+      {
+        type: "fix",
         text: "Custom fields on the Profile tab now show their rich text (colours, links, etc.) correctly instead of raw code.",
       },
       {

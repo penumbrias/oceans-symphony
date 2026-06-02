@@ -456,7 +456,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
-        emotions: selectedEmotions,
+        // Emotions are NOT copied onto the activity — they live on the
+        // EmotionCheckIn this same save creates (the source of truth). Stamping
+        // them here duplicated them onto every activity and made them appear to
+        // "extend" when an activity was lengthened. The day view reads emotions
+        // from the check-in, not the activity.
         notes: activityNote.trim() || null,
       });
     }

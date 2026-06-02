@@ -40,7 +40,7 @@ import BioEditor from "@/components/alters/BioEditor";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
-import { getInferPresenceEnabled, setInferPresenceEnabled } from "@/lib/inferredPresence";
+import { getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindowMinutes, setInferPresenceWindowMinutes } from "@/lib/inferredPresence";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
@@ -135,6 +135,7 @@ export default function Settings() {
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
   const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
+  const [inferWindow, setInferWindow] = useState(getInferPresenceWindowMinutes);
 
   // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
   // Profile is anchored at the top because the user said so, then the
@@ -716,10 +717,46 @@ export default function Settings() {
                 <span className="flex-1 min-w-0">
                   <p className="text-sm font-semibold">Infer presence from authored content</p>
                   <p className="text-xs text-muted-foreground leading-snug mt-0.5">
-                    When an {terms.alter} posts a chat message, bulletin, or journal, treat that as them being present for ~2 hours around then — so activities, emotions and symptoms logged nearby get attributed to them even without {terms.fronting} tracking. Turning this off makes analytics use only tracked {terms.fronting} sessions.
+                    When an {terms.alter} posts a chat message, bulletin, or journal, treat that as them being present for a window around then — so activities, emotions and symptoms logged nearby get attributed to them even without {terms.fronting} tracking. Turning this off makes analytics use only tracked {terms.fronting} sessions.
                   </p>
                 </span>
               </label>
+              {inferPresence && (
+                <div className="mt-3 pl-[3.25rem]">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Presence window — how long around each post counts
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { min: 30, label: "30 min" },
+                      { min: 60, label: "1 hour" },
+                      { min: 120, label: "2 hours" },
+                      { min: 180, label: "3 hours" },
+                      { min: 240, label: "4 hours" },
+                      { min: 360, label: "6 hours" },
+                    ].map((opt) => {
+                      const active = inferWindow === opt.min;
+                      return (
+                        <button
+                          key={opt.min}
+                          type="button"
+                          onClick={() => { setInferWindow(opt.min); setInferPresenceWindowMinutes(opt.min); }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            active
+                              ? "border-primary/60 bg-primary/10 text-primary"
+                              : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[0.6875rem] text-muted-foreground/80 mt-1.5 leading-snug">
+                    The window is centered on each post (±{inferWindow >= 60 ? `${(inferWindow / 2 / 60).toLocaleString(undefined, { maximumFractionDigits: 1 })} hour${inferWindow / 2 / 60 === 1 ? "" : "s"}` : `${inferWindow / 2} min`}). Changing it re-shapes analytics immediately.
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </Section>

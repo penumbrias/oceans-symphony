@@ -123,13 +123,15 @@ function AlterAvatar({ alterId, alters }) {
   );
 }
 
-// Tall color block for timed activities
-function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptomsMap }) {
+// Tall color block for timed activities. Emotions are NOT shown here — a
+// check-in's emotions render once per hour-row at the slot level (see below),
+// so they don't get duplicated onto every activity (and onto every hour a
+// long activity spans).
+function ActivityBlock({ activity, getColor, alters, alterIds, symptomsMap }) {
   const color = getColor(activity);
   const status = statusFor(activity);
   const v = visualForStatus(status);
   const needsReview = isPastTimeScheduled(activity);
-  const allEmotions = [...new Set([...(activity.emotions || []), ...emotions])];
   return (
     <div
       className="rounded-lg overflow-hidden relative w-full"
@@ -167,28 +169,19 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
         {activity.notes && (
           <p className="text-white/65 text-xs italic mt-1 leading-snug break-words">{activity.notes}</p>
         )}
-        {allEmotions.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {allEmotions.map((em, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium bg-black/20">
-                {em}
-              </span>
-            ))}
-          </div>
-        )}
         <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
       </div>
     </div>
   );
 }
 
-// Small colored pill for logged (no-duration) activities
-function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [], symptomsMap = {} }) {
+// Small colored pill for logged (no-duration) activities. Like ActivityBlock,
+// emotions are rendered once at the slot level, not per pill.
+function LoggedPill({ activity, getColor, alters = [], slotAlterIds = [], symptomsMap = {} }) {
   const color = getColor(activity);
   const status = statusFor(activity);
   const v = visualForStatus(status);
   const needsReview = isPastTimeScheduled(activity);
-  const emotions = [...new Set([...(activity.emotions || []), ...slotEmotions])];
   const alterIds = [...new Set([...(activity.fronting_alter_ids || []), ...slotAlterIds])];
   return (
     <div className="flex flex-col gap-1">
@@ -222,15 +215,6 @@ function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAl
       </div>
       {activity.notes && (
         <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
-      )}
-      {emotions.length > 0 && (
-        <div className="flex flex-wrap gap-1 pl-1">
-          {emotions.map((em, i) => (
-            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium" style={{ backgroundColor: emotionColor(em) }}>
-              {em}
-            </span>
-          ))}
-        </div>
       )}
       <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
     </div>
@@ -529,14 +513,17 @@ export default function ActivityDayView({
                         activity={a}
                         getColor={getColor}
                         alters={alters}
-                        emotions={emotions}
                         alterIds={alterIds}
                         symptomsMap={symptomsMap}
                       />
                     ))}
                     {logged.map(a => (
-                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
+                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
                     ))}
+                    {/* Emotions logged in this hour (from check-ins) — shown ONCE
+                        per hour-row, not duplicated onto each activity or onto
+                        every hour a long activity spans. */}
+                    <EmotionPills emotions={emotions} />
                     <LocationPills locations={locations} />
                   </div>
                 </div>
