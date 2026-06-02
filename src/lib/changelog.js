@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Profile settings polish: the view-count moved into the Profile header bar, the picture's buttons now wrap neatly under the picture, the banner preview tracks the height slider again, and the bio editor's Plain/Simple/Blocks/Raw switch is now icon-only.",
+      },
+      {
         type: "fix",
         text: "Press-and-hold menus (groups, alters, filters) no longer get cut off at the bottom behind the navigation bar.",
       },

@@ -61,7 +61,7 @@ import {
 // to "just one section's contents".
 const SectionAccordionCtx = React.createContext(null);
 
-function Section({ id, icon: Icon, label, defaultOpen = false, children }) {
+function Section({ id, icon: Icon, label, defaultOpen = false, headerRight = null, children }) {
   const ctx = React.useContext(SectionAccordionCtx);
   const isOpen = ctx
     ? ctx.openId === id
@@ -112,15 +112,19 @@ function Section({ id, icon: Icon, label, defaultOpen = false, children }) {
 
   return (
     <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
-      >
-        {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
-        <span className="flex-1 font-semibold text-sm">{label}</span>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-      </button>
+      {/* Header row. The label and chevron toggle; `headerRight` (e.g. the
+          view-count control) is a sibling so it stays interactive without
+          nesting a button inside a button. */}
+      <div className="w-full flex items-center gap-2 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors">
+        <button type="button" onClick={handleToggle} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
+          <span className="font-semibold text-sm truncate">{label}</span>
+        </button>
+        {headerRight && <div className="flex-shrink-0">{headerRight}</div>}
+        <button type="button" onClick={handleToggle} aria-label={open ? "Collapse" : "Expand"} className="flex-shrink-0 text-muted-foreground">
+          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
       {open && (
         <div className="px-4 py-4 space-y-6 border-t border-border/30">
           {children}
@@ -397,30 +401,22 @@ export default function Settings() {
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── PROFILE ── */}
-        <Section id="system" icon={IdCard} label="Profile">
+        <Section id="system" icon={IdCard} label="Profile" headerRight={
+          showAlterCount ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              {activeCount}{archivedCount > 0 ? ` · ${archivedCount}` : ""}
+              <button type="button" onClick={() => setShowAlterCount(false)}
+                className="text-[0.625rem] text-muted-foreground/70 hover:text-foreground underline underline-offset-2">hide</button>
+            </span>
+          ) : (
+            <button type="button" onClick={() => setShowAlterCount(true)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Users className="w-3.5 h-3.5" /> View {terms.alter} count
+            </button>
+          )
+        }>
           <div className="space-y-4">
-            {/* View count — compact, top-right (the wireframe header slot). */}
-            <div className="flex items-center justify-end -mb-1">
-              {showAlterCount ? (
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                  <Users className="w-3.5 h-3.5" />
-                  {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
-                  {archivedCount > 0 && (
-                    <span className="text-muted-foreground/60">· {archivedCount} archived</span>
-                  )}
-                  <button type="button" onClick={() => setShowAlterCount(false)}
-                    className="text-[0.6875rem] text-muted-foreground/70 hover:text-foreground underline underline-offset-2">
-                    hide
-                  </button>
-                </div>
-              ) : (
-                <button type="button" onClick={() => setShowAlterCount(true)}
-                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-                  <Users className="w-3.5 h-3.5" /> View {terms.alter} count
-                </button>
-              )}
-            </div>
-
             {/* Terminology — preset dropdown sits at the top of the profile. */}
             <SubSection title="Terminology" defaultOpen={false}>
               <TermsSettings embedded />
@@ -430,14 +426,15 @@ export default function Settings() {
             <div className="flex gap-3">
               <div className="flex flex-col gap-1.5 flex-shrink-0">
                 <Label className="text-sm font-medium">{terms.System} picture</Label>
-                <div className="w-16 h-16 rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
+                <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
                   {resolvedSysAvatar ? (
                     <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
                   ) : (
                     <Globe className="w-6 h-6 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex items-center gap-1">
+                {/* Buttons wrap to stay within the avatar's width (2 per row). */}
+                <div className="flex flex-wrap gap-1 w-[4.5rem]">
                   <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
                     {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
@@ -451,7 +448,7 @@ export default function Settings() {
               </div>
               <div className="flex flex-col gap-1.5 flex-1 min-w-0">
                 <Label className="text-sm font-medium">{terms.System} banner</Label>
-                <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative" style={{ height: systemBannerUrl ? Math.min(systemBannerHeight, 140) : 64 }}>
+                <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative transition-[height]" style={{ height: systemBannerUrl ? systemBannerHeight : 64 }}>
                   {resolvedSysBanner ? (
                     <>
                       <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />

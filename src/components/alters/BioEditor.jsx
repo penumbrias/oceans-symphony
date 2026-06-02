@@ -270,21 +270,21 @@ export default function BioEditor({ value, onChange }) {
       </div>
 
       <div className="flex gap-1 bg-muted/40 p-1 rounded-lg w-fit">
-        <button type="button" onClick={() => setEditorMode("plain")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Type className="w-3 h-3" /> Plain
+        <button type="button" onClick={() => setEditorMode("plain")} title="Plain editor" aria-label="Plain editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Type className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("simple")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Eye className="w-3 h-3" /> Simple
+        <button type="button" onClick={() => setEditorMode("simple")} title="Simple (formatted) editor" aria-label="Simple editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Eye className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("blocks")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <LayoutGrid className="w-3 h-3" /> Blocks
+        <button type="button" onClick={() => setEditorMode("blocks")} title="Blocks editor" aria-label="Blocks editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <LayoutGrid className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("raw")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Code className="w-3 h-3" /> Raw
+        <button type="button" onClick={() => setEditorMode("raw")} title="Raw HTML" aria-label="Raw HTML editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Code className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
