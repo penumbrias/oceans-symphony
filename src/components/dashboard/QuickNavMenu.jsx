@@ -1,7 +1,7 @@
 import React, { useState, useMemo, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, List, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images, Mail } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ function buildNavGroups(altersLabel, systemLabel) {
     [systemLabel]: [
       { id: "alters",   label: altersLabel,            icon: Users,         path: "/Home" },
       { id: "chat",     label: `${systemLabel} Chat`,  icon: MessageSquare, path: "/chat" },
+      { id: "messages", label: "Direct Messages",      icon: Mail,          path: "/messages" },
       { id: "friends",  label: "Friends",              icon: UserRound,     path: "/friends" },
       { id: "groups",   label: "Groups",               icon: Users,         path: "/groups" },
       { id: "assets",   label: "Image Assets",         icon: Images,        path: "/assets" },
@@ -79,6 +80,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "unblend",         label: "Help me unblend",        icon: Heart,         path: "/unblend",          color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "get-to-know-me",  label: "Get to know me",         icon: Sparkles,      path: "/get-to-know-me",   color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
     { id: "chat",            label: `${systemLabel} Chat`,    icon: MessageSquare, path: "/chat",             color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
+    { id: "messages",        label: "Direct Messages",        icon: Mail,          path: "/messages",         color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
   ];
 }
 

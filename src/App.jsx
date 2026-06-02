@@ -36,6 +36,7 @@ import BulletinsPage from '@/pages/BulletinsPage';
 import HelpMeUnblend from '@/pages/HelpMeUnblend';
 import GetToKnowMe from '@/pages/GetToKnowMe';
 import Chat from '@/pages/Chat';
+import DirectMessages from '@/pages/DirectMessages';
 import UnblendQuestionsManager from '@/pages/UnblendQuestionsManager';
 import ManageCheckIn from '@/pages/ManageCheckIn';
 import TherapyReport from '@/pages/TherapyReport';
@@ -170,6 +171,7 @@ const AuthenticatedApp = () => {
         <Route path="/unblend" element={<HelpMeUnblend />} />
         <Route path="/get-to-know-me" element={<GetToKnowMe />} />
         <Route path="/chat" element={<Chat />} />
+        <Route path="/messages" element={<DirectMessages />} />
         <Route path="/unblend/questions" element={<UnblendQuestionsManager />} />
         <Route path="/manage-checkin" element={<ManageCheckIn />} />
         <Route path="/grounding" element={<Grounding />} />

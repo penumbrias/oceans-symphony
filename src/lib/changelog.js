@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "New Direct Messages: private 1:1 and group conversations between alters, separate from the public chat channels. Reach it from the sidebar, dashboard grid, or search.",
+      },
+      {
+        type: "feature",
         text: "System chat whispers: type \"/w @name your message\" to post a private, lock-marked whisper to specific alters in the channel.",
       },
       {

@@ -821,6 +821,15 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       look: `the channel list on the left and the message composer at the bottom`, action: null,
     },
 
+    {
+      section: "messages", sectionLabel: "Direct Messages",
+      emoji: "✉️",
+      title: "Direct Messages",
+      body: `Private threads between ${t.alters}, separate from the public ${t.system} chat channels. Tap "New" to start a 1:1 or group conversation, pick who's sending each message, and @mention as usual. Like everything else, this is your own data on your device — "private" just means it lives in its own threaded space.`,
+      route: "/messages", target: null,
+      look: `the "New" button up top and your conversation list`, action: null,
+    },
+
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",
