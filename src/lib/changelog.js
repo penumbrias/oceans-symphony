@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Press-and-hold menus (groups, alters, filters) no longer get cut off at the bottom behind the navigation bar.",
+      },
+      {
+        type: "fix",
+        text: "A group/subsystem's background image now stretches edge-to-edge instead of sitting in an inset, rounded box.",
+      },
+      {
+        type: "improve",
+        text: "Group/subsystem profiles can now set a Page text colour and Header text colour, the same as alter profiles.",
+      },
+      {
         type: "improve",
         text: "Settings section icons are now minimal, monochrome icons that follow your theme colour instead of colourful emoji.",
       },

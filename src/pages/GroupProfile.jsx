@@ -39,6 +39,10 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
+// Same keys the alter profile uses, so contrast helpers + rendering treat
+// group and alter text colours identically.
+const PAGE_TEXT_KEY = "_page_text_color";
+const HEADER_TEXT_KEY = "_header_text_color";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -111,6 +115,8 @@ function GroupProfileInner() {
   const [tab, setTab] = useState("profile"); // profile | board | notes
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
+  const [showPageTextPicker, setShowPageTextPicker] = useState(false);
+  const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -243,6 +249,8 @@ function GroupProfileInner() {
   const bgImage = cf[BG_IMAGE_KEY] || "";
   const bgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
+  const headerTextColor = cf[HEADER_TEXT_KEY] || "";
   const frontingAlterIds = activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean);
 
   const TABS = [
@@ -298,7 +306,7 @@ function GroupProfileInner() {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-6" style={pageTextColor ? { color: pageTextColor } : undefined}>
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
@@ -310,7 +318,7 @@ function GroupProfileInner() {
 
         {tabBar}
 
-        <ViewHeader group={group} headerImage={headerImage}
+        <ViewHeader group={group} headerImage={headerImage} headerTextColor={headerTextColor}
           ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
 
         {group.description ? (
@@ -510,15 +518,39 @@ function GroupProfileInner() {
       {/* Profile style */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
         <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5 text-primary" /> Profile Style</label>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Background color</label>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setShowBgColorPicker(true)}
-              className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 relative" style={{ backgroundColor: form.custom_fields[BG_COLOR_KEY] || "transparent" }}>
-              {!form.custom_fields[BG_COLOR_KEY] && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
-            </button>
-            <Input value={form.custom_fields[BG_COLOR_KEY] || ""} onChange={(e) => setCf(BG_COLOR_KEY, e.target.value)} placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
-            {form.custom_fields[BG_COLOR_KEY] && <button type="button" onClick={() => setCf(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>}
+        <div className="grid grid-cols-2 gap-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Background color</label>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setShowBgColorPicker(true)}
+                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 relative" style={{ backgroundColor: form.custom_fields[BG_COLOR_KEY] || "transparent" }}>
+                {!form.custom_fields[BG_COLOR_KEY] && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
+              </button>
+              <Input value={form.custom_fields[BG_COLOR_KEY] || ""} onChange={(e) => setCf(BG_COLOR_KEY, e.target.value)} placeholder="#1a0a2e" className="font-mono text-xs flex-1 min-w-0 h-7" />
+              {form.custom_fields[BG_COLOR_KEY] && <button type="button" onClick={() => setCf(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Page text color</label>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setShowPageTextPicker(true)}
+                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: form.custom_fields[PAGE_TEXT_KEY] || "transparent" }}>
+                {!form.custom_fields[PAGE_TEXT_KEY] && <span className="text-muted-foreground text-xs font-bold">A</span>}
+              </button>
+              <Input value={form.custom_fields[PAGE_TEXT_KEY] || ""} onChange={(e) => setCf(PAGE_TEXT_KEY, e.target.value)} placeholder="Default" className="font-mono text-xs flex-1 min-w-0 h-7" />
+              {form.custom_fields[PAGE_TEXT_KEY] && <button type="button" onClick={() => setCf(PAGE_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
+            </div>
+          </div>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Header text color</label>
+            <div className="flex items-center gap-2">
+              <button type="button" onClick={() => setShowHeaderTextPicker(true)}
+                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: form.custom_fields[HEADER_TEXT_KEY] || "transparent" }}>
+                {!form.custom_fields[HEADER_TEXT_KEY] && <span className="text-muted-foreground text-xs font-bold">A</span>}
+              </button>
+              <Input value={form.custom_fields[HEADER_TEXT_KEY] || ""} onChange={(e) => setCf(HEADER_TEXT_KEY, e.target.value)} placeholder="Default" className="font-mono text-xs flex-1 min-w-0 h-7" />
+              {form.custom_fields[HEADER_TEXT_KEY] && <button type="button" onClick={() => setCf(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
+            </div>
           </div>
         </div>
         <StyleImageRow label="Header image" busy={uploadingHeader} inputRef={headerInputRef} value={form.custom_fields[HEADER_IMAGE_KEY]} onClear={() => setCf(HEADER_IMAGE_KEY, "")} onChange={(e) => handleUpload(e, "header")} onText={(v) => setCf(HEADER_IMAGE_KEY, v)} />
@@ -550,6 +582,8 @@ function GroupProfileInner() {
 
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Group Color" onSave={(hex) => setForm((f) => ({ ...f, color: hex }))} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={form.custom_fields[BG_COLOR_KEY] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
+      {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PAGE_TEXT_KEY] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
+      {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[HEADER_TEXT_KEY] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
       </div>
     </motion.div>
@@ -664,7 +698,9 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   }, [bgImage]);
   if (!bgColor && !bgImage) return null;
   return (
-    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" aria-hidden>
+    // Break out of the page's horizontal padding so the background reaches the
+    // screen edges (full-bleed), instead of sitting in a rounded, inset card.
+    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-screen pointer-events-none overflow-hidden" aria-hidden>
       {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
       {bgImage && resolvedBg && (
         <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
@@ -673,12 +709,15 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   );
 }
 
-function ViewHeader({ group, headerImage, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
+function ViewHeader({ group, headerImage, headerTextColor, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
   const [resolvedHeader, setResolvedHeader] = useState(null);
   useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
   const hasHeader = !!(headerImage && resolvedHeader);
+  // Header text colour: the user's override wins; otherwise white over a
+  // header image (for contrast), else the group's name colour.
+  const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
   return (
-    <div className="relative rounded-2xl overflow-hidden">
+    <div className="relative rounded-2xl overflow-hidden" style={headerTextColor ? { color: headerTextColor } : undefined}>
       {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.45 }} />
       )}
@@ -686,7 +725,7 @@ function ViewHeader({ group, headerImage, ownerAlter, subTerm, t, navigate, pare
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="font-display text-2xl font-semibold flex items-center gap-2"
-            style={{ color: hasHeader ? undefined : groupNameColor(group.color) }}>
+            style={{ color: nameColor }}>
             {group.emoji ? <span>{group.emoji}</span> : null}{group.name}
           </h2>
           {ownerAlter && (
