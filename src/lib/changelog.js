@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The bulletin-board Quick task now has all the to-do options — due date, scheduled date, activity, priority, a goal, a note, plus Pin-to-dashboard and Mark-urgent toggles — each as an expandable pill so it stays tidy.",
+      },
+      {
+        type: "improve",
+        text: "You can now mark a to-do urgent straight from the bulletin board: press and hold the task and choose \"Mark as urgent.\"",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar: added a \"clear formatting\" eraser button (strip styles / go back to plain text), and the \"?\" guide now explains that colours and Fun effects apply to text you've selected first.",
+      },
+      {
+        type: "improve",
         text: "PluralKit member import now lets you choose how it reconciles — update + add new (default), only add new, or replace all — like the Simply Plural import.",
       },
       {

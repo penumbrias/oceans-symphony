@@ -3,7 +3,7 @@ import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
-  CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff,
+  CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff, Eraser,
 } from "lucide-react";
 import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
 
@@ -128,6 +128,7 @@ const MORE_HELP = [
   { glyph: "X² X₂", d: "Superscript / subscript" },
   { glyph: "</>", d: "Inline code" },
   { icons: [EyeOff], d: "Censor bar — hides text behind a bar until tapped" },
+  { icons: [Eraser], d: "Clear formatting — strip styles from the selection, or stop typing styled" },
   { icons: [Puzzle], d: "Link to a page inside the app" },
   { icons: [Pencil], d: "Mark text as a fill-in field (bio templates)" },
 ];
@@ -159,7 +160,13 @@ function HelpPopup({ onClose }) {
           <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
         <div className="overflow-y-auto p-4">
-          <p className="text-xs text-muted-foreground mb-2">The basic buttons (bold, italic, underline, strikethrough, link, colour) do what their icons show. The extras:</p>
+          <div className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 p-2.5 mb-3 text-xs">
+            <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
+            <p className="text-foreground/90 leading-relaxed">
+              <strong>Select your text first</strong>, then tap a style. This is how colours, fonts, sizes, and especially the <strong>Fun</strong> effects (gradients, boxes, glow…) apply — they wrap whatever you've highlighted. The eraser clears styles back to plain text.
+            </p>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">Bold / italic / underline / strikethrough (and headings/lists in More) toggle: tap once and keep typing styled, tap again to stop. The extras:</p>
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1">More</p>
           <div className="divide-y divide-border/30">{MORE_HELP.map((r, i) => <HelpRow key={i} {...r} />)}</div>
           <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mt-3 mb-1">Fun</p>
@@ -362,6 +369,18 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
             {sep}
             {/* Censor bar — wraps selection in ||…|| (hidden until tapped) */}
             {iconBtn(EyeOff, "||", "||", "Censor bar — hide until tapped")}
+            {/* Clear formatting — only meaningful on a live editor (contentEditable
+                host passes onCommand). Strips styling from the selection AND
+                turns off any active bold/italic/etc. so you can keep typing
+                plain. */}
+            {onCommand && (
+              <button type="button" title="Clear formatting — back to plain text"
+                onMouseDown={e => e.preventDefault()}
+                onClick={() => onCommand("removeFormat")}
+                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+                <Eraser className="w-3.5 h-3.5" />
+              </button>
+            )}
             {/* Internal link (opens picker) */}
             <button type="button" title="Link to a page in the app" onMouseDown={e => e.preventDefault()} onClick={openInternalLink}
               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
