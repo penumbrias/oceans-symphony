@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings section icons are now minimal, monochrome icons that follow your theme colour instead of colourful emoji.",
+      },
+      {
+        type: "improve",
+        text: "Profile settings rebuilt to match the new layout: picture and banner sit side by side with icon-only buttons, the terminology preset moved to the top and is now a dropdown, and banner options stay tidy in a collapsible section.",
+      },
+      {
+        type: "improve",
         text: "Settings → Notifications now explains why out-of-app alerts (like a friend changing front) can lag or be missed when the app is closed, with steps to make Android background activity more reliable.",
       },
       {

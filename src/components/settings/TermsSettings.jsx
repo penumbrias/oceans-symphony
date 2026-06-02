@@ -110,17 +110,18 @@ export default function TermsSettings({ embedded = false } = {}) {
 
   const inner = (
     <div className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          {PRESETS.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => applyPreset(p)}
-              className="rounded-xl border border-border/50 p-2.5 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all"
-            >
-              <p className="font-medium text-foreground">{p.label}</p>
-              <p className="text-[0.6875rem] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
-            </button>
-          ))}
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">Preset</label>
+          <select
+            value=""
+            onChange={(e) => { const p = PRESETS[Number(e.target.value)]; if (p) applyPreset(p); }}
+            className="w-full h-9 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Choose a preset to fill the terms below…</option>
+            {PRESETS.map((p, i) => (
+              <option key={i} value={i}>{p.label} — {p.alter} · {p.front}ing</option>
+            ))}
+          </select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {fields.map(({ key, label, hint }) => (

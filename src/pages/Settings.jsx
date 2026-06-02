@@ -31,7 +31,7 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2 } from "lucide-react";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
@@ -61,7 +61,7 @@ import {
 // to "just one section's contents".
 const SectionAccordionCtx = React.createContext(null);
 
-function Section({ id, icon, label, defaultOpen = false, children }) {
+function Section({ id, icon: Icon, label, defaultOpen = false, children }) {
   const ctx = React.useContext(SectionAccordionCtx);
   const isOpen = ctx
     ? ctx.openId === id
@@ -117,7 +117,7 @@ function Section({ id, icon, label, defaultOpen = false, children }) {
         onClick={handleToggle}
         className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
       >
-        <span className="text-xl">{icon}</span>
+        {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
         <span className="flex-1 font-semibold text-sm">{label}</span>
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
@@ -397,115 +397,91 @@ export default function Settings() {
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── PROFILE ── */}
-        <Section id="system" icon="⚙️" label="Profile">
+        <Section id="system" icon={IdCard} label="Profile">
           <div className="space-y-4">
-            <div>
+            {/* View count — compact, top-right (the wireframe header slot). */}
+            <div className="flex items-center justify-end -mb-1">
               {showAlterCount ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Users className="w-3.5 h-3.5" />
                   {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
                   {archivedCount > 0 && (
                     <span className="text-muted-foreground/60">· {archivedCount} archived</span>
                   )}
-                  <button
-                    type="button"
-                    onClick={() => setShowAlterCount(false)}
-                    className="text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-2 ml-1"
-                  >
+                  <button type="button" onClick={() => setShowAlterCount(false)}
+                    className="text-[0.6875rem] text-muted-foreground/70 hover:text-foreground underline underline-offset-2">
                     hide
                   </button>
                 </div>
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowAlterCount(true)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="w-4 h-4" />
-                  View {terms.alter} count
+                <button type="button" onClick={() => setShowAlterCount(true)}
+                  className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
+                  <Users className="w-3.5 h-3.5" /> View {terms.alter} count
                 </button>
               )}
             </div>
-            <div>
-              <Label className="text-sm font-medium">{terms.System} Picture</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Shown anywhere a post or vote is attributed to the {terms.system} as a whole (no specific {terms.alter}).
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center flex-shrink-0">
+
+            {/* Terminology — preset dropdown sits at the top of the profile. */}
+            <SubSection title="Terminology" defaultOpen={false}>
+              <TermsSettings embedded />
+            </SubSection>
+            {/* Picture + banner, side by side. URL paste lives behind the
+                link icon so the row stays to just the wireframe's ↑ ⧉ ×. */}
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <Label className="text-sm font-medium">{terms.System} picture</Label>
+                <div className="w-16 h-16 rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
                   {resolvedSysAvatar ? (
                     <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
                   ) : (
                     <Globe className="w-6 h-6 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1">
                   <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
                     {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
                   </label>
                   <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysAvatarAssets(true)} />
+                  <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} picture URL:`, systemAvatarUrl || ""); if (u !== null) setSystemAvatarUrl(u.trim()); }} />
                   {systemAvatarUrl && (
                     <IconButton icon={XIcon} title="Remove image" danger onClick={() => setSystemAvatarUrl("")} />
                   )}
                 </div>
               </div>
-              <Input
-                placeholder="Or paste an image URL…"
-                value={systemAvatarUrl}
-                onChange={e => setSystemAvatarUrl(e.target.value)}
-                className="mt-2 text-xs"
-              />
-              {sysAvatarAssets && (
-                <AssetPickerModal
-                  open
-                  onClose={() => setSysAvatarAssets(false)}
-                  onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }}
-                />
-              )}
+              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                <Label className="text-sm font-medium">{terms.System} banner</Label>
+                <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative" style={{ height: systemBannerUrl ? Math.min(systemBannerHeight, 140) : 64 }}>
+                  {resolvedSysBanner ? (
+                    <>
+                      <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                      <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No banner</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
+                    {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
+                  </label>
+                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysBannerAssets(true)} />
+                  <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} banner URL:`, systemBannerUrl || ""); if (u !== null) setSystemBannerUrl(u.trim()); }} />
+                  {systemBannerUrl && (
+                    <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label className="text-sm font-medium">{terms.System} Banner</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                A wide image shown edge-to-edge behind the top of your pages.
-              </p>
-              {/* Preview box is exactly as tall as the configured banner, so
-                  dragging the height slider visually shows how far it extends. */}
-              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center transition-[height] relative" style={{ height: systemBannerUrl ? systemBannerHeight : 96 }}>
-                {resolvedSysBanner ? (
-                  <>
-                    <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
-                    <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
-                  </>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No banner yet</span>
-                )}
-              </div>
-              <div className="mt-2 flex items-center gap-1.5">
-                <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
-                  {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
-                </label>
-                <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysBannerAssets(true)} />
-                {systemBannerUrl && (
-                  <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
-                )}
-              </div>
-              <Input
-                placeholder="Or paste an image URL…"
-                value={systemBannerUrl}
-                onChange={e => setSystemBannerUrl(e.target.value)}
-                className="mt-2 text-xs"
-              />
-              {sysBannerAssets && (
-                <AssetPickerModal
-                  open
-                  onClose={() => setSysBannerAssets(false)}
-                  onSelect={(url) => { setSystemBannerUrl(url); setSysBannerAssets(false); }}
-                />
-              )}
-              {systemBannerUrl && (
-                <div className="mt-3">
+            {sysAvatarAssets && (
+              <AssetPickerModal open onClose={() => setSysAvatarAssets(false)} onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }} />
+            )}
+            {sysBannerAssets && (
+              <AssetPickerModal open onClose={() => setSysBannerAssets(false)} onSelect={(url) => { setSystemBannerUrl(url); setSysBannerAssets(false); }} />
+            )}
+            {systemBannerUrl && (
+                <div>
                   <SubSection title="Banner display" defaultOpen={false}>
                   <div>
                     <div className="flex items-center justify-between">
@@ -554,7 +530,6 @@ export default function Settings() {
                   </SubSection>
                 </div>
               )}
-            </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
               <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}
@@ -575,13 +550,10 @@ export default function Settings() {
               {saved ? "Saved!" : "Save"}
             </Button>
           </div>
-          <SubSection title="Terminology" defaultOpen={false}>
-            <TermsSettings embedded />
-          </SubSection>
         </Section>
 
         {/* ── APPEARANCE ── */}
-        <Section id="appearance" icon="🎨" label="Appearance">
+        <Section id="appearance" icon={Palette} label="Appearance">
           <AdvancedAppearance />
           <div className="border-t border-border/30 pt-4">
             <CornerStyleSettings />
@@ -597,7 +569,7 @@ export default function Settings() {
         </Section>
 
         {/* ── NOTIFICATIONS & REMINDERS ── */}
-        <Section id="notifications" icon="🔔" label="Notifications & reminders">
+        <Section id="notifications" icon={Bell} label="Notifications & reminders">
           <div className="space-y-6">
             <NotificationSettings />
             <div className="pt-4 border-t border-border/40">
@@ -607,12 +579,12 @@ export default function Settings() {
         </Section>
 
         {/* ── ACCESSIBILITY ── */}
-        <Section id="accessibility" icon="♿" label="Accessibility">
+        <Section id="accessibility" icon={Accessibility} label="Accessibility">
           <AccessibilitySettings />
         </Section>
 
         {/* ── ALTER SETUP ── */}
-        <Section id="alters" icon="👥" label={`${terms.Alter} setup`}>
+        <Section id="alters" icon={Users} label={`${terms.Alter} setup`}>
           <CustomFieldsManager />
           <div className="border-t border-border/30 pt-4">
             <RelationshipTypesManager />
@@ -623,7 +595,7 @@ export default function Settings() {
         </Section>
 
         {/* ── TRACKING SETUP ── */}
-        <Section id="checkin" icon="⚡" label="Tracking setup">
+        <Section id="checkin" icon={Activity} label="Tracking setup">
           <QuickActionsConfig />
           <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
             <div className="flex items-center gap-3">
@@ -741,7 +713,7 @@ export default function Settings() {
         </Section>
 
         {/* ── DATA & PRIVACY ── */}
-        <Section id="data" icon="💾" label="Data & privacy">
+        <Section id="data" icon={Database} label="Data & privacy">
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
@@ -779,7 +751,7 @@ export default function Settings() {
             disclaimer, recent updates, bug report, dev preview mode)
             into one collapsed group so the TOC isn't dominated by
             rarely-touched links. */}
-        <Section id="about" icon="ℹ️" label="About & help">
+        <Section id="about" icon={Info} label="About & help">
           <div className="space-y-5">
             <div>
               <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
