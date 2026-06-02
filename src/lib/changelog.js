@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Chat sidebar has an Edit button up top: turn it on to drag channels and categories into a new order (within their group) or tap any of them to edit. The new-channel/new-category toggle now reads plainly, and category colours use the app's full colour picker.",
+      },
+      {
         type: "feature",
         text: "System chat now has real nestable categories: the New button toggles to \"New category\" to make colour-coded, collapsible categories (up to 3 deep) and pick which channels go in them — channels show indented under their category, new categories sit at the top. Existing categories migrate automatically.",
       },

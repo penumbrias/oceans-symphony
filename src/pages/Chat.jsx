@@ -16,8 +16,12 @@ import { buildChatTree, eligibleChatParents, chatCategoriesById, chatCategoryDep
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { MiniToolbar } from "@/components/shared/MiniToolbar";
+import { MiniToolbar, ColorPickerModal } from "@/components/shared/MiniToolbar";
 import RichMentionInput from "@/components/shared/RichMentionInput";
+import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
+import { SortableContext, useSortable, verticalListSortingStrategy, arrayMove } from "@dnd-kit/sortable";
+import { GripVertical } from "lucide-react";
+import { CSS } from "@dnd-kit/utilities";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -246,21 +250,39 @@ export default function Chat() {
     }
   };
 
-  // Move a channel up or down within its own category's channel list.
-  const moveChannel = async (channel, peers, direction) => {
-    const idx = peers.findIndex((c) => c.id === channel.id);
-    if (idx === -1) return;
-    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
-    if (targetIdx < 0 || targetIdx >= peers.length) return;
-    const target = peers[targetIdx];
-    try {
-      await Promise.all([
-        localEntities.SystemChatChannel.update(channel.id, { sort_order: target.sort_order ?? 0 }),
-        localEntities.SystemChatChannel.update(target.id, { sort_order: channel.sort_order ?? 0 }),
-      ]);
-      qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
-    } catch (err) {
-      toast.error(err?.message || "Couldn't reorder");
+  // Drag-to-reorder (edit mode). A drag only reorders WITHIN a sibling list
+  // (categories among same-parent categories; channels among same-category
+  // channels) — cross-category moves are done via the channel's edit dialog.
+  const dndSensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 180, tolerance: 8 } }),
+  );
+  const persistOrder = async (entityName, idsInOrder) => {
+    await Promise.all(idsInOrder.map((id, i) => localEntities[entityName].update(id, { sort_order: i })));
+  };
+  const handleDragEnd = async (event) => {
+    const { active, over } = event;
+    if (!over || active.id === over.id) return;
+    const orderOf = (arr) => [...arr].sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)).map((x) => x.id);
+    const activeCat = categories.find((c) => c.id === active.id);
+    if (activeCat) {
+      const siblings = categories.filter((c) => (c.parent_category_id || null) === (activeCat.parent_category_id || null));
+      const ids = orderOf(siblings);
+      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
+      if (from === -1 || to === -1) return; // dropped onto a different list — ignore
+      try { await persistOrder("SystemChatCategory", arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatCategories"] }); }
+      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
+      return;
+    }
+    const activeChan = channels.find((c) => c.id === active.id);
+    if (activeChan) {
+      const key = activeChan.category_id || null;
+      const siblings = channels.filter((c) => !c.is_archived && !c.is_private && (c.category_id || null) === key);
+      const ids = orderOf(siblings);
+      const from = ids.indexOf(active.id), to = ids.indexOf(over.id);
+      if (from === -1 || to === -1) return;
+      try { await persistOrder("SystemChatChannel", arrayMove(ids, from, to)); qc.invalidateQueries({ queryKey: ["systemChatChannels"] }); }
+      catch (err) { toast.error(err?.message || "Couldn't reorder"); }
     }
   };
 
@@ -285,6 +307,7 @@ export default function Chat() {
   const [editingChannel, setEditingChannel] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
   const [showChannels, setShowChannels] = useState(true);
+  const [editMode, setEditMode] = useState(false);
 
   // Default author for the composer: primary fronter, else first
   // active fronter, else first alter. User can pick another (or
@@ -326,47 +349,69 @@ export default function Chat() {
       <div className="flex-1 min-h-0 flex">
         {/* Channels rail */}
         <aside className={`${showChannels ? "flex" : "hidden"} lg:flex w-56 flex-shrink-0 border-r border-border/50 bg-muted/20 flex-col`}>
-          <div className="p-2 border-b border-border/40 flex items-center justify-between">
+          <div className="p-2 border-b border-border/40 flex items-center justify-between gap-1">
             <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground px-2">Channels</p>
-            <button
-              type="button"
-              onClick={() => setCreateOpen(true)}
-              aria-label="New channel or category"
-              title="New channel or category"
-              className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
-            >
-              <Plus className="w-4 h-4" />
-            </button>
+            <div className="flex items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setEditMode((v) => !v)}
+                aria-label={editMode ? "Done editing" : "Edit channels"}
+                title={editMode ? "Done — tap to stop editing" : "Edit: drag to reorder, tap to edit"}
+                className={`px-2 py-1 rounded-md text-xs font-medium transition-colors ${editMode ? "bg-primary/15 text-primary" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+              >
+                {editMode ? "Done" : "Edit"}
+              </button>
+              <button
+                type="button"
+                onClick={() => setCreateOpen(true)}
+                aria-label="New channel or category"
+                title="New channel or category"
+                className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </div>
           </div>
+          {editMode && (
+            <p className="px-3 py-1 text-[0.625rem] text-muted-foreground bg-muted/20 border-b border-border/30">
+              Drag the ⠿ handle to reorder within a group · tap a row to edit it.
+            </p>
+          )}
           <div className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
             {(() => {
               const onOpen = (c) => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); };
+              const rootCatIds = tree.rootNodes.map((n) => n.category.id);
+              const uncatIds = tree.uncategorized.map((c) => c.id);
               return (
-                <>
-                  {tree.rootNodes.map((node) => (
-                    <ChatCategoryNode
-                      key={node.category.id}
-                      node={node}
-                      depth={0}
-                      activeId={activeChannel?.id}
-                      onOpen={onOpen}
-                      onEditChannel={setEditingChannel}
-                      onEditCategory={setEditingCategory}
-                      onMove={moveChannel}
-                      onToggleCollapse={toggleCollapse}
-                    />
-                  ))}
+                <DndContext sensors={dndSensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                  <SortableContext items={rootCatIds} strategy={verticalListSortingStrategy}>
+                    {tree.rootNodes.map((node) => (
+                      <ChatCategoryNode
+                        key={node.category.id}
+                        node={node}
+                        depth={0}
+                        activeId={activeChannel?.id}
+                        editMode={editMode}
+                        onOpen={onOpen}
+                        onEditChannel={setEditingChannel}
+                        onEditCategory={setEditingCategory}
+                        onToggleCollapse={toggleCollapse}
+                      />
+                    ))}
+                  </SortableContext>
                   {tree.uncategorized.length > 0 && (
-                    <ul className="mb-1.5">
-                      {tree.uncategorized.map((c) => (
-                        <li key={c.id}>
-                          <ChatChannelRow channel={c} peers={tree.uncategorized} activeId={activeChannel?.id} indent={0}
-                            onOpen={onOpen} onEdit={setEditingChannel} onMove={moveChannel} />
-                        </li>
-                      ))}
-                    </ul>
+                    <SortableContext items={uncatIds} strategy={verticalListSortingStrategy}>
+                      <ul className="mb-1.5">
+                        {tree.uncategorized.map((c) => (
+                          <li key={c.id}>
+                            <ChatChannelRow channel={c} activeId={activeChannel?.id} indent={0} editMode={editMode}
+                              onOpen={onOpen} onEdit={setEditingChannel} />
+                          </li>
+                        ))}
+                      </ul>
+                    </SortableContext>
                   )}
-                </>
+                </DndContext>
               );
             })()}
             {privateChannels.length > 0 && (
@@ -1310,74 +1355,92 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
   );
 }
 
-// One channel row in the sidebar tree (with reorder + edit affordances).
-function ChatChannelRow({ channel, peers, activeId, indent = 0, onOpen, onEdit, onMove }) {
-  const idx = peers.findIndex((c) => c.id === channel.id);
+// One channel row in the sidebar tree. In edit mode it becomes draggable
+// (dnd-kit) and a tap edits it instead of opening it.
+function ChatChannelRow({ channel, activeId, indent = 0, editMode, onOpen, onEdit }) {
   const isActive = activeId === channel.id;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: channel.id, disabled: !editMode });
+  const style = editMode ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : undefined } : undefined;
   return (
     <div
-      className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${isActive ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
-      style={{ paddingLeft: indent * 12 }}
+      ref={editMode ? setNodeRef : undefined}
+      style={style}
+      className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${isActive ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"} ${editMode ? "border border-dashed border-primary/30 my-0.5 bg-muted/10" : ""}`}
     >
-      <button type="button" onClick={() => onOpen(channel)} onContextMenu={(e) => { e.preventDefault(); onEdit(channel); }}
-        className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left">
+      {editMode && (
+        <span {...attributes} {...listeners} className="pl-1 text-muted-foreground cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder" style={{ marginLeft: indent * 12 }}>
+          <GripVertical className="w-3.5 h-3.5" />
+        </span>
+      )}
+      <button type="button" onClick={() => (editMode ? onEdit(channel) : onOpen(channel))} onContextMenu={(e) => { e.preventDefault(); onEdit(channel); }}
+        className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left" style={editMode ? undefined : { paddingLeft: indent * 12 + 8 }}>
         <Hash className="w-3.5 h-3.5 flex-shrink-0" />
         <span className="truncate flex-1">{channel.name}</span>
+        {editMode && <Pencil className="w-3 h-3 flex-shrink-0 opacity-60" />}
       </button>
-      <button type="button" onClick={() => onMove(channel, peers, "up")} disabled={idx <= 0}
-        aria-label={`Move ${channel.name} up`} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-        <ChevronUp className="w-3 h-3" />
-      </button>
-      <button type="button" onClick={() => onMove(channel, peers, "down")} disabled={idx === peers.length - 1}
-        aria-label={`Move ${channel.name} down`} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
-        <ChevronDown className="w-3 h-3" />
-      </button>
-      <button type="button" onClick={() => onEdit(channel)} aria-label={`Edit ${channel.name}`} className="p-0.5 text-muted-foreground hover:text-foreground">
-        <Pencil className="w-3 h-3" />
-      </button>
-    </div>
-  );
-}
-
-// A category node: collapsible header (with its colour) + nested
-// subcategories + its channels, indented by depth.
-function ChatCategoryNode({ node, depth, activeId, onOpen, onEditChannel, onEditCategory, onMove, onToggleCollapse }) {
-  const cat = node.category;
-  const collapsed = !!cat.collapsed;
-  return (
-    <div className="mb-0.5">
-      <div className="flex items-center gap-0.5 group rounded-md hover:bg-muted/40" style={{ paddingLeft: depth * 12 }}>
-        <button type="button" onClick={() => onToggleCollapse(cat)} className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0" aria-label={collapsed ? "Expand category" : "Collapse category"}>
-          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-        </button>
-        <span className="flex-1 min-w-0 text-[0.625rem] font-semibold uppercase tracking-wider truncate py-1" style={{ color: cat.color || "hsl(var(--muted-foreground))" }}>
-          {cat.name}
-        </span>
-        <button type="button" onClick={() => onEditCategory(cat)} aria-label={`Edit ${cat.name} category`} className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100">
+      {!editMode && (
+        <button type="button" onClick={() => onEdit(channel)} aria-label={`Edit ${channel.name}`} className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100">
           <Pencil className="w-3 h-3" />
         </button>
-      </div>
-      {!collapsed && (
-        <div>
-          {node.subNodes.map((sub) => (
-            <ChatCategoryNode key={sub.category.id} node={sub} depth={depth + 1} activeId={activeId}
-              onOpen={onOpen} onEditChannel={onEditChannel} onEditCategory={onEditCategory} onMove={onMove} onToggleCollapse={onToggleCollapse} />
-          ))}
-          <ul>
-            {node.channels.map((ch) => (
-              <li key={ch.id}>
-                <ChatChannelRow channel={ch} peers={node.channels} activeId={activeId} indent={depth + 1}
-                  onOpen={onOpen} onEdit={onEditChannel} onMove={onMove} />
-              </li>
-            ))}
-          </ul>
-        </div>
       )}
     </div>
   );
 }
 
-const CAT_COLORS = ["#f87171", "#fb923c", "#fbbf24", "#34d399", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6", "#cbd5e1"];
+// A category node: collapsible header (its colour) + nested subcategories +
+// channels, indented by depth. In edit mode the header is draggable (to
+// reorder among its siblings) and a tap edits the category.
+function ChatCategoryNode({ node, depth, activeId, editMode, onOpen, onEditChannel, onEditCategory, onToggleCollapse }) {
+  const cat = node.category;
+  const collapsed = !!cat.collapsed;
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: cat.id, disabled: !editMode });
+  const style = editMode ? { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1, zIndex: isDragging ? 50 : undefined } : undefined;
+  const subIds = node.subNodes.map((s) => s.category.id);
+  const chanIds = node.channels.map((c) => c.id);
+  return (
+    <div className="mb-0.5" ref={editMode ? setNodeRef : undefined} style={style}>
+      <div className={`flex items-center gap-0.5 group rounded-md hover:bg-muted/40 ${editMode ? "border border-dashed border-primary/30 my-0.5" : ""}`} style={{ paddingLeft: depth * 12 }}>
+        {editMode && (
+          <span {...attributes} {...listeners} className="pl-1 text-muted-foreground cursor-grab active:cursor-grabbing touch-none" aria-label="Drag to reorder">
+            <GripVertical className="w-3.5 h-3.5" />
+          </span>
+        )}
+        <button type="button" onClick={() => onToggleCollapse(cat)} className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0" aria-label={collapsed ? "Expand category" : "Collapse category"}>
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+        <button type="button" onClick={() => editMode && onEditCategory(cat)}
+          className="flex-1 min-w-0 text-[0.625rem] font-semibold uppercase tracking-wider truncate py-1 text-left" style={{ color: cat.color || "hsl(var(--muted-foreground))" }}>
+          {cat.name}{editMode ? " ✎" : ""}
+        </button>
+        {!editMode && (
+          <button type="button" onClick={() => onEditCategory(cat)} aria-label={`Edit ${cat.name} category`} className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100">
+            <Pencil className="w-3 h-3" />
+          </button>
+        )}
+      </div>
+      {!collapsed && (
+        <div>
+          <SortableContext items={subIds} strategy={verticalListSortingStrategy}>
+            {node.subNodes.map((sub) => (
+              <ChatCategoryNode key={sub.category.id} node={sub} depth={depth + 1} activeId={activeId} editMode={editMode}
+                onOpen={onOpen} onEditChannel={onEditChannel} onEditCategory={onEditCategory} onToggleCollapse={onToggleCollapse} />
+            ))}
+          </SortableContext>
+          <SortableContext items={chanIds} strategy={verticalListSortingStrategy}>
+            <ul>
+              {node.channels.map((ch) => (
+                <li key={ch.id}>
+                  <ChatChannelRow channel={ch} activeId={activeId} indent={depth + 1} editMode={editMode}
+                    onOpen={onOpen} onEdit={onEditChannel} />
+                </li>
+              ))}
+            </ul>
+          </SortableContext>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ChannelDialog({ editChannel = null, editCategory = null, alters = [], onClose, onSaved, onDeleted }) {
   const terms = useTerms();
@@ -1402,6 +1465,7 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
   const [catColor, setCatColor] = useState(editCategory?.color || "");
   const [parentId, setParentId] = useState(editCategory?.parent_category_id || "");
   const [pickedChannelIds, setPickedChannelIds] = useState([]);
+  const [showColorPicker, setShowColorPicker] = useState(false);
 
   const { data: categories = [] } = useQuery({ queryKey: ["systemChatCategories"], queryFn: () => localEntities.SystemChatCategory.list() });
   const { data: allChannels = [] } = useQuery({ queryKey: ["systemChatChannels"], queryFn: () => localEntities.SystemChatChannel.list() });
@@ -1547,10 +1611,13 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
               </span>
               <span className="flex-1 min-w-0">
                 <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                  <Folder className="w-3.5 h-3.5 text-muted-foreground" /> New category {isCategory ? "" : "— off (making a channel)"}
+                  {isCategory ? <Folder className="w-3.5 h-3.5 text-muted-foreground" /> : <Hash className="w-3.5 h-3.5 text-muted-foreground" />}
+                  {isCategory ? "New category" : "New channel"}
                 </span>
                 <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">
-                  A category groups channels in the sidebar; it can nest under another category and hold sub-categories.
+                  {isCategory
+                    ? "A category groups channels in the sidebar; it can nest under another category and hold sub-categories."
+                    : "Toggle on to make a category instead — a colour-coded group that holds channels."}
                 </span>
               </span>
             </button>
@@ -1564,13 +1631,16 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
               </div>
               <div>
                 <label className="text-xs font-medium block mb-1">Label colour <span className="text-muted-foreground">(optional)</span></label>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {CAT_COLORS.map((c) => (
-                    <button key={c} type="button" onClick={() => setCatColor(catColor === c ? "" : c)}
-                      className={`w-6 h-6 rounded-full border-2 transition-transform ${catColor === c ? "border-foreground scale-110" : "border-transparent"}`}
-                      style={{ backgroundColor: c }} aria-label={`Colour ${c}`} />
-                  ))}
-                  {catColor && <button type="button" onClick={() => setCatColor("")} className="text-xs text-muted-foreground hover:text-foreground ml-1">Clear</button>}
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowColorPicker(true)}
+                    className="flex items-center gap-2 h-9 px-3 rounded-md border border-border bg-background text-sm hover:bg-muted/40"
+                  >
+                    <span className="w-5 h-5 rounded-full border border-border/60" style={{ backgroundColor: catColor || "transparent", backgroundImage: catColor ? undefined : "repeating-conic-gradient(hsl(var(--muted)) 0% 25%, transparent 0% 50%)", backgroundSize: "8px 8px" }} />
+                    {catColor ? "Change colour" : "Choose colour"}
+                  </button>
+                  {catColor && <button type="button" onClick={() => setCatColor("")} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
                 </div>
               </div>
               <div>
@@ -1672,6 +1742,13 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
             </Button>
           </div>
         </div>
+        {showColorPicker && (
+          <ColorPickerModal
+            mode="fg"
+            onApply={(hex) => setCatColor(hex)}
+            onClose={() => setShowColorPicker(false)}
+          />
+        )}
       </DialogContent>
     </Dialog>
   );
