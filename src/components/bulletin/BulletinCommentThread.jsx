@@ -7,6 +7,7 @@ import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -149,8 +150,13 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
+    // Whisper transform first — comments are a posting surface, so a
+    // no-bracket "/w @name …" blurs the whole comment (no warning).
+    const w = applyWhisper(text, alters, { allowWholeBlur: true, rich: true, surfaceLabel: "comment" });
+    if (w === null) return; // user backed out of the whole-blur warning
+    const whisperRecipientIds = w.recipientIds || [];
     setSaving(true);
-    const { authors: signpostedAuthors, cleanContent } = parseSignposts(text, alters, systemKeywords);
+    const { authors: signpostedAuthors, cleanContent } = parseSignposts(w.content, alters, systemKeywords);
     const signpostHeadIsSystem = isSystemSignpost(signpostedAuthors[0]);
     const authorIds = signpostedAuthors
       .filter((a) => !isSystemSignpost(a))
@@ -183,7 +189,9 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
-      is_rich: richMode,
+      // A whisper embeds an HTML span — force rich rendering so it shows the
+      // hidden bar rather than raw tags.
+      is_rich: richMode || w.isWhisper,
       reactions: {},
     });
 
@@ -213,6 +221,22 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       navigatePath: commentNavPath,
       authorAlterId: finalAuthorIds[0] || null,
     });
+    // Whisper recipients are peeled off the body — notify them explicitly.
+    for (const rid of whisperRecipientIds) {
+      try {
+        await base44.entities.MentionLog.create({
+          mentioned_alter_id: rid,
+          author_alter_id: finalAuthorIds[0] || null,
+          log_type: "mention",
+          source_type: sourceType,
+          source_id: comment.id,
+          source_label: `${sourceType === "reply" ? "Reply" : "Comment"} (whisper)`,
+          source_date: new Date().toISOString(),
+          preview_text: "🔒 private whisper",
+          navigate_path: commentNavPath,
+        });
+      } catch { /* notification best-effort */ }
+    }
     setText("");
     setSaving(false);
     onRefresh();
@@ -231,7 +255,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           <textarea
             ref={inputRef}
             className="flex-1 min-h-[56px] max-h-40 px-3 py-2 rounded-lg border border-input bg-background text-xs resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign" : "Add a comment… use @ to mention, -name to sign"}
+            placeholder={parentCommentId ? "Reply… @ mention, -name to sign, /w @name [secret]" : "Add a comment… @ mention, -name to sign, /w @name [secret]"}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}
@@ -240,7 +264,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           <input
             ref={inputRef}
             className="flex-1 h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
-            placeholder={parentCommentId ? "Reply… use @ to mention, -name to sign (Cmd+Enter)" : "Add a comment… use @ to mention, -name to sign (Cmd+Enter)"}
+            placeholder={parentCommentId ? "Reply… @ mention, -name, /w @name [secret] (Cmd+Enter)" : "Add a comment… @ mention, -name, /w @name [secret] (Cmd+Enter)"}
             value={text}
             onChange={handleChange}
             onKeyDown={handleKeyDown}

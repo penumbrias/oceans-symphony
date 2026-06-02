@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { parseWhisperInput } from "@/lib/whisperUtils";
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { buildChatTree, eligibleChatParents, chatCategoriesById, chatCategoryDepth, migrateLegacyChatCategories, CHAT_CATEGORY_MAX_DEPTH } from "@/lib/chatCategories";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -747,8 +748,19 @@ function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], 
   };
 
   const handleSend = async ({ content, speakerIds, notifyOnReply }) => {
-    if (WHISPER_RE.test(content)) { await handleWhisper({ content, speakerIds }); return; }
-    const { cleanText, authorAlterIds } = resolveAuthors(content, speakerIds);
+    let body = content;
+    let whisperRecipientIds = [];
+    if (WHISPER_RE.test(content)) {
+      const w = parseWhisperInput(content, alters, { allowWholeBlur: true, rich: true });
+      // No brackets → blur the whole message via the existing message-level
+      // whisper (lock header + fronting-aware reveal). Brackets → fall through
+      // as a normal message with the bracketed parts hidden inline; the
+      // bracket recipients are notified like @mentions.
+      if (w.mode === "whole") { await handleWhisper({ content, speakerIds }); return; }
+      body = w.transformed;
+      whisperRecipientIds = w.recipientIds;
+    }
+    const { cleanText, authorAlterIds } = resolveAuthors(body, speakerIds);
     if (!cleanText) return;
     const mentionedIds = extractMentionedIds(cleanText, alters);
     // When replying with the "@ ON" toggle, treat every alter the
@@ -763,7 +775,7 @@ function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], 
           : (replyTo.author_alter_id ? [replyTo.author_alter_id] : []))
         .filter((id) => id && !authorAlterIds.includes(id))
       : [];
-    const allMentionedIds = [...new Set([...mentionedIds, ...replyAuthorIds])];
+    const allMentionedIds = [...new Set([...mentionedIds, ...replyAuthorIds, ...whisperRecipientIds])];
     const created = await localEntities.SystemChatMessage.create({
       channel_id: channel.id,
       author_alter_id: authorAlterIds[0] || null,
@@ -1278,7 +1290,7 @@ function Composer({ channel, alters, speakerAlters = alters, defaultAuthorId, re
                 handleSubmit();
               }
             }}
-            placeholder={`Message #${channel.name}…  (@ mention · - signpost · /w @name to whisper)`}
+            placeholder={`Message #${channel.name}…  (@ mention · - signpost · /w @name [secret] to whisper)`}
             className="text-sm min-h-[40px] max-h-32 overflow-y-auto rounded-xl border border-input bg-background px-3 py-2 leading-relaxed"
           />
         </div>

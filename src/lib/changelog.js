@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Whisper privately anywhere you post: type \"/w @name [secret]\" in chat, a bulletin, or a comment and only the bracketed part hides behind a tap-to-reveal bar. Leave the brackets off to hide the whole post.",
+      },
+      {
         type: "fix",
         text: "Links to other pages in the app now stay clickable after you send a chat message or post a bulletin — before they turned into plain text.",
       },

@@ -148,6 +148,38 @@ body {
   user-select: auto;
 }
 
+/* Whisper — private text addressed to specific alters. Renders as a small
+   "🔒 for <names>" bar that hides the text until tapped (toggled by the same
+   delegated handler in AppLayout). Uses the primary colour so the label is
+   always readable in both light and dark themes. `data-whisper-for` carries
+   the recipient names. Works anywhere content is rendered as rich HTML. */
+.whisper {
+  background: hsl(var(--primary));
+  color: transparent;
+  border-radius: 4px;
+  padding: 0 4px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease, color 120ms ease;
+}
+.whisper::before {
+  content: "🔒 " attr(data-whisper-for);
+  color: hsl(var(--primary-foreground));
+  font-size: 0.8em;
+  font-style: italic;
+}
+.whisper.revealed {
+  background: hsl(var(--primary) / 0.12);
+  color: inherit;
+  user-select: auto;
+}
+.whisper.revealed::before {
+  content: "🔒\00a0";
+  color: hsl(var(--primary));
+  font-size: 0.8em;
+  font-style: normal;
+}
+
 /* ─── App header decoration ──────────────────────────────────────────
  * The header has a slightly lighter wash on its top half whose bottom
  * edge is wavy and scrolls slowly sideways — calm-waves motion,

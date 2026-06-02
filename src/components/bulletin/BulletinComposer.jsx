@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -124,8 +125,15 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
 
   const handlePost = async () => {
     if (!content.trim()) return;
+    // Whisper transform first — bulletins are a posting surface, so a
+    // no-bracket "/w @name …" blurs the whole post (no warning). Bulletins
+    // always render rich, so keep the HTML raw (rich:true).
+    const w = applyWhisper(content, alters, { allowWholeBlur: true, rich: true, surfaceLabel: "bulletin" });
+    if (w === null) return; // user backed out of the whole-blur warning
+    const workingContent = w.content;
+    const whisperRecipientIds = w.recipientIds || [];
     setSaving(true);
-    const { authors: signpostedAuthors, cleanContent } = parseSignposts(content, alters, systemKeywords);
+    const { authors: signpostedAuthors, cleanContent } = parseSignposts(workingContent, alters, systemKeywords);
     // An explicit `-system` signpost short-circuits the whole
     // fronter-fallback path: the user has chosen to attribute this
     // bulletin to the system as a whole, even if someone is currently
@@ -156,14 +164,16 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
-    const mentionedIds = extractMentionedIds(cleanContent, alters);
+    const mentionedIds = [...new Set([...extractMentionedIds(cleanContent, alters), ...whisperRecipientIds])];
 
     const data = {
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || authorAlterId || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       mentioned_alter_ids: mentionedIds,
-      is_rich: richMode,
+      // A whisper embeds an HTML span, so force rich rendering even from
+      // Simple mode so it renders the hidden bar rather than raw tags.
+      is_rich: richMode || w.isWhisper,
       group_id: groupId || null,
       is_pinned: pinned,
       reactions: {},
@@ -237,6 +247,23 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       navigatePath: `/bulletin/${bulletin.id}`,
       authorAlterId: finalAuthorIds[0] || authorAlterId || null,
     });
+    // Whisper recipients are peeled off the body (so saveMentions can't see
+    // them) — notify them explicitly so the whisper reaches its target.
+    for (const rid of whisperRecipientIds) {
+      try {
+        await base44.entities.MentionLog.create({
+          mentioned_alter_id: rid,
+          author_alter_id: finalAuthorIds[0] || authorAlterId || null,
+          log_type: "mention",
+          source_type: "bulletin",
+          source_id: bulletin.id,
+          source_label: "Bulletin Board (whisper)",
+          source_date: new Date().toISOString(),
+          preview_text: "🔒 private whisper",
+          navigate_path: `/bulletin/${bulletin.id}`,
+        });
+      } catch { /* notification best-effort */ }
+    }
     // Log authored entry for each author's board
     for (const authorId of finalAuthorIds) {
       await saveAuthoredLog({
@@ -282,7 +309,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         alters={alters}
         signposts
         systemName={systemIdentity.name}
-        placeholder="Write a message… use @ to mention, -name to sign as author"
+        placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
         className="min-h-[80px] text-sm resize-none"
         autoFocus
       />

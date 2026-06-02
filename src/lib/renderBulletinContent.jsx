@@ -142,9 +142,18 @@ function nodeToReact(node, key, renderText) {
   const styleObj = cssStringToStyleObject(node.getAttribute("style"));
   const props = { key };
   if (styleObj) props.style = styleObj;
-  // Preserve the whitelisted "spoiler" class so censor bars survive (class
-  // is otherwise dropped). Safe — a class name can't execute anything.
-  if (/\bspoiler\b/.test(node.getAttribute("class") || "")) props.className = "spoiler";
+  // Preserve the whitelisted "spoiler" / "whisper" classes so censor bars
+  // and whispers survive (class is otherwise dropped). Safe — a class name
+  // can't execute anything. The whisper carries its recipient names in a
+  // data-* attribute that the CSS label reads.
+  const cls = node.getAttribute("class") || "";
+  if (/\bwhisper\b/.test(cls)) {
+    props.className = "whisper";
+    const forNames = node.getAttribute("data-whisper-for");
+    if (forNames != null) props["data-whisper-for"] = forNames;
+  } else if (/\bspoiler\b/.test(cls)) {
+    props.className = "spoiler";
+  }
   return React.createElement(tag, props, children);
 }
 

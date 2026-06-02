@@ -72,11 +72,15 @@ export default function AppLayout() {
   // the Set Fronters modal don't sit with stuck data forever.
   useFrontSessionSweep();
 
-  // Censor/spoiler reveal — tapping a `||text||` redaction bar (rendered as
-  // a .spoiler span anywhere: bios, bulletins, chat) toggles it open/closed.
-  // One delegated listener covers every surface regardless of how it rendered.
+  // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
+  // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered
+  // anywhere: bios, bulletins, comments, chat, journals, notes) toggles it
+  // open/closed. One delegated listener covers every surface regardless of
+  // how it rendered.
   useEffect(() => {
     const handler = (e) => {
+      const wh = e.target?.closest?.(".whisper");
+      if (wh) { wh.classList.toggle("revealed"); return; }
       const sp = e.target?.closest?.(".spoiler");
       if (sp) sp.classList.toggle("revealed");
     };
