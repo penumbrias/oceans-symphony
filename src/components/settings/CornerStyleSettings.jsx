@@ -20,7 +20,7 @@ const OPTIONS = [
   },
 ];
 
-export default function CornerStyleSettings() {
+export default function CornerStyleSettings({ embedded = false } = {}) {
   const qc = useQueryClient();
   const { data: list = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -45,22 +45,8 @@ export default function CornerStyleSettings() {
     }
   };
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Squircle className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Corner style</CardTitle>
-            <CardDescription>
-              Make every card, button, input, and pill rounded or sharp. Avatars and other intentionally circular elements stay round either way.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="grid grid-cols-2 gap-2">
+  const grid = (
+    <div className="grid grid-cols-2 gap-2">
         {OPTIONS.map((opt) => {
           const selected = current === opt.id;
           const { PreviewIcon } = opt;
@@ -88,7 +74,27 @@ export default function CornerStyleSettings() {
             </button>
           );
         })}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return grid;
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Squircle className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Corner style</CardTitle>
+            <CardDescription>
+              Make every card, button, input, and pill rounded or sharp. Avatars and other intentionally circular elements stay round either way.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>{grid}</CardContent>
     </Card>
   );
 }

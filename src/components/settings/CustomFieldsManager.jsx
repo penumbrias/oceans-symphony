@@ -123,7 +123,7 @@ function SortableFieldRow({ field, isEditing, editName, editType, setEditName, s
   );
 }
 
-export default function CustomFieldsManager() {
+export default function CustomFieldsManager({ embedded = false } = {}) {
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -235,22 +235,8 @@ export default function CustomFieldsManager() {
     cancelEdit();
   };
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Hash className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Custom Fields</CardTitle>
-            <CardDescription>
-              Fields that appear on every alter's Info tab. You can fill them in per-alter. Drag the handle to reorder.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+  const body = (
+    <div className="space-y-3">
         {sortedFields.length === 0 && !adding && (
           <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
         )}
@@ -320,7 +306,27 @@ export default function CustomFieldsManager() {
             <Plus className="w-4 h-4" /> Add Custom Field
           </Button>
         )}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return body;
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Hash className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Custom Fields</CardTitle>
+            <CardDescription>
+              Fields that appear on every alter's Info tab. You can fill them in per-alter. Drag the handle to reorder.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>{body}</CardContent>
     </Card>
   );
 }

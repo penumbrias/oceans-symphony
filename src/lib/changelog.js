@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The whole Settings menu now follows one clean layout — every section is a tidy list of collapsible subsections (collapsed by default), matching the redesigned Profile section.",
+      },
+      {
         type: "fix",
         text: "A group/subsystem's background image now fills the whole screen, not just the area behind the content.",
       },

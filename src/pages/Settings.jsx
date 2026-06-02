@@ -31,7 +31,7 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2 } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
@@ -551,28 +551,18 @@ export default function Settings() {
 
         {/* ── APPEARANCE ── */}
         <Section id="appearance" icon={Palette} label="Appearance">
-          <AdvancedAppearance />
-          <div className="border-t border-border/30 pt-4">
-            <CornerStyleSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <AlterLabelSettings />
-          </div>
-          <DashboardLayoutSettings />
-          <div className="border-t border-border/30 pt-4">
-            <UpcomingPlansSurfacesSection />
-          </div>
-          <NavigationSettings settings={settings} />
+          <SubSection title="Theme & colours" defaultOpen={false}><AdvancedAppearance /></SubSection>
+          <SubSection title="Corner style" defaultOpen={false}><CornerStyleSettings embedded /></SubSection>
+          <SubSection title={`${terms.Alter} labels in lists`} defaultOpen={false}><AlterLabelSettings embedded /></SubSection>
+          <SubSection title="Dashboard layout" defaultOpen={false}><DashboardLayoutSettings /></SubSection>
+          <SubSection title="Upcoming plans surfaces" defaultOpen={false}><UpcomingPlansSurfacesSection /></SubSection>
+          <SubSection title="Navigation" defaultOpen={false}><NavigationSettings settings={settings} /></SubSection>
         </Section>
 
         {/* ── NOTIFICATIONS & REMINDERS ── */}
         <Section id="notifications" icon={Bell} label="Notifications & reminders">
-          <div className="space-y-6">
-            <NotificationSettings />
-            <div className="pt-4 border-t border-border/40">
-              <RemindersSettings />
-            </div>
-          </div>
+          <SubSection title="In-app notifications" defaultOpen={false}><NotificationSettings /></SubSection>
+          <SubSection title="Reminders" defaultOpen={false}><RemindersSettings /></SubSection>
         </Section>
 
         {/* ── ACCESSIBILITY ── */}
@@ -582,37 +572,23 @@ export default function Settings() {
 
         {/* ── ALTER SETUP ── */}
         <Section id="alters" icon={Users} label={`${terms.Alter} setup`}>
-          <CustomFieldsManager />
-          <div className="border-t border-border/30 pt-4">
-            <RelationshipTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <ArchivedAltersManager />
-          </div>
+          <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
+          <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
+          <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
         </Section>
 
         {/* ── TRACKING SETUP ── */}
         <Section id="checkin" icon={Activity} label="Tracking setup">
-          <QuickActionsConfig />
-          <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Check-In Manager</p>
-                <p className="text-xs text-muted-foreground">Configure quick check-in fields</p>
-              </div>
+          <SubSection title="Quick actions" defaultOpen={false}><QuickActionsConfig /></SubSection>
+          <SubSection title="Check-in manager" defaultOpen={false}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">Configure the fields shown in the quick check-in.</p>
+              <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
             </div>
-            <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <CustomEmotionsManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <CustomTriggerTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          </SubSection>
+          <SubSection title="Custom emotions" defaultOpen={false}><CustomEmotionsManager /></SubSection>
+          <SubSection title="Custom triggers" defaultOpen={false}><CustomTriggerTypesManager /></SubSection>
+          <SubSection title="Analytics & attribution" defaultOpen={false}>
             <div>
               <p className="text-sm font-semibold mb-1">Analytics grouping</p>
               <p className="text-xs text-muted-foreground mb-3">
@@ -706,7 +682,7 @@ export default function Settings() {
                 </div>
               )}
             </div>
-          </div>
+          </SubSection>
         </Section>
 
         {/* ── DATA & PRIVACY ── */}
@@ -717,30 +693,22 @@ export default function Settings() {
           {/* Backup & Export first — it's the action people open this
               section to do most often. Auto-backup follows it so both
               manual and scheduled backups live together. */}
-          <div className="border-t border-border/30 pt-4">
-            <DataBackupRestore />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <AutoBackupSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <StorageModeSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <GroceryPanicTapsSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore /></SubSection>
+          <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
+          <SubSection title="Storage & encryption" defaultOpen={false}><StorageModeSettings /></SubSection>
+          <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
+          <SubSection title="Simply Plural" defaultOpen={false}>
             <SimplyPluralConnect settings={settings} onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }} />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          </SubSection>
+          <SubSection title="PluralKit" defaultOpen={false}>
             <PluralKitConnect settings={settings} onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }} />
-          </div>
+          </SubSection>
         </Section>
 
         {/* ── ABOUT & HELP ──
@@ -749,47 +717,18 @@ export default function Settings() {
             into one collapsed group so the TOC isn't dominated by
             rarely-touched links. */}
         <Section id="about" icon={Info} label="About & help">
-          <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Found a bug?
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-                Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
-              </p>
-              <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
-                <span>🐛</span> Open bug report form
-              </Button>
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Tour & onboarding
-              </p>
-              <PageTutorialsControls />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Medical disclaimer
-              </p>
-              <MedicalDisclaimer />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Preview mode <span className="text-[0.625rem] font-normal text-muted-foreground/70 normal-case ml-1">(dev)</span>
-              </p>
-              <PreviewModeSection />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                What's new
-              </p>
-              <RecentUpdates />
-            </div>
-          </div>
+          <SubSection title="Found a bug?" defaultOpen={false}>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+              Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
+            </p>
+            <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
+              <Bug className="w-4 h-4" /> Open bug report form
+            </Button>
+          </SubSection>
+          <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
+          <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
+          <SubSection title="Preview mode (dev)" defaultOpen={false}><PreviewModeSection /></SubSection>
+          <SubSection title="What's new" defaultOpen={false}><RecentUpdates /></SubSection>
         </Section>
 
       </div>
