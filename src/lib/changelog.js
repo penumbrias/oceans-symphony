@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "A group/subsystem's background image now fills the whole screen instead of being trapped in the header — the separate header image still stays up top as the banner.",
+      },
+      {
         type: "improve",
         text: "System chat and the bulletin board now share the same smart @mention / -signpost picker, and it's newly available on alter notes and the dashboard status field.",
       },

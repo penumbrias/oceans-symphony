@@ -267,7 +267,9 @@ function GroupProfileInner() {
   // ---------- BOARD / NOTES TABS ----------
   if (tab === "board" || tab === "notes") {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 relative">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        <div className="relative z-10 space-y-3">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
         </Button>
@@ -286,6 +288,7 @@ function GroupProfileInner() {
         ) : (
           <GroupNotesTab groupId={group.id} />
         )}
+        </div>
       </motion.div>
     );
   }
@@ -293,7 +296,9 @@ function GroupProfileInner() {
   // ---------- VIEW MODE ----------
   if (!editMode) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 relative">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        <div className="relative z-10 space-y-6">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
@@ -305,7 +310,7 @@ function GroupProfileInner() {
 
         {tabBar}
 
-        <ViewHeader group={group} bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} headerImage={headerImage}
+        <ViewHeader group={group} headerImage={headerImage}
           ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
 
         {group.description ? (
@@ -372,6 +377,7 @@ function GroupProfileInner() {
         {showMembers && (
           <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />
         )}
+        </div>
       </motion.div>
     );
   }
@@ -383,8 +389,14 @@ function GroupProfileInner() {
   const rootDisabledIds = new Set(
     ownerCandidates.filter((a) => wouldCreateOwnershipCycle(allGroups, alters, group.id, a.id)).map((a) => a.id)
   );
+  // Live background preview while editing (uses the unsaved form values).
+  const formBgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
+  const formBgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";
+  const formBgOpacity = form.custom_fields?.[BG_OPACITY_KEY] ?? 0.15;
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 relative">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
+      <div className="relative z-10 space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
           <Eye className="w-4 h-4 mr-1.5" /> View
@@ -539,6 +551,7 @@ function GroupProfileInner() {
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Group Color" onSave={(hex) => setForm((f) => ({ ...f, color: hex }))} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={form.custom_fields[BG_COLOR_KEY] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
+      </div>
     </motion.div>
   );
 }
@@ -637,28 +650,43 @@ function StyleImageRow({ label, busy, inputRef, value, onClear, onChange, onText
   );
 }
 
-function ViewHeader({ group, bgColor, bgImage, bgOpacity, headerImage, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
-  const [resolvedHeader, setResolvedHeader] = useState(null);
+// Full-screen background for the whole group/subsystem screen. The
+// "Background image" + "Background color" + opacity are page-wide (they
+// sit behind ALL the content), while the "Header image" stays scoped to
+// the header banner in ViewHeader. Rendered as the first, absolutely
+// positioned child of a `relative` page wrapper; the content alongside
+// it must be `relative z-10` so it paints on top.
+function PageBackground({ bgColor, bgImage, bgOpacity }) {
   const [resolvedBg, setResolvedBg] = useState(null);
+  useEffect(() => {
+    if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
+    else setResolvedBg(null);
+  }, [bgImage]);
+  if (!bgColor && !bgImage) return null;
+  return (
+    <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" aria-hidden>
+      {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
+      {bgImage && resolvedBg && (
+        <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+      )}
+    </div>
+  );
+}
+
+function ViewHeader({ group, headerImage, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
+  const [resolvedHeader, setResolvedHeader] = useState(null);
   useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
-  useEffect(() => { if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null)); else setResolvedBg(null); }, [bgImage]);
-  const hasBg = bgColor || bgImage;
+  const hasHeader = !!(headerImage && resolvedHeader);
   return (
     <div className="relative rounded-2xl overflow-hidden">
-      {hasBg && (
-        <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-          {bgImage && resolvedBg && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
-        </div>
-      )}
-      {headerImage && resolvedHeader && (
+      {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.45 }} />
       )}
-      <div className={`relative z-10 flex gap-4 items-start ${hasBg || headerImage ? "p-4" : ""}`}>
+      <div className={`relative z-10 flex gap-4 items-start ${hasHeader ? "p-4" : ""}`}>
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="font-display text-2xl font-semibold flex items-center gap-2"
-            style={{ color: (hasBg || headerImage) ? undefined : groupNameColor(group.color) }}>
+            style={{ color: hasHeader ? undefined : groupNameColor(group.color) }}>
             {group.emoji ? <span>{group.emoji}</span> : null}{group.name}
           </h2>
           {ownerAlter && (
