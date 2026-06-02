@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The \"Who's fronting?\" picker in Quick Check-In now has the same swipe gestures as the Set Fronters modal — tap to toggle, swipe-left (or hold) for primary, swipe-left-then-up to solo.",
+      },
+      {
         type: "improve",
         text: "Chat sidebar has an Edit button up top: turn it on to drag channels and categories into a new order (within their group) or tap any of them to edit. The new-channel/new-category toggle now reads plainly, and category colours use the app's full colour picker.",
       },
