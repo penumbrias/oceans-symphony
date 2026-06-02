@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System chat now has real nestable categories: the New button toggles to \"New category\" to make colour-coded, collapsible categories (up to 3 deep) and pick which channels go in them — channels show indented under their category, new categories sit at the top. Existing categories migrate automatically.",
+      },
+      {
         type: "improve",
         text: "The fronting shortcuts in the Quick Actions menu now use the same gestures as everywhere else: tap to set/add, swipe-left or long-press to make primary, swipe-left-then-up to solo, swipe-right to toggle front.",
       },

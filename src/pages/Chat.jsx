@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ImagePlus, Loader2, Lock } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, ImagePlus, Loader2, Lock, Folder } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { buildChatTree, eligibleChatParents, chatCategoriesById, chatCategoryDepth, migrateLegacyChatCategories, CHAT_CATEGORY_MAX_DEPTH } from "@/lib/chatCategories";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -157,6 +158,10 @@ export default function Chat() {
     queryKey: ["systemChatChannels"],
     queryFn: () => localEntities.SystemChatChannel.list(),
   });
+  const { data: categories = [], isSuccess: categoriesLoaded } = useQuery({
+    queryKey: ["systemChatCategories"],
+    queryFn: () => localEntities.SystemChatCategory.list(),
+  });
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
@@ -201,6 +206,22 @@ export default function Chat() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [channelsLoaded, channels.length]);
 
+  // One-time, non-destructive migration of legacy string categories into real
+  // SystemChatCategory entities so existing setups become editable trees.
+  const migratedRef = useRef(false);
+  useEffect(() => {
+    if (migratedRef.current || !channelsLoaded || !categoriesLoaded) return;
+    migratedRef.current = true;
+    (async () => {
+      const created = await migrateLegacyChatCategories(localEntities, channels, categories);
+      if (created > 0) {
+        qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
+        qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+      }
+    })();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [channelsLoaded, categoriesLoaded]);
+
   const sortedChannels = useMemo(
     () => [...channels]
       .filter((c) => !c.is_archived)
@@ -208,40 +229,25 @@ export default function Chat() {
     [channels]
   );
 
-  // Group channels by category for the sidebar. Channels without a
-  // category fall under an "Uncategorised" bucket rendered at the
-  // top. Categories themselves are listed in the order they first
-  // appear in the sorted list.
-  // Private (Direct Message) channels are pulled out of the category
-  // grouping and listed under their own "Direct Messages" heading.
+  // Private (Direct Message) channels are pulled out of the category tree and
+  // listed under their own "Direct Messages" heading (see DM section below).
   const privateChannels = useMemo(() => sortedChannels.filter((c) => c.is_private), [sortedChannels]);
-  const groupedChannels = useMemo(() => {
-    const order = [];
-    const map = new Map();
-    for (const c of sortedChannels) {
-      if (c.is_private) continue;
-      const key = c.category?.trim() || "";
-      if (!map.has(key)) {
-        map.set(key, []);
-        order.push(key);
-      }
-      map.get(key).push(c);
-    }
-    return order.map((key) => ({ category: key, channels: map.get(key) }));
-  }, [sortedChannels]);
-  const existingCategoryNames = useMemo(() => {
-    const set = new Set();
-    for (const c of channels) if (c.category) set.add(c.category.trim());
-    return Array.from(set).sort();
-  }, [channels]);
 
-  // Move a channel up or down within its category (or relative to
-  // the full list when uncategorised). Reassigns sort_order in
-  // small increments so future inserts at Date.now() still come
-  // after these.
-  const moveChannel = async (channel, direction) => {
-    const groupKey = channel.category?.trim() || "";
-    const peers = sortedChannels.filter((c) => (c.category?.trim() || "") === groupKey);
+  // The nested category tree for the sidebar: { rootNodes, uncategorized }.
+  const tree = useMemo(() => buildChatTree(categories, channels), [categories, channels]);
+
+  // Collapse / expand a category (persisted on the entity).
+  const toggleCollapse = async (cat) => {
+    try {
+      await localEntities.SystemChatCategory.update(cat.id, { collapsed: !cat.collapsed });
+      qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't update");
+    }
+  };
+
+  // Move a channel up or down within its own category's channel list.
+  const moveChannel = async (channel, peers, direction) => {
     const idx = peers.findIndex((c) => c.id === channel.id);
     if (idx === -1) return;
     const targetIdx = direction === "up" ? idx - 1 : idx + 1;
@@ -277,6 +283,7 @@ export default function Chat() {
 
   const [createOpen, setCreateOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState(null);
+  const [editingCategory, setEditingCategory] = useState(null);
   const [showChannels, setShowChannels] = useState(true);
 
   // Default author for the composer: primary fronter, else first
@@ -324,71 +331,44 @@ export default function Chat() {
             <button
               type="button"
               onClick={() => setCreateOpen(true)}
-              aria-label="New channel"
+              aria-label="New channel or category"
+              title="New channel or category"
               className="p-1 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted/60"
             >
               <Plus className="w-4 h-4" />
             </button>
           </div>
           <div className="flex-1 overflow-y-auto p-1 min-h-[6rem]">
-            {groupedChannels.map(({ category, channels: list }) => (
-              <div key={category || "__uncat__"} className="mb-1.5 last:mb-0">
-                {category && (
-                  <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80">
-                    {category}
-                  </div>
-                )}
-                <ul>
-                  {list.map((c, idx) => (
-                    <li key={c.id}>
-                      <div
-                        className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
-                          activeChannel?.id === c.id
-                            ? "bg-primary/15 text-foreground"
-                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
-                        }`}
-                      >
-                        <button
-                          type="button"
-                          onClick={() => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
-                          onContextMenu={(e) => { e.preventDefault(); setEditingChannel(c); }}
-                          className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
-                        >
-                          <Hash className="w-3.5 h-3.5 flex-shrink-0" />
-                          <span className="truncate flex-1">{c.name}</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveChannel(c, "up")}
-                          disabled={idx === 0}
-                          aria-label={`Move ${c.name} up`}
-                          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
-                        >
-                          <ChevronUp className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => moveChannel(c, "down")}
-                          disabled={idx === list.length - 1}
-                          aria-label={`Move ${c.name} down`}
-                          className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30 disabled:hover:text-muted-foreground"
-                        >
-                          <ChevronDown className="w-3 h-3" />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setEditingChannel(c)}
-                          aria-label={`Edit ${c.name}`}
-                          className="p-0.5 text-muted-foreground hover:text-foreground"
-                        >
-                          <Pencil className="w-3 h-3" />
-                        </button>
-                      </div>
-                    </li>
+            {(() => {
+              const onOpen = (c) => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); };
+              return (
+                <>
+                  {tree.rootNodes.map((node) => (
+                    <ChatCategoryNode
+                      key={node.category.id}
+                      node={node}
+                      depth={0}
+                      activeId={activeChannel?.id}
+                      onOpen={onOpen}
+                      onEditChannel={setEditingChannel}
+                      onEditCategory={setEditingCategory}
+                      onMove={moveChannel}
+                      onToggleCollapse={toggleCollapse}
+                    />
                   ))}
-                </ul>
-              </div>
-            ))}
+                  {tree.uncategorized.length > 0 && (
+                    <ul className="mb-1.5">
+                      {tree.uncategorized.map((c) => (
+                        <li key={c.id}>
+                          <ChatChannelRow channel={c} peers={tree.uncategorized} activeId={activeChannel?.id} indent={0}
+                            onOpen={onOpen} onEdit={setEditingChannel} onMove={moveChannel} />
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </>
+              );
+            })()}
             {privateChannels.length > 0 && (
               <div className="mb-1.5 last:mb-0">
                 <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1">
@@ -462,23 +442,20 @@ export default function Chat() {
 
       {createOpen && (
         <ChannelDialog
-          mode="create"
           alters={alters}
-          existingCategories={existingCategoryNames}
           onClose={() => setCreateOpen(false)}
           onSaved={(record) => {
-            setSearchParams({ channel: record.id }, { replace: true });
+            if (record?.id) setSearchParams({ channel: record.id }, { replace: true });
             qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+            qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
             setCreateOpen(false);
           }}
         />
       )}
       {editingChannel && (
         <ChannelDialog
-          mode="edit"
-          channel={editingChannel}
+          editChannel={editingChannel}
           alters={alters}
-          existingCategories={existingCategoryNames}
           onClose={() => setEditingChannel(null)}
           onSaved={() => {
             qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
@@ -491,6 +468,23 @@ export default function Chat() {
               setSearchParams({}, { replace: true });
             }
             setEditingChannel(null);
+          }}
+        />
+      )}
+      {editingCategory && (
+        <ChannelDialog
+          editCategory={editingCategory}
+          alters={alters}
+          onClose={() => setEditingCategory(null)}
+          onSaved={() => {
+            qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
+            qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+            setEditingCategory(null);
+          }}
+          onDeleted={() => {
+            qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
+            qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+            setEditingCategory(null);
           }}
         />
       )}
@@ -1316,16 +1310,115 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
   );
 }
 
-function ChannelDialog({ mode, channel, alters = [], onClose, onSaved, onDeleted, existingCategories = [] }) {
+// One channel row in the sidebar tree (with reorder + edit affordances).
+function ChatChannelRow({ channel, peers, activeId, indent = 0, onOpen, onEdit, onMove }) {
+  const idx = peers.findIndex((c) => c.id === channel.id);
+  const isActive = activeId === channel.id;
+  return (
+    <div
+      className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${isActive ? "bg-primary/15 text-foreground" : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"}`}
+      style={{ paddingLeft: indent * 12 }}
+    >
+      <button type="button" onClick={() => onOpen(channel)} onContextMenu={(e) => { e.preventDefault(); onEdit(channel); }}
+        className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left">
+        <Hash className="w-3.5 h-3.5 flex-shrink-0" />
+        <span className="truncate flex-1">{channel.name}</span>
+      </button>
+      <button type="button" onClick={() => onMove(channel, peers, "up")} disabled={idx <= 0}
+        aria-label={`Move ${channel.name} up`} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
+        <ChevronUp className="w-3 h-3" />
+      </button>
+      <button type="button" onClick={() => onMove(channel, peers, "down")} disabled={idx === peers.length - 1}
+        aria-label={`Move ${channel.name} down`} className="p-0.5 text-muted-foreground hover:text-foreground disabled:opacity-30">
+        <ChevronDown className="w-3 h-3" />
+      </button>
+      <button type="button" onClick={() => onEdit(channel)} aria-label={`Edit ${channel.name}`} className="p-0.5 text-muted-foreground hover:text-foreground">
+        <Pencil className="w-3 h-3" />
+      </button>
+    </div>
+  );
+}
+
+// A category node: collapsible header (with its colour) + nested
+// subcategories + its channels, indented by depth.
+function ChatCategoryNode({ node, depth, activeId, onOpen, onEditChannel, onEditCategory, onMove, onToggleCollapse }) {
+  const cat = node.category;
+  const collapsed = !!cat.collapsed;
+  return (
+    <div className="mb-0.5">
+      <div className="flex items-center gap-0.5 group rounded-md hover:bg-muted/40" style={{ paddingLeft: depth * 12 }}>
+        <button type="button" onClick={() => onToggleCollapse(cat)} className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0" aria-label={collapsed ? "Expand category" : "Collapse category"}>
+          {collapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+        </button>
+        <span className="flex-1 min-w-0 text-[0.625rem] font-semibold uppercase tracking-wider truncate py-1" style={{ color: cat.color || "hsl(var(--muted-foreground))" }}>
+          {cat.name}
+        </span>
+        <button type="button" onClick={() => onEditCategory(cat)} aria-label={`Edit ${cat.name} category`} className="p-0.5 text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100">
+          <Pencil className="w-3 h-3" />
+        </button>
+      </div>
+      {!collapsed && (
+        <div>
+          {node.subNodes.map((sub) => (
+            <ChatCategoryNode key={sub.category.id} node={sub} depth={depth + 1} activeId={activeId}
+              onOpen={onOpen} onEditChannel={onEditChannel} onEditCategory={onEditCategory} onMove={onMove} onToggleCollapse={onToggleCollapse} />
+          ))}
+          <ul>
+            {node.channels.map((ch) => (
+              <li key={ch.id}>
+                <ChatChannelRow channel={ch} peers={node.channels} activeId={activeId} indent={depth + 1}
+                  onOpen={onOpen} onEdit={onEditChannel} onMove={onMove} />
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const CAT_COLORS = ["#f87171", "#fb923c", "#fbbf24", "#34d399", "#22d3ee", "#60a5fa", "#a78bfa", "#f472b6", "#cbd5e1"];
+
+function ChannelDialog({ editChannel = null, editCategory = null, alters = [], onClose, onSaved, onDeleted }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
-  const [name, setName] = useState(channel?.name || "");
-  const [description, setDescription] = useState(channel?.description || "");
-  const [category, setCategory] = useState(channel?.category || "");
-  const [isPrivate, setIsPrivate] = useState(!!channel?.is_private);
-  const [memberIds, setMemberIds] = useState(channel?.member_alter_ids || []);
-  const [memberSearch, setMemberSearch] = useState("");
+  const qc = useQueryClient();
+
+  const isEdit = !!(editChannel || editCategory);
+  // In create mode a toggle picks channel vs category; in edit mode it's fixed.
+  const [isCategory, setIsCategory] = useState(!!editCategory);
   const [busy, setBusy] = useState(false);
+
+  // Channel fields
+  const [name, setName] = useState(editChannel?.name || "");
+  const [description, setDescription] = useState(editChannel?.description || "");
+  const [categoryId, setCategoryId] = useState(editChannel?.category_id || "");
+  const [isPrivate, setIsPrivate] = useState(!!editChannel?.is_private);
+  const [memberIds, setMemberIds] = useState(editChannel?.member_alter_ids || []);
+  const [memberSearch, setMemberSearch] = useState("");
+
+  // Category fields
+  const [catName, setCatName] = useState(editCategory?.name || "");
+  const [catColor, setCatColor] = useState(editCategory?.color || "");
+  const [parentId, setParentId] = useState(editCategory?.parent_category_id || "");
+  const [pickedChannelIds, setPickedChannelIds] = useState([]);
+
+  const { data: categories = [] } = useQuery({ queryKey: ["systemChatCategories"], queryFn: () => localEntities.SystemChatCategory.list() });
+  const { data: allChannels = [] } = useQuery({ queryKey: ["systemChatChannels"], queryFn: () => localEntities.SystemChatChannel.list() });
+
+  // Initialise "channels in this category" when editing a category.
+  useEffect(() => {
+    if (editCategory) setPickedChannelIds(allChannels.filter((c) => c.category_id === editCategory.id && !c.is_private).map((c) => c.id));
+  }, [editCategory, allChannels]);
+
+  const byId = useMemo(() => chatCategoriesById(categories), [categories]);
+  const parentOptions = useMemo(() => eligibleChatParents(categories, editCategory?.id || null), [categories, editCategory]);
+  const catOptions = useMemo(
+    () => categories.map((c) => ({ id: c.id, name: c.name, depth: chatCategoryDepth(c.id, byId) }))
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    [categories, byId]
+  );
+  const assignableChannels = useMemo(() => allChannels.filter((c) => !c.is_archived && !c.is_private), [allChannels]);
 
   const memberOptions = useMemo(() => {
     const q = memberSearch.trim().toLowerCase();
@@ -1333,10 +1426,10 @@ function ChannelDialog({ mode, channel, alters = [], onClose, onSaved, onDeleted
       .filter((a) => !a.is_archived)
       .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)));
   }, [alters, memberSearch]);
-  const toggleMember = (id) =>
-    setMemberIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const toggleMember = (id) => setMemberIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const togglePicked = (id) => setPickedChannelIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
-  const handleSave = async () => {
+  const saveChannel = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
     if (isPrivate && memberIds.length === 0) {
@@ -1345,26 +1438,24 @@ function ChannelDialog({ mode, channel, alters = [], onClose, onSaved, onDeleted
     }
     setBusy(true);
     try {
-      const privacy = { is_private: isPrivate, member_alter_ids: isPrivate ? memberIds : [] };
-      if (mode === "create") {
+      const payload = {
+        name: trimmed,
+        description: description.trim() || null,
+        category_id: categoryId || null,
+        is_private: isPrivate,
+        member_alter_ids: isPrivate ? memberIds : [],
+      };
+      if (editChannel) {
+        await localEntities.SystemChatChannel.update(editChannel.id, payload);
+        onSaved?.();
+      } else {
         const record = await localEntities.SystemChatChannel.create({
-          name: trimmed,
-          description: description.trim() || null,
-          category: category.trim() || null,
+          ...payload,
           sort_order: Date.now(),
           is_archived: false,
           created_date: new Date().toISOString(),
-          ...privacy,
         });
         onSaved?.(record);
-      } else {
-        await localEntities.SystemChatChannel.update(channel.id, {
-          name: trimmed,
-          description: description.trim() || null,
-          category: category.trim() || null,
-          ...privacy,
-        });
-        onSaved?.();
       }
     } catch (err) {
       toast.error(err?.message || "Couldn't save the channel");
@@ -1373,137 +1464,211 @@ function ChannelDialog({ mode, channel, alters = [], onClose, onSaved, onDeleted
     }
   };
 
-  const handleDelete = async () => {
-    if (!channel) return;
-    if (!window.confirm(`Delete #${channel.name} and every message in it? This cannot be undone.`)) return;
+  const saveCategory = async () => {
+    const trimmed = catName.trim();
+    if (!trimmed) return;
     setBusy(true);
     try {
-      // Hard delete: nuke every message in the channel, then the
-      // channel itself. The user explicitly confirmed.
-      const msgs = await localEntities.SystemChatMessage.filter({ channel_id: channel.id });
-      for (const m of msgs) {
-        try { await localEntities.SystemChatMessage.delete(m.id); } catch { /* non-fatal */ }
+      const payload = { name: trimmed, color: catColor || null, parent_category_id: parentId || null };
+      let catId;
+      if (editCategory) {
+        await localEntities.SystemChatCategory.update(editCategory.id, payload);
+        catId = editCategory.id;
+      } else {
+        // New categories sort to the TOP of the list.
+        const created = await localEntities.SystemChatCategory.create({
+          ...payload,
+          sort_order: -Date.now(),
+          collapsed: false,
+          created_date: new Date().toISOString(),
+        });
+        catId = created.id;
       }
-      await localEntities.SystemChatChannel.delete(channel.id);
-      onDeleted?.();
+      // Reconcile channel membership: assign picked channels to this category,
+      // and clear any that were in it but got unpicked.
+      const wasIn = new Set(allChannels.filter((c) => c.category_id === catId).map((c) => c.id));
+      const picked = new Set(pickedChannelIds);
+      for (const id of picked) if (!wasIn.has(id)) { try { await localEntities.SystemChatChannel.update(id, { category_id: catId }); } catch {} }
+      for (const id of wasIn) if (!picked.has(id)) { try { await localEntities.SystemChatChannel.update(id, { category_id: null }); } catch {} }
+      qc.invalidateQueries({ queryKey: ["systemChatCategories"] });
+      qc.invalidateQueries({ queryKey: ["systemChatChannels"] });
+      onSaved?.();
     } catch (err) {
-      toast.error(err?.message || "Couldn't delete the channel");
+      toast.error(err?.message || "Couldn't save the category");
     } finally {
       setBusy(false);
     }
   };
 
+  const handleDelete = async () => {
+    setBusy(true);
+    try {
+      if (editChannel) {
+        if (!window.confirm(`Delete #${editChannel.name} and every message in it? This cannot be undone.`)) { setBusy(false); return; }
+        const msgs = await localEntities.SystemChatMessage.filter({ channel_id: editChannel.id });
+        for (const m of msgs) { try { await localEntities.SystemChatMessage.delete(m.id); } catch {} }
+        await localEntities.SystemChatChannel.delete(editChannel.id);
+      } else if (editCategory) {
+        if (!window.confirm(`Delete the "${editCategory.name}" category? Its channels and sub-categories move up a level — no channels or messages are deleted.`)) { setBusy(false); return; }
+        const up = editCategory.parent_category_id || null;
+        for (const ch of allChannels.filter((c) => c.category_id === editCategory.id)) { try { await localEntities.SystemChatChannel.update(ch.id, { category_id: up }); } catch {} }
+        for (const sub of categories.filter((c) => c.parent_category_id === editCategory.id)) { try { await localEntities.SystemChatCategory.update(sub.id, { parent_category_id: up }); } catch {} }
+        await localEntities.SystemChatCategory.delete(editCategory.id);
+      }
+      onDeleted?.();
+    } catch (err) {
+      toast.error(err?.message || "Couldn't delete");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const canSave = isCategory ? !!catName.trim() : !!name.trim();
+  const title = isEdit
+    ? (editCategory ? `Edit category` : `Edit #${editChannel?.name}`)
+    : (isCategory ? "New category" : "New channel");
+
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[85dvh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>{mode === "create" ? "New channel" : `Edit #${channel?.name}`}</DialogTitle>
+          <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
         <div className="space-y-3">
-          <div>
-            <label className="text-xs font-medium block mb-1">Name</label>
-            <Input
-              value={name}
-              onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}
-              placeholder="general"
-              autoFocus
-              maxLength={32}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium block mb-1">Description <span className="text-muted-foreground">(optional)</span></label>
-            <Input
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              placeholder="what this channel is for"
-              maxLength={120}
-            />
-          </div>
-          <div>
-            <label className="text-xs font-medium block mb-1">Category <span className="text-muted-foreground">(optional)</span></label>
-            <Input
-              value={category}
-              onChange={(e) => setCategory(e.target.value)}
-              placeholder="Daily life, Therapy, Inside jokes…"
-              maxLength={32}
-              list="chat-channel-categories"
-            />
-            {existingCategories.length > 0 && (
-              <datalist id="chat-channel-categories">
-                {existingCategories.map((c) => (
-                  <option key={c} value={c} />
-                ))}
-              </datalist>
-            )}
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">
-              Channels with the same category are grouped together in the sidebar.
-            </p>
-          </div>
-
-          {/* Private channel — a direct/limited conversation between specific
-              members. Shows under "Direct Messages" with a lock; only the
-              chosen members can be picked as the speaker. (In a single-system
-              local app this is a visual/organisational limit, not a security
-              lock — it's all your own data.) */}
-          <div className="rounded-lg border border-border/50 p-2.5 space-y-2">
+          {/* New category toggle — only when creating something new. */}
+          {!isEdit && (
             <button
               type="button"
-              onClick={() => setIsPrivate((v) => !v)}
-              className="w-full flex items-start gap-2.5 text-left"
+              onClick={() => setIsCategory((v) => !v)}
+              className="w-full flex items-center gap-2.5 rounded-lg border border-border/50 p-2.5 text-left"
             >
-              <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${isPrivate ? "bg-primary" : "bg-muted-foreground/30"}`}>
-                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isPrivate ? "left-[1.125rem]" : "left-0.5"}`} />
+              <span className={`flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${isCategory ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isCategory ? "left-[1.125rem]" : "left-0.5"}`} />
               </span>
               <span className="flex-1 min-w-0">
                 <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-                  <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Private — Direct Message
+                  <Folder className="w-3.5 h-3.5 text-muted-foreground" /> New category {isCategory ? "" : "— off (making a channel)"}
                 </span>
                 <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">
-                  Limit this conversation to specific {terms.alters}. It shows under Direct Messages instead of the public channels.
+                  A category groups channels in the sidebar; it can nest under another category and hold sub-categories.
                 </span>
               </span>
             </button>
-            {isPrivate && (
-              <div className="space-y-1.5">
-                <Input
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  placeholder={`Search ${terms.alters}…`}
-                  className="h-8 text-xs"
-                />
-                <div className="max-h-44 overflow-y-auto overscroll-contain rounded-md border border-border/40">
-                  {memberOptions.map((a) => (
-                    <button
-                      key={a.id}
-                      type="button"
-                      onClick={() => toggleMember(a.id)}
-                      className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors ${memberIds.includes(a.id) ? "bg-primary/10" : "hover:bg-muted/40"}`}
-                    >
-                      <AlterAvatar alter={a} size={22} />
-                      <span className="flex-1 truncate">{formatAlter(a)}</span>
-                      <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${memberIds.includes(a.id) ? "bg-primary border-primary" : "border-border"}`}>
-                        {memberIds.includes(a.id) && <Check className="w-3 h-3 text-white" />}
+          )}
+
+          {isCategory ? (
+            <>
+              <div>
+                <label className="text-xs font-medium block mb-1">Category name</label>
+                <Input value={catName} onChange={(e) => setCatName(e.target.value)} placeholder="Daily life, Therapy, Inside jokes…" autoFocus maxLength={40} />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Label colour <span className="text-muted-foreground">(optional)</span></label>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  {CAT_COLORS.map((c) => (
+                    <button key={c} type="button" onClick={() => setCatColor(catColor === c ? "" : c)}
+                      className={`w-6 h-6 rounded-full border-2 transition-transform ${catColor === c ? "border-foreground scale-110" : "border-transparent"}`}
+                      style={{ backgroundColor: c }} aria-label={`Colour ${c}`} />
+                  ))}
+                  {catColor && <button type="button" onClick={() => setCatColor("")} className="text-xs text-muted-foreground hover:text-foreground ml-1">Clear</button>}
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Nest under <span className="text-muted-foreground">(optional)</span></label>
+                <select value={parentId} onChange={(e) => setParentId(e.target.value)}
+                  className="w-full h-9 text-sm rounded-md border border-border bg-background px-2">
+                  <option value="">Top level</option>
+                  {parentOptions.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+                <p className="text-[0.6875rem] text-muted-foreground mt-1">Categories nest up to {CHAT_CATEGORY_MAX_DEPTH} deep.</p>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Channels in this category</label>
+                <div className="max-h-40 overflow-y-auto overscroll-contain rounded-md border border-border/40">
+                  {assignableChannels.map((c) => (
+                    <button key={c.id} type="button" onClick={() => togglePicked(c.id)}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors ${pickedChannelIds.includes(c.id) ? "bg-primary/10" : "hover:bg-muted/40"}`}>
+                      <Hash className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                      <span className="flex-1 truncate">{c.name}</span>
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${pickedChannelIds.includes(c.id) ? "bg-primary border-primary" : "border-border"}`}>
+                        {pickedChannelIds.includes(c.id) && <Check className="w-3 h-3 text-white" />}
                       </span>
                     </button>
                   ))}
-                  {memberOptions.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground text-center">No matches.</p>}
+                  {assignableChannels.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground text-center">No channels yet.</p>}
                 </div>
-                {memberIds.length > 0 && (
-                  <p className="text-[0.6875rem] text-muted-foreground">{memberIds.length} member{memberIds.length === 1 ? "" : "s"} selected.</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <label className="text-xs font-medium block mb-1">Name</label>
+                <Input value={name}
+                  onChange={(e) => setName(e.target.value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, ""))}
+                  placeholder="general" autoFocus maxLength={32} />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Description <span className="text-muted-foreground">(optional)</span></label>
+                <Input value={description} onChange={(e) => setDescription(e.target.value)} placeholder="what this channel is for" maxLength={120} />
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Category <span className="text-muted-foreground">(optional)</span></label>
+                <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}
+                  className="w-full h-9 text-sm rounded-md border border-border bg-background px-2">
+                  <option value="">No category</option>
+                  {catOptions.map((c) => (
+                    <option key={c.id} value={c.id}>{`${"— ".repeat(Math.max(0, c.depth - 1))}${c.name}`}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* Private channel */}
+              <div className="rounded-lg border border-border/50 p-2.5 space-y-2">
+                <button type="button" onClick={() => setIsPrivate((v) => !v)} className="w-full flex items-start gap-2.5 text-left">
+                  <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${isPrivate ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isPrivate ? "left-[1.125rem]" : "left-0.5"}`} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                      <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Private channel
+                    </span>
+                    <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">
+                      Limit it to specific {terms.alters}. It shows under Direct Messages with a lock; only the chosen {terms.alters} can be picked as the speaker.
+                    </span>
+                  </span>
+                </button>
+                {isPrivate && (
+                  <div className="space-y-1.5">
+                    <Input value={memberSearch} onChange={(e) => setMemberSearch(e.target.value)} placeholder={`Search ${terms.alters}…`} className="h-8 text-xs" />
+                    <div className="max-h-44 overflow-y-auto overscroll-contain rounded-md border border-border/40">
+                      {memberOptions.map((a) => (
+                        <button key={a.id} type="button" onClick={() => toggleMember(a.id)}
+                          className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors ${memberIds.includes(a.id) ? "bg-primary/10" : "hover:bg-muted/40"}`}>
+                          <AlterAvatar alter={a} size={22} />
+                          <span className="flex-1 truncate">{formatAlter(a)}</span>
+                          <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${memberIds.includes(a.id) ? "bg-primary border-primary" : "border-border"}`}>
+                            {memberIds.includes(a.id) && <Check className="w-3 h-3 text-white" />}
+                          </span>
+                        </button>
+                      ))}
+                      {memberOptions.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground text-center">No matches.</p>}
+                    </div>
+                    {memberIds.length > 0 && <p className="text-[0.6875rem] text-muted-foreground">{memberIds.length} member{memberIds.length === 1 ? "" : "s"} selected.</p>}
+                  </div>
                 )}
               </div>
-            )}
-          </div>
+            </>
+          )}
 
           <div className="flex items-center gap-2 pt-1">
-            {mode === "edit" && (
+            {isEdit && (
               <Button variant="ghost" onClick={handleDelete} disabled={busy} className="text-destructive hover:text-destructive mr-auto">
                 <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
               </Button>
             )}
             <Button variant="outline" onClick={onClose} disabled={busy}>Cancel</Button>
-            <Button onClick={handleSave} disabled={!name.trim() || busy}>
-              {mode === "create" ? "Create" : "Save"}
+            <Button onClick={isCategory ? saveCategory : saveChannel} disabled={!canSave || busy}>
+              {isEdit ? "Save" : "Create"}
             </Button>
           </div>
         </div>
