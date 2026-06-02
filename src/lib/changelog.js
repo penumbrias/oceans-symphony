@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Settings → Notifications now explains why out-of-app alerts (like a friend changing front) can lag or be missed when the app is closed, with steps to make Android background activity more reliable.",
+      },
+      {
+        type: "improve",
         text: "Settings is getting a cleaner, more consistent layout. The Profile section is first: icon-only image buttons, and the banner options and terminology are now tidy collapsible subsections. More sections to follow.",
       },
       {
