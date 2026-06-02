@@ -31,7 +31,8 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images } from "lucide-react";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
@@ -165,6 +166,8 @@ export default function Settings() {
   const [systemName, setSystemName] = useState("");
   const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
   const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
+  const [sysAvatarAssets, setSysAvatarAssets] = useState(false);
+  const [sysBannerAssets, setSysBannerAssets] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
   // Banner + rich bio — the system's own profile, mirroring an alter's
   // header image + bio. Surfaced on the alters directory (/Home) header.
@@ -438,6 +441,13 @@ export default function Settings() {
                     {uploadingSysAvatar ? "Uploading…" : "Upload"}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
                   </label>
+                  <button
+                    type="button"
+                    onClick={() => setSysAvatarAssets(true)}
+                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40"
+                  >
+                    <Images className="w-4 h-4" /> Assets
+                  </button>
                   {systemAvatarUrl && (
                     <button
                       type="button"
@@ -455,6 +465,13 @@ export default function Settings() {
                 onChange={e => setSystemAvatarUrl(e.target.value)}
                 className="mt-2 text-xs"
               />
+              {sysAvatarAssets && (
+                <AssetPickerModal
+                  open
+                  onClose={() => setSysAvatarAssets(false)}
+                  onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }}
+                />
+              )}
             </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Banner</Label>
@@ -479,6 +496,13 @@ export default function Settings() {
                   {uploadingSysBanner ? "Uploading…" : "Upload"}
                   <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
                 </label>
+                <button
+                  type="button"
+                  onClick={() => setSysBannerAssets(true)}
+                  className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40"
+                >
+                  <Images className="w-4 h-4" /> Assets
+                </button>
                 {systemBannerUrl && (
                   <button
                     type="button"
@@ -495,6 +519,13 @@ export default function Settings() {
                 onChange={e => setSystemBannerUrl(e.target.value)}
                 className="mt-2 text-xs"
               />
+              {sysBannerAssets && (
+                <AssetPickerModal
+                  open
+                  onClose={() => setSysBannerAssets(false)}
+                  onSelect={(url) => { setSystemBannerUrl(url); setSysBannerAssets(false); }}
+                />
+              )}
               {systemBannerUrl && (
                 <div className="mt-3 space-y-3 rounded-xl border border-border/40 bg-muted/10 p-3">
                   <div>

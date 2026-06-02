@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The system picture and banner can now be picked from your saved Image Assets, not just uploaded or pasted as a URL.",
+      },
+      {
         type: "fix",
         text: "The system banner no longer shows on individual alter or subsystem profiles (they have their own background) — it stays on the dashboard and alters page.",
       },
