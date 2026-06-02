@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The fronting shortcuts in the Quick Actions menu now use the same gestures as everywhere else: tap to set/add, swipe-left or long-press to make primary, swipe-left-then-up to solo, swipe-right to toggle front.",
+      },
+      {
+        type: "improve",
         text: "The bulletin-board Quick task now has all the to-do options — due date, scheduled date, activity, priority, a goal, a note, plus Pin-to-dashboard and Mark-urgent toggles — each as an expandable pill so it stays tidy.",
       },
       {
