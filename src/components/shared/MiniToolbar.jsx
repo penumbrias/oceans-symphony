@@ -191,10 +191,42 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     try { localStorage.setItem("os_toolbar_advanced", String(next)); } catch {}
   };
 
+  // Remember the current selection before opening a modal/popover (colour,
+  // font, internal link) that steals focus, so the inserted markup wraps the
+  // text the user had selected. Handles BOTH a <textarea>/<input> host (Raw
+  // bio mode) and a contentEditable host (the Plain bio editor + system chat).
+  const saveSel = () => {
+    const el = document.activeElement;
+    if (el && (el.tagName === "TEXTAREA" || el.tagName === "INPUT")) {
+      savedSelection.current = { kind: "input", el, start: el.selectionStart, end: el.selectionEnd };
+      return;
+    }
+    const sel = window.getSelection();
+    if (el && el.isContentEditable && sel && sel.rangeCount > 0) {
+      savedSelection.current = { kind: "range", el, range: sel.getRangeAt(0).cloneRange() };
+    } else {
+      savedSelection.current = null;
+    }
+  };
+  const restoreSel = () => {
+    const s = savedSelection.current;
+    if (!s) return;
+    try {
+      if (s.kind === "input") { s.el.focus(); s.el.setSelectionRange(s.start, s.end); }
+      else if (s.kind === "range") {
+        s.el.focus();
+        const sel = window.getSelection();
+        sel.removeAllRanges();
+        sel.addRange(s.range);
+      }
+    } catch { /* node detached / unfocusable */ }
+  };
+
   // Open the font menu as a FIXED-positioned popover anchored above the
   // button, so it escapes the chat composer's overflow clipping.
   const openFontPicker = () => {
     if (showFontPicker) { setShowFontPicker(false); return; }
+    saveSel();
     const r = fontBtnRef.current?.getBoundingClientRect();
     if (r) {
       const WIDTH = 192;
@@ -207,31 +239,26 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   };
 
   const openColorModal = (mode) => {
-    const ta = document.activeElement;
-    if (ta && (ta.tagName === "TEXTAREA" || ta.tagName === "INPUT")) {
-      savedSelection.current = { el: ta, start: ta.selectionStart, end: ta.selectionEnd };
-    }
+    saveSel();
     setColorModal(mode);
   };
 
   const applyColor = (color) => {
-    const s = savedSelection.current;
-    if (s) { s.el.focus(); s.el.setSelectionRange(s.start, s.end); }
+    restoreSel();
     if (colorModal === "fg") onInsert(`<span style="color:${color};">`, `</span>`);
     else onInsert(`<span style="background:${color};border-radius:3px;padding:0 2px;">`, `</span>`);
     savedSelection.current = null;
   };
 
   const applyFont = (fontValue) => {
+    restoreSel();
     onInsert(`<span style="font-family:${fontValue};">`, `</span>`);
     setShowFontPicker(false);
+    savedSelection.current = null;
   };
 
   const openInternalLink = () => {
-    const ta = document.activeElement;
-    if (ta && (ta.tagName === "TEXTAREA" || ta.tagName === "INPUT")) {
-      savedSelection.current = { el: ta, start: ta.selectionStart, end: ta.selectionEnd };
-    }
+    saveSel();
     setShowLinkPicker(true);
   };
 
@@ -415,8 +442,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
       {showLinkPicker && (
         <InternalLinkPicker
           onSelect={(html) => {
-            const s = savedSelection.current;
-            if (s) { s.el.focus(); s.el.setSelectionRange(s.start, s.end); }
+            restoreSel();
             onInsert(html, "");
             savedSelection.current = null;
             setShowLinkPicker(false);

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "The Plain bio editor — also used for journals and profile fields — now shares system chat's upgraded toolbar: toggle-style bold/italic/headings (tap once, keep typing styled), the tidy Basic/More/Fun layout with a \"?\" guide, the censor bar, and the template-field button.",
+      },
+      {
         type: "feature",
         text: "Analytics can now infer who was present from what alters write: posting a chat message, bulletin, or journal counts as being \"around\" for ~2 hours, so activities, emotions and symptoms get attributed to that alter even without fronting tracking. On by default — toggle in Settings → Customization.",
       },
