@@ -120,6 +120,9 @@ export default function EmotionAnalytics({ from, to }) {
       }
     }
     return Object.entries(map)
+      // Skip ids that don't resolve to a current alter (deleted/legacy
+      // references) — they'd otherwise show as a raw hex id row.
+      .filter(([aid]) => altersById[aid])
       .map(([aid, m]) => {
         const a = altersById[aid];
         const totalCount = Object.values(m).reduce((s, n) => s + n, 0);

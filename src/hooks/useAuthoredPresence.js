@@ -32,11 +32,18 @@ export function useAuthoredPresence() {
     queryKey: ["journals"],
     queryFn: () => base44.entities.JournalEntry.list("-created_date", 1000),
   });
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
 
-  const authoredEvents = useMemo(
-    () => (enabled ? buildAuthoredEvents({ mentionLogs, journals }) : []),
-    [enabled, mentionLogs, journals]
-  );
+  const authoredEvents = useMemo(() => {
+    if (!enabled) return [];
+    // Only assert presence for alters that still exist — a deleted/legacy
+    // author id shouldn't conjure a ghost "alter" in the analytics.
+    const known = new Set(alters.map((a) => a.id));
+    return buildAuthoredEvents({ mentionLogs, journals }).filter((e) => known.has(e.alterId));
+  }, [enabled, mentionLogs, journals, alters]);
   const inferredSessions = useMemo(() => buildInferredSessions(authoredEvents), [authoredEvents]);
   const inferAlters = useCallback(
     (tsMs) => (enabled ? inferAlterIdsAt(tsMs, authoredEvents) : []),

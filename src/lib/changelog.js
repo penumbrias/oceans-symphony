@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Emotion analytics no longer lists deleted or legacy alters as raw ID strings — unrecognized alters are skipped.",
+      },
+      {
         type: "improve",
         text: "The Plain bio editor — also used for journals and profile fields — now shares system chat's upgraded toolbar: toggle-style bold/italic/headings (tap once, keep typing styled), the tidy Basic/More/Fun layout with a \"?\" guide, the censor bar, and the template-field button.",
       },
