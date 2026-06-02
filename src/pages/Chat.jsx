@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
@@ -15,8 +15,8 @@ import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthor
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
-import MentionTextarea from "@/components/shared/MentionTextarea";
+import { MiniToolbar } from "@/components/shared/MiniToolbar";
+import RichMentionInput from "@/components/shared/RichMentionInput";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -914,50 +914,6 @@ function MentionPill({ label, color }) {
   );
 }
 
-// Live "this is how your message will look" preview under the composer.
-// Keeps the reliable textarea (so @mention / -signpost / /w autocomplete
-// keeps working) but renders the formatted result — bold, colours,
-// images, mention pills — exactly as the sent message will appear. Auto-
-// shows only when there's formatting markup or a whisper, so plain typing
-// isn't cluttered. Signpost tokens are stripped (matching the sent body),
-// and whispers show their lock + recipients.
-function ComposerPreview({ text, alters, terms }) {
-  const formatAlter = useAlterLabel();
-  const value = text || "";
-  const isWhisper = WHISPER_RE.test(value);
-  const hasFormatting = /<[a-z][^>]*>/i.test(value);
-  if (!isWhisper && !hasFormatting) return null;
-
-  let body = value;
-  let recipients = [];
-  if (isWhisper) {
-    const peeled = peelLeadingMentions(value.replace(WHISPER_RE, ""), alters);
-    recipients = peeled.recipientIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
-    body = peeled.body;
-  } else {
-    body = parseAndStripSignposts(value, alters, [terms.system]).cleanText;
-  }
-  if (!body.trim() && recipients.length === 0) return null;
-
-  return (
-    <div className="mt-1.5 rounded-lg border border-dashed border-border/50 bg-muted/10 px-2.5 py-1.5">
-      <div className="flex items-center gap-1 text-[0.625rem] text-muted-foreground mb-0.5">
-        {isWhisper ? (
-          <>
-            <Lock className="w-3 h-3" /> Whisper preview
-            {recipients.length > 0 && <> → <span className="font-medium">{recipients.map((a) => formatAlter(a)).join(", ")}</span></>}
-          </>
-        ) : "Preview"}
-      </div>
-      <div className="text-sm whitespace-pre-wrap break-words wysiwyg-content">
-        {renderRichContent(body, {
-          renderText: (t, k) => <React.Fragment key={k}>{renderWithMentions(t, alters)}</React.Fragment>,
-        })}
-      </div>
-    </div>
-  );
-}
-
 function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
   const formatAlter = useAlterLabel();
   // Picker state: a set of speaker ids. SYSTEM_SENTINEL_ID means
@@ -981,13 +937,14 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
     if (replyTo) setNotifyOnReply(true);
   }, [replyTo?.id]);
 
-  // @mention / -signpost autocomplete lives inside <MentionTextarea/>.
-  const textareaRef = useRef(null);
+  // The composer is a true inline rich-text editor (RichMentionInput):
+  // formatting renders live (like the Plain bio editor) while @mention /
+  // -signpost / /w autocomplete keeps working off the DOM caret.
+  const editorRef = useRef(null);
 
-  // Fancy text (always on) + image/GIF upload — insert HTML around the
-  // textarea selection. The @mention/-signpost typing + parsing is
-  // untouched (this only inserts formatting / images).
-  const insertHtml = useTextareaInsert(textareaRef, text, setText);
+  // Formatting toolbar + image/GIF upload insert HTML at the caret via the
+  // editor's imperative handle. @mention/-signpost typing is unaffected.
+  const insertHtml = useCallback((before, after = "") => editorRef.current?.insertHTML(before, after), []);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const handleComposerImage = async (e) => {
@@ -1108,8 +1065,8 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           terms={terms}
         />
         <div className="flex-1">
-          <MentionTextarea
-            ref={textareaRef}
+          <RichMentionInput
+            ref={editorRef}
             value={text}
             onChange={setText}
             alters={alters}
@@ -1122,8 +1079,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
               }
             }}
             placeholder={`Message #${channel.name}…  (@ mention · - signpost · /w @name to whisper)`}
-            rows={1}
-            className="resize-none text-sm min-h-[40px] max-h-32"
+            className="text-sm min-h-[40px] max-h-32 overflow-y-auto rounded-xl border border-input bg-background px-3 py-2 leading-relaxed"
           />
         </div>
 
@@ -1131,8 +1087,6 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           <Send className="w-4 h-4" />
         </Button>
       </div>
-
-      <ComposerPreview text={text} alters={alters} terms={terms} />
 
       {/* Formatting + image/GIF toolbar — always available, fills the space
           under the entry box. Inserts HTML around the textarea selection;

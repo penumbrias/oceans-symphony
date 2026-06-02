@@ -17,7 +17,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "System chat shows a live preview of formatted messages and whispers as you type, so you see bold, colours, and mention pills before sending.",
+        text: "System chat composer now formats text inline as you type — bold looks bold, no raw tags — just like the Plain bio editor, with @mentions, -signposts, and /w whispers all still working.",
       },
       {
         type: "feature",
