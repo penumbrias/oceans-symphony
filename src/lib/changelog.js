@@ -20,6 +20,10 @@ export const CHANGELOG = [
         text: "System chat composer now formats text inline as you type — bold looks bold, no raw tags — just like the Plain bio editor, with @mentions, -signposts, and /w whispers all still working.",
       },
       {
+        type: "improve",
+        text: "Chat formatting buttons now toggle like a normal editor: tap Bold and keep typing in bold until you tap it off (same for italic, headings, lists, etc.) — no need to select text first.",
+      },
+      {
         type: "feature",
         text: "New Direct Messages: private 1:1 and group conversations between alters, separate from the public chat channels. Reach it from the sidebar, dashboard grid, or search.",
       },

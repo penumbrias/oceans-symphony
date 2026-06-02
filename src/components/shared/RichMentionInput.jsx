@@ -103,11 +103,22 @@ const RichMentionInput = forwardRef(function RichMentionInput(
     emit();
   }, [emit]);
 
+  // Toggle-style formatting (bold/italic/headings/lists/align…). Unlike
+  // insertHTML this flips the browser's typing state, so pressing Bold and
+  // then typing keeps typing bold until pressed again — the behaviour the
+  // Plain bio editor has.
+  const execCommand = useCallback((cmd, val = null) => {
+    editorRef.current?.focus();
+    try { document.execCommand(cmd, false, val); } catch { /* unsupported */ }
+    emit();
+  }, [emit]);
+
   useImperativeHandle(forwardedRef, () => ({
     insertHTML,
+    execCommand,
     focus: () => editorRef.current?.focus(),
     el: editorRef.current,
-  }), [insertHTML]);
+  }), [insertHTML, execCommand]);
 
   // ── mention / signpost detection off the live DOM caret ──
   const currentToken = () => {

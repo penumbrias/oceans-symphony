@@ -170,7 +170,7 @@ function HelpPopup({ onClose }) {
   );
 }
 
-export function MiniToolbar({ onInsert, onInsertLink, templateField = false }) {
+export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
   // the decorative effects. Default collapsed so the chat stays clean.
@@ -244,6 +244,19 @@ export function MiniToolbar({ onInsert, onInsertLink, templateField = false }) {
       <Icon className="w-3.5 h-3.5" />
     </button>
   );
+  // Formatting button that TOGGLES on a contentEditable host (execCommand,
+  // so pressing Bold then typing keeps typing bold until pressed again),
+  // and falls back to wrapping the selection in tags on a textarea host
+  // (which can't toggle). `onCommand` is only passed by rich (contentEditable)
+  // hosts like the system chat composer.
+  const fmtIconBtn = (Icon, cmd, val, before, after, title) => (
+    <button key={title} type="button" title={title}
+      onMouseDown={e => e.preventDefault()}
+      onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
+      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+      <Icon className="w-3.5 h-3.5" />
+    </button>
+  );
   const txtBtn = (label, before, after, title) => (
     <button key={title} type="button" title={title}
       onMouseDown={e => e.preventDefault()}
@@ -267,10 +280,10 @@ export function MiniToolbar({ onInsert, onInsertLink, templateField = false }) {
     <>
       {/* ── Basic row (always visible) ── */}
       <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
-        {iconBtn(Bold, "<strong>", "</strong>", "Bold")}
-        {iconBtn(Italic, "<em>", "</em>", "Italic")}
-        {iconBtn(Underline, "<u>", "</u>", "Underline")}
-        {iconBtn(Strikethrough, "<s>", "</s>", "Strikethrough")}
+        {fmtIconBtn(Bold, "bold", null, "<strong>", "</strong>", "Bold")}
+        {fmtIconBtn(Italic, "italic", null, "<em>", "</em>", "Italic")}
+        {fmtIconBtn(Underline, "underline", null, "<u>", "</u>", "Underline")}
+        {fmtIconBtn(Strikethrough, "strikeThrough", null, "<s>", "</s>", "Strikethrough")}
         {sep}
         {iconBtn(Link2, '<a href="https://">', "</a>", "Web link")}
         {/* Text color */}
@@ -295,20 +308,20 @@ export function MiniToolbar({ onInsert, onInsertLink, templateField = false }) {
       {showMore && (
         <div className="px-1.5 py-1 border-t border-border/20 bg-muted/5 space-y-1">
           <div className="flex items-center gap-0.5 flex-wrap">
-            {iconBtn(Heading1, "<h1>", "</h1>", "Heading 1")}
-            {iconBtn(Heading2, "<h2>", "</h2>", "Heading 2")}
-            {iconBtn(Heading3, "<h3>", "</h3>", "Heading 3")}
+            {fmtIconBtn(Heading1, "formatBlock", "h1", "<h1>", "</h1>", "Heading 1")}
+            {fmtIconBtn(Heading2, "formatBlock", "h2", "<h2>", "</h2>", "Heading 2")}
+            {fmtIconBtn(Heading3, "formatBlock", "h3", "<h3>", "</h3>", "Heading 3")}
             {sep}
-            {iconBtn(List, "<ul><li>", "</li></ul>", "Bullet list")}
-            {iconBtn(ListOrdered, "<ol><li>", "</li></ol>", "Numbered list")}
-            {iconBtn(Quote, '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Block quote")}
+            {fmtIconBtn(List, "insertUnorderedList", null, "<ul><li>", "</li></ul>", "Bullet list")}
+            {fmtIconBtn(ListOrdered, "insertOrderedList", null, "<ol><li>", "</li></ol>", "Numbered list")}
+            {fmtIconBtn(Quote, "formatBlock", "blockquote", '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Block quote")}
             {sep}
             {iconBtn(CornerDownLeft, "<br />", "", "Line break")}
-            {iconBtn(Minus, '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
+            {fmtIconBtn(Minus, "insertHorizontalRule", null, '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
             {sep}
-            {iconBtn(AlignLeft, '<div style="text-align:left;">', "</div>", "Align left")}
-            {iconBtn(AlignCenter, '<div style="text-align:center;">', "</div>", "Align center")}
-            {iconBtn(AlignRight, '<div style="text-align:right;">', "</div>", "Align right")}
+            {fmtIconBtn(AlignLeft, "justifyLeft", null, '<div style="text-align:left;">', "</div>", "Align left")}
+            {fmtIconBtn(AlignCenter, "justifyCenter", null, '<div style="text-align:center;">', "</div>", "Align center")}
+            {fmtIconBtn(AlignRight, "justifyRight", null, '<div style="text-align:right;">', "</div>", "Align right")}
           </div>
           <div className="flex items-center gap-0.5 flex-wrap">
             {txtBtn("xs", '<span style="font-size:0.7em;">', "</span>", "Extra small")}

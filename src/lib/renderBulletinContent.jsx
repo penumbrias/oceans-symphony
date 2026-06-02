@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 // images and http(s)/data:image. Tags outside the allowlist are stripped
 // (their inner text is kept).
 const ALLOWED_TAGS = new Set([
-  "b", "strong", "i", "em", "u", "s", "br", "p", "ul", "ol", "li", "a",
+  "b", "strong", "i", "em", "u", "s", "strike", "br", "p", "ul", "ol", "li", "a",
   // rich additions
   "h1", "h2", "h3", "blockquote", "code", "sup", "sub", "hr", "span", "div", "img",
 ]);

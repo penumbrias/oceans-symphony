@@ -1102,7 +1102,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
           <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
         </div>
-        <MiniToolbar onInsert={insertHtml} />
+        <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} />
         <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
       </div>
     </div>
