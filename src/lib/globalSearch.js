@@ -445,29 +445,6 @@ export function buildChatMessageRecords({ items = [], channels = [] }) {
     });
 }
 
-export function buildDirectMessageRecords({ items = [], threads = [], alters = [] }) {
-  const threadById = Object.fromEntries((threads || []).map((th) => [th.id, th]));
-  const alterById = Object.fromEntries((alters || []).map((a) => [a.id, a]));
-  return items
-    .filter((m) => m && m.content)
-    .map((m) => {
-      const text = String(m.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
-      const th = threadById[m.thread_id];
-      const names = (th?.participant_alter_ids || []).map((id) => alterById[id]?.name).filter(Boolean);
-      const label = th?.title || names.join(", ") || "Direct message";
-      const from = alterById[m.from_alter_id]?.name;
-      return {
-        type: "directmessage",
-        id: m.id,
-        title: snippet(text) || "Message",
-        subtitle: `DM · ${label}`,
-        path: m.thread_id ? `/messages?thread=${m.thread_id}` : "/messages",
-        searchableText: joinNonEmpty([text, label, from]).toLowerCase(),
-        sortDate: m.created_date,
-      };
-    });
-}
-
 export function buildDiaryCardRecords({ items = [] }) {
   return items.map((d) => {
     const notesText = joinNonEmpty([d.notes?.what, d.notes?.judgments, d.notes?.optional]);
@@ -643,7 +620,6 @@ export function buildSearchIndex(sources = {}) {
     reminders,
     groceries,
     chatMessages, chatChannels,
-    directMessages, directThreads,
     groundingTechniques, innerWorldLocations,
   } = sources;
 
@@ -672,7 +648,6 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildReminderRecords({ items: reminders || [] }));
   records.push(...buildGroceryRecords({ items: groceries || [] }));
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
-  records.push(...buildDirectMessageRecords({ items: directMessages || [], threads: directThreads || [], alters: alters || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   return records;

@@ -33,7 +33,7 @@ export const CHANGELOG = [
       },
       {
         type: "feature",
-        text: "New Direct Messages: private 1:1 and group conversations between alters, separate from the public chat channels. Reach it from the sidebar, dashboard grid, or search.",
+        text: "Direct Messages in system chat: mark a channel \"Private\" to limit it to specific alters — it shows under a Direct Messages section with a lock, and only those alters can be picked as the speaker.",
       },
       {
         type: "feature",

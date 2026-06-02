@@ -212,10 +212,14 @@ export default function Chat() {
   // category fall under an "Uncategorised" bucket rendered at the
   // top. Categories themselves are listed in the order they first
   // appear in the sorted list.
+  // Private (Direct Message) channels are pulled out of the category
+  // grouping and listed under their own "Direct Messages" heading.
+  const privateChannels = useMemo(() => sortedChannels.filter((c) => c.is_private), [sortedChannels]);
   const groupedChannels = useMemo(() => {
     const order = [];
     const map = new Map();
     for (const c of sortedChannels) {
+      if (c.is_private) continue;
       const key = c.category?.trim() || "";
       if (!map.has(key)) {
         map.set(key, []);
@@ -385,6 +389,44 @@ export default function Chat() {
                 </ul>
               </div>
             ))}
+            {privateChannels.length > 0 && (
+              <div className="mb-1.5 last:mb-0">
+                <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1">
+                  <Lock className="w-3 h-3" /> Direct Messages
+                </div>
+                <ul>
+                  {privateChannels.map((c) => (
+                    <li key={c.id}>
+                      <div
+                        className={`w-full flex items-center gap-1 pr-1 rounded-md text-sm group ${
+                          activeChannel?.id === c.id
+                            ? "bg-primary/15 text-foreground"
+                            : "text-muted-foreground hover:bg-muted/60 hover:text-foreground"
+                        }`}
+                      >
+                        <button
+                          type="button"
+                          onClick={() => { setSearchParams({ channel: c.id }, { replace: true }); setShowChannels(false); }}
+                          onContextMenu={(e) => { e.preventDefault(); setEditingChannel(c); }}
+                          className="flex-1 min-w-0 flex items-center gap-1.5 px-2 py-1.5 text-left"
+                        >
+                          <Lock className="w-3.5 h-3.5 flex-shrink-0" />
+                          <span className="truncate flex-1">{c.name}</span>
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setEditingChannel(c)}
+                          aria-label={`Edit ${c.name}`}
+                          className="p-0.5 text-muted-foreground hover:text-foreground"
+                        >
+                          <Pencil className="w-3 h-3" />
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
             {sortedChannels.length === 0 && (
               <p className="px-2 py-3 text-xs text-muted-foreground italic">No channels yet.</p>
             )}
@@ -420,6 +462,7 @@ export default function Chat() {
       {createOpen && (
         <ChannelDialog
           mode="create"
+          alters={alters}
           existingCategories={existingCategoryNames}
           onClose={() => setCreateOpen(false)}
           onSaved={(record) => {
@@ -433,6 +476,7 @@ export default function Chat() {
         <ChannelDialog
           mode="edit"
           channel={editingChannel}
+          alters={alters}
           existingCategories={existingCategoryNames}
           onClose={() => setEditingChannel(null)}
           onSaved={() => {
@@ -713,15 +757,31 @@ function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessa
     qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
   };
 
+  // Private channel: limit who can be picked as the speaker to its members
+  // (the "access limited to specific alters" part), and default the speaker
+  // to a member. Mentions still autocomplete across everyone.
+  const isPrivate = !!(channel.is_private && channel.member_alter_ids?.length);
+  const memberSet = useMemo(() => new Set(channel.member_alter_ids || []), [channel.member_alter_ids]);
+  const speakerAlters = useMemo(
+    () => (isPrivate ? alters.filter((a) => memberSet.has(a.id)) : alters),
+    [isPrivate, alters, memberSet]
+  );
+  const composerDefaultAuthor = isPrivate
+    ? (memberSet.has(defaultAuthorId) ? defaultAuthorId : (speakerAlters[0]?.id || null))
+    : defaultAuthorId;
+  const memberNames = isPrivate
+    ? speakerAlters.map((a) => a.alias || a.name).join(", ")
+    : "";
+
   return (
     <>
       <div className="px-4 py-2 border-b border-border/40 flex items-center gap-2 flex-shrink-0">
-        <Hash className="w-4 h-4 text-muted-foreground" />
+        {isPrivate ? <Lock className="w-4 h-4 text-muted-foreground" /> : <Hash className="w-4 h-4 text-muted-foreground" />}
         <p className="text-sm font-medium truncate">{channel.name}</p>
-        {channel.description && (
+        {(isPrivate ? memberNames : channel.description) && (
           <>
             <span className="text-muted-foreground/40">·</span>
-            <p className="text-xs text-muted-foreground truncate">{channel.description}</p>
+            <p className="text-xs text-muted-foreground truncate">{isPrivate ? memberNames : channel.description}</p>
           </>
         )}
       </div>
@@ -760,7 +820,8 @@ function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessa
       <Composer
         channel={channel}
         alters={alters}
-        defaultAuthorId={defaultAuthorId}
+        speakerAlters={speakerAlters}
+        defaultAuthorId={composerDefaultAuthor}
         replyTo={replyTo}
         onCancelReply={() => setReplyTo(null)}
         onSend={handleSend}
@@ -914,7 +975,7 @@ function MentionPill({ label, color }) {
   );
 }
 
-function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
+function Composer({ channel, alters, speakerAlters = alters, defaultAuthorId, replyTo, onCancelReply, onSend, terms }) {
   const formatAlter = useAlterLabel();
   // Picker state: a set of speaker ids. SYSTEM_SENTINEL_ID means
   // "the system itself" is checked; otherwise entries are alter ids.
@@ -1057,7 +1118,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           selectedAuthors={selectedAuthors}
           open={pickerOpen}
           onOpenChange={setPickerOpen}
-          alters={alters}
+          alters={speakerAlters}
           selectedSet={selectedSet}
           onToggle={toggleSpeaker}
           search={pickerSearch}
@@ -1221,17 +1282,36 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
   );
 }
 
-function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted, existingCategories = [] }) {
+function ChannelDialog({ mode, channel, alters = [], onClose, onSaved, onDeleted, existingCategories = [] }) {
+  const terms = useTerms();
+  const formatAlter = useAlterLabel();
   const [name, setName] = useState(channel?.name || "");
   const [description, setDescription] = useState(channel?.description || "");
   const [category, setCategory] = useState(channel?.category || "");
+  const [isPrivate, setIsPrivate] = useState(!!channel?.is_private);
+  const [memberIds, setMemberIds] = useState(channel?.member_alter_ids || []);
+  const [memberSearch, setMemberSearch] = useState("");
   const [busy, setBusy] = useState(false);
+
+  const memberOptions = useMemo(() => {
+    const q = memberSearch.trim().toLowerCase();
+    return alters
+      .filter((a) => !a.is_archived)
+      .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)));
+  }, [alters, memberSearch]);
+  const toggleMember = (id) =>
+    setMemberIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
 
   const handleSave = async () => {
     const trimmed = name.trim();
     if (!trimmed) return;
+    if (isPrivate && memberIds.length === 0) {
+      toast.error(`Pick at least one ${terms.alter} for a private channel.`);
+      return;
+    }
     setBusy(true);
     try {
+      const privacy = { is_private: isPrivate, member_alter_ids: isPrivate ? memberIds : [] };
       if (mode === "create") {
         const record = await localEntities.SystemChatChannel.create({
           name: trimmed,
@@ -1240,6 +1320,7 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted, existingCat
           sort_order: Date.now(),
           is_archived: false,
           created_date: new Date().toISOString(),
+          ...privacy,
         });
         onSaved?.(record);
       } else {
@@ -1247,6 +1328,7 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted, existingCat
           name: trimmed,
           description: description.trim() || null,
           category: category.trim() || null,
+          ...privacy,
         });
         onSaved?.();
       }
@@ -1323,6 +1405,62 @@ function ChannelDialog({ mode, channel, onClose, onSaved, onDeleted, existingCat
               Channels with the same category are grouped together in the sidebar.
             </p>
           </div>
+
+          {/* Private channel — a direct/limited conversation between specific
+              members. Shows under "Direct Messages" with a lock; only the
+              chosen members can be picked as the speaker. (In a single-system
+              local app this is a visual/organisational limit, not a security
+              lock — it's all your own data.) */}
+          <div className="rounded-lg border border-border/50 p-2.5 space-y-2">
+            <button
+              type="button"
+              onClick={() => setIsPrivate((v) => !v)}
+              className="w-full flex items-start gap-2.5 text-left"
+            >
+              <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${isPrivate ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${isPrivate ? "left-[1.125rem]" : "left-0.5"}`} />
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
+                  <Lock className="w-3.5 h-3.5 text-muted-foreground" /> Private — Direct Message
+                </span>
+                <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">
+                  Limit this conversation to specific {terms.alters}. It shows under Direct Messages instead of the public channels.
+                </span>
+              </span>
+            </button>
+            {isPrivate && (
+              <div className="space-y-1.5">
+                <Input
+                  value={memberSearch}
+                  onChange={(e) => setMemberSearch(e.target.value)}
+                  placeholder={`Search ${terms.alters}…`}
+                  className="h-8 text-xs"
+                />
+                <div className="max-h-44 overflow-y-auto overscroll-contain rounded-md border border-border/40">
+                  {memberOptions.map((a) => (
+                    <button
+                      key={a.id}
+                      type="button"
+                      onClick={() => toggleMember(a.id)}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 text-left text-sm transition-colors ${memberIds.includes(a.id) ? "bg-primary/10" : "hover:bg-muted/40"}`}
+                    >
+                      <AlterAvatar alter={a} size={22} />
+                      <span className="flex-1 truncate">{formatAlter(a)}</span>
+                      <span className={`w-4 h-4 rounded border flex items-center justify-center flex-shrink-0 ${memberIds.includes(a.id) ? "bg-primary border-primary" : "border-border"}`}>
+                        {memberIds.includes(a.id) && <Check className="w-3 h-3 text-white" />}
+                      </span>
+                    </button>
+                  ))}
+                  {memberOptions.length === 0 && <p className="px-2 py-3 text-xs text-muted-foreground text-center">No matches.</p>}
+                </div>
+                {memberIds.length > 0 && (
+                  <p className="text-[0.6875rem] text-muted-foreground">{memberIds.length} member{memberIds.length === 1 ? "" : "s"} selected.</p>
+                )}
+              </div>
+            )}
+          </div>
+
           <div className="flex items-center gap-2 pt-1">
             {mode === "edit" && (
               <Button variant="ghost" onClick={handleDelete} disabled={busy} className="text-destructive hover:text-destructive mr-auto">

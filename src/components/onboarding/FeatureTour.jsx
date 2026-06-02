@@ -816,19 +816,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "chat", sectionLabel: `${t.System} Chat`,
       emoji: "💬",
       title: `${t.System} Chat`,
-      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Type "/w @name your message" to post a private whisper to specific ${t.alters}. Format text with the toolbar and it renders inline as you type — what you see is what you send. Chat content is NEVER included in therapy reports.`,
+      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Type "/w @name your message" to post a private whisper to specific ${t.alters}. Make a channel "Private" to turn it into a Direct Message limited to chosen ${t.alters} — it shows under Direct Messages with a lock. Format text with the toolbar and it renders inline as you type — what you see is what you send. Chat content is NEVER included in therapy reports.`,
       route: "/chat", target: null,
       look: `the channel list on the left and the message composer at the bottom`, action: null,
     },
 
-    {
-      section: "messages", sectionLabel: "Direct Messages",
-      emoji: "✉️",
-      title: "Direct Messages",
-      body: `Private threads between ${t.alters}, separate from the public ${t.system} chat channels. Tap "New" to start a 1:1 or group conversation, pick who's sending each message, and @mention as usual. Like everything else, this is your own data on your device — "private" just means it lives in its own threaded space.`,
-      route: "/messages", target: null,
-      look: `the "New" button up top and your conversation list`, action: null,
-    },
 
     // ─── DONE ───────────────────────────────────────────────────────────────
     {

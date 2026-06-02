@@ -42,7 +42,6 @@ const TYPE_ICONS = {
   reminder:  "⏰",
   grocery:   "🛒",
   chat:      "💬",
-  directmessage: "✉️",
   grounding: "🌱",
   innerworld:"🗺️",
 };
@@ -66,7 +65,6 @@ function getTypeLabels(t) {
     reminder:  "Reminders",
     grocery:   "Grocery List",
     chat:      "Chat Messages",
-    directmessage: "Direct Messages",
     grounding: "Grounding",
     innerworld: `${t.System} Map`,
   };
@@ -238,16 +236,6 @@ export default function GlobalSearch() {
     queryFn: () => safeList(localEntities.SystemChatChannel),
     staleTime: stale, enabled,
   });
-  const { data: directMessages = [] } = useQuery({
-    queryKey: ["searchDirectMessages"],
-    queryFn: () => safeList(localEntities.DirectMessage),
-    staleTime: stale, enabled,
-  });
-  const { data: directThreads = [] } = useQuery({
-    queryKey: ["searchDirectThreads"],
-    queryFn: () => safeList(localEntities.DirectThread),
-    staleTime: stale, enabled,
-  });
   const { data: groundingTechniques = [] } = useQuery({
     queryKey: ["searchGrounding"],
     queryFn: () => safeList(localEntities.GroundingTechnique),
@@ -276,7 +264,6 @@ export default function GlobalSearch() {
     reminders,
     groceries,
     chatMessages, chatChannels,
-    directMessages, directThreads,
     groundingTechniques, innerWorldLocations,
   }), [
     alters, customFieldDefs,
@@ -295,7 +282,6 @@ export default function GlobalSearch() {
     reminders,
     groceries,
     chatMessages, chatChannels,
-    directMessages, directThreads,
     groundingTechniques, innerWorldLocations,
   ]);
 
@@ -329,7 +315,7 @@ export default function GlobalSearch() {
   const TYPE_ORDER = [
     "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "chat", "directmessage", "grounding", "innerworld", "grocery",
+    "location", "syschange", "symptom", "group", "chat", "grounding", "innerworld", "grocery",
   ];
 
   return (
