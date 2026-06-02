@@ -3,11 +3,13 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, Pencil, X, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { useTerms } from "@/lib/useTerms";
 import { format } from "date-fns";
 
 export default function NotesTab({ alterId }) {
   const queryClient = useQueryClient();
+  const t = useTerms();
   const [composing, setComposing] = useState(false);
   const [newContent, setNewContent] = useState("");
   const [editingId, setEditingId] = useState(null);
@@ -17,6 +19,11 @@ export default function NotesTab({ alterId }) {
   const { data: notes = [] } = useQuery({
     queryKey: ["alterNotes", alterId],
     queryFn: () => base44.entities.AlterNote.filter({ alter_id: alterId }, "-created_date"),
+  });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
   });
 
   const createNote = async () => {
@@ -48,7 +55,7 @@ export default function NotesTab({ alterId }) {
       {notes.length === 0 && !composing && (
         <div className="text-center py-16 text-muted-foreground text-sm">
           <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
-          This member has no notes.
+          This {t.alter} has no notes.
         </div>
       )}
 
@@ -56,9 +63,11 @@ export default function NotesTab({ alterId }) {
         <div key={note.id} className="rounded-xl border border-border/50 bg-muted/10 p-4 space-y-2">
           {editingId === note.id ? (
             <div className="space-y-2">
-              <Textarea
+              <MentionTextarea
                 value={editContent}
-                onChange={(e) => setEditContent(e.target.value)}
+                onChange={setEditContent}
+                alters={alters}
+                placeholder={`Edit note… use @ to mention an ${t.alter}`}
                 className="min-h-[80px] text-sm"
                 autoFocus
               />
@@ -92,10 +101,11 @@ export default function NotesTab({ alterId }) {
 
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
-          <Textarea
-            placeholder="Write a note..."
+          <MentionTextarea
+            placeholder={`Write a note… use @ to mention an ${t.alter}`}
             value={newContent}
-            onChange={(e) => setNewContent(e.target.value)}
+            onChange={setNewContent}
+            alters={alters}
             className="min-h-[100px] text-sm"
             autoFocus
           />

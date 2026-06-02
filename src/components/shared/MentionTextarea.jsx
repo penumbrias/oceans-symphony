@@ -122,6 +122,16 @@ const MentionTextarea = forwardRef(function MentionTextarea(
 
   const open = !!menu && (suggestions.length > 0 || (menu.type === "signpost" && showSystemRow));
 
+  // Accept the first/best suggestion (Enter or Tab while the menu is open).
+  // Returns true if something was inserted so the caller can swallow the key
+  // (e.g. so Enter picks a suggestion instead of sending the message).
+  const pickFirst = () => {
+    if (!open) return false;
+    if (suggestions[0]) { insert(suggestions[0].alias || suggestions[0].name); return true; }
+    if (menu.type === "signpost" && showSystemRow) { insert(sysToken); return true; }
+    return false;
+  };
+
   return (
     <div className="relative">
       <Textarea
@@ -139,7 +149,15 @@ const MentionTextarea = forwardRef(function MentionTextarea(
           textareaProps.onKeyUp?.(e);
         }}
         onKeyDown={(e) => {
-          if (e.key === "Escape" && menu) { e.stopPropagation(); setMenu(null); }
+          if (open) {
+            if (e.key === "Escape") { e.stopPropagation(); setMenu(null); return; }
+            if ((e.key === "Enter" && !e.shiftKey) || e.key === "Tab") {
+              // Menu open → Enter/Tab accepts the suggestion instead of
+              // sending / inserting a newline. Don't delegate to the host
+              // (its Enter handler would also fire and send the message).
+              if (pickFirst()) { e.preventDefault(); return; }
+            }
+          }
           textareaProps.onKeyDown?.(e);
         }}
         onBlur={(e) => { setTimeout(() => setMenu(null), 120); textareaProps.onBlur?.(e); }}

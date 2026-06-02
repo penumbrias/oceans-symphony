@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System chat and the bulletin board now share the same smart @mention / -signpost picker, and it's newly available on alter notes and the dashboard status field.",
+      },
+      {
+        type: "improve",
         text: "The @mention picker is smarter everywhere it appears (check-ins, tasks, activities, journals): it now works when you edit mid-text — not just at the end — and shows avatars, your custom alter labels, and respects \"hide from mentions\".",
       },
       {

@@ -16,6 +16,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -826,20 +827,8 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
     if (replyTo) setNotifyOnReply(true);
   }, [replyTo?.id]);
 
-  // Inline-autocomplete state, ported from BulletinComposer.
+  // @mention / -signpost autocomplete lives inside <MentionTextarea/>.
   const textareaRef = useRef(null);
-  const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [showSignpostMenu, setShowSignpostMenu] = useState(false);
-  const [signpostQuery, setSignpostQuery] = useState("");
-
-  // Alters hidden from mention/signpost suggestions via a group's
-  // "hide from mentions" toggle. Typing a full name still resolves.
-  const { data: composerGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const hiddenFromMentions = useMemo(
-    () => getAlterIdsByGroupFlag(composerGroups, alters, "hide_from_mentions"),
-    [composerGroups, alters]
-  );
 
   // Fancy text (always on) + image/GIF upload — insert HTML around the
   // textarea selection. The @mention/-signpost typing + parsing is
@@ -869,78 +858,6 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
     } finally {
       setUploadingImage(false);
     }
-  };
-
-  const handleTextChange = (e) => {
-    const val = e.target.value;
-    setText(val);
-
-    // @ mention detection — open menu when a "@" starts a token at
-    // the end of the typed string (no space follows the @ yet).
-    const lastAt = val.lastIndexOf("@");
-    if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
-      setShowMentions(true);
-      setMentionQuery(val.slice(lastAt + 1));
-      setShowSignpostMenu(false);
-      return;
-    }
-    setShowMentions(false);
-
-    // - signpost detection — same logic, just for "-author" tokens.
-    const lastDash = val.lastIndexOf("-");
-    if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ")) {
-      setShowSignpostMenu(true);
-      setSignpostQuery(val.slice(lastDash + 1));
-    } else if (!val.endsWith("-")) {
-      setShowSignpostMenu(false);
-    }
-  };
-
-  const filteredMentions = useMemo(
-    () => alters
-      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
-      .filter((a) =>
-        a.name?.toLowerCase().includes(mentionQuery.toLowerCase()) ||
-        (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
-      )
-      .slice(0, 8),
-    [alters, mentionQuery, hiddenFromMentions]
-  );
-  const filteredSignposts = useMemo(
-    () => alters
-      .filter((a) => !a.is_archived && !hiddenFromMentions.has(a.id))
-      .filter((a) =>
-        a.name?.toLowerCase().includes(signpostQuery.toLowerCase()) ||
-        (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
-      )
-      .slice(0, 8),
-    [alters, signpostQuery, hiddenFromMentions]
-  );
-  const systemSignpostMatches = useMemo(() => {
-    const q = (signpostQuery || "").toLowerCase();
-    if (!q) return true;
-    return "system".startsWith(q) || (terms.system || "").toLowerCase().startsWith(q);
-  }, [signpostQuery, terms.system]);
-
-  const insertMention = (alter) => {
-    const lastAt = text.lastIndexOf("@");
-    const before = lastAt !== -1 ? text.slice(0, lastAt) : text;
-    setText(before + `@${alter.alias || alter.name} `);
-    setShowMentions(false);
-    setMentionQuery("");
-    textareaRef.current?.focus();
-  };
-
-  const insertSignpost = (alter) => {
-    const lastDash = text.lastIndexOf("-");
-    const before = lastDash !== -1 ? text.slice(0, lastDash) : text;
-    const token = alter?.isSystem || alter?.id === SYSTEM_AUTHOR.id
-      ? (terms.system || "system")
-      : (alter.alias || alter.name);
-    setText(before + `-${token} `);
-    setShowSignpostMenu(false);
-    setSignpostQuery("");
-    textareaRef.current?.focus();
   };
 
   const selectedSet = useMemo(() => new Set(speakerIds), [speakerIds]);
@@ -1036,28 +953,16 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
           onSearchChange={setPickerSearch}
           terms={terms}
         />
-        <div className="flex-1 relative">
-          <Textarea
+        <div className="flex-1">
+          <MentionTextarea
             ref={textareaRef}
             value={text}
-            onChange={handleTextChange}
+            onChange={setText}
+            alters={alters}
+            signposts
+            systemName={terms.System}
             onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setShowMentions(false);
-                setShowSignpostMenu(false);
-                return;
-              }
               if (e.key === "Enter" && !e.shiftKey) {
-                if (showMentions || showSignpostMenu) {
-                  // Let the autocomplete swallow Enter when a menu is
-                  // open — pressing Enter with the menu visible should
-                  // pick the first option rather than send.
-                  e.preventDefault();
-                  if (showMentions && filteredMentions[0]) insertMention(filteredMentions[0]);
-                  else if (showSignpostMenu && systemSignpostMatches && !filteredSignposts[0]) insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true });
-                  else if (showSignpostMenu && filteredSignposts[0]) insertSignpost(filteredSignposts[0]);
-                  return;
-                }
                 e.preventDefault();
                 handleSubmit();
               }
@@ -1066,52 +971,6 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
             rows={1}
             className="resize-none text-sm min-h-[40px] max-h-32"
           />
-
-          {showMentions && filteredMentions.length > 0 && (
-            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Mention…</div>
-              {filteredMentions.map((a) => (
-                <button
-                  type="button"
-                  key={a.id}
-                  onClick={() => insertMention(a)}
-                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
-                >
-                  <AlterAvatar alter={a} size={22} />
-                  <span>{formatAlter(a)}</span>
-                </button>
-              ))}
-            </div>
-          )}
-
-          {showSignpostMenu && (filteredSignposts.length > 0 || systemSignpostMatches) && (
-            <div className="absolute z-50 left-0 right-0 bottom-full mb-1 bg-popover border border-border rounded-xl shadow-lg max-h-48 overflow-y-auto">
-              <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
-              {systemSignpostMatches && (
-                <button
-                  type="button"
-                  key={SYSTEM_AUTHOR.id}
-                  onClick={() => insertSignpost({ id: SYSTEM_AUTHOR.id, isSystem: true })}
-                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
-                >
-                  <AlterAvatar alter={SYSTEM_AUTHOR} size={22} />
-                  <span>—{terms.system || "system"}</span>
-                  <span className="text-muted-foreground text-xs ml-1">(no specific {terms.alter || "alter"})</span>
-                </button>
-              )}
-              {filteredSignposts.map((a) => (
-                <button
-                  type="button"
-                  key={a.id}
-                  onClick={() => insertSignpost(a)}
-                  className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
-                >
-                  <AlterAvatar alter={a} size={22} />
-                  <span>{formatAlter(a)}</span>
-                </button>
-              ))}
-            </div>
-          )}
         </div>
 
         <Button onClick={handleSubmit} disabled={!text.trim()} className="h-10 px-3">
