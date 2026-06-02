@@ -291,6 +291,13 @@ export default function ActivityDayView({
     });
   }, [activities, dateStr]);
 
+  // Quick plans are date-only ("no set time") — they get a 23:59 timestamp
+  // so they'd otherwise pile up in the 11pm hour slot at the very bottom of
+  // the day. Pull them into their own top-of-day section and keep them out
+  // of the hourly timeline below.
+  const quickPlans = useMemo(() => dayActivities.filter(a => a.is_quick_plan), [dayActivities]);
+  const timedActivities = useMemo(() => dayActivities.filter(a => !a.is_quick_plan), [dayActivities]);
+
   const totalDuration = useMemo(() => {
     const dayStart = parseDate(dateStr);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -311,14 +318,14 @@ export default function ActivityDayView({
   const getColor = useCallback((act) => getActivityColor(act, catById), [catById]);
 
   const getSlotData = useCallback((hour) => {
-    const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, dayActivities);
+    const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, timedActivities);
     const hasActivities = timed.length > 0 || logged.length > 0;
     // Only attach alters/emotions/locations to rows that actually have activities
     const alterIds = hasActivities ? getAlterIdsForSlot(date, hour, 0, INTERVAL, frontingHistory) : [];
-    const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, dayActivities, emotionCheckIns) : [];
+    const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, timedActivities, emotionCheckIns) : [];
     const locations = hasActivities ? getLocationsForSlot(date, hour, 0, INTERVAL, locationRecords) : [];
     return { timed, logged, alterIds, emotions, locations };
-  }, [date, dayActivities, frontingHistory, emotionCheckIns, locationRecords]);
+  }, [date, timedActivities, frontingHistory, emotionCheckIns, locationRecords]);
 
   const segments = useMemo(() => buildSegments(getSlotData), [getSlotData]);
   const allEmpty = dayActivities.length === 0;
@@ -401,6 +408,27 @@ export default function ActivityDayView({
       {/* Scrollable timeline */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="pb-32">
+
+          {/* Quick plans — date-only, "no set time". Their own section at the
+              top of the day instead of being buried in the 11pm slot. */}
+          {quickPlans.length > 0 && (
+            <div className="border-b border-border/30 bg-muted/10 px-3 py-3">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <span aria-hidden>✨</span> Quick plans · no set time
+              </p>
+              <div className="space-y-2">
+                {quickPlans.map(a => (
+                  <div
+                    key={a.id}
+                    className="cursor-pointer"
+                    onClick={() => onActivityClick?.([a])}
+                  >
+                    <LoggedPill activity={a} getColor={getColor} alters={alters} symptomsMap={symptomsMap} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Full-day empty state */}
           {allEmpty ? (

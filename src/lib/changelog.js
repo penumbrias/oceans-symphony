@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Each \"Coming up\" plans panel on the dashboard now keeps its own count/time-window — so you can have one showing just today and another showing the week. (It used to be a single shared setting.)",
+      },
+      {
+        type: "improve",
+        text: "Quick plans (no set time) now show in their own section at the top of the Activity Tracker's day view, instead of being tucked into the 11pm slot.",
+      },
+      {
+        type: "improve",
         text: "Whisper messages now stay hidden (blurred) until tapped. If a recipient is currently fronting it reveals on tap; otherwise it first asks \"this message is only intended for X — display?\".",
       },
       {

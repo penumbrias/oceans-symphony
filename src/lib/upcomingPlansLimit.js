@@ -42,13 +42,12 @@ export const WINDOW_OPTIONS = [
   { id: "3_months", label: "Next 3 months",  ms: 90 * DAY_MS },
 ];
 
-function safeRead(key, fallback) {
-  if (typeof window === "undefined") return fallback;
+function safeReadRaw(key) {
+  if (typeof window === "undefined") return null;
   try {
-    const v = window.localStorage.getItem(key);
-    return v == null ? fallback : v;
+    return window.localStorage.getItem(key);
   } catch {
-    return fallback;
+    return null;
   }
 }
 
@@ -62,17 +61,40 @@ function safeWrite(key, value) {
   }
 }
 
-export function getLimitMode() {
-  const raw = safeRead(LIMIT_MODE_KEY, MODE_COUNT);
+// Per-panel scoping. Each Upcoming Plans surface (e.g. "home_top",
+// "home_bottom", "bulletin_top") keeps its own count/window so a user can
+// have, say, a "today" list up top and a "this week" list lower down.
+//
+//  - With a `scope`, a "<key>__<scope>" entry is read/written.
+//  - On read, if the scoped key is unset we fall back to the legacy GLOBAL
+//    key (set via Settings → Appearance), which therefore acts as the
+//    default for any panel the user hasn't individually configured. This
+//    keeps every existing user's saved global value working unchanged.
+//  - With no `scope`, the global key is used directly (Settings section).
+function scopedKey(base, scope) {
+  return scope ? `${base}__${scope}` : base;
+}
+
+function readScoped(base, scope, fallback) {
+  if (scope) {
+    const v = safeReadRaw(scopedKey(base, scope));
+    if (v != null) return v;
+  }
+  const g = safeReadRaw(base);
+  return g == null ? fallback : g;
+}
+
+export function getLimitMode(scope) {
+  const raw = readScoped(LIMIT_MODE_KEY, scope, MODE_COUNT);
   return raw === MODE_WINDOW ? MODE_WINDOW : MODE_COUNT;
 }
 
-export function setLimitMode(mode) {
-  safeWrite(LIMIT_MODE_KEY, mode === MODE_WINDOW ? MODE_WINDOW : MODE_COUNT);
+export function setLimitMode(mode, scope) {
+  safeWrite(scopedKey(LIMIT_MODE_KEY, scope), mode === MODE_WINDOW ? MODE_WINDOW : MODE_COUNT);
 }
 
-export function getLimitCount() {
-  const raw = safeRead(LIMIT_COUNT_KEY, String(DEFAULT_COUNT));
+export function getLimitCount(scope) {
+  const raw = readScoped(LIMIT_COUNT_KEY, scope, String(DEFAULT_COUNT));
   const n = parseInt(raw, 10);
   if (!Number.isFinite(n)) return DEFAULT_COUNT;
   if (n < COUNT_MIN) return COUNT_MIN;
@@ -80,37 +102,38 @@ export function getLimitCount() {
   return n;
 }
 
-export function setLimitCount(n) {
+export function setLimitCount(n, scope) {
   const clamped = Math.max(COUNT_MIN, Math.min(COUNT_MAX, parseInt(n, 10) || DEFAULT_COUNT));
-  safeWrite(LIMIT_COUNT_KEY, clamped);
+  safeWrite(scopedKey(LIMIT_COUNT_KEY, scope), clamped);
 }
 
-export function getLimitWindowId() {
-  const raw = safeRead(LIMIT_WINDOW_KEY, DEFAULT_WINDOW_ID);
+export function getLimitWindowId(scope) {
+  const raw = readScoped(LIMIT_WINDOW_KEY, scope, DEFAULT_WINDOW_ID);
   return WINDOW_OPTIONS.find(w => w.id === raw)?.id || DEFAULT_WINDOW_ID;
 }
 
-export function setLimitWindowId(id) {
+export function setLimitWindowId(id, scope) {
   const match = WINDOW_OPTIONS.find(w => w.id === id);
-  safeWrite(LIMIT_WINDOW_KEY, match ? match.id : DEFAULT_WINDOW_ID);
+  safeWrite(scopedKey(LIMIT_WINDOW_KEY, scope), match ? match.id : DEFAULT_WINDOW_ID);
 }
 
-export function getLimitWindowMs() {
-  const id = getLimitWindowId();
+export function getLimitWindowMs(scope) {
+  const id = getLimitWindowId(scope);
   return WINDOW_OPTIONS.find(w => w.id === id)?.ms ?? WINDOW_OPTIONS.find(w => w.id === DEFAULT_WINDOW_ID).ms;
 }
 
 /**
- * Resolve the active limit config in one call. Returns:
+ * Resolve the active limit config in one call (optionally for a panel
+ * scope). Returns:
  *   { mode: "count", count: N }
  *   { mode: "window", windowMs: N, windowId: "...", windowLabel: "..." }
  */
-export function getActiveLimit() {
-  const mode = getLimitMode();
+export function getActiveLimit(scope) {
+  const mode = getLimitMode(scope);
   if (mode === MODE_WINDOW) {
-    const id = getLimitWindowId();
+    const id = getLimitWindowId(scope);
     const opt = WINDOW_OPTIONS.find(w => w.id === id);
     return { mode, windowMs: opt.ms, windowId: opt.id, windowLabel: opt.label };
   }
-  return { mode, count: getLimitCount() };
+  return { mode, count: getLimitCount(scope) };
 }
