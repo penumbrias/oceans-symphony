@@ -23,6 +23,7 @@ import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive"
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
+import AuthorshipAnalytics from "@/components/analytics/AuthorshipAnalytics";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
 import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
@@ -144,6 +145,7 @@ function SectionGrid({ terms, onSelect }) {
     { id: "diary", emoji: "📔", label: "Check-In Log", desc: "Check-in summaries" },
     { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
+    { id: "authorship", emoji: "✍️", label: "Authorship", desc: `What each ${terms.alter} has written` },
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
     { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
     { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
@@ -255,6 +257,10 @@ export default function Analytics() {
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
   });
+  const { data: mentionLogs = [] } = useQuery({
+    queryKey: ["mentionLogs"],
+    queryFn: () => base44.entities.MentionLog.list("-source_date", 3000),
+  });
 
   const { data: systemChangeEvents = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -346,6 +352,7 @@ export default function Analytics() {
     diary: "Check-In Log",
     sleep: "Sleep",
     journals: "Journals",
+    authorship: "Authorship",
     cofronting: terms.Cofronting,
     switchlogs: `${terms.Switch} Logs`,
     checkins: `${terms.System} Meetings`,
@@ -565,6 +572,11 @@ export default function Analytics() {
       {/* ── JOURNALS ── */}
       {activeSection === "journals" && (
         <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} />
+      )}
+
+      {/* ── AUTHORSHIP ── */}
+      {activeSection === "authorship" && (
+        <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} />
       )}
 
       {/* ── CO-FRONTING ── */}

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Authorship analytics (Analytics → Authorship): see what each alter has written across chat, the bulletin board, comments, and journals.",
+      },
+      {
         type: "fix",
         text: "An alter's background image now fills the whole profile screen too (same fix as groups) — the header image still stays up top as the banner.",
       },
