@@ -699,8 +699,10 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   if (!bgColor && !bgImage) return null;
   return (
     // Break out of the page's horizontal padding so the background reaches the
-    // screen edges (full-bleed), instead of sitting in a rounded, inset card.
-    <div className="absolute inset-y-0 left-1/2 -translate-x-1/2 w-screen pointer-events-none overflow-hidden" aria-hidden>
+    // screen edges (full-bleed). `h-full` tracks the content height for long,
+    // scrolling pages; `min-h-[100dvh]` guarantees it still fills the screen
+    // when the content is shorter than the viewport (no black gap below).
+    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-full min-h-[100dvh] pointer-events-none overflow-hidden" aria-hidden>
       {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
       {bgImage && resolvedBg && (
         <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
