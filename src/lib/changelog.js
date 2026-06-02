@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Whisper messages now stay hidden (blurred) until tapped. If a recipient is currently fronting it reveals on tap; otherwise it first asks \"this message is only intended for X — display?\".",
+      },
+      {
+        type: "improve",
+        text: "Quick tasks from the bulletin board now expand into pills — set a due date, priority, note, or pin it to the dashboard without leaving the board.",
+      },
+      {
+        type: "improve",
+        text: "The \"Plan something\" box on the dashboard is slimmer so it takes up less space.",
+      },
+      {
+        type: "improve",
         text: "The system picture and banner can now be picked from your saved Image Assets, not just uploaded or pasted as a URL.",
       },
       {

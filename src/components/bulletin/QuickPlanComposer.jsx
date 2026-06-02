@@ -278,10 +278,10 @@ export default function QuickPlanComposer({ onSaved }) {
     <div
       ref={rootRef}
       data-tour="quick-plan"
-      className="bg-card border border-border/60 rounded-2xl p-3 shadow-sm mb-3"
+      className="bg-card border border-border/60 rounded-2xl px-3 py-2 shadow-sm mb-3"
     >
       <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary flex-shrink-0">
+        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary flex-shrink-0">
           <CalendarDays className="w-4 h-4" />
         </div>
         <input

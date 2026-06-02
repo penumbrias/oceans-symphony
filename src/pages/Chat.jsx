@@ -440,6 +440,7 @@ export default function Chat() {
               channel={activeChannel}
               alters={alters}
               defaultAuthorId={defaultAuthorId}
+              frontingAlterIds={activeFronterIds}
               focusMessageId={searchParams.get("message")}
               onMessageFocused={() => {
                 // Once the requested message has been scrolled to and
@@ -497,7 +498,7 @@ export default function Chat() {
   );
 }
 
-function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessageFocused }) {
+function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], focusMessageId, onMessageFocused }) {
   const qc = useQueryClient();
   const terms = useTerms();
   const streamRef = useRef(null);
@@ -806,6 +807,7 @@ function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessa
                 allMessages={rawMessages}
                 editing={editing?.id === m.id}
                 highlighted={highlightId === m.id}
+                frontingAlterIds={frontingAlterIds}
                 onStartEdit={() => setEditing(m)}
                 onCancelEdit={() => setEditing(null)}
                 onSubmitEdit={(content) => handleEdit(m, content)}
@@ -831,7 +833,7 @@ function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessa
   );
 }
 
-function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
+function MessageRow({ msg, alters, allMessages, editing, highlighted, frontingAlterIds = [], onStartEdit, onCancelEdit, onSubmitEdit, onReply, onDelete }) {
   const formatAlter = useAlterLabel();
   const authors = authorsFor(msg, alters);
   const parent = msg.reply_to_id ? allMessages.find((x) => x.id === msg.reply_to_id) : null;
@@ -845,6 +847,23 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
     ? (msg.whisper_to_ids || []).map((id) => alters.find((a) => a.id === id)).filter(Boolean)
     : [];
   const whisperNames = whisperTargets.map((a) => formatAlter(a)).join(", ");
+
+  // Whisper privacy: the body is blurred until tapped. If a recipient (or
+  // the author) is currently fronting, tapping just reveals it; otherwise
+  // it asks "this is only intended for X — display?" first. Single-system
+  // local app, so this is a soft, visual gate, not security.
+  const [revealed, setRevealed] = useState(false);
+  const frontSet = useMemo(() => new Set(frontingAlterIds || []), [frontingAlterIds]);
+  const whisperForFronter = isWhisper && (
+    (msg.whisper_to_ids || []).some((id) => frontSet.has(id)) ||
+    (Array.isArray(msg.author_alter_ids) ? msg.author_alter_ids : [msg.author_alter_id]).some((id) => id && frontSet.has(id))
+  );
+  const revealWhisper = () => {
+    if (whisperForFronter) { setRevealed(true); return; }
+    const who = whisperNames || "the intended recipient";
+    if (window.confirm(`This message is only intended for ${who}. Display anyway?`)) setRevealed(true);
+  };
+  const whisperHidden = isWhisper && !isDeleted && !revealed;
   const authorNames = authors.map((a) => formatAlter(a)).join(", ");
   const primaryColor = useReadableColor(authors[0]?.color);
   const parentColor = useReadableColor(parentAuthors[0]?.color);
@@ -898,6 +917,21 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
               <Button size="sm" onClick={() => onSubmitEdit(draft)} className="h-7"><Check className="w-3.5 h-3.5" /></Button>
             </div>
           </div>
+        ) : whisperHidden ? (
+          <button type="button" onClick={revealWhisper} className="block text-left w-full" title="Private whisper — tap to view">
+            <div
+              className="text-sm whitespace-pre-wrap break-words wysiwyg-content select-none pointer-events-none"
+              style={{ filter: "blur(6px)", opacity: 0.75 }}
+              aria-hidden
+            >
+              {renderRichContent(msg.content, {
+                renderText: (t, k) => <React.Fragment key={k}>{renderWithMentions(t, alters)}</React.Fragment>,
+              })}
+            </div>
+            <span className="mt-0.5 inline-flex items-center gap-1 text-[0.6875rem] text-primary/80">
+              <Lock className="w-3 h-3" /> Tap to {whisperForFronter ? "reveal" : "view"}
+            </span>
+          </button>
         ) : (
           <div className={`text-sm whitespace-pre-wrap break-words wysiwyg-content ${isDeleted ? "italic text-muted-foreground" : ""}`}>
             {isDeleted
