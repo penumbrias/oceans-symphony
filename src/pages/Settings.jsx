@@ -40,6 +40,7 @@ import BioEditor from "@/components/alters/BioEditor";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
+import { getInferPresenceEnabled, setInferPresenceEnabled } from "@/lib/inferredPresence";
 import RecentUpdates from "@/components/settings/RecentUpdates";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
@@ -133,6 +134,7 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
+  const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
 
   // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
   // Profile is anchored at the top because the user said so, then the
@@ -698,6 +700,26 @@ export default function Settings() {
                   {terms.Alters} without a group appear under "Ungrouped."
                 </p>
               )}
+            </div>
+
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={inferPresence}
+                  onClick={() => { const next = !inferPresence; setInferPresence(next); setInferPresenceEnabled(next); }}
+                  className={`mt-0.5 flex-shrink-0 w-10 h-6 rounded-full transition-colors relative ${inferPresence ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${inferPresence ? "left-[1.125rem]" : "left-0.5"}`} />
+                </button>
+                <span className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">Infer presence from authored content</p>
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                    When an {terms.alter} posts a chat message, bulletin, or journal, treat that as them being present for ~2 hours around then — so activities, emotions and symptoms logged nearby get attributed to them even without {terms.fronting} tracking. Turning this off makes analytics use only tracked {terms.fronting} sessions.
+                  </p>
+                </span>
+              </label>
             </div>
           </div>
         </Section>

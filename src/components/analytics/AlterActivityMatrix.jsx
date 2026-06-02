@@ -5,10 +5,12 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
+import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
   const terms = useTerms();
   const [expandedParents, setExpandedParents] = useState(new Set());
+  const { inferAlters } = useAuthoredPresence();
 
   const catMap = useMemo(() => {
     const m = {};
@@ -87,7 +89,12 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
   } else {
     allNames.add(act.activity_name || "Unknown");
   }
-  const fronters = act.fronting_alter_ids || [];
+  // Use the activity's recorded fronters; if none, fall back to whoever was
+  // present (via what they authored) around the activity's time.
+  const explicitFronters = (act.fronting_alter_ids || []).filter(Boolean);
+  const fronters = explicitFronters.length
+    ? explicitFronters
+    : inferAlters(new Date(act.timestamp).getTime());
   fronters.forEach(alterId => {
     if (!alterMap[alterId]) return;
     allNames.forEach(name => {
@@ -112,7 +119,7 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       .sort((a, b) => b.total - a.total);
 
     return { alterRows, countsByCatKey };
-  }, [activities, categories, alters, from, to, catMap]);
+  }, [activities, categories, alters, from, to, catMap, inferAlters]);
 
   // Build visible columns: root cats + optionally their children if expanded
   const visibleColumns = useMemo(() => {

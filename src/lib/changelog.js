@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Analytics can now infer who was present from what alters write: posting a chat message, bulletin, or journal counts as being \"around\" for ~2 hours, so activities, emotions and symptoms get attributed to that alter even without fronting tracking. On by default — toggle in Settings → Customization.",
+      },
+      {
         type: "improve",
         text: "Each \"Coming up\" plans panel on the dashboard now keeps its own count/time-window — so you can have one showing just today and another showing the week. (It used to be a single shared setting.)",
       },

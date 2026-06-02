@@ -275,6 +275,12 @@ export default function Analytics() {
     return map;
   }, [alters]);
 
+  // NOTE: per-alter fronting TIME, the heatmap and the fronting timeline stay
+  // on REAL fronting sessions only — "fronting time" should mean tracked
+  // fronting, and authorship windows would otherwise look like phantom
+  // fronting here. Inferred-from-authorship presence is applied where it
+  // belongs: attributing activities / emotions / symptoms to alters (see
+  // AlterActivityMatrix, EmotionAnalytics, SymptomAnalytics).
   const { alterMap: rawAlterMap, filtered, stale } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
