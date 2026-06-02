@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ImagePlus, Loader2 } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ImagePlus, Loader2, Lock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -58,6 +58,40 @@ const SYSTEM_AUTHOR = { id: SYSTEM_SENTINEL_ID, name: "System", color: "#94a3b8"
 function authorFor(alterId, alters) {
   if (!alterId || alterId === SYSTEM_AUTHOR.id) return SYSTEM_AUTHOR;
   return alters.find((a) => a.id === alterId) || { id: alterId, name: "Unknown", color: "#94a3b8" };
+}
+
+// Whisper command: "/w" or "/whisper" at the very start of a message.
+const WHISPER_RE = /^\/(?:w|whisper)\b[ \t]*/i;
+const WORD_CH = /[\p{L}\p{N}_]/u;
+
+// Peel leading "@Name" tokens off the front of `text`, returning the
+// recipient alter ids and the remaining body. Longest-name-first so
+// "@First Last" beats "@First". Used to parse "/w @Hex @Kyo message".
+function peelLeadingMentions(text, alters) {
+  const tokens = [];
+  for (const a of alters) {
+    if (a.name) tokens.push({ token: `@${a.name}`, id: a.id });
+    if (a.alias) tokens.push({ token: `@${a.alias}`, id: a.id });
+  }
+  tokens.sort((x, y) => y.token.length - x.token.length);
+  let rest = (text || "").replace(/^\s+/, "");
+  const ids = new Set();
+  let matched = true;
+  while (matched) {
+    matched = false;
+    for (const t of tokens) {
+      if (rest.startsWith(t.token)) {
+        const after = rest[t.token.length];
+        if (!after || !WORD_CH.test(after)) {
+          ids.add(t.id);
+          rest = rest.slice(t.token.length).replace(/^[\s,]+/, "");
+          matched = true;
+          break;
+        }
+      }
+    }
+  }
+  return { recipientIds: [...ids], body: rest };
 }
 
 // Read a message's authors as an array regardless of whether the
@@ -502,7 +536,72 @@ function ChannelView({ channel, alters, defaultAuthorId, focusMessageId, onMessa
     return { cleanText: cleanText.trim(), authorAlterIds: ids };
   };
 
+  // "/w @name message" — post a private whisper in this channel. The
+  // recipients are the leading @mentions; the rest is the body. In a
+  // single-system app the whisper is still visible (it's the user's own
+  // data) but is clearly marked as private between those parts.
+  const handleWhisper = async ({ content, speakerIds }) => {
+    const afterCmd = content.replace(WHISPER_RE, "");
+    const { recipientIds, body } = peelLeadingMentions(afterCmd, alters);
+    const { cleanText, authorAlterIds } = resolveAuthors(body, speakerIds);
+    if (recipientIds.length === 0) {
+      toast.error(`Whisper needs a recipient — try "/w @name your message".`);
+      return false;
+    }
+    if (!cleanText) {
+      toast.error("Whisper needs a message after the recipient.");
+      return false;
+    }
+    const bodyMentionIds = extractMentionedIds(cleanText, alters);
+    const notifyIds = [...new Set([...recipientIds, ...bodyMentionIds])].filter((id) => !authorAlterIds.includes(id));
+    const created = await localEntities.SystemChatMessage.create({
+      channel_id: channel.id,
+      author_alter_id: authorAlterIds[0] || null,
+      author_alter_ids: authorAlterIds,
+      content: cleanText,
+      timestamp: new Date().toISOString(),
+      edited_at: null,
+      deleted_at: null,
+      reply_to_id: replyTo?.id || null,
+      mentioned_alter_ids: notifyIds,
+      is_whisper: true,
+      whisper_to_ids: recipientIds,
+      reactions: {},
+      thread_parent_id: null,
+      is_pinned: false,
+    });
+    qc.invalidateQueries({ queryKey: ["systemChatMessages", channel.id] });
+    setReplyTo(null);
+    try {
+      for (const id of (authorAlterIds.length > 0 ? authorAlterIds : [null])) {
+        await saveAuthoredLog({
+          authorAlterId: id,
+          sourceType: "chat",
+          sourceId: created.id,
+          sourceLabel: `#${channel.name} (whisper)`,
+          navigatePath: `/chat?channel=${channel.id}&message=${created.id}`,
+          previewText: cleanText,
+        });
+      }
+      for (const id of notifyIds) {
+        await base44.entities.MentionLog.create({
+          mentioned_alter_id: id,
+          author_alter_id: authorAlterIds[0] || null,
+          log_type: "mention",
+          source_type: "chat",
+          source_id: created.id,
+          source_label: `#${channel.name} (whisper)`,
+          source_date: new Date().toISOString(),
+          preview_text: cleanText.slice(0, 120),
+          navigate_path: `/chat?channel=${channel.id}&message=${created.id}`,
+        });
+      }
+    } catch { /* mention log best-effort */ }
+    return true;
+  };
+
   const handleSend = async ({ content, speakerIds, notifyOnReply }) => {
+    if (WHISPER_RE.test(content)) { await handleWhisper({ content, speakerIds }); return; }
     const { cleanText, authorAlterIds } = resolveAuthors(content, speakerIds);
     if (!cleanText) return;
     const mentionedIds = extractMentionedIds(cleanText, alters);
@@ -680,6 +779,11 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
   useEffect(() => { setDraft(msg.content || ""); }, [msg.content, editing]);
 
   const isDeleted = !!msg.deleted_at;
+  const isWhisper = !!msg.is_whisper;
+  const whisperTargets = isWhisper
+    ? (msg.whisper_to_ids || []).map((id) => alters.find((a) => a.id === id)).filter(Boolean)
+    : [];
+  const whisperNames = whisperTargets.map((a) => formatAlter(a)).join(", ");
   const authorNames = authors.map((a) => formatAlter(a)).join(", ");
   const primaryColor = useReadableColor(authors[0]?.color);
   const parentColor = useReadableColor(parentAuthors[0]?.color);
@@ -687,12 +791,18 @@ function MessageRow({ msg, alters, allMessages, editing, highlighted, onStartEdi
   return (
     <div
       data-msg-id={msg.id}
-      className={`group flex gap-2 px-1 py-1 rounded-md transition-colors hover:bg-muted/30 ${highlighted ? "ring-2 ring-primary bg-primary/10" : ""}`}
+      className={`group flex gap-2 px-1 py-1 rounded-md transition-colors hover:bg-muted/30 ${highlighted ? "ring-2 ring-primary bg-primary/10" : ""} ${isWhisper && !isDeleted ? "bg-muted/20 border-l-2 border-dashed border-primary/40 pl-2" : ""}`}
     >
       <AuthorAvatars authors={authors} size={28} />
       <div className="flex-1 min-w-0">
         <div className="flex items-baseline gap-2 flex-wrap">
           <span className="text-sm font-semibold" style={{ color: primaryColor }}>{authorNames}</span>
+          {isWhisper && (
+            <span className="inline-flex items-center gap-1 text-[0.6875rem] text-primary/80 italic" title="Private whisper">
+              <Lock className="w-3 h-3" />
+              whisper{whisperNames ? <> →&nbsp;<span className="font-medium not-italic">{whisperNames}</span></> : null}
+            </span>
+          )}
           <span className="text-[0.6875rem] text-muted-foreground">{format(new Date(msg.timestamp), "h:mm a")}</span>
           {msg.edited_at && !isDeleted && (
             <span className="text-[0.6875rem] text-muted-foreground/70 italic">edited</span>
@@ -967,7 +1077,7 @@ function Composer({ channel, alters, defaultAuthorId, replyTo, onCancelReply, on
                 handleSubmit();
               }
             }}
-            placeholder={`Message #${channel.name}…  (type @ to mention, - to signpost)`}
+            placeholder={`Message #${channel.name}…  (@ mention · - signpost · /w @name to whisper)`}
             rows={1}
             className="resize-none text-sm min-h-[40px] max-h-32"
           />

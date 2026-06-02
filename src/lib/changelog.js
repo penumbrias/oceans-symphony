@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "System chat whispers: type \"/w @name your message\" to post a private, lock-marked whisper to specific alters in the channel.",
+      },
+      {
+        type: "feature",
         text: "New Authorship analytics (Analytics → Authorship): see what each alter has written across chat, the bulletin board, comments, and journals.",
       },
       {
