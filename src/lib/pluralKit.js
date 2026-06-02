@@ -128,19 +128,25 @@ function stripHash(raw) {
 // `mapMemberToAlter` pattern. `pk_id` is the external anchor we use to
 // dedupe on re-import: if a local Alter already has that pk_id, the
 // next import updates it instead of creating a new row.
-export function mapPkMemberToAlter(member, groupsByMemberId = {}) {
+export function mapPkMemberToAlter(member, groupsByMemberId = {}, { useDisplayName = false } = {}) {
   const groups = groupsByMemberId[member.id] || [];
   const banner = member.banner || "";
   // PK "banner" doubles as the alter profile header in OS — surface it via
   // the `_header_image` custom-field key that ProfileTab reads.
   const customFields = banner ? { _header_image: banner } : {};
+  // Optionally use PK's display name as the alter's name (mirrors what many
+  // systems do on a Simply Plural import) so it reads prettily without an
+  // extra rename pass. Falls back to the member name when there's no display.
+  const primaryName = (useDisplayName && member.display_name)
+    ? member.display_name
+    : (member.name || "Unknown");
   return {
     pk_id: member.id,
     // PK's short id (member.id) is mutable (changes if the system is
     // regenerated); uuid is permanent. Store both and prefer uuid when
     // de-duping so a changed HID can't spawn duplicates.
     pk_uuid: member.uuid || null,
-    name: member.name || "Unknown",
+    name: primaryName,
     display_name: member.display_name || "",
     pronouns: member.pronouns || "",
     description: member.description || "",

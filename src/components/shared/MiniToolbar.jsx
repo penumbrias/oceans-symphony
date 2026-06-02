@@ -180,10 +180,9 @@ function HelpPopup({ onClose }) {
 export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
-  // the decorative effects. Default collapsed so the chat stays clean.
-  const [showMore, setShowMore] = useState(() => {
-    try { return localStorage.getItem("os_toolbar_advanced") === "true"; } catch { return false; }
-  });
+  // the decorative effects. ALWAYS starts collapsed on mount — every page that
+  // shows a toolbar opens with it tidy, regardless of past use.
+  const [showMore, setShowMore] = useState(false);
   const [showFun, setShowFun] = useState(false);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [fontPickerPos, setFontPickerPos] = useState(null);
@@ -192,11 +191,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const savedSelection = useRef(null);
   const fontBtnRef = useRef(null);
 
-  const toggleMore = () => {
-    const next = !showMore;
-    setShowMore(next);
-    try { localStorage.setItem("os_toolbar_advanced", String(next)); } catch {}
-  };
+  const toggleMore = () => setShowMore((v) => !v);
 
   // Remember the current selection before opening a modal/popover (colour,
   // font, internal link) that steals focus, so the inserted markup wraps the
@@ -252,14 +247,28 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   const applyColor = (color) => {
     restoreSel();
-    if (colorModal === "fg") onInsert(`<span style="color:${color};">`, `</span>`);
-    else onInsert(`<span style="background:${color};border-radius:3px;padding:0 2px;">`, `</span>`);
+    // On a live editor (contentEditable host passes onCommand) apply via
+    // execCommand so the SELECTION IS PRESERVED — that's what lets you stack
+    // colour + font + highlight on the same text. insertHTML collapses the
+    // selection after wrapping, so the textarea fallback can still only apply
+    // one wrap per selection.
+    if (onCommand) {
+      // foreColor = text colour; backColor = highlight (Chromium/Android use
+      // backColor, not hiliteColor). styleWithCSS (set in the editor) makes
+      // both emit <span style>.
+      onCommand(colorModal === "fg" ? "foreColor" : "backColor", color);
+    } else if (colorModal === "fg") {
+      onInsert(`<span style="color:${color};">`, `</span>`);
+    } else {
+      onInsert(`<span style="background:${color};border-radius:3px;padding:0 2px;">`, `</span>`);
+    }
     savedSelection.current = null;
   };
 
   const applyFont = (fontValue) => {
     restoreSel();
-    onInsert(`<span style="font-family:${fontValue};">`, `</span>`);
+    if (onCommand) onCommand("fontName", fontValue);
+    else onInsert(`<span style="font-family:${fontValue};">`, `</span>`);
     setShowFontPicker(false);
     savedSelection.current = null;
   };

@@ -83,6 +83,11 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   //   new_only     — only add members that aren't here yet; never touch existing
   //   replace_all  — delete all local alters first, then recreate from PK
   const [importMode, setImportMode] = useState("standard");
+  // Use PK's display name as the alter's name (prettier; matches what many
+  // systems do on a Simply Plural import). Persisted so the choice sticks.
+  const [usePkDisplayName, setUsePkDisplayName] = useState(() => {
+    try { return localStorage.getItem("symphony_pk_use_display_name") === "1"; } catch { return false; }
+  });
 
   const handleConnect = async () => {
     const t = token.trim();
@@ -168,17 +173,21 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const byPkUuid = Object.fromEntries(
         existing.filter((a) => a.pk_uuid).map((a) => [a.pk_uuid, a])
       );
-      // Name fallback (lowercased/trimmed, first match wins). This is what
-      // heals the "doubling" bug: alters imported from Simply Plural carry
-      // only an sp_id (no pk_id), so a PK import keyed solely on pk_id never
-      // matched them and re-created every member. Matching by name lets the
-      // PK import recognise those rows and UPDATE them (backfilling pk_id /
-      // pk_uuid so all future imports from either source update in place).
-      const byName = {};
-      for (const a of existing) {
-        const key = (a.name || "").trim().toLowerCase();
-        if (key && !(key in byName)) byName[key] = a;
-      }
+      // Name fallback. This is what heals the "doubling" bug: alters imported
+      // from Simply Plural carry only an sp_id (no pk_id), so a PK import keyed
+      // solely on pk_id never matched them and re-created every member.
+      // We index existing alters by name AND alias AND display_name (all
+      // lowercased) and match an incoming member by its name OR display_name —
+      // so an SP import that used the *display* name still matches a PK member
+      // (whose `name` differs from its `display_name`), and vice versa.
+      // Matching backfills pk_id/pk_uuid so future imports update in place.
+      const byAnyName = new Map();
+      const addNameKey = (raw, a) => {
+        const key = (raw || "").trim().toLowerCase();
+        if (key && !byAnyName.has(key)) byAnyName.set(key, a);
+      };
+      for (const a of existing) { addNameKey(a.name, a); addNameKey(a.alias, a); addNameKey(a.display_name, a); }
+      const consumedMatchIds = new Set();
       let created = 0;
       let updated = 0;
       let skipped = 0;
@@ -199,7 +208,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       for (let i = 0; i < members.length; i += 1) {
         const m = members[i];
         setProgress(`Upserting ${i + 1} of ${members.length}: ${m.name || "(unnamed)"}…`);
-        const mapped = mapPkMemberToAlter(m, groupsByMemberId);
+        const mapped = mapPkMemberToAlter(m, groupsByMemberId, { useDisplayName: usePkDisplayName });
 
         // Avatar handling: download the image into local image storage so
         // it survives Discord CDN signed-URL expiration and works offline.
@@ -234,14 +243,25 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
 
         // Match priority: permanent uuid → short pk_id → name fallback.
         // (Skipped entirely in replace_all — we deleted everything above.)
-        const nameKey = (m.name || "").trim().toLowerCase();
         const byUuid = (importMode !== "replace_all" && m.uuid) ? byPkUuid[m.uuid] : null;
         const byId = importMode !== "replace_all" ? byPkId[m.id] : null;
-        const byNm = (importMode !== "replace_all" && !byUuid && !byId && nameKey) ? byName[nameKey] : null;
+        let byNm = null;
+        if (importMode !== "replace_all" && !byUuid && !byId) {
+          // Try the member's name AND its display name against the combined
+          // name/alias/display-name index — so a match lands regardless of
+          // which one SP (or a prior import) used as the alter's name.
+          const candidates = [m.name, m.display_name]
+            .map((s) => (s || "").trim().toLowerCase())
+            .filter(Boolean);
+          for (const c of candidates) {
+            const a = byAnyName.get(c);
+            if (a && !consumedMatchIds.has(a.id)) { byNm = a; break; }
+          }
+        }
         const match = byUuid || byId || byNm;
         // "Only add new" — a matched member is left untouched.
         if (match && importMode === "new_only") {
-          if (byNm) delete byName[nameKey];
+          if (byNm) consumedMatchIds.add(byNm.id);
           skipped += 1;
           continue;
         }
@@ -250,7 +270,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             matchedByName += 1;
             // Consume this existing row so a second PK member with the same
             // name creates a new alter rather than clobbering the same one.
-            delete byName[nameKey];
+            consumedMatchIds.add(byNm.id);
           }
           // Merge custom_fields: preserve local-only `_*` keys (profile-
           // style settings like _bg_color, _hide_header, …) while letting
@@ -505,7 +525,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                 <h4 className="font-medium text-sm">Import members &amp; groups</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                Members on PK are matched to your local alters by their PluralKit id (or name), then handled per the mode below.
+                Members on PK are matched to your local alters by their PluralKit id, then by name / alias / display name (so members you already imported from Simply Plural are updated, not duplicated), then handled per the mode below.
               </p>
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
                 {[
@@ -532,6 +552,20 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                   );
                 })}
               </div>
+              <label className="flex items-start gap-2 text-xs cursor-pointer rounded-lg border border-border/50 bg-card p-2">
+                <input
+                  type="checkbox"
+                  checked={usePkDisplayName}
+                  onChange={(e) => {
+                    setUsePkDisplayName(e.target.checked);
+                    try { localStorage.setItem("symphony_pk_use_display_name", e.target.checked ? "1" : "0"); } catch { /* storage off */ }
+                  }}
+                  className="w-3.5 h-3.5 rounded accent-primary mt-0.5 flex-shrink-0"
+                />
+                <span className="text-muted-foreground leading-snug">
+                  Use each member's <strong className="text-foreground">display name</strong> as their name (prettier — matches what a Simply Plural import does). Falls back to the regular name when there's no display name.
+                </span>
+              </label>
               <Button onClick={handleImportMembers} disabled={working} size="sm" variant="outline">
                 {working ? <Loader2 className="w-4 h-4 animate-spin" /> : "Import members from PluralKit"}
               </Button>

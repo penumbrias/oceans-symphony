@@ -726,7 +726,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                               ))}
                             </span>
                           )
-                          : field.field_type === "text"
+                          : (field.field_type === "text" || field.field_type === "richtext")
                             ? <MarkdownText>{String(customFieldValues[field.id])}</MarkdownText>
                             : <span className="whitespace-pre-wrap break-words">{customFieldValues[field.id]}</span>}
                     </div>

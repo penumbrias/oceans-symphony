@@ -17,6 +17,22 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Custom fields on the Profile tab now show their rich text (colours, links, etc.) correctly instead of raw code.",
+      },
+      {
+        type: "fix",
+        text: "In the bio editor you can now apply a font and a text colour to the same text (and stack a highlight on top) — before it only kept one.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbars now always open collapsed; tap \"More\" for the extra tools.",
+      },
+      {
+        type: "improve",
+        text: "PluralKit import no longer duplicates members you already imported from Simply Plural — it now matches on name, alias, or display name. Added an option to import using each member's PluralKit display name.",
+      },
+      {
+        type: "fix",
         text: "Whispers are now clearly visible — they show a \"🔒 tap to reveal\" pill instead of a blank gap, so you can always see and tap them.",
       },
       {

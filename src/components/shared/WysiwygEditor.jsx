@@ -50,6 +50,9 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   // browser's typing state so pressing Bold then typing keeps typing bold.
   const execCmd = useCallback((cmd, val = null) => {
     editorRef.current?.focus();
+    // Emit CSS spans (<span style="color:…">) instead of legacy <font> tags so
+    // colour/font survive the content sanitiser and stack on the same text.
+    try { document.execCommand("styleWithCSS", false, true); } catch { /* unsupported */ }
     try { document.execCommand(cmd, false, val); } catch { /* unsupported */ }
     emit();
   }, [emit]);
