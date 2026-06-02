@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
-import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, ImagePlus, Loader2, Lock, Folder } from "lucide-react";
+import { Hash, Plus, Send, Pencil, Trash2, Reply, X, Check, MessageSquare, User, ChevronDown, ChevronUp, ChevronRight, ImagePlus, Loader2, Lock, Folder, PanelLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -306,7 +306,10 @@ export default function Chat() {
   const [createOpen, setCreateOpen] = useState(false);
   const [editingChannel, setEditingChannel] = useState(null);
   const [editingCategory, setEditingCategory] = useState(null);
-  const [showChannels, setShowChannels] = useState(true);
+  // On desktop the rail is always shown (forced by the `lg:` classes), so this
+  // state only drives the mobile drawer — start it closed there so we land in
+  // the chat, with the channels a tap away on the left.
+  const [showChannels, setShowChannels] = useState(() => typeof window !== "undefined" && window.innerWidth >= 1024);
   const [editMode, setEditMode] = useState(false);
   // Private channels the user has chosen to "view anyway" this session
   // (granted access even though no member is currently fronting).
@@ -366,19 +369,28 @@ export default function Chat() {
     // double-counting the reserved space — that overflow was the empty gap
     // that appeared below the channel list / composer until you scrolled.
     <div className="flex flex-col h-full min-h-0">
-      <div className="px-4 py-2 border-b border-border/50 flex items-center gap-2 flex-shrink-0">
+      <div className="px-2 py-2 border-b border-border/50 flex items-center gap-1.5 flex-shrink-0">
+        {/* Channels toggle — on the LEFT, where the sidebar slides in from. */}
+        <Button variant="ghost" size="sm" onClick={() => setShowChannels((v) => !v)} className="lg:hidden flex-shrink-0 px-2" aria-label="Channels">
+          <PanelLeft className="w-4 h-4" />
+        </Button>
         <h1 className="text-base font-semibold flex items-center gap-2 flex-1 min-w-0">
           <MessageSquare className="w-4 h-4 text-primary flex-shrink-0" />
           <span className="truncate">{terms.System || "System"} Chat</span>
         </h1>
-        <Button variant="ghost" size="sm" onClick={() => setShowChannels((v) => !v)} className="lg:hidden">
-          <Hash className="w-4 h-4" />
-        </Button>
       </div>
 
-      <div className="flex-1 min-h-0 flex">
-        {/* Channels rail */}
-        <aside className={`${showChannels ? "flex" : "hidden"} lg:flex w-56 flex-shrink-0 border-r border-border/50 bg-muted/20 flex-col`}>
+      <div className="flex-1 min-h-0 flex relative">
+        {/* Dim + close the drawer when tapping the chat behind it (mobile). */}
+        {showChannels && (
+          <div className="absolute inset-0 bg-black/40 z-30 lg:hidden" onClick={() => setShowChannels(false)} aria-hidden />
+        )}
+        {/* Channels rail — a persistent rail on desktop, a slide-in drawer that
+            OVERLAYS the chat (rather than replacing it) on mobile. */}
+        <aside className={`w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-muted/20 flex flex-col
+          absolute inset-y-0 left-0 z-40 shadow-xl transition-transform duration-200
+          ${showChannels ? "translate-x-0" : "-translate-x-full"}
+          lg:static lg:translate-x-0 lg:z-auto lg:shadow-none`}>
           <div className="p-2 border-b border-border/40 flex items-center justify-between gap-1">
             <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground px-2">Channels</p>
             <div className="flex items-center gap-1">
@@ -498,7 +510,7 @@ export default function Chat() {
         </aside>
 
         {/* Active channel */}
-        <section className={`${showChannels ? "hidden" : "flex"} lg:flex flex-1 min-w-0 flex-col`}>
+        <section className="flex flex-1 min-w-0 flex-col">
           {!activeChannel ? (
             <div className="flex-1 flex items-center justify-center text-sm text-muted-foreground italic px-6 text-center">
               Create a channel from the panel on the left to start chatting.

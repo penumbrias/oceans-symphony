@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "On phones the chat channels list now slides in from the left as an overlay instead of replacing the conversation, and its button moved to the left of the chat header. Tap a channel or tap outside to slide it away.",
+      },
+      {
         type: "feature",
         text: "Private chat channels now double as a privacy safeguard: when none of their alters are fronting, the channel name is hidden in the sidebar and opening it asks \"this channel is private to X — view anyway?\". When a member is fronting it's fully open with no prompt.",
       },
