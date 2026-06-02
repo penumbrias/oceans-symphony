@@ -163,11 +163,25 @@ export function mapAlterToPkMember(alter) {
   if (alter.name) body.name = alter.name;
   if (alter.display_name) body.display_name = alter.display_name;
   if (alter.pronouns) body.pronouns = alter.pronouns;
-  if (alter.description) body.description = alter.description;
+  // Bios are stored as HTML locally; PK's description is plain text /
+  // markdown (max 1000 chars). Sending raw HTML shows literal <p>/<span>
+  // tags and can 400 — strip to text and cap the length.
+  if (alter.description) {
+    const text = String(alter.description)
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text) body.description = text.slice(0, 1000);
+  }
   const color = stripHash(alter.color);
   if (color) body.color = color;
-  if (alter.avatar_url) body.avatar_url = alter.avatar_url;
-  if (alter.banner_url) body.banner = alter.banner_url;
+  // PK can only fetch PUBLIC http(s) image URLs. Our avatars/banners are
+  // usually local-image:// or data: URIs PK can't reach — sending those
+  // 400s the ENTIRE member write (which is why a whole export can come back
+  // empty). Only send genuine public URLs; skip local ones.
+  if (alter.avatar_url && /^https?:\/\//i.test(alter.avatar_url)) body.avatar_url = alter.avatar_url;
+  if (alter.banner_url && /^https?:\/\//i.test(alter.banner_url)) body.banner = alter.banner_url;
   // PK only accepts ISO dates (YYYY-MM-DD). Skip free-form values like
   // "Age 7" or "around middle school" so the upload doesn't 400.
   if (alter.birthday && /^\d{4}-\d{2}-\d{2}$/.test(alter.birthday)) body.birthday = alter.birthday;

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "PluralKit member import now lets you choose how it reconciles — update + add new (default), only add new, or replace all — like the Simply Plural import.",
+      },
+      {
+        type: "fix",
+        text: "Export to PluralKit was silently failing: locally-uploaded avatars and HTML bios no longer break the upload (local images are skipped; bios send as plain text), and failures now tell you why.",
+      },
+      {
         type: "fix",
         text: "Emotion analytics no longer lists deleted or legacy alters as raw ID strings — unrecognized alters are skipped.",
       },

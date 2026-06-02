@@ -77,6 +77,13 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   // as far as PK itself has records.
   const [switchDays, setSwitchDays] = useState(30);
 
+  // How the member import reconciles with what's already here (mirrors the
+  // Simply Plural connector):
+  //   standard    — update matched alters in place + add new ones (default)
+  //   new_only     — only add members that aren't here yet; never touch existing
+  //   replace_all  — delete all local alters first, then recreate from PK
+  const [importMode, setImportMode] = useState("standard");
+
   const handleConnect = async () => {
     const t = token.trim();
     if (!t) return;
@@ -133,6 +140,10 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   // ── Import members ──────────────────────────────────────────────────────
   const handleImportMembers = async () => {
     if (!settings?.pk_token) return;
+    if (importMode === "replace_all" &&
+      !window.confirm("Replace all: this DELETES your current local alters and recreates them from PluralKit. Local-only alters, per-alter notes and relationships tied to deleted alters will be lost. Continue?")) {
+      return;
+    }
     setWorking(true);
     setProgress("Fetching members…");
     try {
@@ -170,10 +181,21 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       }
       let created = 0;
       let updated = 0;
+      let skipped = 0;
       let matchedByName = 0;
       let avatarsCached = 0;
       let avatarsSkippedDiscord = 0;
       let avatarsFailed = 0;
+
+      // Replace-all: clear local alters first, then recreate everything from
+      // PK (so matching is moot — every member becomes a fresh create).
+      if (importMode === "replace_all") {
+        setProgress(`Removing ${existing.length} existing ${existing.length === 1 ? "alter" : "alters"}…`);
+        for (const a of existing) {
+          try { await localEntities.Alter.delete(a.id); } catch { /* keep going */ }
+        }
+      }
+
       for (let i = 0; i < members.length; i += 1) {
         const m = members[i];
         setProgress(`Upserting ${i + 1} of ${members.length}: ${m.name || "(unnamed)"}…`);
@@ -211,11 +233,18 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
         }
 
         // Match priority: permanent uuid → short pk_id → name fallback.
+        // (Skipped entirely in replace_all — we deleted everything above.)
         const nameKey = (m.name || "").trim().toLowerCase();
-        const byUuid = m.uuid ? byPkUuid[m.uuid] : null;
-        const byId = byPkId[m.id];
-        const byNm = (!byUuid && !byId && nameKey) ? byName[nameKey] : null;
+        const byUuid = (importMode !== "replace_all" && m.uuid) ? byPkUuid[m.uuid] : null;
+        const byId = importMode !== "replace_all" ? byPkId[m.id] : null;
+        const byNm = (importMode !== "replace_all" && !byUuid && !byId && nameKey) ? byName[nameKey] : null;
         const match = byUuid || byId || byNm;
+        // "Only add new" — a matched member is left untouched.
+        if (match && importMode === "new_only") {
+          if (byNm) delete byName[nameKey];
+          skipped += 1;
+          continue;
+        }
         if (match) {
           if (byNm) {
             matchedByName += 1;
@@ -246,6 +275,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const summary = [
         `${created} created`,
         `${updated} updated`,
+        skipped > 0 ? `${skipped} left as-is` : null,
         matchedByName > 0 ? `${matchedByName} matched by name` : null,
         avatarsCached > 0 ? `${avatarsCached} avatars cached locally` : null,
       ].filter(Boolean).join(" · ");
@@ -372,11 +402,17 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       if (failed.length) parts.push(`${failed.length} failed`);
       toast.success(`Export complete · ${parts.join(" · ")}`);
       if (failed.length) {
-        // Log the failed ones to console so the user can pull details if needed.
-        // We deliberately do NOT include error bodies in the toast since they
-        // may echo input the user typed.
+        // Surface the first failure's reason so the user isn't left guessing
+        // (pkFetch already redacts any token-shaped string from errors).
+        const first = failed[0];
+        toast.warning(
+          `${failed.length} ${failed.length === 1 ? "alter" : "alters"} couldn't be sent${first?.name ? ` (e.g. "${first.name}")` : ""}.${first?.error ? ` PluralKit said: ${first.error}` : ""}`,
+          { duration: 11000 }
+        );
         // eslint-disable-next-line no-console
         console.warn("PluralKit export — failed entries:", failed);
+      } else if (created.length === 0 && updated.length === 0) {
+        toast.info("Nothing to export — no active (non-archived) alters found.");
       }
     } catch (e) {
       toast.error(e.message || "Export failed.");
@@ -469,8 +505,33 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                 <h4 className="font-medium text-sm">Import members &amp; groups</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                Members on PK get upserted into your local alters. Existing local alters that were imported before (matched by their <code className="font-mono">pk_id</code>) are updated; new ones are created.
+                Members on PK are matched to your local alters by their PluralKit id (or name), then handled per the mode below.
               </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                {[
+                  { id: "standard", label: "Update + add new", desc: "Update matched alters, add any new ones." },
+                  { id: "new_only", label: "Only add new", desc: "Leave existing alters untouched; only bring in ones you don't have." },
+                  { id: "replace_all", label: "Replace all", desc: "Delete local alters and recreate from PluralKit." },
+                ].map((opt) => {
+                  const active = importMode === opt.id;
+                  const danger = opt.id === "replace_all";
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setImportMode(opt.id)}
+                      className={`rounded-lg border p-2 text-left transition-all ${
+                        active
+                          ? (danger ? "border-destructive/60 bg-destructive/10" : "border-primary/60 bg-primary/10")
+                          : "border-border/50 bg-card hover:bg-muted/30"
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${active ? (danger ? "text-destructive" : "text-primary") : "text-foreground"}`}>{opt.label}</p>
+                      <p className="text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{opt.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
               <Button onClick={handleImportMembers} disabled={working} size="sm" variant="outline">
                 {working ? <Loader2 className="w-4 h-4 animate-spin" /> : "Import members from PluralKit"}
               </Button>
@@ -512,7 +573,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                 <h4 className="font-medium text-sm">Export to PluralKit</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                Sends your local alters to PluralKit. Alters previously imported from PK get their PK profile <strong>updated</strong>; new local alters get <strong>created</strong> on PK. Archived alters and switches are NOT exported. Two-tap confirm to prevent accidents.
+                Sends your local alters to PluralKit. Alters previously imported from PK get their PK profile <strong>updated</strong>; new local alters get <strong>created</strong> on PK. Archived alters and switches are NOT exported. Avatars/banners only transfer if they're public web URLs — locally-uploaded images can't be reached by PluralKit, so they're skipped (everything else still sends). Two-tap confirm to prevent accidents.
               </p>
               <Button
                 onClick={handleExport}
