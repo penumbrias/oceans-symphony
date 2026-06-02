@@ -387,7 +387,7 @@ export default function Chat() {
         )}
         {/* Channels rail — a persistent rail on desktop, a slide-in drawer that
             OVERLAYS the chat (rather than replacing it) on mobile. */}
-        <aside className={`w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-muted/20 flex flex-col
+        <aside className={`w-64 lg:w-56 flex-shrink-0 border-r border-border/50 bg-background lg:bg-muted/20 flex flex-col
           absolute inset-y-0 left-0 z-40 shadow-xl transition-transform duration-200
           ${showChannels ? "translate-x-0" : "-translate-x-full"}
           lg:static lg:translate-x-0 lg:z-auto lg:shadow-none`}>
@@ -459,7 +459,7 @@ export default function Chat() {
             {privateChannels.length > 0 && (
               <div className="mb-1.5 last:mb-0">
                 <div className="px-2 py-1 text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground/80 flex items-center gap-1">
-                  <Lock className="w-3 h-3" /> Direct Messages
+                  <Lock className="w-3 h-3" /> Private channels
                 </div>
                 <ul>
                   {privateChannels.map((c) => {
@@ -1138,6 +1138,10 @@ function Composer({ channel, alters, speakerAlters = alters, defaultAuthorId, re
   // -signpost / /w autocomplete keeps working off the DOM caret.
   const editorRef = useRef(null);
 
+  // Formatting toolbar starts collapsed every time the chat opens, so the
+  // composer is clean by default — the B/I/U styling row is one tap away.
+  const [showFormatting, setShowFormatting] = useState(false);
+
   // Formatting toolbar + image/GIF upload insert HTML at the caret via the
   // editor's imperative handle. @mention/-signpost typing is unaffected.
   const insertHtml = useCallback((before, after = "") => editorRef.current?.insertHTML(before, after), []);
@@ -1296,9 +1300,22 @@ function Composer({ channel, alters, speakerAlters = alters, defaultAuthorId, re
             {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
           </button>
           <AssetButton onPick={(url) => insertHtml(`<img src="${url}" alt="" />`, "")} className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0" title="Insert from assets" />
-          <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
+          {/* Formatting toggle — collapsed by default so the composer is clean. */}
+          <button
+            type="button"
+            onMouseDown={(e) => e.preventDefault()}
+            onClick={() => setShowFormatting((v) => !v)}
+            aria-pressed={showFormatting}
+            title={showFormatting ? "Hide formatting" : "Show formatting"}
+            className={`ml-auto h-6 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showFormatting ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}
+          >
+            <span className="font-bold" style={{ lineHeight: 1 }}>A</span>
+            <ChevronDown className={`w-3 h-3 transition-transform ${showFormatting ? "rotate-180" : ""}`} /> Format
+          </button>
         </div>
-        <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} />
+        {showFormatting && (
+          <MiniToolbar onInsert={insertHtml} onCommand={(cmd, val) => editorRef.current?.execCommand(cmd, val)} />
+        )}
         <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
       </div>
     </div>

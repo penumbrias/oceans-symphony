@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Links to other pages in the app now stay clickable after you send a chat message or post a bulletin — before they turned into plain text.",
+      },
+      {
+        type: "improve",
+        text: "The chat formatting toolbar now starts hidden — tap Format above the message box to reveal the bold/colour/etc. buttons. The channel list is no longer see-through, and the \"Direct Messages\" section is now \"Private channels\".",
+      },
+      {
         type: "improve",
         text: "On phones the chat channels list now slides in from the left as an overlay instead of replacing the conversation, and its button moved to the left of the chat header. Tap a channel or tap outside to slide it away.",
       },

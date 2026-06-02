@@ -105,13 +105,19 @@ function nodeToReact(node, key, renderText) {
   if (tag === "br") return <br key={key} />;
   if (tag === "hr") return <hr key={key} className="my-2 border-border/60" />;
   if (tag === "a") {
+    // Internal app links from the link picker carry their route in
+    // `data-internal-link` (no href); a plain relative href ("/…") is also
+    // treated as in-app. Either renders as a router <Link> so it actually
+    // navigates instead of collapsing to plain text. `//` (protocol-relative)
+    // is NOT in-app.
+    const internal = node.getAttribute("data-internal-link") || "";
     const href = node.getAttribute("href") || "";
-    const safe = /^(https?:|mailto:|\/)/i.test(href) ? href : null;
-    if (!safe) return <React.Fragment key={key}>{children}</React.Fragment>;
-    // Internal app links (start with "/") stay in-app; external open in a tab.
-    if (safe.startsWith("/")) {
-      return <Link key={key} to={safe} className="underline text-primary">{children}</Link>;
+    const route = /^\/(?!\/)/.test(internal) ? internal : (/^\/(?!\/)/.test(href) ? href : null);
+    if (route) {
+      return <Link key={key} to={route} className="underline text-primary">{children}</Link>;
     }
+    const safe = /^(https?:|mailto:)/i.test(href) ? href : null;
+    if (!safe) return <React.Fragment key={key}>{children}</React.Fragment>;
     return (
       <a key={key} href={safe} target="_blank" rel="noopener noreferrer" className="underline text-primary">
         {children}
