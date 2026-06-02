@@ -148,36 +148,50 @@ body {
   user-select: auto;
 }
 
-/* Whisper — private text addressed to specific alters. Renders as a small
-   "🔒 for <names>" bar that hides the text until tapped (toggled by the same
-   delegated handler in AppLayout). Uses the primary colour so the label is
-   always readable in both light and dark themes. `data-whisper-for` carries
-   the recipient names. Works anywhere content is rendered as rich HTML. */
+/* Whisper — private text addressed to specific alters. Renders as a clearly
+   tappable "🔒 for <names> · tap to reveal" pill; the hidden text is collapsed
+   to zero width (font-size:0) so it never shows as a blank gap. Tapping
+   toggles `.revealed` (delegated handler in AppLayout), which restores the
+   text. `data-whisper-for` carries the recipient names. Works anywhere
+   content renders as rich HTML. */
 .whisper {
-  background: hsl(var(--primary));
-  color: transparent;
-  border-radius: 4px;
-  padding: 0 4px;
+  font-size: 0;          /* collapse the hidden text so it isn't a blank gap */
   cursor: pointer;
   user-select: none;
-  transition: background 120ms ease, color 120ms ease;
 }
 .whisper::before {
-  content: "🔒 " attr(data-whisper-for);
-  color: hsl(var(--primary-foreground));
-  font-size: 0.8em;
+  content: "🔒 " attr(data-whisper-for) " · tap to reveal";
+  display: inline-block;
+  font-size: 0.78rem;
   font-style: italic;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1px dashed hsl(var(--primary));
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+  white-space: normal;
+  vertical-align: baseline;
 }
 .whisper.revealed {
-  background: hsl(var(--primary) / 0.12);
-  color: inherit;
+  font-size: inherit;
   user-select: auto;
+  background: hsl(var(--primary) / 0.08);
+  border-radius: 4px;
+  padding: 0 4px;
 }
 .whisper.revealed::before {
-  content: "🔒\00a0";
-  color: hsl(var(--primary));
+  content: "🔒 ";
+  display: inline;
   font-size: 0.8em;
   font-style: normal;
+  font-weight: normal;
+  border: none;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  color: hsl(var(--primary));
 }
 
 /* ─── App header decoration ──────────────────────────────────────────

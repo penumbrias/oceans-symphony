@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Whispers are now clearly visible — they show a \"🔒 tap to reveal\" pill instead of a blank gap, so you can always see and tap them.",
+      },
+      {
+        type: "improve",
+        text: "The /w whisper now works partway through a message, not just at the start. The \"hide the whole thing?\" warning only appears if you use /w without [brackets] mid-message.",
+      },
+      {
         type: "feature",
         text: "Whispers now work in your notes too — \"/w @name [secret]\" hides the bracketed part in alter notes, to-do details, and activity/check-in notes, the same as in chat and bulletins.",
       },

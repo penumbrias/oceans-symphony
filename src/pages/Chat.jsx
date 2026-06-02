@@ -11,7 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useTerms } from "@/lib/useTerms";
 import { extractMentionedIds, saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
-import { parseWhisperInput } from "@/lib/whisperUtils";
+import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
 import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { buildChatTree, eligibleChatParents, chatCategoriesById, chatCategoryDepth, migrateLegacyChatCategories, CHAT_CATEGORY_MAX_DEPTH } from "@/lib/chatCategories";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -750,14 +750,17 @@ function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], 
   const handleSend = async ({ content, speakerIds, notifyOnReply }) => {
     let body = content;
     let whisperRecipientIds = [];
-    if (WHISPER_RE.test(content)) {
-      const w = parseWhisperInput(content, alters, { allowWholeBlur: true, rich: true });
-      // No brackets → blur the whole message via the existing message-level
-      // whisper (lock header + fronting-aware reveal). Brackets → fall through
-      // as a normal message with the bracketed parts hidden inline; the
-      // bracket recipients are notified like @mentions.
-      if (w.mode === "whole") { await handleWhisper({ content, speakerIds }); return; }
-      body = w.transformed;
+    if (hasWhisperCommand(content)) {
+      // A LEADING "/w @name …" with no brackets → blur the WHOLE message via
+      // the existing message-level whisper (lock header + fronting-aware
+      // reveal). Anything else (brackets, or a mid-message /w) → a normal
+      // message with just the secret part(s) hidden inline; recipients
+      // notified like @mentions. A mid-message /w with no brackets warns first.
+      const leadingNoBracket = WHISPER_RE.test(content) && !content.includes("[");
+      if (leadingNoBracket) { await handleWhisper({ content, speakerIds }); return; }
+      const w = applyWhisper(content, alters, { rich: true, surfaceLabel: "message" });
+      if (w === null) return; // backed out of the mid-message warning
+      body = w.content;
       whisperRecipientIds = w.recipientIds;
     }
     const { cleanText, authorAlterIds } = resolveAuthors(body, speakerIds);
