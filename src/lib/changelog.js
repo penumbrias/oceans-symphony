@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Friends: fixed friends sometimes seeing \"no one is fronting\" for your system even when someone was up front — the app was briefly sending an empty front while it loaded.",
+      },
+      {
+        type: "fix",
+        text: "Friends: friend-front alerts no longer come through twice. While the app is open you'll get an in-app toast; the out-of-app notification is handled separately so they don't double up.",
+      },
+      {
         type: "improve",
         text: "The bulletin Quick task's activity picker is now a nested, expandable list that keeps your category folders — the same as the Quick Check-In.",
       },

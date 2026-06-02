@@ -17,11 +17,11 @@ export function useFriendsFrontSync() {
   const lastSigRef = useRef(null);
   const terms = useTerms();
 
-  const { data: activeSessions = [] } = useQuery({
+  const { data: activeSessions = [], isSuccess: sessionsReady } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
-  const { data: alters = [] } = useQuery({
+  const { data: alters = [], isSuccess: altersReady } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
@@ -29,6 +29,14 @@ export function useFriendsFrontSync() {
   useEffect(() => {
     // Don't leak preview-mode mock fronters to real friends.
     if (isPreviewActive()) return;
+
+    // Wait until BOTH queries have actually loaded before pushing. Otherwise
+    // the first render runs with empty arrays and pushes an empty fronters
+    // list to the server — so a friend who reads in that window (or before
+    // the corrected push lands / if it fails) sees "no one fronting" even
+    // though someone is up front. This was the intermittent "blank front"
+    // friends kept hitting.
+    if (!sessionsReady || !altersReady) return;
 
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 

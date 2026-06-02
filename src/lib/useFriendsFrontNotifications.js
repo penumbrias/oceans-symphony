@@ -10,25 +10,33 @@
 // This hook closes the gap by polling the same /api/friends/list
 // endpoint client-side every 30 seconds while the app is open,
 // comparing each friend's front.updatedAt against the last value we
-// saw, and firing a @capacitor/local-notifications notification when
-// the timestamp changes AND notifyOnChange is true for that friend.
+// saw, and showing an IN-APP toast when the timestamp changes AND
+// notifyOnChange is true for that friend.
+//
+// Why a toast and not an OS notification: the native background runner
+// (public/runners/friends-poll.js) ALSO polls and fires the OS/tray
+// notification when the app is backgrounded. If this foreground hook also
+// fired an OS notification, the two paths (which keep separate dedup state
+// and can't share it) would buzz the user TWICE for one change. So while the
+// app is open we show a lightweight in-app toast; the tray notification is
+// owned solely by the background runner — exactly one per change.
 //
 // Limitations (honest):
-//   - Only fires while the app process is alive (foreground or recent
-//     background). Truly-closed Android kills the polling — there's
-//     no FCM hookup yet, so swiped-away apps go quiet.
+//   - The in-app toast only shows while the app is open. Out-of-app
+//     (tray) notifications are the background runner's job, which on
+//     Android runs on a ~15-minute WorkManager cadence — there's no FCM
+//     hookup yet, so truly-closed apps can lag up to that interval.
 //   - First poll after app start seeds the baseline and does NOT
 //     notify. Otherwise every cold start would buzz the user about
-//     every friend that updated since they last opened the app, which
-//     is noisy after a long absence.
-//   - State persists in localStorage so we don't re-notify across
+//     every friend that updated since they last opened the app.
+//   - State persists in localStorage so we don't re-toast across
 //     reloads for the same updatedAt.
 
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 import { fetchFriendsList } from "@/lib/friendsApi";
 import { isNative } from "@/lib/platform";
-import { sendNativeNotification, SWITCH_CHANNEL_ID } from "@/lib/nativeNotifications";
 
 const STATE_KEY = "symphony_friends_last_front_state_v1";
 const POLL_MS = 30 * 1000;
@@ -93,24 +101,14 @@ export function useFriendsFrontChangeNotifications() {
       if (updatedAt === prevUpdatedAt) continue;
       if (!friend.notifyOnChange) continue;
 
-      // Fire local notification mirroring what Web Push would have
-      // delivered on web. Body respects the friend's privacy level
-      // — if they're showing "count only" we don't name names.
+      // In-app toast (not an OS notification — the background runner owns the
+      // tray notification, so firing one here too would double up). Body
+      // respects the friend's privacy level — "count only" doesn't name names.
       const body = describeFronters(
         friend.front?.fronters || [],
         friend.front?.privacyLevel || "names"
       );
-      sendNativeNotification({
-        title: `${friend.displayName || "A friend"} updated their front`,
-        body,
-        // Friend front changes are ambient awareness rather than
-        // tap-now interruptions — route to the quieter switch
-        // channel (silent + banner, no heads-up). Users who want
-        // more or less attention can adjust per-channel in system
-        // Settings → Apps → Oceans Symphony → Notifications →
-        // Switch updates.
-        channelId: SWITCH_CHANNEL_ID,
-      }).catch(() => { /* non-fatal */ });
+      toast(`${friend.displayName || "A friend"} updated their front`, { description: body });
     }
 
     writeLastState(next);
