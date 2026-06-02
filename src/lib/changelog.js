@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The system banner no longer shows on individual alter or subsystem profiles (they have their own background) — it stays on the dashboard and alters page.",
+      },
+      {
         type: "improve",
         text: "System chat composer now formats text inline as you type — bold looks bold, no raw tags — just like the Plain bio editor, with @mentions, -signposts, and /w whispers all still working.",
       },

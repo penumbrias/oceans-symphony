@@ -179,9 +179,16 @@ const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
 const bannerScope = settings0?.system_banner_scope || "home";
+// Individual alter + group/subsystem profiles have their OWN background
+// image (Settings on each profile), so the system-wide banner is always
+// suppressed there — even in "all" scope — to avoid two backgrounds
+// clashing. The banner still shows on the alters directory (/Home).
+const isOwnBackgroundPage =
+  location.pathname.startsWith("/alter") || location.pathname.startsWith("/group/");
 const bannerVisible =
   !!bannerUrl &&
   bannerScope !== "off" &&
+  !isOwnBackgroundPage &&
   (bannerScope === "all" || location.pathname === "/" || location.pathname === "/Home");
 
 const termMap = useMemo(() => ({
