@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "An alter's background image now fills the whole profile screen too (same fix as groups) — the header image still stays up top as the banner.",
+      },
+      {
+        type: "fix",
         text: "A group/subsystem's background image now fills the whole screen instead of being trapped in the header — the separate header image still stays up top as the banner.",
       },
       {

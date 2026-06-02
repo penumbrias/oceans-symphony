@@ -423,15 +423,19 @@ useEffect(() => {
 
   if (!editMode) {
     return (
-      <div className="space-y-6">
+      <div className="relative">
+        {/* Page-wide background: the background image/color fills the whole
+            profile screen (behind all content). The header image below
+            stays scoped to the header banner. */}
+        {hasBg && (
+          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" aria-hidden>
+            {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
+            {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
+          </div>
+        )}
+        <div className="relative z-10 space-y-6">
         {!viewHideHeader && (
           <div className="relative rounded-2xl overflow-hidden">
-            {hasBg && (
-              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-                {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
-                {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
-              </div>
-            )}
             {viewHeaderImage && resolvedViewHeaderImage && (
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
@@ -740,6 +744,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             </div>
           );
         })()}
+        </div>
       </div>
     );
   }
