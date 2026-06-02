@@ -42,6 +42,7 @@ import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import { getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindowMinutes, setInferPresenceWindowMinutes } from "@/lib/inferredPresence";
 import RecentUpdates from "@/components/settings/RecentUpdates";
+import { SubSection, IconButton, Field, iconBtnClass } from "@/components/settings/SettingsUI";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
@@ -438,27 +439,14 @@ export default function Settings() {
                     <Globe className="w-6 h-6 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
+                <div className="flex items-center gap-1.5">
+                  <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
                     {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {uploadingSysAvatar ? "Uploading…" : "Upload"}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
                   </label>
-                  <button
-                    type="button"
-                    onClick={() => setSysAvatarAssets(true)}
-                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40"
-                  >
-                    <Images className="w-4 h-4" /> Assets
-                  </button>
+                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysAvatarAssets(true)} />
                   {systemAvatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setSystemAvatarUrl("")}
-                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-                    >
-                      <XIcon className="w-4 h-4" /> Remove
-                    </button>
+                    <IconButton icon={XIcon} title="Remove image" danger onClick={() => setSystemAvatarUrl("")} />
                   )}
                 </div>
               </div>
@@ -493,27 +481,14 @@ export default function Settings() {
                   <span className="text-xs text-muted-foreground">No banner yet</span>
                 )}
               </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
+              <div className="mt-2 flex items-center gap-1.5">
+                <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
                   {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  {uploadingSysBanner ? "Uploading…" : "Upload"}
                   <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
                 </label>
-                <button
-                  type="button"
-                  onClick={() => setSysBannerAssets(true)}
-                  className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40"
-                >
-                  <Images className="w-4 h-4" /> Assets
-                </button>
+                <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysBannerAssets(true)} />
                 {systemBannerUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setSystemBannerUrl("")}
-                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-                  >
-                    <XIcon className="w-4 h-4" /> Remove
-                  </button>
+                  <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
                 )}
               </div>
               <Input
@@ -530,7 +505,8 @@ export default function Settings() {
                 />
               )}
               {systemBannerUrl && (
-                <div className="mt-3 space-y-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+                <div className="mt-3">
+                  <SubSection title="Banner display" defaultOpen={false}>
                   <div>
                     <div className="flex items-center justify-between">
                       <Label className="text-xs font-medium">Banner height</Label>
@@ -575,6 +551,7 @@ export default function Settings() {
                       "Home pages" = your dashboard and {terms.alters} directory.
                     </p>
                   </div>
+                  </SubSection>
                 </div>
               )}
             </div>
@@ -598,7 +575,9 @@ export default function Settings() {
               {saved ? "Saved!" : "Save"}
             </Button>
           </div>
-          <TermsSettings />
+          <SubSection title="Terminology" defaultOpen={false}>
+            <TermsSettings embedded />
+          </SubSection>
         </Section>
 
         {/* ── APPEARANCE ── */}

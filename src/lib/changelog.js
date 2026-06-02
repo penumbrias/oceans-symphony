@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings is getting a cleaner, more consistent layout. The Profile section is first: icon-only image buttons, and the banner options and terminology are now tidy collapsible subsections. More sections to follow.",
+      },
+      {
         type: "fix",
         text: "Friends: fixed friends sometimes seeing \"no one is fronting\" for your system even when someone was up front — the app was briefly sending an empty front while it loaded.",
       },

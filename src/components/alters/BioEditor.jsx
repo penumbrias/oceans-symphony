@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -257,12 +257,14 @@ export default function BioEditor({ value, onChange }) {
             <RotateCcw className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowHTMLPreview(true)}
+            title="Preview"
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            <Eye className="w-3 h-3" /> Preview
+            <Eye className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowImport(true)}
-            className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-            Import Template
+            title="Import a bio template"
+            className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
+            <FileDown className="w-3 h-3" />
           </button>
         </div>
       </div>

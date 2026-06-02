@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { markTermsCustomizedToday } from "@/lib/dailyTaskSystem";
 
-export default function TermsSettings() {
+export default function TermsSettings({ embedded = false } = {}) {
   const qc = useQueryClient();
   const terms = useTerms();
   const [vals, setVals] = useState({
@@ -108,20 +108,8 @@ export default function TermsSettings() {
     { key: "front", label: "Front", hint: "e.g. front, active, present" },
   ];
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <Languages className="w-5 h-5 text-accent-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Terminology</CardTitle>
-            <CardDescription>Customize the language used throughout the app</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
+  const inner = (
+    <div className="space-y-4">
         <div className="grid grid-cols-2 gap-2">
           {PRESETS.map((p, i) => (
             <button
@@ -220,7 +208,27 @@ export default function TermsSettings() {
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
           {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Terms</>}
         </Button>
-      </CardContent>
+    </div>
+  );
+
+  // Embedded mode (inside a Settings SubSection) drops the heavyweight Card
+  // header — the SubSection already provides the "Terminology" title.
+  if (embedded) return inner;
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Languages className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Terminology</CardTitle>
+            <CardDescription>Customize the language used throughout the app</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">{inner}</CardContent>
     </Card>
   );
 }
