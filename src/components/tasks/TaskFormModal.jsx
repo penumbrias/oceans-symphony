@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format } from "date-fns";
@@ -82,10 +83,18 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       return;
     }
 
+    // A "/w @name [secret]" in the description hides that part behind a
+    // whisper bar (no brackets warns first — a task is a personal record,
+    // not a post). Done before setLoading so a "go back" leaves the form be.
+    const w = applyWhisper(formData.description || "", alters, { allowWholeBlur: false, rich: false, surfaceLabel: "task" });
+    if (w === null) return;
+    const description = w.content;
+
     setLoading(true);
     try {
       const data = {
         ...formData,
+        description,
         parent_task_id: parentTaskId || null,
         goal_target: formData.goal_target ? parseInt(formData.goal_target) : null,
         // Normalise empty strings to nulls so filters that look for
@@ -103,7 +112,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         toast.success("Task created!");
       }
 
-      const fullContent = [formData.title, formData.description].filter(Boolean).join(" ");
+      const fullContent = [formData.title, description].filter(Boolean).join(" ");
       await saveMentions({
         content: fullContent,
         alters,
@@ -112,6 +121,22 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         sourceLabel: "To-Do List",
         navigatePath: "/todo",
       });
+      // Whisper recipients are peeled off the description — notify them.
+      for (const rid of (w.recipientIds || [])) {
+        try {
+          await base44.entities.MentionLog.create({
+            mentioned_alter_id: rid,
+            author_alter_id: null,
+            log_type: "mention",
+            source_type: "task",
+            source_id: savedTask?.id || editingTask?.id || "",
+            source_label: "To-Do List (whisper)",
+            source_date: new Date().toISOString(),
+            preview_text: "🔒 private whisper",
+            navigate_path: "/todo",
+          });
+        } catch { /* best-effort */ }
+      }
 
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       onClose();
@@ -146,7 +171,7 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
               value={formData.description}
               onChange={(val) => setFormData({ ...formData, description: val })}
               alters={alters}
-              placeholder={`Add details… use @ to mention an ${terms.alter}`}
+              placeholder={`Add details… @ to mention, /w @name [secret] to whisper`}
               rows={3}
             />
           </div>

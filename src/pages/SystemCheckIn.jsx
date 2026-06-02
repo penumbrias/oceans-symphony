@@ -15,6 +15,8 @@ import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
 import { saveMentions } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
+import RichText from "@/components/shared/RichText";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
 export default function SystemCheckInPage() {
@@ -81,7 +83,19 @@ export default function SystemCheckInPage() {
       return;
     }
 
+    // Transform any "/w @name [secret]" in the step notes into a whisper bar
+    // (no brackets warns first — a check-in note is a personal record). The
+    // @recipients are still caught by saveMentions below (it runs on the
+    // original text, which still contains the @names), so they're notified.
     const dataToSave = { ...formData };
+    for (const key of ["step3_greet", "step4_share", "step5_closing"]) {
+      const step = dataToSave[key];
+      if (step?.notes) {
+        const ww = applyWhisper(step.notes, alters, { allowWholeBlur: false, rich: false, surfaceLabel: "check-in note" });
+        if (ww === null) return; // user backed out of the whole-blur warning
+        dataToSave[key] = { ...step, notes: ww.content };
+      }
+    }
 
     const allStepContent = [
       formData.step3_greet?.notes,
@@ -327,7 +341,7 @@ export default function SystemCheckInPage() {
               <Card>
                 <CardContent className="py-4 px-4">
                   <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Step 3 · Greet</p>
-                  <p className="text-sm text-foreground">{currentCheckIn.step3_greet.notes}</p>
+                  <div className="text-sm text-foreground"><RichText content={currentCheckIn.step3_greet.notes} alters={alters} /></div>
                 </CardContent>
               </Card>
             )}
@@ -341,7 +355,7 @@ export default function SystemCheckInPage() {
                       <CheckCircle2 className="w-3.5 h-3.5" /> Invitation given
                     </div>
                   )}
-                  {currentCheckIn.step4_share.notes && <p className="text-sm text-foreground">{currentCheckIn.step4_share.notes}</p>}
+                  {currentCheckIn.step4_share.notes && <div className="text-sm text-foreground"><RichText content={currentCheckIn.step4_share.notes} alters={alters} /></div>}
                 </CardContent>
               </Card>
             )}
@@ -360,7 +374,7 @@ export default function SystemCheckInPage() {
                       <CheckCircle2 className="w-3.5 h-3.5" /> Reminder given
                     </div>
                   )}
-                  {currentCheckIn.step5_closing.notes && <p className="text-sm text-foreground">{currentCheckIn.step5_closing.notes}</p>}
+                  {currentCheckIn.step5_closing.notes && <div className="text-sm text-foreground"><RichText content={currentCheckIn.step5_closing.notes} alters={alters} /></div>}
                 </CardContent>
               </Card>
             )}

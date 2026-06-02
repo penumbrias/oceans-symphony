@@ -9,6 +9,7 @@ import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { Plus, MapPin, Zap, Repeat, Bell } from "lucide-react";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
@@ -282,6 +283,13 @@ export default function ActivityPlanModal({
     if (!isQuickPlan && !startTime) { toast.error("Set start time"); return; }
     if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
+    // "/w @name [secret]" in the notes hides that part behind a whisper bar
+    // (no brackets warns first — a plan note is a personal record). Done
+    // before setIsLoading so a "go back" leaves the form untouched.
+    const w = applyWhisper(notes || "", alters || [], { allowWholeBlur: false, rich: false, surfaceLabel: "plan" });
+    if (w === null) return;
+    const finalNotes = w.content;
+
     setIsLoading(true);
 
     // "Create a new to-do from this plan" toggle. We build the Task
@@ -320,7 +328,7 @@ export default function ActivityPlanModal({
             completed: false,
             priority: "medium",
             due_date: format(timestamp, "yyyy-MM-dd"),
-            notes: notes || null,
+            notes: finalNotes || null,
           });
           queryClient.invalidateQueries({ queryKey: ["tasks"] });
         } catch (err) {
@@ -359,7 +367,7 @@ export default function ActivityPlanModal({
           task_id: effectiveLinkedTask?.id || null,
           duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
           fronting_alter_ids: selectedAlters,
-          notes: notes || null,
+          notes: finalNotes || null,
           location: location.trim() || null,
           is_planned: isPlanned,
           is_quick_plan: isQuickPlan,
@@ -487,7 +495,7 @@ export default function ActivityPlanModal({
             task_id: effectiveLinkedTask?.id || null,
             duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
             fronting_alter_ids: selectedAlters,
-            notes: notes || null,
+            notes: finalNotes || null,
             location: location.trim() || null,
             is_planned: occurrenceIsPlanned,
             is_quick_plan: isQuickPlan,
@@ -920,7 +928,7 @@ export default function ActivityPlanModal({
               value={notes}
               onChange={setNotes}
               alters={alters || []}
-              placeholder="Extra context: what, why, who's coming, anything to remember…"
+              placeholder="Extra context… @ to mention, /w @name [secret] to whisper"
               className="mt-1 h-20"
             />
           </div>

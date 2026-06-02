@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Whispers now work in your notes too — \"/w @name [secret]\" hides the bracketed part in alter notes, to-do details, and activity/check-in notes, the same as in chat and bulletins.",
+      },
+      {
+        type: "feature",
         text: "Whisper privately anywhere you post: type \"/w @name [secret]\" in chat, a bulletin, or a comment and only the bracketed part hides behind a tap-to-reveal bar. Leave the brackets off to hide the whole post.",
       },
       {

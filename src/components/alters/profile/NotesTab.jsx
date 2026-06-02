@@ -4,8 +4,30 @@ import { base44 } from "@/api/base44Client";
 import { Plus, Trash2, Pencil, X, Check, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { format } from "date-fns";
+
+// Notify the alters a whisper is addressed to (recipients are peeled off
+// the body, so they aren't in the saved content).
+async function notifyWhisper(recipientIds, { sourceId, alterId }) {
+  for (const rid of recipientIds || []) {
+    try {
+      await base44.entities.MentionLog.create({
+        mentioned_alter_id: rid,
+        author_alter_id: null,
+        log_type: "mention",
+        source_type: "note",
+        source_id: sourceId,
+        source_label: "Whisper in a note",
+        source_date: new Date().toISOString(),
+        preview_text: "🔒 private whisper",
+        navigate_path: `/alter/${alterId}`,
+      });
+    } catch { /* best-effort */ }
+  }
+}
 
 export default function NotesTab({ alterId }) {
   const queryClient = useQueryClient();
@@ -28,8 +50,11 @@ export default function NotesTab({ alterId }) {
 
   const createNote = async () => {
     if (!newContent.trim()) return;
+    const w = applyWhisper(newContent.trim(), alters, { allowWholeBlur: false, rich: false, surfaceLabel: `${t.alter} note` });
+    if (w === null) return; // user backed out of the whole-blur warning
     setSaving(true);
-    await base44.entities.AlterNote.create({ alter_id: alterId, content: newContent.trim() });
+    const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: w.content });
+    await notifyWhisper(w.recipientIds, { sourceId: note.id, alterId });
     queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
     setNewContent("");
     setComposing(false);
@@ -38,8 +63,11 @@ export default function NotesTab({ alterId }) {
 
   const saveEdit = async () => {
     if (!editContent.trim()) return;
+    const w = applyWhisper(editContent.trim(), alters, { allowWholeBlur: false, rich: false, surfaceLabel: `${t.alter} note` });
+    if (w === null) return;
     setSaving(true);
-    await base44.entities.AlterNote.update(editingId, { content: editContent.trim() });
+    await base44.entities.AlterNote.update(editingId, { content: w.content });
+    await notifyWhisper(w.recipientIds, { sourceId: editingId, alterId });
     queryClient.invalidateQueries({ queryKey: ["alterNotes", alterId] });
     setEditingId(null);
     setSaving(false);
@@ -67,7 +95,7 @@ export default function NotesTab({ alterId }) {
                 value={editContent}
                 onChange={setEditContent}
                 alters={alters}
-                placeholder={`Edit note… use @ to mention an ${t.alter}`}
+                placeholder={`Edit note… @ to mention, /w @name [secret] to whisper`}
                 className="min-h-[80px] text-sm"
                 autoFocus
               />
@@ -80,7 +108,7 @@ export default function NotesTab({ alterId }) {
             </div>
           ) : (
             <>
-              <p className="text-sm text-foreground whitespace-pre-wrap">{note.content}</p>
+              <div className="text-sm text-foreground"><RichText content={note.content} alters={alters} /></div>
               <div className="flex items-center justify-between pt-1 border-t border-border/30">
                 <span className="text-xs text-muted-foreground">
                   {note.created_date ? format(new Date(note.created_date), "MMM d, yyyy") : ""}
@@ -102,7 +130,7 @@ export default function NotesTab({ alterId }) {
       {composing ? (
         <div className="rounded-xl border border-primary/30 bg-primary/5 p-4 space-y-3">
           <MentionTextarea
-            placeholder={`Write a note… use @ to mention an ${t.alter}`}
+            placeholder={`Write a note… @ to mention, /w @name [secret] to whisper`}
             value={newContent}
             onChange={setNewContent}
             alters={alters}

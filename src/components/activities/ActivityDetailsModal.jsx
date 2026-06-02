@@ -11,7 +11,9 @@ import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
 import { saveMentions } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -236,6 +238,11 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       toast.error("Select an activity");
       return;
     }
+    // "/w @name [secret]" in the notes hides that part behind a whisper bar
+    // (no brackets warns first — an activity note is a personal record).
+    const w = applyWhisper(data.notes || "", alters, { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
+    if (w === null) return;
+    const notes = w.content;
     setIsLoading(true);
     try {
       const startDt = applyTimeStr(act.timestamp, data.startTimeStr);
@@ -256,8 +263,24 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
         fronting_alter_ids: data.fronting_alter_ids,
-        notes: data.notes,
+        notes,
       });
+      // Whisper recipients are peeled off the note — notify them.
+      for (const rid of (w.recipientIds || [])) {
+        try {
+          await base44.entities.MentionLog.create({
+            mentioned_alter_id: rid,
+            author_alter_id: null,
+            log_type: "mention",
+            source_type: "activity",
+            source_id: act.id,
+            source_label: "Whisper in an activity note",
+            source_date: new Date().toISOString(),
+            preview_text: "🔒 private whisper",
+            navigate_path: "/activity-tracker",
+          });
+        } catch { /* best-effort */ }
+      }
 
       // If this is the auto-created Activity that mirrors a Sleep record,
       // reflect the timestamp / wake_time / notes back so the Sleep page
@@ -404,7 +427,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     value={(editDataMap[act.id] || {}).notes || ""}
                     onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
                     alters={alters}
-                    placeholder={`Add any notes... use @ to mention an ${terms.alter}`}
+                    placeholder={`Add notes… @ to mention, /w @name [secret] to whisper`}
                     className="h-20"
                   />
                 </div>
@@ -515,7 +538,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     {act.notes && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Notes</p>
-                        <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
+                        <div className="text-sm bg-muted/30 rounded-lg p-3"><RichText content={act.notes} alters={alters} /></div>
                       </div>
                     )}
                     <div className="flex gap-2 pt-2 flex-wrap">
