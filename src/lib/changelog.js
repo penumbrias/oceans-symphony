@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 1, 2026",
     changes: [
       {
+        type: "improve",
+        text: "System chat shows a live preview of formatted messages and whispers as you type, so you see bold, colours, and mention pills before sending.",
+      },
+      {
         type: "feature",
         text: "New Direct Messages: private 1:1 and group conversations between alters, separate from the public chat channels. Reach it from the sidebar, dashboard grid, or search.",
       },
