@@ -36,7 +36,11 @@ function MemberThumb({ alter, size = "w-8 h-8", grayscale = false, fallbackIniti
   return null;
 }
 
-export default function GroupMembersModal({ group, allGroups, isOpen, onClose }) {
+// `selectionMode` lets a not-yet-created group (the Add New Group flow) reuse
+// this same rich picker: instead of reading membership from / writing it to
+// the DB, it reflects `selectedIds` (a Set of alter ids) and reports changes
+// via `onToggleSelection(alterId, isAdding)`. The caller persists on save.
+export default function GroupMembersModal({ group, allGroups, isOpen, onClose, selectionMode = false, selectedIds, onToggleSelection }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState("");
@@ -80,18 +84,19 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
   }, [groupIds, allGroups]);
 
   const altersInGroup = useMemo(() => {
+    if (selectionMode) return selectedIds instanceof Set ? selectedIds : new Set(selectedIds || []);
     return new Set(
       alters
         .filter((alter) => alter.groups?.some((g) => groupKeysToMatch.has(g.id) || groupKeysToMatch.has(g.sp_id)))
         .map((a) => a.id)
     );
-  }, [alters, groupKeysToMatch]);
+  }, [selectionMode, selectedIds, alters, groupKeysToMatch]);
 
   // When this group is a subsystem (alter-owned), adding certain alters
   // would create an ownership loop (they're an ancestor of the owner).
   // Pre-compute those so the picker can grey them out with an explanation
   // instead of letting the user corrupt the tree.
-  const subsystem = isSubsystem(group);
+  const subsystem = !selectionMode && isSubsystem(group);
   const owner = useMemo(
     () => (subsystem ? alters.find((a) => a.id === group.owner_alter_id) : null),
     [subsystem, alters, group.owner_alter_id]
@@ -126,6 +131,9 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose })
   }, [alters, filterMode, searchQuery, altersInGroup]);
 
   const handleToggleAlter = async (alterId, isAdding) => {
+    // Create flow: just report the selection change; nothing is written to the
+    // DB until the group is created.
+    if (selectionMode) { onToggleSelection?.(alterId, isAdding); return; }
     try {
       const alter = alters.find((a) => a.id === alterId);
       if (!alter) return;

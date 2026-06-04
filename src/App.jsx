@@ -47,6 +47,26 @@ import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
 import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+import WelcomeScreen from '@/components/onboarding/WelcomeScreen';
+
+// First run: show the Welcome/intro screen first, THEN storage setup. Keeps
+// its own seen-flag so re-running setup (e.g. from recovery) doesn't re-show
+// the welcome to an existing user.
+const WELCOME_SEEN_KEY = "os_welcome_seen_v1";
+function FirstRunFlow({ onComplete }) {
+  const [welcomed, setWelcomed] = useState(() => {
+    try { return localStorage.getItem(WELCOME_SEEN_KEY) === "1"; } catch { return false; }
+  });
+  if (!welcomed) {
+    return (
+      <WelcomeScreen onContinue={() => {
+        try { localStorage.setItem(WELCOME_SEEN_KEY, "1"); } catch { /* storage off */ }
+        setWelcomed(true);
+      }} />
+    );
+  }
+  return <StorageModeSetup mode="setup" onComplete={onComplete} />;
+}
 import { initAccessibility } from '@/lib/useAccessibility';
 
 // Apply saved accessibility settings before first render
@@ -320,7 +340,7 @@ function App() {
     return (
       <ThemeProvider>
         <QueryClientProvider client={queryClientInstance}>
-          <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+          <FirstRunFlow onComplete={() => setSetupState(null)} />
         </QueryClientProvider>
       </ThemeProvider>
     );

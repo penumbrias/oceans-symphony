@@ -26,7 +26,10 @@ export const DISCLAIMER_ACK_KEY = "disclaimer_acknowledged_v1";
 // top and bottom).
 export default function DisclaimerModal({ onAcknowledge }) {
   const t = useTerms();
-  const [step, setStep] = useState("welcome"); // "welcome" → "disclaimer"
+  // The welcome/intro now shows BEFORE storage setup (see WelcomeScreen), so
+  // this modal opens straight to the medical disclaimer instead of repeating
+  // the welcome.
+  const [step, setStep] = useState("disclaimer"); // "welcome" → "disclaimer"
   const [checked, setChecked] = useState(false);
 
   const handleConfirm = () => {

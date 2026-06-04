@@ -431,15 +431,11 @@ useEffect(() => {
   if (!editMode) {
     return (
       <div className="relative">
-        {/* Page-wide background: the background image/color fills the whole
-            profile screen (behind all content). The header image below
-            stays scoped to the header banner. */}
-        {hasBg && (
-          <div className="absolute inset-0 pointer-events-none overflow-hidden rounded-2xl" aria-hidden>
-            {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
-            {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
-          </div>
-        )}
+        {/* NB: the page-wide background (colour + image) is rendered ONCE by
+            AlterProfile as a `fixed inset-0` layer that doesn't scroll. We
+            deliberately do NOT render it again here — doing so produced a
+            second, content-height copy that scrolled with the page. The
+            header image below stays scoped to the header banner. */}
         <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
         {!viewHideHeader && (
           <div className="relative rounded-2xl overflow-hidden" style={viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : undefined}>

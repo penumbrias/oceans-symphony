@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Profile background images no longer show a second, scrolling copy — the background is now a single fixed layer behind the whole page.",
+      },
+      {
+        type: "improve",
+        text: "The welcome intro now appears first, before the storage setup, when you open the app for the first time.",
+      },
+      {
+        type: "improve",
+        text: "Adding members while creating a new group now opens the full Manage Members picker (search, filters, grid/list) instead of a small dropdown — and all members stay visible there regardless of a group's hide settings.",
+      },
+      {
+        type: "fix",
         text: "The colour pickers in the Add New Alter / Add New Group editors now open on top of the editor instead of behind it.",
       },
       {

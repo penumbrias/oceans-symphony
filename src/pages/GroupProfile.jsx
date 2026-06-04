@@ -679,11 +679,10 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   }, [bgImage]);
   if (!bgColor && !bgImage) return null;
   return (
-    // Break out of the page's horizontal padding so the background reaches the
-    // screen edges (full-bleed). `h-full` tracks the content height for long,
-    // scrolling pages; `min-h-[100dvh]` guarantees it still fills the screen
-    // when the content is shorter than the viewport (no black gap below).
-    <div className="absolute top-0 left-1/2 -translate-x-1/2 w-screen h-full min-h-[100dvh] pointer-events-none overflow-hidden" aria-hidden>
+    // Fixed full-screen background (like the alter profile) — fills the whole
+    // viewport, edge-to-edge, and does NOT scroll with the content (which
+    // previously made it look like a second, duplicate background).
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
       {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
       {bgImage && resolvedBg && (
         <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
