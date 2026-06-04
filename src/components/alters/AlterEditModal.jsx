@@ -9,6 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
+import GroupTreeSelect from "@/components/groups/GroupTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
@@ -335,7 +336,8 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
                   ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   : <User className="w-7 h-7 text-muted-foreground" />}
               </div>
-              <div className="flex items-center gap-0.5">
+              {/* Wrap to stay within the avatar's width (2 per row). */}
+              <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
                 <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
                 <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
                 <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
@@ -379,36 +381,18 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
           </div>
 
-          {/* Groups / Subsystems (create mode adds memberships up-front) */}
+          {/* Groups / Subsystems (create mode adds memberships up-front).
+              Nested, parent-respecting picker — tap to toggle; selected rows
+              highlight in the group's colour. */}
           {isNew && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups &amp; {subTerm}s</Label>
-              {selectedGroupIds.size > 0 && (
-                <div className="flex flex-wrap gap-1.5">
-                  {[...selectedGroupIds].map((id) => {
-                    const g = allGroups.find((x) => x.id === id);
-                    if (!g) return null;
-                    return (
-                      <span key={id} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border"
-                        style={{ backgroundColor: g.color ? `${g.color}18` : "hsl(var(--muted))", borderColor: g.color ? `${g.color}40` : "hsl(var(--border))", color: g.color || "hsl(var(--foreground))" }}>
-                        {g.owner_alter_id ? <Crown className="w-3 h-3 text-amber-500" /> : <Folder className="w-3 h-3" />}
-                        {g.name}
-                        <button type="button" onClick={() => removeGroup(id)} aria-label={`Remove ${g.name}`} className="-mr-0.5 hover:text-destructive"><X className="w-3 h-3" /></button>
-                      </span>
-                    );
-                  })}
-                </div>
-              )}
-              <select
-                value=""
-                onChange={(e) => { if (e.target.value) { addGroup(e.target.value); e.target.value = ""; } }}
-                className="w-full text-sm rounded-lg border border-input bg-background px-2 py-2"
-              >
-                <option value="">Add to a group / {subTerm}…</option>
-                {allGroups.filter((g) => !selectedGroupIds.has(g.id)).map((g) => (
-                  <option key={g.id} value={g.id}>{g.owner_alter_id ? "◦ " : ""}{g.name}</option>
-                ))}
-              </select>
+              <GroupTreeSelect
+                groups={allGroups}
+                selectedIds={selectedGroupIds}
+                onToggle={(id) => (selectedGroupIds.has(id) ? removeGroup(id) : addGroup(id))}
+                subTerm={subTerm}
+              />
             </div>
           )}
 

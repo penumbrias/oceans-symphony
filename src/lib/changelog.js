@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The colour pickers in the Add New Alter / Add New Group editors now open on top of the editor instead of behind it.",
+      },
+      {
+        type: "improve",
+        text: "Avatar buttons in the alter and group editors now wrap neatly under the picture instead of overflowing past it.",
+      },
+      {
+        type: "improve",
+        text: "Profile font choices now offer the same font list as Settings → Appearance.",
+      },
+      {
+        type: "improve",
+        text: "Assigning a new alter to groups now uses a nested, expandable picker that respects your group/subsystem nesting, instead of a flat dropdown.",
+      },
+      {
         type: "feature",
         text: "The Add/Edit alter screen is redesigned: name and avatar sit up top, a single \"first appearance\" field replaces the old birthday/origin-year pair, and there's a full bio editor.",
       },

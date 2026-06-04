@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { createPortal } from "react-dom";
 import { HexColorPicker } from "react-colorful";
 import { X } from "lucide-react";
 
@@ -12,8 +13,11 @@ import { X } from "lucide-react";
  */
 export default function ColorPickerModal({ color = "#8b5cf6", label = "Pick Color", onSave, onClose }) {
   const [hex, setHex] = useState(color);
-  return (
-    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
+  // Portal to <body> with a very high z-index so the picker is never trapped
+  // beneath a dialog it was opened from (e.g. the Add New Alter / Group
+  // modals, whose overlay sits at z-50).
+  return createPortal((
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[100000] p-4">
       <div className="bg-background border-2 border-border rounded-xl p-6 space-y-4 max-w-sm mx-4 w-full">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold">{label}</h3>
@@ -43,5 +47,5 @@ export default function ColorPickerModal({ color = "#8b5cf6", label = "Pick Colo
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

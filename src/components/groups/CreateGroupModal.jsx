@@ -150,7 +150,8 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
                   ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
                   : <Folder className="w-7 h-7" style={{ color: color || "hsl(var(--muted-foreground))" }} />}
               </div>
-              <div className="flex items-center gap-0.5">
+              {/* Wrap to stay within the avatar's width (2 per row). */}
+              <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
                 <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
                 <AssetButton onPick={(url) => setAvatarUrl(url)} className={iconBtnClass()} />
                 <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
