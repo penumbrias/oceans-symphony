@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { isPreviewActive } from "@/lib/previewMode";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 // Whenever the local front state changes — regardless of WHICH UI mutated it
 // (Set Fronters modal, dashboard chip swipe, Alters page long-press, etc.) —
@@ -24,6 +25,10 @@ export function useFriendsFrontSync() {
   const { data: alters = [], isSuccess: altersReady } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
+  });
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
   });
 
   useEffect(() => {
@@ -70,9 +75,13 @@ export function useFriendsFrontSync() {
 
     const primaryId = collected.find((c) => c.isPrimary)?.alterId || collected[0]?.alterId || null;
 
+    // Group config: alters in a group flagged "hide_from_friends" are never
+    // shared with friend systems.
+    const hiddenFromFriends = getAlterIdsByGroupFlag(groups, alters, "hide_from_friends");
+
     const fronters = collected
       .map((c) => ({ entry: c, alter: altersById[c.alterId] }))
-      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false)
+      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false && !hiddenFromFriends.has(alter.id))
       .map(({ entry, alter }) => ({
         id: alter.id,
         name: alter.name,
@@ -100,5 +109,5 @@ export function useFriendsFrontSync() {
         system: terms.system,
       },
     }).catch(() => {});
-  }, [activeSessions, alters, terms.fronting, terms.front, terms.alter, terms.system]);
+  }, [activeSessions, alters, groups, terms.fronting, terms.front, terms.alter, terms.system]);
 }

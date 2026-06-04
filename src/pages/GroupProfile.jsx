@@ -1,16 +1,15 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, AtSign, MessageSquare, FileText, Send,
+  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -33,15 +32,22 @@ import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
 } from "@/lib/subsystemUtils";
-import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { groupNameColor } from "@/lib/contrast";
+import { fontStackFor } from "@/lib/profileFonts";
+import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
+import { pickGroupConfig } from "@/lib/groupConfig";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_BG_KEY = "_header_bg_color";
+const HEADER_FONT_KEY = "_header_font";
+const HIDE_HEADER_KEY = "_hide_header";
 // Same keys the alter profile uses, so contrast helpers + rendering treat
 // group and alter text colours identically.
 const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
 const HEADER_TEXT_KEY = "_header_text_color";
 
 function getContrastColor(hex) {
@@ -155,8 +161,7 @@ function GroupProfileInner() {
       avatar_url: group.avatar_url || "",
       owner_alter_id: group.owner_alter_id || "",
       parent: group.parent || "",
-      hide_from_lists: !!group.hide_from_lists,
-      hide_from_mentions: !!group.hide_from_mentions,
+      ...pickGroupConfig(group),
       custom_fields: group.custom_fields || {},
     });
   }, [group?.id]);
@@ -202,8 +207,7 @@ function GroupProfileInner() {
         avatar_url: form.avatar_url,
         owner_alter_id: form.owner_alter_id || "",
         parent: form.parent || "",
-        hide_from_lists: !!form.hide_from_lists,
-        hide_from_mentions: !!form.hide_from_mentions,
+        ...pickGroupConfig(form),
         custom_fields: form.custom_fields,
       });
       toast.success("Saved!");
@@ -249,8 +253,12 @@ function GroupProfileInner() {
   const bgImage = cf[BG_IMAGE_KEY] || "";
   const bgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  const headerBgColor = cf[HEADER_BG_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const headerTextColor = cf[HEADER_TEXT_KEY] || "";
+  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  const hideHeader = !!cf[HIDE_HEADER_KEY];
   const frontingAlterIds = activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean);
 
   const TABS = [
@@ -306,7 +314,7 @@ function GroupProfileInner() {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
-        <div className="relative z-10 space-y-6" style={pageTextColor ? { color: pageTextColor } : undefined}>
+        <div className="relative z-10 space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
@@ -318,8 +326,11 @@ function GroupProfileInner() {
 
         {tabBar}
 
-        <ViewHeader group={group} headerImage={headerImage} headerTextColor={headerTextColor}
-          ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
+        {!hideHeader && (
+          <ViewHeader group={group} headerImage={headerImage} headerTextColor={headerTextColor}
+            headerBgColor={headerBgColor} headerFont={headerFont}
+            ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
+        )}
 
         {group.description ? (
           <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
@@ -496,22 +507,12 @@ function GroupProfileInner() {
         </select>
       </div>
 
-      {/* Member visibility — group-level list/mention filtering */}
+      {/* Group config — group-level member-visibility filtering across surfaces */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
-        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5" /> Member visibility</label>
-        <ToggleRow
-          icon={Eye}
-          checked={form.hide_from_lists}
-          onChange={(v) => setForm((f) => ({ ...f, hide_from_lists: v }))}
-          label={`Hide members from ${t.alter} lists`}
-          hint={`They won't show in the main ${t.alters} list — still reachable through this group.`}
-        />
-        <ToggleRow
-          icon={AtSign}
-          checked={form.hide_from_mentions}
-          onChange={(v) => setForm((f) => ({ ...f, hide_from_mentions: v }))}
-          label="Hide members from @mentions & -signposts"
-          hint="They won't appear in mention or signpost suggestions."
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5" /> Group config</label>
+        <GroupConfigToggles
+          values={form}
+          onChange={(key, val) => setForm((f) => ({ ...f, [key]: val }))}
         />
       </div>
 
@@ -587,26 +588,6 @@ function GroupProfileInner() {
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
       </div>
     </motion.div>
-  );
-}
-
-function ToggleRow({ icon: Icon, checked, onChange, label, hint }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="w-full flex items-start gap-2.5 text-left"
-    >
-      <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${checked ? "left-[1.125rem]" : "left-0.5"}`} />
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-          {Icon ? <Icon className="w-3.5 h-3.5 text-muted-foreground" /> : null}{label}
-        </span>
-        {hint && <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{hint}</span>}
-      </span>
-    </button>
   );
 }
 
@@ -711,7 +692,7 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   );
 }
 
-function ViewHeader({ group, headerImage, headerTextColor, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
+function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, headerFont, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
   const [resolvedHeader, setResolvedHeader] = useState(null);
   useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
   const hasHeader = !!(headerImage && resolvedHeader);
@@ -719,11 +700,11 @@ function ViewHeader({ group, headerImage, headerTextColor, ownerAlter, subTerm, 
   // header image (for contrast), else the group's name colour.
   const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
   return (
-    <div className="relative rounded-2xl overflow-hidden" style={headerTextColor ? { color: headerTextColor } : undefined}>
+    <div className="relative rounded-2xl overflow-hidden" style={{ ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
       {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.45 }} />
       )}
-      <div className={`relative z-10 flex gap-4 items-start ${hasHeader ? "p-4" : ""}`}>
+      <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="font-display text-2xl font-semibold flex items-center gap-2"

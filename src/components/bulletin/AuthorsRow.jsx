@@ -1,9 +1,12 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Link } from "react-router-dom";
 import { User } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -40,8 +43,12 @@ function AlterAvatar({ alter, size = "md" }) {
 // back to the current front — authors are fixed to whoever wrote the
 // post, never the live front state.
 export default function AuthorsRow({ authorIds = [], alters = [], timestamp, showNames = true }) {
-  const ids = authorIds;
   const systemIdentity = useSystemIdentity();
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  // Group config: members of a group flagged "hide_from_authorship" are
+  // dropped from the byline (if that leaves none, it renders as the system).
+  const hidden = useMemo(() => getAlterIdsByGroupFlag(groups, alters, "hide_from_authorship"), [groups, alters]);
+  const ids = authorIds.filter((id) => !hidden.has(id));
   if (ids.length === 0) {
     return (
       <div className="flex items-center gap-2">

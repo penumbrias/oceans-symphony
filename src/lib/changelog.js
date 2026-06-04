@@ -13,6 +13,35 @@
 
 export const CHANGELOG = [
   {
+    date: "June 4, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "The Add/Edit alter screen is redesigned: name and avatar sit up top, a single \"first appearance\" field replaces the old birthday/origin-year pair, and there's a full bio editor.",
+      },
+      {
+        type: "feature",
+        text: "New Profile Style section when adding or editing an alter — set a header and background colour, image, text colour, and font, with the header styled separately from the body.",
+      },
+      {
+        type: "feature",
+        text: "Redesigned the Add New Group screen: avatar, subsystem root, parent group, a searchable member picker, bio, and the same Profile Style controls.",
+      },
+      {
+        type: "feature",
+        text: "New Group config (formerly member visibility): hide a group's members from Set Front, Friends, mentions/signposts/whispers, authorship lists, system maps, and analytics.",
+      },
+      {
+        type: "feature",
+        text: "First launch now opens with a short welcome explaining what Oceans Symphony is, before setup.",
+      },
+      {
+        type: "fix",
+        text: "The first-run disclaimer is no longer cut off at the top and bottom by the header and navigation bars.",
+      },
+    ],
+  },
+  {
     date: "June 1, 2026",
     changes: [
       {

@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -7,13 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
+import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import useSwipeActions from "@/hooks/useSwipeActions";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { formatInTimeZone } from "date-fns-tz";
 
 const TRIGGER_CATEGORIES = [
@@ -243,7 +244,18 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     queryFn: () => base44.entities.Alter.list(),
     enabled: open,
   });
-  const alters = altersProp?.length ? altersProp : fetchedAlters;
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    enabled: open,
+  });
+  // Group config: members of a group flagged "hide_from_set_front" are kept
+  // out of this picker.
+  const alters = useMemo(() => {
+    const base = altersProp?.length ? altersProp : fetchedAlters;
+    const hidden = getAlterIdsByGroupFlag(groups, base, "hide_from_set_front");
+    return hidden.size ? base.filter((a) => !hidden.has(a.id)) : base;
+  }, [altersProp, fetchedAlters, groups]);
   const [search, setSearch] = useState("");
   // Derive current fronter state from active sessions (new individual model)
   // currentSession may be a single session record; fetch all active sessions to initialize properly

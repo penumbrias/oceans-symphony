@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44, localEntities } from "@/api/base44Client";
 import { buildAbsorptionMap } from "@/lib/absorptionUtils";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
@@ -205,14 +206,32 @@ export default function Analytics() {
     { id: "deep", label: "Deep Dive" },
   ];
 
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
   });
-  const { data: alters = [] } = useQuery({
+  const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+  const { data: analyticsGroups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+  // Group config: members of a group flagged "hide_from_analytics" are kept
+  // out of every analytics section (and their sessions out of co-fronting).
+  const hiddenFromAnalytics = useMemo(
+    () => getAlterIdsByGroupFlag(analyticsGroups, allAlters, "hide_from_analytics"),
+    [analyticsGroups, allAlters],
+  );
+  const alters = useMemo(
+    () => (hiddenFromAnalytics.size ? allAlters.filter((a) => !hiddenFromAnalytics.has(a.id)) : allAlters),
+    [allAlters, hiddenFromAnalytics],
+  );
+  const sessions = useMemo(
+    () => (hiddenFromAnalytics.size ? allSessions.filter((s) => !hiddenFromAnalytics.has(s.alter_id || s.primary_alter_id)) : allSessions),
+    [allSessions, hiddenFromAnalytics],
+  );
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),

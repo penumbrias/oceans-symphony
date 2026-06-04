@@ -4,27 +4,62 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, Crown, Folder, X } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, Crown, Folder, X, Link2, Palette, Eye, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
-import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, encodeCanvasForMime } from "@/lib/localImageStorage";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, processUploadedImage } from "@/lib/localImageStorage";
+import { isLocalMode } from "@/lib/storageMode";
+import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
-import { Link2 } from "lucide-react";
+import BioEditor from "@/components/alters/BioEditor";
+import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
+import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
 
-// Pull a 4-digit year out of a free-form birthday string so we can keep
-// the integer origin_year (used by Alter History / lineage) in sync
-// with whatever the user typed in Birthday — even if it's just "2018"
-// or "around 2018, age 7".
+// Profile-style custom_field keys — shared with the profile renderer
+// (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
+// add/edit modal style the profile up-front instead of forcing a second
+// trip into the in-profile editor.
+const BG_COLOR_KEY = "_bg_color";
+const BG_IMAGE_KEY = "_bg_image";
+const HEADER_BG_KEY = "_header_bg_color";
+const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_TEXT_KEY = "_header_text_color";
+const HEADER_FONT_KEY = "_header_font";
+const HIDE_HEADER_KEY = "_hide_header";
+const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
+
+// Pull a 4-digit year out of a free-form "first appeared" string so we keep
+// the integer origin_year (used by Alter History / lineage / timeline) in
+// sync with whatever the user typed — even if it's "March 2018" or just "2018".
 function extractYear(str) {
   if (!str) return "";
   const m = String(str).match(/\b(1[89]\d{2}|20\d{2}|21\d{2})\b/);
   return m ? m[1] : "";
+}
+
+// Small system-safe font picker reused for the header and the body.
+function FontSelect({ value, onChange, ariaLabel }) {
+  return (
+    <select
+      value={value || ""}
+      onChange={(e) => onChange(e.target.value)}
+      aria-label={ariaLabel}
+      className="w-full text-sm rounded-md border border-input bg-background px-2 py-2"
+      style={{ fontFamily: fontStackFor(value) || undefined }}
+    >
+      {PROFILE_FONTS.map((f) => (
+        <option key={f.id || "default"} value={f.id} style={{ fontFamily: f.stack || undefined }}>{f.label}</option>
+      ))}
+    </select>
+  );
 }
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit", initialGroupIds = [] }) {
@@ -37,12 +72,24 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
     birthday: "", origin_year: "", is_pinned: false, emoji: "",
+    custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showAvatarUrl, setShowAvatarUrl] = useState(false);
+  // Which profile-style colour field has the picker open. We use the
+  // fixed-position ColorPickerModal (not the inline ColorPicker dropdown)
+  // for these because they live inside overflow-hidden SubSections, which
+  // would clip an absolutely-positioned popover.
+  const [colorPickerFor, setColorPickerFor] = useState(null);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
-  const fileInputRef = useRef(null);
+  const [uploadingHeader, setUploadingHeader] = useState(false);
+  const [uploadingBg, setUploadingBg] = useState(false);
+  const avatarFileRef = useRef(null);
+  const headerFileRef = useRef(null);
+  const bgFileRef = useRef(null);
+
   // Create-mode group/subsystem membership (edit mode uses GroupPickerModal
   // on the existing alter). Prefilled from initialGroupIds — e.g. when
   // "create a new member" is launched from a subsystem.
@@ -56,97 +103,109 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
 
   useEffect(() => {
     if (alter && !isNew) {
-      let birthday = alter.birthday || "";
-      let origin_year = alter.origin_year ? String(alter.origin_year) : "";
-      // Default a blank field from the filled one — birthday and
-      // origin_year are conceptually "when did this alter first
-      // appear", so if the user only set one, mirror it into the
-      // other on load. They can still edit either independently
-      // afterwards.
-      if (!birthday && origin_year) birthday = origin_year;
-      if (!origin_year && birthday) origin_year = extractYear(birthday);
+      // Single "first appeared" field now backs both the free-form
+      // birthday text and the integer origin_year. Seed the text from
+      // whichever the alter already had, and keep origin_year if the
+      // text itself has no parseable year (e.g. legacy "Age 7").
+      const birthday = alter.birthday || (alter.origin_year ? String(alter.origin_year) : "");
+      const origin_year = extractYear(birthday) || (alter.origin_year ? String(alter.origin_year) : "");
       setForm({
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "",
         birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "",
+        custom_fields: alter.custom_fields || {},
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "" });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "", custom_fields: {} });
     }
+    setShowAvatarUrl(false);
   }, [alter, open, isNew]);
 
-const handleAvatarUpload = async (e) => {
-  const file = e.target.files?.[0];
-  if (!file) return;
-  setUploadingAvatar(true);
-  try {
-    let localMode = false;
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const cf = form.custom_fields || {};
+  const setCF = (key, val) => setForm((f) => ({ ...f, custom_fields: { ...f.custom_fields, [key]: val } }));
+  const clearCF = (key) => setForm((f) => { const c = { ...f.custom_fields }; delete c[key]; return { ...f, custom_fields: c }; });
+
+  // First-appearance is one field that feeds both birthday (display) and
+  // origin_year (timeline). Re-derive the year on every edit.
+  const setFirstAppearance = (val) => setForm((f) => ({ ...f, birthday: val, origin_year: extractYear(val) }));
+
+  // ── Image resolution for previews (header / background may be local-image://) ──
+  const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
+  const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  const bgImage = cf[BG_IMAGE_KEY] || "";
+  const [resolvedHeaderImg, setResolvedHeaderImg] = useState("");
+  const [resolvedBgImg, setResolvedBgImg] = useState("");
+  useEffect(() => {
+    if (!headerImage) { setResolvedHeaderImg(""); return; }
+    resolveImageUrl(headerImage).then((r) => setResolvedHeaderImg(r || "")).catch(() => setResolvedHeaderImg(""));
+  }, [headerImage]);
+  useEffect(() => {
+    if (!bgImage) { setResolvedBgImg(""); return; }
+    resolveImageUrl(bgImage).then((r) => setResolvedBgImg(r || "")).catch(() => setResolvedBgImg(""));
+  }, [bgImage]);
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setUploadingAvatar(true);
     try {
-      const { isLocalMode } = await import("@/lib/storageMode");
-      localMode = !!isLocalMode();
-    } catch {
-      localMode = false;
-    }
-
-    if (localMode) {
-      const sizeMB = file.size / (1024 * 1024);
-
-      const compressImage = (file, maxDim = 512, quality = 0.82) => {
-        return new Promise((resolve, reject) => {
-          const img = new Image();
-          const url = URL.createObjectURL(file);
-          img.onload = () => {
-            let { width, height } = img;
-            const longest = Math.max(width, height);
-            if (longest > maxDim) {
-              const scale = maxDim / longest;
-              width = Math.round(width * scale);
-              height = Math.round(height * scale);
-            }
-            const canvas = document.createElement("canvas");
-            canvas.width = width;
-            canvas.height = height;
-            canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-            URL.revokeObjectURL(url);
-            // Preserve PNG transparency — JPEG would flatten it to black.
-            resolve(encodeCanvasForMime(canvas, file.type, quality));
-          };
-          img.onerror = reject;
-          img.src = url;
-        });
-      };
-
-      if (sizeMB > 0.5) {
-        toast.info(`Image is ${sizeMB.toFixed(1)}MB — compressing for local storage...`);
+      if (isLocalMode()) {
+        const { dataUrl, sizeKB } = await processUploadedImage(file, 512, 0.82);
+        if (sizeKB > 500) toast.warning(`Compressed to ${sizeKB}KB — very large images may slow the app.`);
+        const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        set("avatar_url", createLocalImageUrl(imageId));
+        toast.success(`Avatar saved locally! (${sizeKB}KB)`);
+      } else {
+        toast.error("Avatar upload requires cloud mode. Paste an image URL instead.");
       }
-
-      const dataUrl = await compressImage(file);
-      const compressedSizeKB = Math.round((dataUrl.length * 0.75) / 1024);
-
-      if (compressedSizeKB > 500) {
-        toast.warning(`Compressed to ${compressedSizeKB}KB — very large images may slow the app. Consider using a smaller image.`);
-      }
-
-      // Generate unique ID and store in local image storage
-      const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveLocalImage(imageId, dataUrl);
-      const localImageUrl = createLocalImageUrl(imageId);
-
-      setForm(f => ({ ...f, avatar_url: localImageUrl }));
-      toast.success(`Avatar saved locally! (${compressedSizeKB}KB)`);
-    } else {
-      toast.error("Avatar upload requires cloud mode. Switch to cloud mode or paste an image URL instead.");
+    } catch (err) {
+      console.error("Avatar upload error:", err);
+      toast.error("Failed to process avatar");
+    } finally {
+      setUploadingAvatar(false);
+      e.target.value = "";
     }
-  } catch (err) {
-    console.error("Avatar upload error:", err);
-    toast.error("Failed to process avatar");
-  } finally {
-    setUploadingAvatar(false);
-    e.target.value = "";
-  }
-};
+  };
+
+  const handleHeaderUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingHeader(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.85);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
+      if (isLocalMode()) {
+        const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setCF(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
+      } else {
+        setCF(HEADER_IMAGE_KEY, dataUrl);
+      }
+      toast.success(isGif ? "Header GIF saved!" : "Header image saved!");
+    } catch { toast.error("Failed to process header image"); }
+    finally { setUploadingHeader(false); e.target.value = ""; }
+  };
+
+  const handleBgUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingBg(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 1200, 0.8);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
+      if (isLocalMode()) {
+        const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        setCF(BG_IMAGE_KEY, createLocalImageUrl(imageId));
+      } else {
+        setCF(BG_IMAGE_KEY, dataUrl);
+      }
+      toast.success(isGif ? "Background GIF saved!" : "Background image saved!");
+    } catch { toast.error("Failed to process background image"); }
+    finally { setUploadingBg(false); e.target.value = ""; }
+  };
 
   const handleSave = async () => {
     if (!form.name.trim()) { toast.error("Name is required"); return; }
@@ -155,7 +214,6 @@ const handleAvatarUpload = async (e) => {
     try {
       if (isNew) {
         const created = await base44.entities.Alter.create({ ...formData, is_archived: false });
-        // Apply selected group / subsystem memberships to the new alter.
         if (selectedGroupIds.size > 0 && created?.id) {
           const memberKey = created.sp_id || created.id;
           const newGroups = [];
@@ -202,7 +260,6 @@ const handleAvatarUpload = async (e) => {
     if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`)) return;
     setDeleting(true);
     try {
-      // Clean up local image if it exists
       if (alter.avatar_url && isLocalImageUrl(alter.avatar_url)) {
         const imageId = getLocalImageId(alter.avatar_url);
         if (imageId) await deleteLocalImage(imageId);
@@ -218,27 +275,29 @@ const handleAvatarUpload = async (e) => {
     }
   };
 
-  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const hideHeader = !!cf[HIDE_HEADER_KEY];
 
-  // Birthday/Origin-Year linking: when one is blank, typing into the
-  // other auto-fills it. Once both are populated, edits stay
-  // independent — the explicit "sync year from birthday" button
-  // below re-links them if the user wants.
-  const setBirthday = (val) => setForm((f) => {
-    const update = { ...f, birthday: val };
-    if (!f.origin_year && val) {
-      const y = extractYear(val);
-      if (y) update.origin_year = y;
-    }
-    return update;
-  });
-  const setOriginYear = (val) => setForm((f) => {
-    const update = { ...f, origin_year: val };
-    if (!f.birthday && val) update.birthday = val;
-    return update;
-  });
-  const birthdayYear = extractYear(form.birthday);
-  const canSyncYear = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
+  // A colour field that opens the fixed-position picker modal (clip-safe
+  // inside the overflow-hidden Profile-style subsections).
+  const colorRow = (label, fieldKey) => (
+    <div className="space-y-1.5">
+      <Label className="text-xs">{label}</Label>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={() => setColorPickerFor(fieldKey)}
+          className="w-8 h-8 rounded-lg border-2 border-border hover:border-primary/50 transition-colors flex-shrink-0 shadow-sm flex items-center justify-center"
+          style={{ backgroundColor: cf[fieldKey] || "transparent" }}
+          title={`${label} — pick colour`}
+          aria-label={`${label} — pick colour`}
+        >
+          {!cf[fieldKey] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+        </button>
+        <span className="flex-1 text-xs font-mono text-muted-foreground truncate">{cf[fieldKey] || "Not set"}</span>
+        {cf[fieldKey] && <IconButton icon={X} title={`Clear ${label.toLowerCase()}`} onClick={() => clearCF(fieldKey)} danger />}
+      </div>
+    </div>
+  );
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
@@ -257,115 +316,70 @@ const handleAvatarUpload = async (e) => {
             <div className="h-2 rounded-full w-full" style={{ backgroundColor: form.color }} />
           )}
 
-          <div className="flex gap-2">
-            <div className="space-y-2 w-20 flex-shrink-0">
-              <Label>Emoji</Label>
-              <Input
-                value={form.emoji}
-                onChange={(e) => set("emoji", e.target.value)}
-                placeholder="✨"
-                maxLength={8}
-                className="text-center text-lg"
-                aria-label="Profile emoji or symbol"
-              />
+          {/* Name + Alias on the left, Avatar on the right */}
+          <div className="flex gap-3">
+            <div className="flex-1 min-w-0 space-y-3">
+              <div className="space-y-1.5">
+                <Label>Name *</Label>
+                <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Display name" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Alias</Label>
+                <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+              </div>
             </div>
-            <div className="space-y-2 flex-1 min-w-0">
-              <Label>Name *</Label>
-              <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder={`${t.Alter} name`} />
+            <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">
+              <Label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground">Avatar</Label>
+              <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
+                {avatarPreview
+                  ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+                  : <User className="w-7 h-7 text-muted-foreground" />}
+              </div>
+              <div className="flex items-center gap-0.5">
+                <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
+                <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
+                <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
+                <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
+              </div>
+              <input ref={avatarFileRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
             </div>
           </div>
+          {showAvatarUrl && (
+            <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
+          )}
+          {form.avatar_url && (isLocalImageUrl(form.avatar_url) || form.avatar_url.startsWith("data:")) && (
+            <LocalImageFixer value={form.avatar_url} maxWidth={400} quality={0.85} onFixed={(url) => set("avatar_url", url)} />
+          )}
 
-          <div className="space-y-2">
-            <Label>Alias</Label>
-            <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname (for mentions)" />
-          </div>
-
+          {/* Pronouns + Color */}
           <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label>Pronouns</Label>
               <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
             </div>
-            <div className="space-y-2">
-              <Label>Role</Label>
-              <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host..." />
+            <div className="space-y-1.5">
+              <Label>Color</Label>
+              <ColorPicker value={form.color || "#8b5cf6"} onChange={(v) => set("color", v)} />
             </div>
           </div>
 
-          {/* When-they-first-appeared block. Birthday and Origin Year
-              are two shapes of the same idea — the helper text under
-              each label spells out which surface uses which value so
-              they don't read as duplicates. */}
-          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-            <p className="text-xs font-medium text-foreground">When they first appeared</p>
-            <div className="space-y-1">
-              <Label className="text-xs">Birthday <span className="text-muted-foreground font-normal">— shown on the profile (🎂 line)</span></Label>
-              <Input
-                type="text"
-                value={form.birthday}
-                onChange={(e) => setBirthday(e.target.value)}
-                placeholder="e.g. 2018-03-15, Age 7, around middle school"
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <Label className="text-xs">Origin year <span className="text-muted-foreground font-normal">— used in {t.Alter} History timeline</span></Label>
-                {canSyncYear && (
-                  <button
-                    type="button"
-                    onClick={() => setForm((f) => ({ ...f, origin_year: birthdayYear }))}
-                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
-                  >
-                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
-                  </button>
-                )}
-              </div>
-              <Input
-                type="number"
-                min={1900}
-                max={new Date().getFullYear()}
-                value={form.origin_year}
-                onChange={(e) => setOriginYear(e.target.value)}
-                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
-            </div>
+          <div className="space-y-1.5">
+            <Label>Role</Label>
+            <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
           </div>
 
-          <div className="space-y-2">
-            <Label>Color</Label>
-            <ColorPicker value={form.color || "#8b5cf6"} onChange={(v) => set("color", v)} />
+          {/* First appearance — one field, feeds the lineage/timeline. */}
+          <div className="space-y-1.5">
+            <Label>First appearance</Label>
+            <Input
+              value={form.birthday}
+              onChange={(e) => setFirstAppearance(e.target.value)}
+              placeholder={`e.g. ${new Date().getFullYear() - 5}, March ${new Date().getFullYear() - 5}, or a full date`}
+            />
+            <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
           </div>
 
-          <div className="space-y-2">
-            <Label>Avatar</Label>
-            <div className="flex gap-2">
-              <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://..." />
-              <AssetButton onPick={(url) => set("avatar_url", url)} className="h-10 w-10 flex items-center justify-center rounded-md border border-input bg-background hover:bg-muted/60 transition-colors flex-shrink-0" />
-              <Button type="button" variant="outline" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} aria-label={uploadingAvatar ? "Uploading avatar…" : "Upload avatar image"}>
-                {uploadingAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-              </Button>
-              <input ref={fileInputRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
-            </div>
-            {form.avatar_url && (
-              <div className="flex items-center gap-2">
-                <img src={form.avatar_url} alt="preview" className="w-16 h-16 rounded-xl object-cover border border-border" />
-                <LocalImageFixer
-                  value={form.avatar_url}
-                  maxWidth={400}
-                  quality={0.85}
-                  onFixed={(url) => set("avatar_url", url)}
-                />
-              </div>
-            )}
-          </div>
-
-          <div className="space-y-2">
-            <Label>Description / Bio</Label>
-            <Textarea value={form.description} onChange={(e) => set("description", e.target.value)}
-              placeholder="Write a description..." className="min-h-[100px] resize-none" />
-          </div>
-
+          {/* Groups / Subsystems (create mode adds memberships up-front) */}
           {isNew && (
             <div className="space-y-2">
               <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups &amp; {subTerm}s</Label>
@@ -424,9 +438,81 @@ const handleAvatarUpload = async (e) => {
             </div>
           )}
 
-          {/* Pin shortcut — surfaces this {alter} in a quick-access
-              gallery at the top of the {alters} page (and the Set Front
-              modal). Doesn't change their position anywhere else. */}
+          {/* Description / Bio */}
+          <div className="space-y-1.5">
+            <Label>Description / Bio</Label>
+            <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+          </div>
+
+          {/* Profile style — collapsed by default. Inside, the Header
+              subsection is on + expanded; the Body subsection is collapsed. */}
+          <SubSection title="Profile style" icon={Palette} defaultOpen={false}>
+            {/* HEADER */}
+            <SubSection title="Header" defaultOpen={true}>
+              <div className="flex items-center justify-between gap-3">
+                <Label htmlFor="alter-header-visible" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
+                  <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Show header on profile
+                </Label>
+                <Switch
+                  id="alter-header-visible"
+                  checked={!hideHeader}
+                  onCheckedChange={(v) => (v ? clearCF(HIDE_HEADER_KEY) : setCF(HIDE_HEADER_KEY, true))}
+                />
+              </div>
+
+              {colorRow("Background colour", HEADER_BG_KEY)}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Image</Label>
+                <div className="flex items-center gap-1.5">
+                  <Input value={cf[HEADER_IMAGE_KEY] || ""} onChange={(e) => setCF(HEADER_IMAGE_KEY, e.target.value)} placeholder="https://…" className="flex-1" />
+                  <IconButton icon={Upload} title="Upload header image" onClick={() => headerFileRef.current?.click()} busy={uploadingHeader} />
+                  <AssetButton onPick={(url) => setCF(HEADER_IMAGE_KEY, url)} className={iconBtnClass()} />
+                  <IconButton icon={X} title="Remove header image" onClick={() => clearCF(HEADER_IMAGE_KEY)} danger disabled={!cf[HEADER_IMAGE_KEY]} />
+                  <input ref={headerFileRef} type="file" accept="image/*" hidden onChange={handleHeaderUpload} />
+                </div>
+                {resolvedHeaderImg && (
+                  <img src={resolvedHeaderImg} alt="header preview" className="w-full h-16 rounded-md object-cover border border-border/50" />
+                )}
+              </div>
+
+              {colorRow("Text colour", HEADER_TEXT_KEY)}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Font style</Label>
+                <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setCF(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
+              </div>
+            </SubSection>
+
+            {/* BODY */}
+            <SubSection title="Body" defaultOpen={false}>
+              {colorRow("Background colour", BG_COLOR_KEY)}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Image</Label>
+                <div className="flex items-center gap-1.5">
+                  <Input value={cf[BG_IMAGE_KEY] || ""} onChange={(e) => setCF(BG_IMAGE_KEY, e.target.value)} placeholder="https://…" className="flex-1" />
+                  <IconButton icon={Upload} title="Upload background image" onClick={() => bgFileRef.current?.click()} busy={uploadingBg} />
+                  <AssetButton onPick={(url) => setCF(BG_IMAGE_KEY, url)} className={iconBtnClass()} />
+                  <IconButton icon={X} title="Remove background image" onClick={() => clearCF(BG_IMAGE_KEY)} danger disabled={!cf[BG_IMAGE_KEY]} />
+                  <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
+                </div>
+                {resolvedBgImg && (
+                  <img src={resolvedBgImg} alt="background preview" className="w-full h-16 rounded-md object-cover border border-border/50" />
+                )}
+              </div>
+
+              {colorRow("Text colour", PAGE_TEXT_KEY)}
+
+              <div className="space-y-1.5">
+                <Label className="text-xs">Font style</Label>
+                <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setCF(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
+              </div>
+            </SubSection>
+          </SubSection>
+
+          {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
+              the top of the {alters} page (and the Set Front modal). */}
           <div className="flex items-center justify-between rounded-xl border border-border/50 px-3 py-2.5">
             <Label htmlFor="alter-pin-toggle" className="flex items-center gap-1.5 cursor-pointer">
               <Pin className={`w-3.5 h-3.5 ${form.is_pinned ? "fill-primary text-primary" : "text-muted-foreground"}`} />
@@ -444,7 +530,7 @@ const handleAvatarUpload = async (e) => {
         <div className="flex-shrink-0 px-6 py-4 border-t border-border/50 flex flex-col gap-2">
           <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
             {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-            {isNew ? `Create ${t.Alter}` : "Save Changes"}
+            {isNew ? `Add New ${t.Alter}` : "Save Changes"}
           </Button>
           {!isNew && (
             <div className="flex gap-2">
@@ -465,6 +551,15 @@ const handleAvatarUpload = async (e) => {
 
       {!isNew && alter && (
         <GroupPickerModal alter={alter} open={showGroupPicker} onClose={() => setShowGroupPicker(false)} />
+      )}
+
+      {colorPickerFor && (
+        <ColorPickerModal
+          color={cf[colorPickerFor] || "#8b5cf6"}
+          label="Pick colour"
+          onSave={(hex) => setCF(colorPickerFor, hex)}
+          onClose={() => setColorPickerFor(null)}
+        />
       )}
     </Dialog>
   );

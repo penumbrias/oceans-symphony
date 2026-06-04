@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { fontStackFor } from "@/lib/profileFonts";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
@@ -35,8 +36,11 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_BG_KEY = "_header_bg_color";
+const HEADER_FONT_KEY = "_header_font";
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -193,6 +197,9 @@ function AlterProfileInner() {
   const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
   const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
+  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  const pageHeaderBgColor = cf[HEADER_BG_KEY] || "";
+  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
   const hasPageBg = pageBgColor || pageBgImage;
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
@@ -227,7 +234,7 @@ function AlterProfileInner() {
       {pageTextColor && (
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
-      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
+      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         {/* Header row: pin toggle on the left (the app header already
             provides Back, so the page-level Back was removed); Prev/Next
             + message button on the right. */}
@@ -321,9 +328,11 @@ function AlterProfileInner() {
           <div
             className="rounded-2xl p-4 mb-5 flex items-center gap-4 relative overflow-hidden"
             style={{
-              background: alterColor
-                ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
-                : "hsl(var(--muted)/0.3)",
+              background: pageHeaderBgColor
+                ? pageHeaderBgColor
+                : alterColor
+                  ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
+                  : "hsl(var(--muted)/0.3)",
               borderLeft: alterColor ? `4px solid ${alterColor}` : "4px solid hsl(var(--primary))",
             }}
           >
@@ -350,7 +359,7 @@ function AlterProfileInner() {
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0 relative z-10">
+            <div className="flex-1 min-w-0 relative z-10" style={headerFont ? { fontFamily: headerFont } : undefined}>
               <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
               {alter.pronouns && !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase()) && (
                 <p className="text-sm text-muted-foreground">{alter.pronouns}</p>

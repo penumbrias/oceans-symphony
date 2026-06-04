@@ -15,13 +15,14 @@ import BioEditor from "@/components/alters/BioEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime, processUploadedImage } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 
@@ -38,10 +39,13 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_TEXT_KEY = "_header_text_color";
+const HEADER_BG_KEY = "_header_bg_color";
 const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_FONT_KEY = "_header_font";
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
 
 function AvatarModal({ src, onSave, onClose }) {
   const [url, setUrl] = useState(src || "");
@@ -389,8 +393,11 @@ useEffect(() => {
   const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
   const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
+  const viewHeaderBgColor = alter.custom_fields?.[HEADER_BG_KEY] || "";
   const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
   const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
+  const viewHeaderFont = fontStackFor(alter.custom_fields?.[HEADER_FONT_KEY]);
+  const viewPageFont = fontStackFor(alter.custom_fields?.[PAGE_FONT_KEY]);
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
@@ -433,9 +440,9 @@ useEffect(() => {
             {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
           </div>
         )}
-        <div className="relative z-10 space-y-6">
+        <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
         {!viewHideHeader && (
-          <div className="relative rounded-2xl overflow-hidden">
+          <div className="relative rounded-2xl overflow-hidden" style={viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : undefined}>
             {viewHeaderImage && resolvedViewHeaderImage && (
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
@@ -480,7 +487,7 @@ useEffect(() => {
                   />
                 </div>
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1" style={viewHeaderFont ? { fontFamily: viewHeaderFont } : undefined}>
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
                   {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
                 </h2>
