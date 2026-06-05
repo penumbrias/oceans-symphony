@@ -21,7 +21,15 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
-        text: "The \"choose root alter\" dropdown and the alter colour picker in the group/alter editors no longer pop up in the wrong place or get cut off, and taps no longer fall through to the page behind.",
+        text: "Colour pickers now respond to taps when opened from the Add New Alter / Group editors — previously the popup didn't register input and taps fell through to the page behind it.",
+      },
+      {
+        type: "improve",
+        text: "The first-run welcome and storage-setup screens are now a single screen, with a warmer, clearer intro.",
+      },
+      {
+        type: "fix",
+        text: "The \"choose root alter\" and \"parent group\" dropdowns in the alter/group editors no longer pop up in the wrong place or get cut off.",
       },
       {
         type: "improve",

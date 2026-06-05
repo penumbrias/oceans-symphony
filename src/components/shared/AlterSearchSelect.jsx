@@ -77,10 +77,17 @@ export default function AlterSearchSelect({
 
       {open && createPortal((
         <>
-          <div className="fixed inset-0" style={{ zIndex }} onClick={() => setOpen(false)} />
+          {/* pointer-events-auto: the parent may be a Radix modal dialog,
+              which sets body{pointer-events:none}; without this the portaled
+              layer is un-tappable and taps fall through to the page behind.
+              stopPropagation on pointer/focus keeps the parent dialog from
+              treating taps here as an "outside" dismiss / focus escape. */}
+          <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
           <div
-            className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+            className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
             style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onFocus={(e) => e.stopPropagation()}
           >
             <div className="px-3 py-2 border-b border-border/50">
               <input

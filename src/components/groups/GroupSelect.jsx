@@ -134,10 +134,16 @@ export default function GroupSelect({
         createPortal(
           (
             <>
-              <div className="fixed inset-0" style={{ zIndex }} onClick={() => setOpen(false)} />
+              {/* pointer-events-auto + stopPropagation: the parent may be a
+                  Radix modal dialog (body{pointer-events:none}); keep the
+                  portaled layer tappable and stop taps/focus here from being
+                  read as an outside-dismiss by the parent dialog. */}
+              <div className="fixed inset-0 pointer-events-auto" style={{ zIndex }} onClick={() => setOpen(false)} onPointerDown={(e) => e.stopPropagation()} />
               <div
-                className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden"
+                className="bg-popover border border-border rounded-xl shadow-xl overflow-hidden pointer-events-auto"
                 style={{ position: "fixed", zIndex: zIndex + 1, top: pos.top, left: pos.left, width: pos.width, maxWidth: "calc(100vw - 16px)" }}
+                onPointerDown={(e) => e.stopPropagation()}
+                onFocus={(e) => e.stopPropagation()}
               >
                 <div className="px-3 py-2 border-b border-border/50 flex items-center gap-1.5">
                   <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />

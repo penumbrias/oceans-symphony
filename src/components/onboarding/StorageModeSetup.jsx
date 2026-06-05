@@ -370,29 +370,38 @@ export default function StorageModeSetup({ mode, onComplete }) {
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
 
-        {/* Header */}
-        <div className="flex flex-col items-center mb-6">
-          <div className="w-12 h-12 rounded-2xl flex items-center justify-center mb-3">
-            {mode === "unlock"
-              ? <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center">
-                  <Lock className="w-6 h-6 text-primary" />
-                </div>
-              : <img
-                  src="/logo.png"
-                  className="w-12 h-12 object-contain"
-                  alt="Oceans Symphony"
-                />
-            }
+        {/* Header — unlock is a simple lock prompt; first-run setup doubles as
+            the welcome intro (the two used to be separate screens). */}
+        {mode === "unlock" ? (
+          <div className="flex flex-col items-center mb-6">
+            <div className="w-12 h-12 rounded-2xl bg-primary/10 flex items-center justify-center mb-3">
+              <Lock className="w-6 h-6 text-primary" />
+            </div>
+            <h2 className="font-display text-2xl font-semibold text-foreground text-center">
+              Unlock Symphony
+            </h2>
           </div>
-          <h2 className="font-display text-2xl font-semibold text-foreground text-center">
-            {mode === "unlock" ? "Unlock Symphony" : "Set up your storage"}
-          </h2>
-          {mode !== "unlock" && (
-            <p className="text-sm text-muted-foreground text-center mt-1">
-              Choose how Symphony stores your data. You can change this later in Settings.
+        ) : (
+          <div className="flex flex-col items-center mb-5">
+            <img src="/logo.png" className="w-16 h-16 object-contain rounded-2xl mb-4" alt="Oceans Symphony" />
+            <h2 className="font-display text-2xl font-semibold text-foreground text-center">
+              Welcome to Oceans Symphony
+            </h2>
+            <p className="text-sm text-foreground/90 leading-relaxed text-center mt-3">
+              A companion app for dissociative systems — made by a system, for systems.
             </p>
-          )}
-        </div>
+            <p className="text-sm text-muted-foreground leading-relaxed text-center mt-2">
+              Keep track of who's fronting, your activities, symptoms and emotions,
+              and build bridges across amnesia gaps and barriers. Quick Support is a
+              tap away for guided breathing and grounding, and any stretch of time
+              can become a therapy report to share.
+            </p>
+            <div className="w-full mt-5 pt-4 border-t border-border/60">
+              <h3 className="text-sm font-semibold text-foreground">First, choose how your data is stored</h3>
+              <p className="text-xs text-muted-foreground mt-0.5">You can change this anytime in Settings.</p>
+            </div>
+          </div>
+        )}
 
         {/* Collapsible privacy notice — first run only */}
         {mode !== "unlock" && (
