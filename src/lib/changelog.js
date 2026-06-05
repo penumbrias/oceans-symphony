@@ -29,11 +29,23 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Profile style \"Page colours\" now uses the same colour-swatch grid as Settings → Appearance (all 8 colours plus wave).",
+        text: "Profile style now shows the full custom-colour palette — all 8 colours plus the wave colour — directly, instead of tucked behind a collapsed section.",
+      },
+      {
+        type: "improve",
+        text: "An alter's board / activity feed now shows post previews with their real formatting and images, instead of stripping them to plain text.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: present members now show as tappable cards like the \"Currently fronting\" widget — tap one to open its notes, emotions and symptoms.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: the Open Dialogue chat now stretches to the full width of the Invite Sharing card.",
       },
       {
         type: "fix",
-        text: "An alter's board / activity feed no longer shows raw HTML tags in post previews.",
+        text: "An alter's profile photo no longer shows as a broken image at the top of their profile.",
       },
       {
         type: "fix",

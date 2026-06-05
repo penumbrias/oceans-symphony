@@ -325,6 +325,13 @@ useEffect(() => {
 
   // Resolved avatar (local-image:// → blob) for the inline avatar preview.
   const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
+  // Resolved avatar for the VIEW-mode header — must go through the hook too,
+  // since a raw <img src="local-image://…"> can't be loaded by the browser
+  // and renders as a broken-image icon (the same gotcha the group member
+  // avatars and AlterCard already guard against). Resolve the saved
+  // alter.avatar_url directly so the header is correct regardless of how the
+  // profile was reached (Alters page or a group's member list).
+  const viewAvatar = useResolvedAvatarUrl(alter.avatar_url);
 
   // First-appearance is one field feeding both the free-form birthday text
   // (display) and the integer origin_year (lineage/timeline) — same as the
@@ -510,8 +517,8 @@ useEffect(() => {
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-                  {alter.avatar_url
-                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                  {viewAvatar
+                    ? <img src={viewAvatar} alt={alter.name} className="w-full h-full object-cover" />
                     : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
                 </div>
                 <div className="absolute -bottom-2 left-0 right-0 flex justify-center">

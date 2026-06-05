@@ -621,7 +621,7 @@ export default function SystemCheckInPage() {
                   as the Chat page. By default history stays on this meeting's
                   record; the in-panel toggle can instead route messages to a
                   real System Chat channel (existing or newly created). */}
-              <div data-tour="meetings-dialogue" className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
+              <div data-tour="meetings-dialogue" className="space-y-3">
                 <button
                   type="button"
                   onClick={() => setFormData({ ...formData, open_dialogue: !formData.open_dialogue })}
@@ -641,6 +641,7 @@ export default function SystemCheckInPage() {
                   </span>
                 </button>
                 {formData.open_dialogue && (
+                  <div className="-mx-6">
                   <MeetingDialogue
                     dialogue={formData.dialogue || []}
                     onChange={(dialogue) => setFormData((prev) => ({ ...prev, dialogue }))}
@@ -669,6 +670,7 @@ export default function SystemCheckInPage() {
                     }}
                     defaultSpeakerId={(formData.participants || [])[0]?.alter_id || null}
                   />
+                  </div>
                 )}
               </div>
             </CheckInStep4>

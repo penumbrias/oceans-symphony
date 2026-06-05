@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
-import { stripHtml } from "@/lib/globalSearch";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -36,7 +36,7 @@ const FILTERS = [
   { key: "session",  label: "Session" },
 ];
 
-function LogItem({ item, onDelete }) {
+function LogItem({ item, onDelete, alters = [], terms = null }) {
   const navigate = useNavigate();
   const cfg = SOURCE_TYPE_CONFIG[item.source_type] || SOURCE_TYPE_CONFIG.message;
   const Icon = cfg.icon;
@@ -71,7 +71,14 @@ function LogItem({ item, onDelete }) {
             )}
           </div>
           {item.preview_text && (
-            <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{stripHtml(item.preview_text) || item.preview_text}</p>
+            // Render the post/comment/journal exactly how it renders at its
+            // source — bold, italics, headings, links, images — via the shared
+            // bulletin renderer (same as BulletinCard). Constrained height +
+            // image cap keeps the feed scannable; "tap to view" opens the full
+            // thing. NOT stripped to plain text.
+            <div className="text-xs text-foreground leading-relaxed break-words wysiwyg-content max-h-48 overflow-hidden [&_img]:max-h-40 [&_img]:rounded-lg">
+              {renderBulletinContent(item.preview_text, alters, terms)}
+            </div>
           )}
           {item.navigate_path && (
             <p className="text-[0.625rem] text-primary mt-1">tap to view →</p>
@@ -268,9 +275,9 @@ const postMessage = async () => {
         <div className="space-y-2">
           {filtered.map(item => (
             item._is_message ? (
-              <LogItem key={item.id} item={item} onDelete={() => deleteMessage(item._raw_id)} />
+              <LogItem key={item.id} item={item} alters={alters} terms={terms} onDelete={() => deleteMessage(item._raw_id)} />
             ) : (
-              <LogItem key={item.id} item={item} />
+              <LogItem key={item.id} item={item} alters={alters} terms={terms} />
             )
           ))}
         </div>

@@ -373,7 +373,10 @@ export default function MeetingDialogue({
   const channelMissing = usingChannel && !channel;
 
   return (
-    <div className="rounded-xl border border-border/50 bg-card overflow-hidden flex flex-col">
+    // border-y only (no side borders / rounding) so when the page full-bleeds
+    // this with -mx-6 it sits flush to the Invite Sharing card's left/right
+    // edges instead of as an inset box.
+    <div className="border-y border-border/50 bg-card overflow-hidden flex flex-col">
       <div className="px-3 py-2 border-b border-border/40 flex items-center gap-2">
         <MessageSquare className="w-4 h-4 text-primary" />
         <p className="text-sm font-medium">Open dialogue</p>

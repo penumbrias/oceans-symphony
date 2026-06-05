@@ -288,11 +288,13 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
       </div>
 
       {/* PAGE COLOURS — a full per-profile theme palette that overrides the
-          app theme for this profile's pages (collapsed by default). Sets all 8
-          theme colours + a wave colour; only the ones you set take effect. */}
-      <SubSection title="Page colours" defaultOpen={false}>
+          app theme for this profile's pages. Open by default so the whole
+          palette (8 theme colours + wave) is visible, not buried behind a
+          collapsed header — this is the same grid as Settings → Custom
+          Colours. Only the swatches you set take effect. */}
+      <SubSection title="Custom colours (full palette)" defaultOpen={true}>
         <p className="text-[0.625rem] text-muted-foreground leading-snug">
-          Override the app's theme colours for this profile only. Anything you leave unset keeps the app theme. These tint every card, button, and text colour on the page.
+          The same colours as Settings → Appearance → Custom Colours, but just for this profile's pages. Tap any swatch to set it — including the <strong>Wave</strong> colour. Anything you leave unset keeps the app theme. These tint every card, button, header wave, and text colour on the page.
         </p>
         {/* The same swatch grid as Settings → Appearance → Custom Colours —
             tap a swatch to set it; unset swatches keep the app theme. */}
