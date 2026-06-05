@@ -10,6 +10,7 @@ import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
+import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
@@ -115,6 +116,24 @@ function AlterProfileInner() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  // Recolour the APP-HEADER wave to this profile's wave colour while it's open.
+  // _theme_wave is either a concrete colour (custom hex) or a var(--color-…)
+  // reference to one of the profile's palette colours; resolve the reference
+  // against the live .os-pf theme so the header (outside .os-pf) gets a concrete
+  // colour. Cleared on unmount so other pages keep the global wave.
+  const profileWaveRaw = alter?.custom_fields?.["_theme_wave"];
+  useEffect(() => {
+    if (!profileWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
+    let color = profileWaveRaw;
+    const m = typeof profileWaveRaw === "string" && profileWaveRaw.match(/^var\((--[\w-]+)\)/);
+    if (m) {
+      const el = document.querySelector(".os-pf");
+      color = el ? getComputedStyle(el).getPropertyValue(m[1]).trim() : "";
+    }
+    setPageWaveOverride(color || null);
+    return () => setPageWaveOverride(null);
+  }, [profileWaveRaw]);
 
   // Lazy one-shot migration: if this alter still has object-shape
   // data on the legacy alter_custom_fields field, fold it into

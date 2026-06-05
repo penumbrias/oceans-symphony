@@ -25,7 +25,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "Profile style: the Wave colour now opens a picker to choose one of your custom colours (or a custom hex), and a matching wave renders on the profile's header banner.",
+        text: "Profile style: the Wave colour now opens a picker (choose one of your custom colours or a custom hex) and recolours the app's header wave while you're on that profile's page.",
       },
       {
         type: "fix",

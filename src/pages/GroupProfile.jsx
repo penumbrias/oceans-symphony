@@ -25,7 +25,6 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupSelect from "@/components/groups/GroupSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import ProfileWave from "@/components/shared/ProfileWave";
 import { SubSection } from "@/components/settings/SettingsUI";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
@@ -40,6 +39,7 @@ import {
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars } from "@/lib/profileStyle";
+import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
@@ -156,6 +156,22 @@ function GroupProfileInner() {
   // Resolve by entity id OR sp_id — alter.groups stores `sp_id || id`, so a
   // chip tapped from an alter profile can arrive with either.
   const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
+
+  // Recolour the APP-HEADER wave to this group's wave colour while it's open
+  // (resolving a var(--color-…) palette reference against the live .os-pf
+  // theme). Cleared on unmount. Mirrors AlterProfile.
+  const groupWaveRaw = group?.custom_fields?.["_theme_wave"];
+  useEffect(() => {
+    if (!groupWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
+    let color = groupWaveRaw;
+    const m = typeof groupWaveRaw === "string" && groupWaveRaw.match(/^var\((--[\w-]+)\)/);
+    if (m) {
+      const el = document.querySelector(".os-pf");
+      color = el ? getComputedStyle(el).getPropertyValue(m[1]).trim() : "";
+    }
+    setPageWaveOverride(color || null);
+    return () => setPageWaveOverride(null);
+  }, [groupWaveRaw]);
 
   // Form starts null (group not loaded yet); reset() seeds the baseline once
   // the group loads. reset() (not setForm) means the initial load is not an
@@ -717,7 +733,6 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
   const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
   return (
     <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(group.custom_fields || {}), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
-      {group.custom_fields?.["_theme_wave"] && <ProfileWave />}
       {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
       )}

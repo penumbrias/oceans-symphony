@@ -13,7 +13,6 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import ProfileWave from "@/components/shared/ProfileWave";
 import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -496,7 +495,6 @@ useEffect(() => {
         <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
         {!viewHideHeader && (
           <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(alter.custom_fields || {}), ...(viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : {}) }}>
-            {alter.custom_fields?.["_theme_wave"] && <ProfileWave />}
             {viewHeaderImage && resolvedViewHeaderImage && (
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
