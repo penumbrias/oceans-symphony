@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Profile style: the Background and Text colour pickers now sit side by side to save space.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: with a background image set, your background colour now fills the cards (bio, sections), and you can tune header opacity, image opacity, and a readability tint over the image.",
+      },
+      {
+        type: "improve",
         text: "The alter profile's Edit page now matches the Add New Alter screen: avatar beside the name, and a single \"first appearance\" field replacing the separate birthday + origin-year fields.",
       },
       {

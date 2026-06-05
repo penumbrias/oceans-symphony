@@ -25,12 +25,20 @@ import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
+// _bg_opacity = opacity of the BODY background layer. With an image set it's
+// the image's opacity (default 0.5); with only a colour it's that colour's
+// opacity (default 0.15).
 const BG_OPACITY_KEY = "_bg_opacity";
+// _section_bg_opacity = "Readability". When a background image is set, this is
+// the opacity of the _bg_color tint laid over the image so text stays legible
+// (default 0.1 / 10%).
 const SECTION_BG_KEY = "_section_bg_opacity";
 const HEADER_BG_KEY = "_header_bg_color";
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_TEXT_KEY = "_header_text_color";
 const HEADER_FONT_KEY = "_header_font";
+// _header_opacity = opacity of the header background image (default 0.45).
+const HEADER_OPACITY_KEY = "_header_opacity";
 const HIDE_HEADER_KEY = "_hide_header";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
@@ -130,6 +138,22 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   );
 
   const hideHeader = !!cf[HIDE_HEADER_KEY];
+  const headerImageSet = !!cf[HEADER_IMAGE_KEY];
+  const bgImageSet = !!cf[BG_IMAGE_KEY];
+
+  const slider = (label, key, fallback, ariaLabel) => (
+    <div className="flex items-center gap-3">
+      <Label className="text-xs flex-shrink-0 w-28">{label}</Label>
+      <input
+        type="range" min={0.02} max={1} step={0.01}
+        value={cf[key] ?? fallback}
+        onChange={(e) => setField(key, parseFloat(e.target.value))}
+        className="flex-1 h-1 accent-primary"
+        aria-label={ariaLabel || label}
+      />
+      <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[key] ?? fallback) * 100)}%</span>
+    </div>
+  );
 
   return (
     <>
@@ -145,9 +169,13 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
             onCheckedChange={(v) => (v ? clearField(HIDE_HEADER_KEY) : setField(HIDE_HEADER_KEY, true))}
           />
         </div>
-        {colorRow("Background colour", HEADER_BG_KEY)}
+        {/* Background + text colour side by side to save vertical space. */}
+        <div className="grid grid-cols-2 gap-3">
+          {colorRow("Background", HEADER_BG_KEY)}
+          {colorRow("Text", HEADER_TEXT_KEY)}
+        </div>
         {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
-        {colorRow("Text colour", HEADER_TEXT_KEY)}
+        {headerImageSet && slider("Header opacity", HEADER_OPACITY_KEY, 0.45, "Header image opacity")}
         <div className="space-y-1.5">
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
@@ -158,39 +186,28 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           dropdown; only the Header collapses). */}
       <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
-        {colorRow("Background colour", BG_COLOR_KEY)}
+        <div className="grid grid-cols-2 gap-3">
+          {colorRow("Background", BG_COLOR_KEY)}
+          {colorRow("Text", PAGE_TEXT_KEY)}
+        </div>
+        {bgImageSet && cf[BG_COLOR_KEY] && (
+          <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
+            With a background image set, this colour fills the cards (bio, sections, dropdowns) and tints the page for readability.
+          </p>
+        )}
         {imageRow("Image", BG_IMAGE_KEY, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], BG_IMAGE_KEY, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
-        {colorRow("Text colour", PAGE_TEXT_KEY)}
         <div className="space-y-1.5">
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
         </div>
-        {(cf[BG_COLOR_KEY] || cf[BG_IMAGE_KEY]) && (
+        {bgImageSet ? (
           <>
-            <div className="flex items-center gap-3">
-              <Label className="text-xs flex-shrink-0 w-24">Background opacity</Label>
-              <input
-                type="range" min={0.02} max={1} step={0.01}
-                value={cf[BG_OPACITY_KEY] ?? 0.15}
-                onChange={(e) => setField(BG_OPACITY_KEY, parseFloat(e.target.value))}
-                className="flex-1 h-1 accent-primary"
-                aria-label="Background opacity"
-              />
-              <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[BG_OPACITY_KEY] ?? 0.15) * 100)}%</span>
-            </div>
-            <div className="flex items-center gap-3">
-              <Label className="text-xs flex-shrink-0 w-24">Readability</Label>
-              <input
-                type="range" min={0} max={0.97} step={0.01}
-                value={cf[SECTION_BG_KEY] ?? 0}
-                onChange={(e) => setField(SECTION_BG_KEY, parseFloat(e.target.value))}
-                className="flex-1 h-1 accent-primary"
-                aria-label="Section readability backdrop"
-              />
-              <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[SECTION_BG_KEY] ?? 0) * 100)}%</span>
-            </div>
+            {slider("Image opacity", BG_OPACITY_KEY, 0.5, "Background image opacity")}
+            {slider("Readability", SECTION_BG_KEY, 0.1, "Readability overlay opacity")}
           </>
-        )}
+        ) : cf[BG_COLOR_KEY] ? (
+          slider("Background opacity", BG_OPACITY_KEY, 0.15, "Background colour opacity")
+        ) : null}
       </div>
 
       {colorPickerFor && (

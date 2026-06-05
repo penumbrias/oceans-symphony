@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { fontStackFor } from "@/lib/profileFonts";
+import { readProfileBg, profileCardCss } from "@/lib/profileStyle";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
@@ -191,16 +192,19 @@ function AlterProfileInner() {
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
   const cf = alter.custom_fields || {};
-  const pageBgColor = cf[BG_COLOR_KEY] || "";
-  const pageBgImage = cf[BG_IMAGE_KEY] || "";
-  const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const ps = readProfileBg(cf);
+  const pageBgColor = ps.bgColor;
+  const pageBgImage = ps.bgImage;
+  const pageBgOpacity = ps.bgOpacity;       // image:0.5 / colour:0.15 default
+  const readability = ps.readability;        // _bg_color tint over image (0.1 default)
+  const headerOpacity = ps.headerOpacity;    // header image opacity (0.45 default)
   const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
-  const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
   const pageHeaderBgColor = cf[HEADER_BG_KEY] || "";
   const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
-  const hasPageBg = pageBgColor || pageBgImage;
+  const hasPageBg = ps.hasPageBg;
+  const cardCss = profileCardCss("os-pf", cf);
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
@@ -216,25 +220,34 @@ function AlterProfileInner() {
     >
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
-          {pageBgColor && (
+          {pageBgImage && resolvedBgImage ? (
+            <>
+              {/* Image fills the page at its own opacity… */}
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("${resolvedBgImage}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                opacity: pageBgOpacity,
+              }} />
+              {/* …then a _bg_color tint at the Readability opacity over it. */}
+              {pageBgColor && (
+                <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: readability }} />
+              )}
+            </>
+          ) : pageBgColor ? (
             <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: pageBgOpacity }} />
-          )}
-          {pageBgImage && resolvedBgImage && (
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("${resolvedBgImage}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              opacity: pageBgOpacity,
-            }} />
-          )}
+          ) : null}
         </div>
       )}
 
       {pageTextColor && (
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
-      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
+      {/* When a bg image is set, _bg_color fills the cards (view mode only, so
+          edit-mode inputs aren't tinted). */}
+      {!editMode && cardCss && <style>{cardCss}</style>}
+      <div className={cn("relative z-10 os-pf", pageTextColor && "apc")} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         {/* Header row: pin toggle on the left (the app header already
             provides Back, so the page-level Back was removed); Prev/Next
             + message button on the right. */}
@@ -343,7 +356,7 @@ function AlterProfileInner() {
                   backgroundImage: `url("${resolvedHeaderImage}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  opacity: 0.45,
+                  opacity: headerOpacity,
                 }}
               />
             )}

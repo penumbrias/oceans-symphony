@@ -45,6 +45,7 @@ const HEADER_BG_KEY = "_header_bg_color";
 const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_FONT_KEY = "_header_font";
+const HEADER_OPACITY_KEY = "_header_opacity";
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
@@ -453,11 +454,18 @@ useEffect(() => {
   }, [viewHeaderImage]);
 
   // ── VIEW MODE ──
-  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0);
+  const viewHeaderOpacity = alter.custom_fields?.[HEADER_OPACITY_KEY] !== undefined
+    ? parseFloat(alter.custom_fields[HEADER_OPACITY_KEY]) : 0.45;
+  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0.1);
   const hasSectionBg = viewSectionBgOpacity > 0 && (viewBgColor || viewBgImage || viewHeaderImage);
-  const sectionCardStyle = hasSectionBg
-    ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
-    : {};
+  // When a background image is set with a background colour, cards use that
+  // colour (so bio/sections/dropdowns read against the image). Otherwise the
+  // readability tint uses the theme surface colour.
+  const sectionCardStyle = (viewBgImage && viewBgColor)
+    ? { backgroundColor: viewBgColor }
+    : hasSectionBg
+      ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
+      : {};
 
   if (!editMode) {
     return (
@@ -475,7 +483,7 @@ useEffect(() => {
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                opacity: 0.45,
+                opacity: viewHeaderOpacity,
               }} />
             )}
             {viewBgImage?.startsWith("data:") && (

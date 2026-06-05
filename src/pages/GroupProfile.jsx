@@ -37,6 +37,7 @@ import {
 } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
+import { readProfileBg, profileCardCss } from "@/lib/profileStyle";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 
@@ -252,9 +253,13 @@ function GroupProfileInner() {
   const subsystem = isSubsystem(group);
 
   const cf = group.custom_fields || {};
-  const bgColor = cf[BG_COLOR_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
-  const bgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const ps = readProfileBg(cf);
+  const bgColor = ps.bgColor;
+  const bgImage = ps.bgImage;
+  const bgOpacity = ps.bgOpacity;
+  const readability = ps.readability;
+  const headerOpacity = ps.headerOpacity;
+  const cardCss = profileCardCss("os-pf", cf);
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
   const headerBgColor = cf[HEADER_BG_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
@@ -287,8 +292,9 @@ function GroupProfileInner() {
   if (tab === "board" || tab === "notes") {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
-        <div className="relative z-10 space-y-3">
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} readability={readability} />
+        {cardCss && <style>{cardCss}</style>}
+        <div className="relative z-10 os-pf space-y-3">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
         </Button>
@@ -316,8 +322,9 @@ function GroupProfileInner() {
   if (!editMode) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
-        <div className="relative z-10 space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} readability={readability} />
+        {cardCss && <style>{cardCss}</style>}
+        <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
@@ -331,7 +338,7 @@ function GroupProfileInner() {
 
         {!hideHeader && (
           <ViewHeader group={group} headerImage={headerImage} headerTextColor={headerTextColor}
-            headerBgColor={headerBgColor} headerFont={headerFont}
+            headerBgColor={headerBgColor} headerFont={headerFont} headerOpacity={headerOpacity}
             ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
         )}
 
@@ -412,12 +419,14 @@ function GroupProfileInner() {
     ownerCandidates.filter((a) => wouldCreateOwnershipCycle(allGroups, alters, group.id, a.id)).map((a) => a.id)
   );
   // Live background preview while editing (uses the unsaved form values).
-  const formBgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
-  const formBgImage = form.custom_fields?.[BG_IMAGE_KEY] || "";
-  const formBgOpacity = form.custom_fields?.[BG_OPACITY_KEY] ?? 0.15;
+  const formPs = readProfileBg(form.custom_fields || {});
+  const formBgColor = formPs.bgColor;
+  const formBgImage = formPs.bgImage;
+  const formBgOpacity = formPs.bgOpacity;
+  const formReadability = formPs.readability;
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
+      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} readability={formReadability} />
       <div className="relative z-10 space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
@@ -633,27 +642,33 @@ function StyleImageRow({ label, busy, inputRef, value, onClear, onChange, onText
 // the header banner in ViewHeader. Rendered as the first, absolutely
 // positioned child of a `relative` page wrapper; the content alongside
 // it must be `relative z-10` so it paints on top.
-function PageBackground({ bgColor, bgImage, bgOpacity }) {
+function PageBackground({ bgColor, bgImage, bgOpacity, readability = 0.1 }) {
   const [resolvedBg, setResolvedBg] = useState(null);
   useEffect(() => {
     if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
     else setResolvedBg(null);
   }, [bgImage]);
   if (!bgColor && !bgImage) return null;
+  const hasImage = !!(bgImage && resolvedBg);
   return (
     // Fixed full-screen background (like the alter profile) — fills the whole
-    // viewport, edge-to-edge, and does NOT scroll with the content (which
-    // previously made it look like a second, duplicate background).
+    // viewport, edge-to-edge, and does NOT scroll with the content.
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
-      {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-      {bgImage && resolvedBg && (
-        <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+      {hasImage ? (
+        <>
+          {/* Image at its own opacity, then a _bg_color tint at the Readability
+              opacity over it. */}
+          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: readability }} />}
+        </>
+      ) : (
+        bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />
       )}
     </div>
   );
 }
 
-function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, headerFont, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
+function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, headerFont, headerOpacity = 0.45, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
   const [resolvedHeader, setResolvedHeader] = useState(null);
   useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
   const hasHeader = !!(headerImage && resolvedHeader);
@@ -663,7 +678,7 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
   return (
     <div className="relative rounded-2xl overflow-hidden" style={{ ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
       {hasHeader && (
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.45 }} />
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
       )}
       <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
