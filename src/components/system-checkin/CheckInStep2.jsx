@@ -68,10 +68,18 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            {/* "Who's present" lives in the single "Notice who's near"
-                section below (MeetingParticipantsSection) — no duplicate
-                alters/groups picker here. Step 2 keeps the body / emotion
-                check only. */}
+            {/* "Notice who's near" participants render at the TOP of Step 2,
+                directly under this card's single header — the "Choose who's
+                near…" button and per-participant panels (MeetingParticipants
+                Section, passed as children). There is exactly ONE "Notice
+                who's near" header (this card's title); the section below has
+                none of its own. */}
+            {children && (
+              <div className="pb-1">
+                {children}
+              </div>
+            )}
+
             <div>
               <Label className="text-sm mb-2 block">Feelings noticed</Label>
               <EmotionWheelPicker
@@ -115,14 +123,6 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [],
                 className="resize-none h-16"
               />
             </div>
-
-            {/* "Notice who's near" participants live inside this same Step 2
-                card (not a separate redundant section below it). */}
-            {children && (
-              <div className="pt-3 border-t border-border/40">
-                {children}
-              </div>
-            )}
           </div>
         </CardContent>
       </Card>

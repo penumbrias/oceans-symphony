@@ -16,8 +16,28 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System Meetings: Open Dialogue now uses the real system chat — formatting toolbar, @mention and -signpost autocomplete — and you can keep it to the meeting or save it to a System Chat channel.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: there's now a single \"Notice who's near\" header, with the \"Choose who's near\" picker right under it.",
+      },
+      {
+        type: "improve",
+        text: "Profile edit: only the Profile-style card now gets a full colour backing over a background image — the rest of the form is backed per-section like the view page.",
+      },
+      {
+        type: "improve",
+        text: "Profile style \"Page colours\" now uses the same colour-swatch grid as Settings → Appearance (all 8 colours plus wave).",
+      },
+      {
         type: "fix",
-        text: "Profile style: the whole in-profile edit form, the Profile-style card, the Lineage tab, and the \"System Fields\" label now take your colour backing over a background image, so they stay readable.",
+        text: "An alter's board / activity feed no longer shows raw HTML tags in post previews.",
+      },
+      {
+        type: "fix",
+        text: "Profile style: the in-profile Lineage tab and the \"System Fields\" label now take your colour backing over a background image, so they stay readable.",
       },
       {
         type: "improve",

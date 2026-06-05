@@ -436,7 +436,9 @@ export default function SystemCheckInPage() {
                             {label}
                           </span>
                           <span className="text-muted-foreground text-xs"> · {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
-                          <div className="text-foreground wysiwyg-content whitespace-pre-wrap break-words">{renderRichContent(m.text, { terms })}</div>
+                          <div className={`wysiwyg-content whitespace-pre-wrap break-words ${m.deleted_at ? "italic text-muted-foreground" : "text-foreground"}`}>
+                            {m.deleted_at ? "[message deleted]" : renderRichContent(m.text, { terms })}
+                          </div>
                         </div>
                       );
                     })}
@@ -613,10 +615,12 @@ export default function SystemCheckInPage() {
 
             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters}>
-              {/* Open dialogue lives inside Invite Sharing now. A meeting-scoped
-                  chat that reuses the system-chat send logic (signposts /
-                  whispers / rich rendering / composer) but stores history on
-                  this meeting's record, never the global System Chat. */}
+              {/* Open dialogue lives inside Invite Sharing now. It renders the
+                  REAL System Chat surface (ChatSurface) — same composer,
+                  formatting toolbar, and live @mention / -signpost autocomplete
+                  as the Chat page. By default history stays on this meeting's
+                  record; the in-panel toggle can instead route messages to a
+                  real System Chat channel (existing or newly created). */}
               <div data-tour="meetings-dialogue" className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
                 <button
                   type="button"
@@ -632,7 +636,7 @@ export default function SystemCheckInPage() {
                       Open a dialogue space for this meeting
                     </span>
                     <span className="block text-xs text-muted-foreground leading-snug mt-0.5">
-                      A private back-and-forth between {terms.alters} that stays with this meeting. Nothing is saved to {terms.System} Chat.
+                      A back-and-forth between {terms.alters} using the full {terms.System} Chat composer. Keep it with this meeting, or save it to a {terms.System} Chat channel.
                     </span>
                   </span>
                 </button>
@@ -641,6 +645,15 @@ export default function SystemCheckInPage() {
                     dialogue={formData.dialogue || []}
                     onChange={(dialogue) => setFormData((prev) => ({ ...prev, dialogue }))}
                     alters={alters}
+                    storageMode={formData.dialogue_storage_mode || "meeting"}
+                    storageChannelId={formData.dialogue_storage_channel_id || null}
+                    onStorageChange={({ mode, channelId }) =>
+                      setFormData((prev) => ({
+                        ...prev,
+                        dialogue_storage_mode: mode,
+                        dialogue_storage_channel_id: channelId,
+                      }))
+                    }
                     onAddParticipants={(ids) => {
                       // Signposting an alter in a dialogue message auto-adds
                       // them to "notice who's near" (the participants list).

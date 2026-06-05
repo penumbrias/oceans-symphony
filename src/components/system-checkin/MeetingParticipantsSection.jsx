@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { UserPlus, Users } from "lucide-react";
+import { UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
@@ -66,57 +65,50 @@ export default function MeetingParticipantsSection({ participants = [], onChange
     onChange(list.filter((p) => p.alter_id !== alterId));
   };
 
+  // No heading and no boxed container here — this renders directly under Step
+  // 2's single "Notice Who's Near" header (CheckInStep2 passes it as children),
+  // so it's just the "Choose who's near…" button + the per-participant panels.
   return (
-    <Card data-tour="meetings-participants">
-      <CardHeader>
-        <CardTitle className="text-lg flex items-center gap-2">
-          <Users className="w-4 h-4 text-primary" />
-          Notice who's near
-        </CardTitle>
-        <CardDescription>
-          Add who's here, then write how each one is showing up — their feelings, symptoms, and notes, separately. (All optional.)
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3">
-        {list.length > 0 && (
-          <div className="space-y-2">
-            {list.map((p) => {
-              const alter = altersById[p.alter_id];
-              if (!alter) return null;
-              return (
-                <AlterPanel
-                  key={p.alter_id}
-                  alter={alter}
-                  participant={p}
-                  onChange={(next) => updateParticipant(p.alter_id, next)}
-                  onClose={() => removeParticipant(p.alter_id)}
-                />
-              );
-            })}
-          </div>
-        )}
+    <div data-tour="meetings-participants" className="space-y-3">
+      {/* Open the real Set Fronters modal to choose who's near — sits directly
+          under Step 2's header. */}
+      <Button
+        type="button"
+        variant="outline"
+        onClick={() => setPickerOpen(true)}
+        className="w-full gap-2"
+      >
+        <UserPlus className="w-4 h-4" />
+        {list.length > 0 ? `Add or remove ${terms.alters}` : `Choose who's near…`}
+      </Button>
 
-        {/* Open the real Set Fronters modal to choose who's near. */}
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => setPickerOpen(true)}
-          className="w-full gap-2"
-        >
-          <UserPlus className="w-4 h-4" />
-          {list.length > 0 ? `Add or remove ${terms.alters}` : `Choose who's near…`}
-        </Button>
+      {list.length > 0 && (
+        <div className="space-y-2">
+          {list.map((p) => {
+            const alter = altersById[p.alter_id];
+            if (!alter) return null;
+            return (
+              <AlterPanel
+                key={p.alter_id}
+                alter={alter}
+                participant={p}
+                onChange={(next) => updateParticipant(p.alter_id, next)}
+                onClose={() => removeParticipant(p.alter_id)}
+              />
+            );
+          })}
+        </div>
+      )}
 
-        <SetFrontModal
-          open={pickerOpen}
-          onClose={() => setPickerOpen(false)}
-          alters={alters}
-          selectionMode
-          preselectedIds={selectedIds}
-          onConfirm={applySelection}
-          confirmLabel="Add to meeting"
-        />
-      </CardContent>
-    </Card>
+      <SetFrontModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        alters={alters}
+        selectionMode
+        preselectedIds={selectedIds}
+        onConfirm={applySelection}
+        confirmLabel="Add to meeting"
+      />
+    </div>
   );
 }

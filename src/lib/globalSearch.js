@@ -97,7 +97,7 @@ export function isoDate(ts) {
 
 // ---------- general helpers ----------
 
-function stripHtml(html) {
+export function stripHtml(html) {
   if (!html || typeof html !== "string") return "";
   return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")

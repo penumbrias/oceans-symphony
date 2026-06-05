@@ -202,7 +202,10 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   };
 
   return (
-    <>
+    // data-pf-surface: when this editor is rendered ON a profile that has a bg
+    // image (inside .os-pf), the WHOLE profile-style card gets the colour
+    // backing so it's readable. No-op inside modals (the rule is .os-pf-scoped).
+    <div data-pf-surface className="space-y-0 rounded-xl">
       {/* HEADER */}
       <SubSection title="Header" defaultOpen={true}>
         <div className="flex items-center justify-between gap-3">
@@ -291,13 +294,26 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         <p className="text-[0.625rem] text-muted-foreground leading-snug">
           Override the app's theme colours for this profile only. Anything you leave unset keeps the app theme. These tint every card, button, and text colour on the page.
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          {THEME_KEYS.map(({ key, label }) => (
-            <React.Fragment key={key}>{colorRow(label, key)}</React.Fragment>
+        {/* The same swatch grid as Settings → Appearance → Custom Colours —
+            tap a swatch to set it; unset swatches keep the app theme. */}
+        <div className="flex flex-wrap gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+          {[...THEME_KEYS, { key: THEME_WAVE_KEY, label: "Wave" }].map(({ key, label }) => (
+            <div key={key} className="flex flex-col items-center gap-1">
+              <button
+                type="button"
+                onClick={() => setColorPickerFor(key)}
+                title={`Edit ${label}`}
+                className="w-10 h-10 rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center"
+                style={{ backgroundColor: cf[key] || "transparent" }}
+              >
+                {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+              </button>
+              <span className="text-[0.625rem] text-muted-foreground">{label}</span>
+              {cf[key]
+                ? <button type="button" onClick={() => clearField(key)} className="text-[0.5625rem] text-muted-foreground hover:text-destructive leading-none">clear</button>
+                : <span className="h-[0.5625rem]" />}
+            </div>
           ))}
-        </div>
-        <div className="pt-1 border-t border-border/30">
-          {colorRow("Wave colour", THEME_WAVE_KEY)}
         </div>
       </SubSection>
 
@@ -309,6 +325,6 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           onClose={() => setColorPickerFor(null)}
         />
       )}
-    </>
+    </div>
   );
 }

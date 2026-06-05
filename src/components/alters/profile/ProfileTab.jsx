@@ -796,15 +796,13 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
   }
 
   // ── EDIT MODE ──
-  // data-pf-surface backs the whole edit form as one card when a bg image is
-  // set, so every label + field + the Profile-style card reads legibly.
   return (
-    <div className="space-y-4 rounded-2xl" data-pf-surface>
+    <div className="space-y-4">
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
       {/* Name + Alias on the left, Avatar on the right — matches the
           Add New / Edit {alter} modal arrangement. */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 rounded-2xl" data-pf-surface>
         <div className="flex-1 min-w-0 space-y-3">
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Name *</label>
@@ -834,12 +832,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       {showAvatarUrl && (
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-1">
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-1" data-pf-chrome-label>
         Alias is used as a shorthand for @ mentions and - signposts.
       </p>
 
       {/* Pronouns + Color */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-2 gap-3 rounded-2xl" data-pf-surface>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
           <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
@@ -856,14 +854,14 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       </div>
 
       {/* Role */}
-      <div className="space-y-1">
+      <div className="space-y-1 rounded-2xl" data-pf-surface>
         <label className="text-xs text-muted-foreground font-medium">Role</label>
         <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
       </div>
 
       {/* First appearance — one field feeding both the free-form display
           and the integer origin_year (lineage/timeline). */}
-      <div className="space-y-1">
+      <div className="space-y-1 rounded-2xl" data-pf-surface>
         <label className="text-xs text-muted-foreground font-medium">First appearance</label>
         <Input
           value={form.birthday || ""}
@@ -874,7 +872,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       </div>
 
       {/* Groups */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-2xl" data-pf-surface>
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
           <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
@@ -955,7 +953,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         })() : <p className="text-xs text-muted-foreground">Not in any groups</p>}
       </div>
 
-      <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+      <div className="rounded-2xl" data-pf-surface>
+        <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+      </div>
 
       {/* Profile style — shared editor (Header collapsible; Body inline).
           Same editor as the Add New / Edit {alter} modal. */}

@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
+import { stripHtml } from "@/lib/globalSearch";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -70,7 +71,7 @@ function LogItem({ item, onDelete }) {
             )}
           </div>
           {item.preview_text && (
-            <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{item.preview_text}</p>
+            <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{stripHtml(item.preview_text) || item.preview_text}</p>
           )}
           {item.navigate_path && (
             <p className="text-[0.625rem] text-primary mt-1">tap to view →</p>

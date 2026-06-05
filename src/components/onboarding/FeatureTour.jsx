@@ -359,7 +359,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "meetings", sectionLabel: `${t.System} Meetings`,
       emoji: "💬",
       title: "Open Dialogue",
-      body: `Inside "Invite Sharing" you can flip on "Open dialogue" — a chat space just for this meeting. It works exactly like ${t.System} Chat: pick who's speaking, @ mention, - signpost, and /w @name whispers all work, with the same rich formatting. Signposting an ${t.alter} also adds them to "notice who's near". It's saved with the meeting and never touches your main ${t.System} Chat.`,
+      body: `Inside "Invite Sharing" you can flip on "Open dialogue" — the real ${t.System} Chat, right inside the meeting. The same composer, formatting toolbar, and live @ mention / - signpost / /w whisper autocomplete all work. Signposting an ${t.alter} also adds them to "notice who's near". By default it's kept with this meeting, but you can choose to save it to a ${t.System} Chat channel instead — pick an existing one or make a new one.`,
       route: "/system-checkin", target: "meetings-new",
       look: `the "New Meeting" form — open "Invite Sharing" and turn on "Open dialogue" to reveal the chat space`, action: null,
     },
