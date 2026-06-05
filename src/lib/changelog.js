@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Alter-specific custom fields (in the Info tab) now support the same field types as system-wide fields — text, number, yes/no, and list — and format the same way.",
+      },
+      {
         type: "improve",
         text: "Archived alters now show an \"Archived\" tag (with one-tap Restore) on their profile, and archived members are tagged in a group's member list — so they're no longer mistaken for normal members.",
       },

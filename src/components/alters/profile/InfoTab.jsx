@@ -13,6 +13,82 @@ import WysiwygEditor from "@/components/shared/WysiwygEditor";
 
 const FIELD_ORDER_KEY = "_field_order";
 
+// Field types offered for alter-specific fields — the SAME set the system-wide
+// Custom Fields manager offers (CustomFieldsManager: text / number / boolean /
+// list). So per-alter fields format and behave exactly like system fields,
+// just scoped to one alter.
+const ALTER_FIELD_TYPES = [
+  { id: "text", label: "Text" },
+  { id: "number", label: "Number" },
+  { id: "boolean", label: "Yes / No" },
+  { id: "list", label: "List" },
+];
+
+// Shared, type-aware VALUE DISPLAY — used for both system fields and
+// alter-specific fields so they render identically (boolean → Yes/No, list →
+// chips, text/richtext → Markdown/HTML, number → plain). Treats an unset value
+// as "Not filled".
+function FieldValue({ type, value }) {
+  if (!value && value !== false) {
+    return <span className="text-muted-foreground/50 italic">Not filled</span>;
+  }
+  if (type === "boolean") {
+    return <>{(value === "true" || value === true) ? "Yes" : "No"}</>;
+  }
+  if (type === "list" && typeof value === "string") {
+    const items = value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
+    if (items.length === 0) return <span className="text-muted-foreground/50 italic">Not filled</span>;
+    return (
+      <div className="flex flex-wrap gap-1">
+        {items.map((item, i) => (
+          <span key={`${item}-${i}`} className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
+            {item}
+          </span>
+        ))}
+      </div>
+    );
+  }
+  if (type === "text" || type === "richtext") {
+    return <MarkdownText>{String(value)}</MarkdownText>;
+  }
+  return <span className="whitespace-pre-wrap break-words">{value}</span>;
+}
+
+// Shared, type-aware VALUE EDITOR — mirrors the per-type inputs the system
+// fields use (richtext → Wysiwyg, text → textarea, list → comma textarea +
+// hint, boolean → Yes/No select, number → number input).
+function FieldEditor({ type, value, onChange, autoFocus = false }) {
+  if (type === "richtext") {
+    return <WysiwygEditor value={value} onChange={onChange} placeholder="Write…" />;
+  }
+  if (type === "list") {
+    return (
+      <div className="flex-1 flex flex-col gap-1">
+        <Textarea value={value} onChange={(e) => onChange(e.target.value)} placeholder="item, item, item"
+          className="text-sm min-h-[44px]" autoFocus={autoFocus} />
+        <p className="text-[0.625rem] text-muted-foreground leading-snug">
+          Separate items with commas — each one's stored and matched individually.
+        </p>
+      </div>
+    );
+  }
+  if (type === "boolean") {
+    return (
+      <select value={value} onChange={(e) => onChange(e.target.value)}
+        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" autoFocus={autoFocus}>
+        <option value="">Select...</option>
+        <option value="true">Yes</option>
+        <option value="false">No</option>
+      </select>
+    );
+  }
+  if (type === "number") {
+    return <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm" autoFocus={autoFocus} />;
+  }
+  // text (default)
+  return <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm min-h-[60px]" autoFocus={autoFocus} />;
+}
+
 export default function InfoTab({ alter, systemFields }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
@@ -135,7 +211,7 @@ export default function InfoTab({ alter, systemFields }) {
   const saveNewAlterField = async () => {
     if (!newAlterField?.name?.trim()) return;
     setSaving(true);
-    const updated = [...alterSpecificFields, { name: newAlterField.name.trim(), value: newAlterField.value || "" }];
+    const updated = [...alterSpecificFields, { name: newAlterField.name.trim(), value: newAlterField.value || "", field_type: newAlterField.field_type || "text" }];
     await base44.entities.Alter.update(alter.id, { alter_custom_fields: updated });
     queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
     setNewAlterField(null);
@@ -310,38 +386,7 @@ export default function InfoTab({ alter, systemFields }) {
                   </div>
                 ) : (
                   <div className="text-sm text-foreground min-h-[1.25rem]">
-                    {(() => {
-                      const value = customFieldValues[field.id];
-                      if (!value && value !== false) {
-                        return <span className="text-muted-foreground/50 italic">Not filled</span>;
-                      }
-                      if (field.field_type === "boolean") {
-                        return (value === "true" || value === true) ? "Yes" : "No";
-                      }
-                      if (field.field_type === "list" && typeof value === "string") {
-                        const items = value.split(/[,;|]/).map((s) => s.trim()).filter(Boolean);
-                        if (items.length === 0) return <span className="text-muted-foreground/50 italic">Not filled</span>;
-                        return (
-                          <div className="flex flex-wrap gap-1">
-                            {items.map((item, i) => (
-                              <span
-                                key={`${item}-${i}`}
-                                className="text-xs px-2 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
-                              >
-                                {item}
-                              </span>
-                            ))}
-                          </div>
-                        );
-                      }
-                      // text & rich-text fields render as Markdown/HTML
-                      // (MarkdownText sanitises raw HTML from the rich
-                      // editor); number stays plain.
-                      if (field.field_type === "text" || field.field_type === "richtext") {
-                        return <MarkdownText>{String(value)}</MarkdownText>;
-                      }
-                      return <span className="whitespace-pre-wrap break-words">{value}</span>;
-                    })()}
+                    <FieldValue type={field.field_type} value={customFieldValues[field.id]} />
                   </div>
                 )}
               </div>
@@ -386,8 +431,7 @@ export default function InfoTab({ alter, systemFields }) {
             </div>
             {editingAlterIdx === idx ? (
               <div className="flex gap-2 mt-1">
-                <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                  className="flex-1 text-sm min-h-[60px]" autoFocus />
+                <FieldEditor type={field.field_type || "text"} value={editValue} onChange={setEditValue} autoFocus />
                 <div className="flex flex-col gap-1">
                   <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90"
                     onClick={() => saveAlterField(idx)} disabled={saving}>
@@ -399,12 +443,10 @@ export default function InfoTab({ alter, systemFields }) {
                 </div>
               </div>
             ) : (
-              // Alter-specific ad-hoc fields are always free text, so they
-              // render as Markdown like text-type system fields.
+              // Same type-aware rendering as system fields (boolean → Yes/No,
+              // list → chips, text → Markdown, number → plain).
               <div className="text-sm text-foreground min-h-[1.25rem]">
-                {field.value
-                  ? <MarkdownText>{String(field.value)}</MarkdownText>
-                  : <span className="text-muted-foreground/50 italic">Not filled</span>}
+                <FieldValue type={field.field_type || "text"} value={field.value} />
               </div>
             )}
           </div>
@@ -412,12 +454,25 @@ export default function InfoTab({ alter, systemFields }) {
 
         {newAlterField ? (
           <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 space-y-2">
-            <Input placeholder="Field name..." value={newAlterField.name}
-              onChange={(e) => setNewAlterField({ ...newAlterField, name: e.target.value })}
-              className="text-sm" autoFocus />
-            <Textarea placeholder="Value..." value={newAlterField.value}
-              onChange={(e) => setNewAlterField({ ...newAlterField, value: e.target.value })}
-              className="text-sm min-h-[60px]" />
+            <div className="flex gap-2">
+              <Input placeholder="Field name..." value={newAlterField.name}
+                onChange={(e) => setNewAlterField({ ...newAlterField, name: e.target.value })}
+                className="text-sm flex-1" autoFocus />
+              {/* Type selector — same field types as system-wide custom fields. */}
+              <select
+                value={newAlterField.field_type || "text"}
+                onChange={(e) => setNewAlterField({ ...newAlterField, field_type: e.target.value, value: "" })}
+                className="rounded-md border border-input bg-transparent px-2 py-1 text-sm flex-shrink-0"
+                aria-label="Field type"
+              >
+                {ALTER_FIELD_TYPES.map((t) => <option key={t.id} value={t.id}>{t.label}</option>)}
+              </select>
+            </div>
+            <FieldEditor
+              type={newAlterField.field_type || "text"}
+              value={newAlterField.value}
+              onChange={(v) => setNewAlterField({ ...newAlterField, value: v })}
+            />
             <div className="flex gap-2 justify-end">
               <Button size="sm" variant="ghost" onClick={() => setNewAlterField(null)}>Cancel</Button>
               <Button size="sm" className="bg-primary hover:bg-primary/90"
@@ -428,7 +483,7 @@ export default function InfoTab({ alter, systemFields }) {
           </div>
         ) : (
           <Button variant="outline" size="sm" className="gap-1.5 w-full"
-            onClick={() => setNewAlterField({ name: "", value: "" })}>
+            onClick={() => setNewAlterField({ name: "", value: "", field_type: "text" })}>
             <Plus className="w-4 h-4" />
             Add {terms.alter}-specific field
           </Button>
