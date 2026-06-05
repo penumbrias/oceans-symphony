@@ -154,8 +154,10 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         </div>
       </SubSection>
 
-      {/* BODY */}
-      <SubSection title="Body" defaultOpen={false}>
+      {/* BODY — rendered inline within "Profile style" (NOT its own collapsible
+          dropdown; only the Header collapses). */}
+      <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
         {colorRow("Background colour", BG_COLOR_KEY)}
         {imageRow("Image", BG_IMAGE_KEY, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], BG_IMAGE_KEY, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
         {colorRow("Text colour", PAGE_TEXT_KEY)}
@@ -189,7 +191,7 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
             </div>
           </>
         )}
-      </SubSection>
+      </div>
 
       {colorPickerFor && (
         <ColorPickerModal

@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "In the Profile style editor, the Body options now sit directly under \"Profile style\" instead of in their own dropdown — only the Header stays collapsible.",
+      },
+      {
+        type: "improve",
+        text: "The Add/Edit alter screen now uses the same Profile style editor as everywhere else, gaining background-opacity and readability controls.",
+      },
+      {
+        type: "improve",
         text: "Refreshed the first-run welcome screen with the app icon and a clearer description of what Oceans Symphony does.",
       },
       {

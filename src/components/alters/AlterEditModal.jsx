@@ -19,6 +19,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import BioEditor from "@/components/alters/BioEditor";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
 
@@ -441,71 +442,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             <BioEditor value={form.description} onChange={(val) => set("description", val)} />
           </div>
 
-          {/* Profile style — collapsed by default. Inside, the Header
-              subsection is on + expanded; the Body subsection is collapsed. */}
+          {/* Profile style — shared editor: Header is a collapsible
+              subsection; Body renders inline beneath it. */}
           <SubSection title="Profile style" icon={Palette} defaultOpen={false}>
-            {/* HEADER */}
-            <SubSection title="Header" defaultOpen={true}>
-              <div className="flex items-center justify-between gap-3">
-                <Label htmlFor="alter-header-visible" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
-                  <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Show header on profile
-                </Label>
-                <Switch
-                  id="alter-header-visible"
-                  checked={!hideHeader}
-                  onCheckedChange={(v) => (v ? clearCF(HIDE_HEADER_KEY) : setCF(HIDE_HEADER_KEY, true))}
-                />
-              </div>
-
-              {colorRow("Background colour", HEADER_BG_KEY)}
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Image</Label>
-                <div className="flex items-center gap-1.5">
-                  <Input value={cf[HEADER_IMAGE_KEY] || ""} onChange={(e) => setCF(HEADER_IMAGE_KEY, e.target.value)} placeholder="https://…" className="flex-1" />
-                  <IconButton icon={Upload} title="Upload header image" onClick={() => headerFileRef.current?.click()} busy={uploadingHeader} />
-                  <AssetButton onPick={(url) => setCF(HEADER_IMAGE_KEY, url)} className={iconBtnClass()} />
-                  <IconButton icon={X} title="Remove header image" onClick={() => clearCF(HEADER_IMAGE_KEY)} danger disabled={!cf[HEADER_IMAGE_KEY]} />
-                  <input ref={headerFileRef} type="file" accept="image/*" hidden onChange={handleHeaderUpload} />
-                </div>
-                {resolvedHeaderImg && (
-                  <img src={resolvedHeaderImg} alt="header preview" className="w-full h-16 rounded-md object-cover border border-border/50" />
-                )}
-              </div>
-
-              {colorRow("Text colour", HEADER_TEXT_KEY)}
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Font style</Label>
-                <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setCF(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
-              </div>
-            </SubSection>
-
-            {/* BODY */}
-            <SubSection title="Body" defaultOpen={false}>
-              {colorRow("Background colour", BG_COLOR_KEY)}
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Image</Label>
-                <div className="flex items-center gap-1.5">
-                  <Input value={cf[BG_IMAGE_KEY] || ""} onChange={(e) => setCF(BG_IMAGE_KEY, e.target.value)} placeholder="https://…" className="flex-1" />
-                  <IconButton icon={Upload} title="Upload background image" onClick={() => bgFileRef.current?.click()} busy={uploadingBg} />
-                  <AssetButton onPick={(url) => setCF(BG_IMAGE_KEY, url)} className={iconBtnClass()} />
-                  <IconButton icon={X} title="Remove background image" onClick={() => clearCF(BG_IMAGE_KEY)} danger disabled={!cf[BG_IMAGE_KEY]} />
-                  <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
-                </div>
-                {resolvedBgImg && (
-                  <img src={resolvedBgImg} alt="background preview" className="w-full h-16 rounded-md object-cover border border-border/50" />
-                )}
-              </div>
-
-              {colorRow("Text colour", PAGE_TEXT_KEY)}
-
-              <div className="space-y-1.5">
-                <Label className="text-xs">Font style</Label>
-                <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setCF(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
-              </div>
-            </SubSection>
+            <ProfileStyleEditor customFields={form.custom_fields} setField={setCF} clearField={clearCF} />
           </SubSection>
 
           {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
