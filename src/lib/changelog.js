@@ -16,6 +16,26 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Whispered bulletins now reveal when tapped from the dashboard and board, not just on the full bulletin page.",
+      },
+      {
+        type: "improve",
+        text: "Relationship types are now managed with a drag-to-nest tree (like the activity \"Customize\" menu) — nest, reorder, rename, recolour, and add sub-types.",
+      },
+      {
+        type: "improve",
+        text: "Profile style custom colours now show their current live colour instead of blank, so it's clear what each one controls — and you can clear any back to the app default.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the readable backing now extends fully behind the editor and the Notes/Board/Messages/Info tabs when a background image is set.",
+      },
+      {
+        type: "improve",
+        text: "Group profile: the Profile style section now sits under the bio (matching the alters page), and Undo/Redo sit beside the Save button on both edit pages.",
+      },
+      {
         type: "feature",
         text: "Press and hold a fronting chip on the dashboard for the full action menu — go to profile, pin, create subsystem, add to groups, and more — same as the alters page.",
       },

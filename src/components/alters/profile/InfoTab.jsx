@@ -396,9 +396,9 @@ export default function InfoTab({ alter, systemFields }) {
       )}
 
       <div className="space-y-3">
-        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{terms.Alter}-Specific Fields</p>
+        <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider" data-pf-chrome-label>{terms.Alter}-Specific Fields</p>
         {alterSpecificFields.length === 0 && !newAlterField && (
-          <p className="text-sm text-muted-foreground/60 italic py-2">No {terms.alter}-specific fields yet.</p>
+          <p className="text-sm text-muted-foreground/60 italic py-2 rounded-2xl" data-pf-surface>No {terms.alter}-specific fields yet.</p>
         )}
         {alterSpecificFields.map((field, idx) => (
           <div key={idx} className="rounded-xl border border-border/50 bg-muted/10 p-3">

@@ -99,6 +99,32 @@ const SYNC_PAIRS = [
 // key → its paired key, both directions (for the live lock).
 const SYNC_MAP = {};
 for (const [bodyKey, headerKey] of SYNC_PAIRS) { SYNC_MAP[bodyKey] = headerKey; SYNC_MAP[headerKey] = bodyKey; }
+
+// Each palette key → the CSS variable that colour role currently resolves to.
+// When a swatch ISN'T explicitly overridden we paint it with var(<thisvar>) so
+// it shows the LIVE effective colour (app theme, or this profile's theme),
+// making it obvious what each swatch controls. The vars update live as the
+// user edits (the editor injects the in-progress theme), so siblings reflect
+// changes immediately too.
+const LIVE_VAR = {
+  [BG_COLOR_KEY]: "--color-bg",
+  "_theme_surface": "--color-surface",
+  "_theme_primary": "--color-primary",
+  "_theme_secondary": "--color-secondary",
+  "_theme_accent": "--color-accent",
+  "_theme_muted": "--color-muted",
+  [PAGE_TEXT_KEY]: "--color-text-primary",
+  "_theme_text2": "--color-text-secondary",
+  [THEME_WAVE_KEY]: "--color-wave",
+  [HEADER_BG_KEY]: "--color-bg",
+  "_header_theme_surface": "--color-surface",
+  "_header_theme_primary": "--color-primary",
+  "_header_theme_secondary": "--color-secondary",
+  "_header_theme_accent": "--color-accent",
+  "_header_theme_muted": "--color-muted",
+  [HEADER_TEXT_KEY]: "--color-text-primary",
+  "_header_theme_text2": "--color-text-secondary",
+};
 // HEADER palette — the same set MINUS the wave (the wave doesn't render in the
 // header). Background + Text keep the existing header keys (so the banner paints
 // exactly as before); the deeper colours use header-scoped keys applied only to
@@ -216,11 +242,15 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
       <button
         type="button"
         onClick={() => setColorPickerFor(key)}
-        title={`Edit ${label}`}
-        className={`${tall ? "w-10 h-[3.75rem]" : "w-10 h-10"} rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center`}
-        style={{ backgroundColor: cf[key] || "transparent" }}
+        title={cf[key] ? `Edit ${label} (overriding the app default)` : `Edit ${label} (currently the app default — tap to override)`}
+        className={`${tall ? "w-10 h-[3.75rem]" : "w-10 h-10"} rounded-xl border-2 transition-colors shadow-sm flex items-center justify-center ${cf[key] ? "border-primary/60" : "border-border/50 hover:border-primary/60"}`}
+        // Always paint the LIVE colour: the explicit override if set, else the
+        // current effective theme value via its CSS var (so the swatch shows
+        // exactly what that colour looks like right now). A set border ring
+        // marks colours that are explicitly overridden vs inheriting.
+        style={{ backgroundColor: cf[key] || (LIVE_VAR[key] ? `var(${LIVE_VAR[key]})` : "transparent") }}
       >
-        {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+        {!cf[key] && !LIVE_VAR[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
       </button>
       {!tall && <span className="text-[0.625rem] text-muted-foreground">{label}</span>}
       {cf[key]

@@ -1069,18 +1069,19 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       )}
 
       <div className="flex flex-col gap-2 pt-1">
+        {/* Undo / Redo sit right beside Save. */}
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="flex-1">
-            <Undo2 className="w-4 h-4 mr-2" /> Undo
+          <Button variant="outline" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="flex-shrink-0 px-3" title="Undo" aria-label="Undo">
+            <Undo2 className="w-4 h-4" />
           </Button>
-          <Button variant="outline" size="sm" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="flex-1">
-            <Redo2 className="w-4 h-4 mr-2" /> Redo
+          <Button variant="outline" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="flex-shrink-0 px-3" title="Redo" aria-label="Redo">
+            <Redo2 className="w-4 h-4" />
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Changes
           </Button>
         </div>
-        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Changes
-        </Button>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
             {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}

@@ -233,7 +233,7 @@ const postMessage = async () => {
       {/* Help text — explains what the Board is. The Board is this {terms.alter}'s
           in-app activity log: every bulletin or comment they author, every
           journal entry, every check-in, every mention directed at them. */}
-      <p className="text-xs text-muted-foreground leading-relaxed">
+      <p className="text-xs text-muted-foreground leading-relaxed" data-pf-chrome-label>
         This {terms.alter}'s activity feed — every bulletin or comment they post, journals they author,
         check-ins they make, and any @mentions directed at them. Tap any item to jump to it.
       </p>
@@ -246,7 +246,7 @@ const postMessage = async () => {
       />
 
       {/* Filter chips */}
-      <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" data-pf-chrome>
         {FILTERS.map(f => {
           const count = countFor(f.key);
           if (count === 0 && f.key !== "all" && f.key !== activeFilter) return null;
@@ -267,7 +267,7 @@ const postMessage = async () => {
 
       {/* Feed */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
+        <div className="text-center py-12 text-muted-foreground text-sm rounded-2xl" data-pf-surface>
           <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
           Nothing here yet — anything this {terms.alter} posts, comments on, journals, or gets mentioned in will show up here.
         </div>

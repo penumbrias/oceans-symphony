@@ -64,7 +64,11 @@ export function SubSection({ title, hint, icon: Icon, defaultOpen = false, right
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
       </button>
       {open && (
-        <div className="px-3 py-3 space-y-3 border-t border-border/30">
+        // data-pf-surface: on a profile page with a background image, the
+        // section's content area gets the readable colour backing so it
+        // extends edge-to-edge to the section border (no un-backed padding
+        // ring). No-op everywhere else — the rule is .os-pf-scoped.
+        <div data-pf-surface className="px-3 py-3 space-y-3 border-t border-border/30">
           {hint && <p className="text-xs text-muted-foreground leading-snug">{hint}</p>}
           {children}
         </div>

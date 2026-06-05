@@ -81,7 +81,7 @@ export default function NotesTab({ alterId }) {
   return (
     <div className="space-y-4">
       {notes.length === 0 && !composing && (
-        <div className="text-center py-16 text-muted-foreground text-sm">
+        <div className="text-center py-16 text-muted-foreground text-sm rounded-2xl" data-pf-surface>
           <FileText className="w-10 h-10 mx-auto mb-3 text-muted-foreground/30" />
           This {t.alter} has no notes.
         </div>

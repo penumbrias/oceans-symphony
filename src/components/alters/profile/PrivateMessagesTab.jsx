@@ -218,7 +218,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
 
       {/* Messages */}
       {messages.length === 0 ? (
-        <div className="text-center py-10 text-muted-foreground text-sm space-y-3">
+        <div className="text-center py-10 text-muted-foreground text-sm space-y-3 rounded-2xl" data-pf-surface>
           <Mail className="w-8 h-8 mx-auto opacity-20" />
           <p>No messages yet</p>
           <p className="text-xs text-muted-foreground/70 max-w-xs mx-auto leading-relaxed">

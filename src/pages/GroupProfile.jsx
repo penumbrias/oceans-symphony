@@ -556,6 +556,12 @@ function GroupProfileInner() {
         />
       </div>
 
+      {/* Bio first, then Profile style under it — same order as the alter
+          edit page. */}
+      <div className="rounded-2xl" data-pf-surface>
+        <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
+      </div>
+
       {/* Profile style — shared editor (collapsible Header / Body with
           colours, images, fonts, opacity + readability). Matches the
           Add New Group modal pattern. */}
@@ -570,8 +576,6 @@ function GroupProfileInner() {
           })}
         />
       </SubSection>
-
-      <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
 
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}
