@@ -13,7 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 // legacy string shape on load (existing records) but new saves are
 // always arrays.
 
-export default function CheckInStep2({ data, onChange, alters = [], groups = [] }) {
+export default function CheckInStep2({ data, onChange, alters = [], groups = [], children }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const step = data?.step2_notice || {};
@@ -115,6 +115,14 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [] 
                 className="resize-none h-16"
               />
             </div>
+
+            {/* "Notice who's near" participants live inside this same Step 2
+                card (not a separate redundant section below it). */}
+            {children && (
+              <div className="pt-3 border-t border-border/40">
+                {children}
+              </div>
+            )}
           </div>
         </CardContent>
       </Card>

@@ -435,7 +435,7 @@ function GroupProfileInner() {
       <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
-      <div className="relative z-10 os-pf space-y-4">
+      <div className="relative z-10 os-pf space-y-4 rounded-2xl" data-pf-surface>
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
           <Eye className="w-4 h-4 mr-1.5" /> View

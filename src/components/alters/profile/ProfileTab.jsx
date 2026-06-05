@@ -796,8 +796,10 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
   }
 
   // ── EDIT MODE ──
+  // data-pf-surface backs the whole edit form as one card when a bg image is
+  // set, so every label + field + the Profile-style card reads legibly.
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 rounded-2xl" data-pf-surface>
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
       {/* Name + Alias on the left, Avatar on the right — matches the

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Profile style: the whole in-profile edit form, the Profile-style card, the Lineage tab, and the \"System Fields\" label now take your colour backing over a background image, so they stay readable.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: \"Notice who's near\" is now a single section — the participants live inside the Step 2 block instead of a separate redundant card below it.",
+      },
+      {
         type: "improve",
         text: "Profile style: the nav tabs, Prev/Next/Edit buttons, group/subsystem labels, and your activity-feed cards now take your profile colour over a background image instead of floating transparently.",
       },

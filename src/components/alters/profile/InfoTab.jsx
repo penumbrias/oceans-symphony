@@ -217,7 +217,7 @@ export default function InfoTab({ alter, systemFields }) {
       {systemFields.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{terms.System} Fields</p>
+            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider" data-pf-chrome-label>{terms.System} Fields</p>
             {hasCustomOrder && (
               <button onClick={resetFieldOrder}
                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">

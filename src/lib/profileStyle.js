@@ -159,8 +159,16 @@ export function profileSurfaceCss(scopeClass, cf = {}) {
   // horizontal padding + radius so the short text reads as a chip, not a bar.
   const chrome = sel("[data-pf-chrome]");
   const chromeLabel = sel("[data-pf-chrome-label]");
+  // [data-pf-surface] = "back this whole container as one card". Used for big
+  // composite areas that aren't a single bg-utility element — the in-profile
+  // EDIT form (so every label + field reads), the Profile-style editor card,
+  // and tab bodies like Lineage that are bare text over the image.
+  // Match a descendant OR the scope element itself carrying the attribute
+  // (GroupProfile's edit root is the .os-pf wrapper itself).
+  const surface = `.${scopeClass}[data-pf-surface],.${scopeClass} [data-pf-surface]`;
   return (
     `${targets}{background-color:${fill} !important;}` +
+    `${surface}{background-color:${fill} !important;padding:0.75rem;}` +
     `${chrome}{background-color:${chromeFill} !important;border-radius:0.75rem;}` +
     `${chromeLabel}{background-color:${chromeFill} !important;border-radius:0.5rem;padding:0.15rem 0.5rem;}`
   );

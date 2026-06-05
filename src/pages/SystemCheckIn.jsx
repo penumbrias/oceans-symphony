@@ -598,16 +598,18 @@ export default function SystemCheckInPage() {
 
             {/* Steps */}
              <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
-             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups} />
-
-            {/* Notice who's near — the single participants section. Choosing
-                who's here opens the real Set Fronters modal (selectionMode);
-                each participant is the "currently fronting" per-alter panel. */}
-            <MeetingParticipantsSection
-              participants={formData.participants || []}
-              onChange={(participants) => setFormData({ ...formData, participants })}
-              alters={alters}
-            />
+             {/* "Notice who's near" participants render INSIDE Step 2 (passed as
+                 children) so it's one section, not a redundant card below.
+                 Choosing who's near opens the real Set Fronters modal
+                 (selectionMode); each participant is the "currently fronting"
+                 per-alter panel. */}
+             <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups}>
+              <MeetingParticipantsSection
+                participants={formData.participants || []}
+                onChange={(participants) => setFormData({ ...formData, participants })}
+                alters={alters}
+              />
+            </CheckInStep2>
 
             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
             <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters}>

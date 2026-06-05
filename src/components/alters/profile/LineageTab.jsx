@@ -238,7 +238,7 @@ export default function LineageTab({ alterId }) {
   }
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4 pb-8 rounded-2xl" data-pf-surface>
       <div className="flex items-center justify-between">
         <div>
           <h3 className="text-sm font-semibold text-foreground">Lineage</h3>
