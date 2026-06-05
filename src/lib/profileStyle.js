@@ -14,7 +14,10 @@
 //   _section_bg_opacity "Surface opacity": opacity of the _bg_color fill laid
 //                       over the page's surfaces (cards + entry windows) so text
 //                       stays readable over the image (default 0.9).
-//   _header_opacity     opacity of the header background image (default 0.45)
+//   _header_opacity     opacity of the header background IMAGE (default 0.45)
+//   _header_bg_opacity  opacity of the header background COLOUR fill (default
+//                       1 / fully opaque) — mirrors the Body's bg-colour
+//                       opacity so the header colour can be made translucent.
 //   _header_bg_color / _header_image / _header_text_color / _header_font
 //   _page_text_color / _page_font / _hide_header
 //
@@ -35,6 +38,7 @@ export const PS = {
   HEADER_TEXT: "_header_text_color",
   HEADER_FONT: "_header_font",
   HEADER_OPACITY: "_header_opacity",
+  HEADER_BG_OPACITY: "_header_bg_opacity",
   HIDE_HEADER: "_hide_header",
   PAGE_TEXT: "_page_text_color",
   PAGE_FONT: "_page_font",
@@ -63,13 +67,22 @@ export function readProfileBg(cf = {}) {
   const readability = cf[PS.READABILITY] !== undefined ? cf[PS.READABILITY] : 0.9;
   const headerImage = cf[PS.HEADER_IMAGE] || "";
   const headerOpacity = cf[PS.HEADER_OPACITY] !== undefined ? cf[PS.HEADER_OPACITY] : 0.45;
+  // Opacity of the header background COLOUR. Defaults to 1 (fully opaque) so
+  // existing profiles' header colours look exactly as before; the user can
+  // lower it to let the page bg / image show through the header.
+  const headerBgOpacity = cf[PS.HEADER_BG_OPACITY] !== undefined ? cf[PS.HEADER_BG_OPACITY] : 1;
+  const headerBgColor = cf[PS.HEADER_BG] || "";
   return {
     bgColor,
     bgImage,
     hasImage,
     bgOpacity,
     readability,
-    headerBgColor: cf[PS.HEADER_BG] || "",
+    headerBgColor,
+    // The header background colour with its own opacity baked in (rgba). Use
+    // this as the header card's background so the colour can be translucent.
+    headerBgColorWithAlpha: headerBgColor ? colorWithAlpha(headerBgColor, headerBgOpacity) : "",
+    headerBgOpacity,
     headerImage,
     headerOpacity,
     pageTextColor: cf[PS.PAGE_TEXT] || "",
@@ -105,6 +118,11 @@ export function profileSurfaceCss(scopeClass, cf = {}) {
   if (!hasImage || !bgColor) return "";
   const rgb = hexToRgb(bgColor);
   const fill = rgb ? `rgba(${rgb.r},${rgb.g},${rgb.b},${readability})` : bgColor;
+  // A lighter version of the same fill for "chrome" surfaces (nav tabs, section
+  // labels, ghost/outline buttons) that should read as backed but not as heavy
+  // as a content card. Clamp so it's always at least faintly visible.
+  const chromeAlpha = rgb ? Math.min(1, Math.max(0.55, readability)) : 1;
+  const chromeFill = rgb ? `rgba(${rgb.r},${rgb.g},${rgb.b},${chromeAlpha})` : bgColor;
   const sel = (s) => `.${scopeClass} ${s}`;
   // NB: in a CSS string the Tailwind class `bg-muted/20` is the selector
   // `.bg-muted\/20` — the slash must be escaped, and in this JS string the
@@ -119,12 +137,33 @@ export function profileSurfaceCss(scopeClass, cf = {}) {
     ".bg-muted\\/30",
     ".bg-muted\\/40",
     ".bg-muted\\/50",
+    // Primary-tinted surface: the profile activity-feed cards (Board tab) use
+    // bg-primary/5 for "mentioned" items — they float transparently over a bg
+    // image without this backing. (We deliberately don't add bg-primary/10 /15
+    // here — those are used by small inline chips / pills whose primary tint
+    // should stay; the active nav tab's bg-primary/10 is already legible
+    // because its row is backed via data-pf-chrome below.)
+    ".bg-primary\\/5",
     'input:not([type="range"]):not([type="checkbox"]):not([type="radio"])',
     "textarea",
     "select",
     '[contenteditable="true"]',
   ].map(sel).join(",");
-  return `${targets}{background-color:${fill} !important;}`;
+  // "Chrome" elements that have NO background of their own and so float
+  // illegibly over the image: the profile nav-tabs row, the row of section
+  // labels ("GROUPS", "…'S SUBSYSTEMS", "INFO", etc.) and the header control
+  // row (Prev / Next / Edit / Message / Pin / Back buttons). The renderers tag
+  // these with data-pf-chrome (a backed pill) or data-pf-chrome-label (a small
+  // inline-block label chip) so the backing is scoped tightly — we don't
+  // blanket-fill every <button> / <p>. The label variant gets a touch of
+  // horizontal padding + radius so the short text reads as a chip, not a bar.
+  const chrome = sel("[data-pf-chrome]");
+  const chromeLabel = sel("[data-pf-chrome-label]");
+  return (
+    `${targets}{background-color:${fill} !important;}` +
+    `${chrome}{background-color:${chromeFill} !important;border-radius:0.75rem;}` +
+    `${chromeLabel}{background-color:${chromeFill} !important;border-radius:0.5rem;padding:0.15rem 0.5rem;}`
+  );
 }
 
 // Per-profile theme palette → scoped CSS that overrides the app's theme
@@ -164,6 +203,12 @@ export function profileThemeCss(scopeClass, cf = {}) {
     const rgb = hexToRgb(surface);
     if (rgb) lines.push(`--color-surface-rgb:${rgb.r}, ${rgb.g}, ${rgb.b};`);
   }
+  // Wave colour — the 9th customisable colour. Emit it as --color-wave so any
+  // wave rendered inside the profile scope adopts it. (The global app-header
+  // wave in AppLayout sits OUTSIDE .os-pf and reads its own palette key, so
+  // it's intentionally untouched here.)
+  const wave = cf[PS.THEME_WAVE];
+  if (wave) lines.push(`--color-wave:${wave};`);
   if (lines.length === 0) return "";
   return `.${scopeClass}{${lines.join("")}}`;
 }

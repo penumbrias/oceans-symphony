@@ -13,7 +13,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import { colorWithAlpha } from "@/lib/profileStyle";
+import { colorWithAlpha, readProfileBg } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
@@ -426,7 +426,10 @@ useEffect(() => {
   const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
   const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
-  const viewHeaderBgColor = alter.custom_fields?.[HEADER_BG_KEY] || "";
+  const viewHeaderBgColorRaw = alter.custom_fields?.[HEADER_BG_KEY] || "";
+  // Header bg colour with its own opacity baked in (rgba), so the header
+  // colour can be translucent independently of the body bg.
+  const viewHeaderBgColor = readProfileBg(alter.custom_fields || {}).headerBgColorWithAlpha || viewHeaderBgColorRaw;
   const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
   const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
   const viewHeaderFont = fontStackFor(alter.custom_fields?.[HEADER_FONT_KEY]);
@@ -617,7 +620,7 @@ useEffect(() => {
           const pageBg = getPageBackground();
           return (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
             <div className="flex flex-wrap gap-1.5">
               {alter.groups.map((g) => {
                 const halo = g.color && needsHalo(g.color, pageBg);
@@ -642,7 +645,7 @@ useEffect(() => {
 
         {ownedSubsystems.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
             </p>
             <div className="space-y-1.5">
@@ -664,7 +667,7 @@ useEffect(() => {
 
         {presetAnswerRows.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               From Get to know me
             </p>
             <div className="space-y-2">
@@ -695,7 +698,7 @@ useEffect(() => {
         {alter.tags && alter.tags.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Tags
                 <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
                   legacy — Get to know me no longer writes here
@@ -751,7 +754,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
           return (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
+              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
               <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden" style={sectionCardStyle}>
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>

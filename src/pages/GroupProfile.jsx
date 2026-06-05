@@ -261,7 +261,9 @@ function GroupProfileInner() {
   const surfaceCss = profileSurfaceCss("os-pf", cf);
   const themeCss = profileThemeCss("os-pf", cf);
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
-  const headerBgColor = cf[HEADER_BG_KEY] || "";
+  // Header bg colour with its own opacity baked in (rgba) — so the header
+  // colour can be made translucent independently of the body bg.
+  const headerBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const headerTextColor = cf[HEADER_TEXT_KEY] || "";
   const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
@@ -275,7 +277,7 @@ function GroupProfileInner() {
     { id: "notes", label: "Notes", icon: FileText },
   ];
   const tabBar = (
-    <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+    <div data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none px-1.5 py-1">
       {TABS.map((tb) => {
         const Icon = tb.icon;
         return (
@@ -327,7 +329,7 @@ function GroupProfileInner() {
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
-        <div className="flex items-center justify-between">
+        <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
           </Button>
@@ -356,7 +358,7 @@ function GroupProfileInner() {
 
         {childGroups.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Nested groups</p>
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Nested groups</p>
             <div className="space-y-1.5">
               {childGroups.map((g) => (
                 <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
@@ -372,7 +374,7 @@ function GroupProfileInner() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Members{members.length ? ` (${members.length})` : ""}
             </p>
             <button type="button" onClick={() => setShowMembers(true)} className="text-xs text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1">

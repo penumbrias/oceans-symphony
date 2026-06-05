@@ -350,8 +350,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "meetings", sectionLabel: `${t.System} Meetings`,
       emoji: "👁️",
-      title: `Who's Present & Emotions`,
-      body: `Pick who's present from a searchable list (no more typing each name). Below that, "Meeting participants" lets you record how each ${t.alter} is showing up separately — their feelings, symptoms, and a note — just like the ${t.fronting} panel. Marking who's present updates the active ${t.front} session, and each participant's feelings also log to the Emotions analytics. Steps 3–5 support @ mentions.`,
+      title: `Notice Who's Near`,
+      body: `Everything in a meeting is optional. The "Notice who's near" section is your single place to add who's present — it opens the same Set ${t.Fronters} picker you use everywhere else (searchable, no typing each name). Each ${t.alter} you add gets the same panel as the "Currently ${t.fronting}" widget: feelings, 1–5 symptom rows, and a note — recorded separately. Their feelings also log to Emotions analytics.`,
       route: "/system-checkin", target: "meetings-list",
       look: `the meetings list — tap any past meeting to see the full record, or tap "New Meeting" to try it`, action: null,
     },
@@ -359,9 +359,9 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "meetings", sectionLabel: `${t.System} Meetings`,
       emoji: "💬",
       title: "Open Dialogue",
-      body: `When you start a meeting you can flip on "Open dialogue" — a chat space just for that meeting where ${t.alters} can talk back and forth (pick who's speaking for each message). It's separate from your main chat, and the whole conversation is saved with that meeting's record.`,
+      body: `Inside "Invite Sharing" you can flip on "Open dialogue" — a chat space just for this meeting. It works exactly like ${t.System} Chat: pick who's speaking, @ mention, - signpost, and /w @name whispers all work, with the same rich formatting. Signposting an ${t.alter} also adds them to "notice who's near". It's saved with the meeting and never touches your main ${t.System} Chat.`,
       route: "/system-checkin", target: "meetings-new",
-      look: `the "New Meeting" form — turn on "Open dialogue" to reveal the chat space`, action: null,
+      look: `the "New Meeting" form — open "Invite Sharing" and turn on "Open dialogue" to reveal the chat space`, action: null,
     },
 
     // ─── JOURNALS ───────────────────────────────────────────────────────────

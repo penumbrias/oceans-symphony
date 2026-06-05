@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Upload, X, Palette, Eye } from "lucide-react";
+import { Upload, X, Palette, Eye, ArrowDownToLine, ArrowUpToLine } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -39,6 +39,10 @@ const HEADER_TEXT_KEY = "_header_text_color";
 const HEADER_FONT_KEY = "_header_font";
 // _header_opacity = opacity of the header background image (default 0.45).
 const HEADER_OPACITY_KEY = "_header_opacity";
+// _header_bg_opacity = opacity of the header background COLOUR fill (default 1
+// / fully opaque). Mirrors the Body's bg-colour opacity slider so the header
+// colour can be made translucent.
+const HEADER_BG_OPACITY_KEY = "_header_bg_opacity";
 const HIDE_HEADER_KEY = "_hide_header";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
@@ -170,6 +174,33 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
     </div>
   );
 
+  // Sync header ↔ body STYLE values (background colour, text colour, font,
+  // background opacity) — but deliberately NOT the images, which are usually
+  // meant to differ between the banner and the page. Pairs are [bodyKey,
+  // headerKey]. A set value on the "from" side is copied; an unset value on
+  // the "from" side clears the corresponding "to" key so the two truly match.
+  // Reuses the same setField / clearField the rest of the editor writes
+  // through, so it goes straight into the profile's custom_fields.
+  const SYNC_PAIRS = [
+    [BG_COLOR_KEY, HEADER_BG_KEY],          // background colour
+    [PAGE_TEXT_KEY, HEADER_TEXT_KEY],       // text colour
+    [PAGE_FONT_KEY, HEADER_FONT_KEY],       // font
+    [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],// background opacity
+  ];
+  const syncStyles = (direction) => {
+    // direction: "headerToBody" copies header values onto the body keys;
+    // "bodyToHeader" copies body values onto the header keys.
+    for (const [bodyKey, headerKey] of SYNC_PAIRS) {
+      const [fromKey, toKey] = direction === "headerToBody"
+        ? [headerKey, bodyKey]
+        : [bodyKey, headerKey];
+      const val = cf[fromKey];
+      if (val === undefined || val === "" || val === null) clearField(toKey);
+      else setField(toKey, val);
+    }
+    toast.success(direction === "headerToBody" ? "Copied header style to body" : "Copied body style to header");
+  };
+
   return (
     <>
       {/* HEADER */}
@@ -190,7 +221,8 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           {colorRow("Text", HEADER_TEXT_KEY)}
         </div>
         {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
-        {headerImageSet && slider("Header opacity", HEADER_OPACITY_KEY, 0.45, "Header image opacity")}
+        {headerImageSet && slider("Image opacity", HEADER_OPACITY_KEY, 0.45, "Header image opacity")}
+        {cf[HEADER_BG_KEY] && slider("Background opacity", HEADER_BG_OPACITY_KEY, 1, "Header background colour opacity")}
         <div className="space-y-1.5">
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
@@ -223,6 +255,33 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         ) : cf[BG_COLOR_KEY] ? (
           slider("Background opacity", BG_OPACITY_KEY, 0.15, "Background colour opacity")
         ) : null}
+      </div>
+
+      {/* SYNC HEADER ↔ BODY — copy style values (background colour, text
+          colour, font, background opacity) between the header and body in
+          either direction. Images are intentionally left out — they're
+          usually meant to differ between the banner and the page. */}
+      <div className="space-y-2 pt-3 mt-1 border-t border-border/40">
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Sync header ↔ body</p>
+        <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
+          Copy the background colour, text colour, font, and opacity from one to the other. Images are not copied.
+        </p>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => syncStyles("headerToBody")}
+            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
+          >
+            <ArrowDownToLine className="w-3.5 h-3.5" /> Header → Body
+          </button>
+          <button
+            type="button"
+            onClick={() => syncStyles("bodyToHeader")}
+            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
+          >
+            <ArrowUpToLine className="w-3.5 h-3.5" /> Body → Header
+          </button>
+        </div>
       </div>
 
       {/* PAGE COLOURS — a full per-profile theme palette that overrides the

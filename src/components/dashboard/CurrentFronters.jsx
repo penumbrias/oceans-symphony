@@ -180,19 +180,77 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   );
 }
 
-function AlterPanel({ alter, session, onClose, onSaved }) {
+// Compact avatar + name header for AlterPanel's controlled (meeting) mode,
+// where there's no FronterChip above the panel to identify the alter.
+function PanelHeader({ alter, onRemove }) {
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const bg = alter?.color || null;
+  const text = bg ? getContrastColor(bg) : null;
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border/30">
+      <div
+        className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
+        style={{ backgroundColor: bg || "hsl(var(--muted))" }}
+      >
+        {resolvedAvatar
+          ? <img src={resolvedAvatar} alt={alter?.name} className="w-full h-full object-cover" />
+          : <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />}
+      </div>
+      <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{alter?.name}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${alter?.name}`}
+          className="p-1 rounded-full text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// AlterPanel — the per-alter "currently fronting" panel: avatar + name (via
+// the FronterChip above), EmotionWheelPicker, 1–5 / boolean symptom rows, and
+// a free-text note.
+//
+// Two modes, switched purely by props so existing callers are untouched:
+//
+//   1. Session mode (default, used by CurrentFronters): pass `session`. The
+//      panel reads the FrontingSession's JSON-string payloads and WRITES back
+//      to the FrontingSession on the Save button. Exactly the original behaviour.
+//
+//   2. Controlled mode (used by the System Meeting participants section): pass
+//      `participant` ({ alter_id, emotions, symptoms, note }) + `onChange`.
+//      The panel becomes a controlled editor — every edit is pushed up via
+//      `onChange(nextParticipant)` and the host persists it (here, on the
+//      SystemCheckIn.participants array). No FrontingSession is read or written
+//      and the DB Save button is replaced by the host's overall save. The
+//      symptom shape is the same `[{ id, label, value, type }]` array the
+//      fronting flow uses, so analytics / reports read it identically.
+export function AlterPanel({ alter, session, onClose, onSaved, participant, onChange, hideHeader = false }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
+  const controlled = !session && !!onChange;
 
-  const [note, setNote] = useState(() => sessionNoteText(session));
+  const [note, setNote] = useState(() =>
+    controlled ? (participant?.note || "") : sessionNoteText(session)
+  );
 
   const [showEmotions, setShowEmotions] = useState(false);
   const [localEmotions, setLocalEmotions] = useState(() => {
+    if (controlled) return Array.isArray(participant?.emotions) ? participant.emotions : [];
     try { return JSON.parse(session?.session_emotions || "[]"); } catch { return []; }
   });
 
   const [showSymptoms, setShowSymptoms] = useState(false);
   const [symptomValues, setSymptomValues] = useState(() => {
+    if (controlled) {
+      const map = {};
+      for (const it of (participant?.symptoms || [])) if (it?.id) map[it.id] = it.value;
+      return map;
+    }
     // session_symptoms exists on disk in two shapes: the current array of
     // { id, label, value, type } (what handleSave below writes) and an older
     // id→value map. Normalise to the map shape we use internally — without
@@ -233,6 +291,40 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   ];
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
+
+  // Build the canonical [{ id, label, value, type }] symptom array from the
+  // internal id→value map (same shape handleSave writes for sessions). The
+  // label/type come from the live symptoms catalogue, but if it hasn't loaded
+  // yet (or a symptom was archived/deleted) we fall back to the label/type the
+  // participant already had recorded — so an existing meeting's symptoms are
+  // never clobbered just because the catalogue query is still in flight.
+  const buildSymptomArr = (map) => {
+    const existing = {};
+    for (const it of (participant?.symptoms || [])) if (it?.id) existing[it.id] = it;
+    return Object.entries(map)
+      .filter(([, v]) => v !== null && v !== undefined && v !== 0 && v !== false)
+      .map(([id, value]) => {
+        const s = symptoms.find(x => x.id === id);
+        if (s) return { id, label: s.label, value, type: s.type };
+        const prev = existing[id];
+        return prev ? { id, label: prev.label, value, type: prev.type } : null;
+      })
+      .filter(Boolean);
+  };
+
+  // Controlled mode: mirror local edits up to the host (SystemCheckIn
+  // participants) on every change. No DB write — the host persists the
+  // participants array on the meeting record when the meeting is saved.
+  useEffect(() => {
+    if (!controlled) return;
+    onChange?.({
+      alter_id: participant?.alter_id || alter.id,
+      emotions: localEmotions,
+      symptoms: buildSymptomArr(symptomValues),
+      note: note,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlled, note, localEmotions, symptomValues, symptoms]);
 
   const addCustomEmotionMutation = useMutation({
     mutationFn: async ({ label, category = "custom" }) => {
@@ -297,18 +389,26 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   };
 
   return (
-    <div className="col-span-2 rounded-xl bg-card border border-border/50 overflow-hidden">
+    <div className={`${controlled ? "" : "col-span-2"} rounded-xl bg-card border border-border/50 overflow-hidden`}>
 
-      {/* Plans for this alter — surfaced inline (always on; surface gate
-          ignored for the contextual per-alter case). */}
-      <div className="px-3 pt-3">
-        <UpcomingPlans
-          placement="alter_panel"
-          filterByAlterId={alter.id}
-          title={`📅 Plans for ${alter.name}`}
-          limit={3}
-        />
-      </div>
+      {/* Optional avatar + name header (controlled mode shows it because there's
+          no FronterChip above the panel; session mode keeps the chip header). */}
+      {!hideHeader && controlled && (
+        <PanelHeader alter={alter} onRemove={onClose} />
+      )}
+
+      {/* Plans for this alter — surfaced inline. Only in session mode: a
+          meeting participant panel isn't a fronting context. */}
+      {!controlled && (
+        <div className="px-3 pt-3">
+          <UpcomingPlans
+            placement="alter_panel"
+            filterByAlterId={alter.id}
+            title={`📅 Plans for ${alter.name}`}
+            limit={3}
+          />
+        </div>
+      )}
 
       {/* Note — bare textarea, no chrome */}
       <div className="px-3 pt-1 pb-2">
@@ -348,33 +448,39 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
           <Activity className="w-3.5 h-3.5" />
         </button>
 
-        <button
-          onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
-          aria-label="Mark triggered switch"
-          aria-expanded={showTrigger}
-          title={`Triggered ${terms.switch}`}
-          className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
-            showTrigger
-              ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
-              : "text-muted-foreground border-border hover:bg-muted/50"
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
+        {!controlled && (
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
+            aria-label="Mark triggered switch"
+            aria-expanded={showTrigger}
+            title={`Triggered ${terms.switch}`}
+            className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
+              showTrigger
+                ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                : "text-muted-foreground border-border hover:bg-muted/50"
+            }`}
           >
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-            Save
+            <AlertTriangle className="w-3.5 h-3.5" />
           </button>
-        </div>
+        )}
+
+        {/* Controlled mode persists via the host's overall save — no per-panel
+            DB Save button. Session mode keeps Close + Save. */}
+        {!controlled && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              Save
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Emotion picker */}

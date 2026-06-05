@@ -201,7 +201,9 @@ function AlterProfileInner() {
   const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
   const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
-  const pageHeaderBgColor = cf[HEADER_BG_KEY] || "";
+  // Header bg colour with its own opacity baked in (rgba) — so the header
+  // colour can be made translucent independently of the body.
+  const pageHeaderBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
   const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
   const hasPageBg = ps.hasPageBg;
   const surfaceCss = profileSurfaceCss("os-pf", cf);
@@ -258,8 +260,10 @@ function AlterProfileInner() {
       <div className={cn("relative z-10 os-pf", pageTextColor && "apc")} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         {/* Header row: pin toggle on the left (the app header already
             provides Back, so the page-level Back was removed); Prev/Next
-            + message button on the right. */}
-        <div className="flex items-center justify-between mb-4">
+            + message button on the right. data-pf-chrome backs this row with
+            the profile bg colour when a background image is set, so the
+            ghost/outline buttons stay legible over the image. */}
+        <div data-pf-chrome className="flex items-center justify-between mb-4 px-2 py-1.5">
           <button
             type="button"
             onClick={async () => {
@@ -391,7 +395,7 @@ function AlterProfileInner() {
           </div>
         )}
 
-        <div data-tour="alter-profile-tabs" className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+        <div data-tour="alter-profile-tabs" data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none px-1.5 py-1">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (

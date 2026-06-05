@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
-export default function CheckInStep4({ data, onChange, alters = [] }) {
+export default function CheckInStep4({ data, onChange, alters = [], children }) {
   const step = data?.step4_share || {};
 
   return (
@@ -50,6 +50,11 @@ export default function CheckInStep4({ data, onChange, alters = [] }) {
   className="resize-none h-24"
 />
             </div>
+
+            {/* Open-dialogue toggle + meeting chat live here, inside Invite
+                Sharing — sharing is exactly where a back-and-forth belongs.
+                Provided by the page (SystemCheckIn) via children. */}
+            {children}
           </div>
         </CardContent>
       </Card>

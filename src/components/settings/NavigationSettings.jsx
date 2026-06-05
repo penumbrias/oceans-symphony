@@ -35,7 +35,7 @@ export default function NavigationSettings({ settings, showTopBar }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [openSection, setOpenSection] = useState("bottomBar");
+  const [openSection, setOpenSection] = useState(null);
 
   // Default to hiding the top-bar config on native; let the caller
   // override via the explicit `showTopBar` prop.
@@ -132,10 +132,10 @@ export default function NavigationSettings({ settings, showTopBar }) {
               className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/20 transition-colors"
             >
               <div className="flex items-center justify-between w-full">
-                <span className="font-semibold text-sm text-foreground">{sectionLabel}</span>
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{sectionLabel}</span>
                 <span className="text-xs text-muted-foreground ml-2">{count}/{maxLen}</span>
               </div>
-              {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+              {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground ml-1" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-1" />}
             </button>
 
             {isOpen && (

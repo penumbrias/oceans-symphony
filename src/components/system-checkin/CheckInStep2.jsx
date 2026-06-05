@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import AlterGroupPicker from "./AlterGroupPicker";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
 
@@ -69,20 +68,10 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [] 
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            <div>
-              <Label className="text-sm mb-2 block">{terms.Alters} & Groups present</Label>
-              <AlterGroupPicker
-                alters={alters}
-                groups={groups}
-                selected={step.alters_present || []}
-                onChange={(selected) =>
-                  onChange({
-                    step2_notice: { ...step, alters_present: selected }
-                  })
-                }
-              />
-            </div>
-
+            {/* "Who's present" lives in the single "Notice who's near"
+                section below (MeetingParticipantsSection) — no duplicate
+                alters/groups picker here. Step 2 keeps the body / emotion
+                check only. */}
             <div>
               <Label className="text-sm mb-2 block">Feelings noticed</Label>
               <EmotionWheelPicker

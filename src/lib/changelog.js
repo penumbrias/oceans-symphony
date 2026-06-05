@@ -16,8 +16,24 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Profile style: the nav tabs, Prev/Next/Edit buttons, group/subsystem labels, and your activity-feed cards now take your profile colour over a background image instead of floating transparently.",
+      },
+      {
         type: "feature",
-        text: "System Meetings: a new \"Meeting participants\" section records how each alter is showing up separately — their feelings, symptoms, and a note — just like the fronting panel.",
+        text: "Profile style: the header now has its own background-opacity slider, you can set all 8 page colours (plus wave) per profile, and there's a \"sync header ↔ body\" button.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: \"Notice who's near\" is now a single section — pick people through the Set Fronters modal, and each shows the same feelings / symptoms / note panel as Currently Fronting.",
+      },
+      {
+        type: "fix",
+        text: "System Meetings: the Open Dialogue space now works exactly like system chat (signposts, whispers, formatting), lives under Invite Sharing, and anyone you signpost is added to who's near. A note clarifies every field is optional.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Appearance: the mobile bottom bar starts collapsed with a matching header, and the size sliders no longer get nudged while you scroll.",
       },
       {
         type: "feature",

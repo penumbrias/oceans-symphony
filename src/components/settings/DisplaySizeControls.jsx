@@ -70,7 +70,7 @@ export function UiSizeControl() {
           step={1}
           value={idx}
           onChange={(e) => apply(parseInt(e.target.value, 10))}
-          className="relative w-full h-1.5 accent-primary bg-transparent"
+          className="relative w-full h-1.5 accent-primary bg-transparent touch-pan-y"
           aria-label="UI size"
         />
       </div>
@@ -110,7 +110,7 @@ export function TouchTargetControl() {
         step={1}
         value={idx}
         onChange={(e) => apply(parseInt(e.target.value, 10))}
-        className="w-full h-1.5 accent-primary"
+        className="w-full h-1.5 accent-primary touch-pan-y"
         aria-label="Touch target size"
       />
       <p className="text-[0.6875rem] text-muted-foreground leading-snug">{current.desc}.</p>
@@ -142,7 +142,7 @@ export function NavHeightControl() {
         step={1}
         value={idx}
         onChange={(e) => apply(parseInt(e.target.value, 10))}
-        className="w-full h-1.5 accent-primary"
+        className="w-full h-1.5 accent-primary touch-pan-y"
         aria-label="Navigation bar height"
       />
       <p className="text-[0.6875rem] text-muted-foreground leading-snug">{current.desc} — height of the bottom tab bar on mobile.</p>
