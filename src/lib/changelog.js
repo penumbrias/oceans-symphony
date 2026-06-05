@@ -16,8 +16,28 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "feature",
+        text: "System Meetings: a new \"Meeting participants\" section records how each alter is showing up separately — their feelings, symptoms, and a note — just like the fronting panel.",
+      },
+      {
+        type: "feature",
+        text: "System Meetings: turn on \"Open dialogue\" to get a chat space just for that meeting where alters can talk back and forth; the whole conversation saves with the meeting.",
+      },
+      {
         type: "improve",
-        text: "Settings → Appearance fully reorganised: UI size + touch/nav sliders up top, fonts as direct rows, a tidier Theme section (preset swatch dropdown, custom colours, wave colour), then Corner style, Presets, Dashboard layout, and navigation.",
+        text: "System Meetings: pick who's present from a searchable list instead of typing each name.",
+      },
+      {
+        type: "fix",
+        text: "Appearance: the built-in preset, wave-colour, and font dropdowns no longer get cut off or covered — they open fully now.",
+      },
+      {
+        type: "improve",
+        text: "Appearance: the UI-size slider now shows a tick for every step; Dashboard, the bottom bar, and Upcoming plans are grouped into one \"Layout\" section, and the bottom-bar config autosaves.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Appearance fully reorganised: UI size + touch/nav sliders up top, fonts as direct rows, a tidier Theme section (preset swatch dropdown, custom colours, wave colour), then Corner style, Presets, and Layout.",
       },
       {
         type: "feature",

@@ -14,6 +14,8 @@ import CheckInStep2 from "@/components/system-checkin/CheckInStep2";
 import CheckInStep3 from "@/components/system-checkin/CheckInStep3";
 import CheckInStep4 from "@/components/system-checkin/CheckInStep4";
 import CheckInStep5 from "@/components/system-checkin/CheckInStep5";
+import MeetingParticipantsSection, { normalizeParticipants } from "@/components/system-checkin/MeetingParticipantsSection";
+import MeetingDialogue, { normalizeDialogue } from "@/components/system-checkin/MeetingDialogue";
 import { saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper } from "@/lib/whisperUtils";
 import RichText from "@/components/shared/RichText";
@@ -132,6 +134,11 @@ export default function SystemCheckInPage() {
           authorAlterId: null,
         });
       }
+      // Per-participant feelings → EmotionCheckIn, attributed to that alter,
+      // so a meeting participant's emotions show up in analytics / the
+      // check-in log exactly like a Quick Check-In does. Each participant
+      // gets its own row (their feelings are recorded separately).
+      await syncParticipantEmotions(formData.participants);
       toast.success("Check-in saved!");
       setFormData({});
       setView("list");
@@ -210,6 +217,31 @@ export default function SystemCheckInPage() {
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       } catch {}
     }
+  };
+
+  // Per-participant feelings → EmotionCheckIn, one row per participant,
+  // attributed to that alter. Only the new-meeting save path calls this
+  // (so re-editing an old meeting doesn't duplicate rows).
+  const syncParticipantEmotions = async (participants) => {
+    const list = Array.isArray(participants) ? participants : [];
+    let created = false;
+    for (const p of list) {
+      const emos = Array.isArray(p?.emotions) ? p.emotions.filter((s) => typeof s === "string" && s.trim()) : [];
+      if (!p?.alter_id || emos.length === 0) continue;
+      const noteBits = ["From system meeting"];
+      if ((p.note || "").trim()) noteBits.push(p.note.trim());
+      try {
+        await base44.entities.EmotionCheckIn.create({
+          timestamp: new Date().toISOString(),
+          emotions: emos,
+          fronting_alter_ids: [p.alter_id],
+          alter_id: p.alter_id,
+          note: noteBits.join(". "),
+        });
+        created = true;
+      } catch {}
+    }
+    if (created) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
   };
 
   const handleNewCheckIn = () => {
@@ -333,6 +365,68 @@ export default function SystemCheckInPage() {
                   })()}
                   {currentCheckIn.step2_notice.sensations && <p className="text-sm text-foreground mb-1"><span className="text-muted-foreground text-xs">Sensations: </span>{currentCheckIn.step2_notice.sensations}</p>}
                   {currentCheckIn.step2_notice.notes && <p className="text-sm text-foreground">{currentCheckIn.step2_notice.notes}</p>}
+                </CardContent>
+              </Card>
+            )}
+            {/* Meeting participants — read-only: each one's feelings / symptoms / note shown separately */}
+            {normalizeParticipants(currentCheckIn.participants).length > 0 && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-3">Meeting participants</p>
+                  <div className="space-y-3">
+                    {normalizeParticipants(currentCheckIn.participants).map((p) => {
+                      const alter = alters.find((a) => a.id === p.alter_id);
+                      const syms = Array.isArray(p.symptoms) ? p.symptoms : [];
+                      return (
+                        <div key={p.alter_id} className="rounded-lg border border-border/40 p-3">
+                          <div className="flex items-center gap-2 mb-1.5">
+                            <span className="inline-flex items-center gap-1.5 text-sm font-medium">
+                              <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: alter?.color || "#94a3b8" }} />
+                              {alter?.name || "Unknown"}
+                            </span>
+                          </div>
+                          {(p.emotions || []).length > 0 && (
+                            <p className="text-sm text-foreground mb-1">
+                              <span className="text-muted-foreground text-xs">Feelings: </span>{p.emotions.join(", ")}
+                            </p>
+                          )}
+                          {syms.length > 0 && (
+                            <p className="text-sm text-foreground mb-1">
+                              <span className="text-muted-foreground text-xs">Symptoms: </span>
+                              {syms.map((s) => `${s.label}${s.value != null && s.type !== "boolean" ? ` (${s.value})` : ""}`).join(", ")}
+                            </p>
+                          )}
+                          {(p.note || "").trim() && (
+                            <p className="text-sm text-foreground whitespace-pre-wrap">{p.note}</p>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </CardContent>
+              </Card>
+            )}
+            {/* Open dialogue — read-only history of the meeting-scoped chat */}
+            {normalizeDialogue(currentCheckIn.dialogue).length > 0 && (
+              <Card>
+                <CardContent className="py-4 px-4">
+                  <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2 flex items-center gap-1.5">
+                    <MessageSquare className="w-3.5 h-3.5" /> Open dialogue
+                  </p>
+                  <div className="space-y-2">
+                    {normalizeDialogue(currentCheckIn.dialogue).map((m) => {
+                      const alter = m.alter_id ? alters.find((a) => a.id === m.alter_id) : null;
+                      return (
+                        <div key={m.id} className="text-sm">
+                          <span className="font-semibold" style={{ color: alter?.color || undefined }}>
+                            {alter?.name || terms.System}
+                          </span>
+                          <span className="text-muted-foreground text-xs"> · {new Date(m.timestamp).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" })}</span>
+                          <div className="text-foreground"><RichText content={m.text} alters={alters} /></div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </CardContent>
               </Card>
             )}
@@ -482,6 +576,53 @@ export default function SystemCheckInPage() {
             {/* Steps */}
              <CheckInStep1 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} />
              <CheckInStep2 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} groups={groups} />
+
+            {/* Meeting participants — the "currently fronting" equivalent for a
+                meeting: add who's here, then write how each one is showing up
+                (feelings / symptoms / notes) separately. */}
+            <MeetingParticipantsSection
+              participants={formData.participants || []}
+              onChange={(participants) => setFormData({ ...formData, participants })}
+              alters={alters}
+            />
+
+            {/* Open dialogue — a meeting-scoped chat space (reuses the chat
+                render + speaker-attribution patterns) whose history lives on
+                the meeting, never in the global system chat. */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <MessageSquare className="w-4 h-4 text-primary" />
+                  Open dialogue?
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => setFormData({ ...formData, open_dialogue: !formData.open_dialogue })}
+                  className="w-full flex items-start gap-2.5 text-left"
+                >
+                  <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${formData.open_dialogue ? "bg-primary" : "bg-muted-foreground/30"}`}>
+                    <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${formData.open_dialogue ? "left-[1.125rem]" : "left-0.5"}`} />
+                  </span>
+                  <span className="flex-1 min-w-0">
+                    <span className="text-sm font-medium text-foreground block">Open a dialogue space for this meeting</span>
+                    <span className="block text-xs text-muted-foreground leading-snug mt-0.5">
+                      A private back-and-forth between {terms.alters} that stays with this meeting. Nothing is saved to {terms.System} Chat.
+                    </span>
+                  </span>
+                </button>
+                {formData.open_dialogue && (
+                  <MeetingDialogue
+                    dialogue={formData.dialogue || []}
+                    onChange={(dialogue) => setFormData({ ...formData, dialogue })}
+                    alters={alters}
+                    defaultSpeakerId={(formData.participants || [])[0]?.alter_id || null}
+                  />
+                )}
+              </CardContent>
+            </Card>
+
             <CheckInStep3 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 <CheckInStep4 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />
 <CheckInStep5 data={formData} onChange={(data) => setFormData({ ...formData, ...data })} alters={alters} />

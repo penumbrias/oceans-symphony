@@ -2,8 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Save, Loader2, ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useTerms } from "@/lib/useTerms";
 import { isNative } from "@/lib/platform";
@@ -36,7 +35,6 @@ export default function NavigationSettings({ settings, showTopBar }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState("bottomBar");
 
   // Default to hiding the top-bar config on native; let the caller
@@ -75,42 +73,42 @@ export default function NavigationSettings({ settings, showTopBar }) {
     }
   }, [settings?.navigation_config]);
 
-  const handleToggle = (location, pageId) => {
-    setConfig(prev => {
-      const list = [...(prev[location] || [])];
-      const idx = list.indexOf(pageId);
-      if (idx >= 0) {
-        list.splice(idx, 1);
+  // Autosave: persist the given config immediately (no save button).
+  const persist = async (cfg) => {
+    try {
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, { navigation_config: cfg });
       } else {
-        const maxLen = location === "topBar" ? 6 : 5;
-        if (list.length < maxLen) list.push(pageId);
+        await base44.entities.SystemSettings.create({ navigation_config: cfg });
       }
-      return { ...prev, [location]: list };
-    });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) {
+      console.warn("[NavigationSettings] save failed:", e?.message || e);
+    }
+  };
+
+  const handleToggle = (location, pageId) => {
+    const list = [...(config[location] || [])];
+    const idx = list.indexOf(pageId);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+    } else {
+      const maxLen = location === "topBar" ? 6 : 5;
+      if (list.length < maxLen) list.push(pageId);
+    }
+    const next = { ...config, [location]: list };
+    setConfig(next);
+    persist(next);
   };
 
   const handleMove = (location, index, direction) => {
-    setConfig(prev => {
-      const list = [...(prev[location] || [])];
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= list.length) return prev;
-      [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
-      return { ...prev, [location]: list };
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { navigation_config: config });
-      } else {
-        await base44.entities.SystemSettings.create({ navigation_config: config });
-      }
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-    } finally {
-      setSaving(false);
-    }
+    const list = [...(config[location] || [])];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+    [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+    const next = { ...config, [location]: list };
+    setConfig(next);
+    persist(next);
   };
 
   // Only the nav bars are editable here. Top bar is filtered out where
@@ -119,9 +117,6 @@ export default function NavigationSettings({ settings, showTopBar }) {
 
   return (
     <div className="space-y-2">
-      <p className="text-xs text-muted-foreground leading-snug">
-        Choose which pages appear in your nav bar and their order. The dashboard grid is arranged on the dashboard itself.
-      </p>
       {locations.map(location => {
         const maxLen = location === "topBar" ? 6 : 5;
         const count = config[location]?.length || 0;
@@ -184,11 +179,6 @@ export default function NavigationSettings({ settings, showTopBar }) {
           </div>
         );
       })}
-
-      <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 w-full mt-2">
-        {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-        Save navigation
-      </Button>
     </div>
   );
 }

@@ -351,9 +351,17 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "meetings", sectionLabel: `${t.System} Meetings`,
       emoji: "👁️",
       title: `Who's Present & Emotions`,
-      body: `In Step 2, you mark which ${t.alters} are present in the meeting — this automatically updates the active ${t.front} session to match. Emotions logged in Step 2 create EmotionCheckIn records visible in the Emotions analytics section. Steps 3–5 have @ mention support to tag ${t.alters} in notes.`,
+      body: `Pick who's present from a searchable list (no more typing each name). Below that, "Meeting participants" lets you record how each ${t.alter} is showing up separately — their feelings, symptoms, and a note — just like the ${t.fronting} panel. Marking who's present updates the active ${t.front} session, and each participant's feelings also log to the Emotions analytics. Steps 3–5 support @ mentions.`,
       route: "/system-checkin", target: "meetings-list",
-      look: `the meetings list — tap any past meeting to see the full record, or tap "New Meeting" to try Step 2`, action: null,
+      look: `the meetings list — tap any past meeting to see the full record, or tap "New Meeting" to try it`, action: null,
+    },
+    {
+      section: "meetings", sectionLabel: `${t.System} Meetings`,
+      emoji: "💬",
+      title: "Open Dialogue",
+      body: `When you start a meeting you can flip on "Open dialogue" — a chat space just for that meeting where ${t.alters} can talk back and forth (pick who's speaking for each message). It's separate from your main chat, and the whole conversation is saved with that meeting's record.`,
+      route: "/system-checkin", target: "meetings-new",
+      look: `the "New Meeting" form — turn on "Open dialogue" to reveal the chat space`, action: null,
     },
 
     // ─── JOURNALS ───────────────────────────────────────────────────────────

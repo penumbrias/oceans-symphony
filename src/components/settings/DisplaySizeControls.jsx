@@ -55,18 +55,29 @@ export function UiSizeControl() {
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">UI size</p>
         <span className="text-xs text-muted-foreground">{current.label} · {current.desc}</span>
       </div>
-      <input
-        type="range"
-        min={0}
-        max={FONT_OPTIONS.length - 1}
-        step={1}
-        value={idx}
-        onChange={(e) => apply(parseInt(e.target.value, 10))}
-        className="w-full h-1.5 accent-primary"
-        aria-label="UI size"
-      />
+      <div className="relative py-1">
+        {/* A demarcation tick for every discrete step. The current step's tick
+            is highlighted. Sits behind the range thumb. */}
+        <div className="pointer-events-none absolute inset-x-0 top-1/2 -translate-y-1/2 flex items-center justify-between">
+          {FONT_OPTIONS.map((o, i) => (
+            <span key={o.value} className={`w-px h-2.5 rounded-full ${i === idx ? "bg-primary" : "bg-muted-foreground/40"}`} />
+          ))}
+        </div>
+        <input
+          type="range"
+          min={0}
+          max={FONT_OPTIONS.length - 1}
+          step={1}
+          value={idx}
+          onChange={(e) => apply(parseInt(e.target.value, 10))}
+          className="relative w-full h-1.5 accent-primary bg-transparent"
+          aria-label="UI size"
+        />
+      </div>
+      {/* Steps are non-linear, so only the true ends carry a % label. The
+          current value's exact % is shown top-right. */}
       <div className="flex justify-between text-[0.625rem] text-muted-foreground px-0.5">
-        <span>50%</span><span>100%</span><span>150%</span><span>200%</span>
+        <span>50%</span><span>200%</span>
       </div>
       <p className="text-[0.6875rem] text-muted-foreground leading-snug">
         Scales the base font size — text, spacing, and buttons grow together.

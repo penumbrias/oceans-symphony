@@ -1,4 +1,5 @@
-import React, { useState, useMemo, useRef, useEffect } from 'react';
+import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useTheme } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
 import {
@@ -31,12 +32,62 @@ const COLOR_LABELS = {
   'text-primary': 'Text', 'text-secondary': 'Text 2nd',
 };
 
+// Anchored popover portaled to <body> with fixed positioning, so dropdowns
+// inside the collapsible Theme SubSection (which is overflow-hidden) aren't
+// clipped. Handles position tracking + outside-click close (counting both the
+// anchor and the portaled content as "inside").
+function AnchoredPortal({ anchorRef, open, onClose, align = 'left', width, maxHeight, children }) {
+  const popRef = useRef(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, width: 240 });
+  useLayoutEffect(() => {
+    if (!open) return undefined;
+    const compute = () => {
+      const n = anchorRef.current;
+      if (!n) return;
+      const r = n.getBoundingClientRect();
+      const w = Math.min(width || r.width, window.innerWidth - 16);
+      let left = align === 'right' ? r.right - w : r.left;
+      left = Math.max(8, Math.min(left, window.innerWidth - w - 8));
+      setPos({ top: r.bottom + 4, left, width: w });
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    window.addEventListener('scroll', compute, true);
+    window.addEventListener('orientationchange', compute);
+    return () => {
+      window.removeEventListener('resize', compute);
+      window.removeEventListener('scroll', compute, true);
+      window.removeEventListener('orientationchange', compute);
+    };
+  }, [open, anchorRef, width, align]);
+  useEffect(() => {
+    if (!open) return undefined;
+    const h = (e) => {
+      if (popRef.current?.contains(e.target)) return;
+      if (anchorRef.current?.contains(e.target)) return;
+      onClose?.();
+    };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open, anchorRef, onClose]);
+  if (!open) return null;
+  return createPortal(
+    <div
+      ref={popRef}
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight, zIndex: 100000 }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 // ── Font Picker ──────────────────────────────────────────────────────────────
 function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolveCurrent }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
-  const panelRef = useRef(null);
+  const triggerRef = useRef(null);
 
   const currentOption = resolveCurrent
     ? resolveCurrent(currentFont)
@@ -58,16 +109,6 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
     if (open) setTimeout(() => inputRef.current?.focus(), 50);
   }, [open]);
 
-  // Close on outside click
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e) => {
-      if (!panelRef.current?.contains(e.target)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, [open]);
-
   const isSelected = (f) =>
     f.value === currentFont || (f.legacy && f.legacy === currentFont);
 
@@ -75,8 +116,9 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
   const triggerFont = previewFontFor(currentOption);
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen(v => !v)}
         className="w-full flex items-center justify-between gap-2 px-3 py-2.5 rounded-xl border border-input bg-background hover:bg-muted/30 transition-colors text-sm"
@@ -86,8 +128,8 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
         <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
       </button>
 
-      {open && (
-        <div className="absolute top-full mt-1 left-0 right-0 z-[80] bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden">
+      <AnchoredPortal anchorRef={triggerRef} open={open} onClose={() => setOpen(false)}>
+        <div className="bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden">
           {/* Search */}
           <div className="flex items-center gap-2 px-3 py-2 border-b border-border/40">
             <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
@@ -126,7 +168,7 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
             )}
           </div>
         </div>
-      )}
+      </AnchoredPortal>
     </div>
   );
 }
@@ -165,7 +207,7 @@ function ColorSwatch({ label, color, onClick }) {
 function WaveColorSwatch() {
   const qc = useQueryClient();
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
+  const triggerRef = useRef(null);
   const { data: list = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
@@ -174,13 +216,6 @@ function WaveColorSwatch() {
   const currentKey = readWaveColorKey(settings);
   const customHex = typeof settings?.wave_color_custom === 'string' ? settings.wave_color_custom : '';
   const usingCustom = !!customHex;
-
-  useEffect(() => {
-    if (!open) return;
-    const h = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
 
   const persist = async (patch) => {
     try {
@@ -220,9 +255,10 @@ function WaveColorSwatch() {
   const triggerIsOff = currentKey === "background" && !usingCustom;
 
   return (
-    <div className="relative flex flex-col items-center gap-1" ref={ref}>
+    <div className="relative flex flex-col items-center gap-1">
       <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">Wave</span>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((o) => !o)}
         title="Header wave colour"
@@ -235,8 +271,8 @@ function WaveColorSwatch() {
         {usingCustom ? 'Custom' : WAVE_COLOR_LABELS[currentKey]}
       </span>
 
-      {open && (
-        <div className="absolute top-full mt-1 right-0 z-[85] w-60 bg-background border-2 border-border rounded-xl shadow-2xl p-3 space-y-3">
+      <AnchoredPortal anchorRef={triggerRef} open={open} onClose={() => setOpen(false)} align="right" width={240}>
+        <div className="bg-background border-2 border-border rounded-xl shadow-2xl p-3 space-y-3">
           <p className="text-[0.6875rem] text-muted-foreground leading-snug">
             Colour of the header's animated wave (shown at 0.3 opacity). Pick a palette colour, turn it Off, or set a custom one.
           </p>
@@ -290,7 +326,7 @@ function WaveColorSwatch() {
             />
           </div>
         </div>
-      )}
+      </AnchoredPortal>
     </div>
   );
 }
@@ -299,13 +335,7 @@ function WaveColorSwatch() {
 // swatch (a gradient of its bg → primary), matching the wireframe.
 function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, onSelect }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    if (!open) return;
-    const h = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
-    document.addEventListener('mousedown', h);
-    return () => document.removeEventListener('mousedown', h);
-  }, [open]);
+  const triggerRef = useRef(null);
   const activeName = !customColors && names.includes(selectedTheme) ? selectedTheme : null;
   const swatch = (name) => {
     const p = presets[name];
@@ -313,10 +343,11 @@ function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, on
   };
   const triggerName = activeName || names[0];
   return (
-    <div className="space-y-2" ref={ref}>
+    <div className="space-y-2">
       <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Built-in preset</p>
       <div className="relative">
         <button
+          ref={triggerRef}
           type="button"
           onClick={() => setOpen((o) => !o)}
           className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-input bg-background hover:bg-muted/30 transition-colors text-sm"
@@ -325,8 +356,8 @@ function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, on
           <span className="flex-1 text-left capitalize font-medium">{customColors ? 'Custom' : triggerName}</span>
           <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
         </button>
-        {open && (
-          <div className="absolute top-full mt-1 left-0 right-0 z-[80] bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto p-1">
+        <AnchoredPortal anchorRef={triggerRef} open={open} onClose={() => setOpen(false)} maxHeight="18rem">
+          <div className="bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto p-1">
             {names.map((name) => {
               const isActive = activeName === name;
               return (
@@ -343,7 +374,7 @@ function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, on
               );
             })}
           </div>
-        )}
+        </AnchoredPortal>
       </div>
     </div>
   );
@@ -958,21 +989,18 @@ export default function AdvancedAppearance() {
         )}
       </SubSection>
 
-      {/* 7. DASHBOARD LAYOUT — expandable. */}
-      <SubSection title="Dashboard layout" defaultOpen={false}>
-        <DashboardLayoutSettings />
-      </SubSection>
-
-      {/* 8. NAVIGATION — directly on the card (bottom bar always; top bar
-              only where it's actually shown). */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
+      {/* 7. LAYOUT — one expandable card holding Dashboard, the bottom bar,
+              and Upcoming plans surfaces. */}
+      <SubSection title="Layout" defaultOpen={false}>
+        <SubSection title="Dashboard" defaultOpen={false}>
+          <DashboardLayoutSettings />
+        </SubSection>
+        {/* Mobile bottom bar (+ top bar only where it's shown). No heading /
+            description / save button — it autosaves like everything else. */}
         <NavigationSettings settings={systemSettings} showTopBar={showTopBarConfig} />
-      </div>
-
-      {/* 9. UPCOMING PLANS SURFACES — expandable, bottom. */}
-      <SubSection title="Upcoming plans surfaces" defaultOpen={false}>
-        <UpcomingPlansSurfacesSection />
+        <SubSection title="Upcoming plans surfaces" defaultOpen={false}>
+          <UpcomingPlansSurfacesSection />
+        </SubSection>
       </SubSection>
 
       {/* ── Color editor modal ────────────────────────────────── */}
