@@ -13,7 +13,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import { SubSection } from "@/components/settings/SettingsUI";
+import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
@@ -145,6 +145,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [showPageTextPicker, setShowPageTextPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
+  const [showAvatarUrl, setShowAvatarUrl] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
     description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
@@ -317,6 +320,32 @@ useEffect(() => {
 
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+
+  // Resolved avatar (local-image:// → blob) for the inline avatar preview.
+  const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
+
+  // First-appearance is one field feeding both the free-form birthday text
+  // (display) and the integer origin_year (lineage/timeline) — same as the
+  // Add New / Edit alter modal.
+  const setFirstAppearance = (val) => setForm((f) => ({ ...f, birthday: val, origin_year: extractYear(val) }));
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 512, 0.82);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
+      if (isLocalMode()) {
+        const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        set("avatar_url", createLocalImageUrl(imageId));
+      } else {
+        set("avatar_url", dataUrl);
+      }
+      toast.success("Avatar saved!");
+    } catch { toast.error("Failed to process avatar"); }
+    finally { setUploadingAvatar(false); e.target.value = ""; }
+  };
 
   // Remove a single tag from this alter. Tags are populated by Get
   // to know me's preset writeback (the user's literal answer
@@ -759,48 +788,47 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
     <div className="space-y-4">
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
-      {/* Avatar */}
-      <div className="flex justify-center">
-        <button type="button" onClick={() => setShowAvatarModal(true)}
-          className="relative w-24 h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden group"
-          style={{ backgroundColor: bgColorAlter || "hsl(var(--muted))" }}>
-          {form.avatar_url
-            ? <img src={form.avatar_url} alt={form.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}><User className="w-10 h-10" /></div>}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <Upload className="w-5 h-5 text-white" />
+      {/* Name + Alias on the left, Avatar on the right — matches the
+          Add New / Edit {alter} modal arrangement. */}
+      <div className="flex gap-3">
+        <div className="flex-1 min-w-0 space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Name *</label>
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Display name" />
           </div>
-        </button>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Alias</label>
+            <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+          </div>
+        </div>
+        <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">
+          <label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground font-medium">Avatar</label>
+          <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+              : <User className="w-7 h-7 text-muted-foreground" />}
+          </div>
+          <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
+            <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
+            <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
+            <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
+            <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
+          </div>
+          <input ref={avatarFileRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
+        </div>
       </div>
-
-      {/* Emoji + Name + Alias row */}
-      <div className="grid grid-cols-[3.5rem_1fr_1fr] gap-3">
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Emoji</label>
-          <Input value={form.emoji} onChange={(e) => set("emoji", e.target.value)} placeholder="✨" maxLength={8} className="text-center text-lg" aria-label="Profile emoji or symbol" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Name *</label>
-          <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Alias</label>
-          <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname" />
-        </div>
-      </div>
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-2">
+      {showAvatarUrl && (
+        <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
+      )}
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-1">
         Alias is used as a shorthand for @ mentions and - signposts.
       </p>
 
-      {/* Pronouns + Role + Color row */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Pronouns + Color */}
+      <div className="grid grid-cols-2 gap-3">
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
           <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Role</label>
-          <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector..." />
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
@@ -808,95 +836,28 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             <button type="button" onClick={() => setShowColorPicker(true)}
               className="w-9 h-9 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
               style={{ backgroundColor: form.color || "#8b5cf6" }} />
-            <Input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="#8b5cf6" className="font-mono text-xs" />
+            <span className="flex-1 text-xs font-mono text-muted-foreground truncate">{form.color || "#8b5cf6"}</span>
           </div>
         </div>
       </div>
 
-      {/* Birthday + Origin Year — same "first appeared" idea, two
-          shapes. Birthday is free-form (exact date, age, era).
-          Origin Year is the integer feeding Alter History / lineage.
-          Editing one when the other is blank auto-fills it; once both
-          are set, edits stay independent and a "sync" link surfaces
-          when the years drift apart. */}
-      {(() => {
-        const setBirthday = (val) => setForm(f => {
-          const update = { ...f, birthday: val };
-          if (!f.origin_year && val) {
-            const y = extractYear(val);
-            if (y) update.origin_year = y;
-          }
-          return update;
-        });
-        const setOriginYear = (val) => setForm(f => {
-          const update = { ...f, origin_year: val };
-          if (!f.birthday && val) update.birthday = val;
-          return update;
-        });
-        const birthdayYear = extractYear(form.birthday);
-        const canSync = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
-        return (
-          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-            <p className="text-xs font-medium text-foreground">When they first appeared</p>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">
-                Birthday <span className="font-normal">— shown on the profile (🎂 line)</span>
-              </label>
-              <Input
-                type="text"
-                value={form.birthday || ""}
-                onChange={(e) => setBirthday(e.target.value)}
-                placeholder="e.g. 2018-03-15, Age 7, around middle school"
-                className="text-sm"
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-muted-foreground font-medium">
-                  Origin year <span className="font-normal">— used in {t.Alter} History timeline</span>
-                </label>
-                {canSync && (
-                  <button
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, origin_year: birthdayYear }))}
-                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
-                  >
-                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
-                  </button>
-                )}
-              </div>
-              <Input
-                type="number"
-                min={1900}
-                max={new Date().getFullYear()}
-                value={form.origin_year || ""}
-                onChange={(e) => setOriginYear(e.target.value)}
-                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
-                className="text-sm"
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
-            </div>
-          </div>
-        );
-      })()}
+      {/* Role */}
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground font-medium">Role</label>
+        <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
+      </div>
 
-      {/* Profile style — shared editor (collapsible Header / Body with
-          colours, images, fonts, opacity + readability). Matches the
-          Add New {alter} modal pattern. */}
-      <SubSection title="Profile style" icon={Image} defaultOpen={false}>
-        <ProfileStyleEditor
-          customFields={form.custom_fields}
-          setField={setBgField}
-          clearField={(key) => setForm((f) => {
-            const cf = { ...f.custom_fields };
-            delete cf[key];
-            return { ...f, custom_fields: cf };
-          })}
+      {/* First appearance — one field feeding both the free-form display
+          and the integer origin_year (lineage/timeline). */}
+      <div className="space-y-1">
+        <label className="text-xs text-muted-foreground font-medium">First appearance</label>
+        <Input
+          value={form.birthday || ""}
+          onChange={(e) => setFirstAppearance(e.target.value)}
+          placeholder={`e.g. ${new Date().getFullYear() - 5}, March ${new Date().getFullYear() - 5}, or a full date`}
         />
-      </SubSection>
-
-      <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
+      </div>
 
       {/* Groups */}
       <div className="space-y-2">
@@ -979,6 +940,22 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           );
         })() : <p className="text-xs text-muted-foreground">Not in any groups</p>}
       </div>
+
+      <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+
+      {/* Profile style — shared editor (Header collapsible; Body inline).
+          Same editor as the Add New / Edit {alter} modal. */}
+      <SubSection title="Profile style" icon={Image} defaultOpen={false}>
+        <ProfileStyleEditor
+          customFields={form.custom_fields}
+          setField={setBgField}
+          clearField={(key) => setForm((f) => {
+            const cf = { ...f.custom_fields };
+            delete cf[key];
+            return { ...f, custom_fields: cf };
+          })}
+        />
+      </SubSection>
 
       {presetAnswerRows.length > 0 && (
         <div>

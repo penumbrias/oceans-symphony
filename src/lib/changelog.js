@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The alter profile's Edit page now matches the Add New Alter screen: avatar beside the name, and a single \"first appearance\" field replacing the separate birthday + origin-year fields.",
+      },
+      {
+        type: "improve",
+        text: "New alters no longer have a groups field while being created — you assign groups and subsystems from the profile once it's saved.",
+      },
+      {
+        type: "improve",
         text: "In the Profile style editor, the Body options now sit directly under \"Profile style\" instead of in their own dropdown — only the Header stays collapsible.",
       },
       {

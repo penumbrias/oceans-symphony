@@ -9,7 +9,6 @@ import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
-import GroupTreeSelect from "@/components/groups/GroupTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, processUploadedImage } from "@/lib/localImageStorage";
@@ -395,20 +394,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
           </div>
 
-          {/* Groups / Subsystems (create mode adds memberships up-front).
-              Nested, parent-respecting picker — tap to toggle; selected rows
-              highlight in the group's colour. */}
-          {isNew && (
-            <div className="space-y-2">
-              <Label className="flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups &amp; {subTerm}s</Label>
-              <GroupTreeSelect
-                groups={allGroups}
-                selectedIds={selectedGroupIds}
-                onToggle={(id) => (selectedGroupIds.has(id) ? removeGroup(id) : addGroup(id))}
-                subTerm={subTerm}
-              />
-            </div>
-          )}
+          {/* New alters have no groups field — groups & subsystems are
+              assigned from the profile after the alter is saved. (When a new
+              alter is created from within a subsystem, it's still added to
+              that group silently via initialGroupIds.) */}
 
           {!isNew && alter && (
             <div className="space-y-2">
