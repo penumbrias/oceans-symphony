@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { useTerms } from "@/lib/useTerms";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { localEntities } from "@/api/base44Client";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { toast } from "sonner";
@@ -24,7 +25,36 @@ const NODE_RADIUS = 28;
 
 function snapVal(v) { return Math.round(v / SNAP) * SNAP; }
 
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Used in the unplaced-alters list (a .map()).
+function UnplacedAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
+  ) : (
+    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
+      style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
+      {alter.name?.charAt(0)?.toUpperCase()}
+    </div>
+  );
+}
+
+// Selected-alter popover avatar — resolves legacy local-image:// the same way.
+function SelectedAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} className="w-8 h-8 rounded-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
+  ) : (
+    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
+      style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 12 }}>
+      {alter.name?.charAt(0)?.toUpperCase()}
+    </div>
+  );
+}
+
 function AlterNode({ alter, isSelected, isRelMode, viewOnly, onTap, onDoubleTap, onDragEnd, zoom }) {
+  // Resolve legacy local-image:// avatars — a raw href on those renders broken.
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   const dragRef = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
   // Separate touch-tap detector to avoid interference with mouse events
@@ -134,10 +164,10 @@ function AlterNode({ alter, isSelected, isRelMode, viewOnly, onTap, onDoubleTap,
         <circle cx={cx} cy={cy} r={NODE_RADIUS + 5} fill="none" stroke={ringColor} strokeWidth={2.5} opacity={0.8} />
       )}
       <circle cx={cx} cy={cy} r={NODE_RADIUS} fill={alter.color || "#8b5cf6"} opacity={0.9} />
-      {alter.avatar_url ? (
+      {resolvedAvatar ? (
         <image x={cx - NODE_RADIUS + 2} y={cy - NODE_RADIUS + 2}
           width={(NODE_RADIUS - 2) * 2} height={(NODE_RADIUS - 2) * 2}
-          href={alter.avatar_url} preserveAspectRatio="xMidYMid slice"
+          href={resolvedAvatar} preserveAspectRatio="xMidYMid slice"
           style={{ borderRadius: NODE_RADIUS, clipPath: `circle(${NODE_RADIUS - 2}px)` }} />
       ) : (
         <text x={cx} y={cy + 5} textAnchor="middle" fontSize={14} fontWeight="bold" fill="white" pointerEvents="none">
@@ -648,14 +678,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
                         ? "border-primary/60 bg-primary/15 animate-pulse"
                         : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"
                     }`}>
-                    {alter.avatar_url ? (
-                      <img src={alter.avatar_url} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-                        style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
-                        {alter.name?.charAt(0)?.toUpperCase()}
-                      </div>
-                    )}
+                    <UnplacedAlterAvatar alter={alter} />
                     <span className="text-xs text-foreground truncate">{alter.name}</span>
                   </div>
                 ))}
@@ -1041,14 +1064,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                {selectedAlter.avatar_url ? (
-                  <img src={selectedAlter.avatar_url} className="w-8 h-8 rounded-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                ) : (
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-                    style={{ backgroundColor: selectedAlter.color || "#8b5cf6", fontSize: 12 }}>
-                    {selectedAlter.name?.charAt(0)?.toUpperCase()}
-                  </div>
-                )}
+                <SelectedAlterAvatar alter={selectedAlter} />
                 <p className="text-sm font-semibold">{selectedAlter.name}</p>
               </div>
               <button onClick={() => setSelectedAlter(null)}><X className="w-3 h-3 text-muted-foreground" /></button>

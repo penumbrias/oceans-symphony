@@ -10,9 +10,30 @@ import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import useSystemMapLayout from "@/lib/useSystemMapLayout";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
+
+// Resolve legacy local-image:// node avatars before rendering — a raw href on
+// those renders broken. Rendered inside nodes.map(), so it must be a child.
+function NodeAvatarImage({ node, r, onMouseDown, onClick, onTouchEnd }) {
+  const resolved = useResolvedAvatarUrl(node.avatar);
+  if (!resolved) return null;
+  return (
+    <image
+      x={node.x - (r - 5)} y={node.y - (r - 5)}
+      width={(r - 5) * 2} height={(r - 5) * 2}
+      href={resolved}
+      preserveAspectRatio="xMidYMid slice"
+      clipPath={`url(#clip-circle-${node.id})`}
+      style={{ cursor: "pointer" }}
+      onMouseDown={onMouseDown}
+      onClick={onClick}
+      onTouchEnd={onTouchEnd}
+    />
+  );
+}
 
 const REL_MODES = ['none', 'simple', 'detailed', 'selected'];
 const REL_TITLES = { simple: 'Simple', detailed: 'Detailed', selected: 'Selected only', none: 'Hidden' };
@@ -575,13 +596,9 @@ const SystemMap = ({ relationships = [] }) => {
                     }}
                   />
                   {node.avatar && node.type === "alter" && (
-                    <image
-                      x={node.x - (r - 5)} y={node.y - (r - 5)}
-                      width={(r - 5) * 2} height={(r - 5) * 2}
-                      href={node.avatar}
-                      preserveAspectRatio="xMidYMid slice"
-                      clipPath={`url(#clip-circle-${node.id})`}
-                      style={{ cursor: "pointer" }}
+                    <NodeAvatarImage
+                      node={node}
+                      r={r}
                       onMouseDown={(e) => { e.stopPropagation(); dragDistanceRef.current = 0; isDraggingRef.current = false; }}
                       onClick={() => handleNodeClick(node.id)}
                       onTouchEnd={(e) => {

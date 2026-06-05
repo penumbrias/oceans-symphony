@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed profile photos showing as broken images in several places — analytics, diary, system maps, fronting history and more.",
+      },
+      {
+        type: "improve",
+        text: "@mentions inside journal entries are now tappable and jump straight to that alter's profile.",
+      },
+      {
         type: "feature",
         text: "System Meetings: Open Dialogue now uses the real system chat — formatting toolbar, @mention and -signpost autocomplete — and you can keep it to the meeting or save it to a System Chat channel.",
       },

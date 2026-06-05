@@ -6,6 +6,18 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Used inside the grid's many alter-chip .map()s, so it
+// must be a child component. `fallback` is each call site's exact initial-letter
+// node; `alt` keeps each <img>'s original alt text.
+function GridAlterImg({ alter, alt, fallback }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved
+    ? <img src={resolved} alt={alt} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
+    : fallback;
+}
 
 const LS_ROW_H      = "symphony_act_row_h";
 const LS_COL_W      = "symphony_act_col_w";
@@ -902,10 +914,8 @@ if (isSameCell) {
                       <div key={alterId} className="flex items-center gap-1">
                         <div className="w-5 h-5 rounded-full border border-border overflow-hidden flex items-center justify-center flex-shrink-0"
                           style={{ backgroundColor: alter?.color || "#9333ea" }}>
-                          {alter?.avatar_url
-                            ? <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                            : <span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
-                          }
+                          <GridAlterImg alter={alter} alt={alter?.name}
+                            fallback={<span className="font-bold text-white" style={{ fontSize: 8 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>} />
                         </div>
                         <span className="text-foreground">{alter?.name || "Unknown"}</span>
                       </div>
@@ -1351,10 +1361,8 @@ if (isSameCell) {
                                   className="rounded-full border border-white/50 overflow-hidden flex items-center justify-center flex-shrink-0"
                                   style={{ width: isExpanded ? 14 : 10, height: isExpanded ? 14 : 10, backgroundColor: alter?.color || "rgba(255,255,255,0.3)" }}
                                   title={alter?.name}>
-                                  {alter?.avatar_url
-                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                                    : <span className="font-bold text-white" style={{ fontSize: 6 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>
-                                  }
+                                  <GridAlterImg alter={alter} alt={alter?.name}
+                                    fallback={<span className="font-bold text-white" style={{ fontSize: 6 }}>{alter?.name?.charAt(0)?.toUpperCase()}</span>} />
                                 </div>
                               );
                             })}
@@ -1370,10 +1378,8 @@ if (isSameCell) {
                                   className="rounded-full border border-border/60 flex items-center justify-center overflow-hidden"
                                   style={{ width: Math.min(rowH * 0.35, 18), height: Math.min(rowH * 0.35, 18), backgroundColor: alter?.color || "hsl(var(--muted-foreground))" }}
                                   title={alter?.name}>
-                                  {alter?.avatar_url
-                                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                                    : <span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>
-                                  }
+                                  <GridAlterImg alter={alter} alt={alter?.name}
+                                    fallback={<span className="font-bold text-white" style={{ fontSize: 7 }}>{alter?.name?.charAt(0)?.toUpperCase() || "?"}</span>} />
                                 </div>
                               );
                             })}
@@ -1475,10 +1481,8 @@ if (isSameCell) {
                                     {showAlters && pillAlters.slice(0, isExpanded ? 6 : 2).map(a => (
                                       <div key={a.id} className="w-3 h-3 rounded-full border border-white/50 flex-shrink-0 overflow-hidden"
                                         style={{ backgroundColor: a.color || "#fff" }}>
-                                        {a.avatar_url
-                                          ? <img src={a.avatar_url} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                                          : <span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>
-                                        }
+                                        <GridAlterImg alter={a}
+                                          fallback={<span style={{ fontSize: 5 }} className="flex items-center justify-center h-full font-bold">{a.name?.charAt(0)}</span>} />
                                       </div>
                                     ))}
                                     {showEmotions && pillEmotions.slice(0, isExpanded ? 6 : 1).map((em, i) => (

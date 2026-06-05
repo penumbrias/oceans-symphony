@@ -2,6 +2,39 @@ import React, { useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering — a raw <img src>
+// on those renders broken. Rendered inside .map()s, so it must be a child.
+function SearchResultAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
+  ) : (
+    <div
+      className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+      style={{ backgroundColor: alter.color || "#8b5cf6" }}
+    >
+      {alter.name.charAt(0)}
+    </div>
+  );
+}
+
+function SelectedAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} alt={alter?.name} className="w-full h-full rounded-lg object-cover" />
+  ) : (
+    <div
+      className="w-full h-full rounded-lg flex items-center justify-center"
+      style={{ backgroundColor: alter?.color ? alter.color + "30" : "#8b5cf620" }}
+    >
+      <span className="text-sm font-bold" style={{ color: alter?.color || "#8b5cf6" }}>
+        {alter?.name?.charAt(0)}
+      </span>
+    </div>
+  );
+}
 
 export default function AlterSelector({ alters, selected, onChange }) {
   const terms = useTerms();
@@ -42,16 +75,7 @@ export default function AlterSelector({ alters, selected, onChange }) {
                 }}
                 className="w-full text-left p-2 hover:bg-muted flex items-center gap-2 text-sm transition-colors"
               >
-                {alter.avatar_url ? (
-                  <img src={alter.avatar_url} alt={alter.name} className="w-6 h-6 rounded-full object-cover" />
-                ) : (
-                  <div
-                    className="w-6 h-6 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                    style={{ backgroundColor: alter.color || "#8b5cf6" }}
-                  >
-                    {alter.name.charAt(0)}
-                  </div>
-                )}
+                <SearchResultAvatar alter={alter} />
                 <div className="flex-1 min-w-0">
                   <p className="font-medium truncate">{alter.name}</p>
                   {alter.alias && <p className="text-xs text-muted-foreground truncate">{alter.alias}</p>}
@@ -69,18 +93,7 @@ export default function AlterSelector({ alters, selected, onChange }) {
             return (
               <div key={alterId} className="relative group">
                 <div className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center p-1 text-center">
-                  {alter?.avatar_url ? (
-                    <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full rounded-lg object-cover" />
-                  ) : (
-                    <div
-                      className="w-full h-full rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: alter?.color ? alter.color + "30" : "#8b5cf620" }}
-                    >
-                      <span className="text-sm font-bold" style={{ color: alter?.color || "#8b5cf6" }}>
-                        {alter?.name?.charAt(0)}
-                      </span>
-                    </div>
-                  )}
+                  <SelectedAlterAvatar alter={alter} />
                 </div>
                 <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <button

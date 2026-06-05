@@ -33,6 +33,20 @@ function directionLabel(direction, nameA, nameB) {
   return `${nameA} ↔ ${nameB}`;
 }
 
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function ListItemAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
+  ) : (
+    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
+      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
+      {alter.name?.charAt(0)?.toUpperCase()}
+    </div>
+  );
+}
+
 function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
   const terms = useTerms();
   const [open, setOpen] = useState(false);
@@ -86,14 +100,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
                   key={alter.id}
                   onClick={() => { onSelect(alter); setOpen(false); setSearch(""); }}
                   className="w-full flex items-center gap-2 px-3 py-2 border-b border-border/30 hover:bg-muted/40 transition-colors text-left">
-                  {alter.avatar_url ? (
-                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
-                      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
-                      {alter.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                  )}
+                  <ListItemAvatar alter={alter} />
                   <p className="text-sm font-medium text-foreground truncate">{alter.name}</p>
                 </button>
               ))

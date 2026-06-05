@@ -325,6 +325,9 @@ useEffect(() => {
 
   // Resolved avatar (local-image:// → blob) for the inline avatar preview.
   const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
+  // Resolved subsystems-chip icon — user-picked asset can be a local-image://
+  // URI, so it must go through the hook before hitting an <img src>.
+  const subsystemsIconPreview = useResolvedAvatarUrl(form.subsystems_icon);
   // Resolved avatar for the VIEW-mode header — must go through the hook too,
   // since a raw <img src="local-image://…"> can't be loaded by the browser
   // and renders as a broken-image icon (the same gotcha the group member
@@ -923,8 +926,8 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           {ownedSubsystems.length > 1 && (
             <div className="flex items-center gap-2 pt-1">
               <span className="w-7 h-7 rounded-full overflow-hidden border border-border/40 flex items-center justify-center flex-shrink-0 bg-muted/30">
-                {form.subsystems_icon
-                  ? <img src={form.subsystems_icon} alt="" className="w-full h-full object-cover" />
+                {subsystemsIconPreview
+                  ? <img src={subsystemsIconPreview} alt="" className="w-full h-full object-cover" />
                   : <Folder className="w-3.5 h-3.5 text-muted-foreground" />}
               </span>
               <span className="text-[0.6875rem] text-muted-foreground flex-1 leading-snug">Icon for the “{ownedSubsystems.length} {subsystemTerm}s” chip</span>

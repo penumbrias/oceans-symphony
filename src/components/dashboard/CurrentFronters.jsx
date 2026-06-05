@@ -211,6 +211,15 @@ function PanelHeader({ alter, onRemove }) {
   );
 }
 
+// Hold-menu header avatar — resolves legacy local-image:// avatars the same
+// way FronterChip / PanelHeader do (a raw <img src> on those renders broken).
+function HoldMenuAvatar({ alter }) {
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolvedAvatar
+    ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
+    : <User className="w-5 h-5 text-muted-foreground" />;
+}
+
 // AlterPanel — the per-alter "currently fronting" panel: avatar + name (via
 // the FronterChip above), EmotionWheelPicker, 1–5 / boolean symptom rows, and
 // a free-text note.
@@ -927,9 +936,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                 className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
                 style={{ backgroundColor: holdMenuAlter.color || "hsl(var(--muted))" }}
               >
-                {holdMenuAlter.avatar_url
-                  ? <img src={holdMenuAlter.avatar_url} alt={holdMenuAlter.name} className="w-full h-full object-cover" />
-                  : <User className="w-5 h-5 text-muted-foreground" />}
+                <HoldMenuAvatar alter={holdMenuAlter} />
               </div>
               <div>
                 <p className="font-semibold text-sm">{holdMenuAlter.name}</p>

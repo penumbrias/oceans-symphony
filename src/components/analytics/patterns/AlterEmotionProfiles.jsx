@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { computeAlterEmotionProfiles } from "@/lib/analyticsEngine";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function AlterChipAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved
+    ? <img src={resolved} className="w-4 h-4 rounded-full object-cover" />
+    : <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />;
+}
 
 // Rough emotion → valence mapping for coloring
 const VALENCE = {
@@ -97,10 +107,7 @@ export default function AlterEmotionProfiles({ alters, emotionCheckIns }) {
                 : "border-border text-muted-foreground hover:border-primary/30"
             }`}
           >
-            {a.avatar_url
-              ? <img src={a.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-              : <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
-            }
+            <AlterChipAvatar alter={a} />
             {a.name}
           </button>
         ))}

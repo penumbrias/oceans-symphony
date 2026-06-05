@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import AlterAvatar from "@/components/shared/AlterAvatar";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
 import { saveMentions } from "@/lib/mentionUtils";
@@ -55,6 +56,29 @@ function applyTimeStr(baseDate, timeStr) {
   const d = new Date(baseDate);
   d.setHours(h, m, 0, 0);
   return d;
+}
+
+// Resolves local-image:// avatars (raw <img src> on a legacy
+// local-image:// URL renders broken). Square grid-cell avatar.
+function SelectedAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} alt={alter?.name} className="w-full h-full rounded-lg object-cover" />
+  ) : (
+    <div className="w-full h-full rounded-lg flex items-center justify-center"
+      style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
+      <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
+        {alter?.name?.charAt(0)}
+      </span>
+    </div>
+  );
+}
+
+// Small round avatar next to a fronting-alter chip; renders nothing when
+// there's no avatar (same as the original raw-<img> behaviour).
+function ChipAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? <img src={resolved} alt={alter?.name} className="w-5 h-5 rounded-full object-cover" /> : null;
 }
 
 // Alter search+grid selector matching QuickCheckIn style
@@ -105,16 +129,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
             return (
               <div key={alterId} className="relative group">
                 <div className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center p-1.5 overflow-hidden">
-                  {alter?.avatar_url ? (
-                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-full h-full rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
-                      <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
-                        {alter?.name?.charAt(0)}
-                      </span>
-                    </div>
-                  )}
+                  <SelectedAlterAvatar alter={alter} />
                 </div>
                 <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <button onClick={() => onChange(selectedIds.filter(id => id !== alterId))}
@@ -494,7 +509,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         <div className="flex flex-wrap gap-2">
                           {activityAlters.map(alter => (
                             <div key={alter.id} className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2" style={{ borderColor: alter.color || "#999" }}>
-                              {alter.avatar_url && <img src={alter.avatar_url} alt={alter.name} className="w-5 h-5 rounded-full object-cover" />}
+                              <ChipAlterAvatar alter={alter} />
                               <span>{alter.alias || alter.name}</span>
                             </div>
                           ))}

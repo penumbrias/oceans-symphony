@@ -1,5 +1,6 @@
 import React from "react";
 import { User } from "lucide-react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -28,6 +29,7 @@ export default function AlterStatRow({ alter, stat, mode, maxStat, primaryMs = 0
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const barWidth = maxStat > 0 ? (stat / maxStat) * 100 : 0;
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
 
   let label = "";
   if (mode === "total")      label = `Fronted for ${formatDur(stat)}`;
@@ -60,8 +62,8 @@ export default function AlterStatRow({ alter, stat, mode, maxStat, primaryMs = 0
         className="w-11 h-11 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30 relative z-10"
         style={{ backgroundColor: bg || "hsl(var(--muted))" }}
       >
-        {alter?.avatar_url ? (
-          <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+        {resolvedUrl ? (
+          <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" />
         ) : (
           <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
         )}

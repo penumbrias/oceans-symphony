@@ -3,6 +3,7 @@ import { Coffee, Sun, Sunset, Moon, User } from "lucide-react";
 import { getHours } from "date-fns";
 import { Link } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // Morning: 5–11, Day: 12–17, Evening: 18–21, Night: 22–4
 const PERIOD_DEFS = [
@@ -41,6 +42,7 @@ function formatDuration(ms) {
 function AlterRow({ alter, duration, periodLabel }) {
   const bg = alter.color || null;
   const text = bg ? getContrastColor(bg) : null;
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
 
   return (
     <Link to={`/alter/${alter.id}`}>
@@ -51,8 +53,8 @@ function AlterRow({ alter, duration, periodLabel }) {
           className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
           style={{ backgroundColor: bg || "hsl(var(--muted))" }}
         >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          {resolvedUrl ? (
+            <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" />
           ) : (
             <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
           )}

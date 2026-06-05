@@ -79,6 +79,21 @@ export default function AppLayout() {
   // how it rendered.
   useEffect(() => {
     const handler = (e) => {
+      // In-app link inside rendered rich content. Anchors inside
+      // dangerouslySetInnerHTML (journal @mention chips, the link picker,
+      // etc.) do a full page reload by default; intercept the ones carrying
+      // a `data-internal-link="/route"` and route through React Router
+      // instead. This is what makes journal @mentions actually navigate to
+      // the alter's profile. One delegated listener covers every surface.
+      const internal = e.target?.closest?.("a[data-internal-link]");
+      if (internal) {
+        const route = internal.getAttribute("data-internal-link");
+        if (route && route.startsWith("/")) {
+          e.preventDefault();
+          navigate(route);
+          return;
+        }
+      }
       const wh = e.target?.closest?.(".whisper");
       if (wh) { wh.classList.toggle("revealed"); return; }
       const sp = e.target?.closest?.(".spoiler");
@@ -86,7 +101,7 @@ export default function AppLayout() {
     };
     document.addEventListener("click", handler);
     return () => document.removeEventListener("click", handler);
-  }, []);
+  }, [navigate]);
 
   // Poll friends every 60 s and show in-app banner when a friend's front changes.
   // On first run (app open) this replaces the old one-time check.

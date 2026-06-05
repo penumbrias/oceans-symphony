@@ -25,6 +25,41 @@ function processSignposts(html, altersById) {
   return result;
 }
 
+// Linkify @mentions in journal content so tapping one opens the alter's
+// profile (the AppLayout delegated click handler routes `data-internal-link`
+// anchors through React Router). Mirrors the bulletin/chat mention chip.
+//
+// Guarded two ways: (1) only runs when the content is already HTML — injecting
+// anchors into a plain-markdown entry would flip it to HTML rendering and make
+// its markdown render literally, so markdown entries keep plain @text; (2) the
+// `[^\w@>]` boundary + `(?![\w])` lookahead avoid matching mid-word, inside
+// emails (name@host), or re-linking an already-inserted anchor (which is
+// preceded by `>`). Tokens are sorted longest-first so "@Anna" wins over "@Ann".
+function processMentions(html, altersById) {
+  if (!html || !altersById) return html;
+  if (!/<[a-z][\s\S]*>/i.test(html)) return html;
+  const entries = [];
+  Object.values(altersById).forEach(alter => {
+    if (!alter?.id) return;
+    [alter.name, alter.alias].forEach(tok => {
+      if (tok && typeof tok === "string" && tok.trim()) entries.push({ token: tok.trim(), alter });
+    });
+  });
+  entries.sort((a, b) => b.token.length - a.token.length);
+  let result = html;
+  for (const { token, alter } of entries) {
+    const escaped = token.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const color = /^#[0-9a-fA-F]{3,8}$/.test(alter.color) ? alter.color : "#8b5cf6";
+    const display = token.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    const re = new RegExp(`(^|[^\\w@>])@${escaped}(?![\\w])`, "g");
+    result = result.replace(
+      re,
+      `$1<a href="/alter/${alter.id}" data-internal-link="/alter/${alter.id}" class="mention-link" style="color:${color};font-weight:600;text-decoration:none;">@${display}</a>`
+    );
+  }
+  return result;
+}
+
 async function resolveLocalImagesInHtml(html) {
   if (!html || !html.includes("local-image://")) return html;
   const { resolveImageUrl } = await import("@/lib/imageUrlResolver");
@@ -49,7 +84,7 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
     if (!open) { setResolvedHtml(null); return; }
     const content = decryptedContent ?? entry?.content;
     if (!content) { setResolvedHtml(null); return; }
-    resolveLocalImagesInHtml(content).then(html => setResolvedHtml(processSignposts(html, altersById)));
+    resolveLocalImagesInHtml(content).then(html => setResolvedHtml(processMentions(processSignposts(html, altersById), altersById)));
   }, [open, entry?.content, decryptedContent, altersById]);
 
   if (!entry) return null;

@@ -1,5 +1,15 @@
 import React, { useMemo, useState } from "react";
 import { Star, Heart } from "lucide-react";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function AlterChipAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved
+    ? <img src={resolved} className="w-4 h-4 rounded-full object-cover" />
+    : <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6" }} />;
+}
 
 const CATEGORY_LABELS = {
   grounding: "Grounding",
@@ -101,10 +111,7 @@ export default function WhatHelps({ techniques, preferences, alters }) {
                   : "border-border text-muted-foreground"
               }`}
             >
-              {a.avatar_url
-                ? <img src={a.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-                : <div className="w-4 h-4 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }} />
-              }
+              <AlterChipAvatar alter={a} />
               {a.name}
             </button>
           ))}

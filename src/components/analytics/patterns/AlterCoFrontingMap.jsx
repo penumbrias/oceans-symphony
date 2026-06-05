@@ -1,5 +1,16 @@
 import React, { useMemo } from "react";
 import { computeAlterCoFrontingMatrix } from "@/lib/analyticsEngine";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside .map()s, so it must be a child.
+// imgClass / dotClass preserve each call site's exact sizing + fallback.
+function CoFrontAvatar({ alter, imgClass, dotClass }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved
+    ? <img src={resolved} className={imgClass} />
+    : <div className={dotClass} style={{ backgroundColor: alter.color || "#8b5cf6" }} />;
+}
 
 function cellColor(count, maxCount) {
   if (count === 0) return { bg: "bg-muted/10", text: "text-muted-foreground/30" };
@@ -70,10 +81,7 @@ export default function AlterCoFrontingMap({ frontingSessions, alters }) {
                 {altersWithSessions.map(a => (
                   <th key={a.id} className="px-1 py-2 font-medium text-muted-foreground text-center">
                     <div className="flex flex-col items-center gap-0.5">
-                      {a.avatar_url
-                        ? <img src={a.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-                        : <div className="w-3 h-3 rounded-full" style={{ backgroundColor: a.color || "#8b5cf6" }} />
-                      }
+                      <CoFrontAvatar alter={a} imgClass="w-4 h-4 rounded-full object-cover" dotClass="w-3 h-3 rounded-full" />
                       <span style={{ writingMode: "vertical-rl", transform: "rotate(180deg)", whiteSpace: "nowrap", maxHeight: 72, overflow: "hidden" }}>
                         {a.name}
                       </span>
@@ -87,10 +95,7 @@ export default function AlterCoFrontingMap({ frontingSessions, alters }) {
                 <tr key={rowAlter.id}>
                   <td className="pr-2 py-1 text-right font-medium text-foreground whitespace-nowrap text-xs">
                     <div className="flex items-center justify-end gap-1.5">
-                      {rowAlter.avatar_url
-                        ? <img src={rowAlter.avatar_url} className="w-3.5 h-3.5 rounded-full object-cover" />
-                        : <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: rowAlter.color || "#8b5cf6" }} />
-                      }
+                      <CoFrontAvatar alter={rowAlter} imgClass="w-3.5 h-3.5 rounded-full object-cover" dotClass="w-2.5 h-2.5 rounded-full flex-shrink-0" />
                       <span className="truncate max-w-[70px]">{rowAlter.name}</span>
                     </div>
                   </td>
@@ -129,18 +134,12 @@ export default function AlterCoFrontingMap({ frontingSessions, alters }) {
             <div key={`${a}_${b}`} className="flex items-center gap-3 bg-muted/20 rounded-lg px-3 py-2">
               <div className="flex items-center gap-1.5 min-w-0 flex-1">
                 <div className="flex items-center gap-1">
-                  {alterA.avatar_url
-                    ? <img src={alterA.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-                    : <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: alterA.color || "#8b5cf6" }} />
-                  }
+                  <CoFrontAvatar alter={alterA} imgClass="w-4 h-4 rounded-full object-cover" dotClass="w-3.5 h-3.5 rounded-full flex-shrink-0" />
                   <span className="text-sm font-medium truncate">{alterA.name}</span>
                 </div>
                 <span className="text-muted-foreground text-xs flex-shrink-0">+</span>
                 <div className="flex items-center gap-1">
-                  {alterB.avatar_url
-                    ? <img src={alterB.avatar_url} className="w-4 h-4 rounded-full object-cover" />
-                    : <div className="w-3.5 h-3.5 rounded-full flex-shrink-0" style={{ backgroundColor: alterB.color || "#8b5cf6" }} />
-                  }
+                  <CoFrontAvatar alter={alterB} imgClass="w-4 h-4 rounded-full object-cover" dotClass="w-3.5 h-3.5 rounded-full flex-shrink-0" />
                   <span className="text-sm font-medium truncate">{alterB.name}</span>
                 </div>
               </div>

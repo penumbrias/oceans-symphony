@@ -10,11 +10,14 @@ import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import { encodeCanvasForMime } from "@/lib/localImageStorage";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 export function AlterAvatar({ alter, size = 24 }) {
+  // Resolve legacy local-image:// avatars — a raw <img src> on those renders broken.
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
   if (!alter) return <div className="rounded-full bg-muted flex-shrink-0" style={{ width: size, height: size }} />;
-  return alter.avatar_url ? (
-    <img src={alter.avatar_url} className="rounded-full object-cover flex-shrink-0 border border-border"
+  return resolved ? (
+    <img src={resolved} className="rounded-full object-cover flex-shrink-0 border border-border"
       style={{ width: size, height: size }} />
   ) : (
     <div className="rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
