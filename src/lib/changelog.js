@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Profile style: the \"Text\" custom colour now actually changes the page text — picking it recolours all the text instead of leaving it stuck white.",
+      },
+      {
+        type: "fix",
         text: "Whispered bulletins now reveal when tapped from the dashboard and board, not just on the full bulletin page.",
       },
       {

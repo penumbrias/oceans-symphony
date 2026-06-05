@@ -64,9 +64,13 @@ const THEME_KEYS = [
 const THEME_WAVE_KEY = "_theme_wave";
 
 // BODY palette — the full custom-colour set (same as Settings → Appearance),
-// INCLUDING the wave. Background + Text keep the existing body keys (so existing
-// profiles render unchanged); the deeper colours use the per-profile theme keys
-// (rendered page-wide by profileThemeCss on .os-pf). Wave is body-only.
+// INCLUDING the wave. "Text" uses _theme_text (→ --color-text-primary) so it
+// actually drives the page's text colour (the Tailwind text-foreground utility
+// reads that var; the old _page_text_color inline colour was overridden by it,
+// which is why the text couldn't be changed). The deeper colours use the
+// per-profile theme keys (rendered page-wide by profileThemeCss on .os-pf).
+// Wave is body-only. (Setting "Text" also shadows _page_text_color — see SHADOW
+// — so inherited/currentColor text changes too.)
 const BODY_PALETTE = [
   { key: BG_COLOR_KEY, label: "Background" },
   { key: "_theme_surface", label: "Surface" },
@@ -74,7 +78,7 @@ const BODY_PALETTE = [
   { key: "_theme_secondary", label: "Secondary" },
   { key: "_theme_accent", label: "Accent" },
   { key: "_theme_muted", label: "Muted" },
-  { key: PAGE_TEXT_KEY, label: "Text" },
+  { key: "_theme_text", label: "Text" },
   { key: "_theme_text2", label: "Text 2nd" },
 ];
 // Wave is body-only and shown as a tall swatch on the right (matching the
@@ -91,7 +95,7 @@ const SYNC_PAIRS = [
   ["_theme_secondary", "_header_theme_secondary"],    // secondary
   ["_theme_accent", "_header_theme_accent"],          // accent
   ["_theme_muted", "_header_theme_muted"],            // muted
-  [PAGE_TEXT_KEY, HEADER_TEXT_KEY],                   // text
+  ["_theme_text", HEADER_TEXT_KEY],                   // text
   ["_theme_text2", "_header_theme_text2"],            // text 2nd
   [PAGE_FONT_KEY, HEADER_FONT_KEY],                   // font
   [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],            // background opacity
@@ -99,6 +103,12 @@ const SYNC_PAIRS = [
 // key → its paired key, both directions (for the live lock).
 const SYNC_MAP = {};
 for (const [bodyKey, headerKey] of SYNC_PAIRS) { SYNC_MAP[bodyKey] = headerKey; SYNC_MAP[headerKey] = bodyKey; }
+
+// Some colours also drive a legacy companion key so EVERY bit of text changes:
+// the body "Text" theme var only styles Tailwind text-foreground utilities;
+// _page_text_color is the inline page colour that also catches any
+// inherited / currentColor text. Setting/clearing one does both.
+const SHADOW = { "_theme_text": PAGE_TEXT_KEY };
 
 // Each palette key → the CSS variable that colour role currently resolves to.
 // When a swatch ISN'T explicitly overridden we paint it with var(<thisvar>) so
@@ -113,7 +123,7 @@ const LIVE_VAR = {
   "_theme_secondary": "--color-secondary",
   "_theme_accent": "--color-accent",
   "_theme_muted": "--color-muted",
-  [PAGE_TEXT_KEY]: "--color-text-primary",
+  "_theme_text": "--color-text-primary",
   "_theme_text2": "--color-text-secondary",
   [THEME_WAVE_KEY]: "--color-wave",
   [HEADER_BG_KEY]: "--color-bg",
@@ -174,10 +184,12 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   // palettes as you edit.
   const setFieldSynced = (key, val) => {
     setField(key, val);
+    if (SHADOW[key]) setField(SHADOW[key], val);
     if (syncLocked && SYNC_MAP[key]) setField(SYNC_MAP[key], val);
   };
   const clearFieldSynced = (key) => {
     clearField(key);
+    if (SHADOW[key]) clearField(SHADOW[key]);
     if (syncLocked && SYNC_MAP[key]) clearField(SYNC_MAP[key]);
   };
 
