@@ -5,7 +5,7 @@ import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send,
+  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -394,11 +394,24 @@ function GroupProfileInner() {
                     index={i}
                     activeSessions={activeSessions}
                     hideFront
-                    rightAccessory={ownedSub ? (
-                      <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
-                        <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
-                      </button>
+                    rightAccessory={(m.is_archived || ownedSub) ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Archived members are hidden from Manage members and the
+                            Alters folder, so without this tag the group looked like
+                            it had "normal" members that were really archived (often
+                            duplicate) imports. */}
+                        {m.is_archived && (
+                          <span className="inline-flex items-center gap-1 text-[0.625rem] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <Archive className="w-2.5 h-2.5" /> Archived
+                          </span>
+                        )}
+                        {ownedSub && (
+                          <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
+                            <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
+                          </button>
+                        )}
+                      </div>
                     ) : null}
                   />
                 );

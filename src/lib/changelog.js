@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Archived alters now show an \"Archived\" tag (with one-tap Restore) on their profile, and archived members are tagged in a group's member list — so they're no longer mistaken for normal members.",
+      },
+      {
         type: "fix",
         text: "Fixed profile photos showing as broken images in several places — analytics, diary, system maps, fronting history and more.",
       },

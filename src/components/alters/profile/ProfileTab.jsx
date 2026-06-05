@@ -540,6 +540,25 @@ useEffect(() => {
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
                   {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
                 </h2>
+                {/* Archived tag — archived alters are hidden from most lists, so
+                    without this it wasn't possible to tell you were looking at an
+                    archived (often duplicate-import) profile. handleArchive
+                    toggles is_archived, so it doubles as one-tap Restore. */}
+                {alter.is_archived && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      <Archive className="w-3 h-3" /> Archived
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleArchive}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-primary hover:text-primary/80 disabled:opacity-50"
+                    >
+                      <ArchiveRestore className="w-3 h-3" /> Restore
+                    </button>
+                  </div>
+                )}
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
                 )}
