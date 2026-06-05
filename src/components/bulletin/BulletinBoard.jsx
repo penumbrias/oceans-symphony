@@ -7,59 +7,12 @@ import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
 import QuickPlanComposer from "./QuickPlanComposer";
+import QuickTaskComposer from "./QuickTaskComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { toast } from "sonner";
 import { getBulletinBatchSize } from "@/lib/bulletinLimit";
-
-function QuickTaskAdd({ frontingAlterIds = [], onTaskAdded }) {
-  const [text, setText] = useState("");
-  const [saving, setSaving] = useState(false);
-  const qc = useQueryClient();
-
-  const handleKeyDown = async (e) => {
-    if (e.key !== "Enter" || !text.trim()) return;
-    setSaving(true);
-    // Same defensive live-fetch pattern as BulletinComposer — a quick
-    // task added right after page load shouldn't be attributed to
-    // "System" while the parent query is still hydrating.
-    let authorIds = frontingAlterIds;
-    if (authorIds.length === 0) {
-      try {
-        const active = await base44.entities.FrontingSession.filter({ is_active: true });
-        const liveIds = active.map(s => s.alter_id || s.primary_alter_id).filter(Boolean);
-        if (liveIds.length > 0) authorIds = liveIds;
-      } catch { /* fall through */ }
-    }
-    const task = await base44.entities.Task.create({ title: text.trim(), completed: false, priority: "medium" });
-    await base44.entities.Bulletin.create({
-      content: `[task:${task.id}] ${text.trim()}`,
-      author_alter_ids: authorIds,
-      author_alter_id: authorIds[0] || null,
-      reactions: {},
-      read_by_alter_ids: authorIds
-    });
-    qc.invalidateQueries({ queryKey: ["bulletins"] });
-    toast.success("✅ Task added!");
-    setText("");
-    setSaving(false);
-  };
-
-  return (
-    <div className="bg-muted/40 mb-3 px-3 py-1 rounded-xl flex items-center gap-2 border border-border/40">
-      <CheckSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
-      <input
-        className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
-        placeholder="Quick task… press Enter to add"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        onKeyDown={handleKeyDown}
-        disabled={saving}
-      />
-    </div>
-  );
-}
 
 export default function BulletinBoard({
   alters,
@@ -255,7 +208,7 @@ export default function BulletinBoard({
       }
 
       {/* Quick Task Add — system board only (tasks aren't group-scoped) */}
-      {!groupId && <QuickTaskAdd frontingAlterIds={frontingAlterIds} />}
+      {!groupId && <QuickTaskComposer frontingAlterIds={frontingAlterIds} />}
 
       {/* Quick Plan — schedules an Activity for today straight from the
           board. System board only (plans aren't group-scoped). */}

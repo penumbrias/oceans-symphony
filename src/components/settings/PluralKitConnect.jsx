@@ -77,6 +77,18 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   // as far as PK itself has records.
   const [switchDays, setSwitchDays] = useState(30);
 
+  // How the member import reconciles with what's already here (mirrors the
+  // Simply Plural connector):
+  //   standard    — update matched alters in place + add new ones (default)
+  //   new_only     — only add members that aren't here yet; never touch existing
+  //   replace_all  — delete all local alters first, then recreate from PK
+  const [importMode, setImportMode] = useState("standard");
+  // Use PK's display name as the alter's name (prettier; matches what many
+  // systems do on a Simply Plural import). Persisted so the choice sticks.
+  const [usePkDisplayName, setUsePkDisplayName] = useState(() => {
+    try { return localStorage.getItem("symphony_pk_use_display_name") === "1"; } catch { return false; }
+  });
+
   const handleConnect = async () => {
     const t = token.trim();
     if (!t) return;
@@ -133,6 +145,10 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   // ── Import members ──────────────────────────────────────────────────────
   const handleImportMembers = async () => {
     if (!settings?.pk_token) return;
+    if (importMode === "replace_all" &&
+      !window.confirm("Replace all: this DELETES your current local alters and recreates them from PluralKit. Local-only alters, per-alter notes and relationships tied to deleted alters will be lost. Continue?")) {
+      return;
+    }
     setWorking(true);
     setProgress("Fetching members…");
     try {
@@ -154,15 +170,45 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const byPkId = Object.fromEntries(
         existing.filter((a) => a.pk_id).map((a) => [a.pk_id, a])
       );
+      const byPkUuid = Object.fromEntries(
+        existing.filter((a) => a.pk_uuid).map((a) => [a.pk_uuid, a])
+      );
+      // Name fallback. This is what heals the "doubling" bug: alters imported
+      // from Simply Plural carry only an sp_id (no pk_id), so a PK import keyed
+      // solely on pk_id never matched them and re-created every member.
+      // We index existing alters by name AND alias AND display_name (all
+      // lowercased) and match an incoming member by its name OR display_name —
+      // so an SP import that used the *display* name still matches a PK member
+      // (whose `name` differs from its `display_name`), and vice versa.
+      // Matching backfills pk_id/pk_uuid so future imports update in place.
+      const byAnyName = new Map();
+      const addNameKey = (raw, a) => {
+        const key = (raw || "").trim().toLowerCase();
+        if (key && !byAnyName.has(key)) byAnyName.set(key, a);
+      };
+      for (const a of existing) { addNameKey(a.name, a); addNameKey(a.alias, a); addNameKey(a.display_name, a); }
+      const consumedMatchIds = new Set();
       let created = 0;
       let updated = 0;
+      let skipped = 0;
+      let matchedByName = 0;
       let avatarsCached = 0;
       let avatarsSkippedDiscord = 0;
       let avatarsFailed = 0;
+
+      // Replace-all: clear local alters first, then recreate everything from
+      // PK (so matching is moot — every member becomes a fresh create).
+      if (importMode === "replace_all") {
+        setProgress(`Removing ${existing.length} existing ${existing.length === 1 ? "alter" : "alters"}…`);
+        for (const a of existing) {
+          try { await localEntities.Alter.delete(a.id); } catch { /* keep going */ }
+        }
+      }
+
       for (let i = 0; i < members.length; i += 1) {
         const m = members[i];
         setProgress(`Upserting ${i + 1} of ${members.length}: ${m.name || "(unnamed)"}…`);
-        const mapped = mapPkMemberToAlter(m, groupsByMemberId);
+        const mapped = mapPkMemberToAlter(m, groupsByMemberId, { useDisplayName: usePkDisplayName });
 
         // Avatar handling: download the image into local image storage so
         // it survives Discord CDN signed-URL expiration and works offline.
@@ -195,8 +241,37 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
           }
         }
 
-        const match = byPkId[m.id];
+        // Match priority: permanent uuid → short pk_id → name fallback.
+        // (Skipped entirely in replace_all — we deleted everything above.)
+        const byUuid = (importMode !== "replace_all" && m.uuid) ? byPkUuid[m.uuid] : null;
+        const byId = importMode !== "replace_all" ? byPkId[m.id] : null;
+        let byNm = null;
+        if (importMode !== "replace_all" && !byUuid && !byId) {
+          // Try the member's name AND its display name against the combined
+          // name/alias/display-name index — so a match lands regardless of
+          // which one SP (or a prior import) used as the alter's name.
+          const candidates = [m.name, m.display_name]
+            .map((s) => (s || "").trim().toLowerCase())
+            .filter(Boolean);
+          for (const c of candidates) {
+            const a = byAnyName.get(c);
+            if (a && !consumedMatchIds.has(a.id)) { byNm = a; break; }
+          }
+        }
+        const match = byUuid || byId || byNm;
+        // "Only add new" — a matched member is left untouched.
+        if (match && importMode === "new_only") {
+          if (byNm) consumedMatchIds.add(byNm.id);
+          skipped += 1;
+          continue;
+        }
         if (match) {
+          if (byNm) {
+            matchedByName += 1;
+            // Consume this existing row so a second PK member with the same
+            // name creates a new alter rather than clobbering the same one.
+            consumedMatchIds.add(byNm.id);
+          }
           // Merge custom_fields: preserve local-only `_*` keys (profile-
           // style settings like _bg_color, _hide_header, …) while letting
           // PK authoritatively set `_header_image` from the banner.
@@ -204,7 +279,10 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             Object.entries(match.custom_fields || {}).filter(([k]) => k.startsWith("_"))
           );
           mapped.custom_fields = { ...localOnly, ...(mapped.custom_fields || {}) };
-          await localEntities.Alter.update(match.id, mapped);
+          // Never un-archive on re-import — preserve the local archive flag
+          // (the mapper hardcodes is_archived:false for the create path only).
+          const { is_archived, ...updatePayload } = mapped;
+          await localEntities.Alter.update(match.id, updatePayload);
           updated += 1;
         } else {
           await localEntities.Alter.create(mapped);
@@ -217,9 +295,17 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       const summary = [
         `${created} created`,
         `${updated} updated`,
+        skipped > 0 ? `${skipped} left as-is` : null,
+        matchedByName > 0 ? `${matchedByName} matched by name` : null,
         avatarsCached > 0 ? `${avatarsCached} avatars cached locally` : null,
       ].filter(Boolean).join(" · ");
       toast.success(`Import complete · ${summary}`);
+      if (matchedByName > 0) {
+        toast.info(
+          `${matchedByName} existing ${matchedByName === 1 ? "alter was" : "alters were"} linked to PluralKit by name (e.g. imported from Simply Plural). Future imports will update them in place instead of duplicating.`,
+          { duration: 11000 }
+        );
+      }
       if (avatarsSkippedDiscord > 0) {
         toast.warning(
           `${avatarsSkippedDiscord} ${avatarsSkippedDiscord === 1 ? "avatar is" : "avatars are"} still on Discord's CDN and won't display. Re-upload them in PluralKit (which migrates them to pluralkit.me) and run import again.`,
@@ -336,11 +422,17 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
       if (failed.length) parts.push(`${failed.length} failed`);
       toast.success(`Export complete · ${parts.join(" · ")}`);
       if (failed.length) {
-        // Log the failed ones to console so the user can pull details if needed.
-        // We deliberately do NOT include error bodies in the toast since they
-        // may echo input the user typed.
+        // Surface the first failure's reason so the user isn't left guessing
+        // (pkFetch already redacts any token-shaped string from errors).
+        const first = failed[0];
+        toast.warning(
+          `${failed.length} ${failed.length === 1 ? "alter" : "alters"} couldn't be sent${first?.name ? ` (e.g. "${first.name}")` : ""}.${first?.error ? ` PluralKit said: ${first.error}` : ""}`,
+          { duration: 11000 }
+        );
         // eslint-disable-next-line no-console
         console.warn("PluralKit export — failed entries:", failed);
+      } else if (created.length === 0 && updated.length === 0) {
+        toast.info("Nothing to export — no active (non-archived) alters found.");
       }
     } catch (e) {
       toast.error(e.message || "Export failed.");
@@ -433,8 +525,47 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                 <h4 className="font-medium text-sm">Import members &amp; groups</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                Members on PK get upserted into your local alters. Existing local alters that were imported before (matched by their <code className="font-mono">pk_id</code>) are updated; new ones are created.
+                Members on PK are matched to your local alters by their PluralKit id, then by name / alias / display name (so members you already imported from Simply Plural are updated, not duplicated), then handled per the mode below.
               </p>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5">
+                {[
+                  { id: "standard", label: "Update + add new", desc: "Update matched alters, add any new ones." },
+                  { id: "new_only", label: "Only add new", desc: "Leave existing alters untouched; only bring in ones you don't have." },
+                  { id: "replace_all", label: "Replace all", desc: "Delete local alters and recreate from PluralKit." },
+                ].map((opt) => {
+                  const active = importMode === opt.id;
+                  const danger = opt.id === "replace_all";
+                  return (
+                    <button
+                      key={opt.id}
+                      type="button"
+                      onClick={() => setImportMode(opt.id)}
+                      className={`rounded-lg border p-2 text-left transition-all ${
+                        active
+                          ? (danger ? "border-destructive/60 bg-destructive/10" : "border-primary/60 bg-primary/10")
+                          : "border-border/50 bg-card hover:bg-muted/30"
+                      }`}
+                    >
+                      <p className={`text-xs font-semibold ${active ? (danger ? "text-destructive" : "text-primary") : "text-foreground"}`}>{opt.label}</p>
+                      <p className="text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{opt.desc}</p>
+                    </button>
+                  );
+                })}
+              </div>
+              <label className="flex items-start gap-2 text-xs cursor-pointer rounded-lg border border-border/50 bg-card p-2">
+                <input
+                  type="checkbox"
+                  checked={usePkDisplayName}
+                  onChange={(e) => {
+                    setUsePkDisplayName(e.target.checked);
+                    try { localStorage.setItem("symphony_pk_use_display_name", e.target.checked ? "1" : "0"); } catch { /* storage off */ }
+                  }}
+                  className="w-3.5 h-3.5 rounded accent-primary mt-0.5 flex-shrink-0"
+                />
+                <span className="text-muted-foreground leading-snug">
+                  Use each member's <strong className="text-foreground">display name</strong> as their name (prettier — matches what a Simply Plural import does). Falls back to the regular name when there's no display name.
+                </span>
+              </label>
               <Button onClick={handleImportMembers} disabled={working} size="sm" variant="outline">
                 {working ? <Loader2 className="w-4 h-4 animate-spin" /> : "Import members from PluralKit"}
               </Button>
@@ -476,7 +607,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                 <h4 className="font-medium text-sm">Export to PluralKit</h4>
               </div>
               <p className="text-xs text-muted-foreground">
-                Sends your local alters to PluralKit. Alters previously imported from PK get their PK profile <strong>updated</strong>; new local alters get <strong>created</strong> on PK. Archived alters and switches are NOT exported. Two-tap confirm to prevent accidents.
+                Sends your local alters to PluralKit. Alters previously imported from PK get their PK profile <strong>updated</strong>; new local alters get <strong>created</strong> on PK. Archived alters and switches are NOT exported. Avatars/banners only transfer if they're public web URLs — locally-uploaded images can't be reached by PluralKit, so they're skipped (everything else still sends). Two-tap confirm to prevent accidents.
               </p>
               <Button
                 onClick={handleExport}

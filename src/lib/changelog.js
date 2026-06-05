@@ -13,8 +13,626 @@
 
 export const CHANGELOG = [
   {
-    date: "May 31, 2026",
+    date: "June 5, 2026",
     changes: [
+      {
+        type: "feature",
+        text: "New Settings → Alter setup → \"Find & remove duplicates\": cleans up duplicate imported alters (ones sharing a Simply Plural / PluralKit id), keeping the most complete copy and moving its fronting history onto it.",
+      },
+      {
+        type: "fix",
+        text: "Popups (colour picker, relationship editor, image/asset picker, link picker) no longer show the profile background image through them — they're solid and readable again.",
+      },
+      {
+        type: "fix",
+        text: "Profile style: profile sections are translucent again over a background image (only pop-ups stay solid) — and the doubled backing behind the editor is gone.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the Wave colour now opens a picker (choose one of your custom colours or a custom hex) and recolours the app's header wave while you're on that profile's page.",
+      },
+      {
+        type: "fix",
+        text: "Profile style: the \"Text\" custom colour now actually changes the page text — picking it recolours all the text instead of leaving it stuck white.",
+      },
+      {
+        type: "fix",
+        text: "Whispered bulletins now reveal when tapped from the dashboard and board, not just on the full bulletin page.",
+      },
+      {
+        type: "improve",
+        text: "Relationship types are now managed with a drag-to-nest tree (like the activity \"Customize\" menu) — nest, reorder, rename, recolour, and add sub-types.",
+      },
+      {
+        type: "improve",
+        text: "Profile style custom colours now show their current live colour instead of blank, so it's clear what each one controls — and you can clear any back to the app default.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the readable backing now extends fully behind the editor and the Notes/Board/Messages/Info tabs when a background image is set.",
+      },
+      {
+        type: "improve",
+        text: "Group profile: the Profile style section now sits under the bio (matching the alters page), and Undo/Redo sit beside the Save button on both edit pages.",
+      },
+      {
+        type: "feature",
+        text: "Press and hold a fronting chip on the dashboard for the full action menu — go to profile, pin, create subsystem, add to groups, and more — same as the alters page.",
+      },
+      {
+        type: "feature",
+        text: "New Relationships tab on each alter's profile to view and define their relationships (shared with the System Map).",
+      },
+      {
+        type: "feature",
+        text: "Alter and group edit pages now have Undo and Redo buttons next to Save.",
+      },
+      {
+        type: "improve",
+        text: "\"Create subsystem\" stays available in the press-and-hold menu even when an alter already has one — alters can have several.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: custom colours are now laid out like Settings (four on top, four on bottom, wave on the right) and preview live as you change them; header/body sync is a compact control with a direction toggle and a live-link lock.",
+      },
+    ],
+  },
+  {
+    date: "June 4, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Profile style: the Header and Body each have their own full custom-colour palette now (like Settings → Appearance) — the header leaves out the wave colour, and the separate colours section is gone.",
+      },
+      {
+        type: "feature",
+        text: "Relationship types can now be nested under a parent to group them (e.g. Family → Sibling, Child).",
+      },
+      {
+        type: "feature",
+        text: "Alter-specific custom fields (in the Info tab) now support the same field types as system-wide fields — text, number, yes/no, and list — and format the same way.",
+      },
+      {
+        type: "improve",
+        text: "Archived alters now show an \"Archived\" tag (with one-tap Restore) on their profile, and archived members are tagged in a group's member list — so they're no longer mistaken for normal members.",
+      },
+      {
+        type: "fix",
+        text: "Fixed profile photos showing as broken images in several places — analytics, diary, system maps, fronting history and more.",
+      },
+      {
+        type: "improve",
+        text: "@mentions inside journal entries are now tappable and jump straight to that alter's profile.",
+      },
+      {
+        type: "feature",
+        text: "System Meetings: Open Dialogue now uses the real system chat — formatting toolbar, @mention and -signpost autocomplete — and you can keep it to the meeting or save it to a System Chat channel.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: there's now a single \"Notice who's near\" header, with the \"Choose who's near\" picker right under it.",
+      },
+      {
+        type: "improve",
+        text: "Profile edit: only the Profile-style card now gets a full colour backing over a background image — the rest of the form is backed per-section like the view page.",
+      },
+      {
+        type: "improve",
+        text: "Profile style now shows the full custom-colour palette — all 8 colours plus the wave colour — directly, instead of tucked behind a collapsed section.",
+      },
+      {
+        type: "improve",
+        text: "An alter's board / activity feed now shows post previews with their real formatting and images, instead of stripping them to plain text.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: present members now show as tappable cards like the \"Currently fronting\" widget — tap one to open its notes, emotions and symptoms.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: the Open Dialogue chat now stretches to the full width of the Invite Sharing card.",
+      },
+      {
+        type: "fix",
+        text: "An alter's profile photo no longer shows as a broken image at the top of their profile.",
+      },
+      {
+        type: "fix",
+        text: "Profile style: the in-profile Lineage tab and the \"System Fields\" label now take your colour backing over a background image, so they stay readable.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: \"Notice who's near\" is now a single section — the participants live inside the Step 2 block instead of a separate redundant card below it.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the nav tabs, Prev/Next/Edit buttons, group/subsystem labels, and your activity-feed cards now take your profile colour over a background image instead of floating transparently.",
+      },
+      {
+        type: "feature",
+        text: "Profile style: the header now has its own background-opacity slider, you can set all 8 page colours (plus wave) per profile, and there's a \"sync header ↔ body\" button.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: \"Notice who's near\" is now a single section — pick people through the Set Fronters modal, and each shows the same feelings / symptoms / note panel as Currently Fronting.",
+      },
+      {
+        type: "fix",
+        text: "System Meetings: the Open Dialogue space now works exactly like system chat (signposts, whispers, formatting), lives under Invite Sharing, and anyone you signpost is added to who's near. A note clarifies every field is optional.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Appearance: the mobile bottom bar starts collapsed with a matching header, and the size sliders no longer get nudged while you scroll.",
+      },
+      {
+        type: "feature",
+        text: "System Meetings: turn on \"Open dialogue\" to get a chat space just for that meeting where alters can talk back and forth; the whole conversation saves with the meeting.",
+      },
+      {
+        type: "improve",
+        text: "System Meetings: pick who's present from a searchable list instead of typing each name.",
+      },
+      {
+        type: "fix",
+        text: "Appearance: the built-in preset, wave-colour, and font dropdowns no longer get cut off or covered — they open fully now.",
+      },
+      {
+        type: "improve",
+        text: "Appearance: the UI-size slider now shows a tick for every step; Dashboard, the bottom bar, and Upcoming plans are grouped into one \"Layout\" section, and the bottom-bar config autosaves.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Appearance fully reorganised: UI size + touch/nav sliders up top, fonts as direct rows, a tidier Theme section (preset swatch dropdown, custom colours, wave colour), then Corner style, Presets, and Layout.",
+      },
+      {
+        type: "feature",
+        text: "Saving a theme preset now lets you pick exactly which parts to include — colours, fonts, UI size, corner style, layouts, system banner, terminology, and more.",
+      },
+      {
+        type: "feature",
+        text: "Profile style: set a full per-page colour palette (all 8 theme colours) that overrides the app theme on that profile — and the background colour now shows through as you lower the image opacity, filling the cards and inputs.",
+      },
+      {
+        type: "improve",
+        text: "The header wave colour can now be any of your palette colours or a fully custom colour.",
+      },
+      {
+        type: "improve",
+        text: "Removed the dashboard-grid editor from Settings — rearrange the dashboard grid directly on the dashboard page.",
+      },
+      {
+        type: "fix",
+        text: "Profile background colour no longer washes the whole page over a background image — it now fills the cards and entry windows (bio, sections, inputs) in both view and edit mode, with a \"Surface opacity\" slider to let the image show through.",
+      },
+      {
+        type: "improve",
+        text: "Removed the redundant \"labels in lists\" setting from Appearance — switch a name between display name, alias, or both from the toggle shown inline wherever alters are listed.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the Background and Text colour pickers now sit side by side to save space.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: with a background image set, your background colour now fills the cards (bio, sections), and you can tune header opacity, image opacity, and a readability tint over the image.",
+      },
+      {
+        type: "improve",
+        text: "The alter profile's Edit page now matches the Add New Alter screen: avatar beside the name, and a single \"first appearance\" field replacing the separate birthday + origin-year fields.",
+      },
+      {
+        type: "improve",
+        text: "New alters no longer have a groups field while being created — you assign groups and subsystems from the profile once it's saved.",
+      },
+      {
+        type: "improve",
+        text: "In the Profile style editor, the Body options now sit directly under \"Profile style\" instead of in their own dropdown — only the Header stays collapsible.",
+      },
+      {
+        type: "improve",
+        text: "The Add/Edit alter screen now uses the same Profile style editor as everywhere else, gaining background-opacity and readability controls.",
+      },
+      {
+        type: "improve",
+        text: "Refreshed the first-run welcome screen with the app icon and a clearer description of what Oceans Symphony does.",
+      },
+      {
+        type: "fix",
+        text: "Colour pickers now respond to taps when opened from the Add New Alter / Group editors — previously the popup didn't register input and taps fell through to the page behind it.",
+      },
+      {
+        type: "improve",
+        text: "The first-run welcome and storage-setup screens are now a single screen, with a warmer, clearer intro.",
+      },
+      {
+        type: "fix",
+        text: "The \"choose root alter\" and \"parent group\" dropdowns in the alter/group editors no longer pop up in the wrong place or get cut off.",
+      },
+      {
+        type: "improve",
+        text: "The \"Parent group\" picker is now a nested, searchable dropdown that respects your group/subsystem nesting, and the members + subsystem options sit higher up the Add New Group form.",
+      },
+      {
+        type: "improve",
+        text: "Creating a group from Manage Groups now opens the full Add New Group screen (avatar, colour, bio, profile style) instead of just a name box.",
+      },
+      {
+        type: "feature",
+        text: "Triple-tapping to open the Grocery List privacy cover now shows a one-time \"What's this?\" explainer, with controls to change how many taps trigger it — or turn it off.",
+      },
+      {
+        type: "improve",
+        text: "Editing an alter's or group's profile from its page now uses the same tidy Header/Body style editor — including font choices — as the add-new screens.",
+      },
+      {
+        type: "fix",
+        text: "Profile background images no longer show a second, scrolling copy — the background is now a single fixed layer behind the whole page.",
+      },
+      {
+        type: "improve",
+        text: "The welcome intro now appears first, before the storage setup, when you open the app for the first time.",
+      },
+      {
+        type: "improve",
+        text: "Adding members while creating a new group now opens the full Manage Members picker (search, filters, grid/list) instead of a small dropdown — and all members stay visible there regardless of a group's hide settings.",
+      },
+      {
+        type: "fix",
+        text: "The colour pickers in the Add New Alter / Add New Group editors now open on top of the editor instead of behind it.",
+      },
+      {
+        type: "improve",
+        text: "Avatar buttons in the alter and group editors now wrap neatly under the picture instead of overflowing past it.",
+      },
+      {
+        type: "improve",
+        text: "Profile font choices now offer the same font list as Settings → Appearance.",
+      },
+      {
+        type: "improve",
+        text: "Assigning a new alter to groups now uses a nested, expandable picker that respects your group/subsystem nesting, instead of a flat dropdown.",
+      },
+      {
+        type: "feature",
+        text: "The Add/Edit alter screen is redesigned: name and avatar sit up top, a single \"first appearance\" field replaces the old birthday/origin-year pair, and there's a full bio editor.",
+      },
+      {
+        type: "feature",
+        text: "New Profile Style section when adding or editing an alter — set a header and background colour, image, text colour, and font, with the header styled separately from the body.",
+      },
+      {
+        type: "feature",
+        text: "Redesigned the Add New Group screen: avatar, subsystem root, parent group, a searchable member picker, bio, and the same Profile Style controls.",
+      },
+      {
+        type: "feature",
+        text: "New Group config (formerly member visibility): hide a group's members from Set Front, Friends, mentions/signposts/whispers, authorship lists, system maps, and analytics.",
+      },
+      {
+        type: "feature",
+        text: "First launch now opens with a short welcome explaining what Oceans Symphony is, before setup.",
+      },
+      {
+        type: "fix",
+        text: "The first-run disclaimer is no longer cut off at the top and bottom by the header and navigation bars.",
+      },
+    ],
+  },
+  {
+    date: "June 1, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "The whole Settings menu now follows one clean layout — every section is a tidy list of collapsible subsections (collapsed by default), matching the redesigned Profile section.",
+      },
+      {
+        type: "fix",
+        text: "A group/subsystem's background image now fills the whole screen, not just the area behind the content.",
+      },
+      {
+        type: "improve",
+        text: "Profile settings polish: the view-count moved into the Profile header bar, the picture's buttons now wrap neatly under the picture, the banner preview tracks the height slider again, and the bio editor's Plain/Simple/Blocks/Raw switch is now icon-only.",
+      },
+      {
+        type: "fix",
+        text: "Press-and-hold menus (groups, alters, filters) no longer get cut off at the bottom behind the navigation bar.",
+      },
+      {
+        type: "fix",
+        text: "A group/subsystem's background image now stretches edge-to-edge instead of sitting in an inset, rounded box.",
+      },
+      {
+        type: "improve",
+        text: "Group/subsystem profiles can now set a Page text colour and Header text colour, the same as alter profiles.",
+      },
+      {
+        type: "improve",
+        text: "Settings section icons are now minimal, monochrome icons that follow your theme colour instead of colourful emoji.",
+      },
+      {
+        type: "improve",
+        text: "Profile settings rebuilt to match the new layout: picture and banner sit side by side with icon-only buttons, the terminology preset moved to the top and is now a dropdown, and banner options stay tidy in a collapsible section.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Notifications now explains why out-of-app alerts (like a friend changing front) can lag or be missed when the app is closed, with steps to make Android background activity more reliable.",
+      },
+      {
+        type: "improve",
+        text: "Settings is getting a cleaner, more consistent layout. The Profile section is first: icon-only image buttons, and the banner options and terminology are now tidy collapsible subsections. More sections to follow.",
+      },
+      {
+        type: "fix",
+        text: "Friends: fixed friends sometimes seeing \"no one is fronting\" for your system even when someone was up front — the app was briefly sending an empty front while it loaded.",
+      },
+      {
+        type: "fix",
+        text: "Friends: friend-front alerts no longer come through twice. While the app is open you'll get an in-app toast; the out-of-app notification is handled separately so they don't double up.",
+      },
+      {
+        type: "improve",
+        text: "The bulletin Quick task's activity picker is now a nested, expandable list that keeps your category folders — the same as the Quick Check-In.",
+      },
+      {
+        type: "improve",
+        text: "Tidied the bulletin Quick task: Due date and Scheduled now share one pill, and Pin-to-dashboard + Mark-urgent moved inside the Priority pill.",
+      },
+      {
+        type: "fix",
+        text: "Activity day view no longer repeats your check-in emotions under every activity (and on every hour a long activity spans) — they now appear once, at the time you logged them.",
+      },
+      {
+        type: "improve",
+        text: "You can now choose how long \"infer presence from authored content\" counts around each post (30 minutes up to 6 hours) in Settings → Appearance.",
+      },
+      {
+        type: "fix",
+        text: "Custom fields on the Profile tab now show their rich text (colours, links, etc.) correctly instead of raw code.",
+      },
+      {
+        type: "fix",
+        text: "In the bio editor you can now apply a font and a text colour to the same text (and stack a highlight on top) — before it only kept one.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbars now always open collapsed; tap \"More\" for the extra tools.",
+      },
+      {
+        type: "improve",
+        text: "PluralKit import no longer duplicates members you already imported from Simply Plural — it now matches on name, alias, or display name. Added an option to import using each member's PluralKit display name.",
+      },
+      {
+        type: "fix",
+        text: "Whispers are now clearly visible — they show a \"🔒 tap to reveal\" pill instead of a blank gap, so you can always see and tap them.",
+      },
+      {
+        type: "improve",
+        text: "The /w whisper now works partway through a message, not just at the start. The \"hide the whole thing?\" warning only appears if you use /w without [brackets] mid-message.",
+      },
+      {
+        type: "feature",
+        text: "Whispers now work in your notes too — \"/w @name [secret]\" hides the bracketed part in alter notes, to-do details, and activity/check-in notes, the same as in chat and bulletins.",
+      },
+      {
+        type: "feature",
+        text: "Whisper privately anywhere you post: type \"/w @name [secret]\" in chat, a bulletin, or a comment and only the bracketed part hides behind a tap-to-reveal bar. Leave the brackets off to hide the whole post.",
+      },
+      {
+        type: "fix",
+        text: "Links to other pages in the app now stay clickable after you send a chat message or post a bulletin — before they turned into plain text.",
+      },
+      {
+        type: "improve",
+        text: "The chat formatting toolbar now starts hidden — tap Format above the message box to reveal the bold/colour/etc. buttons. The channel list is no longer see-through, and the \"Direct Messages\" section is now \"Private channels\".",
+      },
+      {
+        type: "improve",
+        text: "On phones the chat channels list now slides in from the left as an overlay instead of replacing the conversation, and its button moved to the left of the chat header. Tap a channel or tap outside to slide it away.",
+      },
+      {
+        type: "feature",
+        text: "Private chat channels now double as a privacy safeguard: when none of their alters are fronting, the channel name is hidden in the sidebar and opening it asks \"this channel is private to X — view anyway?\". When a member is fronting it's fully open with no prompt.",
+      },
+      {
+        type: "fix",
+        text: "The \"Who's fronting?\" picker in Quick Check-In now has the same swipe gestures as the Set Fronters modal — tap to toggle, swipe-left (or hold) for primary, swipe-left-then-up to solo.",
+      },
+      {
+        type: "improve",
+        text: "Chat sidebar has an Edit button up top: turn it on to drag channels and categories into a new order (within their group) or tap any of them to edit. The new-channel/new-category toggle now reads plainly, and category colours use the app's full colour picker.",
+      },
+      {
+        type: "feature",
+        text: "System chat now has real nestable categories: the New button toggles to \"New category\" to make colour-coded, collapsible categories (up to 3 deep) and pick which channels go in them — channels show indented under their category, new categories sit at the top. Existing categories migrate automatically.",
+      },
+      {
+        type: "improve",
+        text: "The fronting shortcuts in the Quick Actions menu now use the same gestures as everywhere else: tap to set/add, swipe-left or long-press to make primary, swipe-left-then-up to solo, swipe-right to toggle front.",
+      },
+      {
+        type: "improve",
+        text: "The bulletin-board Quick task now has all the to-do options — due date, scheduled date, activity, priority, a goal, a note, plus Pin-to-dashboard and Mark-urgent toggles — each as an expandable pill so it stays tidy.",
+      },
+      {
+        type: "improve",
+        text: "You can now mark a to-do urgent straight from the bulletin board: press and hold the task and choose \"Mark as urgent.\"",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar: added a \"clear formatting\" eraser button (strip styles / go back to plain text), and the \"?\" guide now explains that colours and Fun effects apply to text you've selected first.",
+      },
+      {
+        type: "improve",
+        text: "PluralKit member import now lets you choose how it reconciles — update + add new (default), only add new, or replace all — like the Simply Plural import.",
+      },
+      {
+        type: "fix",
+        text: "Export to PluralKit was silently failing: locally-uploaded avatars and HTML bios no longer break the upload (local images are skipped; bios send as plain text), and failures now tell you why.",
+      },
+      {
+        type: "fix",
+        text: "Emotion analytics no longer lists deleted or legacy alters as raw ID strings — unrecognized alters are skipped.",
+      },
+      {
+        type: "improve",
+        text: "The Plain bio editor — also used for journals and profile fields — now shares system chat's upgraded toolbar: toggle-style bold/italic/headings (tap once, keep typing styled), the tidy Basic/More/Fun layout with a \"?\" guide, the censor bar, and the template-field button.",
+      },
+      {
+        type: "feature",
+        text: "Analytics can now infer who was present from what alters write: posting a chat message, bulletin, or journal counts as being \"around\" for ~2 hours, so activities, emotions and symptoms get attributed to that alter even without fronting tracking. On by default — toggle in Settings → Customization.",
+      },
+      {
+        type: "improve",
+        text: "Each \"Coming up\" plans panel on the dashboard now keeps its own count/time-window — so you can have one showing just today and another showing the week. (It used to be a single shared setting.)",
+      },
+      {
+        type: "improve",
+        text: "Quick plans (no set time) now show in their own section at the top of the Activity Tracker's day view, instead of being tucked into the 11pm slot.",
+      },
+      {
+        type: "improve",
+        text: "Whisper messages now stay hidden (blurred) until tapped. If a recipient is currently fronting it reveals on tap; otherwise it first asks \"this message is only intended for X — display?\".",
+      },
+      {
+        type: "improve",
+        text: "Quick tasks from the bulletin board now expand into pills — set a due date, priority, note, or pin it to the dashboard without leaving the board.",
+      },
+      {
+        type: "improve",
+        text: "The \"Plan something\" box on the dashboard is slimmer so it takes up less space.",
+      },
+      {
+        type: "improve",
+        text: "The system picture and banner can now be picked from your saved Image Assets, not just uploaded or pasted as a URL.",
+      },
+      {
+        type: "fix",
+        text: "The system banner no longer shows on individual alter or subsystem profiles (they have their own background) — it stays on the dashboard and alters page.",
+      },
+      {
+        type: "improve",
+        text: "System chat composer now formats text inline as you type — bold looks bold, no raw tags — just like the Plain bio editor, with @mentions, -signposts, and /w whispers all still working.",
+      },
+      {
+        type: "improve",
+        text: "Chat formatting buttons now toggle like a normal editor: tap Bold and keep typing in bold until you tap it off (same for italic, headings, lists, etc.) — no need to select text first.",
+      },
+      {
+        type: "feature",
+        text: "Direct Messages in system chat: mark a channel \"Private\" to limit it to specific alters — it shows under a Direct Messages section with a lock, and only those alters can be picked as the speaker.",
+      },
+      {
+        type: "feature",
+        text: "System chat whispers: type \"/w @name your message\" to post a private, lock-marked whisper to specific alters in the channel.",
+      },
+      {
+        type: "feature",
+        text: "New Authorship analytics (Analytics → Authorship): see what each alter has written across chat, the bulletin board, comments, and journals.",
+      },
+      {
+        type: "fix",
+        text: "An alter's background image now fills the whole profile screen too (same fix as groups) — the header image still stays up top as the banner.",
+      },
+      {
+        type: "fix",
+        text: "A group/subsystem's background image now fills the whole screen instead of being trapped in the header — the separate header image still stays up top as the banner.",
+      },
+      {
+        type: "improve",
+        text: "System chat and the bulletin board now share the same smart @mention / -signpost picker, and it's newly available on alter notes and the dashboard status field.",
+      },
+      {
+        type: "improve",
+        text: "The @mention picker is smarter everywhere it appears (check-ins, tasks, activities, journals): it now works when you edit mid-text — not just at the end — and shows avatars, your custom alter labels, and respects \"hide from mentions\".",
+      },
+      {
+        type: "feature",
+        text: "New censor bar: wrap text in ||double bars|| (or tap the new toolbar button) to hide it behind a bar that reveals when tapped — handy for sensitive info, in bios, bulletins, and chat.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar: the \"?\" guide now shows the real button icons, the float/wave text effects actually animate now, and the bio-only \"make editable\" button no longer clutters the chat box.",
+      },
+      {
+        type: "fix",
+        text: "Editing a repeating plan's whole series no longer forces one occurrence's done/scheduled state onto the others — each keeps the status that fits its own date.",
+      },
+      {
+        type: "hotfix",
+        text: "Internal hardening: safer encryption-password changes, an image-block parsing fix, and grounding-preference import de-duplication.",
+      },
+      {
+        type: "fix",
+        text: "Front/primary pop-up messages and buttons now use your custom terms (e.g. \"headmate\" instead of \"fronter\") instead of the hardcoded defaults.",
+      },
+      {
+        type: "fix",
+        text: "The link button in the Plain bio editor now opens a proper input box (it used a browser prompt that did nothing in the app).",
+      },
+      {
+        type: "fix",
+        text: "Weekly goal progress now counts only this week's activities that actually happened (scheduled/skipped/cancelled plans no longer inflate it).",
+      },
+      {
+        type: "fix",
+        text: "\"Upcoming plans\" no longer shows an empty header for plans you've already marked done/skipped, and a same-day quick plan stays \"scheduled\" all day instead of flipping to logged late at night.",
+      },
+      {
+        type: "fix",
+        text: "@mentions no longer fire for the wrong alter — mentioning \"@Sam\" no longer also pings \"Samantha\" (and vice-versa).",
+      },
+      {
+        type: "fix",
+        text: "System banner no longer overflows the screen width (it was causing the whole app to scroll sideways).",
+      },
+      {
+        type: "fix",
+        text: "System Chat: the message box and formatting bar no longer get pushed off the bottom of the screen as messages pile up.",
+      },
+      {
+        type: "improve",
+        text: "Simplified the chat/text formatting bar: clearer icons and just the basics by default, with structural tools (headings, lists, quote, alignment…) under \"More\" and the decorative effects under a nested \"Fun\". A \"?\" guide explains them.",
+      },
+      {
+        type: "fix",
+        text: "Alter avatars now show everywhere again — the alters list, group/subsystem member lists, current-fronters chips, and the press-and-hold menu were showing a blank icon for some saved images.",
+      },
+      {
+        type: "fix",
+        text: "Deleting a bulletin comment no longer fails behind the scenes (it was throwing an error and not refreshing).",
+      },
+      {
+        type: "fix",
+        text: "Therapy report: the emotion check-in \"who\" column and the Sleep section now fill in correctly instead of coming up blank.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin Board and To-Do List are now listed in the side menu.",
+      },
+      {
+        type: "fix",
+        text: "Your system banner no longer gets covered up on the Groups manager and Privacy pages.",
+      },
+      {
+        type: "fix",
+        text: "Front history: hovering a session shows its note text instead of raw code, and downloading the extra fonts now reports failure correctly when you're offline.",
+      },
+      {
+        type: "hotfix",
+        text: "Deleted chat messages no longer show up in search; separated reminder/plan notification id ranges; corrected the encryption detail in the privacy notice.",
+      },
+      {
+        type: "fix",
+        text: "PluralKit import no longer duplicates alters that came from Simply Plural — it now matches existing alters by name and links them to PluralKit, so re-imports update them in place. (Existing duplicates can still be merged via System History.)",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar: added a \"?\" button that explains what each tool does (advanced tools tucked under \"More\"), and the font menu no longer hides behind other elements in the system chat.",
+      },
+      {
+        type: "improve",
+        text: "System banner: added a soft readability wash behind the top of the page so titles and headers stay legible over the image.",
+      },
       {
         type: "fix",
         text: "The Activity Tracker no longer paints over your system banner — it now shows behind the top of the page like everywhere else.",
@@ -43,6 +661,11 @@ export const CHANGELOG = [
         type: "fix",
         text: "Fixed editing a profile bio template: typing into a template field in the Simple editor now saves instead of being silently discarded.",
       },
+    ],
+  },
+  {
+    date: "May 31, 2026",
+    changes: [
       {
         type: "fix",
         text: "Activity tracker day view: the hour labels now sit at the top of each hour's cell (where the hour begins) instead of floating in the middle.",

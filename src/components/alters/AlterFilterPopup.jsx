@@ -57,7 +57,7 @@ export default function AlterFilterPopup({ filters, onChange, regularGroups, sub
   return (
     <div className="fixed inset-0 z-[70] bg-black/40 flex items-end sm:items-center justify-center" onClick={backdropClick}>
       <div onClick={(e) => e.stopPropagation()}
-        className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm max-h-[85vh] overflow-y-auto shadow-2xl pb-[env(safe-area-inset-bottom)]">
+        className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-sm max-h-[85vh] overflow-y-auto shadow-2xl pb-[calc(env(safe-area-inset-bottom)_+_var(--bottom-nav-height,56px))] sm:pb-[env(safe-area-inset-bottom)]">
         <div className="flex items-center justify-between px-4 py-3 border-b border-border/50 sticky top-0 bg-background z-10">
           <span className="font-semibold text-sm">Filter {terms.alters}</span>
           <div className="flex items-center gap-3">

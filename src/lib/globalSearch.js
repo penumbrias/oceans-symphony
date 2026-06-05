@@ -97,7 +97,7 @@ export function isoDate(ts) {
 
 // ---------- general helpers ----------
 
-function stripHtml(html) {
+export function stripHtml(html) {
   if (!html || typeof html !== "string") return "";
   return html.replace(/<[^>]*>/g, " ").replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">")
@@ -430,7 +430,7 @@ export function buildInnerWorldLocationRecords({ items = [] }) {
 export function buildChatMessageRecords({ items = [], channels = [] }) {
   const chanById = Object.fromEntries((channels || []).map((c) => [c.id, c]));
   return items
-    .filter((m) => m && !m.is_deleted && m.content)
+    .filter((m) => m && !m.deleted_at && m.content)
     .map((m) => {
       const text = String(m.content || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
       const chan = chanById[m.channel_id];

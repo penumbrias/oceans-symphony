@@ -5,10 +5,27 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { countableMinutes, statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
+import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function RowAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} alt={alter.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
+  ) : (
+    <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
+      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
+      {alter.name?.charAt(0)}
+    </div>
+  );
+}
 
 export default function AlterActivityMatrix({ activities = [], categories = [], alters = [], from, to }) {
   const terms = useTerms();
   const [expandedParents, setExpandedParents] = useState(new Set());
+  const { inferAlters } = useAuthoredPresence();
 
   const catMap = useMemo(() => {
     const m = {};
@@ -87,7 +104,12 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
   } else {
     allNames.add(act.activity_name || "Unknown");
   }
-  const fronters = act.fronting_alter_ids || [];
+  // Use the activity's recorded fronters; if none, fall back to whoever was
+  // present (via what they authored) around the activity's time.
+  const explicitFronters = (act.fronting_alter_ids || []).filter(Boolean);
+  const fronters = explicitFronters.length
+    ? explicitFronters
+    : inferAlters(new Date(act.timestamp).getTime());
   fronters.forEach(alterId => {
     if (!alterMap[alterId]) return;
     allNames.forEach(name => {
@@ -112,7 +134,7 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
       .sort((a, b) => b.total - a.total);
 
     return { alterRows, countsByCatKey };
-  }, [activities, categories, alters, from, to, catMap]);
+  }, [activities, categories, alters, from, to, catMap, inferAlters]);
 
   // Build visible columns: root cats + optionally their children if expanded
   const visibleColumns = useMemo(() => {
@@ -219,14 +241,7 @@ export default function AlterActivityMatrix({ activities = [], categories = [], 
               <tr key={row.alter.id} className="border-t border-border/50 hover:bg-muted/30 transition-colors">
                 <td className="p-2 sticky left-0 bg-card z-10">
                   <div className="flex items-center gap-2">
-                    {row.alter.avatar_url ? (
-                      <img src={row.alter.avatar_url} alt={row.alter.name} className="w-6 h-6 rounded-full object-cover flex-shrink-0" />
-                    ) : (
-                      <div className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-white text-xs font-bold"
-                        style={{ backgroundColor: row.alter.color || "#8b5cf6" }}>
-                        {row.alter.name?.charAt(0)}
-                      </div>
-                    )}
+                    <RowAvatar alter={row.alter} />
                     <span className="font-medium truncate max-w-[80px]">{row.alter.alias || row.alter.name}</span>
                   </div>
                 </td>

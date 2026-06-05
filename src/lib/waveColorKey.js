@@ -42,3 +42,10 @@ export function readWaveColorKey(systemSettings) {
   if (typeof raw === "string" && WAVE_COLOR_KEYS.includes(raw)) return raw;
   return DEFAULT_WAVE_COLOR_KEY;
 }
+
+// A fully-custom wave colour (hex) overrides the palette key when set.
+// Stored on SystemSettings.wave_color_custom by the Appearance wave picker.
+export function readWaveCustom(systemSettings) {
+  const raw = systemSettings?.wave_color_custom;
+  return (typeof raw === "string" && /^#[0-9A-Fa-f]{6}$/.test(raw)) ? raw : null;
+}

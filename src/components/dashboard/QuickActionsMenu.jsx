@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { getTodayString, applyTerms } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
+import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -100,25 +101,58 @@ function EmotionRow({ action, onAction }) {
   );
 }
 
-function AlterRow({ action, alter, onAction }) {
+// Hint shown while mid-swipe so the gesture is discoverable (mirrors the
+// set-front areas: front / primary / solo).
+function SwipeHintBadge({ hint, fallback, fallbackCls }) {
+  if (hint) {
+    return (
+      <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${hint === "front" ? "text-emerald-500" : hint === "solo" ? "text-primary" : "text-amber-500"}`}>
+        {hint === "front" ? "Front" : hint === "solo" ? "Solo" : "Primary"}
+      </span>
+    );
+  }
+  return <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${fallbackCls}`}>{fallback}</span>;
+}
+
+// Fronting quick-action rows now share the SAME gestures as every other
+// set-front area: tap = the configured action, swipe-left / long-press =
+// toggle primary, swipe-left-then-up = make them the sole front, swipe-right
+// = toggle them on/off front. `front` carries the bound toggle helpers.
+function AlterRow({ action, alter, onAction, front }) {
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onAction(action),
+    onSwipeRight: () => front.toggleFront(alter),
+    onSwipeLeft: () => front.togglePrimary(alter),
+    onSwipeLeftUp: () => front.solo(alter),
+    onLongPress: () => front.togglePrimary(alter),
+  });
   return (
-    <button onClick={() => onAction(action)}
-      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-primary/5 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+    <div role="button" tabIndex={0} {...bind}
+      style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 ? "transform 150ms ease-out" : "none", touchAction: "pan-y" }}
+      className="relative flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-primary/5 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full select-none cursor-pointer">
       <RefreshCw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md">Set</span>
-    </button>
+      <SwipeHintBadge hint={swipeHint} fallback="Set" fallbackCls="text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md" />
+    </div>
   );
 }
 
-function AddToFrontRow({ action, alter, onAction }) {
+function AddToFrontRow({ action, alter, onAction, front }) {
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onAction(action),
+    onSwipeRight: () => front.toggleFront(alter),
+    onSwipeLeft: () => front.togglePrimary(alter),
+    onSwipeLeftUp: () => front.solo(alter),
+    onLongPress: () => front.togglePrimary(alter),
+  });
   return (
-    <button onClick={() => onAction(action)}
-      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-green-500/5 border border-border/50 hover:border-green-500/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+    <div role="button" tabIndex={0} {...bind}
+      style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 ? "transform 150ms ease-out" : "none", touchAction: "pan-y" }}
+      className="relative flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-green-500/5 border border-border/50 hover:border-green-500/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full select-none cursor-pointer">
       <UserPlus className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md">Add</span>
-    </button>
+      <SwipeHintBadge hint={swipeHint} fallback="Add" fallbackCls="text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md" />
+    </div>
   );
 }
 
@@ -323,10 +357,24 @@ function DailyTaskRow({ action }) {
 export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
   const navigate = useNavigate();
   const menuRef = useRef(null);
+  const qc = useQueryClient();
+  const terms = useTerms();
 
   const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list() });
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  // Live active sessions for the fronting-row gestures. The toggle helpers
+  // also refetch fresh before writing (the canonical refetch-before-write
+  // pattern), so this is just the seed state.
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const front = {
+    toggleFront: (a) => toggleFrontFor(a, activeSessions, base44, qc, toast, terms),
+    togglePrimary: (a) => togglePrimaryFor(a, activeSessions, base44, qc, toast, terms),
+    solo: (a) => replaceFrontWith(a, base44, qc, toast, terms),
+  };
 
   // Close on outside *tap*, not outside pointerdown. A pointerdown also
   // fires at the start of a scroll gesture — using it directly meant the
@@ -392,12 +440,12 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
       case "set_front_alter": {
         const alter = alters.find(a => a.id === action.config?.alter_id);
         if (!alter) return null;
-        return <AlterRow key={action.id} action={action} alter={alter} onAction={onAction} />;
+        return <AlterRow key={action.id} action={action} alter={alter} onAction={onAction} front={front} />;
       }
       case "add_to_front_alter": {
         const alter = alters.find(a => a.id === action.config?.alter_id);
         if (!alter) return null;
-        return <AddToFrontRow key={action.id} action={action} alter={alter} onAction={onAction} />;
+        return <AddToFrontRow key={action.id} action={action} alter={alter} onAction={onAction} front={front} />;
       }
       case "toggle_daily_task":
         return <DailyTaskRow key={action.id} action={action} />;

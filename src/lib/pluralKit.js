@@ -128,15 +128,25 @@ function stripHash(raw) {
 // `mapMemberToAlter` pattern. `pk_id` is the external anchor we use to
 // dedupe on re-import: if a local Alter already has that pk_id, the
 // next import updates it instead of creating a new row.
-export function mapPkMemberToAlter(member, groupsByMemberId = {}) {
+export function mapPkMemberToAlter(member, groupsByMemberId = {}, { useDisplayName = false } = {}) {
   const groups = groupsByMemberId[member.id] || [];
   const banner = member.banner || "";
   // PK "banner" doubles as the alter profile header in OS — surface it via
   // the `_header_image` custom-field key that ProfileTab reads.
   const customFields = banner ? { _header_image: banner } : {};
+  // Optionally use PK's display name as the alter's name (mirrors what many
+  // systems do on a Simply Plural import) so it reads prettily without an
+  // extra rename pass. Falls back to the member name when there's no display.
+  const primaryName = (useDisplayName && member.display_name)
+    ? member.display_name
+    : (member.name || "Unknown");
   return {
     pk_id: member.id,
-    name: member.name || "Unknown",
+    // PK's short id (member.id) is mutable (changes if the system is
+    // regenerated); uuid is permanent. Store both and prefer uuid when
+    // de-duping so a changed HID can't spawn duplicates.
+    pk_uuid: member.uuid || null,
+    name: primaryName,
     display_name: member.display_name || "",
     pronouns: member.pronouns || "",
     description: member.description || "",
@@ -159,11 +169,25 @@ export function mapAlterToPkMember(alter) {
   if (alter.name) body.name = alter.name;
   if (alter.display_name) body.display_name = alter.display_name;
   if (alter.pronouns) body.pronouns = alter.pronouns;
-  if (alter.description) body.description = alter.description;
+  // Bios are stored as HTML locally; PK's description is plain text /
+  // markdown (max 1000 chars). Sending raw HTML shows literal <p>/<span>
+  // tags and can 400 — strip to text and cap the length.
+  if (alter.description) {
+    const text = String(alter.description)
+      .replace(/<[^>]+>/g, " ")
+      .replace(/&nbsp;/gi, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    if (text) body.description = text.slice(0, 1000);
+  }
   const color = stripHash(alter.color);
   if (color) body.color = color;
-  if (alter.avatar_url) body.avatar_url = alter.avatar_url;
-  if (alter.banner_url) body.banner = alter.banner_url;
+  // PK can only fetch PUBLIC http(s) image URLs. Our avatars/banners are
+  // usually local-image:// or data: URIs PK can't reach — sending those
+  // 400s the ENTIRE member write (which is why a whole export can come back
+  // empty). Only send genuine public URLs; skip local ones.
+  if (alter.avatar_url && /^https?:\/\//i.test(alter.avatar_url)) body.avatar_url = alter.avatar_url;
+  if (alter.banner_url && /^https?:\/\//i.test(alter.banner_url)) body.banner = alter.banner_url;
   // PK only accepts ISO dates (YYYY-MM-DD). Skip free-form values like
   // "Age 7" or "around middle school" so the upload doesn't 400.
   if (alter.birthday && /^\d{4}-\d{2}-\d{2}$/.test(alter.birthday)) body.birthday = alter.birthday;

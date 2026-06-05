@@ -4,6 +4,7 @@ import { startOfDay, endOfDay, differenceInMinutes, getHours } from "date-fns";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from "recharts";
 import { ChevronDown, ChevronRight } from "lucide-react";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // ─── helpers ──────────────────────────────────────────────────────────────────
 
@@ -40,10 +41,11 @@ function buildCategoryTree(categories) {
 
 function AlterChip({ alter, count, total }) {
   const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   return (
     <div className="flex items-center gap-2 text-xs">
-      {alter.avatar_url ? (
-        <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
+      {resolvedUrl ? (
+        <img src={resolvedUrl} className="w-5 h-5 rounded-full object-cover flex-shrink-0" />
       ) : (
         <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-white text-[0.625rem] font-bold"
           style={{ backgroundColor: alter.color || "#8b5cf6" }}>
@@ -217,6 +219,19 @@ function EmotionCorrelation({ activities, categories, emotionCheckIns, from, to 
 
 // ─── AlterPresenceOverview ────────────────────────────────────────────────────
 
+// Resolves local-image:// avatars (raw <img src> renders them broken).
+function PresenceAvatar({ alter }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolvedUrl ? (
+    <img src={resolvedUrl} className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" />
+  ) : (
+    <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold mt-0.5"
+      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
+      {alter.name?.charAt(0)}
+    </div>
+  );
+}
+
 function AlterPresenceOverview({ activities, categories, checkIns, alters, from, to }) {
   const { rows } = useMemo(() => {
     const catMap = {};
@@ -268,14 +283,7 @@ function AlterPresenceOverview({ activities, categories, checkIns, alters, from,
       <div className="space-y-3">
         {rows.map(({ alter, actCount, totalDuration, topCats, checkInCount }) => (
           <div key={alter.id} className="flex items-start gap-3 p-3 bg-muted/20 rounded-lg">
-            {alter.avatar_url ? (
-              <img src={alter.avatar_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0 mt-0.5" />
-            ) : (
-              <div className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center text-white text-sm font-bold mt-0.5"
-                style={{ backgroundColor: alter.color || "#8b5cf6" }}>
-                {alter.name?.charAt(0)}
-              </div>
-            )}
+            <PresenceAvatar alter={alter} />
             <div className="flex-1 min-w-0">
               <div className="flex items-baseline gap-2 mb-1">
                 <span className="font-semibold text-sm">{alter.alias || alter.name}</span>

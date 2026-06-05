@@ -14,6 +14,7 @@ import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
@@ -21,17 +22,17 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
+// AdvancedAppearance now renders the ENTIRE Appearance section body
+// (UI size, fonts, theme, presets, corner style, dashboard layout,
+// navigation, upcoming-plans surfaces) so all the shared theme/font/
+// preset state stays in one component.
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
-import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
-import CornerStyleSettings from "@/components/settings/CornerStyleSettings";
-import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
-import NavigationSettings from "@/components/settings/NavigationSettings";
-import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe } from "lucide-react";
+import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime } from "@/lib/localImageStorage";
@@ -39,7 +40,9 @@ import BioEditor from "@/components/alters/BioEditor";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
+import { getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindowMinutes, setInferPresenceWindowMinutes } from "@/lib/inferredPresence";
 import RecentUpdates from "@/components/settings/RecentUpdates";
+import { SubSection, IconButton, Field, iconBtnClass } from "@/components/settings/SettingsUI";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
@@ -58,7 +61,7 @@ import {
 // to "just one section's contents".
 const SectionAccordionCtx = React.createContext(null);
 
-function Section({ id, icon, label, defaultOpen = false, children }) {
+function Section({ id, icon: Icon, label, defaultOpen = false, headerRight = null, children }) {
   const ctx = React.useContext(SectionAccordionCtx);
   const isOpen = ctx
     ? ctx.openId === id
@@ -109,15 +112,19 @@ function Section({ id, icon, label, defaultOpen = false, children }) {
 
   return (
     <div id={id} data-tour={`settings-${id}`} className="border border-border/50 rounded-xl overflow-hidden">
-      <button
-        type="button"
-        onClick={handleToggle}
-        className="w-full flex items-center gap-3 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors text-left"
-      >
-        <span className="text-xl">{icon}</span>
-        <span className="flex-1 font-semibold text-sm">{label}</span>
-        <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
-      </button>
+      {/* Header row. The label and chevron toggle; `headerRight` (e.g. the
+          view-count control) is a sibling so it stays interactive without
+          nesting a button inside a button. */}
+      <div className="w-full flex items-center gap-2 px-4 py-4 bg-muted/20 hover:bg-muted/30 transition-colors">
+        <button type="button" onClick={handleToggle} className="flex items-center gap-3 flex-1 min-w-0 text-left">
+          {Icon && <Icon className="w-[1.125rem] h-[1.125rem] text-muted-foreground flex-shrink-0" />}
+          <span className="font-semibold text-sm truncate">{label}</span>
+        </button>
+        {headerRight && <div className="flex-shrink-0">{headerRight}</div>}
+        <button type="button" onClick={handleToggle} aria-label={open ? "Collapse" : "Expand"} className="flex-shrink-0 text-muted-foreground">
+          <ChevronDown className={`w-4 h-4 transition-transform duration-200 ${open ? "rotate-180" : ""}`} />
+        </button>
+      </div>
       {open && (
         <div className="px-4 py-4 space-y-6 border-t border-border/30">
           {children}
@@ -132,6 +139,8 @@ export default function Settings() {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
+  const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
+  const [inferWindow, setInferWindow] = useState(getInferPresenceWindowMinutes);
 
   // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
   // Profile is anchored at the top because the user said so, then the
@@ -165,6 +174,8 @@ export default function Settings() {
   const [systemName, setSystemName] = useState("");
   const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
   const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
+  const [sysAvatarAssets, setSysAvatarAssets] = useState(false);
+  const [sysBannerAssets, setSysBannerAssets] = useState(false);
   const resolvedSysAvatar = useResolvedAvatarUrl(systemAvatarUrl);
   // Banner + rich bio — the system's own profile, mirroring an alter's
   // header image + bio. Surfaced on the alters directory (/Home) header.
@@ -390,113 +401,85 @@ export default function Settings() {
       <div data-tour="settings-content" className="space-y-3 max-w-2xl">
 
         {/* ── PROFILE ── */}
-        <Section id="system" icon="⚙️" label="Profile">
+        <Section id="system" icon={IdCard} label="Profile" headerRight={
+          showAlterCount ? (
+            <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Users className="w-3.5 h-3.5" />
+              {activeCount}{archivedCount > 0 ? ` · ${archivedCount}` : ""}
+              <button type="button" onClick={() => setShowAlterCount(false)}
+                className="text-[0.625rem] text-muted-foreground/70 hover:text-foreground underline underline-offset-2">hide</button>
+            </span>
+          ) : (
+            <button type="button" onClick={() => setShowAlterCount(true)}
+              className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors">
+              <Users className="w-3.5 h-3.5" /> View {terms.alter} count
+            </button>
+          )
+        }>
           <div className="space-y-4">
-            <div>
-              {showAlterCount ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Users className="w-4 h-4" />
-                  {activeCount} active {activeCount !== 1 ? terms.alters : terms.alter}
-                  {archivedCount > 0 && (
-                    <span className="text-muted-foreground/60">· {archivedCount} archived</span>
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => setShowAlterCount(false)}
-                    className="text-xs text-muted-foreground/70 hover:text-foreground underline underline-offset-2 ml-1"
-                  >
-                    hide
-                  </button>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => setShowAlterCount(true)}
-                  className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-                >
-                  <Users className="w-4 h-4" />
-                  View {terms.alter} count
-                </button>
-              )}
-            </div>
-            <div>
-              <Label className="text-sm font-medium">{terms.System} Picture</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                Shown anywhere a post or vote is attributed to the {terms.system} as a whole (no specific {terms.alter}).
-              </p>
-              <div className="mt-2 flex items-center gap-3">
-                <div className="w-14 h-14 rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center flex-shrink-0">
+            {/* Terminology — preset dropdown sits at the top of the profile. */}
+            <SubSection title="Terminology" defaultOpen={false}>
+              <TermsSettings embedded />
+            </SubSection>
+            {/* Picture + banner, side by side. URL paste lives behind the
+                link icon so the row stays to just the wireframe's ↑ ⧉ ×. */}
+            <div className="flex gap-3">
+              <div className="flex flex-col gap-1.5 flex-shrink-0">
+                <Label className="text-sm font-medium">{terms.System} picture</Label>
+                <div className="w-[4.5rem] h-[4.5rem] rounded-full overflow-hidden border border-border/50 bg-muted flex items-center justify-center">
                   {resolvedSysAvatar ? (
                     <img src={resolvedSysAvatar} alt={`${terms.system} avatar`} className="w-full h-full object-cover" />
                   ) : (
                     <Globe className="w-6 h-6 text-muted-foreground" />
                   )}
                 </div>
-                <div className="flex flex-wrap gap-2">
-                  <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
+                {/* Buttons wrap to stay within the avatar's width (2 per row). */}
+                <div className="flex flex-wrap gap-1 w-[4.5rem]">
+                  <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
                     {uploadingSysAvatar ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                    {uploadingSysAvatar ? "Uploading…" : "Upload"}
                     <input type="file" accept="image/*" className="hidden" onChange={handleSystemAvatarUpload} />
                   </label>
+                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysAvatarAssets(true)} />
+                  <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} picture URL:`, systemAvatarUrl || ""); if (u !== null) setSystemAvatarUrl(u.trim()); }} />
                   {systemAvatarUrl && (
-                    <button
-                      type="button"
-                      onClick={() => setSystemAvatarUrl("")}
-                      className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-                    >
-                      <XIcon className="w-4 h-4" /> Remove
-                    </button>
+                    <IconButton icon={XIcon} title="Remove image" danger onClick={() => setSystemAvatarUrl("")} />
                   )}
                 </div>
               </div>
-              <Input
-                placeholder="Or paste an image URL…"
-                value={systemAvatarUrl}
-                onChange={e => setSystemAvatarUrl(e.target.value)}
-                className="mt-2 text-xs"
-              />
+              <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+                <Label className="text-sm font-medium">{terms.System} banner</Label>
+                <div className="rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center relative transition-[height]" style={{ height: systemBannerUrl ? systemBannerHeight : 64 }}>
+                  {resolvedSysBanner ? (
+                    <>
+                      <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
+                      <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
+                    </>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">No banner</span>
+                  )}
+                </div>
+                <div className="flex items-center gap-1">
+                  <label title="Upload an image" aria-label="Upload an image" className={`${iconBtnClass()} cursor-pointer`}>
+                    {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+                    <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
+                  </label>
+                  <IconButton icon={Images} title="Choose from image assets" onClick={() => setSysBannerAssets(true)} />
+                  <IconButton icon={Link2} title="Paste an image URL" onClick={() => { const u = window.prompt(`${terms.System} banner URL:`, systemBannerUrl || ""); if (u !== null) setSystemBannerUrl(u.trim()); }} />
+                  {systemBannerUrl && (
+                    <IconButton icon={XIcon} title="Remove banner" danger onClick={() => setSystemBannerUrl("")} />
+                  )}
+                </div>
+              </div>
             </div>
-            <div>
-              <Label className="text-sm font-medium">{terms.System} Banner</Label>
-              <p className="text-xs text-muted-foreground mt-0.5">
-                A wide image shown edge-to-edge behind the top of your pages.
-              </p>
-              {/* Preview box is exactly as tall as the configured banner, so
-                  dragging the height slider visually shows how far it extends. */}
-              <div className="mt-2 rounded-xl overflow-hidden border border-border/50 bg-muted flex items-center justify-center transition-[height] relative" style={{ height: systemBannerUrl ? systemBannerHeight : 96 }}>
-                {resolvedSysBanner ? (
-                  <>
-                    <img src={resolvedSysBanner} alt={`${terms.system} banner`} className="w-full h-full object-cover" style={{ objectPosition: `50% ${systemBannerPosition}%` }} />
-                    <span className="absolute bottom-1 right-2 text-[0.625rem] font-medium text-white bg-black/45 rounded px-1.5 py-0.5">{systemBannerHeight}px</span>
-                  </>
-                ) : (
-                  <span className="text-xs text-muted-foreground">No banner yet</span>
-                )}
-              </div>
-              <div className="mt-2 flex flex-wrap gap-2">
-                <label className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 hover:bg-muted/40 cursor-pointer">
-                  {uploadingSysBanner ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-                  {uploadingSysBanner ? "Uploading…" : "Upload"}
-                  <input type="file" accept="image/*" className="hidden" onChange={handleSystemBannerUpload} />
-                </label>
-                {systemBannerUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setSystemBannerUrl("")}
-                    className="inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-                  >
-                    <XIcon className="w-4 h-4" /> Remove
-                  </button>
-                )}
-              </div>
-              <Input
-                placeholder="Or paste an image URL…"
-                value={systemBannerUrl}
-                onChange={e => setSystemBannerUrl(e.target.value)}
-                className="mt-2 text-xs"
-              />
-              {systemBannerUrl && (
-                <div className="mt-3 space-y-3 rounded-xl border border-border/40 bg-muted/10 p-3">
+            {sysAvatarAssets && (
+              <AssetPickerModal open onClose={() => setSysAvatarAssets(false)} onSelect={(url) => { setSystemAvatarUrl(url); setSysAvatarAssets(false); }} />
+            )}
+            {sysBannerAssets && (
+              <AssetPickerModal open onClose={() => setSysBannerAssets(false)} onSelect={(url) => { setSystemBannerUrl(url); setSysBannerAssets(false); }} />
+            )}
+            {systemBannerUrl && (
+                <div>
+                  <SubSection title="Banner display" defaultOpen={false}>
                   <div>
                     <div className="flex items-center justify-between">
                       <Label className="text-xs font-medium">Banner height</Label>
@@ -541,9 +524,9 @@ export default function Settings() {
                       "Home pages" = your dashboard and {terms.alters} directory.
                     </p>
                   </div>
+                  </SubSection>
                 </div>
               )}
-            </div>
             <div>
               <Label className="text-sm font-medium">{terms.System} Name</Label>
               <Input placeholder={`Enter your ${terms.system} name...`} value={systemName}
@@ -564,73 +547,49 @@ export default function Settings() {
               {saved ? "Saved!" : "Save"}
             </Button>
           </div>
-          <TermsSettings />
         </Section>
 
-        {/* ── APPEARANCE ── */}
-        <Section id="appearance" icon="🎨" label="Appearance">
+        {/* ── APPEARANCE ──
+            The entire Appearance body lives in AdvancedAppearance so
+            the theme / font / preset state (shared via useTheme + local
+            useState) stays in one component. It renders the full
+            structured layout: UI size, Advanced, Fonts, Theme, Corner
+            style, Presets, Dashboard layout, Navigation, Upcoming plans. */}
+        <Section id="appearance" icon={Palette} label="Appearance">
           <AdvancedAppearance />
-          <div className="border-t border-border/30 pt-4">
-            <CornerStyleSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <AlterLabelSettings />
-          </div>
-          <DashboardLayoutSettings />
-          <div className="border-t border-border/30 pt-4">
-            <UpcomingPlansSurfacesSection />
-          </div>
-          <NavigationSettings settings={settings} />
         </Section>
 
         {/* ── NOTIFICATIONS & REMINDERS ── */}
-        <Section id="notifications" icon="🔔" label="Notifications & reminders">
-          <div className="space-y-6">
-            <NotificationSettings />
-            <div className="pt-4 border-t border-border/40">
-              <RemindersSettings />
-            </div>
-          </div>
+        <Section id="notifications" icon={Bell} label="Notifications & reminders">
+          <SubSection title="In-app notifications" defaultOpen={false}><NotificationSettings /></SubSection>
+          <SubSection title="Reminders" defaultOpen={false}><RemindersSettings /></SubSection>
         </Section>
 
         {/* ── ACCESSIBILITY ── */}
-        <Section id="accessibility" icon="♿" label="Accessibility">
+        <Section id="accessibility" icon={Accessibility} label="Accessibility">
           <AccessibilitySettings />
         </Section>
 
         {/* ── ALTER SETUP ── */}
-        <Section id="alters" icon="👥" label={`${terms.Alter} setup`}>
-          <CustomFieldsManager />
-          <div className="border-t border-border/30 pt-4">
-            <RelationshipTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <ArchivedAltersManager />
-          </div>
+        <Section id="alters" icon={Users} label={`${terms.Alter} setup`}>
+          <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
+          <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
+          <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
+          <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
         </Section>
 
         {/* ── TRACKING SETUP ── */}
-        <Section id="checkin" icon="⚡" label="Tracking setup">
-          <QuickActionsConfig />
-          <div className="border-t border-border/30 pt-4 flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Zap className="w-4 h-4 text-primary" />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">Check-In Manager</p>
-                <p className="text-xs text-muted-foreground">Configure quick check-in fields</p>
-              </div>
+        <Section id="checkin" icon={Activity} label="Tracking setup">
+          <SubSection title="Quick actions" defaultOpen={false}><QuickActionsConfig /></SubSection>
+          <SubSection title="Check-in manager" defaultOpen={false}>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-xs text-muted-foreground">Configure the fields shown in the quick check-in.</p>
+              <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
             </div>
-            <Button size="sm" variant="outline" onClick={() => navigate("/manage-checkin")}>Open</Button>
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <CustomEmotionsManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <CustomTriggerTypesManager />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          </SubSection>
+          <SubSection title="Custom emotions" defaultOpen={false}><CustomEmotionsManager /></SubSection>
+          <SubSection title="Custom triggers" defaultOpen={false}><CustomTriggerTypesManager /></SubSection>
+          <SubSection title="Analytics & attribution" defaultOpen={false}>
             <div>
               <p className="text-sm font-semibold mb-1">Analytics grouping</p>
               <p className="text-xs text-muted-foreground mb-3">
@@ -668,41 +627,89 @@ export default function Settings() {
                 </p>
               )}
             </div>
-          </div>
+
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={inferPresence}
+                  onClick={() => { const next = !inferPresence; setInferPresence(next); setInferPresenceEnabled(next); }}
+                  className={`mt-0.5 flex-shrink-0 w-10 h-6 rounded-full transition-colors relative ${inferPresence ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${inferPresence ? "left-[1.125rem]" : "left-0.5"}`} />
+                </button>
+                <span className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">Infer presence from authored content</p>
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                    When an {terms.alter} posts a chat message, bulletin, or journal, treat that as them being present for a window around then — so activities, emotions and symptoms logged nearby get attributed to them even without {terms.fronting} tracking. Turning this off makes analytics use only tracked {terms.fronting} sessions.
+                  </p>
+                </span>
+              </label>
+              {inferPresence && (
+                <div className="mt-3 pl-[3.25rem]">
+                  <p className="text-xs font-medium text-muted-foreground mb-1.5">
+                    Presence window — how long around each post counts
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {[
+                      { min: 30, label: "30 min" },
+                      { min: 60, label: "1 hour" },
+                      { min: 120, label: "2 hours" },
+                      { min: 180, label: "3 hours" },
+                      { min: 240, label: "4 hours" },
+                      { min: 360, label: "6 hours" },
+                    ].map((opt) => {
+                      const active = inferWindow === opt.min;
+                      return (
+                        <button
+                          key={opt.min}
+                          type="button"
+                          onClick={() => { setInferWindow(opt.min); setInferPresenceWindowMinutes(opt.min); }}
+                          className={`px-2.5 py-1 rounded-full text-xs font-medium border transition-colors ${
+                            active
+                              ? "border-primary/60 bg-primary/10 text-primary"
+                              : "border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                          }`}
+                        >
+                          {opt.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <p className="text-[0.6875rem] text-muted-foreground/80 mt-1.5 leading-snug">
+                    The window is centered on each post (±{inferWindow >= 60 ? `${(inferWindow / 2 / 60).toLocaleString(undefined, { maximumFractionDigits: 1 })} hour${inferWindow / 2 / 60 === 1 ? "" : "s"}` : `${inferWindow / 2} min`}). Changing it re-shapes analytics immediately.
+                  </p>
+                </div>
+              )}
+            </div>
+          </SubSection>
         </Section>
 
         {/* ── DATA & PRIVACY ── */}
-        <Section id="data" icon="💾" label="Data & privacy">
+        <Section id="data" icon={Database} label="Data & privacy">
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
           {/* Backup & Export first — it's the action people open this
               section to do most often. Auto-backup follows it so both
               manual and scheduled backups live together. */}
-          <div className="border-t border-border/30 pt-4">
-            <DataBackupRestore />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <AutoBackupSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <StorageModeSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
-            <GroceryPanicTapsSettings />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore /></SubSection>
+          <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
+          <SubSection title="Storage & encryption" defaultOpen={false}><StorageModeSettings /></SubSection>
+          <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
+          <SubSection title="Simply Plural" defaultOpen={false}>
             <SimplyPluralConnect settings={settings} onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }} />
-          </div>
-          <div className="border-t border-border/30 pt-4">
+          </SubSection>
+          <SubSection title="PluralKit" defaultOpen={false}>
             <PluralKitConnect settings={settings} onSettingsChange={() => {
               refetch();
               queryClient.invalidateQueries({ queryKey: ["alters"] });
             }} />
-          </div>
+          </SubSection>
         </Section>
 
         {/* ── ABOUT & HELP ──
@@ -710,48 +717,19 @@ export default function Settings() {
             disclaimer, recent updates, bug report, dev preview mode)
             into one collapsed group so the TOC isn't dominated by
             rarely-touched links. */}
-        <Section id="about" icon="ℹ️" label="About & help">
-          <div className="space-y-5">
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Found a bug?
-              </p>
-              <p className="text-sm text-muted-foreground leading-relaxed mb-2">
-                Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
-              </p>
-              <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
-                <span>🐛</span> Open bug report form
-              </Button>
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Tour & onboarding
-              </p>
-              <PageTutorialsControls />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Medical disclaimer
-              </p>
-              <MedicalDisclaimer />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                Preview mode <span className="text-[0.625rem] font-normal text-muted-foreground/70 normal-case ml-1">(dev)</span>
-              </p>
-              <PreviewModeSection />
-            </div>
-
-            <div className="pt-4 border-t border-border/40">
-              <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-2">
-                What's new
-              </p>
-              <RecentUpdates />
-            </div>
-          </div>
+        <Section id="about" icon={Info} label="About & help">
+          <SubSection title="Found a bug?" defaultOpen={false}>
+            <p className="text-sm text-muted-foreground leading-relaxed mb-2">
+              Open a bug report. Your app version, URL, and browser info are auto-attached so we can reproduce it. Reports land on the project's GitHub Issues page where they're labelled and triaged.
+            </p>
+            <Button onClick={() => setShowBugReport(true)} variant="outline" className="gap-2">
+              <Bug className="w-4 h-4" /> Open bug report form
+            </Button>
+          </SubSection>
+          <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
+          <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
+          <SubSection title="Preview mode (dev)" defaultOpen={false}><PreviewModeSection /></SubSection>
+          <SubSection title="What's new" defaultOpen={false}><RecentUpdates /></SubSection>
         </Section>
 
       </div>

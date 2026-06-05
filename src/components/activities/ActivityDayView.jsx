@@ -123,13 +123,15 @@ function AlterAvatar({ alterId, alters }) {
   );
 }
 
-// Tall color block for timed activities
-function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptomsMap }) {
+// Tall color block for timed activities. Emotions are NOT shown here — a
+// check-in's emotions render once per hour-row at the slot level (see below),
+// so they don't get duplicated onto every activity (and onto every hour a
+// long activity spans).
+function ActivityBlock({ activity, getColor, alters, alterIds, symptomsMap }) {
   const color = getColor(activity);
   const status = statusFor(activity);
   const v = visualForStatus(status);
   const needsReview = isPastTimeScheduled(activity);
-  const allEmotions = [...new Set([...(activity.emotions || []), ...emotions])];
   return (
     <div
       className="rounded-lg overflow-hidden relative w-full"
@@ -167,28 +169,19 @@ function ActivityBlock({ activity, getColor, alters, emotions, alterIds, symptom
         {activity.notes && (
           <p className="text-white/65 text-xs italic mt-1 leading-snug break-words">{activity.notes}</p>
         )}
-        {allEmotions.length > 0 && (
-          <div className="flex flex-wrap gap-1 mt-1.5">
-            {allEmotions.map((em, i) => (
-              <span key={i} className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium bg-black/20">
-                {em}
-              </span>
-            ))}
-          </div>
-        )}
         <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
       </div>
     </div>
   );
 }
 
-// Small colored pill for logged (no-duration) activities
-function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAlterIds = [], symptomsMap = {} }) {
+// Small colored pill for logged (no-duration) activities. Like ActivityBlock,
+// emotions are rendered once at the slot level, not per pill.
+function LoggedPill({ activity, getColor, alters = [], slotAlterIds = [], symptomsMap = {} }) {
   const color = getColor(activity);
   const status = statusFor(activity);
   const v = visualForStatus(status);
   const needsReview = isPastTimeScheduled(activity);
-  const emotions = [...new Set([...(activity.emotions || []), ...slotEmotions])];
   const alterIds = [...new Set([...(activity.fronting_alter_ids || []), ...slotAlterIds])];
   return (
     <div className="flex flex-col gap-1">
@@ -222,15 +215,6 @@ function LoggedPill({ activity, getColor, alters = [], slotEmotions = [], slotAl
       </div>
       {activity.notes && (
         <p className="text-xs text-muted-foreground italic leading-snug pl-1 break-words">{activity.notes}</p>
-      )}
-      {emotions.length > 0 && (
-        <div className="flex flex-wrap gap-1 pl-1">
-          {emotions.map((em, i) => (
-            <span key={i} className="inline-flex items-center px-1.5 py-0.5 rounded-full text-white text-[0.625rem] font-medium" style={{ backgroundColor: emotionColor(em) }}>
-              {em}
-            </span>
-          ))}
-        </div>
       )}
       <SymptomPills symptomIds={activity.symptom_ids} symptomsMap={symptomsMap} />
     </div>
@@ -291,6 +275,13 @@ export default function ActivityDayView({
     });
   }, [activities, dateStr]);
 
+  // Quick plans are date-only ("no set time") — they get a 23:59 timestamp
+  // so they'd otherwise pile up in the 11pm hour slot at the very bottom of
+  // the day. Pull them into their own top-of-day section and keep them out
+  // of the hourly timeline below.
+  const quickPlans = useMemo(() => dayActivities.filter(a => a.is_quick_plan), [dayActivities]);
+  const timedActivities = useMemo(() => dayActivities.filter(a => !a.is_quick_plan), [dayActivities]);
+
   const totalDuration = useMemo(() => {
     const dayStart = parseDate(dateStr);
     const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -311,14 +302,14 @@ export default function ActivityDayView({
   const getColor = useCallback((act) => getActivityColor(act, catById), [catById]);
 
   const getSlotData = useCallback((hour) => {
-    const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, dayActivities);
+    const { timed, logged } = getActivitiesForSlot(date, hour, 0, INTERVAL, timedActivities);
     const hasActivities = timed.length > 0 || logged.length > 0;
     // Only attach alters/emotions/locations to rows that actually have activities
     const alterIds = hasActivities ? getAlterIdsForSlot(date, hour, 0, INTERVAL, frontingHistory) : [];
-    const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, dayActivities, emotionCheckIns) : [];
+    const emotions = hasActivities ? getEmotionsForSlot(date, hour, 0, INTERVAL, timedActivities, emotionCheckIns) : [];
     const locations = hasActivities ? getLocationsForSlot(date, hour, 0, INTERVAL, locationRecords) : [];
     return { timed, logged, alterIds, emotions, locations };
-  }, [date, dayActivities, frontingHistory, emotionCheckIns, locationRecords]);
+  }, [date, timedActivities, frontingHistory, emotionCheckIns, locationRecords]);
 
   const segments = useMemo(() => buildSegments(getSlotData), [getSlotData]);
   const allEmpty = dayActivities.length === 0;
@@ -401,6 +392,27 @@ export default function ActivityDayView({
       {/* Scrollable timeline */}
       <div ref={scrollRef} className="flex-1 overflow-y-auto">
         <div className="pb-32">
+
+          {/* Quick plans — date-only, "no set time". Their own section at the
+              top of the day instead of being buried in the 11pm slot. */}
+          {quickPlans.length > 0 && (
+            <div className="border-b border-border/30 bg-muted/10 px-3 py-3">
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
+                <span aria-hidden>✨</span> Quick plans · no set time
+              </p>
+              <div className="space-y-2">
+                {quickPlans.map(a => (
+                  <div
+                    key={a.id}
+                    className="cursor-pointer"
+                    onClick={() => onActivityClick?.([a])}
+                  >
+                    <LoggedPill activity={a} getColor={getColor} alters={alters} symptomsMap={symptomsMap} />
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Full-day empty state */}
           {allEmpty ? (
@@ -501,14 +513,17 @@ export default function ActivityDayView({
                         activity={a}
                         getColor={getColor}
                         alters={alters}
-                        emotions={emotions}
                         alterIds={alterIds}
                         symptomsMap={symptomsMap}
                       />
                     ))}
                     {logged.map(a => (
-                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotEmotions={emotions} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
+                      <LoggedPill key={a.id} activity={a} getColor={getColor} alters={alters} slotAlterIds={alterIds} symptomsMap={symptomsMap} />
                     ))}
+                    {/* Emotions logged in this hour (from check-ins) — shown ONCE
+                        per hour-row, not duplicated onto each activity or onto
+                        every hour a long activity spans. */}
+                    <EmotionPills emotions={emotions} />
                     <LocationPills locations={locations} />
                   </div>
                 </div>

@@ -16,7 +16,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { markTermsCustomizedToday } from "@/lib/dailyTaskSystem";
 
-export default function TermsSettings() {
+export default function TermsSettings({ embedded = false } = {}) {
   const qc = useQueryClient();
   const terms = useTerms();
   const [vals, setVals] = useState({
@@ -108,31 +108,20 @@ export default function TermsSettings() {
     { key: "front", label: "Front", hint: "e.g. front, active, present" },
   ];
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <Languages className="w-5 h-5 text-accent-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Terminology</CardTitle>
-            <CardDescription>Customize the language used throughout the app</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-2 gap-2">
-          {PRESETS.map((p, i) => (
-            <button
-              key={i}
-              onClick={() => applyPreset(p)}
-              className="rounded-xl border border-border/50 p-2.5 text-left text-xs hover:border-primary/50 hover:bg-primary/5 transition-all"
-            >
-              <p className="font-medium text-foreground">{p.label}</p>
-              <p className="text-[0.6875rem] text-muted-foreground mt-0.5">{p.alter} · {p.front}ing</p>
-            </button>
-          ))}
+  const inner = (
+    <div className="space-y-4">
+        <div>
+          <label className="text-xs font-medium text-muted-foreground block mb-1">Preset</label>
+          <select
+            value=""
+            onChange={(e) => { const p = PRESETS[Number(e.target.value)]; if (p) applyPreset(p); }}
+            className="w-full h-9 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="">Choose a preset to fill the terms below…</option>
+            {PRESETS.map((p, i) => (
+              <option key={i} value={i}>{p.label} — {p.alter} · {p.front}ing</option>
+            ))}
+          </select>
         </div>
         <div className="grid grid-cols-2 gap-3">
           {fields.map(({ key, label, hint }) => (
@@ -220,7 +209,27 @@ export default function TermsSettings() {
         <Button onClick={handleSave} disabled={saving} size="sm" className="bg-primary hover:bg-primary/90">
           {saving ? <><span className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2" />Saving...</> : <><Save className="w-4 h-4 mr-2" />Save Terms</>}
         </Button>
-      </CardContent>
+    </div>
+  );
+
+  // Embedded mode (inside a Settings SubSection) drops the heavyweight Card
+  // header — the SubSection already provides the "Terminology" title.
+  if (embedded) return inner;
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <Languages className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Terminology</CardTitle>
+            <CardDescription>Customize the language used throughout the app</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-4">{inner}</CardContent>
     </Card>
   );
 }

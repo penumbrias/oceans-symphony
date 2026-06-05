@@ -297,7 +297,22 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
       </div>
 
       {/* Content */}
-      <div className="text-sm text-foreground leading-relaxed mb-3 bulletin-prose" onClick={(e) => e.stopPropagation()}>
+      <div
+        className="text-sm text-foreground leading-relaxed mb-3 bulletin-prose"
+        onClick={(e) => {
+          // Don't let a content tap trigger the card's open/expand handler…
+          e.stopPropagation();
+          // …but DO reveal a tapped whisper / spoiler bar. The card's
+          // stopPropagation otherwise prevents the bubble from reaching
+          // AppLayout's global reveal handler, which is why whispers wouldn't
+          // open from the dashboard / board list (only on the full bulletin
+          // page, which renders content without this wrapper).
+          const wh = e.target?.closest?.(".whisper");
+          if (wh) { wh.classList.toggle("revealed"); return; }
+          const sp = e.target?.closest?.(".spoiler");
+          if (sp) sp.classList.toggle("revealed");
+        }}
+      >
         {renderBulletinContent(bulletin.content, alters, terms)}
       </div>
 

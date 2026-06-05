@@ -29,7 +29,7 @@ const OPTIONS = [
 
 const SAMPLE = { name: "(,,,) | aleks < he >", alias: "aleks" };
 
-export default function AlterLabelSettings() {
+export default function AlterLabelSettings({ embedded = false } = {}) {
   const qc = useQueryClient();
   const terms = useTerms();
   const { data: list = [] } = useQuery({
@@ -57,22 +57,8 @@ export default function AlterLabelSettings() {
     }
   };
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Tag className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">{terms.Alter} labels in lists</CardTitle>
-            <CardDescription>
-              How {terms.alters} appear in dropdowns, pickers, mention popups, and other lists across the app.
-            </CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
+  const list2 = (
+    <div className="space-y-2">
         {OPTIONS.map((opt) => {
           const selected = current === opt.id;
           return (
@@ -105,7 +91,27 @@ export default function AlterLabelSettings() {
             </button>
           );
         })}
-      </CardContent>
+    </div>
+  );
+
+  if (embedded) return list2;
+
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <Tag className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">{terms.Alter} labels in lists</CardTitle>
+            <CardDescription>
+              How {terms.alters} appear in dropdowns, pickers, mention popups, and other lists across the app.
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>{list2}</CardContent>
     </Card>
   );
 }

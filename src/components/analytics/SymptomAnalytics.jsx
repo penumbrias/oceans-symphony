@@ -6,6 +6,7 @@ import {
   LineChart, Line, CartesianGrid, Cell,
 } from "recharts";
 import { format, parseISO, isWithinInterval } from "date-fns";
+import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 
 export default function SymptomAnalytics({ startDate, endDate, symptomSessions = null, symptomCheckIns = null, symptoms: propsSymptoms = null }) {
   // Use pre-fetched data if provided, otherwise fetch
@@ -27,10 +28,18 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
     enabled: !symptomSessions,
   });
 
-  const { data: frontSessions = [] } = useQuery({
+  const { data: rawFrontSessions = [] } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
+  // Augment real fronting sessions with inferred-from-authorship presence so
+  // symptom↔alter correlation also reflects who was around (via what they
+  // posted), not only tracked fronting.
+  const { inferredSessions } = useAuthoredPresence();
+  const frontSessions = useMemo(
+    () => [...rawFrontSessions, ...inferredSessions],
+    [rawFrontSessions, inferredSessions]
+  );
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],

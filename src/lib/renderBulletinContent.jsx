@@ -13,7 +13,7 @@ import { Link } from "react-router-dom";
 // images and http(s)/data:image. Tags outside the allowlist are stripped
 // (their inner text is kept).
 const ALLOWED_TAGS = new Set([
-  "b", "strong", "i", "em", "u", "s", "br", "p", "ul", "ol", "li", "a",
+  "b", "strong", "i", "em", "u", "s", "strike", "br", "p", "ul", "ol", "li", "a",
   // rich additions
   "h1", "h2", "h3", "blockquote", "code", "sup", "sub", "hr", "span", "div", "img",
 ]);
@@ -45,6 +45,15 @@ function cssStringToStyleObject(styleStr) {
 
 // Term placeholders authors can drop into bulletin content so a system that
 // renames "alter" to e.g. "headmate" still reads correctly.
+// Convert Discord-style ||spoiler|| markers into a censor span. The bar is
+// styled by the global `.spoiler` CSS and revealed on tap by the delegated
+// handler in AppLayout. Applied by every rich renderer so the syntax works
+// everywhere it's typed (bios, bulletins, chat).
+export function spoilersToHtml(content) {
+  if (!content || typeof content !== "string") return content || "";
+  return content.replace(/\|\|([^|]+?)\|\|/g, '<span class="spoiler">$1</span>');
+}
+
 function applyTerms(content, terms) {
   if (!terms || !content) return content || "";
   const map = {
@@ -96,13 +105,19 @@ function nodeToReact(node, key, renderText) {
   if (tag === "br") return <br key={key} />;
   if (tag === "hr") return <hr key={key} className="my-2 border-border/60" />;
   if (tag === "a") {
+    // Internal app links from the link picker carry their route in
+    // `data-internal-link` (no href); a plain relative href ("/…") is also
+    // treated as in-app. Either renders as a router <Link> so it actually
+    // navigates instead of collapsing to plain text. `//` (protocol-relative)
+    // is NOT in-app.
+    const internal = node.getAttribute("data-internal-link") || "";
     const href = node.getAttribute("href") || "";
-    const safe = /^(https?:|mailto:|\/)/i.test(href) ? href : null;
-    if (!safe) return <React.Fragment key={key}>{children}</React.Fragment>;
-    // Internal app links (start with "/") stay in-app; external open in a tab.
-    if (safe.startsWith("/")) {
-      return <Link key={key} to={safe} className="underline text-primary">{children}</Link>;
+    const route = /^\/(?!\/)/.test(internal) ? internal : (/^\/(?!\/)/.test(href) ? href : null);
+    if (route) {
+      return <Link key={key} to={route} className="underline text-primary">{children}</Link>;
     }
+    const safe = /^(https?:|mailto:)/i.test(href) ? href : null;
+    if (!safe) return <React.Fragment key={key}>{children}</React.Fragment>;
     return (
       <a key={key} href={safe} target="_blank" rel="noopener noreferrer" className="underline text-primary">
         {children}
@@ -127,6 +142,18 @@ function nodeToReact(node, key, renderText) {
   const styleObj = cssStringToStyleObject(node.getAttribute("style"));
   const props = { key };
   if (styleObj) props.style = styleObj;
+  // Preserve the whitelisted "spoiler" / "whisper" classes so censor bars
+  // and whispers survive (class is otherwise dropped). Safe — a class name
+  // can't execute anything. The whisper carries its recipient names in a
+  // data-* attribute that the CSS label reads.
+  const cls = node.getAttribute("class") || "";
+  if (/\bwhisper\b/.test(cls)) {
+    props.className = "whisper";
+    const forNames = node.getAttribute("data-whisper-for");
+    if (forNames != null) props["data-whisper-for"] = forNames;
+  } else if (/\bspoiler\b/.test(cls)) {
+    props.className = "spoiler";
+  }
   return React.createElement(tag, props, children);
 }
 
@@ -135,7 +162,7 @@ function nodeToReact(node, key, renderText) {
 // each surface (bulletins, chat) can plug in its own @mention highlighter
 // while sharing the tag allowlist, style sanitisation, and <img> safety.
 export function renderRichContent(content, { renderText, terms = null } = {}) {
-  const processed = applyTerms(content, terms);
+  const processed = spoilersToHtml(applyTerms(content, terms));
   const rt = renderText || ((text, key) => <React.Fragment key={key}>{text}</React.Fragment>);
   if (typeof window === "undefined" || !window.DOMParser) {
     return rt(processed, "rc");

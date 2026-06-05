@@ -62,11 +62,17 @@ export function membersForBranch(activities, pivot, branch) {
 // awaits — the underlying entity layer is local-first IndexedDB so the
 // overhead is negligible and we get predictable ordering for the
 // invalidation tick. Skips records whose id is missing (defensive).
+// `edits` may be a plain patch object (applied to every member) OR a
+// function (member) => patch, so callers can compute per-member fields —
+// e.g. keep each occurrence's planned/logged status correct for its own
+// timestamp instead of forcing the edited one's status onto its siblings.
 export async function applyEditToSeries(members, edits) {
   let count = 0;
   for (const m of members || []) {
     if (!m?.id) continue;
-    await base44.entities.Activity.update(m.id, edits);
+    const patch = typeof edits === "function" ? edits(m) : edits;
+    if (!patch) continue;
+    await base44.entities.Activity.update(m.id, patch);
     count += 1;
   }
   return count;

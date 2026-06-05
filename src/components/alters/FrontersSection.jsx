@@ -1,6 +1,7 @@
 import React from "react";
 import { User, RefreshCw } from "lucide-react";
 import { motion } from "framer-motion";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -15,6 +16,7 @@ function getContrastColor(hex) {
 function FronterAvatar({ alter }) {
   const color = alter?.color || "";
   const textColor = color ? getContrastColor(color) : null;
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
 
   return (
     <motion.div
@@ -26,9 +28,9 @@ function FronterAvatar({ alter }) {
         className="w-16 h-16 rounded-2xl overflow-hidden border-2 border-border/60 shadow-md flex items-center justify-center"
         style={{ backgroundColor: color || "hsl(var(--muted))" }}
       >
-        {alter?.avatar_url ? (
+        {resolvedUrl ? (
           <img
-            src={alter.avatar_url}
+            src={resolvedUrl}
             alt={alter.name}
             className="w-full h-full object-cover"
             onError={(e) => { e.target.style.display = "none"; }}

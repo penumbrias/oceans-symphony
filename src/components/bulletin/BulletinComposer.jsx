@@ -7,12 +7,14 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
+import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -54,10 +56,6 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [saving, setSaving] = useState(false);
-  const [showMentions, setShowMentions] = useState(false);
-  const [mentionQuery, setMentionQuery] = useState("");
-  const [showSignpostMenu, setShowSignpostMenu] = useState(false);
-  const [signpostQuery, setSignpostQuery] = useState("");
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -120,100 +118,22 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
   }, []);
 
-  // Alters hidden from @mention / -signpost suggestions via a group's
-  // "hide from mentions" toggle. Typing a full name still resolves — this
-  // only trims the suggestion lists.
-  const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const hiddenFromMentions = React.useMemo(
-    () => getAlterIdsByGroupFlag(allGroups, alters, "hide_from_mentions"),
-    [allGroups, alters]
-  );
-  const activeAlters = alters.filter(a => !a.is_archived && !hiddenFromMentions.has(a.id));
-
-  const filteredMentions = activeAlters.filter(a =>
-    a.name.toLowerCase().includes(mentionQuery.toLowerCase()) ||
-    (a.alias && a.alias.toLowerCase().includes(mentionQuery.toLowerCase()))
-  );
-
-  const filteredSignposts = activeAlters.filter(a =>
-    a.name.toLowerCase().includes(signpostQuery.toLowerCase()) ||
-    (a.alias && a.alias.toLowerCase().includes(signpostQuery.toLowerCase()))
-  );
-
-  // System-level signpost suggestion. Surfaces in the dropdown just
-  // like an alter would, with the user's system name + system avatar
-  // so it reads as another author option. Matches the query against
-  // the canonical "system" word, the user's term, and any word in the
-  // system name.
-  const systemSignpostMatches = (() => {
-    const q = (signpostQuery || "").toLowerCase();
-    if (!q) return true;
-    if ("system".startsWith(q)) return true;
-    if (terms.system && terms.system.toLowerCase().startsWith(q)) return true;
-    if (systemIdentity.name) {
-      const tokens = systemIdentity.name.toLowerCase().split(/\s+/);
-      if (tokens.some((t) => t.startsWith(q))) return true;
-    }
-    return false;
-  })();
-
-  const insertMention = (alter) => {
-    const lastAt = content.lastIndexOf("@");
-    const beforeAt = lastAt !== -1 ? content.slice(0, lastAt) : content;
-    setContent(beforeAt + `@${alter.alias || alter.name} `);
-    setShowMentions(false);
-    setMentionQuery("");
-    textareaRef.current?.focus();
-  };
-
-  const insertSignpost = (alter) => {
-    const lastDash = content.lastIndexOf("-");
-    const before = lastDash !== -1 ? content.slice(0, lastDash) : content;
-    const token = alter.isSystem ? "system" : (alter.alias || alter.name);
-    setContent(before + `-${token} `);
-    setShowSignpostMenu(false);
-    setSignpostQuery("");
-    textareaRef.current?.focus();
-  };
-
-  const handleContentChange = (e) => {
-    const val = e.target.value;
-    setContent(val);
-
-    // @ mention detection
-    const lastAt = val.lastIndexOf("@");
-    if (lastAt !== -1 && !val.slice(lastAt + 1).includes(" ")) {
-      setShowMentions(true);
-      setMentionQuery(val.slice(lastAt + 1));
-      setShowSignpostMenu(false);
-    } else {
-      setShowMentions(false);
-    }
-
-    // - signpost detection
-    const lastDash = val.lastIndexOf("-");
-    if (lastDash !== -1 && !val.slice(lastDash + 1).includes(" ") && !showMentions) {
-      const afterDash = val.slice(lastDash + 1);
-      setShowSignpostMenu(true);
-      setSignpostQuery(afterDash);
-      setShowMentions(false);
-    } else if (!val.endsWith("-") || showMentions) {
-      setShowSignpostMenu(false);
-    }
-  };
-
-  const extractMentionedIds = (text) => {
-    const mentioned = new Set();
-    alters.forEach(a => {
-      if (text.includes(`@${a.name}`) || (a.alias && text.includes(`@${a.alias}`))) mentioned.add(a.id);
-    });
-    return Array.from(mentioned);
-  };
+  // Mention/signpost autocomplete is handled inside <MentionTextarea/>
+  // (shared component). Save-path attribution below still uses the
+  // boundary-aware matcher from mentionUtils (so "@Sam" no longer matches
+  // inside "@Samantha").
 
   const handlePost = async () => {
     if (!content.trim()) return;
+    // Whisper transform first — bulletins are a posting surface, so a
+    // no-bracket "/w @name …" blurs the whole post (no warning). Bulletins
+    // always render rich, so keep the HTML raw (rich:true).
+    const w = applyWhisper(content, alters, { allowWholeBlur: true, rich: true, surfaceLabel: "bulletin" });
+    if (w === null) return; // user backed out of the whole-blur warning
+    const workingContent = w.content;
+    const whisperRecipientIds = w.recipientIds || [];
     setSaving(true);
-    const { authors: signpostedAuthors, cleanContent } = parseSignposts(content, alters, systemKeywords);
+    const { authors: signpostedAuthors, cleanContent } = parseSignposts(workingContent, alters, systemKeywords);
     // An explicit `-system` signpost short-circuits the whole
     // fronter-fallback path: the user has chosen to attribute this
     // bulletin to the system as a whole, even if someone is currently
@@ -244,14 +164,16 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
-    const mentionedIds = extractMentionedIds(cleanContent);
+    const mentionedIds = [...new Set([...extractMentionedIds(cleanContent, alters), ...whisperRecipientIds])];
 
     const data = {
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || authorAlterId || null),
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       mentioned_alter_ids: mentionedIds,
-      is_rich: richMode,
+      // A whisper embeds an HTML span, so force rich rendering even from
+      // Simple mode so it renders the hidden bar rather than raw tags.
+      is_rich: richMode || w.isWhisper,
       group_id: groupId || null,
       is_pinned: pinned,
       reactions: {},
@@ -325,6 +247,23 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       navigatePath: `/bulletin/${bulletin.id}`,
       authorAlterId: finalAuthorIds[0] || authorAlterId || null,
     });
+    // Whisper recipients are peeled off the body (so saveMentions can't see
+    // them) — notify them explicitly so the whisper reaches its target.
+    for (const rid of whisperRecipientIds) {
+      try {
+        await base44.entities.MentionLog.create({
+          mentioned_alter_id: rid,
+          author_alter_id: finalAuthorIds[0] || authorAlterId || null,
+          log_type: "mention",
+          source_type: "bulletin",
+          source_id: bulletin.id,
+          source_label: "Bulletin Board (whisper)",
+          source_date: new Date().toISOString(),
+          preview_text: "🔒 private whisper",
+          navigate_path: `/bulletin/${bulletin.id}`,
+        });
+      } catch { /* notification best-effort */ }
+    }
     // Log authored entry for each author's board
     for (const authorId of finalAuthorIds) {
       await saveAuthoredLog({
@@ -363,52 +302,17 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         </button>
       </div>
 
-      <div className="relative">
-        <Textarea
-          ref={textareaRef}
-          placeholder="Write a message… use @ to mention, -name to sign as author"
-          value={content}
-          onChange={handleContentChange}
-          className="min-h-[80px] text-sm resize-none"
-          autoFocus
-        />
-        {showMentions && filteredMentions.length > 0 && (
-          <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto">
-            {filteredMentions.slice(0, 8).map(a => (
-              <button key={a.id} onClick={() => insertMention(a)}
-                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm">
-                <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "hsl(var(--muted))" }} />
-                <span>{a.name}</span>
-                {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
-              </button>
-            ))}
-          </div>
-        )}
-        {showSignpostMenu && (filteredSignposts.length > 0 || systemSignpostMatches) && (
-          <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg mt-1 max-h-40 overflow-y-auto">
-            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
-            {systemSignpostMatches && (
-              <button
-                key={SYSTEM_SENTINEL_ID}
-                onClick={() => insertSignpost({ id: SYSTEM_SENTINEL_ID, isSystem: true, name: systemIdentity.name })}
-                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm"
-              >
-                <SystemAvatar size="sm" />
-                <span>{systemIdentity.name}</span>
-                <span className="text-muted-foreground text-xs ml-1">(no specific {terms.alter})</span>
-              </button>
-            )}
-            {filteredSignposts.slice(0, 8).map(a => (
-              <button key={a.id} onClick={() => insertSignpost(a)}
-                className="flex items-center gap-2 w-full px-3 py-2 hover:bg-muted/50 text-left text-sm">
-                <div className="w-6 h-6 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "hsl(var(--muted))" }} />
-                <span>{a.name}</span>
-                {a.alias && <span className="text-muted-foreground text-xs ml-1">({a.alias})</span>}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+      <MentionTextarea
+        ref={textareaRef}
+        value={content}
+        onChange={setContent}
+        alters={alters}
+        signposts
+        systemName={systemIdentity.name}
+        placeholder="Write a message… @ to mention, -name to sign, /w @name [secret] to whisper"
+        className="min-h-[80px] text-sm resize-none"
+        autoFocus
+      />
 
       {richMode && (
         <div className="mt-1.5 rounded-lg border border-border/50 overflow-hidden">
@@ -478,7 +382,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
               className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${showPoll ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
               <BarChart2 className="w-3.5 h-3.5" /> Poll
             </button>
-            <button onClick={() => { setShowMentions(true); setContent(c => c + "@"); textareaRef.current?.focus(); dismissHint(); }}
+            <button onClick={() => { setContent(c => c + "@"); textareaRef.current?.focus(); dismissHint(); }}
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
               <AtSign className="w-3.5 h-3.5" /> Mention
             </button>

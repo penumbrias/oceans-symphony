@@ -13,7 +13,7 @@ const Section = ({ title, children }) => (
 export default function Privacy() {
   const terms = useTerms();
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen text-foreground">
       <div className="max-w-2xl mx-auto px-5 py-10 space-y-8">
         {/* Header */}
         <div className="flex items-center gap-3">

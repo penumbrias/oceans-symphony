@@ -134,12 +134,18 @@ export function htmlToBlocks(html) {
       const textMatch = trimmed.match(/<div style="flex:1[^"]*">([\s\S]*?)<\/div>/);
       const isRight = trimmed.indexOf('<img') > trimmed.indexOf('min-width:160px');
       blocks.push({ id: uid(), type: isRight ? "img-right" : "img-left", src: srcMatch?.[1] || "", alt: altMatch?.[1] || "", size: sizeMatch ? parseInt(sizeMatch[1]) : 120, cropped: trimmed.includes('object-fit:cover'), text: textMatch?.[1] || "" });
-    } else if (trimmed.startsWith('<div style="margin:8px 0;text-align:')) {
-      const alignMatch = trimmed.match(/text-align:(\w+)/);
+    } else if (trimmed.startsWith('<div style="margin:8px 0;"') && trimmed.includes('<img')) {
+      // img-solo. The current serializer emits `<div style="margin:8px 0;">`
+      // with a single <img> whose own margin-left/right encodes alignment
+      // (the old `text-align:` form is no longer produced — matching only
+      // that dropped img-solo blocks into the generic "raw" branch).
       const srcMatch = trimmed.match(/img src="([^"]*)"/);
       const altMatch = trimmed.match(/img src="[^"]*" alt="([^"]*)"/);
       const sizeMatch = trimmed.match(/width:(\d+)px/);
-      blocks.push({ id: uid(), type: "img-solo", src: srcMatch?.[1] || "", alt: altMatch?.[1] || "", size: sizeMatch ? parseInt(sizeMatch[1]) : 240, align: alignMatch?.[1] || "left", cropped: trimmed.includes('object-fit:cover') });
+      const hasLeftAuto = /margin-left:auto/.test(trimmed);
+      const hasRightAuto = /margin-right:auto/.test(trimmed);
+      const align = hasLeftAuto && hasRightAuto ? "center" : hasLeftAuto ? "right" : "left";
+      blocks.push({ id: uid(), type: "img-solo", src: srcMatch?.[1] || "", alt: altMatch?.[1] || "", size: sizeMatch ? parseInt(sizeMatch[1]) : 240, align, cropped: trimmed.includes('object-fit:cover') });
     } else if (trimmed.startsWith('<div class="bio-text">')) {
       const content = trimmed.replace(/^<div class="bio-text">/, "").replace(/<\/div>$/, "");
       blocks.push({ id: uid(), type: "text", content });

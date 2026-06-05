@@ -5,6 +5,8 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Switch } from "@/components/ui/switch";
 import { readNotificationPrefs } from "@/lib/notificationPrefs";
+import { isNative } from "@/lib/platform";
+import { SubSection } from "@/components/settings/SettingsUI";
 
 // User-facing settings for the in-app toast surface. Persists to
 // SystemSettings.notification_prefs which Sonner's Toaster wrapper
@@ -83,6 +85,27 @@ export default function NotificationSettings() {
 
   return (
     <div className="space-y-5">
+      {isNative() && (
+        <SubSection title="Notifications when the app is closed" icon={Info} defaultOpen={false}>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Timed reminders you set are handed to Android and <strong className="text-foreground">do fire even when the app is closed</strong>.
+          </p>
+          <p className="text-xs text-muted-foreground leading-relaxed">
+            Other out-of-app alerts — like a friend changing who's fronting — rely on Android letting the app check in the background. Android limits this to keep the battery happy, so these checks run <strong className="text-foreground">roughly every 15 minutes, not instantly</strong>, and may not run at all if the app was <strong className="text-foreground">swiped away</strong> (force-stopped) or your phone is being aggressive about battery saving.
+          </p>
+          <div className="rounded-lg border border-border/40 bg-muted/15 p-2.5 space-y-1">
+            <p className="text-xs font-medium text-foreground">To make background alerts more reliable:</p>
+            <ol className="text-xs text-muted-foreground leading-relaxed list-decimal pl-4 space-y-0.5">
+              <li>Open Android <strong className="text-foreground">Settings → Apps → Oceans Symphony</strong>.</li>
+              <li>Tap <strong className="text-foreground">Battery</strong> and choose <strong className="text-foreground">Unrestricted</strong> (or turn off battery optimization for the app).</li>
+              <li>Try not to swipe the app fully closed if you want background checks to keep running.</li>
+            </ol>
+          </div>
+          <p className="text-[0.6875rem] text-muted-foreground/80 leading-relaxed">
+            Truly instant, reliable closed-app notifications need push (FCM) — that's on the way.
+          </p>
+        </SubSection>
+      )}
       <div>
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <Bell className="w-4 h-4" />

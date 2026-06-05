@@ -1,4 +1,4 @@
-import React, { useState, useRef, useMemo, useEffect, useCallback } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -7,13 +7,14 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, Loader2, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
+import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import useSwipeActions from "@/hooks/useSwipeActions";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { formatInTimeZone } from "date-fns-tz";
 
 const TRIGGER_CATEGORIES = [
@@ -233,7 +234,14 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove, onSolePrimary 
   );
 }
 
-export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession }) {
+// `selectionMode` (optional, non-breaking): when truthy, the modal does NOT
+// mutate any FrontingSession on save. Instead it returns the chosen alter ids
+// to the caller via `onConfirm(alterIds)` and closes. Used by the System
+// Meeting flow's "notice who's near" — the meeting adds the chosen alters as
+// participants rather than starting a front. All the switch-meta extras
+// (journal / triggered / unsure) are hidden in this mode since there's no
+// session to attach them to. When the prop is absent, behaviour is unchanged.
+export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
@@ -243,11 +251,28 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     queryFn: () => base44.entities.Alter.list(),
     enabled: open,
   });
-  const alters = altersProp?.length ? altersProp : fetchedAlters;
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    enabled: open,
+  });
+  // Group config: members of a group flagged "hide_from_set_front" are kept
+  // out of this picker.
+  const alters = useMemo(() => {
+    const base = altersProp?.length ? altersProp : fetchedAlters;
+    const hidden = getAlterIdsByGroupFlag(groups, base, "hide_from_set_front");
+    return hidden.size ? base.filter((a) => !hidden.has(a.id)) : base;
+  }, [altersProp, fetchedAlters, groups]);
   const [search, setSearch] = useState("");
   // Derive current fronter state from active sessions (new individual model)
   // currentSession may be a single session record; fetch all active sessions to initialize properly
   const getInitialState = () => {
+    // In selection mode there's no session — seed from the caller's preselection
+    // (e.g. the meeting's existing participants) so they show as already-chosen.
+    if (selectionMode) {
+      const ids = Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : [];
+      return { primary: "", coFronters: ids };
+    }
     if (!currentSession) return { primary: "", coFronters: [] };
     if (currentSession.alter_id) {
       // New model: we only have one session record here — we can only read this alter's primary state
@@ -331,6 +356,15 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     setTriggeredSwitch(false);
     setTriggerCategory("");
     setTriggerLabel("");
+
+    // Selection mode never touches FrontingSession — just (re)seed the
+    // pending selection from the caller's preselected ids and stop.
+    if (selectionMode) {
+      const ids = Array.isArray(preselectedIds) ? preselectedIds.filter(Boolean) : [];
+      setPrimaryId("");
+      setCoFronterIds(ids);
+      return;
+    }
 
     (async () => {
       try {
@@ -430,6 +464,13 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   }, [primaryId, coFronterIds]);
 
   const toggleAlter = (id) => {
+    // Selection mode has no "primary" concept — it's a flat multi-select, so
+    // toggling never promotes the first pick to primary (which would otherwise
+    // make it un-deselectable). Just add/remove from the co-fronter list.
+    if (selectionMode) {
+      setCoFronterIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+      return;
+    }
     if (primaryId === id) {
       setPrimaryId("");
       return;
@@ -443,6 +484,10 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   };
 
   const setPrimary = (id) => {
+    // No "primary" in selection mode — treat a primary gesture (long-press /
+    // swipe-left / star) as a plain toggle so it can't strand a ghost
+    // selection in primaryId.
+    if (selectionMode) { toggleAlter(id); return; }
     if (primaryId === id) {
       // Tapping primary fronter removes them from primary (co-front only)
       setPrimaryId("");
@@ -461,12 +506,23 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   // surfaces, but here it only rewrites the modal's pending selection
   // (it's applied when the user hits Save).
   const setSolePrimary = (id) => {
+    // Selection mode: "make sole" → select only this one (no primary concept).
+    if (selectionMode) { setPrimaryId(""); setCoFronterIds([id]); return; }
     setIsUnsure(false);
     setCoFronterIds([]);
     setPrimaryId(id);
   };
 
   const handleSave = async () => {
+    // Selection mode: hand the chosen alter ids back to the caller and close.
+    // No FrontingSession is read or written. An empty selection is allowed —
+    // the meeting just ends up with no participants added from here.
+    if (selectionMode) {
+      const ids = [...selectedIds];
+      onConfirm?.(ids);
+      onClose();
+      return;
+    }
     if (!isUnsure && !primaryId && coFronterIds.length === 0) {
       toast.error(`Select at least one ${terms.fronter} or mark as unsure`);
       return;
@@ -630,7 +686,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             {/* Right-pad past the 44x44 close X (positioned right-2)
                 so the label-mode toggle pill doesn't end up under it. */}
             <div className="flex items-center justify-between gap-2 pr-14">
-              <DialogTitle>Set {terms.Front}ers</DialogTitle>
+              <DialogTitle>{selectionMode ? `Notice who's near` : `Set ${terms.Front}ers`}</DialogTitle>
               <AlterLabelToggle size="xs" />
             </div>
           </DialogHeader>
@@ -662,9 +718,15 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           }
 
           <div className="text-xs text-muted-foreground space-y-1">
-            <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
-            <p>💡 On mobile: swipe right to toggle, swipe left to set primary, swipe left then up to make them the sole {terms.front}</p>
-            {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
+            {selectionMode ? (
+              <p>Tap an {terms.alter} to add or remove them from this meeting.</p>
+            ) : (
+              <>
+                <p>Tap to select · hold to set primary · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary {terms.alter}</p>
+                <p>💡 On mobile: swipe right to toggle, swipe left to set primary, swipe left then up to make them the sole {terms.front}</p>
+                {selectedIds.size > 0 && <p className="text-primary">Tap primary name to make them co-{terms.front} only</p>}
+              </>
+            )}
           </div>
 
           {/* Search and View Toggle */}
@@ -744,6 +806,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               </div>
             }
 
+            {!selectionMode && (
             <div className="space-y-2 pt-2 mt-2 border-t border-border/50">
               <div className="flex items-center gap-2" data-tour="setfront-journal">
                 <Checkbox
@@ -794,6 +857,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 </div>
               )}
             </div>
+            )}
           </div>
 
           {/* Pinned action bar — stays at the bottom and reachable no
@@ -807,6 +871,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               className="flex-shrink-0 px-3">
               <Trash2 className="w-4 h-4" />
             </Button>
+            {!selectionMode && (
             <Button
               variant={isUnsure ? "default" : "outline"}
               onClick={() => {
@@ -821,8 +886,9 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               <HelpCircle className="w-4 h-4 mr-2" />
               Unsure
             </Button>
+            )}
             <Button onClick={handleSave} loading={saving} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
-              Set {terms.Front}ers
+              {selectionMode ? (confirmLabel || "Add to meeting") : `Set ${terms.Front}ers`}
             </Button>
           </div>
         </DialogContent>

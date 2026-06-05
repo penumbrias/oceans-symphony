@@ -82,12 +82,29 @@ export default function StorageModeSettings() {
     if (newPassword.length < 6) { setError("Password must be at least 6 characters."); return; }
     setLoading(true);
     try {
-      await disableEncryption(oldPassword);
-      await enableEncryption(newPassword);
+      // Step 1 — decrypt with the old password. A wrong password throws here
+      // BEFORE any data is rewritten (initLocalDb refuses to clear the key),
+      // so the data stays safely encrypted.
+      try {
+        await disableEncryption(oldPassword);
+      } catch {
+        setError("Incorrect current password.");
+        return;
+      }
+      // Step 2 — the data is now plaintext on disk; re-encrypt with the new
+      // password. If THIS fails (rare), don't pretend it's still encrypted —
+      // reflect that it's currently unencrypted so the user can re-enable.
+      try {
+        await enableEncryption(newPassword);
+      } catch {
+        setEncryptionEnabled(false);
+        setError("Couldn't set the new password — your data is currently UNENCRYPTED. Re-enable encryption from Data Storage to protect it again.");
+        return;
+      }
       setSuccess("Password changed successfully.");
       setShowPasswordForm(null);
       setOldPassword(""); setNewPassword(""); setConfirmPassword("");
-    } catch { setError("Incorrect current password."); } finally { setLoading(false); }
+    } finally { setLoading(false); }
   };
 
   const resetForm = () => {
@@ -131,7 +148,7 @@ export default function StorageModeSettings() {
                 <span className="font-medium text-foreground">localStorage (always plaintext)</span> — small per-browser settings (theme, last-opened list ids, daily-task firing markers), native push registration IDs, the friends-server identity, and grocery lists you explicitly marked "available when locked". These stay on this device but are NOT covered by the encryption password.
               </p>
               <p>
-                <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (250,000 iterations). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
+                <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (100,000 iterations). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
               </p>
               <p>
                 <span className="font-medium text-foreground">Never stored</span> — analytics, crash telemetry, usage tracking, advertising IDs. There's no Symphony account and no server-side copy of your data. Friends Mode (off until you set it up) only sends your system name, display name, and chosen front-share level to the friends relay — never journals, emotions, symptoms, plans, locations, or chat.

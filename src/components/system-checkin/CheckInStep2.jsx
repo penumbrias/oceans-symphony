@@ -4,7 +4,6 @@ import { base44 } from "@/api/base44Client";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import AlterGroupPicker from "./AlterGroupPicker";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { useTerms } from "@/lib/useTerms";
 
@@ -14,7 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 // legacy string shape on load (existing records) but new saves are
 // always arrays.
 
-export default function CheckInStep2({ data, onChange, alters = [], groups = [] }) {
+export default function CheckInStep2({ data, onChange, alters = [], groups = [], children }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const step = data?.step2_notice || {};
@@ -69,19 +68,17 @@ export default function CheckInStep2({ data, onChange, alters = [], groups = [] 
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-3">
-            <div>
-              <Label className="text-sm mb-2 block">{terms.Alters} & Groups present</Label>
-              <AlterGroupPicker
-                alters={alters}
-                groups={groups}
-                selected={step.alters_present || []}
-                onChange={(selected) =>
-                  onChange({
-                    step2_notice: { ...step, alters_present: selected }
-                  })
-                }
-              />
-            </div>
+            {/* "Notice who's near" participants render at the TOP of Step 2,
+                directly under this card's single header — the "Choose who's
+                near…" button and per-participant panels (MeetingParticipants
+                Section, passed as children). There is exactly ONE "Notice
+                who's near" header (this card's title); the section below has
+                none of its own. */}
+            {children && (
+              <div className="pb-1">
+                {children}
+              </div>
+            )}
 
             <div>
               <Label className="text-sm mb-2 block">Feelings noticed</Label>

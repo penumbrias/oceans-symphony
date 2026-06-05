@@ -8,6 +8,7 @@ import { Plus, List, FolderTree, ArrowUpFromLine, Users, Crown, ExternalLink } f
 import { toast } from "sonner";
 import GroupTreeRow from "@/components/groups/GroupTreeRow.jsx";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { findRootGroups, findOrphanGroups, wouldCreateCycle, isRootParent } from "@/lib/groupTreeUtils";
 import { useTerms } from "@/lib/useTerms";
 
@@ -24,6 +25,10 @@ export default function GroupsManager() {
   const [isCreatingRoot, setIsCreatingRoot] = useState(false);
   const [draggedGroupId, setDraggedGroupId] = useState(null);
   const [creatingSubgroupFor, setCreatingSubgroupFor] = useState(null);
+  // New-group flow now uses the full "Add New Group" modal (avatar, colour,
+  // bio, profile style, config) instead of a bare name input.
+  const [createGroupOpen, setCreateGroupOpen] = useState(false);
+  const [createGroupParent, setCreateGroupParent] = useState(null);
   // "tree" (normal nested view) | "flat" (every group as a flat list,
   // so a buried group is always findable + one tap from being
   // rescued back to root).
@@ -170,8 +175,10 @@ export default function GroupsManager() {
   };
 
   const handleStartCreateSubgroup = (groupId) => {
-    setCreatingSubgroupFor(groupId);
-    setNewGroupName("");
+    // Open the full Add New Group modal with this group pre-set as the parent.
+    const parent = allGroups.find((g) => g.id === groupId) || null;
+    setCreateGroupParent(parent);
+    setCreateGroupOpen(true);
   };
 
   const handleDeleteGroup = async (groupId) => {
@@ -186,7 +193,7 @@ export default function GroupsManager() {
   };
 
   return (
-    <div className="min-h-screen bg-background p-6">
+    <div className="min-h-screen p-6">
       <div className="max-w-2xl mx-auto">
         <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
           <div>
@@ -356,39 +363,27 @@ export default function GroupsManager() {
           )}
         </div>
 
-        {/* Create Root Group */}
-        {!isCreatingRoot ? (
-          <Button
-            onClick={() => setIsCreatingRoot(true)}
-            variant="outline"
-            className="gap-2"
-          >
-            <Plus className="w-4 h-4" />
-            New Root Group
-          </Button>
-        ) : (
-          <div className="flex gap-2">
-            <Input
-              autoFocus
-              value={newGroupName}
-              onChange={(e) => setNewGroupName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") handleCreateRootGroup();
-                if (e.key === "Escape") setIsCreatingRoot(false);
-              }}
-              placeholder="New group name"
-              className="flex-1"
-            />
-            <Button onClick={handleCreateRootGroup} className="bg-primary hover:bg-primary/90">
-              Create
-            </Button>
-            <Button onClick={() => setIsCreatingRoot(false)} variant="outline">
-              Cancel
-            </Button>
-          </div>
-        )}
+        {/* Create Root Group — opens the full Add New Group modal */}
+        <Button
+          onClick={() => { setCreateGroupParent(null); setCreateGroupOpen(true); }}
+          variant="outline"
+          className="gap-2"
+        >
+          <Plus className="w-4 h-4" />
+          New Group
+        </Button>
         </>
         )}
+
+        <CreateGroupModal
+          open={createGroupOpen}
+          parentGroup={createGroupParent}
+          onClose={() => {
+            setCreateGroupOpen(false);
+            setCreateGroupParent(null);
+            queryClient.invalidateQueries({ queryKey: ["groups"] });
+          }}
+        />
 
         {managingSubsystem && (
           <GroupMembersModal

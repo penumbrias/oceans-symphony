@@ -1,10 +1,10 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Edit2, X } from "lucide-react";
 import { toast } from "sonner";
-import { localEntities } from "@/api/base44Client";
+import { localEntities, base44 } from "@/api/base44Client";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -29,6 +29,11 @@ export default function StatusNoteCard() {
     queryFn: () => localEntities.StatusNote.list(),
   });
 
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+
   const latestStatusNote = allStatusNotes
     .slice()
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
@@ -49,18 +54,22 @@ export default function StatusNoteCard() {
   return (
     <div className="mb-4">
       {editing ? (
-        <div className="flex items-center gap-2">
-          <Input
-            value={tempStatus}
-            onChange={(e) => setTempStatus(e.target.value)}
-            placeholder="What's happening right now..."
-            className="text-sm h-9 flex-1"
-            autoFocus
-            onKeyDown={(e) => {
-              if (e.key === "Enter") handleSave();
-              if (e.key === "Escape") { setTempStatus(""); setEditing(false); }
-            }}
-          />
+        <div className="flex items-start gap-2">
+          <div className="flex-1">
+            <MentionTextarea
+              value={tempStatus}
+              onChange={setTempStatus}
+              alters={alters}
+              placeholder="What's happening right now..."
+              className="text-sm min-h-[36px] max-h-28 resize-none"
+              rows={1}
+              autoFocus
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSave(); }
+                if (e.key === "Escape") { setTempStatus(""); setEditing(false); }
+              }}
+            />
+          </div>
           <Button size="sm" onClick={handleSave} className="gap-1.5 text-xs h-9 px-3">
             Save
           </Button>

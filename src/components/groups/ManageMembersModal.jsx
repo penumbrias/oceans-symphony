@@ -8,6 +8,25 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Search, User } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function MemberAvatar({ alter, bg, text }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return (
+    <div
+      className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
+      style={{ backgroundColor: bg || "hsl(var(--muted))" }}
+    >
+      {resolved ? (
+        <img src={resolved} alt={alter.name} className="w-full h-full object-cover" />
+      ) : (
+        <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
+      )}
+    </div>
+  );
+}
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -144,16 +163,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
                   onClick={(e) => e.stopPropagation()}
                   className="flex-shrink-0"
                 />
-                <div
-                  className="w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
-                  style={{ backgroundColor: bg || "hsl(var(--muted))" }}
-                >
-                  {alter.avatar_url ? (
-                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
-                  ) : (
-                    <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />
-                  )}
-                </div>
+                <MemberAvatar alter={alter} bg={bg} text={text} />
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-foreground truncate">{alter.name}</p>
                   {alter.pronouns && (

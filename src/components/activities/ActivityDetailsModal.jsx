@@ -10,8 +10,11 @@ import { toast } from "sonner";
 import { Trash2, Loader2, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import AlterAvatar from "@/components/shared/AlterAvatar";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import RichText from "@/components/shared/RichText";
 import { saveMentions } from "@/lib/mentionUtils";
+import { applyWhisper } from "@/lib/whisperUtils";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -53,6 +56,29 @@ function applyTimeStr(baseDate, timeStr) {
   const d = new Date(baseDate);
   d.setHours(h, m, 0, 0);
   return d;
+}
+
+// Resolves local-image:// avatars (raw <img src> on a legacy
+// local-image:// URL renders broken). Square grid-cell avatar.
+function SelectedAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} alt={alter?.name} className="w-full h-full rounded-lg object-cover" />
+  ) : (
+    <div className="w-full h-full rounded-lg flex items-center justify-center"
+      style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
+      <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
+        {alter?.name?.charAt(0)}
+      </span>
+    </div>
+  );
+}
+
+// Small round avatar next to a fronting-alter chip; renders nothing when
+// there's no avatar (same as the original raw-<img> behaviour).
+function ChipAlterAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? <img src={resolved} alt={alter?.name} className="w-5 h-5 rounded-full object-cover" /> : null;
 }
 
 // Alter search+grid selector matching QuickCheckIn style
@@ -103,16 +129,7 @@ function AlterSelector({ selectedIds, onChange, alters }) {
             return (
               <div key={alterId} className="relative group">
                 <div className="aspect-square rounded-lg bg-muted flex flex-col items-center justify-center p-1.5 overflow-hidden">
-                  {alter?.avatar_url ? (
-                    <img src={alter.avatar_url} alt={alter.name} className="w-full h-full rounded-lg object-cover" />
-                  ) : (
-                    <div className="w-full h-full rounded-lg flex items-center justify-center"
-                      style={{ backgroundColor: alter?.color ? `${alter.color}30` : "hsl(var(--muted))" }}>
-                      <span className="text-xs font-bold" style={{ color: alter?.color || "hsl(var(--primary))" }}>
-                        {alter?.name?.charAt(0)}
-                      </span>
-                    </div>
-                  )}
+                  <SelectedAlterAvatar alter={alter} />
                 </div>
                 <div className="absolute inset-0 rounded-lg bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                   <button onClick={() => onChange(selectedIds.filter(id => id !== alterId))}
@@ -236,6 +253,11 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       toast.error("Select an activity");
       return;
     }
+    // "/w @name [secret]" in the notes hides that part behind a whisper bar
+    // (no brackets warns first — an activity note is a personal record).
+    const w = applyWhisper(data.notes || "", alters, { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
+    if (w === null) return;
+    const notes = w.content;
     setIsLoading(true);
     try {
       const startDt = applyTimeStr(act.timestamp, data.startTimeStr);
@@ -256,8 +278,24 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
         timestamp: startDt.toISOString(),
         duration_minutes: duration,
         fronting_alter_ids: data.fronting_alter_ids,
-        notes: data.notes,
+        notes,
       });
+      // Whisper recipients are peeled off the note — notify them.
+      for (const rid of (w.recipientIds || [])) {
+        try {
+          await base44.entities.MentionLog.create({
+            mentioned_alter_id: rid,
+            author_alter_id: null,
+            log_type: "mention",
+            source_type: "activity",
+            source_id: act.id,
+            source_label: "Whisper in an activity note",
+            source_date: new Date().toISOString(),
+            preview_text: "🔒 private whisper",
+            navigate_path: "/activity-tracker",
+          });
+        } catch { /* best-effort */ }
+      }
 
       // If this is the auto-created Activity that mirrors a Sleep record,
       // reflect the timestamp / wake_time / notes back so the Sleep page
@@ -404,7 +442,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     value={(editDataMap[act.id] || {}).notes || ""}
                     onChange={(v) => setEditDataForAct(act.id, d => ({ ...d, notes: v }))}
                     alters={alters}
-                    placeholder={`Add any notes... use @ to mention an ${terms.alter}`}
+                    placeholder={`Add notes… @ to mention, /w @name [secret] to whisper`}
                     className="h-20"
                   />
                 </div>
@@ -471,7 +509,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         <div className="flex flex-wrap gap-2">
                           {activityAlters.map(alter => (
                             <div key={alter.id} className="px-3 py-2 rounded-lg border text-sm font-medium flex items-center gap-2" style={{ borderColor: alter.color || "#999" }}>
-                              {alter.avatar_url && <img src={alter.avatar_url} alt={alter.name} className="w-5 h-5 rounded-full object-cover" />}
+                              <ChipAlterAvatar alter={alter} />
                               <span>{alter.alias || alter.name}</span>
                             </div>
                           ))}
@@ -515,7 +553,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                     {act.notes && (
                       <div>
                         <p className="text-xs font-semibold text-muted-foreground mb-2">Notes</p>
-                        <p className="text-sm bg-muted/30 rounded-lg p-3">{act.notes}</p>
+                        <div className="text-sm bg-muted/30 rounded-lg p-3"><RichText content={act.notes} alters={alters} /></div>
                       </div>
                     )}
                     <div className="flex gap-2 pt-2 flex-wrap">

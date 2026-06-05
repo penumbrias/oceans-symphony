@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
+import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
 const SOURCE_TYPE_CONFIG = {
   bulletin:  { label: "Bulletin",   icon: MessageSquare, color: "text-primary",    bg: "bg-primary/10"   },
@@ -35,7 +36,7 @@ const FILTERS = [
   { key: "session",  label: "Session" },
 ];
 
-function LogItem({ item, onDelete }) {
+function LogItem({ item, onDelete, alters = [], terms = null }) {
   const navigate = useNavigate();
   const cfg = SOURCE_TYPE_CONFIG[item.source_type] || SOURCE_TYPE_CONFIG.message;
   const Icon = cfg.icon;
@@ -70,7 +71,14 @@ function LogItem({ item, onDelete }) {
             )}
           </div>
           {item.preview_text && (
-            <p className="text-xs text-foreground line-clamp-2 leading-relaxed">{item.preview_text}</p>
+            // Render the post/comment/journal exactly how it renders at its
+            // source — bold, italics, headings, links, images — via the shared
+            // bulletin renderer (same as BulletinCard). Constrained height +
+            // image cap keeps the feed scannable; "tap to view" opens the full
+            // thing. NOT stripped to plain text.
+            <div className="text-xs text-foreground leading-relaxed break-words wysiwyg-content max-h-48 overflow-hidden [&_img]:max-h-40 [&_img]:rounded-lg">
+              {renderBulletinContent(item.preview_text, alters, terms)}
+            </div>
           )}
           {item.navigate_path && (
             <p className="text-[0.625rem] text-primary mt-1">tap to view →</p>
@@ -225,7 +233,7 @@ const postMessage = async () => {
       {/* Help text — explains what the Board is. The Board is this {terms.alter}'s
           in-app activity log: every bulletin or comment they author, every
           journal entry, every check-in, every mention directed at them. */}
-      <p className="text-xs text-muted-foreground leading-relaxed">
+      <p className="text-xs text-muted-foreground leading-relaxed" data-pf-chrome-label>
         This {terms.alter}'s activity feed — every bulletin or comment they post, journals they author,
         check-ins they make, and any @mentions directed at them. Tap any item to jump to it.
       </p>
@@ -238,7 +246,7 @@ const postMessage = async () => {
       />
 
       {/* Filter chips */}
-      <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none">
+      <div className="flex gap-1 overflow-x-auto pb-1 scrollbar-none" data-pf-chrome>
         {FILTERS.map(f => {
           const count = countFor(f.key);
           if (count === 0 && f.key !== "all" && f.key !== activeFilter) return null;
@@ -259,7 +267,7 @@ const postMessage = async () => {
 
       {/* Feed */}
       {filtered.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground text-sm">
+        <div className="text-center py-12 text-muted-foreground text-sm rounded-2xl" data-pf-surface>
           <MessageSquare className="w-8 h-8 mx-auto mb-3 opacity-20" />
           Nothing here yet — anything this {terms.alter} posts, comments on, journals, or gets mentioned in will show up here.
         </div>
@@ -267,9 +275,9 @@ const postMessage = async () => {
         <div className="space-y-2">
           {filtered.map(item => (
             item._is_message ? (
-              <LogItem key={item.id} item={item} onDelete={() => deleteMessage(item._raw_id)} />
+              <LogItem key={item.id} item={item} alters={alters} terms={terms} onDelete={() => deleteMessage(item._raw_id)} />
             ) : (
-              <LogItem key={item.id} item={item} />
+              <LogItem key={item.id} item={item} alters={alters} terms={terms} />
             )
           ))}
         </div>

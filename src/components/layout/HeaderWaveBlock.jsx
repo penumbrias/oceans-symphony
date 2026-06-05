@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { readWaveColorKey } from "@/lib/waveColorKey";
+import { readWaveColorKey, readWaveCustom } from "@/lib/waveColorKey";
+import { getPageWaveOverride, subscribePageWaveOverride } from "@/lib/pageWaveOverride";
 
 // Animated wave block that fills the header's upper portion with a
 // slightly lighter hue, ending in a wavy bottom edge that scrolls
@@ -30,14 +31,24 @@ export default function HeaderWaveBlock() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  const colorKey = readWaveColorKey(settingsList?.[0]);
+  // Per-page (profile) wave colour override — published by the alter/group
+  // profile pages while they're open. When set it wins over the global setting
+  // and the wave always shows, so each profile can recolour the header wave.
+  const [pageWave, setPageWave] = useState(getPageWaveOverride());
+  useEffect(() => {
+    setPageWave(getPageWaveOverride());
+    return subscribePageWaveOverride(setPageWave);
+  }, []);
 
-  // "background" means "no wave". Filling a wave with the page's
-  // background colour produces a weirdly visible-but-invisible band
-  // that picks up subpixel rendering quirks at the edges. If the
-  // user picks Background as the wave colour they're saying "I don't
-  // want the wave" — give them that cleanly.
-  if (colorKey === "background") return null;
+  const settings = settingsList?.[0];
+  const colorKey = readWaveColorKey(settings);
+  const customWave = readWaveCustom(settings);
+
+  // "background" means "no wave" — unless a fully-custom hex is set, which
+  // always wins. Filling a wave with the page's background colour produces a
+  // weirdly visible-but-invisible band, so picking Background = "no wave".
+  // A per-page override always shows.
+  if (!pageWave && !customWave && colorKey === "background") return null;
 
   // Map the "text-2nd" alias to the actual CSS var name. Every other
   // option matches `--color-<key>` 1:1.
@@ -46,7 +57,7 @@ export default function HeaderWaveBlock() {
     : colorKey === "text"
       ? "text-primary"
       : colorKey;
-  const fill = `var(--color-${cssVarKey}, #94A3B8)`;
+  const fill = pageWave || customWave || `var(--color-${cssVarKey}, #94A3B8)`;
 
   return (
     <div

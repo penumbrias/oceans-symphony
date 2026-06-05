@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { isPreviewActive } from "@/lib/previewMode";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 // Whenever the local front state changes — regardless of WHICH UI mutated it
 // (Set Fronters modal, dashboard chip swipe, Alters page long-press, etc.) —
@@ -17,18 +18,30 @@ export function useFriendsFrontSync() {
   const lastSigRef = useRef(null);
   const terms = useTerms();
 
-  const { data: activeSessions = [] } = useQuery({
+  const { data: activeSessions = [], isSuccess: sessionsReady } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
-  const { data: alters = [] } = useQuery({
+  const { data: alters = [], isSuccess: altersReady } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
+  });
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
   });
 
   useEffect(() => {
     // Don't leak preview-mode mock fronters to real friends.
     if (isPreviewActive()) return;
+
+    // Wait until BOTH queries have actually loaded before pushing. Otherwise
+    // the first render runs with empty arrays and pushes an empty fronters
+    // list to the server — so a friend who reads in that window (or before
+    // the corrected push lands / if it fails) sees "no one fronting" even
+    // though someone is up front. This was the intermittent "blank front"
+    // friends kept hitting.
+    if (!sessionsReady || !altersReady) return;
 
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
 
@@ -62,9 +75,13 @@ export function useFriendsFrontSync() {
 
     const primaryId = collected.find((c) => c.isPrimary)?.alterId || collected[0]?.alterId || null;
 
+    // Group config: alters in a group flagged "hide_from_friends" are never
+    // shared with friend systems.
+    const hiddenFromFriends = getAlterIdsByGroupFlag(groups, alters, "hide_from_friends");
+
     const fronters = collected
       .map((c) => ({ entry: c, alter: altersById[c.alterId] }))
-      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false)
+      .filter(({ alter }) => alter && !alter.is_archived && alter.friends_visible !== false && !hiddenFromFriends.has(alter.id))
       .map(({ entry, alter }) => ({
         id: alter.id,
         name: alter.name,
@@ -92,5 +109,5 @@ export function useFriendsFrontSync() {
         system: terms.system,
       },
     }).catch(() => {});
-  }, [activeSessions, alters, terms.fronting, terms.front, terms.alter, terms.system]);
+  }, [activeSessions, alters, groups, terms.fronting, terms.front, terms.alter, terms.system]);
 }

@@ -12,7 +12,11 @@ export default function SystemBanner({ url, height = 140, position = 50 }) {
   return (
     <div
       aria-hidden
-      className="absolute top-0 left-0 right-0 z-0 overflow-hidden pointer-events-none"
+      // left-0/right-0 already spans <main>'s full padding box edge-to-edge
+      // (absolute children aren't inset by padding), so NO negative insets —
+      // those pushed it past the screen edges and caused horizontal scroll.
+      // -z-10 (inside main's isolate context) keeps it behind page content.
+      className="absolute top-0 left-0 right-0 -z-10 overflow-hidden pointer-events-none"
       style={{ height }}
     >
       <img
@@ -22,9 +26,21 @@ export default function SystemBanner({ url, height = 140, position = 50 }) {
         className="w-full h-full object-cover"
         style={{ objectPosition: `50% ${position}%` }}
       />
+      {/* Top readability wash — a translucent layer of the page background
+          so page titles/headers sitting over the banner stay legible.
+          Strongest at the very top, fading out so the image still shows
+          through below. Element-opacity (not an rgba gradient) keeps it a
+          plain --color-bg wash that works in any theme without color-mix. */}
+      <div
+        className="absolute inset-x-0 top-0"
+        style={{
+          height: "62%",
+          background: "linear-gradient(to bottom, var(--color-bg), rgba(0,0,0,0))",
+          opacity: 0.6,
+        }}
+      />
       {/* Fade the bottom edge into the page background so content blends in
-          instead of meeting a hard image edge. Uses the live --color-bg so
-          it adapts to the active theme (light or dark). */}
+          instead of meeting a hard image edge. */}
       <div
         className="absolute inset-0"
         style={{

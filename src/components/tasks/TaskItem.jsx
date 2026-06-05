@@ -6,6 +6,7 @@ import { ChevronRight, Trash2, Edit2, CheckCircle2, Circle, Flag, Plus, Pin, Zap
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import TaskQuickActionsSheet from "./TaskQuickActionsSheet";
+import RichText from "@/components/shared/RichText";
 
 export default function TaskItem({
   task,
@@ -178,7 +179,7 @@ export default function TaskItem({
           )}
 
           {task.description && (
-            <p className="text-xs text-muted-foreground mt-1 line-clamp-2">{task.description}</p>
+            <div className="text-xs text-muted-foreground mt-1 line-clamp-2"><RichText content={task.description} /></div>
           )}
         </div>
 

@@ -8,6 +8,7 @@ import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // Long-press popup for an alter chip/icon on the alters page. Actions:
 // go to profile, create/open subsystem, toggle front, toggle primary,
@@ -17,6 +18,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useTerms();
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   // Ignore the synthetic click the WebView fires right after the
   // long-press — without this it could hit the backdrop and close the
   // menu the instant it opens.
@@ -25,7 +27,9 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   const [creating, setCreating] = useState(false);
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+  // ALL subsystems this alter owns — an alter can own more than one, and
+  // "Create" must stay available even when they already own one.
+  const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
   // Subsystems this alter is a MEMBER of (not the owner) — so they can be
   // removed from here.
   const memberOfSubs = allGroups.filter((g) =>
@@ -108,14 +112,14 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   return (
     <div className="fixed inset-0 z-[70] bg-black/40 flex items-end sm:items-center justify-center" onClick={backdropClick}>
       <div
-        className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[env(safe-area-inset-bottom)]"
+        className="bg-background border border-border rounded-t-2xl sm:rounded-2xl w-full sm:max-w-xs max-h-[80vh] overflow-y-auto shadow-2xl pb-[calc(env(safe-area-inset-bottom)_+_var(--bottom-nav-height,56px))] sm:pb-[env(safe-area-inset-bottom)]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center gap-3 px-4 py-3 border-b border-border/50">
           <div className="w-9 h-9 rounded-lg overflow-hidden flex items-center justify-center border border-border/40 flex-shrink-0"
             style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-            {alter.avatar_url
-              ? <img src={alter.avatar_url} alt="" className="w-full h-full object-cover" />
+            {resolvedAvatar
+              ? <img src={resolvedAvatar} alt="" className="w-full h-full object-cover" />
               : <User className="w-4 h-4 text-white" />}
           </div>
           <span className="font-medium text-sm flex-1 truncate">{alter.emoji ? `${alter.emoji} ` : ""}{alter.name}</span>
@@ -124,13 +128,15 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
         <div className="py-1">
           <Item icon={User} label="Go to profile" onClick={() => go(() => navigate(`/alter/${alter.id}`))} />
           <Item icon={Pin} label={alter.is_pinned ? "Unpin from top" : "Pin to top"} onClick={() => go(togglePin)} />
-          {ownedSub
-            ? <Item icon={FolderTree} label={`Go to ${ownedSub.name}`} onClick={() => go(() => navigate(`/group/${ownedSub.id}`))} />
-            : <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />}
+          {ownedSubs.map((sub) => (
+            <Item key={sub.id} icon={FolderTree} label={`Go to ${sub.name}`} onClick={() => go(() => navigate(`/group/${sub.id}`))} />
+          ))}
+          {/* Always available — an alter can have multiple subsystems. */}
+          <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />
           <Item icon={Zap} label={isFronting ? `Remove from ${t.front}` : `Add to ${t.front}`}
-            onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast))} />
+            onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
-            onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast))} />
+            onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
           {memberOfSubs.map((g) => (
             <Item key={g.id} icon={UserMinus} label={`Remove from ${g.name}`} onClick={() => go(() => leaveSubsystem(g))} />

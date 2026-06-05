@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import AnalyticsMap from "@/components/system/SystemMap";
 import InnerWorldMap from "@/components/systemmap/InnerWorldMap";
 import RelationshipsPanel from "@/components/systemmap/RelationshipsPanel";
@@ -27,10 +28,20 @@ export default function SystemMapPage() {
   const terms = useTerms();
   const [tab, setTab] = useState("analytics");
 
-  const { data: alters = [] } = useQuery({
+  const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => db.Alter.list(),
   });
+  const { data: mapGroups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => db.Group.list(),
+  });
+  // Group config: members of a group flagged "hide_from_system_maps" don't
+  // appear on any of the map tabs.
+  const alters = useMemo(() => {
+    const hidden = getAlterIdsByGroupFlag(mapGroups, allAlters, "hide_from_system_maps");
+    return hidden.size ? allAlters.filter((a) => !hidden.has(a.id)) : allAlters;
+  }, [allAlters, mapGroups]);
 
   const { data: relationships = [], refetch: refetchRelationships } = useQuery({
     queryKey: ["alterRelationships"],

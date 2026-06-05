@@ -1,16 +1,16 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
 import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
-  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, AtSign, MessageSquare, FileText, Send,
+  Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
+  Undo2, Redo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -23,6 +23,9 @@ import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import GroupSelect from "@/components/groups/GroupSelect";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { SubSection } from "@/components/settings/SettingsUI";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -33,12 +36,26 @@ import {
   getMemberAlters, getSubsystemsOwnedBy, isSubsystem,
   wouldCreateOwnershipCycle,
 } from "@/lib/subsystemUtils";
-import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { groupNameColor } from "@/lib/contrast";
+import { fontStackFor } from "@/lib/profileFonts";
+import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars } from "@/lib/profileStyle";
+import { setPageWaveOverride } from "@/lib/pageWaveOverride";
+import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
+import { pickGroupConfig } from "@/lib/groupConfig";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_BG_KEY = "_header_bg_color";
+const HEADER_FONT_KEY = "_header_font";
+const HIDE_HEADER_KEY = "_hide_header";
+// Same keys the alter profile uses, so contrast helpers + rendering treat
+// group and alter text colours identically.
+const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
+const HEADER_TEXT_KEY = "_header_text_color";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -111,6 +128,8 @@ function GroupProfileInner() {
   const [tab, setTab] = useState("profile"); // profile | board | notes
   const [showColorPicker, setShowColorPicker] = useState(false);
   const [showBgColorPicker, setShowBgColorPicker] = useState(false);
+  const [showPageTextPicker, setShowPageTextPicker] = useState(false);
+  const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -138,10 +157,29 @@ function GroupProfileInner() {
   // chip tapped from an alter profile can arrive with either.
   const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
 
-  const [form, setForm] = useState(null);
+  // Recolour the APP-HEADER wave to this group's wave colour while it's open
+  // (resolving a var(--color-…) palette reference against the live .os-pf
+  // theme). Cleared on unmount. Mirrors AlterProfile.
+  const groupWaveRaw = group?.custom_fields?.["_theme_wave"];
+  useEffect(() => {
+    if (!groupWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
+    let color = groupWaveRaw;
+    const m = typeof groupWaveRaw === "string" && groupWaveRaw.match(/^var\((--[\w-]+)\)/);
+    if (m) {
+      const el = document.querySelector(".os-pf");
+      color = el ? getComputedStyle(el).getPropertyValue(m[1]).trim() : "";
+    }
+    setPageWaveOverride(color || null);
+    return () => setPageWaveOverride(null);
+  }, [groupWaveRaw]);
+
+  // Form starts null (group not loaded yet); reset() seeds the baseline once
+  // the group loads. reset() (not setForm) means the initial load is not an
+  // undo entry and undo can never revert past the loaded data back to null.
+  const [form, setForm, formHistory] = useUndoRedo(null);
   useEffect(() => {
     if (!group) return;
-    setForm({
+    formHistory.reset({
       name: group.name || "",
       color: group.color || "",
       emoji: group.emoji || "",
@@ -149,8 +187,7 @@ function GroupProfileInner() {
       avatar_url: group.avatar_url || "",
       owner_alter_id: group.owner_alter_id || "",
       parent: group.parent || "",
-      hide_from_lists: !!group.hide_from_lists,
-      hide_from_mentions: !!group.hide_from_mentions,
+      ...pickGroupConfig(group),
       custom_fields: group.custom_fields || {},
     });
   }, [group?.id]);
@@ -196,8 +233,7 @@ function GroupProfileInner() {
         avatar_url: form.avatar_url,
         owner_alter_id: form.owner_alter_id || "",
         parent: form.parent || "",
-        hide_from_lists: !!form.hide_from_lists,
-        hide_from_mentions: !!form.hide_from_mentions,
+        ...pickGroupConfig(form),
         custom_fields: form.custom_fields,
       });
       toast.success("Saved!");
@@ -239,10 +275,22 @@ function GroupProfileInner() {
   const subsystem = isSubsystem(group);
 
   const cf = group.custom_fields || {};
-  const bgColor = cf[BG_COLOR_KEY] || "";
-  const bgImage = cf[BG_IMAGE_KEY] || "";
-  const bgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const ps = readProfileBg(cf);
+  const bgColor = ps.bgColor;
+  const bgImage = ps.bgImage;
+  const bgOpacity = ps.bgOpacity;
+  const headerOpacity = ps.headerOpacity;
+  const surfaceCss = profileSurfaceCss("os-pf", cf);
+  const themeCss = profileThemeCss("os-pf", cf);
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
+  // Header bg colour with its own opacity baked in (rgba) — so the header
+  // colour can be made translucent independently of the body bg.
+  const headerBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
+  const pageTextColor = cf[PAGE_TEXT_KEY] || "";
+  const headerTextColor = cf[HEADER_TEXT_KEY] || "";
+  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  const hideHeader = !!cf[HIDE_HEADER_KEY];
   const frontingAlterIds = activeSessions.map((s) => s.alter_id || s.primary_alter_id).filter(Boolean);
 
   const TABS = [
@@ -251,7 +299,7 @@ function GroupProfileInner() {
     { id: "notes", label: "Notes", icon: FileText },
   ];
   const tabBar = (
-    <div className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none">
+    <div data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 scrollbar-none px-1.5 py-1">
       {TABS.map((tb) => {
         const Icon = tb.icon;
         return (
@@ -267,7 +315,11 @@ function GroupProfileInner() {
   // ---------- BOARD / NOTES TABS ----------
   if (tab === "board" || tab === "notes") {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-3 relative">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {themeCss && <style>{themeCss}</style>}
+        {surfaceCss && <style>{surfaceCss}</style>}
+        <div className="relative z-10 os-pf space-y-3">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
         </Button>
@@ -286,6 +338,7 @@ function GroupProfileInner() {
         ) : (
           <GroupNotesTab groupId={group.id} />
         )}
+        </div>
       </motion.div>
     );
   }
@@ -293,8 +346,12 @@ function GroupProfileInner() {
   // ---------- VIEW MODE ----------
   if (!editMode) {
     return (
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-6 relative">
-        <div className="flex items-center justify-between">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {themeCss && <style>{themeCss}</style>}
+        {surfaceCss && <style>{surfaceCss}</style>}
+        <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
+        <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
             <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
           </Button>
@@ -305,8 +362,11 @@ function GroupProfileInner() {
 
         {tabBar}
 
-        <ViewHeader group={group} bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} headerImage={headerImage}
-          ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
+        {!hideHeader && (
+          <ViewHeader group={group} headerImage={headerImage} headerTextColor={headerTextColor}
+            headerBgColor={headerBgColor} headerFont={headerFont} headerOpacity={headerOpacity}
+            ownerAlter={ownerAlter} subTerm={subTerm} t={t} navigate={navigate} parentGroup={parentGroup} memberCount={members.length} />
+        )}
 
         {group.description ? (
           <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
@@ -320,7 +380,7 @@ function GroupProfileInner() {
 
         {childGroups.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Nested groups</p>
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Nested groups</p>
             <div className="space-y-1.5">
               {childGroups.map((g) => (
                 <button key={g.id} type="button" onClick={() => navigate(`/group/${g.id}`)}
@@ -336,7 +396,7 @@ function GroupProfileInner() {
 
         <div>
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">
               Members{members.length ? ` (${members.length})` : ""}
             </p>
             <button type="button" onClick={() => setShowMembers(true)} className="text-xs text-primary hover:text-primary/80 font-medium inline-flex items-center gap-1">
@@ -356,11 +416,24 @@ function GroupProfileInner() {
                     index={i}
                     activeSessions={activeSessions}
                     hideFront
-                    rightAccessory={ownedSub ? (
-                      <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
-                        className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
-                        <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
-                      </button>
+                    rightAccessory={(m.is_archived || ownedSub) ? (
+                      <div className="flex items-center gap-1 flex-shrink-0">
+                        {/* Archived members are hidden from Manage members and the
+                            Alters folder, so without this tag the group looked like
+                            it had "normal" members that were really archived (often
+                            duplicate) imports. */}
+                        {m.is_archived && (
+                          <span className="inline-flex items-center gap-1 text-[0.625rem] font-semibold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                            <Archive className="w-2.5 h-2.5" /> Archived
+                          </span>
+                        )}
+                        {ownedSub && (
+                          <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
+                            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
+                            <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
+                          </button>
+                        )}
+                      </div>
                     ) : null}
                   />
                 );
@@ -372,6 +445,7 @@ function GroupProfileInner() {
         {showMembers && (
           <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />
         )}
+        </div>
       </motion.div>
     );
   }
@@ -383,15 +457,35 @@ function GroupProfileInner() {
   const rootDisabledIds = new Set(
     ownerCandidates.filter((a) => wouldCreateOwnershipCycle(allGroups, alters, group.id, a.id)).map((a) => a.id)
   );
+  // Live background preview while editing (uses the unsaved form values).
+  const formPs = readProfileBg(form.custom_fields || {});
+  const formBgColor = formPs.bgColor;
+  const formBgImage = formPs.bgImage;
+  const formBgOpacity = formPs.bgOpacity;
+  const formReadability = formPs.readability;
+  const formSurfaceCss = profileSurfaceCss("os-pf", form.custom_fields || {});
+  const formThemeCss = profileThemeCss("os-pf", form.custom_fields || {});
   return (
-    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-4 relative">
+    <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
+      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
+      {formThemeCss && <style>{formThemeCss}</style>}
+      {formSurfaceCss && <style>{formSurfaceCss}</style>}
+      <div className="relative z-10 os-pf space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
           <Eye className="w-4 h-4 mr-1.5" /> View
         </Button>
-        <Button variant="default" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 bg-primary hover:bg-primary/90">
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="gap-1.5" title="Undo">
+            <Undo2 className="w-3.5 h-3.5" /> Undo
+          </Button>
+          <Button variant="outline" size="sm" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="gap-1.5" title="Redo">
+            <Redo2 className="w-3.5 h-3.5" /> Redo
+          </Button>
+          <Button variant="default" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+          </Button>
+        </div>
       </div>
 
       {tabBar}
@@ -456,72 +550,49 @@ function GroupProfileInner() {
         </p>
       </div>
 
-      {/* Parent group (nesting) */}
+      {/* Parent group (nesting) — nested, parent-respecting single-select.
+          Excludes this group + its descendants so you can't nest it inside
+          itself or one of its own children. */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Parent group (nest inside)</label>
-        <select
-          value={form.parent}
-          onChange={(e) => setForm((f) => ({ ...f, parent: e.target.value }))}
-          className="w-full text-sm rounded-lg border border-border bg-background px-2 py-2"
-        >
-          <option value="">None (top level)</option>
-          {allGroups.filter((g) => g.id !== group.id).map((g) => {
-            const cycles = wouldCreateGroupParentCycle(allGroups, group.id, g.id);
-            return (
-              <option key={g.id} value={g.id} disabled={cycles}>
-                {g.name}{cycles ? " — would loop" : ""}
-              </option>
-            );
-          })}
-        </select>
+        <GroupSelect
+          groups={allGroups}
+          value={form.parent || ""}
+          onChange={(id) => setForm((f) => ({ ...f, parent: id }))}
+          excludeId={group.id}
+          zIndex={60}
+        />
       </div>
 
-      {/* Member visibility — group-level list/mention filtering */}
+      {/* Group config — group-level member-visibility filtering across surfaces */}
       <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
-        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5" /> Member visibility</label>
-        <ToggleRow
-          icon={Eye}
-          checked={form.hide_from_lists}
-          onChange={(v) => setForm((f) => ({ ...f, hide_from_lists: v }))}
-          label={`Hide members from ${t.alter} lists`}
-          hint={`They won't show in the main ${t.alters} list — still reachable through this group.`}
-        />
-        <ToggleRow
-          icon={AtSign}
-          checked={form.hide_from_mentions}
-          onChange={(v) => setForm((f) => ({ ...f, hide_from_mentions: v }))}
-          label="Hide members from @mentions & -signposts"
-          hint="They won't appear in mention or signpost suggestions."
+        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><EyeOff className="w-3.5 h-3.5" /> Group config</label>
+        <GroupConfigToggles
+          values={form}
+          onChange={(key, val) => setForm((f) => ({ ...f, [key]: val }))}
         />
       </div>
 
-      {/* Profile style */}
-      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5 text-primary" /> Profile Style</label>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Background color</label>
-          <div className="flex items-center gap-2">
-            <button type="button" onClick={() => setShowBgColorPicker(true)}
-              className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 relative" style={{ backgroundColor: form.custom_fields[BG_COLOR_KEY] || "transparent" }}>
-              {!form.custom_fields[BG_COLOR_KEY] && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
-            </button>
-            <Input value={form.custom_fields[BG_COLOR_KEY] || ""} onChange={(e) => setCf(BG_COLOR_KEY, e.target.value)} placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
-            {form.custom_fields[BG_COLOR_KEY] && <button type="button" onClick={() => setCf(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground"><X className="w-3 h-3" /></button>}
-          </div>
-        </div>
-        <StyleImageRow label="Header image" busy={uploadingHeader} inputRef={headerInputRef} value={form.custom_fields[HEADER_IMAGE_KEY]} onClear={() => setCf(HEADER_IMAGE_KEY, "")} onChange={(e) => handleUpload(e, "header")} onText={(v) => setCf(HEADER_IMAGE_KEY, v)} />
-        <StyleImageRow label="Background image" busy={uploadingBg} inputRef={bgInputRef} value={form.custom_fields[BG_IMAGE_KEY]} onClear={() => setCf(BG_IMAGE_KEY, "")} onChange={(e) => handleUpload(e, "bg")} onText={(v) => setCf(BG_IMAGE_KEY, v)} />
-        {(form.custom_fields[BG_COLOR_KEY] || form.custom_fields[BG_IMAGE_KEY]) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">BG opacity</label>
-            <input type="range" min={0.02} max={1} step={0.01} value={form.custom_fields[BG_OPACITY_KEY] ?? 0.15}
-              onChange={(e) => setCf(BG_OPACITY_KEY, parseFloat(e.target.value))} className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground">{Math.round((form.custom_fields[BG_OPACITY_KEY] ?? 0.15) * 100)}%</span>
-          </div>
-        )}
+      {/* Bio first, then Profile style under it — same order as the alter
+          edit page. */}
+      <div className="rounded-2xl" data-pf-surface>
+        <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
       </div>
 
-      <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
+      {/* Profile style — shared editor (collapsible Header / Body with
+          colours, images, fonts, opacity + readability). Matches the
+          Add New Group modal pattern. */}
+      <SubSection title="Profile style" icon={ImageIcon} defaultOpen={false}>
+        <ProfileStyleEditor
+          customFields={form.custom_fields}
+          setField={setCf}
+          clearField={(key) => setForm((f) => {
+            const cf = { ...f.custom_fields };
+            delete cf[key];
+            return { ...f, custom_fields: cf };
+          })}
+        />
+      </SubSection>
 
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}
@@ -538,28 +609,11 @@ function GroupProfileInner() {
 
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Group Color" onSave={(hex) => setForm((f) => ({ ...f, color: hex }))} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={form.custom_fields[BG_COLOR_KEY] || "#1a0a2e"} label="Background Color" onSave={(hex) => setCf(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
+      {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PAGE_TEXT_KEY] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
+      {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[HEADER_TEXT_KEY] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
+      </div>
     </motion.div>
-  );
-}
-
-function ToggleRow({ icon: Icon, checked, onChange, label, hint }) {
-  return (
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className="w-full flex items-start gap-2.5 text-left"
-    >
-      <span className={`mt-0.5 flex-shrink-0 w-9 h-5 rounded-full transition-colors relative ${checked ? "bg-primary" : "bg-muted-foreground/30"}`}>
-        <span className={`absolute top-0.5 w-4 h-4 rounded-full bg-white transition-all ${checked ? "left-[1.125rem]" : "left-0.5"}`} />
-      </span>
-      <span className="flex-1 min-w-0">
-        <span className="text-xs font-medium text-foreground flex items-center gap-1.5">
-          {Icon ? <Icon className="w-3.5 h-3.5 text-muted-foreground" /> : null}{label}
-        </span>
-        {hint && <span className="block text-[0.6875rem] text-muted-foreground leading-snug mt-0.5">{hint}</span>}
-      </span>
-    </button>
   );
 }
 
@@ -637,28 +691,56 @@ function StyleImageRow({ label, busy, inputRef, value, onClear, onChange, onText
   );
 }
 
-function ViewHeader({ group, bgColor, bgImage, bgOpacity, headerImage, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
-  const [resolvedHeader, setResolvedHeader] = useState(null);
+// Full-screen background for the whole group/subsystem screen. The
+// "Background image" + "Background color" + opacity are page-wide (they
+// sit behind ALL the content), while the "Header image" stays scoped to
+// the header banner in ViewHeader. Rendered as the first, absolutely
+// positioned child of a `relative` page wrapper; the content alongside
+// it must be `relative z-10` so it paints on top.
+function PageBackground({ bgColor, bgImage, bgOpacity }) {
   const [resolvedBg, setResolvedBg] = useState(null);
-  useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
-  useEffect(() => { if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null)); else setResolvedBg(null); }, [bgImage]);
-  const hasBg = bgColor || bgImage;
+  useEffect(() => {
+    if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
+    else setResolvedBg(null);
+  }, [bgImage]);
+  if (!bgColor && !bgImage) return null;
+  const hasImage = !!(bgImage && resolvedBg);
   return (
-    <div className="relative rounded-2xl overflow-hidden">
-      {hasBg && (
-        <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-          {bgImage && resolvedBg && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
-        </div>
+    // Fixed full-screen background — fills the viewport, edge-to-edge, doesn't
+    // scroll. When an image is set, _bg_color is painted as a SOLID base layer
+    // UNDER the image so lowering the image opacity reveals the colour (and the
+    // profile's bg colour wins over the app page bg here). The surfaces are
+    // additionally tinted via profileSurfaceCss.
+    <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
+      {hasImage ? (
+        <>
+          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />}
+          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+        </>
+      ) : (
+        bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />
       )}
-      {headerImage && resolvedHeader && (
-        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: 0.45 }} />
+    </div>
+  );
+}
+
+function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, headerFont, headerOpacity = 0.45, ownerAlter, subTerm, t, navigate, parentGroup, memberCount }) {
+  const [resolvedHeader, setResolvedHeader] = useState(null);
+  useEffect(() => { if (headerImage) resolveImageUrl(headerImage).then(setResolvedHeader).catch(() => setResolvedHeader(null)); else setResolvedHeader(null); }, [headerImage]);
+  const hasHeader = !!(headerImage && resolvedHeader);
+  // Header text colour: the user's override wins; otherwise white over a
+  // header image (for contrast), else the group's name colour.
+  const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
+  return (
+    <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(group.custom_fields || {}), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
+      {hasHeader && (
+        <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
       )}
-      <div className={`relative z-10 flex gap-4 items-start ${hasBg || headerImage ? "p-4" : ""}`}>
+      <div className={`relative z-10 flex gap-4 items-start ${hasHeader || headerBgColor ? "p-4" : ""}`} style={headerFont ? { fontFamily: headerFont } : undefined}>
         <GroupAvatar url={group.avatar_url} color={group.color} emoji={group.emoji} />
         <div className="flex-1 min-w-0 space-y-1">
           <h2 className="font-display text-2xl font-semibold flex items-center gap-2"
-            style={{ color: (hasBg || headerImage) ? undefined : groupNameColor(group.color) }}>
+            style={{ color: nameColor }}>
             {group.emoji ? <span>{group.emoji}</span> : null}{group.name}
           </h2>
           {ownerAlter && (

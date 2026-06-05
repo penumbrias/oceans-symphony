@@ -3,11 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { fontStackFor } from "@/lib/profileFonts";
+import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
+import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
@@ -19,6 +22,7 @@ import MessagesTab from "@/components/alters/profile/MessagesTab";
 import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
 import LineageTab from "@/components/alters/profile/LineageTab";
+import RelationshipsTab from "@/components/alters/profile/RelationshipsTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -28,6 +32,7 @@ const TABS = [
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
   { id: "lineage", label: "Lineage", icon: GitMerge },
+  { id: "relationships", label: "Relationships", icon: Link2 },
   { id: "options", label: "Options", icon: SlidersHorizontal },
 ];
 
@@ -35,8 +40,11 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_BG_KEY = "_header_bg_color";
+const HEADER_FONT_KEY = "_header_font";
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -80,7 +88,7 @@ function AlterProfileInner() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "options"];
     return valid.includes(t) ? t : "profile";
   });
   const highlightMessageId = searchParams.get("messageId") || null;
@@ -89,7 +97,7 @@ function AlterProfileInner() {
   // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
   useEffect(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "options"];
     if (t && valid.includes(t)) setTab(t);
   }, [searchParams]);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
@@ -108,6 +116,24 @@ function AlterProfileInner() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  // Recolour the APP-HEADER wave to this profile's wave colour while it's open.
+  // _theme_wave is either a concrete colour (custom hex) or a var(--color-…)
+  // reference to one of the profile's palette colours; resolve the reference
+  // against the live .os-pf theme so the header (outside .os-pf) gets a concrete
+  // colour. Cleared on unmount so other pages keep the global wave.
+  const profileWaveRaw = alter?.custom_fields?.["_theme_wave"];
+  useEffect(() => {
+    if (!profileWaveRaw) { setPageWaveOverride(null); return () => setPageWaveOverride(null); }
+    let color = profileWaveRaw;
+    const m = typeof profileWaveRaw === "string" && profileWaveRaw.match(/^var\((--[\w-]+)\)/);
+    if (m) {
+      const el = document.querySelector(".os-pf");
+      color = el ? getComputedStyle(el).getPropertyValue(m[1]).trim() : "";
+    }
+    setPageWaveOverride(color || null);
+    return () => setPageWaveOverride(null);
+  }, [profileWaveRaw]);
 
   // Lazy one-shot migration: if this alter still has object-shape
   // data on the legacy alter_custom_fields field, fold it into
@@ -187,13 +213,22 @@ function AlterProfileInner() {
   const textOnColor = hasColor ? getContrastColor(alter.color) : null;
 
   const cf = alter.custom_fields || {};
-  const pageBgColor = cf[BG_COLOR_KEY] || "";
-  const pageBgImage = cf[BG_IMAGE_KEY] || "";
-  const pageBgOpacity = cf[BG_OPACITY_KEY] !== undefined ? cf[BG_OPACITY_KEY] : 0.15;
+  const ps = readProfileBg(cf);
+  const pageBgColor = ps.bgColor;
+  const pageBgImage = ps.bgImage;
+  const pageBgOpacity = ps.bgOpacity;       // image:0.5 / colour:0.15 default
+  const readability = ps.readability;        // _bg_color tint over image (0.1 default)
+  const headerOpacity = ps.headerOpacity;    // header image opacity (0.45 default)
   const pageHeaderImage = cf[HEADER_IMAGE_KEY] || "";
-  const sectionBgOpacity = cf[SECTION_BG_KEY] !== undefined ? cf[SECTION_BG_KEY] : 0;
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
-  const hasPageBg = pageBgColor || pageBgImage;
+  const pageFont = fontStackFor(cf[PAGE_FONT_KEY]);
+  // Header bg colour with its own opacity baked in (rgba) — so the header
+  // colour can be made translucent independently of the body.
+  const pageHeaderBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
+  const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
+  const hasPageBg = ps.hasPageBg;
+  const surfaceCss = profileSurfaceCss("os-pf", cf);
+  const themeCss = profileThemeCss("os-pf", cf);
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
@@ -209,29 +244,47 @@ function AlterProfileInner() {
     >
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
-          {pageBgColor && (
+          {pageBgImage && resolvedBgImage ? (
+            <>
+              {/* SOLID full-opacity base layer of _bg_color UNDER the image, so
+                  lowering the image opacity reveals the colour beneath it (and
+                  the profile's bg colour takes precedence over the app page bg
+                  for this page). */}
+              {pageBgColor && (
+                <div className="absolute inset-0" style={{ backgroundColor: pageBgColor }} />
+              )}
+              {/* Image on top at its own opacity. */}
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("${resolvedBgImage}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                opacity: pageBgOpacity,
+              }} />
+            </>
+          ) : pageBgColor ? (
             <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: pageBgOpacity }} />
-          )}
-          {pageBgImage && resolvedBgImage && (
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("${resolvedBgImage}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              opacity: pageBgOpacity,
-            }} />
-          )}
+          ) : null}
         </div>
       )}
 
       {pageTextColor && (
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
-      <div className={pageTextColor ? "relative z-10 apc" : "relative z-10"} style={pageTextColor ? { color: pageTextColor } : {}}>
+      {/* Per-profile theme palette — overrides the app's --color-* variables
+          for this profile's pages (view + edit), so every card/text/button
+          inside .os-pf adopts the profile's colours. */}
+      {themeCss && <style>{themeCss}</style>}
+      {/* With a bg image, _bg_color fills the surfaces (cards + entry windows),
+          in both view and edit mode — never the whole page. */}
+      {surfaceCss && <style>{surfaceCss}</style>}
+      <div className={cn("relative z-10 os-pf", pageTextColor && "apc")} style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         {/* Header row: pin toggle on the left (the app header already
             provides Back, so the page-level Back was removed); Prev/Next
-            + message button on the right. */}
-        <div className="flex items-center justify-between mb-4">
+            + message button on the right. data-pf-chrome backs this row with
+            the profile bg colour when a background image is set, so the
+            ghost/outline buttons stay legible over the image. */}
+        <div data-pf-chrome className="flex items-center justify-between mb-4 px-2 py-1.5">
           <button
             type="button"
             onClick={async () => {
@@ -321,9 +374,11 @@ function AlterProfileInner() {
           <div
             className="rounded-2xl p-4 mb-5 flex items-center gap-4 relative overflow-hidden"
             style={{
-              background: alterColor
-                ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
-                : "hsl(var(--muted)/0.3)",
+              background: pageHeaderBgColor
+                ? pageHeaderBgColor
+                : alterColor
+                  ? `linear-gradient(135deg, ${alterColor}22, ${alterColor}08)`
+                  : "hsl(var(--muted)/0.3)",
               borderLeft: alterColor ? `4px solid ${alterColor}` : "4px solid hsl(var(--primary))",
             }}
           >
@@ -334,7 +389,7 @@ function AlterProfileInner() {
                   backgroundImage: `url("${resolvedHeaderImage}")`,
                   backgroundSize: "cover",
                   backgroundPosition: "center",
-                  opacity: 0.45,
+                  opacity: headerOpacity,
                 }}
               />
             )}
@@ -350,7 +405,7 @@ function AlterProfileInner() {
                 </div>
               )}
             </div>
-            <div className="flex-1 min-w-0 relative z-10">
+            <div className="flex-1 min-w-0 relative z-10" style={headerFont ? { fontFamily: headerFont } : undefined}>
               <h1 className="font-display text-xl font-semibold text-foreground">{alter.name}</h1>
               {alter.pronouns && !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase()) && (
                 <p className="text-sm text-muted-foreground">{alter.pronouns}</p>
@@ -361,7 +416,7 @@ function AlterProfileInner() {
           </div>
         )}
 
-        <div data-tour="alter-profile-tabs" className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none">
+        <div data-tour="alter-profile-tabs" data-pf-chrome className="flex items-center gap-1 overflow-x-auto pb-1 mb-5 scrollbar-none px-1.5 py-1">
           {TABS.map((t) => {
             const Icon = t.icon;
             return (
@@ -398,6 +453,7 @@ function AlterProfileInner() {
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "lineage" && <LineageTab alterId={alter.id} />}
+          {tab === "relationships" && <RelationshipsTab alter={alter} alters={alters} />}
           {tab === "options" && <OptionsTab alter={alter} />}
         </div>
       </div>

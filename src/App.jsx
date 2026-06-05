@@ -47,6 +47,10 @@ import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
 import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+
+// First run: the welcome intro and the storage-setup screen are now a single
+// combined screen (StorageModeSetup renders the welcome copy above the storage
+// choice in "setup" mode).
 import { initAccessibility } from '@/lib/useAccessibility';
 
 // Apply saved accessibility settings before first render

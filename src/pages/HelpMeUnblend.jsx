@@ -6,6 +6,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, Shuffle, HelpCircle, Wind, RotateCcw, Heart, Zap, Trash2, Sparkles, Cog } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { PRESET_QUESTIONS, buildDynamicQuestions, buildDominantFeelingQuestion, instantiateUserQuestion } from "@/lib/unblendQuestions";
 import { toast } from "sonner";
 import {
@@ -57,6 +58,18 @@ function questionHasUsefulData(q, activeAlters) {
     return false;
   }
   return false;
+}
+
+// Resolves local-image:// avatars (raw <img src> renders them broken).
+function RankedAlterAvatar({ alter }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolvedUrl ? (
+    <img src={resolvedUrl} alt="" className="w-full h-full object-cover" />
+  ) : (
+    <span className="text-xs font-bold text-white">
+      {(alter.name || "?").charAt(0).toUpperCase()}
+    </span>
+  );
 }
 
 export default function HelpMeUnblend() {
@@ -516,13 +529,7 @@ export default function HelpMeUnblend() {
                     className="w-8 h-8 rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
                     style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}
                   >
-                    {alter.avatar_url ? (
-                      <img src={alter.avatar_url} alt="" className="w-full h-full object-cover" />
-                    ) : (
-                      <span className="text-xs font-bold text-white">
-                        {(alter.name || "?").charAt(0).toUpperCase()}
-                      </span>
-                    )}
+                    <RankedAlterAvatar alter={alter} />
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5">

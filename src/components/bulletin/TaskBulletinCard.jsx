@@ -192,6 +192,8 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
         alters={alters}
         open={showActions}
         onClose={() => setShowActions(false)}
+        taskId={parsed.taskId}
+        isUrgent={isUrgent}
       />
     </div>
   );

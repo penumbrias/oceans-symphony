@@ -11,12 +11,14 @@ import {
 } from "lucide-react";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
+import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
@@ -56,6 +58,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
   // Mirror the anonymize toggle from the Alters page so the chips here
   // blur the same way for screenshots.
   const { mode: anonymize } = useAnonymizeMode();
@@ -102,7 +105,6 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       tabIndex={0}
       aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Double-tap to jump to the session on the Timeline or edit it. Swipe right to remove from front, swipe left to toggle primary.`}
       aria-expanded={!!isExpanded}
-      aria-expanded={false}
       {...bind}
       onMouseDown={(e) => { /* desktop: long-press via mouse not wired; rely on click */ }}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggleExpand?.(alter.id) : undefined}
@@ -124,8 +126,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
           className={`w-10 h-10 rounded-xl overflow-hidden flex items-center justify-center border border-border/30 ${blurAvatar ? "blur-sm" : ""}`}
           style={{ backgroundColor: bg || "hsl(var(--muted))" }}
         >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          {resolvedAvatar ? (
+            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
           ) : (
             <User className="w-5 h-5" style={{ color: text || "hsl(var(--muted-foreground))" }} />
           )}
@@ -179,19 +181,86 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   );
 }
 
-function AlterPanel({ alter, session, onClose, onSaved }) {
+// Compact avatar + name header for AlterPanel's controlled (meeting) mode,
+// where there's no FronterChip above the panel to identify the alter.
+function PanelHeader({ alter, onRemove }) {
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const bg = alter?.color || null;
+  const text = bg ? getContrastColor(bg) : null;
+  return (
+    <div className="flex items-center gap-2.5 px-3 py-2.5 border-b border-border/30">
+      <div
+        className="w-8 h-8 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
+        style={{ backgroundColor: bg || "hsl(var(--muted))" }}
+      >
+        {resolvedAvatar
+          ? <img src={resolvedAvatar} alt={alter?.name} className="w-full h-full object-cover" />
+          : <User className="w-4 h-4" style={{ color: text || "hsl(var(--muted-foreground))" }} />}
+      </div>
+      <span className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{alter?.name}</span>
+      {onRemove && (
+        <button
+          type="button"
+          onClick={onRemove}
+          aria-label={`Remove ${alter?.name}`}
+          className="p-1 rounded-full text-muted-foreground hover:text-destructive transition-colors flex-shrink-0"
+        >
+          <X className="w-4 h-4" />
+        </button>
+      )}
+    </div>
+  );
+}
+
+// Hold-menu header avatar — resolves legacy local-image:// avatars the same
+// way FronterChip / PanelHeader do (a raw <img src> on those renders broken).
+function HoldMenuAvatar({ alter }) {
+  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolvedAvatar
+    ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
+    : <User className="w-5 h-5 text-muted-foreground" />;
+}
+
+// AlterPanel — the per-alter "currently fronting" panel: avatar + name (via
+// the FronterChip above), EmotionWheelPicker, 1–5 / boolean symptom rows, and
+// a free-text note.
+//
+// Two modes, switched purely by props so existing callers are untouched:
+//
+//   1. Session mode (default, used by CurrentFronters): pass `session`. The
+//      panel reads the FrontingSession's JSON-string payloads and WRITES back
+//      to the FrontingSession on the Save button. Exactly the original behaviour.
+//
+//   2. Controlled mode (used by the System Meeting participants section): pass
+//      `participant` ({ alter_id, emotions, symptoms, note }) + `onChange`.
+//      The panel becomes a controlled editor — every edit is pushed up via
+//      `onChange(nextParticipant)` and the host persists it (here, on the
+//      SystemCheckIn.participants array). No FrontingSession is read or written
+//      and the DB Save button is replaced by the host's overall save. The
+//      symptom shape is the same `[{ id, label, value, type }]` array the
+//      fronting flow uses, so analytics / reports read it identically.
+export function AlterPanel({ alter, session, onClose, onSaved, participant, onChange, hideHeader = false }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
+  const controlled = !session && !!onChange;
 
-  const [note, setNote] = useState(() => sessionNoteText(session));
+  const [note, setNote] = useState(() =>
+    controlled ? (participant?.note || "") : sessionNoteText(session)
+  );
 
   const [showEmotions, setShowEmotions] = useState(false);
   const [localEmotions, setLocalEmotions] = useState(() => {
+    if (controlled) return Array.isArray(participant?.emotions) ? participant.emotions : [];
     try { return JSON.parse(session?.session_emotions || "[]"); } catch { return []; }
   });
 
   const [showSymptoms, setShowSymptoms] = useState(false);
   const [symptomValues, setSymptomValues] = useState(() => {
+    if (controlled) {
+      const map = {};
+      for (const it of (participant?.symptoms || [])) if (it?.id) map[it.id] = it.value;
+      return map;
+    }
     // session_symptoms exists on disk in two shapes: the current array of
     // { id, label, value, type } (what handleSave below writes) and an older
     // id→value map. Normalise to the map shape we use internally — without
@@ -232,6 +301,40 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   ];
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
+
+  // Build the canonical [{ id, label, value, type }] symptom array from the
+  // internal id→value map (same shape handleSave writes for sessions). The
+  // label/type come from the live symptoms catalogue, but if it hasn't loaded
+  // yet (or a symptom was archived/deleted) we fall back to the label/type the
+  // participant already had recorded — so an existing meeting's symptoms are
+  // never clobbered just because the catalogue query is still in flight.
+  const buildSymptomArr = (map) => {
+    const existing = {};
+    for (const it of (participant?.symptoms || [])) if (it?.id) existing[it.id] = it;
+    return Object.entries(map)
+      .filter(([, v]) => v !== null && v !== undefined && v !== 0 && v !== false)
+      .map(([id, value]) => {
+        const s = symptoms.find(x => x.id === id);
+        if (s) return { id, label: s.label, value, type: s.type };
+        const prev = existing[id];
+        return prev ? { id, label: prev.label, value, type: prev.type } : null;
+      })
+      .filter(Boolean);
+  };
+
+  // Controlled mode: mirror local edits up to the host (SystemCheckIn
+  // participants) on every change. No DB write — the host persists the
+  // participants array on the meeting record when the meeting is saved.
+  useEffect(() => {
+    if (!controlled) return;
+    onChange?.({
+      alter_id: participant?.alter_id || alter.id,
+      emotions: localEmotions,
+      symptoms: buildSymptomArr(symptomValues),
+      note: note,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [controlled, note, localEmotions, symptomValues, symptoms]);
 
   const addCustomEmotionMutation = useMutation({
     mutationFn: async ({ label, category = "custom" }) => {
@@ -296,18 +399,26 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
   };
 
   return (
-    <div className="col-span-2 rounded-xl bg-card border border-border/50 overflow-hidden">
+    <div className={`${controlled ? "" : "col-span-2"} rounded-xl bg-card border border-border/50 overflow-hidden`}>
 
-      {/* Plans for this alter — surfaced inline (always on; surface gate
-          ignored for the contextual per-alter case). */}
-      <div className="px-3 pt-3">
-        <UpcomingPlans
-          placement="alter_panel"
-          filterByAlterId={alter.id}
-          title={`📅 Plans for ${alter.name}`}
-          limit={3}
-        />
-      </div>
+      {/* Optional avatar + name header (controlled mode shows it because there's
+          no FronterChip above the panel; session mode keeps the chip header). */}
+      {!hideHeader && controlled && (
+        <PanelHeader alter={alter} onRemove={onClose} />
+      )}
+
+      {/* Plans for this alter — surfaced inline. Only in session mode: a
+          meeting participant panel isn't a fronting context. */}
+      {!controlled && (
+        <div className="px-3 pt-3">
+          <UpcomingPlans
+            placement="alter_panel"
+            filterByAlterId={alter.id}
+            title={`📅 Plans for ${alter.name}`}
+            limit={3}
+          />
+        </div>
+      )}
 
       {/* Note — bare textarea, no chrome */}
       <div className="px-3 pt-1 pb-2">
@@ -347,33 +458,39 @@ function AlterPanel({ alter, session, onClose, onSaved }) {
           <Activity className="w-3.5 h-3.5" />
         </button>
 
-        <button
-          onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
-          aria-label="Mark triggered switch"
-          aria-expanded={showTrigger}
-          title={`Triggered ${terms.switch}`}
-          className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
-            showTrigger
-              ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
-              : "text-muted-foreground border-border hover:bg-muted/50"
-          }`}
-        >
-          <AlertTriangle className="w-3.5 h-3.5" />
-        </button>
-
-        <div className="ml-auto flex items-center gap-1.5">
-          <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
-            <X className="w-3.5 h-3.5" />
-          </button>
+        {!controlled && (
           <button
-            onClick={handleSave}
-            disabled={saving}
-            className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
+            aria-label="Mark triggered switch"
+            aria-expanded={showTrigger}
+            title={`Triggered ${terms.switch}`}
+            className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${
+              showTrigger
+                ? "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300 dark:border-orange-700"
+                : "text-muted-foreground border-border hover:bg-muted/50"
+            }`}
           >
-            {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-            Save
+            <AlertTriangle className="w-3.5 h-3.5" />
           </button>
-        </div>
+        )}
+
+        {/* Controlled mode persists via the host's overall save — no per-panel
+            DB Save button. Session mode keeps Close + Save. */}
+        {!controlled && (
+          <div className="ml-auto flex items-center gap-1.5">
+            <button onClick={onClose} aria-label="Close panel" className="p-1 text-muted-foreground hover:text-foreground transition-colors">
+              <X className="w-3.5 h-3.5" />
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-full text-xs bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+            >
+              {saving ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+              Save
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Emotion picker */}
@@ -562,7 +679,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       toast.success(`${alter.name} is now primary!`);
-    } catch { toast.error("Failed to update primary fronter"); }
+    } catch { toast.error(`Failed to update primary ${terms.fronter}`); }
   };
 
   const handleRemoveFromFront = async (alter) => {
@@ -580,7 +697,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       }
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      toast.success(`${alter.name} removed from front`);
+      toast.success(`${alter.name} removed from ${terms.front}`);
     } catch { toast.error("Failed to remove"); }
     setHoldMenuAlter(null);
   };
@@ -729,9 +846,9 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                 session={alterSession}
                 onHold={setHoldMenuAlter}
                 coFronterLabel={`Co-${terms.fronting}`}
-                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast)}
-                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast)}
-                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast)}
+                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
+                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms)}
+                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
                 isExpanded={expandedAlterId === alter.id}
                 onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
               />
@@ -812,61 +929,17 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
         />
       )}
 
+      {/* Press-and-hold a fronting chip → the SAME full action menu as the
+          alters page (go to profile, pin, create/open subsystem, add/remove
+          front, make/demote primary, add to groups, leave subsystem). Reuses
+          AlterActionMenu so the fronting context gets every action without
+          duplicating its own buttons. */}
       {holdMenuAlter && (
-        <Dialog open={!!holdMenuAlter} onOpenChange={() => setHoldMenuAlter(null)}>
-          <DialogContent className="max-w-[280px] p-4 gap-0">
-            <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/50">
-              <div
-                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
-                style={{ backgroundColor: holdMenuAlter.color || "hsl(var(--muted))" }}
-              >
-                {holdMenuAlter.avatar_url
-                  ? <img src={holdMenuAlter.avatar_url} alt={holdMenuAlter.name} className="w-full h-full object-cover" />
-                  : <User className="w-5 h-5 text-muted-foreground" />}
-              </div>
-              <div>
-                <p className="font-semibold text-sm">{holdMenuAlter.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {holdMenuAlter.id === primaryAlterId ? `Primary ${terms.fronter || terms.alter}` : `Co-${terms.fronting}`}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              <button
-                onClick={async () => {
-                  if (holdMenuAlter.id === primaryAlterId) {
-                    try {
-                      const sess = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === holdMenuAlter.id);
-                      if (sess?.alter_id) {
-                        await base44.entities.FrontingSession.update(sess.id, { is_primary: false });
-                        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-                        toast.success(`${holdMenuAlter.name} is now co-${terms.fronting}`);
-                      }
-                    } catch { toast.error("Failed to update"); }
-                  } else {
-                    await handleSetPrimaryFromHold(holdMenuAlter);
-                  }
-                  setHoldMenuAlter(null);
-                }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
-              >
-                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : "Make Primary"}
-              </button>
-              <button
-                onClick={() => handleRemoveFromFront(holdMenuAlter)}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                Remove from {terms.Front}
-              </button>
-              <button
-                onClick={() => { navigate(`/alter/${holdMenuAlter.id}`); setHoldMenuAlter(null); }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
-              >
-                View Profile
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <AlterActionMenu
+          alter={holdMenuAlter}
+          activeSessions={activeSessions}
+          onClose={() => setHoldMenuAlter(null)}
+        />
       )}
     </>
   );

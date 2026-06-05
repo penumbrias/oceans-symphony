@@ -197,7 +197,13 @@ export default function QuickPlanComposer({ onSaved }) {
           ts.setHours(12, 0, 0, 0);
         }
       }
-      const isPlanned = ts.getTime() > Date.now();
+      // A quick plan is date-only, so it counts as a scheduled (upcoming)
+      // plan whenever its DATE is today or later — not just until 23:59,
+      // which would wrongly flip a same-day quick plan to "logged" if it
+      // were created late at night. Timed plans use the clock comparison.
+      const isPlanned = isQuickPlan
+        ? (date || todayLocalISODate()) >= todayLocalISODate()
+        : ts.getTime() > Date.now();
 
       // Identical schema to ActivityPlanModal's create path so the plan is
       // read identically by the day/week/month grids, UpcomingPlans and
@@ -272,10 +278,10 @@ export default function QuickPlanComposer({ onSaved }) {
     <div
       ref={rootRef}
       data-tour="quick-plan"
-      className="bg-card border border-border/60 rounded-2xl p-3 shadow-sm mb-3"
+      className="bg-card border border-border/60 rounded-2xl px-3 py-2 shadow-sm mb-3"
     >
       <div className="flex items-center gap-2">
-        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/10 text-primary flex-shrink-0">
+        <div className="flex items-center justify-center w-7 h-7 rounded-full bg-primary/10 text-primary flex-shrink-0">
           <CalendarDays className="w-4 h-4" />
         </div>
         <input

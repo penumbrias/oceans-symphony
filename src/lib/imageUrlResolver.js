@@ -34,7 +34,3 @@ export async function resolveImageUrl(url) {
   _cache.set(url, url);
   return url;
 }
-
-export function clearImageCache() {
-  _cache.clear();
-}

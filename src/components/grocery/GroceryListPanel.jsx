@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
+import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import {
   listUnlockedLists,
   createUnlockedList,
@@ -23,6 +24,10 @@ import {
 
 const LOCK_PREF_KEY = "grocery_lock_on_close_v1";
 const ACTIVE_LIST_KEY = "grocery_active_list_v1";
+// One-shot flag — the first time the panel opens via the triple-tap panic
+// gesture we show a "What's this?" explainer so a surprised user understands
+// the cover (and can re-tune the gesture).
+const PANIC_EXPLAINED_KEY = "grocery_panic_explained_v1";
 
 // Privacy-cover overlay + multi-list grocery store. When open, it sits
 // on top of EVERYTHING in the app — including the bottom navigation
@@ -80,6 +85,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
   });
+  const [explainerOpen, setExplainerOpen] = useState(false);
   const [unlockPromptOpen, setUnlockPromptOpen] = useState(false);
   const [unlockPwd, setUnlockPwd] = useState("");
   const [unlockBusy, setUnlockBusy] = useState(false);
@@ -265,6 +271,12 @@ export default function GroceryListPanel({ lockedMode = false }) {
       // by a pre-unlock event, and vice versa).
       if (!!e?.detail?.lockedMode !== lockedMode) return;
       setOpen(true);
+      // First-ever panic-gesture open → surface the explainer.
+      if (e?.detail?.source === "panic") {
+        let explained = false;
+        try { explained = localStorage.getItem(PANIC_EXPLAINED_KEY) === "1"; } catch { /* ignore */ }
+        if (!explained) setExplainerOpen(true);
+      }
       if (e?.detail?.focusInput) setTimeout(() => inputRef.current?.focus(), 80);
     };
     const onClose = () => {
@@ -726,6 +738,38 @@ export default function GroceryListPanel({ lockedMode = false }) {
           </button>
         </div>
       </div>
+
+      {/* First-time panic-gesture explainer */}
+      {explainerOpen && (
+        <div className="absolute inset-0 z-[10002] flex items-center justify-center bg-black/50 px-5">
+          <div className="w-full max-w-sm max-h-[85vh] overflow-y-auto rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-4">
+            <div className="space-y-1.5">
+              <h2 className="text-base font-semibold flex items-center gap-2">
+                <span className="text-xl">🛒</span> What's this?
+              </h2>
+              <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                You just opened the <strong>Grocery List</strong> — a quick-access <strong>privacy screen</strong>. Tapping the screen a few times in a row covers Oceans Symphony with a real-looking grocery list, so a glance reveals nothing about your system.
+              </p>
+              <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
+                It's also a fully <strong>functioning inventory tracker</strong> — add items, mark what you've bought, star frequent buys, and keep multiple lists. Nothing here is fake.
+              </p>
+            </div>
+            <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
+              <GroceryPanicTapsSettings />
+            </div>
+            <button
+              type="button"
+              onClick={() => {
+                try { localStorage.setItem(PANIC_EXPLAINED_KEY, "1"); } catch { /* ignore */ }
+                setExplainerOpen(false);
+              }}
+              className="w-full px-3 py-2.5 rounded-lg bg-emerald-500 hover:bg-emerald-600 text-white font-medium text-sm"
+            >
+              Got it
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* New-list dialog */}
       {createListOpen && (

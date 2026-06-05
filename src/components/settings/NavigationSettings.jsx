@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Button } from "@/components/ui/button";
-import { Navigation, Save, Loader2, ChevronDown, ChevronUp, ArrowUp, ArrowDown, ArrowLeft, ArrowRight, X } from "lucide-react";
+import { ChevronDown, ChevronUp, ArrowUp, ArrowDown } from "lucide-react";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useTerms } from "@/lib/useTerms";
+import { isNative } from "@/lib/platform";
 
 function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, isLast }) {
   return (
@@ -25,102 +24,22 @@ function ActiveItem({ label, checked, onToggle, onMoveUp, onMoveDown, isFirst, i
   );
 }
 
-// Grid editor for Dashboard Grid — column count is configurable
-function DashboardGridEditor({ checkedItems, onMove, onToggle, cols = 3, resolveLabel }) {
-  const COLS = cols;
-  const totalItems = checkedItems.length;
-
-  const rows = [];
-  for (let i = 0; i < totalItems; i += COLS) {
-    rows.push(checkedItems.slice(i, i + COLS));
-  }
-
-  const swap = (a, b) => {
-    if (a < 0 || b < 0 || a >= totalItems || b >= totalItems) return;
-    onMove(a, b);
-  };
-
-  return (
-    <div className="space-y-1.5">
-      {rows.map((row, rowIdx) => (
-        <div key={rowIdx} className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${COLS}, minmax(0, 1fr))` }}>
-          {Array.from({ length: COLS }).map((_, colIdx) => {
-            const item = row[colIdx];
-            const flatIdx = rowIdx * COLS + colIdx;
-            if (!item) return <div key={colIdx} className="rounded-lg border border-dashed border-border/20 h-20" />;
-
-            const label = resolveLabel ? resolveLabel(item) : (ALL_PAGES.find(p => p.id === item)?.label || item);
-
-            const canUp    = rowIdx > 0;
-            const canDown  = flatIdx + COLS < totalItems;
-            const canLeft  = colIdx > 0;
-            const canRight = colIdx < COLS - 1 && flatIdx + 1 < totalItems;
-
-            const isFirst = colIdx === 0;
-            const isLast  = colIdx === COLS - 1;
-            const textAlign    = isFirst ? "text-left" : isLast ? "text-right" : "text-center";
-            const justifyLabel = isFirst ? "justify-start" : isLast ? "justify-end" : "justify-center";
-
-            return (
-              <div key={item} className="relative rounded-lg border border-border/50 bg-card flex flex-col items-center h-20">
-                {/* Remove */}
-                <button
-                  onClick={() => onToggle(item)}
-                  className="absolute top-0.5 right-0.5 p-0.5 text-muted-foreground hover:text-destructive transition-colors z-10"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-
-                {/* Up */}
-                <div className="h-5 flex items-center justify-center">
-                  {canUp
-                    ? <button onClick={() => swap(flatIdx, flatIdx - COLS)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowUp className="w-3 h-3" /></button>
-                    : <div className="w-4 h-4" />}
-                </div>
-
-                {/* Middle row: left | label | right */}
-                <div className="flex items-center w-full flex-1 overflow-hidden">
-                  <div className="w-4 flex-shrink-0 flex items-center justify-center">
-                    {canLeft
-                      ? <button onClick={() => swap(flatIdx, flatIdx - 1)} className="flex items-center justify-center text-muted-foreground hover:text-foreground"><ArrowLeft className="w-3 h-3" /></button>
-                      : null}
-                  </div>
-
-                  <div className={`flex-1 flex ${justifyLabel} overflow-hidden px-0.5`}>
-                    <span className={`text-[0.625rem] font-semibold text-foreground leading-tight truncate ${textAlign}`}>
-                      {label}
-                    </span>
-                  </div>
-
-                  <div className="w-4 flex-shrink-0 flex items-center justify-center">
-                    {canRight
-                      ? <button onClick={() => swap(flatIdx, flatIdx + 1)} className="flex items-center justify-center text-muted-foreground hover:text-foreground"><ArrowRight className="w-3 h-3" /></button>
-                      : null}
-                  </div>
-                </div>
-
-                {/* Down */}
-                <div className="h-5 flex items-center justify-center">
-                  {canDown
-                    ? <button onClick={() => swap(flatIdx, flatIdx + COLS)} className="p-0.5 text-muted-foreground hover:text-foreground"><ArrowDown className="w-3 h-3" /></button>
-                    : <div className="w-4 h-4" />}
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function NavigationSettings({ settings }) {
+// Navigation-bar config. The dashboard grid is edited directly on the
+// dashboard page (its own drag-to-arrange UI), so it's intentionally
+// NOT editable here anymore — this surface is only the nav bars.
+//
+// The top navigation bar isn't shown on mobile, so on native (and when
+// `showTopBar` is false) we present only the mobile bottom bar to avoid
+// offering an irrelevant control. On web, both are shown.
+export default function NavigationSettings({ settings, showTopBar }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
   const [config, setConfig] = useState(DEFAULT_CONFIG);
-  const [saving, setSaving] = useState(false);
   const [openSection, setOpenSection] = useState(null);
-  const [gridCols, setGridCols] = useState(() => parseInt(localStorage.getItem("nav_grid_cols") || "3", 10));
+
+  // Default to hiding the top-bar config on native; let the caller
+  // override via the explicit `showTopBar` prop.
+  const topBarVisible = showTopBar !== undefined ? showTopBar : !isNative();
 
   const pageTermMap = {
     alters:           terms.Alters,
@@ -137,13 +56,15 @@ export default function NavigationSettings({ settings }) {
     if (settings?.navigation_config) {
       const saved = settings.navigation_config;
       const removed = saved.dashboardGridRemoved || [];
-      // Add new DEFAULT pages only if the user hasn't explicitly removed them
+      // Preserve the saved dashboardGrid + its merge behaviour even though
+      // this surface no longer edits it — the dashboard page reads it and
+      // we must not clobber the user's grid when saving the nav bars.
       const merged = {
         ...saved,
         dashboardGridRemoved: removed,
         dashboardGrid: [
-          ...saved.dashboardGrid,
-          ...DEFAULT_CONFIG.dashboardGrid.filter(id => !saved.dashboardGrid.includes(id) && !removed.includes(id)),
+          ...(saved.dashboardGrid || []),
+          ...DEFAULT_CONFIG.dashboardGrid.filter(id => !(saved.dashboardGrid || []).includes(id) && !removed.includes(id)),
         ],
       };
       setConfig(merged);
@@ -152,174 +73,112 @@ export default function NavigationSettings({ settings }) {
     }
   }, [settings?.navigation_config]);
 
-  const handleToggle = (location, pageId) => {
-    setConfig(prev => {
-      const list = [...prev[location]];
-      const idx = list.indexOf(pageId);
-      if (idx >= 0) {
-        list.splice(idx, 1);
-        if (location === "dashboardGrid") {
-          const removed = [...(prev.dashboardGridRemoved || [])];
-          if (!removed.includes(pageId)) removed.push(pageId);
-          return { ...prev, dashboardGrid: list, dashboardGridRemoved: removed };
-        }
-      } else {
-        const maxLen = location === "topBar" ? 6 : location === "bottomBar" ? 5 : 999;
-        if (list.length < maxLen) {
-          list.push(pageId);
-          if (location === "dashboardGrid") {
-            const removed = (prev.dashboardGridRemoved || []).filter(id => id !== pageId);
-            return { ...prev, dashboardGrid: list, dashboardGridRemoved: removed };
-          }
-        }
-      }
-      return { ...prev, [location]: list };
-    });
-  };
-
-  const handleMove = (location, index, direction) => {
-    setConfig(prev => {
-      const list = [...prev[location]];
-      const targetIndex = index + direction;
-      if (targetIndex < 0 || targetIndex >= list.length) return prev;
-      [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
-      return { ...prev, [location]: list };
-    });
-  };
-
-  const handleSwap = (location, idxA, idxB) => {
-    setConfig(prev => {
-      const list = [...prev[location]];
-      if (idxA < 0 || idxB < 0 || idxA >= list.length || idxB >= list.length) return prev;
-      [list[idxA], list[idxB]] = [list[idxB], list[idxA]];
-      return { ...prev, [location]: list };
-    });
-  };
-
-  const handleSave = async () => {
-    setSaving(true);
+  // Autosave: persist the given config immediately (no save button).
+  const persist = async (cfg) => {
     try {
       if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { navigation_config: config });
+        await base44.entities.SystemSettings.update(settings.id, { navigation_config: cfg });
       } else {
-        await base44.entities.SystemSettings.create({ navigation_config: config });
+        await base44.entities.SystemSettings.create({ navigation_config: cfg });
       }
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-    } finally {
-      setSaving(false);
+    } catch (e) {
+      console.warn("[NavigationSettings] save failed:", e?.message || e);
     }
   };
 
+  const handleToggle = (location, pageId) => {
+    const list = [...(config[location] || [])];
+    const idx = list.indexOf(pageId);
+    if (idx >= 0) {
+      list.splice(idx, 1);
+    } else {
+      const maxLen = location === "topBar" ? 6 : 5;
+      if (list.length < maxLen) list.push(pageId);
+    }
+    const next = { ...config, [location]: list };
+    setConfig(next);
+    persist(next);
+  };
+
+  const handleMove = (location, index, direction) => {
+    const list = [...(config[location] || [])];
+    const targetIndex = index + direction;
+    if (targetIndex < 0 || targetIndex >= list.length) return;
+    [list[index], list[targetIndex]] = [list[targetIndex], list[index]];
+    const next = { ...config, [location]: list };
+    setConfig(next);
+    persist(next);
+  };
+
+  // Only the nav bars are editable here. Top bar is filtered out where
+  // it isn't shown (native / mobile).
+  const locations = topBarVisible ? ["bottomBar", "topBar"] : ["bottomBar"];
+
   return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
-            <Navigation className="w-5 h-5 text-primary" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Navigation</CardTitle>
-            <CardDescription>Customize where pages appear and their order</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        {["topBar", "bottomBar", "dashboardGrid"].map(location => {
-          const maxLen = location === "topBar" ? 6 : location === "bottomBar" ? 5 : 999;
-          const count = config[location]?.length || 0;
-          const isOpen = openSection === location;
-          const sectionLabel = location === "topBar" ? "Top Navigation Bar" : location === "bottomBar" ? "Mobile Bottom Bar" : "Dashboard Grid";
-          const isDashboard = location === "dashboardGrid";
-          const checkedItems = config[location] || [];
-          const availablePages = isDashboard ? ALL_PAGES.filter(p => p.id !== "home") : ALL_PAGES;
-          const uncheckedItems = availablePages.filter(p => !checkedItems.includes(p.id));
+    <div className="space-y-2">
+      {locations.map(location => {
+        const maxLen = location === "topBar" ? 6 : 5;
+        const count = config[location]?.length || 0;
+        const isOpen = openSection === location;
+        const sectionLabel = location === "topBar" ? "Top navigation bar" : "Mobile bottom bar";
+        const checkedItems = config[location] || [];
+        const uncheckedItems = ALL_PAGES.filter(p => !checkedItems.includes(p.id));
 
-          return (
-            <div key={location} className="border border-border rounded-lg overflow-hidden">
-              <button
-                onClick={() => setOpenSection(isOpen ? null : location)}
-                className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/20 transition-colors"
-              >
-                <div className="flex items-center justify-between w-full">
-                  <span className="font-semibold text-sm text-foreground">{sectionLabel}</span>
-                  <span className="text-xs text-muted-foreground ml-2">{count}</span>
-                </div>
-                {isOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
-              </button>
+        return (
+          <div key={location} className="border border-border/50 rounded-lg overflow-hidden">
+            <button
+              onClick={() => setOpenSection(isOpen ? null : location)}
+              className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-muted/20 transition-colors"
+            >
+              <div className="flex items-center justify-between w-full">
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{sectionLabel}</span>
+                <span className="text-xs text-muted-foreground ml-2">{count}/{maxLen}</span>
+              </div>
+              {isOpen ? <ChevronUp className="w-3.5 h-3.5 text-muted-foreground ml-1" /> : <ChevronDown className="w-3.5 h-3.5 text-muted-foreground ml-1" />}
+            </button>
 
-              {isOpen && (
-                <div className="px-4 py-3 border-t border-border bg-muted/5 space-y-3">
-                  {location === "dashboardGrid" ? (
-                    <>
-                      <div className="flex items-center justify-between gap-3">
-                        <p className="text-xs text-muted-foreground">Use arrows to swap positions. Column count updates the dashboard immediately.</p>
-                        <div className="flex items-center gap-1 flex-shrink-0">
-                          <span className="text-xs text-muted-foreground">Cols:</span>
-                          {[2, 3, 4].map(n => (
-                            <button
-                              key={n}
-                              onClick={() => { setGridCols(n); localStorage.setItem("nav_grid_cols", String(n)); }}
-                              className={`w-7 h-7 rounded-lg text-xs font-bold transition-colors ${gridCols === n ? "bg-primary text-primary-foreground" : "bg-muted/40 text-muted-foreground hover:bg-muted/70"}`}>
-                              {n}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                      <DashboardGridEditor
-                        checkedItems={checkedItems}
-                        onMove={(idxA, idxB) => handleSwap(location, idxA, idxB)}
-                        onToggle={(pageId) => handleToggle(location, pageId)}
-                        cols={gridCols}
-                        resolveLabel={resolveLabel}
+            {isOpen && (
+              <div className="px-3 py-3 border-t border-border/40 bg-muted/5 space-y-3">
+                <div className="space-y-2">
+                  {checkedItems.map((pageId, index) => {
+                    const page = ALL_PAGES.find(p => p.id === pageId);
+                    if (!page) return null;
+                    return (
+                      <ActiveItem
+                        key={page.id}
+                        label={resolveLabel(page.id)}
+                        checked
+                        onToggle={() => handleToggle(location, page.id)}
+                        onMoveUp={() => handleMove(location, index, -1)}
+                        onMoveDown={() => handleMove(location, index, 1)}
+                        isFirst={index === 0}
+                        isLast={index === checkedItems.length - 1}
                       />
-                    </>
-                  ) : (
-                    <div className="space-y-2">
-                      {checkedItems.map((pageId, index) => {
-                        const page = ALL_PAGES.find(p => p.id === pageId);
-                        if (!page) return null;
-                        return (
-                          <ActiveItem
-                            key={page.id}
-                            label={resolveLabel(page.id)}
-                            checked
-                            onToggle={() => handleToggle(location, page.id)}
-                            onMoveUp={() => handleMove(location, index, -1)}
-                            onMoveDown={() => handleMove(location, index, 1)}
-                            isFirst={index === 0}
-                            isLast={index === checkedItems.length - 1}
-                          />
-                        );
-                      })}
-                    </div>
-                  )}
-
-                  {uncheckedItems.length > 0 && (
-                    <div className="space-y-2 mt-3 pt-3 border-t border-border/30">
-                      {uncheckedItems.filter(p => !(isDashboard && p.id === "home")).map(page => (
-                        <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 opacity-60">
-                          <div className="w-4 h-4" />
-                          <span className="flex-1 text-sm text-muted-foreground">{resolveLabel(page.id)}</span>
-                          <Checkbox
-                            checked={false}
-                            disabled={count >= maxLen}
-                            onCheckedChange={() => handleToggle(location, page.id)}
-                          />
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
-              )}
-            </div>
-          );
-        })}
 
-        <Button onClick={handleSave} disabled={saving} className="bg-primary hover:bg-primary/90 w-full mt-4">
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Navigation Settings
-        </Button>
-      </CardContent>
-    </Card>
+                {uncheckedItems.length > 0 && (
+                  <div className="space-y-2 mt-3 pt-3 border-t border-border/30">
+                    {uncheckedItems.map(page => (
+                      <div key={page.id} className="flex items-center gap-3 p-2 rounded-lg bg-muted/20 opacity-60">
+                        <div className="w-4 h-4" />
+                        <span className="flex-1 text-sm text-muted-foreground">{resolveLabel(page.id)}</span>
+                        <Checkbox
+                          checked={false}
+                          disabled={count >= maxLen}
+                          onCheckedChange={() => handleToggle(location, page.id)}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
   );
 }

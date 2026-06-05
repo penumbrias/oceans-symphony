@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Folder, ChevronRight, ArrowLeft, User, Users, FolderPlus } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { groupNameColor } from "@/lib/contrast";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -24,6 +25,7 @@ function MemberRow({ alter }) {
   const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
+  const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
 
   return (
     <Link to={`/alter/${alter.id}`}>
@@ -37,8 +39,8 @@ function MemberRow({ alter }) {
           className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
           style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}
         >
-          {alter.avatar_url ? (
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+          {resolvedAvatar ? (
+            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
           ) : (
             <User className="w-5 h-5" style={{ color: textColor || "hsl(var(--muted-foreground))" }} />
           )}

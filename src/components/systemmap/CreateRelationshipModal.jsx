@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
+import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 
 // Kept for backward compat with RelationshipsPanel import
@@ -23,6 +24,22 @@ function useRelationshipTypes() {
   return data;
 }
 
+// Cycle-safe, depth-tagged render order for a <select> of relationship types,
+// so children appear indented under their parent. The OPTION value stays the
+// type's label — `relationship_type` on AlterRelationship has always stored
+// the label, never the id, so nesting must not change what's saved.
+function TypeOptions({ types }) {
+  const tree = flattenTypeTree(types);
+  // (removed) const NBSP = "  ";
+  const NB = String.fromCharCode(160); // U+00A0 survives in <option>; ASCII spaces collapse
+  const indent = (d) => (d > 0 ? NB.repeat(d * 2) + "↳ " : "");
+  return tree.map(t => (
+    <option key={t.id ?? t.label} value={t.label} data-depth={t._depth || 0}>
+      {indent(t._depth || 0)}{t.label}{false && `${"  ".repeat(t._depth || 0)}${t.label}`}
+    </option>
+  ));
+}
+
 // Cycles: a_to_b → b_to_a → bidirectional → a_to_b
 const DIRECTION_CYCLE = ["a_to_b", "b_to_a", "bidirectional"];
 
@@ -31,6 +48,20 @@ function directionLabel(direction, nameA, nameB) {
   if (direction === "a_to_b") return `${nameA} → ${nameB}`;
   if (direction === "b_to_a") return `${nameB} → ${nameA}`;
   return `${nameA} ↔ ${nameB}`;
+}
+
+// Resolve legacy local-image:// avatars before rendering (raw <img src> on
+// those renders broken). Rendered inside a .map(), so it must be a child.
+function ListItemAvatar({ alter }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolved ? (
+    <img src={resolved} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
+  ) : (
+    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
+      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
+      {alter.name?.charAt(0)?.toUpperCase()}
+    </div>
+  );
 }
 
 function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
@@ -86,14 +117,7 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
                   key={alter.id}
                   onClick={() => { onSelect(alter); setOpen(false); setSearch(""); }}
                   className="w-full flex items-center gap-2 px-3 py-2 border-b border-border/30 hover:bg-muted/40 transition-colors text-left">
-                  {alter.avatar_url ? (
-                    <img src={alter.avatar_url} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
-                  ) : (
-                    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
-                      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
-                      {alter.name?.charAt(0)?.toUpperCase()}
-                    </div>
-                  )}
+                  <ListItemAvatar alter={alter} />
                   <p className="text-sm font-medium text-foreground truncate">{alter.name}</p>
                 </button>
               ))
@@ -149,7 +173,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
     });
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
@@ -193,9 +217,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
           <select value={relType} onChange={e => handleTypeChange(e.target.value)}
             className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            {relTypes.map(t => (
-              <option key={t.id || t.label} value={t.label}>{t.label}</option>
-            ))}
+            <TypeOptions types={relTypes} />
           </select>
         </div>
 
@@ -258,6 +280,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

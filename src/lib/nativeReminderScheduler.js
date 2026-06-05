@@ -108,8 +108,10 @@ function nativeIdFor(reminderId, fireTimeISO) {
   for (let i = 0; i < seed.length; i++) {
     h = ((h << 5) + h + seed.charCodeAt(i)) | 0;
   }
-  // Force positive int31 (OS scheduler rejects 0 and negatives).
-  const positive = Math.abs(h) % 2_000_000_000;
+  // Force positive id in a band DISJOINT from planReminderScheduler's
+  // [1.5e9, 2.1e9) range so the two schedulers can't cancel/overwrite each
+  // other's OS notification slots. Reminder scheduler owns [1, 1e9).
+  const positive = Math.abs(h) % 1_000_000_000;
   return positive === 0 ? 1 : positive;
 }
 

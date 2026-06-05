@@ -1,5 +1,6 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle } from "lucide-react";
+import { createPortal } from "react-dom";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -118,7 +119,7 @@ function convertSPToBlocks(rawText) {
 
 function ImportSPModal({ onImport, onClose }) {
   const [text, setText] = useState("");
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-lg mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
@@ -136,13 +137,14 @@ function ImportSPModal({ onImport, onClose }) {
             className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Import</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 function HTMLPreviewModal({ html, onClose }) {
   const [tab, setTab] = useState("preview");
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
@@ -162,7 +164,8 @@ function HTMLPreviewModal({ html, onClose }) {
             : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -257,32 +260,34 @@ export default function BioEditor({ value, onChange }) {
             <RotateCcw className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowHTMLPreview(true)}
+            title="Preview"
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
-            <Eye className="w-3 h-3" /> Preview
+            <Eye className="w-3 h-3" />
           </button>
           <button type="button" onClick={() => setShowImport(true)}
-            className="text-xs text-primary hover:text-primary/80 font-medium transition-colors">
-            Import Template
+            title="Import a bio template"
+            className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
+            <FileDown className="w-3 h-3" />
           </button>
         </div>
       </div>
 
       <div className="flex gap-1 bg-muted/40 p-1 rounded-lg w-fit">
-        <button type="button" onClick={() => setEditorMode("plain")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Type className="w-3 h-3" /> Plain
+        <button type="button" onClick={() => setEditorMode("plain")} title="Plain editor" aria-label="Plain editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "plain" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Type className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("simple")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Eye className="w-3 h-3" /> Simple
+        <button type="button" onClick={() => setEditorMode("simple")} title="Simple (formatted) editor" aria-label="Simple editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "simple" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Eye className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("blocks")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <LayoutGrid className="w-3 h-3" /> Blocks
+        <button type="button" onClick={() => setEditorMode("blocks")} title="Blocks editor" aria-label="Blocks editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "blocks" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <LayoutGrid className="w-3.5 h-3.5" />
         </button>
-        <button type="button" onClick={() => setEditorMode("raw")}
-          className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-          <Code className="w-3 h-3" /> Raw
+        <button type="button" onClick={() => setEditorMode("raw")} title="Raw HTML" aria-label="Raw HTML editor"
+          className={`flex items-center justify-center px-2.5 py-1.5 rounded-md transition-all ${editorMode === "raw" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
+          <Code className="w-3.5 h-3.5" />
         </button>
         <button
           type="button"
@@ -315,7 +320,7 @@ export default function BioEditor({ value, onChange }) {
             placeholder="Write a bio..."
             className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
             spellCheck={false} />
-          <MiniToolbar onInsert={insert} />
+          <MiniToolbar onInsert={insert} templateField />
         </div>
       ) : editorMode === "simple" ? (
         <SimplePreview

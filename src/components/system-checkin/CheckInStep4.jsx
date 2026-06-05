@@ -5,7 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 
-export default function CheckInStep4({ data, onChange, alters = [] }) {
+export default function CheckInStep4({ data, onChange, alters = [], children }) {
   const step = data?.step4_share || {};
 
   return (
@@ -51,6 +51,14 @@ export default function CheckInStep4({ data, onChange, alters = [] }) {
 />
             </div>
           </div>
+
+          {/* Open-dialogue toggle + meeting chat live here, inside Invite
+              Sharing — sharing is exactly where a back-and-forth belongs.
+              Rendered as a DIRECT child of CardContent (outside the padded
+              notes block) so the chat can full-bleed to the card's edges —
+              see the -mx-6 on the dialogue in SystemCheckIn. Provided by the
+              page (SystemCheckIn) via children. */}
+          {children}
         </CardContent>
       </Card>
     </div>

@@ -183,7 +183,6 @@ export const HEADING_FONT_OPTIONS = [
 function applyHeadingFont(value) {
   const el = document.documentElement;
   if (!value || value === "default") {
-    el.style.removeProperty("--font-display-override");
     el.style.removeProperty("--font-display");
     return;
   }

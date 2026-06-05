@@ -72,6 +72,37 @@ export default function AppLayout() {
   // the Set Fronters modal don't sit with stuck data forever.
   useFrontSessionSweep();
 
+  // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
+  // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered
+  // anywhere: bios, bulletins, comments, chat, journals, notes) toggles it
+  // open/closed. One delegated listener covers every surface regardless of
+  // how it rendered.
+  useEffect(() => {
+    const handler = (e) => {
+      // In-app link inside rendered rich content. Anchors inside
+      // dangerouslySetInnerHTML (journal @mention chips, the link picker,
+      // etc.) do a full page reload by default; intercept the ones carrying
+      // a `data-internal-link="/route"` and route through React Router
+      // instead. This is what makes journal @mentions actually navigate to
+      // the alter's profile. One delegated listener covers every surface.
+      const internal = e.target?.closest?.("a[data-internal-link]");
+      if (internal) {
+        const route = internal.getAttribute("data-internal-link");
+        if (route && route.startsWith("/")) {
+          e.preventDefault();
+          navigate(route);
+          return;
+        }
+      }
+      const wh = e.target?.closest?.(".whisper");
+      if (wh) { wh.classList.toggle("revealed"); return; }
+      const sp = e.target?.closest?.(".spoiler");
+      if (sp) sp.classList.toggle("revealed");
+    };
+    document.addEventListener("click", handler);
+    return () => document.removeEventListener("click", handler);
+  }, [navigate]);
+
   // Poll friends every 60 s and show in-app banner when a friend's front changes.
   // On first run (app open) this replaces the old one-time check.
   useEffect(() => {
@@ -167,9 +198,16 @@ const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
 const bannerScope = settings0?.system_banner_scope || "home";
+// Individual alter + group/subsystem profiles have their OWN background
+// image (Settings on each profile), so the system-wide banner is always
+// suppressed there — even in "all" scope — to avoid two backgrounds
+// clashing. The banner still shows on the alters directory (/Home).
+const isOwnBackgroundPage =
+  location.pathname.startsWith("/alter") || location.pathname.startsWith("/group/");
 const bannerVisible =
   !!bannerUrl &&
   bannerScope !== "off" &&
+  !isOwnBackgroundPage &&
   (bannerScope === "all" || location.pathname === "/" || location.pathname === "/Home");
 
 const termMap = useMemo(() => ({
@@ -598,24 +636,24 @@ const handleNotifClick = (mentionLog) => {
           </nav>
         </aside>
 
-        {/* Main content. `relative` so the SystemBanner can anchor
-            edge-to-edge at the top and sit BEHIND the content (z-0 vs the
-            content wrapper's z-10). Horizontal/desktop-vertical padding
-            moved onto the inner wrapper so the banner is truly full-bleed;
-            the mobile bottom-nav clearance stays on <main> via the
-            .app-content-main rule (it's the scroll container). */}
-        <main className="app-content-main relative flex-1 min-w-0 py-0 overflow-auto">
+        {/* Main content. Padding lives on <main> (as it originally did) and
+            the Outlet is a DIRECT child, so full-height pages (e.g. System
+            Chat) that use `h-full` still get a bounded height — wrapping the
+            Outlet in an extra block div broke that cascade and let the chat
+            message list shove the composer off-screen. The SystemBanner sits
+            BEHIND content via a negative z-index inside main's `isolate`
+            stacking context (and negative insets to reach edge-to-edge past
+            the padding), so no content wrapper is needed. */}
+        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
-          <div className="relative z-10 px-4 lg:px-6 lg:py-8">
-            {!showFeatureTour && !pageScopedTourRoute && (
-              <PageTutorialBanner
-                onLaunch={(route) => setPageScopedTourRoute(route)}
-              />
-            )}
-            <Outlet context={{ setShowFeatureTour }} />
-          </div>
+          {!showFeatureTour && !pageScopedTourRoute && (
+            <PageTutorialBanner
+              onLaunch={(route) => setPageScopedTourRoute(route)}
+            />
+          )}
+          <Outlet context={{ setShowFeatureTour }} />
         </main>
 
       </div>

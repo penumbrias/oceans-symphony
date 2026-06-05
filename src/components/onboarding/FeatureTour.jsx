@@ -203,7 +203,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "➕",
       title: `Add a New ${t.Alter}`,
-      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, pronouns, role, color, avatar URL, bio, origin year, and any custom fields. You can also connect a Simply Plural member ID to sync data from Simply Plural.`,
+      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, alias, pronouns, role, color, avatar, first appearance, bio, and profile style. Groups are added from the profile after you save.`,
       route: "/Home", target: "alter-add-btn",
       look: `the highlighted "+ Add ${t.Alter}" button in the top-right`, action: null,
     },
@@ -219,7 +219,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "📋",
       title: `${t.Alter} Profile — Tab Bar`,
-      body: `Tap any ${t.alter} card to open their profile. The tab bar at the top gives access to: Profile (bio + custom fields), Info, Board (${t.system}-wide messages to this ${t.alter}), Messages (private messages), History (${t.fronting} sessions), Notes, Lineage, and Options. Swipe the tab bar to see all tabs.`,
+      body: `Tap any ${t.alter} card to open their profile. The tab bar at the top gives access to: Profile (bio + custom fields), Info, Board (${t.system}-wide messages to this ${t.alter}), Messages (private messages), History (${t.fronting} sessions), Notes, Lineage, Relationships, and Options. Swipe the tab bar to see all tabs.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-tabs" : "alters-grid",
       look: ai ? `the highlighted tab bar at the top of the ${t.alter} profile` : `tap any ${t.alter} card to open their profile and see the tab bar`, action: null,
@@ -228,7 +228,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "✏️",
       title: "Edit Profile",
-      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, pronouns, role, bio, color, avatar URL, origin year, and all custom fields. Tap Save when done. The View button switches back to read-only without saving.`,
+      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, alias, pronouns, role, color, avatar, first appearance, bio, profile style, groups, and ${t.subsystem || "subsystem"}s. Tap Save when done. The View button switches back to read-only without saving.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-edit-btn" : null,
       look: ai ? `the highlighted "Edit" button in the top-right of the profile page` : `open a profile and look for the Edit button in the top-right`, action: null,
@@ -259,6 +259,15 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: ai ? `/alter/${ai}?tab=lineage` : "/Home",
       target: ai ? "alter-profile-tabs" : null,
       look: ai ? `tap the "Lineage" tab in the highlighted tab bar` : null, action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
+      emoji: "🔗",
+      title: "Relationships Tab",
+      body: `The Relationships tab shows how this ${t.alter} connects to other ${t.alters} — the same relationships drawn on the ${t.System} Map. Tap "Add relationship" to define one (pick the other ${t.alter}, a relationship type, and a direction), tap another ${t.alter} to jump to their profile, or edit/remove any relationship here.`,
+      route: ai ? `/alter/${ai}?tab=relationships` : "/Home",
+      target: ai ? "alter-profile-tabs" : null,
+      look: ai ? `tap the "Relationships" tab in the highlighted tab bar` : null, action: null,
     },
     {
       section: "alters", sectionLabel: t.Alters,
@@ -350,10 +359,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "meetings", sectionLabel: `${t.System} Meetings`,
       emoji: "👁️",
-      title: `Who's Present & Emotions`,
-      body: `In Step 2, you mark which ${t.alters} are present in the meeting — this automatically updates the active ${t.front} session to match. Emotions logged in Step 2 create EmotionCheckIn records visible in the Emotions analytics section. Steps 3–5 have @ mention support to tag ${t.alters} in notes.`,
+      title: `Notice Who's Near`,
+      body: `Everything in a meeting is optional. The "Notice who's near" section is your single place to add who's present — it opens the same Set ${t.Fronters} picker you use everywhere else (searchable, no typing each name). Each ${t.alter} you add gets the same panel as the "Currently ${t.fronting}" widget: feelings, 1–5 symptom rows, and a note — recorded separately. Their feelings also log to Emotions analytics.`,
       route: "/system-checkin", target: "meetings-list",
-      look: `the meetings list — tap any past meeting to see the full record, or tap "New Meeting" to try Step 2`, action: null,
+      look: `the meetings list — tap any past meeting to see the full record, or tap "New Meeting" to try it`, action: null,
+    },
+    {
+      section: "meetings", sectionLabel: `${t.System} Meetings`,
+      emoji: "💬",
+      title: "Open Dialogue",
+      body: `Inside "Invite Sharing" you can flip on "Open dialogue" — the real ${t.System} Chat, right inside the meeting. The same composer, formatting toolbar, and live @ mention / - signpost / /w whisper autocomplete all work. Signposting an ${t.alter} also adds them to "notice who's near". By default it's kept with this meeting, but you can choose to save it to a ${t.System} Chat channel instead — pick an existing one or make a new one.`,
+      route: "/system-checkin", target: "meetings-new",
+      look: `the "New Meeting" form — open "Invite Sharing" and turn on "Open dialogue" to reveal the chat space`, action: null,
     },
 
     // ─── JOURNALS ───────────────────────────────────────────────────────────
@@ -749,7 +766,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🎨",
       title: "Appearance — Fonts, Colors & Presets",
-      body: `The Appearance section has four parts. Font: pick from 27+ fonts across 7 categories (sans-serif, serif, monospace, handwritten, display, slab, accessibility) with a live preview line. Text Size: Small (87.5%) to Extra Large (125%). Colors: 8 built-in presets (Warm, Cool, Forest, Sunset, Ocean, Berry, Charcoal, Ivory) plus a Custom Colors panel with 8 individual swatches — Background, Surface, Primary, Secondary, Accent, Muted, Text, and Text 2nd. Tap any swatch to edit that exact color for light and dark mode separately. Save the result as a named preset — presets also capture your current terminology (${t.system}, ${t.alter}, ${t.switch}, ${t.front}) so applying a preset restores the full look and feel at once. Navigation: customize which pages appear in the top nav, bottom bar, and Quick Nav grid.`,
+      body: `Appearance opens with a UI Size slider and an Advanced block (touch-target + nav-bar-height sliders). Below sit your Font family and Heading font (with "More fonts" for extras). The Theme section — its ☀️/🌙 header chip cycles light / dark / system — holds the built-in presets as a swatch dropdown, your 8 custom colours (editable for light and dark), and the wave colour. Then Corner style, a Presets section (save your look — choosing exactly which parts to include — plus your saved presets and ${t.Fronter} Themes), Dashboard layout, and the navigation bar.`,
       route: "/settings", target: "settings-appearance",
       look: `the highlighted Appearance section — tap its header to expand it`, action: null,
     },
@@ -816,10 +833,11 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "chat", sectionLabel: `${t.System} Chat`,
       emoji: "💬",
       title: `${t.System} Chat`,
-      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Chat content is NEVER included in therapy reports.`,
+      body: `A Discord-style chat for ${t.alters} to talk to each other. Create named channels for different topics (Daily check-in, Therapy prep, anywhere). Pick which ${t.alter} is speaking from the author dropdown — every message is signposted, so the history reads like a real back-and-forth. Reply to a message to quote it inline. @mention any ${t.alter} by name and they'll show up in their mention log. Type "/w @name [secret]" to hide just the bracketed part as a private whisper to specific ${t.alters} (leave the brackets off in chat to hide the whole message). The same "/w @name [secret]" works in bulletins, comments, and your notes (alter notes, to-do details, activity and check-in notes) too — only the bracketed part is hidden behind a tap-to-reveal bar. Make a channel "Private" to limit it to chosen ${t.alters} — it shows under Private channels with a lock, and when none of those ${t.alters} are ${t.fronting} its name is hidden and opening it asks "view anyway?" (a privacy safeguard). Organise channels into colour-coded, nestable categories, and tap Edit in the channel list to drag them around. On a phone, tap the panel button on the left of the chat header to slide the channel list in over the conversation, then tap a channel or tap outside to slide it back. Format text with the toolbar and it renders inline as you type — what you see is what you send. Chat content is NEVER included in therapy reports.`,
       route: "/chat", target: null,
-      look: `the channel list on the left and the message composer at the bottom`, action: null,
+      look: `the panel button on the left of the header — tap it to slide the channel list in over the chat`, action: null,
     },
+
 
     // ─── DONE ───────────────────────────────────────────────────────────────
     {

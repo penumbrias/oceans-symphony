@@ -55,84 +55,10 @@ export default function AccessibilitySettings() {
   return (
     <div className="space-y-6">
 
-      {/* Font / UI scale — same picker also appears under
-          Appearance. Both write to the same accessibility key so
-          changes propagate immediately either way. */}
-      <div>
-        <p className="text-sm font-semibold mb-1">Text & UI size</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Scales the base font size — affects text, spacing, and button sizes proportionally. Font family lives in <strong>Appearance</strong>.
-        </p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {FONT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => update("fontSize", opt.value, setAccessibilityFontSize)}
-              className={`rounded-xl border px-2 py-2 text-center transition-all ${
-                settings.fontSize === opt.value
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border/50 bg-card hover:bg-muted/30"
-              }`}
-            >
-              <p className={`text-sm font-semibold ${settings.fontSize === opt.value ? "text-primary" : ""}`}>
-                {opt.label}
-              </p>
-              <p className="text-[0.625rem] text-muted-foreground mt-0.5">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Touch target size */}
-      <div>
-        <p className="text-sm font-semibold mb-1">Touch target size</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Increases the minimum height of buttons and links — helps if buttons feel hard to press.
-        </p>
-        <div className="flex flex-col gap-2">
-          {TOUCH_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => update("largeTouch", opt.value, setAccessibilityLargeTouch)}
-              className={`rounded-xl border px-3 py-2.5 text-left transition-all flex items-center justify-between gap-3 ${
-                settings.largeTouch === opt.value
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border/50 bg-card hover:bg-muted/30"
-              }`}
-            >
-              <p className={`text-sm font-semibold ${settings.largeTouch === opt.value ? "text-primary" : ""}`}>
-                {opt.label}
-              </p>
-              <p className="text-xs text-muted-foreground text-right">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* Nav bar height */}
-      <div>
-        <p className="text-sm font-semibold mb-1">Navigation bar height</p>
-        <p className="text-xs text-muted-foreground mb-3">
-          Adjusts the height of the bottom tab bar on mobile — taller bars are easier to reach.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {NAV_HEIGHT_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              onClick={() => update("navHeight", opt.value, setAccessibilityNavHeight)}
-              className={`rounded-xl border p-3 text-left transition-all overflow-hidden ${
-                settings.navHeight === opt.value
-                  ? "border-primary/60 bg-primary/10"
-                  : "border-border/50 bg-card hover:bg-muted/30"
-              }`}
-            >
-              <p className={`text-sm font-semibold break-words ${settings.navHeight === opt.value ? "text-primary" : ""}`}>
-                {opt.label}
-              </p>
-              <p className="text-xs text-muted-foreground mt-0.5 break-words">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
+      {/* UI size, Touch target size, and Nav bar height moved to
+          Settings → Appearance (top of the section + "Advanced"). */}
+      <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 text-xs text-muted-foreground">
+        Looking for <strong>UI size</strong>, <strong>touch target size</strong>, or <strong>navigation bar height</strong>? They now live under <strong>Settings → Appearance</strong>.
       </div>
 
       {/* Toggles */}

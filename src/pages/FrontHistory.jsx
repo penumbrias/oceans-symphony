@@ -6,6 +6,8 @@ import { format, intervalToDuration } from "date-fns";
 import { Star, User, Clock } from "lucide-react";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
 import { subDays, startOfDay, endOfDay } from "date-fns";
+import { parseSessionNote } from "@/lib/perAlterSessionEntries";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function getContrastColor(hex) {
   if (!hex) return "#ffffff";
@@ -20,6 +22,7 @@ function getContrastColor(hex) {
 function AlterAvatar({ alter, size = 10 }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   return (
     <div
       className="rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden border-2 border-background shadow"
@@ -29,8 +32,8 @@ function AlterAvatar({ alter, size = 10 }) {
         borderColor: bg || "hsl(var(--border))",
       }}
     >
-      {alter?.avatar_url ? (
-        <img src={alter.avatar_url} alt={alter?.name} className="w-full h-full object-cover" />
+      {resolvedUrl ? (
+        <img src={resolvedUrl} alt={alter?.name} className="w-full h-full object-cover" />
       ) : (
         <User style={{ width: size * 0.45, height: size * 0.45, color: text || "hsl(var(--muted-foreground))" }} />
       )}
@@ -100,12 +103,17 @@ function SessionBlock({ session, altersById, columnIndex, totalColumns }) {
         {durationLabel(session.start_time, session.end_time)}
       </p>
 
-      {/* Custom status note on hover */}
-      {session.note && (
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[0.625rem] text-foreground whitespace-nowrap shadow-lg z-10">
-          {session.note}
-        </div>
-      )}
+      {/* Notes on hover. `note` is a JSON-stringified [{text,timestamp}]
+          array — parse it (never render the raw JSON) and join the texts. */}
+      {(() => {
+        const noteText = parseSessionNote(session.note).map((n) => n?.text).filter(Boolean).join(" · ");
+        if (!noteText) return null;
+        return (
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity absolute bottom-full mb-2 bg-card border border-border rounded-lg p-2 text-[0.625rem] text-foreground max-w-[14rem] whitespace-pre-wrap shadow-lg z-10">
+            {noteText}
+          </div>
+        );
+      })()}
     </div>
   );
 }

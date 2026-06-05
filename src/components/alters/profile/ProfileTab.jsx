@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,18 +12,23 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
+import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
-import { saveLocalImage, createLocalImageUrl, encodeCanvasForMime, processUploadedImage } from "@/lib/localImageStorage";
+import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -38,10 +43,14 @@ const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_TEXT_KEY = "_header_text_color";
+const HEADER_BG_KEY = "_header_bg_color";
 const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
+const HEADER_FONT_KEY = "_header_font";
+const HEADER_OPACITY_KEY = "_header_opacity";
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
+const PAGE_FONT_KEY = "_page_font";
 
 function AvatarModal({ src, onSave, onClose }) {
   const [url, setUrl] = useState(src || "");
@@ -139,7 +148,10 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showHeaderTextPicker, setShowHeaderTextPicker] = useState(false);
   const [showPageTextPicker, setShowPageTextPicker] = useState(false);
   const [showAvatarModal, setShowAvatarModal] = useState(false);
-  const [form, setForm] = useState({
+  const [showAvatarUrl, setShowAvatarUrl] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
+  const avatarFileRef = useRef(null);
+  const [form, setForm, formHistory] = useUndoRedo({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
     description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
     custom_fields: {},
@@ -192,7 +204,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     // origin_year are conceptually the same "first appeared" idea.
     if (!birthday && origin_year) birthday = origin_year;
     if (!origin_year && birthday) origin_year = extractYear(birthday);
-    setForm({
+    // reset() (not setForm) so the load is the baseline: it creates no undo
+    // history and undo can never wipe the form back to empty.
+    formHistory.reset({
       name: alter.name || "",
       alias: alter.alias || "",
       pronouns: alter.pronouns || "",
@@ -312,6 +326,42 @@ useEffect(() => {
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
 
+  // Resolved avatar (local-image:// → blob) for the inline avatar preview.
+  const avatarPreview = useResolvedAvatarUrl(form.avatar_url);
+  // Resolved subsystems-chip icon — user-picked asset can be a local-image://
+  // URI, so it must go through the hook before hitting an <img src>.
+  const subsystemsIconPreview = useResolvedAvatarUrl(form.subsystems_icon);
+  // Resolved avatar for the VIEW-mode header — must go through the hook too,
+  // since a raw <img src="local-image://…"> can't be loaded by the browser
+  // and renders as a broken-image icon (the same gotcha the group member
+  // avatars and AlterCard already guard against). Resolve the saved
+  // alter.avatar_url directly so the header is correct regardless of how the
+  // profile was reached (Alters page or a group's member list).
+  const viewAvatar = useResolvedAvatarUrl(alter.avatar_url);
+
+  // First-appearance is one field feeding both the free-form birthday text
+  // (display) and the integer origin_year (lineage/timeline) — same as the
+  // Add New / Edit alter modal.
+  const setFirstAppearance = (val) => setForm((f) => ({ ...f, birthday: val, origin_year: extractYear(val) }));
+
+  const handleAvatarUpload = async (e) => {
+    const file = e.target.files?.[0]; if (!file) return;
+    setUploadingAvatar(true);
+    try {
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 512, 0.82);
+      if (isGif && sizeKB > 3000) toast.warning(`That's a large GIF (${(sizeKB / 1024).toFixed(1)}MB) — it'll grow your storage and backups.`);
+      if (isLocalMode()) {
+        const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+        await saveLocalImage(imageId, dataUrl);
+        set("avatar_url", createLocalImageUrl(imageId));
+      } else {
+        set("avatar_url", dataUrl);
+      }
+      toast.success("Avatar saved!");
+    } catch { toast.error("Failed to process avatar"); }
+    finally { setUploadingAvatar(false); e.target.value = ""; }
+  };
+
   // Remove a single tag from this alter. Tags are populated by Get
   // to know me's preset writeback (the user's literal answer
   // label, plus any legacy inferred bag from before the writeback
@@ -389,8 +439,14 @@ useEffect(() => {
   const viewBgImage = alter.custom_fields?.[BG_IMAGE_KEY] || "";
   const viewBgOpacity = alter.custom_fields?.[BG_OPACITY_KEY] !== undefined ? alter.custom_fields[BG_OPACITY_KEY] : 0.15;
   const viewHeaderText = alter.custom_fields?.[HEADER_TEXT_KEY] || null;
+  const viewHeaderBgColorRaw = alter.custom_fields?.[HEADER_BG_KEY] || "";
+  // Header bg colour with its own opacity baked in (rgba), so the header
+  // colour can be translucent independently of the body bg.
+  const viewHeaderBgColor = readProfileBg(alter.custom_fields || {}).headerBgColorWithAlpha || viewHeaderBgColorRaw;
   const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
   const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
+  const viewHeaderFont = fontStackFor(alter.custom_fields?.[HEADER_FONT_KEY]);
+  const viewPageFont = fontStackFor(alter.custom_fields?.[PAGE_FONT_KEY]);
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
 
@@ -415,29 +471,36 @@ useEffect(() => {
   }, [viewHeaderImage]);
 
   // ── VIEW MODE ──
-  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0);
+  const viewHeaderOpacity = alter.custom_fields?.[HEADER_OPACITY_KEY] !== undefined
+    ? parseFloat(alter.custom_fields[HEADER_OPACITY_KEY]) : 0.45;
+  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0.9);
   const hasSectionBg = viewSectionBgOpacity > 0 && (viewBgColor || viewBgImage || viewHeaderImage);
-  const sectionCardStyle = hasSectionBg
-    ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
-    : {};
+  // With a background image + background colour, the section cards use that
+  // colour at the surface ("readability") opacity — matching the page's other
+  // surfaces. Otherwise the readability tint uses the theme surface colour.
+  const sectionCardStyle = (viewBgImage && viewBgColor)
+    ? { backgroundColor: colorWithAlpha(viewBgColor, viewSectionBgOpacity) }
+    : hasSectionBg
+      ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
+      : {};
 
   if (!editMode) {
     return (
-      <div className="space-y-6">
+      <div className="relative">
+        {/* NB: the page-wide background (colour + image) is rendered ONCE by
+            AlterProfile as a `fixed inset-0` layer that doesn't scroll. We
+            deliberately do NOT render it again here — doing so produced a
+            second, content-height copy that scrolled with the page. The
+            header image below stays scoped to the header banner. */}
+        <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
         {!viewHideHeader && (
-          <div className="relative rounded-2xl overflow-hidden">
-            {hasBg && (
-              <div className="absolute inset-0 rounded-2xl overflow-hidden pointer-events-none">
-                {viewBgColor && <div className="absolute inset-0" style={{ backgroundColor: viewBgColor, opacity: viewBgOpacity }} />}
-                {viewBgImage && resolvedViewBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedViewBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: viewBgOpacity }} />}
-              </div>
-            )}
+          <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(alter.custom_fields || {}), ...(viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : {}) }}>
             {viewHeaderImage && resolvedViewHeaderImage && (
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
                 backgroundSize: "cover",
                 backgroundPosition: "center",
-                opacity: 0.45,
+                opacity: viewHeaderOpacity,
               }} />
             )}
             {viewBgImage?.startsWith("data:") && (
@@ -460,8 +523,8 @@ useEffect(() => {
               <div className="relative">
                 <div className="w-24 h-24 rounded-2xl border-2 border-border/60 overflow-hidden flex-shrink-0 flex items-center justify-center"
                   style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-                  {alter.avatar_url
-                    ? <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover" />
+                  {viewAvatar
+                    ? <img src={viewAvatar} alt={alter.name} className="w-full h-full object-cover" />
                     : <User className="w-10 h-10" style={{ color: alterTextContrast || "hsl(var(--muted-foreground))" }} />}
                 </div>
                 <div className="absolute -bottom-2 left-0 right-0 flex justify-center">
@@ -476,10 +539,29 @@ useEffect(() => {
                   />
                 </div>
               </div>
-              <div className="flex-1 min-w-0 space-y-1">
+              <div className="flex-1 min-w-0 space-y-1" style={viewHeaderFont ? { fontFamily: viewHeaderFont } : undefined}>
                 <h2 className="font-display text-2xl font-semibold" style={{ color: viewHeaderText || undefined }}>
                   {alter.emoji ? <span className="mr-1.5">{alter.emoji}</span> : null}{alter.name}
                 </h2>
+                {/* Archived tag — archived alters are hidden from most lists, so
+                    without this it wasn't possible to tell you were looking at an
+                    archived (often duplicate-import) profile. handleArchive
+                    toggles is_archived, so it doubles as one-tap Restore. */}
+                {alter.is_archived && (
+                  <div className="flex items-center gap-2 pt-0.5">
+                    <span className="inline-flex items-center gap-1 text-[0.6875rem] font-semibold uppercase tracking-wide px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-600 dark:text-amber-400 border border-amber-500/30">
+                      <Archive className="w-3 h-3" /> Archived
+                    </span>
+                    <button
+                      type="button"
+                      onClick={handleArchive}
+                      disabled={saving}
+                      className="inline-flex items-center gap-1 text-[0.6875rem] font-medium text-primary hover:text-primary/80 disabled:opacity-50"
+                    >
+                      <ArchiveRestore className="w-3 h-3" /> Restore
+                    </button>
+                  </div>
+                )}
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
                 )}
@@ -570,7 +652,7 @@ useEffect(() => {
           const pageBg = getPageBackground();
           return (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Groups</p>
             <div className="flex flex-wrap gap-1.5">
               {alter.groups.map((g) => {
                 const halo = g.color && needsHalo(g.color, pageBg);
@@ -595,7 +677,7 @@ useEffect(() => {
 
         {ownedSubsystems.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
             </p>
             <div className="space-y-1.5">
@@ -617,7 +699,7 @@ useEffect(() => {
 
         {presetAnswerRows.length > 0 && (
           <div>
-            <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
+            <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               From Get to know me
             </p>
             <div className="space-y-2">
@@ -648,7 +730,7 @@ useEffect(() => {
         {alter.tags && alter.tags.length > 0 && (
           <div>
             <div className="flex items-center justify-between mb-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">
+              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">
                 Tags
                 <span className="ml-2 text-[10px] font-normal italic normal-case tracking-normal text-muted-foreground/70">
                   legacy — Get to know me no longer writes here
@@ -704,7 +786,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
           return (
             <div>
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
+              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
               <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden" style={sectionCardStyle}>
                 {visibleFilled.map((field, i) => (
                   <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
@@ -722,7 +804,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                               ))}
                             </span>
                           )
-                          : field.field_type === "text"
+                          : (field.field_type === "text" || field.field_type === "richtext")
                             ? <MarkdownText>{String(customFieldValues[field.id])}</MarkdownText>
                             : <span className="whitespace-pre-wrap break-words">{customFieldValues[field.id]}</span>}
                     </div>
@@ -740,6 +822,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             </div>
           );
         })()}
+        </div>
       </div>
     );
   }
@@ -749,48 +832,47 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
     <div className="space-y-4">
       {form.color && <div className="h-1.5 rounded-full w-full" style={{ backgroundColor: form.color }} />}
 
-      {/* Avatar */}
-      <div className="flex justify-center">
-        <button type="button" onClick={() => setShowAvatarModal(true)}
-          className="relative w-24 h-24 rounded-2xl border-2 border-dashed border-border hover:border-primary/50 transition-colors overflow-hidden group"
-          style={{ backgroundColor: bgColorAlter || "hsl(var(--muted))" }}>
-          {form.avatar_url
-            ? <img src={form.avatar_url} alt={form.name} className="w-full h-full object-cover" />
-            : <div className="w-full h-full flex items-center justify-center" style={{ color: textOnColor || "hsl(var(--muted-foreground))" }}><User className="w-10 h-10" /></div>}
-          <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-            <Upload className="w-5 h-5 text-white" />
+      {/* Name + Alias on the left, Avatar on the right — matches the
+          Add New / Edit {alter} modal arrangement. */}
+      <div className="flex gap-3 rounded-2xl" data-pf-surface>
+        <div className="flex-1 min-w-0 space-y-3">
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Name *</label>
+            <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Display name" />
           </div>
-        </button>
+          <div className="space-y-1">
+            <label className="text-xs text-muted-foreground font-medium">Alias</label>
+            <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+            <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+              Used as a shorthand for @ mentions and - signposts.
+            </p>
+          </div>
+        </div>
+        <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">
+          <label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground font-medium">Avatar</label>
+          <div className="w-[68px] h-[68px] rounded-full border-2 border-border/60 overflow-hidden flex items-center justify-center bg-muted/40">
+            {avatarPreview
+              ? <img src={avatarPreview} alt="avatar" className="w-full h-full object-cover" />
+              : <User className="w-7 h-7 text-muted-foreground" />}
+          </div>
+          <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
+            <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
+            <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
+            <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
+            <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
+          </div>
+          <input ref={avatarFileRef} type="file" accept="image/*" hidden onChange={handleAvatarUpload} />
+        </div>
       </div>
+      {showAvatarUrl && (
+        <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
+      )}
 
-      {/* Emoji + Name + Alias row */}
-      <div className="grid grid-cols-[3.5rem_1fr_1fr] gap-3">
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Emoji</label>
-          <Input value={form.emoji} onChange={(e) => set("emoji", e.target.value)} placeholder="✨" maxLength={8} className="text-center text-lg" aria-label="Profile emoji or symbol" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Name *</label>
-          <Input value={form.name} onChange={(e) => set("name", e.target.value)} placeholder="Alter name" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Alias</label>
-          <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="Short nickname" />
-        </div>
-      </div>
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-2">
-        Alias is used as a shorthand for @ mentions and - signposts.
-      </p>
-
-      {/* Pronouns + Role + Color row */}
-      <div className="grid grid-cols-3 gap-3">
+      {/* Pronouns + Color */}
+      <div className="grid grid-cols-2 gap-3 rounded-2xl" data-pf-surface>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
           <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
-        </div>
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Role</label>
-          <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector..." />
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
@@ -798,209 +880,31 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             <button type="button" onClick={() => setShowColorPicker(true)}
               className="w-9 h-9 rounded-lg border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0"
               style={{ backgroundColor: form.color || "#8b5cf6" }} />
-            <Input value={form.color} onChange={(e) => set("color", e.target.value)} placeholder="#8b5cf6" className="font-mono text-xs" />
+            <span className="flex-1 text-xs font-mono text-muted-foreground truncate">{form.color || "#8b5cf6"}</span>
           </div>
         </div>
       </div>
 
-      {/* Birthday + Origin Year — same "first appeared" idea, two
-          shapes. Birthday is free-form (exact date, age, era).
-          Origin Year is the integer feeding Alter History / lineage.
-          Editing one when the other is blank auto-fills it; once both
-          are set, edits stay independent and a "sync" link surfaces
-          when the years drift apart. */}
-      {(() => {
-        const setBirthday = (val) => setForm(f => {
-          const update = { ...f, birthday: val };
-          if (!f.origin_year && val) {
-            const y = extractYear(val);
-            if (y) update.origin_year = y;
-          }
-          return update;
-        });
-        const setOriginYear = (val) => setForm(f => {
-          const update = { ...f, origin_year: val };
-          if (!f.birthday && val) update.birthday = val;
-          return update;
-        });
-        const birthdayYear = extractYear(form.birthday);
-        const canSync = form.birthday && form.origin_year && birthdayYear && birthdayYear !== form.origin_year;
-        return (
-          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-            <p className="text-xs font-medium text-foreground">When they first appeared</p>
-            <div className="space-y-1">
-              <label className="text-xs text-muted-foreground font-medium">
-                Birthday <span className="font-normal">— shown on the profile (🎂 line)</span>
-              </label>
-              <Input
-                type="text"
-                value={form.birthday || ""}
-                onChange={(e) => setBirthday(e.target.value)}
-                placeholder="e.g. 2018-03-15, Age 7, around middle school"
-                className="text-sm"
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Free-form — write whatever fits (exact date, age, era).</p>
-            </div>
-            <div className="space-y-1">
-              <div className="flex items-center justify-between">
-                <label className="text-xs text-muted-foreground font-medium">
-                  Origin year <span className="font-normal">— used in {t.Alter} History timeline</span>
-                </label>
-                {canSync && (
-                  <button
-                    type="button"
-                    onClick={() => setForm(f => ({ ...f, origin_year: birthdayYear }))}
-                    className="text-xs text-primary hover:text-primary/80 inline-flex items-center gap-1"
-                  >
-                    <Link2 className="w-3 h-3" /> Sync from birthday ({birthdayYear})
-                  </button>
-                )}
-              </div>
-              <Input
-                type="number"
-                min={1900}
-                max={new Date().getFullYear()}
-                value={form.origin_year || ""}
-                onChange={(e) => setOriginYear(e.target.value)}
-                placeholder={`Year they appeared, e.g. ${new Date().getFullYear() - 5}`}
-                className="text-sm"
-              />
-              <p className="text-[0.6875rem] text-muted-foreground leading-snug">Just the year — feeds the lineage/timeline view. Auto-filled from Birthday when blank.</p>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* Profile Background — compact */}
-      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-            <Image className="w-3.5 h-3.5 text-primary" /> Profile Style
-          </label>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setBgField(HIDE_HEADER_KEY, !hideHeader)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              {hideHeader ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {hideHeader ? "Header hidden" : "Header visible"}
-            </button>
-            {(bgColor || bgImage || headerTextColor) && (
-              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear</button>
-            )}
-          </div>
-        </div>
-
-        {/* Compact bg preview */}
-        <div className="relative w-full h-12 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-          {bgImage && resolvedEditBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedEditBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
-          <div className="absolute inset-0 flex items-center justify-center gap-3">
-            <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>{form.name || "Name"}</span>
-            <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>{form.pronouns || "they/them"}</span>
-          </div>
-        </div>
-
-        {/* Colors grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Background color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowBgColorPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 relative"
-                style={{ backgroundColor: bgColor || "transparent" }}>
-                {!bgColor && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
-              </button>
-              <Input value={bgColor} onChange={e => setBgField(BG_COLOR_KEY, e.target.value)}
-                placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
-              {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Page text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowPageTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: pageTextColor || "transparent" }}>
-                {!pageTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={pageTextColor} onChange={e => setBgField(PAGE_TEXT_KEY, e.target.value)}
-                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
-              {pageTextColor && <button type="button" onClick={() => setBgField(PAGE_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Header text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowHeaderTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: headerTextColor || "transparent" }}>
-                {!headerTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={headerTextColor} onChange={e => setBgField(HEADER_TEXT_KEY, e.target.value)}
-                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
-              {headerTextColor && <button type="button" onClick={() => setBgField(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-        </div>
-
-        {/* Header banner image */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Header image <span className="text-muted-foreground/50">(banner at top)</span></label>
-          <div className="flex gap-2">
-            <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
-              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
-            <AssetButton onPick={(url) => setBgField(HEADER_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
-            <button type="button" onClick={() => headerFileInputRef.current?.click()} disabled={uploadingHeader}
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
-              {uploadingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
-            </button>
-            <input ref={headerFileInputRef} type="file" accept="image/*" hidden onChange={handleHeaderUpload} />
-            {headerImage && <button type="button" onClick={() => setBgField(HEADER_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
-          </div>
-        </div>
-
-        {/* Full-page background image */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Background image <span className="text-muted-foreground/50">(covers whole page)</span></label>
-          <div className="flex gap-2">
-            <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
-              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
-            <AssetButton onPick={(url) => setBgField(BG_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
-            <button type="button" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg}
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
-              {uploadingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
-            </button>
-            <input ref={bgFileInputRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
-            {bgImage && <button type="button" onClick={() => setBgField(BG_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
-          </div>
-        </div>
-
-        {/* Opacity — only show if bg set */}
-        {(bgColor || bgImage) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">BG opacity</label>
-            <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
-              onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
-              className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(bgOpacity * 100)}%</span>
-          </div>
-        )}
-
-        {/* Section readability — always show when any bg is set */}
-        {(bgColor || bgImage) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">Readability</label>
-            <input type="range" min={0} max={0.97} step={0.01} value={sectionBgOpacity}
-              onChange={e => setBgField(SECTION_BG_KEY, parseFloat(e.target.value))}
-              className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(sectionBgOpacity * 100)}%</span>
-          </div>
-        )}
+      {/* Role */}
+      <div className="space-y-1 rounded-2xl" data-pf-surface>
+        <label className="text-xs text-muted-foreground font-medium">Role</label>
+        <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
       </div>
 
-      <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+      {/* First appearance — one field feeding both the free-form display
+          and the integer origin_year (lineage/timeline). */}
+      <div className="space-y-1 rounded-2xl" data-pf-surface>
+        <label className="text-xs text-muted-foreground font-medium">First appearance</label>
+        <Input
+          value={form.birthday || ""}
+          onChange={(e) => setFirstAppearance(e.target.value)}
+          placeholder={`e.g. ${new Date().getFullYear() - 5}, March ${new Date().getFullYear() - 5}, or a full date`}
+        />
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
+      </div>
 
       {/* Groups */}
-      <div className="space-y-2">
+      <div className="space-y-2 rounded-2xl" data-pf-surface>
         <div className="flex items-center justify-between">
           <label className="text-xs font-medium text-primary flex items-center gap-1.5"><Users className="w-3.5 h-3.5" /> Groups</label>
           <button type="button" onClick={() => setShowGroupPicker(true)} className="text-xs text-primary hover:text-primary/80 font-medium">Edit groups →</button>
@@ -1044,8 +948,8 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           {ownedSubsystems.length > 1 && (
             <div className="flex items-center gap-2 pt-1">
               <span className="w-7 h-7 rounded-full overflow-hidden border border-border/40 flex items-center justify-center flex-shrink-0 bg-muted/30">
-                {form.subsystems_icon
-                  ? <img src={form.subsystems_icon} alt="" className="w-full h-full object-cover" />
+                {subsystemsIconPreview
+                  ? <img src={subsystemsIconPreview} alt="" className="w-full h-full object-cover" />
                   : <Folder className="w-3.5 h-3.5 text-muted-foreground" />}
               </span>
               <span className="text-[0.6875rem] text-muted-foreground flex-1 leading-snug">Icon for the “{ownedSubsystems.length} {subsystemTerm}s” chip</span>
@@ -1080,6 +984,24 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           );
         })() : <p className="text-xs text-muted-foreground">Not in any groups</p>}
       </div>
+
+      <div className="rounded-2xl" data-pf-surface>
+        <BioEditor value={form.description} onChange={(val) => set("description", val)} />
+      </div>
+
+      {/* Profile style — shared editor (Header collapsible; Body inline).
+          Same editor as the Add New / Edit {alter} modal. */}
+      <SubSection title="Profile style" icon={Image} defaultOpen={false}>
+        <ProfileStyleEditor
+          customFields={form.custom_fields}
+          setField={setBgField}
+          clearField={(key) => setForm((f) => {
+            const cf = { ...f.custom_fields };
+            delete cf[key];
+            return { ...f, custom_fields: cf };
+          })}
+        />
+      </SubSection>
 
       {presetAnswerRows.length > 0 && (
         <div>
@@ -1147,10 +1069,19 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       )}
 
       <div className="flex flex-col gap-2 pt-1">
-        <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
-          {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
-          Save Changes
-        </Button>
+        {/* Undo / Redo sit right beside Save. */}
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="flex-shrink-0 px-3" title="Undo" aria-label="Undo">
+            <Undo2 className="w-4 h-4" />
+          </Button>
+          <Button variant="outline" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="flex-shrink-0 px-3" title="Redo" aria-label="Redo">
+            <Redo2 className="w-4 h-4" />
+          </Button>
+          <Button onClick={handleSave} disabled={saving} className="flex-1 bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+            Save Changes
+          </Button>
+        </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={handleArchive} disabled={saving} className="flex-1">
             {alter?.is_archived ? <><ArchiveRestore className="w-4 h-4 mr-2" /> Unarchive</> : <><Archive className="w-4 h-4 mr-2" /> Archive</>}

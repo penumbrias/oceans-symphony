@@ -171,7 +171,8 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
 
 /** Centralised primary/front action handlers for any swipe-driven alter UI.
  *  These match AlterGridView so behaviour is identical across views. */
-export async function toggleFrontFor(alter, _staleSessions, base44, queryClient, toast) {
+export async function toggleFrontFor(alter, _staleSessions, base44, queryClient, toast, terms = {}) {
+  const FR = terms.front || "front";
   try {
     // Always refetch — never trust the closure-captured snapshot. A rapid
     // second tap can fire after a previous tap's invalidation queued a
@@ -184,7 +185,7 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
         is_active: false,
         end_time: new Date().toISOString(),
       });
-      toast.success(`${alter.name} removed from front`);
+      toast.success(`${alter.name} removed from ${FR}`);
     } else {
       const hasPrimary = fresh.some(s => s.is_primary);
       await base44.entities.FrontingSession.create({
@@ -193,7 +194,7 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
         start_time: new Date().toISOString(),
         is_active: true,
       });
-      toast.success(`${alter.name} added to front`);
+      toast.success(`${alter.name} added to ${FR}`);
     }
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -205,7 +206,8 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
 // "Left then up" corner gesture: clear the entire current front and make
 // `alter` the sole primary fronter. End every active session (including
 // the tapped alter's, if any) then create one fresh primary session.
-export async function replaceFrontWith(alter, base44, queryClient, toast) {
+export async function replaceFrontWith(alter, base44, queryClient, toast, terms = {}) {
+  const FR = terms.front || "front";
   try {
     const now = new Date().toISOString();
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
@@ -218,7 +220,7 @@ export async function replaceFrontWith(alter, base44, queryClient, toast) {
       start_time: now,
       is_active: true,
     });
-    toast.success(`${alter.name} is now the sole front`);
+    toast.success(`${alter.name} is now the sole ${FR}`);
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
   } catch (err) {
@@ -226,7 +228,8 @@ export async function replaceFrontWith(alter, base44, queryClient, toast) {
   }
 }
 
-export async function togglePrimaryFor(alter, _staleSessions, base44, queryClient, toast) {
+export async function togglePrimaryFor(alter, _staleSessions, base44, queryClient, toast, terms = {}) {
+  const FER = terms.fronter || "fronter";
   try {
     // Always refetch — never trust the closure-captured snapshot. A long-press
     // can fire 500–600ms after the gesture started, by which time the cached
@@ -236,7 +239,7 @@ export async function togglePrimaryFor(alter, _staleSessions, base44, queryClien
 
     if (mySession?.is_primary) {
       await base44.entities.FrontingSession.update(mySession.id, { is_primary: false });
-      toast.success(`${alter.name} demoted to co-fronter`);
+      toast.success(`${alter.name} demoted to co-${FER}`);
     } else {
       // Demote every existing primary (not just the first one) so we never
       // leave two primaries in the DB after a partial failure or after stale
@@ -254,7 +257,7 @@ export async function togglePrimaryFor(alter, _staleSessions, base44, queryClien
           start_time: new Date().toISOString(),
           is_active: true,
         });
-        toast.success(`${alter.name} is now primary fronter`);
+        toast.success(`${alter.name} is now primary ${FER}`);
       }
     }
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });

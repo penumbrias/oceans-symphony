@@ -8,6 +8,7 @@ import {
   ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip,
 } from "recharts";
 import { parseSessionEmotions } from "@/lib/perAlterSessionEntries";
+import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
 
 // Emotion analytics — revamped. Pulls events from BOTH
 // EmotionCheckIn AND FrontingSession.session_emotions so per-alter
@@ -64,6 +65,8 @@ export default function EmotionAnalytics({ from, to }) {
     queryFn: () => base44.entities.Symptom.list(),
   });
 
+  const { inferAlters } = useAuthoredPresence();
+
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const symptomsById = useMemo(() => Object.fromEntries(symptoms.map((s) => [s.id, s])), [symptoms]);
   const inRange = (ts) => ts >= +from && ts <= +to;
@@ -79,7 +82,11 @@ export default function EmotionAnalytics({ from, to }) {
       if (!Number.isFinite(ts) || !inRange(ts)) continue;
       const labels = Array.isArray(c.emotions) ? c.emotions.filter(Boolean) : [];
       if (labels.length === 0) continue;
-      out.push({ ts, labels, alterIds: Array.isArray(c.fronting_alter_ids) ? c.fronting_alter_ids : [] });
+      // Use the explicitly-recorded fronting alters; if none (e.g. the user
+      // doesn't track fronting), fall back to whoever authored something near
+      // this time so the emotion still gets attributed.
+      const explicit = Array.isArray(c.fronting_alter_ids) ? c.fronting_alter_ids.filter(Boolean) : [];
+      out.push({ ts, labels, alterIds: explicit.length ? explicit : inferAlters(ts) });
     }
     for (const s of sessions) {
       const labels = parseSessionEmotions(s.session_emotions);
@@ -91,7 +98,7 @@ export default function EmotionAnalytics({ from, to }) {
     }
     return out.sort((a, b) => a.ts - b.ts);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [checkIns, sessions, +from, +to]);
+  }, [checkIns, sessions, +from, +to, inferAlters]);
 
   // 1) Frequency counts (sorted, readable)
   const emotionCounts = useMemo(() => {
@@ -113,6 +120,9 @@ export default function EmotionAnalytics({ from, to }) {
       }
     }
     return Object.entries(map)
+      // Skip ids that don't resolve to a current alter (deleted/legacy
+      // references) — they'd otherwise show as a raw hex id row.
+      .filter(([aid]) => altersById[aid])
       .map(([aid, m]) => {
         const a = altersById[aid];
         const totalCount = Object.values(m).reduce((s, n) => s + n, 0);

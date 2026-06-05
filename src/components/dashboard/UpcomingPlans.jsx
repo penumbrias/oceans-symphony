@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
 import { isSurfaceEnabled } from "@/lib/upcomingPlansSurfaces";
+import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import {
   getActiveLimit,
   getLimitMode,
@@ -70,16 +71,21 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   // Track the user's limit preference; re-read when the storage key changes
   // (e.g. when the setting is edited in Settings). The window-event
   // listener fires on cross-tab updates; we also re-read on mount.
-  const [limitConfig, setLimitConfig] = useState(() => getActiveLimit());
+  // Each panel keeps its OWN limit config, keyed by its placement, so two
+  // dashboard panels can show different things (e.g. "today" up top, "this
+  // week" lower down). Falls back to the global Settings default until the
+  // panel is individually configured via its cog.
+  const [limitConfig, setLimitConfig] = useState(() => getActiveLimit(placement));
   useEffect(() => {
-    const reread = () => setLimitConfig(getActiveLimit());
+    const reread = () => setLimitConfig(getActiveLimit(placement));
+    reread();
     window.addEventListener("storage", reread);
     window.addEventListener("upcoming-plans-limit-changed", reread);
     return () => {
       window.removeEventListener("storage", reread);
       window.removeEventListener("upcoming-plans-limit-changed", reread);
     };
-  }, []);
+  }, [placement]);
 
   // Per-alter panel ignores the surface gate (it's the contextual default
   // and the per-alter panel itself controls when it renders).
@@ -104,6 +110,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   } else if (limitConfig.mode === MODE_WINDOW) {
     const cutoff = Date.now() + limitConfig.windowMs;
     prefilteredActivities = visibleActivities.filter(a => {
+      if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
       const ts = a?.timestamp ? new Date(a.timestamp).getTime() : 0;
       return ts > 0 && ts <= cutoff;
     });
@@ -115,7 +122,12 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
   // Compose the list — but only render the wrapper if there's at least one
   // upcoming item, so empty surfaces stay hidden.
   const now = Date.now();
+  // Only count still-SCHEDULED future plans, matching what
+  // PlannedActivitiesList actually renders — otherwise a future plan
+  // already marked done/skipped/cancelled would show the header with an
+  // empty list under it (and eat window-mode slots).
   const upcomingCount = prefilteredActivities.filter(a => {
+    if (statusFor(a) !== ACTIVITY_STATUSES.SCHEDULED) return false;
     const ts = a.timestamp ? new Date(a.timestamp).getTime() : 0;
     return ts > now;
   }).length;
@@ -126,6 +138,9 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
       <div className="flex items-center justify-between px-1 mb-1.5">
         <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
           <Calendar className="w-3 h-3" /> {title}
+          {allowInlineSettings && limitConfig.mode === MODE_WINDOW && (
+            <span className="normal-case font-normal text-muted-foreground/60">· {limitConfig.windowLabel}</span>
+          )}
         </p>
         <div className="flex items-center gap-3">
           {allowInlineSettings && (
@@ -156,6 +171,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
       {allowInlineSettings && (
         <UpcomingPlansSettingsDialog
           open={showSettings}
+          scope={placement}
           onClose={() => setShowSettings(false)}
         />
       )}
@@ -166,7 +182,7 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
 // Inline settings dialog — mirrors the pattern used by
 // PinnedDailyTasksWidget so users can adjust how many upcoming plans
 // surface without navigating to Settings → Appearance.
-function UpcomingPlansSettingsDialog({ open, onClose }) {
+function UpcomingPlansSettingsDialog({ open, scope, onClose }) {
   const [mode, setMode] = useState(MODE_COUNT);
   const [count, setCount] = useState(5);
   const [windowId, setWindowId] = useState(WINDOW_OPTIONS[0].id);
@@ -175,16 +191,17 @@ function UpcomingPlansSettingsDialog({ open, onClose }) {
     if (!open) return;
     // Reload current values every time the dialog opens so the form
     // doesn't carry over a half-edited draft from a previous open.
-    setMode(getLimitMode());
-    setCount(getLimitCount());
-    setWindowId(getLimitWindowId());
-  }, [open]);
+    setMode(getLimitMode(scope));
+    setCount(getLimitCount(scope));
+    setWindowId(getLimitWindowId(scope));
+  }, [open, scope]);
 
   const handleSave = () => {
-    setLimitMode(mode);
-    if (mode === MODE_COUNT) setLimitCount(count);
-    else setLimitWindowId(windowId);
-    // All UpcomingPlans instances listen for this event and re-read.
+    // Write to THIS panel's scope only — other panels keep their own config.
+    setLimitMode(mode, scope);
+    if (mode === MODE_COUNT) setLimitCount(count, scope);
+    else setLimitWindowId(windowId, scope);
+    // Every UpcomingPlans instance listens and re-reads its own scope.
     window.dispatchEvent(new Event("upcoming-plans-limit-changed"));
     onClose();
   };

@@ -15,6 +15,7 @@ import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast, groupNam
 import { useTerms } from "@/lib/useTerms";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import useLongPress from "@/hooks/useLongPress";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterCard from "./AlterCard";
 import SubsystemAlterList from "./SubsystemAlterList";
 import AlterGridView from "./AlterGridView";
@@ -35,6 +36,7 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
   const hasColor = isValidHexColor(alter.color);
   const bgColor = hasColor ? alter.color : null;
   const textColor = hasColor ? getContrastColor(alter.color) : null;
+  const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
 
   return (
     <div className="flex items-center gap-2">
@@ -51,12 +53,12 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
           <div
             className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40"
             style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
-            {alter.avatar_url ?
-            <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover"
+            {resolvedAvatar ?
+            <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
             onError={(e) => {e.target.style.display = "none";e.target.nextSibling.style.display = "flex";}} /> :
             null}
             <div className="w-full h-full items-center justify-center"
-            style={{ display: alter.avatar_url ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
+            style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
               <User className="w-5 h-5" />
             </div>
           </div>
@@ -370,7 +372,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           setCreateGroupOpen(false);
           refetchGroups();
         }}
-        parentGroupId={currentGroup?.id || null} />
+        parentGroup={currentGroup || null} />
       
 
       {currentGroup &&

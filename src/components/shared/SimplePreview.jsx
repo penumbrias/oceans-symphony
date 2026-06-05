@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { spoilersToHtml } from "@/lib/renderBulletinContent";
 
 // The placeholder HTML is a hardcoded constant — sanitizing the dynamic content
 // only. The placeholder string is repeated verbatim and contains only safe
@@ -11,7 +12,9 @@ const PLACEHOLDER_HTML = '<span style="opacity:0.4;font-size:0.875rem;font-style
 
 function sanitizeBlockHtml(html) {
   // Allow data-* attributes so internal-link / data-edit hooks keep working.
-  return DOMPurify.sanitize(html || "", { ADD_ATTR: ["target"] });
+  // Also turn ||spoiler|| markers into censor bars (DOMPurify keeps the
+  // class; the global tap handler + .spoiler CSS do the reveal).
+  return DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"] });
 }
 
 export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {

@@ -8,6 +8,7 @@ import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
@@ -154,25 +155,49 @@ export default function ActivityLogModal({
       return;
     }
 
+    // "/w @name [secret]" in the notes hides that part behind a whisper bar
+    // (no brackets warns first — an activity note is a personal record).
+    const w = applyWhisper(notes || "", alters || [], { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
+    if (w === null) return;
+    const finalNotes = w.content;
+
     setIsLoading(true);
     const timestamp = parseTimeToDate(startDate, startTime);
     const endDt = endTime ? parseTimeToDate(endDate || startDate, endTime) : null;
 
     try {
       const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+      let firstCreatedId = null;
       for (const catId of selectedActivityCategories) {
         const cat = catById[catId];
-        await base44.entities.Activity.create({
+        const created = await base44.entities.Activity.create({
           timestamp: timestamp.toISOString(),
           activity_name: cat?.name || catId,
           activity_category_ids: [catId],
           ...(cat?.color ? { color: cat.color } : {}),
           duration_minutes: durationMinutes > 0 ? durationMinutes : null,
           fronting_alter_ids: selectedAlters,
-          notes: notes || null,
+          notes: finalNotes || null,
           is_planned: false,
           status: ACTIVITY_STATUSES.LOGGED,
         });
+        if (!firstCreatedId) firstCreatedId = created?.id || null;
+      }
+      // Whisper recipients are peeled off the note — notify them.
+      for (const rid of (w.recipientIds || [])) {
+        try {
+          await base44.entities.MentionLog.create({
+            mentioned_alter_id: rid,
+            author_alter_id: null,
+            log_type: "mention",
+            source_type: "activity",
+            source_id: firstCreatedId || "",
+            source_label: "Whisper in an activity note",
+            source_date: new Date().toISOString(),
+            preview_text: "🔒 private whisper",
+            navigate_path: "/activity-tracker",
+          });
+        } catch { /* best-effort */ }
       }
 
       // Fronting-session sync — only for the past-time log path. Same
@@ -332,7 +357,7 @@ export default function ActivityLogModal({
               value={notes}
               onChange={setNotes}
               alters={alters || []}
-              placeholder="Any additional notes..."
+              placeholder="Notes… @ to mention, /w @name [secret] to whisper"
               className="mt-1 h-20"
             />
           </div>

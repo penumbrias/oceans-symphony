@@ -20,6 +20,59 @@ import { seedSymptomDefaults } from "@/utils/symptomDefaults";
 import { loadSystemDistressSet } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
+import useSwipeActions from "@/hooks/useSwipeActions";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+
+// One row in the Quick Check-In "Who's fronting?" picker. Same gesture model
+// as the Set Fronters modal so the muscle memory carries over — operating on
+// the modal's LOCAL selection (committed on Save), not the live front:
+//   tap / swipe-right → toggle selected, swipe-left / long-press → toggle
+//   primary, swipe-left-then-up → make this the sole fronter.
+function FrontPickRow({ alter, isSelected, isPrimary, onToggle, onSetPrimary, onSolo }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
+  const [imgError, setImgError] = useState(false);
+  const { bind, dragX, swipeHint } = useSwipeActions({
+    onTap: () => onToggle(),
+    onSwipeRight: () => onToggle(),
+    onSwipeLeft: () => onSetPrimary(),
+    onSwipeLeftUp: () => onSolo(),
+    onLongPress: () => onSetPrimary(),
+  });
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`${isSelected ? "Deselect" : "Select"} ${alter.name}. Swipe left or long-press to toggle primary, swipe left then up to make them the sole front.`}
+      aria-pressed={isSelected}
+      {...bind}
+      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") ? onToggle() : undefined}
+      style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 ? "transform 150ms ease-out" : "none", touchAction: "pan-y" }}
+      className={`relative flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all select-none ${isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"}`}
+    >
+      {swipeHint && (
+        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
+          {swipeHint === "front" ? (isSelected ? "Deselect" : "Select") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Primary")}
+        </span>
+      )}
+      <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
+        style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
+        {resolvedUrl && !imgError
+          ? <img src={resolvedUrl} alt={alter.name} className="w-full h-full object-cover" onError={() => setImgError(true)} />
+          : <User className="w-4 h-4 text-white/70" />}
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium truncate">{alter.name}</p>
+        {alter.pronouns && <p className="text-xs text-muted-foreground truncate">{alter.pronouns}</p>}
+      </div>
+      <button onClick={(e) => { e.stopPropagation(); if (isSelected) onSetPrimary(); }}
+        aria-label={isPrimary ? `${alter.name} is primary — click to demote` : isSelected ? `Set ${alter.name} as primary` : `Select ${alter.name} first`}
+        disabled={!isSelected}
+        className={`p-1 rounded-md transition-colors flex-shrink-0 ${isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"}`}>
+        <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
+      </button>
+    </div>
+  );
+}
 
 const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -366,6 +419,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setPrimaryId(id);
   };
 
+  // Swipe-left-then-up "solo": make this alter the only (and primary) fronter.
+  const soloAlter = (id) => {
+    setCoFronterIds([]);
+    setPrimaryId(id);
+  };
+
   const addCustomEmotionMutation = useMutation({
     mutationFn: async ({ label, category = "custom" }) => {
       const existing = customEmotions.find((e) => e.label.toLowerCase() === label.toLowerCase());
@@ -397,7 +456,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         activity_category_ids: [catId],
         duration_minutes: activityDuration ? parseInt(activityDuration) : null,
         fronting_alter_ids: selectedAlters,
-        emotions: selectedEmotions,
+        // Emotions are NOT copied onto the activity — they live on the
+        // EmotionCheckIn this same save creates (the source of truth). Stamping
+        // them here duplicated them onto every activity and made them appear to
+        // "extend" when an activity was lengthened. The day view reads emotions
+        // from the check-in, not the activity.
         notes: activityNote.trim() || null,
       });
     }
@@ -889,47 +952,23 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   })}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Tap to toggle · <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> = Primary · hold to set primary</p>
+              <p className="text-xs text-muted-foreground">Tap to toggle · swipe left (or hold) for <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary · swipe left+up to solo</p>
               <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
                 onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
               <div className="max-h-40 overflow-y-auto space-y-1">
                 {activeAlters
                   .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
-                  .map(a => {
-                    const isSelected = selectedAlterIds.has(a.id);
-                    const isPrimary = primaryId === a.id;
-                    return (
-                      <div key={a.id}
-                        role="button"
-                        tabIndex={0}
-                        aria-label={`${isSelected ? "Deselect" : "Select"} ${a.name}`}
-                        aria-pressed={isSelected}
-                        onClick={() => toggleAlter(a.id)}
-                        onKeyDown={e => e.key === "Enter" || e.key === " " ? toggleAlter(a.id) : undefined}
-                        className={`flex items-center gap-2 px-3 py-2 rounded-xl border cursor-pointer transition-all ${
-                          isSelected ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"
-                        }`}>
-                        <div className="w-7 h-7 rounded-lg flex-shrink-0 flex items-center justify-center overflow-hidden border border-border/30"
-                          style={{ backgroundColor: a.color || "hsl(var(--muted))" }}>
-                          {a.avatar_url
-                            ? <img src={a.avatar_url} alt={a.name} className="w-full h-full object-cover" onError={e => { e.currentTarget.style.display = "none"; }} />
-                            : <User className="w-4 h-4 text-white/70" />}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-medium truncate">{a.name}</p>
-                          {a.pronouns && <p className="text-xs text-muted-foreground truncate">{a.pronouns}</p>}
-                        </div>
-                        <button onClick={e => { e.stopPropagation(); if (isSelected) setAsPrimary(a.id); }}
-                            aria-label={isPrimary ? `${a.name} is primary — click to demote` : isSelected ? `Set ${a.name} as primary` : `Select ${a.name} first`}
-                            disabled={!isSelected}
-                            className={`p-1 rounded-md transition-colors flex-shrink-0 ${
-                              isPrimary ? "text-amber-500" : isSelected ? "text-muted-foreground hover:text-amber-400" : "text-muted-foreground/30"
-                            }`}>
-                            <Star className={`w-4 h-4 ${isPrimary ? "fill-amber-500" : ""}`} />
-                          </button>
-                      </div>
-                    );
-                  })}
+                  .map(a => (
+                    <FrontPickRow
+                      key={a.id}
+                      alter={a}
+                      isSelected={selectedAlterIds.has(a.id)}
+                      isPrimary={primaryId === a.id}
+                      onToggle={() => toggleAlter(a.id)}
+                      onSetPrimary={() => setAsPrimary(a.id)}
+                      onSolo={() => soloAlter(a.id)}
+                    />
+                  ))}
               </div>
               {frontingActuallyChanged && (
                 <div className="border-t border-border/40 pt-2 space-y-2">

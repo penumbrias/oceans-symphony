@@ -10,6 +10,7 @@ import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } f
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterActionMenu from "./AlterActionMenu";
 
 function getContrastColor(hex) {
@@ -162,6 +163,9 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
 
 export default function AlterCard({ alter, index, activeSessions = [], anonymize = "off", rightAccessory = null, hideFront = false }) {
   const formatAlter = useAlterLabel();
+  // Resolve through the hook so legacy `local-image://` avatars render
+  // (a raw <img src="local-image://…"> can't be loaded by the browser).
+  const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid
   // CSS hex), which made the row render with no colour at all.
@@ -181,9 +185,9 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   // (menu) still work.
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
-    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast),
-    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast),
+    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast, terms),
     onLongPress: () => setMenuOpen(true),
   });
 
@@ -213,12 +217,12 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
           <div
             className={`w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymize === "all" ? "blur-sm" : ""}`}
             style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
-            {alter.avatar_url ? (
-              <img src={alter.avatar_url} alt={alter.name} className="w-full h-full object-cover"
+            {resolvedAvatar ? (
+              <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
                 onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
             ) : null}
             <div className="w-full h-full items-center justify-center"
-              style={{ display: alter.avatar_url ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
+              style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
               <User className="w-5 h-5" />
             </div>
           </div>

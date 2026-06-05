@@ -2,8 +2,22 @@ import React, { useMemo, useState } from "react";
 import { computeAlterSymptomCorrelation } from "@/lib/analyticsEngine";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 const SYSTEM_VIEW_ID = "__system__";
+
+// Resolves local-image:// avatars (raw <img src> renders them broken).
+function CorrelationAlterAvatar({ alter, sizeClass = "w-8 h-8", textClass = "text-sm" }) {
+  const resolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
+  return resolvedUrl ? (
+    <img src={resolvedUrl} className={`${sizeClass} rounded-full object-cover flex-shrink-0`} />
+  ) : (
+    <div className={`${sizeClass} rounded-full flex items-center justify-center flex-shrink-0 ${textClass}`}
+      style={{ backgroundColor: alter?.color || "hsl(var(--muted))" }}>
+      {alter?.name?.[0] || "?"}
+    </div>
+  );
+}
 
 function deltaChip(delta) {
   if (delta === null) return null;
@@ -118,14 +132,7 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
                 : "border-border/50 bg-card hover:bg-muted/30"
             }`}
           >
-            {alter.avatar_url ? (
-              <img src={alter.avatar_url} className="w-8 h-8 rounded-full object-cover flex-shrink-0" />
-            ) : (
-              <div className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm"
-                style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
-                {alter.name?.[0] || "?"}
-              </div>
-            )}
+            <CorrelationAlterAvatar alter={alter} />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-semibold truncate">{alter.name}</p>
               <p className={`text-xs ${avgDelta > 0.2 ? "text-orange-500" : avgDelta < -0.2 ? "text-green-600" : "text-muted-foreground"}`}>
@@ -181,14 +188,7 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
       {!isSystemView && activeAlter && Object.keys(activeData).length > 0 && (
         <div className="bg-card border border-border/50 rounded-xl p-4 space-y-3">
           <div className="flex items-center gap-2">
-            {activeAlter.avatar_url ? (
-              <img src={activeAlter.avatar_url} className="w-7 h-7 rounded-full object-cover" />
-            ) : (
-              <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs"
-                style={{ backgroundColor: activeAlter.color || "hsl(var(--muted))" }}>
-                {activeAlter.name?.[0] || "?"}
-              </div>
-            )}
+            <CorrelationAlterAvatar alter={activeAlter} sizeClass="w-7 h-7" textClass="text-xs" />
             <h3 className="text-sm font-semibold">{activeAlter.name} — symptom profile while fronting</h3>
           </div>
 

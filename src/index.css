@@ -117,6 +117,83 @@ body {
   }
 }
 
+/* Text-effect keyframes for the formatting toolbar's "fun" effects.
+   Tailwind already ships `spin`; `float` and `wave` were referenced by the
+   toolbar but never defined, so those buttons did nothing — define them
+   here so the effects actually animate. */
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-4px); }
+}
+@keyframes wave {
+  from { transform: rotate(-8deg); }
+  to   { transform: rotate(8deg); }
+}
+
+/* Censor / spoiler bar — `||text||` renders as a redaction bar that reveals
+   when tapped (toggled by a delegated click handler in AppLayout). The bar
+   uses the theme text colour so it's visible in both light and dark. */
+.spoiler {
+  background: var(--color-text-primary, #333);
+  color: transparent;
+  border-radius: 3px;
+  padding: 0 3px;
+  cursor: pointer;
+  user-select: none;
+  transition: background 120ms ease;
+}
+.spoiler.revealed {
+  background: transparent;
+  color: inherit;
+  user-select: auto;
+}
+
+/* Whisper — private text addressed to specific alters. Renders as a clearly
+   tappable "🔒 for <names> · tap to reveal" pill; the hidden text is collapsed
+   to zero width (font-size:0) so it never shows as a blank gap. Tapping
+   toggles `.revealed` (delegated handler in AppLayout), which restores the
+   text. `data-whisper-for` carries the recipient names. Works anywhere
+   content renders as rich HTML. */
+.whisper {
+  font-size: 0;          /* collapse the hidden text so it isn't a blank gap */
+  cursor: pointer;
+  user-select: none;
+}
+.whisper::before {
+  content: "🔒 " attr(data-whisper-for) " · tap to reveal";
+  display: inline-block;
+  font-size: 0.78rem;
+  font-style: italic;
+  font-weight: 600;
+  line-height: 1.5;
+  padding: 1px 9px;
+  border-radius: 999px;
+  border: 1px dashed hsl(var(--primary));
+  background: hsl(var(--primary) / 0.14);
+  color: hsl(var(--primary));
+  white-space: normal;
+  vertical-align: baseline;
+}
+.whisper.revealed {
+  font-size: inherit;
+  user-select: auto;
+  background: hsl(var(--primary) / 0.08);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+.whisper.revealed::before {
+  content: "🔒 ";
+  display: inline;
+  font-size: 0.8em;
+  font-style: normal;
+  font-weight: normal;
+  border: none;
+  padding: 0;
+  background: none;
+  border-radius: 0;
+  color: hsl(var(--primary));
+}
+
 /* ─── App header decoration ──────────────────────────────────────────
  * The header has a slightly lighter wash on its top half whose bottom
  * edge is wavy and scrolls slowly sideways — calm-waves motion,

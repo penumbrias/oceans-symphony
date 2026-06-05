@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44, localEntities } from "@/api/base44Client";
 import { buildAbsorptionMap } from "@/lib/absorptionUtils";
+import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
@@ -23,6 +24,7 @@ import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive"
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
+import AuthorshipAnalytics from "@/components/analytics/AuthorshipAnalytics";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
 import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
@@ -144,6 +146,7 @@ function SectionGrid({ terms, onSelect }) {
     { id: "diary", emoji: "📔", label: "Check-In Log", desc: "Check-in summaries" },
     { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
     { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
+    { id: "authorship", emoji: "✍️", label: "Authorship", desc: `What each ${terms.alter} has written` },
     { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
     { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
     { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
@@ -203,14 +206,32 @@ export default function Analytics() {
     { id: "deep", label: "Deep Dive" },
   ];
 
-  const { data: sessions = [], isLoading: sessionsLoading } = useQuery({
+  const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
   });
-  const { data: alters = [] } = useQuery({
+  const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+  const { data: analyticsGroups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+  // Group config: members of a group flagged "hide_from_analytics" are kept
+  // out of every analytics section (and their sessions out of co-fronting).
+  const hiddenFromAnalytics = useMemo(
+    () => getAlterIdsByGroupFlag(analyticsGroups, allAlters, "hide_from_analytics"),
+    [analyticsGroups, allAlters],
+  );
+  const alters = useMemo(
+    () => (hiddenFromAnalytics.size ? allAlters.filter((a) => !hiddenFromAnalytics.has(a.id)) : allAlters),
+    [allAlters, hiddenFromAnalytics],
+  );
+  const sessions = useMemo(
+    () => (hiddenFromAnalytics.size ? allSessions.filter((s) => !hiddenFromAnalytics.has(s.alter_id || s.primary_alter_id)) : allSessions),
+    [allSessions, hiddenFromAnalytics],
+  );
   const { data: cards = [] } = useQuery({
     queryKey: ["diaryCards"],
     queryFn: () => base44.entities.DiaryCard.list("-created_date", 500),
@@ -255,6 +276,10 @@ export default function Analytics() {
     queryKey: ["bulletins"],
     queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
   });
+  const { data: mentionLogs = [] } = useQuery({
+    queryKey: ["mentionLogs"],
+    queryFn: () => base44.entities.MentionLog.list("-source_date", 3000),
+  });
 
   const { data: systemChangeEvents = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -269,6 +294,12 @@ export default function Analytics() {
     return map;
   }, [alters]);
 
+  // NOTE: per-alter fronting TIME, the heatmap and the fronting timeline stay
+  // on REAL fronting sessions only — "fronting time" should mean tracked
+  // fronting, and authorship windows would otherwise look like phantom
+  // fronting here. Inferred-from-authorship presence is applied where it
+  // belongs: attributing activities / emotions / symptoms to alters (see
+  // AlterActivityMatrix, EmotionAnalytics, SymptomAnalytics).
   const { alterMap: rawAlterMap, filtered, stale } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
@@ -346,6 +377,7 @@ export default function Analytics() {
     diary: "Check-In Log",
     sleep: "Sleep",
     journals: "Journals",
+    authorship: "Authorship",
     cofronting: terms.Cofronting,
     switchlogs: `${terms.Switch} Logs`,
     checkins: `${terms.System} Meetings`,
@@ -565,6 +597,11 @@ export default function Analytics() {
       {/* ── JOURNALS ── */}
       {activeSection === "journals" && (
         <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} />
+      )}
+
+      {/* ── AUTHORSHIP ── */}
+      {activeSection === "authorship" && (
+        <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} />
       )}
 
       {/* ── CO-FRONTING ── */}
