@@ -21,7 +21,7 @@ export const CHANGELOG = [
       },
       {
         type: "fix",
-        text: "Profile style: removed the doubled backing behind the editor over a background image; whole-section backers are now solid for readability.",
+        text: "Profile style: profile sections are translucent again over a background image (only pop-ups stay solid) — and the doubled backing behind the editor is gone.",
       },
       {
         type: "improve",

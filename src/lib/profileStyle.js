@@ -129,13 +129,6 @@ export function profileSurfaceCss(scopeClass, cf = {}) {
   if (!hasImage || !bgColor) return "";
   const rgb = hexToRgb(bgColor);
   const fill = rgb ? `rgba(${rgb.r},${rgb.g},${rgb.b},${readability})` : bgColor;
-  // Whole-container backers ([data-pf-surface]) use a SOLID fill, not the
-  // translucent card fill: they're readability backers (edit form, section
-  // bodies, empty states), so they must be fully legible AND must not visibly
-  // "double" when one data-pf-surface nests inside another (solid over solid =
-  // no change). The translucent `fill` stays for the small cards (bg-card etc.)
-  // so the background image still peeks through those.
-  const solidFill = rgb ? `rgb(${rgb.r},${rgb.g},${rgb.b})` : bgColor;
   // A lighter version of the same fill for "chrome" surfaces (nav tabs, section
   // labels, ghost/outline buttons) that should read as backed but not as heavy
   // as a content card. Clamp so it's always at least faintly visible.
@@ -186,7 +179,13 @@ export function profileSurfaceCss(scopeClass, cf = {}) {
   const surface = `.${scopeClass}[data-pf-surface],.${scopeClass} [data-pf-surface]`;
   return (
     `${targets}{background-color:${fill} !important;}` +
-    `${surface}{background-color:${solidFill} !important;padding:0.75rem;}` +
+    `${surface}{background-color:${fill} !important;padding:0.75rem;}` +
+    // A data-pf-surface NESTED inside another doesn't re-paint — the outer one's
+    // fill already covers it. Without this, two translucent backers stack into a
+    // visibly darker "double backer" (e.g. the Header sub-card inside the
+    // Profile-style section). Keeps everything translucent (image peeks) with no
+    // doubling — solidity is reserved for pop-ups, which portal out of .os-pf.
+    `.${scopeClass} [data-pf-surface] [data-pf-surface]{background-color:transparent !important;}` +
     `${chrome}{background-color:${chromeFill} !important;border-radius:0.75rem;}` +
     `${chromeLabel}{background-color:${chromeFill} !important;border-radius:0.5rem;padding:0.15rem 0.5rem;}`
   );
