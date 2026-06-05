@@ -14,6 +14,7 @@ import { useTerms } from "@/lib/useTerms";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
+import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
@@ -574,6 +575,7 @@ export default function Settings() {
           <SubSection title="Custom fields" defaultOpen={false}><CustomFieldsManager embedded /></SubSection>
           <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
           <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
+          <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
         </Section>
 
         {/* ── TRACKING SETUP ── */}

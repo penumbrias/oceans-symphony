@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Settings → Alter setup → \"Find & remove duplicates\": cleans up duplicate imported alters (ones sharing a Simply Plural / PluralKit id), keeping the most complete copy and moving its fronting history onto it.",
+      },
+      {
         type: "fix",
         text: "Popups (colour picker, relationship editor, image/asset picker, link picker) no longer show the profile background image through them — they're solid and readable again.",
       },
