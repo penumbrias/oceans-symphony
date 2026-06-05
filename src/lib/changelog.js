@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings → Appearance reorganised: UI size plus a new \"Advanced\" block (touch-target size, nav-bar height) now live here, moved from Accessibility, and the light/dark/system toggle sits in the Theme header.",
+      },
+      {
+        type: "improve",
+        text: "Appearance: built-in themes are now a swatch dropdown, and \"Download more fonts\" is a quick button next to the font pickers.",
+      },
+      {
         type: "fix",
         text: "Profile background colour no longer washes the whole page over a background image — it now fills the cards and entry windows (bio, sections, inputs) in both view and edit mode, with a \"Surface opacity\" slider to let the image show through.",
       },

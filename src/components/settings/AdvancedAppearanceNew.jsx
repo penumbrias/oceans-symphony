@@ -233,6 +233,60 @@ function WaveColorPicker() {
   );
 }
 
+// Built-in preset picker as a dropdown that shows each theme's colours as a
+// swatch (a gradient of its bg → primary), matching the wireframe.
+function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, onSelect }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+  const activeName = !customColors && names.includes(selectedTheme) ? selectedTheme : null;
+  const swatch = (name) => {
+    const p = presets[name];
+    return p ? `linear-gradient(135deg, ${p.light.bg}, ${p.light.primary})` : '';
+  };
+  const triggerName = activeName || names[0];
+  return (
+    <div className="space-y-2" ref={ref}>
+      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Built-in preset</p>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen((o) => !o)}
+          className="w-full flex items-center gap-2.5 px-3 py-2.5 rounded-xl border border-input bg-background hover:bg-muted/30 transition-colors text-sm"
+        >
+          <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0" style={{ backgroundImage: swatch(triggerName) }} />
+          <span className="flex-1 text-left capitalize font-medium">{customColors ? 'Custom' : triggerName}</span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`} />
+        </button>
+        {open && (
+          <div className="absolute top-full mt-1 left-0 right-0 z-[80] bg-background border-2 border-border rounded-xl shadow-2xl overflow-hidden max-h-72 overflow-y-auto p-1">
+            {names.map((name) => {
+              const isActive = activeName === name;
+              return (
+                <button
+                  key={name}
+                  type="button"
+                  onClick={() => { onSelect(name); setOpen(false); }}
+                  className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg text-sm transition-colors ${isActive ? 'bg-primary/10 text-primary' : 'hover:bg-muted/40'}`}
+                >
+                  <span className="w-7 h-7 rounded-md border border-border/50 flex-shrink-0" style={{ backgroundImage: swatch(name) }} />
+                  <span className="flex-1 text-left capitalize font-medium">{name}</span>
+                  {isActive && <Check className="w-4 h-4 flex-shrink-0" />}
+                </button>
+              );
+            })}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 // ── Main component ────────────────────────────────────────────────────────────
 export default function AdvancedAppearance() {
   const t = useTerms();
@@ -535,56 +589,37 @@ export default function AdvancedAppearance() {
         Heading font is used for page titles and the app name. Body text uses the Font Family.
       </p>
 
-      {/* ── Optional extra fonts (downloaded on demand, not bundled) ─── */}
-      <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-sm font-medium text-foreground">Extra fonts</p>
-            <p className="text-xs text-muted-foreground">
-              14 more styles (Quicksand, Comfortaa, EB Garamond, Bebas Neue, JetBrains Mono…). A one-time
-              download (needs internet) so the app stays small for everyone else.
-            </p>
-          </div>
-          {extraInstalled ? (
-            <button
-              type="button"
-              onClick={handleRemoveExtraFonts}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-            >
-              <Trash2 className="w-4 h-4" /> Remove
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={handleInstallExtraFonts}
-              disabled={installingFonts}
-              className="flex-shrink-0 inline-flex items-center gap-1.5 text-sm px-3 py-1.5 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
-            >
-              {installingFonts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-              {installingFonts ? "Downloading…" : "Download"}
-            </button>
-          )}
-        </div>
-        {extraInstalled && (
-          <p className="text-[0.6875rem] text-emerald-600 dark:text-emerald-400">
-            Installed — the extra fonts now appear in the pickers above.
-          </p>
+      {/* ── Optional extra fonts — compact "Download more fonts" button. ─── */}
+      <div className="flex items-center justify-between gap-2 -mt-1">
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+          {extraInstalled
+            ? "Extra fonts installed — they appear in the pickers above."
+            : "14 more fonts available as a one-time download (needs internet)."}
+        </p>
+        {extraInstalled ? (
+          <button
+            type="button"
+            onClick={handleRemoveExtraFonts}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+          >
+            <Trash2 className="w-3.5 h-3.5" /> Remove
+          </button>
+        ) : (
+          <button
+            type="button"
+            onClick={handleInstallExtraFonts}
+            disabled={installingFonts}
+            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+          >
+            {installingFonts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+            {installingFonts ? "Downloading…" : "Download more fonts"}
+          </button>
         )}
       </div>
 
-      {/* ── Theme Mode (light / dark / system) ─────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Theme Mode</p>
-        <button
-          type="button"
-          onClick={cycleThemeMode}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left"
-        >
-          <span className="text-xl">{modeIcon}</span>
-          <span className="text-sm font-medium capitalize">{themeMode === 'system' ? 'System (follow OS)' : themeMode}</span>
-          <span className="ml-auto text-xs text-muted-foreground">tap to cycle</span>
-        </button>
-      </div>
+      {/* Theme mode + UI size were moved out: theme mode is now the chip in the
+          "Theme & colours" section header, and UI size sits at the top of the
+          Appearance section. */}
 
       {/* ── Wave colour picker ────────────────────────────────────
               Lets the user pick which palette swatch the header's
@@ -594,60 +629,14 @@ export default function AdvancedAppearance() {
               are live. Default is "muted". */}
       <WaveColorPicker />
 
-      {/* ── Text & UI Size ──────────────────────────────────────
-              Mirror copy of the picker that lives in Accessibility.
-              The user wanted it reachable from both Appearance AND
-              Accessibility because they think of it as visual-style
-              and as readability at the same time. Both pickers write
-              to the same accessibility storage, so changes are live
-              everywhere immediately. */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Text & UI Size</p>
-        <div className="grid grid-cols-3 gap-1.5">
-          {FONT_SIZE_OPTIONS.map(opt => (
-            <button
-              key={opt.value}
-              type="button"
-              onClick={() => handleSizeSelect(opt.value)}
-              className={`rounded-xl border px-2 py-2 text-center transition-all ${
-                currentSize === opt.value
-                  ? 'border-primary/60 bg-primary/10'
-                  : 'border-border/50 bg-card hover:bg-muted/30'
-              }`}
-            >
-              <p className={`text-sm font-semibold ${currentSize === opt.value ? 'text-primary' : ''}`}>{opt.label}</p>
-              <p className="text-[0.625rem] text-muted-foreground mt-0.5">{opt.desc}</p>
-            </button>
-          ))}
-        </div>
-      </div>
-
-      {/* ── Built-in Theme Presets ─────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Built-in Presets</p>
-        <div className="grid grid-cols-3 gap-2">
-          {builtInNames.map(name => {
-            const preset = presets[name];
-            const isActive = selectedTheme === name && !customColors;
-            return (
-              <button
-                key={name}
-                type="button"
-                onClick={() => handleSelectPreset(name)}
-                className={`px-3 py-2 rounded-xl text-xs font-semibold capitalize transition-all ${
-                  isActive ? 'ring-2 ring-offset-2 ring-primary' : ''
-                }`}
-                style={{
-                  backgroundImage: `linear-gradient(135deg, ${preset.light.bg}, ${preset.light.primary})`,
-                  color: preset.light['text-primary'],
-                }}
-              >
-                {name}
-              </button>
-            );
-          })}
-        </div>
-      </div>
+      {/* ── Built-in Theme Presets — swatch dropdown ───────────── */}
+      <BuiltInPresetDropdown
+        presets={presets}
+        names={builtInNames}
+        selectedTheme={selectedTheme}
+        customColors={customColors}
+        onSelect={handleSelectPreset}
+      />
 
       {/* ── Custom Color Editor ────────────────────────────────── */}
       <div className="space-y-2">
