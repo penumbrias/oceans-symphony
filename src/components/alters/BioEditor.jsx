@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
@@ -118,7 +119,7 @@ function convertSPToBlocks(rawText) {
 
 function ImportSPModal({ onImport, onClose }) {
   const [text, setText] = useState("");
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl p-5 space-y-4 max-w-lg mx-4 w-full shadow-2xl">
         <div className="flex items-center justify-between">
@@ -136,13 +137,14 @@ function ImportSPModal({ onImport, onClose }) {
             className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">Import</button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
 function HTMLPreviewModal({ html, onClose }) {
   const [tab, setTab] = useState("preview");
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }}>
         <div className="flex items-center justify-between px-5 py-3 border-b border-border/50">
@@ -162,7 +164,8 @@ function HTMLPreviewModal({ html, onClose }) {
             : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

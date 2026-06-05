@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { createPortal } from "react-dom";
 import { X, Link, User, BookOpen, FolderOpen, Heart, MapPin } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
@@ -125,7 +126,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
     return order.filter(t => groups[t]?.length).map(t => ({ type: t, items: groups[t] }));
   }, [filtered]);
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-end sm:items-center justify-center z-[70]" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-md mx-0 sm:mx-4 shadow-2xl flex flex-col"
         style={{ maxHeight: "80vh" }}
@@ -181,6 +182,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

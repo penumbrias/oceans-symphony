@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { Button } from "@/components/ui/button";
 import { X } from "lucide-react";
@@ -172,7 +173,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
     });
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
@@ -279,6 +280,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

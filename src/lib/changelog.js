@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Popups (colour picker, relationship editor, image/asset picker, link picker) no longer show the profile background image through them — they're solid and readable again.",
+      },
+      {
+        type: "fix",
+        text: "Profile style: removed the doubled backing behind the editor over a background image; whole-section backers are now solid for readability.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: the Wave colour now opens a picker to choose one of your custom colours (or a custom hex), and a matching wave renders on the profile's header banner.",
+      },
+      {
+        type: "fix",
         text: "Profile style: the \"Text\" custom colour now actually changes the page text — picking it recolours all the text instead of leaving it stuck white.",
       },
       {

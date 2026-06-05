@@ -1,4 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -134,7 +135,7 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
 
   if (!open) return null;
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[80] bg-black/40 flex items-start justify-center p-4 pt-[8vh]" onClick={onClose}>
       <div onClick={(e) => e.stopPropagation()}
         className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[82vh] flex flex-col overflow-hidden">
@@ -180,7 +181,8 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

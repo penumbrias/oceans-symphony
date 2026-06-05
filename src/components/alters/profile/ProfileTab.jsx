@@ -13,6 +13,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import ProfileWave from "@/components/shared/ProfileWave";
 import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
@@ -495,6 +496,7 @@ useEffect(() => {
         <div className="relative z-10 space-y-6" style={viewPageFont ? { fontFamily: viewPageFont } : undefined}>
         {!viewHideHeader && (
           <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(alter.custom_fields || {}), ...(viewHeaderBgColor ? { backgroundColor: viewHeaderBgColor } : {}) }}>
+            {alter.custom_fields?.["_theme_wave"] && <ProfileWave />}
             {viewHeaderImage && resolvedViewHeaderImage && (
               <div className="absolute inset-0 pointer-events-none" style={{
                 backgroundImage: `url("${resolvedViewHeaderImage}")`,
@@ -843,6 +845,9 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Alias</label>
             <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+            <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+              Used as a shorthand for @ mentions and - signposts.
+            </p>
           </div>
         </div>
         <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">
@@ -864,9 +869,6 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       {showAvatarUrl && (
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug -mt-1" data-pf-chrome-label>
-        Alias is used as a shorthand for @ mentions and - signposts.
-      </p>
 
       {/* Pronouns + Color */}
       <div className="grid grid-cols-2 gap-3 rounded-2xl" data-pf-surface>

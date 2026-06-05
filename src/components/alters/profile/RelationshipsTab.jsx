@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import { Plus, Pencil, Trash2, Link2, X } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -84,7 +85,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
   const alterA = alterMap[rel.alter_id_a];
   const alterB = alterMap[rel.alter_id_b];
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 pb-16 sm:pb-0" onClick={onClose}>
       <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4 max-h-[90vh] overflow-y-auto"
         onClick={e => e.stopPropagation()}>
@@ -141,7 +142,8 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
           <Button className="flex-1" onClick={() => onSave({ direction, relationship_type: relType, custom_label: "", color, notes, strength })}>Save</Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -280,7 +282,7 @@ export default function RelationshipsTab({ alter, alters }) {
         />
       )}
 
-      {confirmDelete && (
+      {confirmDelete && createPortal(
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50"
           onClick={() => setConfirmDelete(null)}>
           <div className="bg-card border border-border rounded-xl p-4 shadow-xl max-w-xs mx-4 space-y-3"
@@ -292,7 +294,8 @@ export default function RelationshipsTab({ alter, alters }) {
               <Button variant="destructive" size="sm" className="flex-1" onClick={() => handleDelete(confirmDelete)}>Delete</Button>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

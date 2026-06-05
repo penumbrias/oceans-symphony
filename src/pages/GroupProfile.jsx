@@ -25,6 +25,7 @@ import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupSelect from "@/components/groups/GroupSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import ProfileWave from "@/components/shared/ProfileWave";
 import { SubSection } from "@/components/settings/SettingsUI";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
@@ -716,6 +717,7 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
   const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
   return (
     <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(group.custom_fields || {}), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
+      {group.custom_fields?.["_theme_wave"] && <ProfileWave />}
       {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
       )}

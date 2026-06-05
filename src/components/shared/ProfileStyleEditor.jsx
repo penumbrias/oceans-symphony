@@ -110,6 +110,21 @@ for (const [bodyKey, headerKey] of SYNC_PAIRS) { SYNC_MAP[bodyKey] = headerKey; 
 // inherited / currentColor text. Setting/clearing one does both.
 const SHADOW = { "_theme_text": PAGE_TEXT_KEY };
 
+// Wave colour options — mirrors Settings → Appearance's wave picker: choose one
+// of the profile's palette colours (stored as a `var(--color-…)` reference so
+// the wave follows that colour live), or a fully custom hex, or none. The wave
+// renders on the profile header banner (ProfileWave) via --color-wave.
+const WAVE_OPTIONS = [
+  { label: "Background", cssVar: "--color-bg" },
+  { label: "Surface", cssVar: "--color-surface" },
+  { label: "Primary", cssVar: "--color-primary" },
+  { label: "Secondary", cssVar: "--color-secondary" },
+  { label: "Accent", cssVar: "--color-accent" },
+  { label: "Muted", cssVar: "--color-muted" },
+  { label: "Text", cssVar: "--color-text-primary" },
+  { label: "Text 2nd", cssVar: "--color-text-secondary" },
+];
+
 // Each palette key → the CSS variable that colour role currently resolves to.
 // When a swatch ISN'T explicitly overridden we paint it with var(<thisvar>) so
 // it shows the LIVE effective colour (app theme, or this profile's theme),
@@ -178,6 +193,7 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   // other instantly).
   const [syncDir, setSyncDir] = useState("headerToBody");
   const [syncLocked, setSyncLocked] = useState(false);
+  const [waveMenuOpen, setWaveMenuOpen] = useState(false);
 
   // setField/clearField that ALSO mirror to the paired header/body key while the
   // live lock is on. Used by the colour swatches so locking truly links the two
@@ -248,12 +264,12 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   );
 
   // One swatch cell (button + label + clear), matching Settings → Appearance.
-  const swatchCell = (key, label, tall = false) => (
+  const swatchCell = (key, label, tall = false, onClickOverride = null) => (
     <div key={key} className="flex flex-col items-center gap-1">
       {tall && <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>}
       <button
         type="button"
-        onClick={() => setColorPickerFor(key)}
+        onClick={onClickOverride || (() => setColorPickerFor(key))}
         title={cf[key] ? `Edit ${label} (overriding the app default)` : `Edit ${label} (currently the app default — tap to override)`}
         className={`${tall ? "w-10 h-[3.75rem]" : "w-10 h-10"} rounded-xl border-2 transition-colors shadow-sm flex items-center justify-center ${cf[key] ? "border-primary/60" : "border-border/50 hover:border-primary/60"}`}
         // Always paint the LIVE colour: the explicit override if set, else the
@@ -276,14 +292,14 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   // tall on the right behind a divider. Live: swatches reflect the colour the
   // moment it's set (cf updates), and the page preview updates via the live
   // <style> injected in the return.
-  const paletteGrid = (palette, waveEntry = null) => (
+  const paletteGrid = (palette, waveEntry = null, waveOnClick = null) => (
     <div className="flex gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
       <div className="grid grid-cols-4 gap-x-2 gap-y-3 flex-1">
         {palette.map(({ key, label }) => swatchCell(key, label))}
       </div>
       {waveEntry && (
         <div className="flex flex-col items-center justify-center pl-3 border-l border-border/40">
-          {swatchCell(waveEntry.key, waveEntry.label, true)}
+          {swatchCell(waveEntry.key, waveEntry.label, true, waveOnClick)}
         </div>
       )}
     </div>
@@ -341,10 +357,10 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   };
 
   return (
-    // data-pf-surface: when this editor is rendered ON a profile that has a bg
-    // image (inside .os-pf), the WHOLE profile-style card gets the colour
-    // backing so it's readable. No-op inside modals (the rule is .os-pf-scoped).
-    <div data-pf-surface className="space-y-0 rounded-xl">
+    // No data-pf-surface here — the enclosing "Profile style" SubSection
+    // already provides the readable backing over a bg image. A second one here
+    // produced a doubled backer + extra padding inset.
+    <div className="space-y-0 rounded-xl">
       {/* Live preview: re-apply the profile theme + surface tint from the
           IN-PROGRESS edits so colour changes show on the page immediately,
           before saving. Scoped to .os-pf and injected after the page-level
@@ -416,8 +432,54 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
       <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
         {/* Body colour palette — the full custom-colour set INCLUDING the wave
-            (tall swatch on the right). Same layout as Settings → Appearance. */}
-        {paletteGrid(BODY_PALETTE, WAVE_ENTRY)}
+            (tall swatch on the right). Same layout as Settings → Appearance.
+            The Wave swatch opens a palette picker (not the raw colour picker). */}
+        {paletteGrid(BODY_PALETTE, WAVE_ENTRY, () => setWaveMenuOpen((v) => !v))}
+
+        {/* Wave colour picker — pick one of the profile's custom colours (stored
+            as a var() reference so the wave follows that colour), a custom hex,
+            or none. The wave renders on the profile's header banner. Uses
+            data-pf-surface so it stays solid/legible over a background image. */}
+        {waveMenuOpen && (
+          <div data-pf-surface className="rounded-xl border border-border/40 space-y-2">
+            <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground">Wave colour</p>
+            <div className="flex flex-wrap gap-2">
+              {WAVE_OPTIONS.map(({ label, cssVar }) => {
+                const val = `var(${cssVar})`;
+                const active = cf[THEME_WAVE_KEY] === val;
+                return (
+                  <button
+                    key={cssVar}
+                    type="button"
+                    onClick={() => { setField(THEME_WAVE_KEY, val); setWaveMenuOpen(false); }}
+                    title={label}
+                    className={`w-8 h-8 rounded-lg border-2 shadow-sm transition-colors ${active ? "border-primary" : "border-border/50 hover:border-primary/60"}`}
+                    style={{ backgroundColor: val }}
+                    aria-label={`Wave: ${label}`}
+                  />
+                );
+              })}
+            </div>
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                type="button"
+                onClick={() => { setWaveMenuOpen(false); setColorPickerFor(THEME_WAVE_KEY); }}
+                className="text-xs px-2.5 py-1 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 transition-colors"
+              >
+                Custom…
+              </button>
+              {cf[THEME_WAVE_KEY] && (
+                <button
+                  type="button"
+                  onClick={() => { clearField(THEME_WAVE_KEY); setWaveMenuOpen(false); }}
+                  className="text-xs px-2.5 py-1 rounded-lg text-muted-foreground hover:text-destructive transition-colors"
+                >
+                  None
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         {bgImageSet && cf[BG_COLOR_KEY] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
             With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
