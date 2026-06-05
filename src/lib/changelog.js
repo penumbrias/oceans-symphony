@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Removed the redundant \"labels in lists\" setting from Appearance — switch a name between display name, alias, or both from the toggle shown inline wherever alters are listed.",
+      },
+      {
+        type: "improve",
         text: "Profile style: the Background and Text colour pickers now sit side by side to save space.",
       },
       {

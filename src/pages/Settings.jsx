@@ -22,7 +22,6 @@ import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSett
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import AdvancedAppearance from "@/components/settings/AdvancedAppearanceNew";
-import AlterLabelSettings from "@/components/settings/AlterLabelSettings";
 import CornerStyleSettings from "@/components/settings/CornerStyleSettings";
 import UpcomingPlansSurfacesSection from "@/components/settings/UpcomingPlansSurfacesSection";
 import NavigationSettings from "@/components/settings/NavigationSettings";
@@ -553,7 +552,8 @@ export default function Settings() {
         <Section id="appearance" icon={Palette} label="Appearance">
           <SubSection title="Theme & colours" defaultOpen={false}><AdvancedAppearance /></SubSection>
           <SubSection title="Corner style" defaultOpen={false}><CornerStyleSettings embedded /></SubSection>
-          <SubSection title={`${terms.Alter} labels in lists`} defaultOpen={false}><AlterLabelSettings embedded /></SubSection>
+          {/* "{Alter} labels in lists" removed — redundant. The name/alias/both
+              toggle already lives inline wherever alter labels are shown. */}
           <SubSection title="Dashboard layout" defaultOpen={false}><DashboardLayoutSettings /></SubSection>
           <SubSection title="Upcoming plans surfaces" defaultOpen={false}><UpcomingPlansSurfacesSection /></SubSection>
           <SubSection title="Navigation" defaultOpen={false}><NavigationSettings settings={settings} /></SubSection>
