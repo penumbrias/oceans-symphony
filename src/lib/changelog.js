@@ -13,6 +13,31 @@
 
 export const CHANGELOG = [
   {
+    date: "June 5, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Press and hold a fronting chip on the dashboard for the full action menu — go to profile, pin, create subsystem, add to groups, and more — same as the alters page.",
+      },
+      {
+        type: "feature",
+        text: "New Relationships tab on each alter's profile to view and define their relationships (shared with the System Map).",
+      },
+      {
+        type: "feature",
+        text: "Alter and group edit pages now have Undo and Redo buttons next to Save.",
+      },
+      {
+        type: "improve",
+        text: "\"Create subsystem\" stays available in the press-and-hold menu even when an alter already has one — alters can have several.",
+      },
+      {
+        type: "improve",
+        text: "Profile style: custom colours are now laid out like Settings (four on top, four on bottom, wave on the right) and preview live as you change them; header/body sync is a compact control with a direction toggle and a live-link lock.",
+      },
+    ],
+  },
+  {
     date: "June 4, 2026",
     changes: [
       {

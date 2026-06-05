@@ -27,7 +27,9 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   const [creating, setCreating] = useState(false);
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const ownedSub = getSubsystemsOwnedBy(allGroups, alter.id)[0] || null;
+  // ALL subsystems this alter owns — an alter can own more than one, and
+  // "Create" must stay available even when they already own one.
+  const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
   // Subsystems this alter is a MEMBER of (not the owner) — so they can be
   // removed from here.
   const memberOfSubs = allGroups.filter((g) =>
@@ -126,9 +128,11 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
         <div className="py-1">
           <Item icon={User} label="Go to profile" onClick={() => go(() => navigate(`/alter/${alter.id}`))} />
           <Item icon={Pin} label={alter.is_pinned ? "Unpin from top" : "Pin to top"} onClick={() => go(togglePin)} />
-          {ownedSub
-            ? <Item icon={FolderTree} label={`Go to ${ownedSub.name}`} onClick={() => go(() => navigate(`/group/${ownedSub.id}`))} />
-            : <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />}
+          {ownedSubs.map((sub) => (
+            <Item key={sub.id} icon={FolderTree} label={`Go to ${sub.name}`} onClick={() => go(() => navigate(`/group/${sub.id}`))} />
+          ))}
+          {/* Always available — an alter can have multiple subsystems. */}
+          <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />
           <Item icon={Zap} label={isFronting ? `Remove from ${t.front}` : `Add to ${t.front}`}
             onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}

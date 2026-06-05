@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -28,6 +28,7 @@ import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from 
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -150,7 +151,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [showAvatarUrl, setShowAvatarUrl] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const avatarFileRef = useRef(null);
-  const [form, setForm] = useState({
+  const [form, setForm, formHistory] = useUndoRedo({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
     description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
     custom_fields: {},
@@ -203,7 +204,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     // origin_year are conceptually the same "first appeared" idea.
     if (!birthday && origin_year) birthday = origin_year;
     if (!origin_year && birthday) origin_year = extractYear(birthday);
-    setForm({
+    // reset() (not setForm) so the load is the baseline: it creates no undo
+    // history and undo can never wipe the form back to empty.
+    formHistory.reset({
       name: alter.name || "",
       alias: alter.alias || "",
       pronouns: alter.pronouns || "",
@@ -1066,6 +1069,14 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       )}
 
       <div className="flex flex-col gap-2 pt-1">
+        <div className="flex gap-2">
+          <Button variant="outline" size="sm" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="flex-1">
+            <Undo2 className="w-4 h-4 mr-2" /> Undo
+          </Button>
+          <Button variant="outline" size="sm" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="flex-1">
+            <Redo2 className="w-4 h-4 mr-2" /> Redo
+          </Button>
+        </div>
         <Button onClick={handleSave} disabled={saving} className="w-full bg-primary hover:bg-primary/90">
           {saving ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
           Save Changes

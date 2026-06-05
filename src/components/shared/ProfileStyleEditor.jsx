@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Upload, X, Palette, Eye, ArrowDownToLine, ArrowUpToLine } from "lucide-react";
+import { Upload, X, Palette, Eye, ArrowRight, ArrowLeft, Lock, Unlock } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -11,6 +11,7 @@ import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
 import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
+import { profileThemeCss, profileSurfaceCss } from "@/lib/profileStyle";
 
 // Shared profile-style editor for alter AND group profiles. Renders the
 // collapsible Header + Body sub-blocks that the hand-drawn redesign calls for:
@@ -75,8 +76,29 @@ const BODY_PALETTE = [
   { key: "_theme_muted", label: "Muted" },
   { key: PAGE_TEXT_KEY, label: "Text" },
   { key: "_theme_text2", label: "Text 2nd" },
-  { key: THEME_WAVE_KEY, label: "Wave" },
 ];
+// Wave is body-only and shown as a tall swatch on the right (matching the
+// Settings → Appearance layout).
+const WAVE_ENTRY = { key: THEME_WAVE_KEY, label: "Wave" };
+
+// Body ↔ header pairs for the Sync feature (and the live "lock" link). Each
+// pair is [bodyKey, headerKey]; the palette colours + font + bg-opacity.
+// Images are deliberately NOT synced (banner vs page usually differ).
+const SYNC_PAIRS = [
+  [BG_COLOR_KEY, HEADER_BG_KEY],                      // background
+  ["_theme_surface", "_header_theme_surface"],        // surface
+  ["_theme_primary", "_header_theme_primary"],        // primary
+  ["_theme_secondary", "_header_theme_secondary"],    // secondary
+  ["_theme_accent", "_header_theme_accent"],          // accent
+  ["_theme_muted", "_header_theme_muted"],            // muted
+  [PAGE_TEXT_KEY, HEADER_TEXT_KEY],                   // text
+  ["_theme_text2", "_header_theme_text2"],            // text 2nd
+  [PAGE_FONT_KEY, HEADER_FONT_KEY],                   // font
+  [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],            // background opacity
+];
+// key → its paired key, both directions (for the live lock).
+const SYNC_MAP = {};
+for (const [bodyKey, headerKey] of SYNC_PAIRS) { SYNC_MAP[bodyKey] = headerKey; SYNC_MAP[headerKey] = bodyKey; }
 // HEADER palette — the same set MINUS the wave (the wave doesn't render in the
 // header). Background + Text keep the existing header keys (so the banner paints
 // exactly as before); the deeper colours use header-scoped keys applied only to
@@ -115,6 +137,23 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   const [uploadingBg, setUploadingBg] = useState(false);
   const headerFileRef = useRef(null);
   const bgFileRef = useRef(null);
+  // Sync controls: which way the one-tap "Sync" copies (headerToBody = →), and
+  // whether the live "lock" link is on (any change to one side mirrors to the
+  // other instantly).
+  const [syncDir, setSyncDir] = useState("headerToBody");
+  const [syncLocked, setSyncLocked] = useState(false);
+
+  // setField/clearField that ALSO mirror to the paired header/body key while the
+  // live lock is on. Used by the colour swatches so locking truly links the two
+  // palettes as you edit.
+  const setFieldSynced = (key, val) => {
+    setField(key, val);
+    if (syncLocked && SYNC_MAP[key]) setField(SYNC_MAP[key], val);
+  };
+  const clearFieldSynced = (key) => {
+    clearField(key);
+    if (syncLocked && SYNC_MAP[key]) clearField(SYNC_MAP[key]);
+  };
 
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
   const bgImage = cf[BG_IMAGE_KEY] || "";
@@ -170,28 +209,41 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
     </div>
   );
 
-  // The Settings → Appearance "Custom Colours" swatch grid, reused for the
-  // header and body colour palettes. Tap a swatch to pick; "clear" reverts that
-  // colour to the app theme.
-  const paletteGrid = (palette) => (
-    <div className="flex flex-wrap gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
-      {palette.map(({ key, label }) => (
-        <div key={key} className="flex flex-col items-center gap-1">
-          <button
-            type="button"
-            onClick={() => setColorPickerFor(key)}
-            title={`Edit ${label}`}
-            className="w-10 h-10 rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center"
-            style={{ backgroundColor: cf[key] || "transparent" }}
-          >
-            {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
-          </button>
-          <span className="text-[0.625rem] text-muted-foreground">{label}</span>
-          {cf[key]
-            ? <button type="button" onClick={() => clearField(key)} className="text-[0.5625rem] text-muted-foreground hover:text-destructive leading-none">clear</button>
-            : <span className="h-[0.5625rem]" />}
+  // One swatch cell (button + label + clear), matching Settings → Appearance.
+  const swatchCell = (key, label, tall = false) => (
+    <div key={key} className="flex flex-col items-center gap-1">
+      {tall && <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">{label}</span>}
+      <button
+        type="button"
+        onClick={() => setColorPickerFor(key)}
+        title={`Edit ${label}`}
+        className={`${tall ? "w-10 h-[3.75rem]" : "w-10 h-10"} rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center`}
+        style={{ backgroundColor: cf[key] || "transparent" }}
+      >
+        {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+      </button>
+      {!tall && <span className="text-[0.625rem] text-muted-foreground">{label}</span>}
+      {cf[key]
+        ? <button type="button" onClick={() => clearFieldSynced(key)} className="text-[0.5625rem] text-muted-foreground hover:text-destructive leading-none">clear</button>
+        : <span className="h-[0.5625rem]" />}
+    </div>
+  );
+
+  // The Settings → Appearance "Custom Colours" grid: the 8 colours in a 4-wide
+  // grid (four on top, four on bottom), with an optional Wave swatch standing
+  // tall on the right behind a divider. Live: swatches reflect the colour the
+  // moment it's set (cf updates), and the page preview updates via the live
+  // <style> injected in the return.
+  const paletteGrid = (palette, waveEntry = null) => (
+    <div className="flex gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+      <div className="grid grid-cols-4 gap-x-2 gap-y-3 flex-1">
+        {palette.map(({ key, label }) => swatchCell(key, label))}
+      </div>
+      {waveEntry && (
+        <div className="flex flex-col items-center justify-center pl-3 border-l border-border/40">
+          {swatchCell(waveEntry.key, waveEntry.label, true)}
         </div>
-      ))}
+      )}
     </div>
   );
 
@@ -229,25 +281,9 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
     </div>
   );
 
-  // Sync header ↔ body STYLE values (background colour, text colour, font,
-  // background opacity) — but deliberately NOT the images, which are usually
-  // meant to differ between the banner and the page. Pairs are [bodyKey,
-  // headerKey]. A set value on the "from" side is copied; an unset value on
-  // the "from" side clears the corresponding "to" key so the two truly match.
-  // Reuses the same setField / clearField the rest of the editor writes
-  // through, so it goes straight into the profile's custom_fields.
-  const SYNC_PAIRS = [
-    [BG_COLOR_KEY, HEADER_BG_KEY],                      // background
-    ["_theme_surface", "_header_theme_surface"],        // surface
-    ["_theme_primary", "_header_theme_primary"],        // primary
-    ["_theme_secondary", "_header_theme_secondary"],    // secondary
-    ["_theme_accent", "_header_theme_accent"],          // accent
-    ["_theme_muted", "_header_theme_muted"],            // muted
-    [PAGE_TEXT_KEY, HEADER_TEXT_KEY],                   // text
-    ["_theme_text2", "_header_theme_text2"],            // text 2nd
-    [PAGE_FONT_KEY, HEADER_FONT_KEY],                   // font
-    [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],            // background opacity
-  ];
+  // One-tap copy of the palette colours + font + opacity between header and
+  // body (uses the module-level SYNC_PAIRS). Reuses setField / clearField so it
+  // writes straight into the profile's custom_fields.
   const syncStyles = (direction) => {
     // direction: "headerToBody" copies header values onto the body keys;
     // "bodyToHeader" copies body values onto the header keys.
@@ -267,6 +303,12 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
     // image (inside .os-pf), the WHOLE profile-style card gets the colour
     // backing so it's readable. No-op inside modals (the rule is .os-pf-scoped).
     <div data-pf-surface className="space-y-0 rounded-xl">
+      {/* Live preview: re-apply the profile theme + surface tint from the
+          IN-PROGRESS edits so colour changes show on the page immediately,
+          before saving. Scoped to .os-pf and injected after the page-level
+          style so these win. No-op outside a profile context (returns ""). */}
+      {profileThemeCss("os-pf", cf) && <style>{profileThemeCss("os-pf", cf)}</style>}
+      {profileSurfaceCss("os-pf", cf) && <style>{profileSurfaceCss("os-pf", cf)}</style>}
       {/* HEADER */}
       <SubSection title="Header" defaultOpen={true}>
         <div className="flex items-center justify-between gap-3">
@@ -290,15 +332,50 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
         </div>
+
+        {/* Sync header ↔ body — lives at the bottom of the Header card.
+            "Sync" copies the palette + font + opacity in the arrow's
+            direction; tap the arrow to flip; tap the lock to live-link so any
+            change to one side mirrors to the other as you edit. */}
+        <div className="flex items-center gap-2 pt-3 mt-1 border-t border-border/40 flex-wrap">
+          <button
+            type="button"
+            onClick={() => syncStyles(syncDir)}
+            className="px-2.5 py-1.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
+          >
+            Sync
+          </button>
+          <span className="text-xs text-muted-foreground">Header</span>
+          <button
+            type="button"
+            onClick={() => setSyncDir((d) => (d === "headerToBody" ? "bodyToHeader" : "headerToBody"))}
+            aria-label={syncDir === "headerToBody" ? "Direction: header to body — tap to flip" : "Direction: body to header — tap to flip"}
+            title="Tap to flip direction"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-border bg-muted/20 hover:bg-muted/40 text-foreground transition-colors"
+          >
+            {syncDir === "headerToBody" ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+          </button>
+          <span className="text-xs text-muted-foreground">Body</span>
+          <button
+            type="button"
+            onClick={() => setSyncLocked((v) => !v)}
+            aria-pressed={syncLocked}
+            aria-label={syncLocked ? "Live link on — tap to unlink" : "Live link off — tap to link"}
+            title={syncLocked ? "Live-linked: colour changes mirror both ways" : "Tap to live-link header & body colours"}
+            className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${syncLocked ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted/20 hover:bg-muted/40 text-muted-foreground"}`}
+          >
+            {syncLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+          </button>
+        </div>
       </SubSection>
 
       {/* BODY — rendered inline within "Profile style" (NOT its own collapsible
           dropdown; only the Header collapses). */}
       <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
-        {/* Body colour palette — the full custom-colour set INCLUDING the wave.
-            Same colours as Settings → Appearance, applied to the whole page. */}
-        {paletteGrid(BODY_PALETTE)}
+        {/* Body colour palette — the full custom-colour set INCLUDING the wave
+            (tall swatch on the right). Same layout as Settings → Appearance. */}
+        {paletteGrid(BODY_PALETTE, WAVE_ENTRY)}
         {bgImageSet && cf[BG_COLOR_KEY] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
             With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
@@ -319,38 +396,11 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         ) : null}
       </div>
 
-      {/* SYNC HEADER ↔ BODY — copy style values (background colour, text
-          colour, font, background opacity) between the header and body in
-          either direction. Images are intentionally left out — they're
-          usually meant to differ between the banner and the page. */}
-      <div className="space-y-2 pt-3 mt-1 border-t border-border/40">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Sync header ↔ body</p>
-        <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
-          Copy the background colour, text colour, font, and opacity from one to the other. Images are not copied.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            type="button"
-            onClick={() => syncStyles("headerToBody")}
-            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
-          >
-            <ArrowDownToLine className="w-3.5 h-3.5" /> Header → Body
-          </button>
-          <button
-            type="button"
-            onClick={() => syncStyles("bodyToHeader")}
-            className="flex items-center justify-center gap-1.5 px-2 py-2 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
-          >
-            <ArrowUpToLine className="w-3.5 h-3.5" /> Body → Header
-          </button>
-        </div>
-      </div>
-
       {colorPickerFor && (
         <ColorPickerModal
           color={cf[colorPickerFor] || "#8b5cf6"}
           label="Pick colour"
-          onSave={(hex) => setField(colorPickerFor, hex)}
+          onSave={(hex) => setFieldSynced(colorPickerFor, hex)}
           onClose={() => setColorPickerFor(null)}
         />
       )}

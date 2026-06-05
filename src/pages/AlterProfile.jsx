@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { motion } from "framer-motion";
-import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin } from "lucide-react";
+import { ArrowLeft, ArrowRight, User, IdCard, MessageSquare, TrendingUp, FileText, SlidersHorizontal, Pencil, Eye, Save, Mail, GitMerge, Pin, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -21,6 +21,7 @@ import MessagesTab from "@/components/alters/profile/MessagesTab";
 import PrivateMessagesTab from "@/components/alters/profile/PrivateMessagesTab";
 import OptionsTab from "@/components/alters/profile/OptionsTab";
 import LineageTab from "@/components/alters/profile/LineageTab";
+import RelationshipsTab from "@/components/alters/profile/RelationshipsTab";
 
 const TABS = [
   { id: "profile", label: "Profile", icon: User },
@@ -30,6 +31,7 @@ const TABS = [
   { id: "history", label: "History", icon: TrendingUp },
   { id: "notes", label: "Notes", icon: FileText },
   { id: "lineage", label: "Lineage", icon: GitMerge },
+  { id: "relationships", label: "Relationships", icon: Link2 },
   { id: "options", label: "Options", icon: SlidersHorizontal },
 ];
 
@@ -85,7 +87,7 @@ function AlterProfileInner() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "options"];
     return valid.includes(t) ? t : "profile";
   });
   const highlightMessageId = searchParams.get("messageId") || null;
@@ -94,7 +96,7 @@ function AlterProfileInner() {
   // Keep tab in sync when the URL ?tab= param changes (e.g. tour navigation)
   useEffect(() => {
     const t = searchParams.get("tab");
-    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "options"];
+    const valid = ["profile", "info", "messages", "private-messages", "history", "notes", "lineage", "relationships", "options"];
     if (t && valid.includes(t)) setTab(t);
   }, [searchParams]);
   const [showComposeMessage, setShowComposeMessage] = useState(false);
@@ -432,6 +434,7 @@ function AlterProfileInner() {
           {tab === "history" && <HistoryTab alterId={alter.id} />}
           {tab === "notes" && <NotesTab alterId={alter.id} />}
           {tab === "lineage" && <LineageTab alterId={alter.id} />}
+          {tab === "relationships" && <RelationshipsTab alter={alter} alters={alters} />}
           {tab === "options" && <OptionsTab alter={alter} />}
         </div>
       </div>

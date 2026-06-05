@@ -6,6 +6,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
+  Undo2, Redo2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -40,6 +41,7 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars } from "@/lib/profileStyle";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
+import { useUndoRedo } from "@/hooks/useUndoRedo";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
@@ -154,10 +156,13 @@ function GroupProfileInner() {
   // chip tapped from an alter profile can arrive with either.
   const group = allGroups.find((g) => String(g.id) === String(groupId) || (g.sp_id && String(g.sp_id) === String(groupId))) || null;
 
-  const [form, setForm] = useState(null);
+  // Form starts null (group not loaded yet); reset() seeds the baseline once
+  // the group loads. reset() (not setForm) means the initial load is not an
+  // undo entry and undo can never revert past the loaded data back to null.
+  const [form, setForm, formHistory] = useUndoRedo(null);
   useEffect(() => {
     if (!group) return;
-    setForm({
+    formHistory.reset({
       name: group.name || "",
       color: group.color || "",
       emoji: group.emoji || "",
@@ -453,9 +458,17 @@ function GroupProfileInner() {
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
           <Eye className="w-4 h-4 mr-1.5" /> View
         </Button>
-        <Button variant="default" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 bg-primary hover:bg-primary/90">
-          {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
-        </Button>
+        <div className="flex items-center gap-1.5">
+          <Button variant="outline" size="sm" onClick={formHistory.undo} disabled={!formHistory.canUndo} className="gap-1.5" title="Undo">
+            <Undo2 className="w-3.5 h-3.5" /> Undo
+          </Button>
+          <Button variant="outline" size="sm" onClick={formHistory.redo} disabled={!formHistory.canRedo} className="gap-1.5" title="Redo">
+            <Redo2 className="w-3.5 h-3.5" /> Redo
+          </Button>
+          <Button variant="default" size="sm" onClick={handleSave} disabled={saving} className="gap-1.5 bg-primary hover:bg-primary/90">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />} Save
+          </Button>
+        </div>
       </div>
 
       {tabBar}

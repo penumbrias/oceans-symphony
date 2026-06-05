@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
+import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
@@ -928,59 +929,17 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
         />
       )}
 
+      {/* Press-and-hold a fronting chip → the SAME full action menu as the
+          alters page (go to profile, pin, create/open subsystem, add/remove
+          front, make/demote primary, add to groups, leave subsystem). Reuses
+          AlterActionMenu so the fronting context gets every action without
+          duplicating its own buttons. */}
       {holdMenuAlter && (
-        <Dialog open={!!holdMenuAlter} onOpenChange={() => setHoldMenuAlter(null)}>
-          <DialogContent className="max-w-[280px] p-4 gap-0">
-            <div className="flex items-center gap-3 pb-3 mb-3 border-b border-border/50">
-              <div
-                className="w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/30"
-                style={{ backgroundColor: holdMenuAlter.color || "hsl(var(--muted))" }}
-              >
-                <HoldMenuAvatar alter={holdMenuAlter} />
-              </div>
-              <div>
-                <p className="font-semibold text-sm">{holdMenuAlter.name}</p>
-                <p className="text-xs text-muted-foreground">
-                  {holdMenuAlter.id === primaryAlterId ? `Primary ${terms.fronter || terms.alter}` : `Co-${terms.fronting}`}
-                </p>
-              </div>
-            </div>
-            <div className="space-y-0.5">
-              <button
-                onClick={async () => {
-                  if (holdMenuAlter.id === primaryAlterId) {
-                    try {
-                      const sess = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === holdMenuAlter.id);
-                      if (sess?.alter_id) {
-                        await base44.entities.FrontingSession.update(sess.id, { is_primary: false });
-                        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-                        toast.success(`${holdMenuAlter.name} is now co-${terms.fronting}`);
-                      }
-                    } catch { toast.error("Failed to update"); }
-                  } else {
-                    await handleSetPrimaryFromHold(holdMenuAlter);
-                  }
-                  setHoldMenuAlter(null);
-                }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
-              >
-                {holdMenuAlter.id === primaryAlterId ? `Make Co-${terms.front}` : `Make Primary ${terms.Fronter}`}
-              </button>
-              <button
-                onClick={() => handleRemoveFromFront(holdMenuAlter)}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm text-destructive hover:bg-destructive/10 transition-colors"
-              >
-                Remove from {terms.Front}
-              </button>
-              <button
-                onClick={() => { navigate(`/alter/${holdMenuAlter.id}`); setHoldMenuAlter(null); }}
-                className="w-full text-left px-3 py-2.5 rounded-lg text-sm hover:bg-muted/50 transition-colors"
-              >
-                View Profile
-              </button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <AlterActionMenu
+          alter={holdMenuAlter}
+          activeSessions={activeSessions}
+          onClose={() => setHoldMenuAlter(null)}
+        />
       )}
     </>
   );
