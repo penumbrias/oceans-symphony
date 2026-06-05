@@ -9,11 +9,19 @@ import {
 import { isExtraFontsInstalled, installExtraFonts, uninstallExtraFonts } from '@/lib/fontPacks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { Palette, X, ChevronDown, Search, Check, Trash2, Link2, Unlink, Save, Download, Loader2 } from 'lucide-react';
+import { X, ChevronDown, Search, Check, Trash2, Unlink, Save, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTerms } from '@/lib/useTerms';
 import '@/lib/editorFonts.js'; // ensure all bundled fonts are loaded
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from '@/lib/waveColorKey';
+import { SubSection } from '@/components/settings/SettingsUI';
+import { UiSizeControl, TouchTargetControl, NavHeightControl } from './DisplaySizeControls';
+import ThemeModeChip from './ThemeModeChip';
+import CornerStyleSettings from './CornerStyleSettings';
+import DashboardLayoutSettings from './DashboardLayoutSettings';
+import NavigationSettings from './NavigationSettings';
+import UpcomingPlansSurfacesSection from './UpcomingPlansSurfacesSection';
+import { isNative } from '@/lib/platform';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
@@ -22,20 +30,6 @@ const COLOR_LABELS = {
   secondary: 'Secondary', accent: 'Accent', muted: 'Muted',
   'text-primary': 'Text', 'text-secondary': 'Text 2nd',
 };
-
-const FONT_SIZE_OPTIONS = [
-  { value: 'xs3',     label: 'Tiny',        desc: '50%' },
-  { value: 'xs2',     label: 'XS',          desc: '62.5%' },
-  { value: 'xs',      label: 'S−',          desc: '75%' },
-  { value: 'sm',      label: 'Small',       desc: '87.5%' },
-  { value: 'default', label: 'Default',     desc: '100%' },
-  { value: 'lg',      label: 'Large',       desc: '112.5%' },
-  { value: 'xl',      label: 'XL',          desc: '125%' },
-  { value: 'xl2',     label: 'XXL',         desc: '137.5%' },
-  { value: 'xl3',     label: 'XXXL',        desc: '150%' },
-  { value: 'xl4',     label: 'XXXXL',       desc: '175%' },
-  { value: 'xl5',     label: 'Huge',        desc: '200%' },
-];
 
 // ── Font Picker ──────────────────────────────────────────────────────────────
 function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolveCurrent }) {
@@ -144,7 +138,7 @@ function ColorSwatch({ label, color, onClick }) {
       type="button"
       onClick={onClick}
       title={`Edit ${label}`}
-      className="flex flex-col items-center gap-1.5 group"
+      className="flex flex-col items-center gap-1 group"
     >
       <div
         className="w-10 h-10 rounded-xl border-2 border-border/50 group-hover:border-primary/60 transition-colors shadow-sm"
@@ -155,80 +149,148 @@ function ColorSwatch({ label, color, onClick }) {
   );
 }
 
-// Picker for which palette swatch the header's animated wave fills
-// with. Writes SystemSettings.wave_color_key. Rendered inline inside
-// AdvancedAppearance after the Theme Mode block.
-function WaveColorPicker() {
+// Picker for which colour the header's animated wave fills with. The
+// user can pick one of the eight palette swatches, turn the wave Off,
+// or pick a fully custom hex.
+//
+// Palette picks write SystemSettings.wave_color_key (one of
+// WAVE_COLOR_KEYS) — HeaderWaveBlock reads that today.
+//
+// A fully-custom hex writes SystemSettings.wave_color_custom. NOTE:
+// HeaderWaveBlock currently only reads wave_color_key, so a custom hex
+// is stored but won't render until HeaderWaveBlock + waveColorKey.js
+// are taught to prefer wave_color_custom (flagged for the main agent).
+// The palette swatches read live CSS vars so they always match the
+// active theme.
+function WaveColorSwatch() {
   const qc = useQueryClient();
+  const [open, setOpen] = useState(false);
+  const ref = useRef(null);
   const { data: list = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const settings = list?.[0];
-  const current = readWaveColorKey(settings);
+  const currentKey = readWaveColorKey(settings);
+  const customHex = typeof settings?.wave_color_custom === 'string' ? settings.wave_color_custom : '';
+  const usingCustom = !!customHex;
 
-  const setKey = async (key) => {
+  useEffect(() => {
+    if (!open) return;
+    const h = (e) => { if (!ref.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', h);
+    return () => document.removeEventListener('mousedown', h);
+  }, [open]);
+
+  const persist = async (patch) => {
     try {
       if (settings?.id) {
-        await base44.entities.SystemSettings.update(settings.id, { wave_color_key: key });
+        await base44.entities.SystemSettings.update(settings.id, patch);
       } else {
-        await base44.entities.SystemSettings.create({ wave_color_key: key });
+        await base44.entities.SystemSettings.create(patch);
       }
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch (e) {
-      // best-effort — picker remains operable even if save fails
-      console.warn("[WaveColorPicker] save failed:", e?.message || e);
+      console.warn("[WaveColorSwatch] save failed:", e?.message || e);
     }
   };
 
-  // Map each picker option to the actual CSS variable so the swatch
-  // matches what the wave will look like.
+  // Map a wave key to a live CSS colour for the swatch fill.
   const cssVarFor = (key) => key === "text-2nd"
     ? "var(--color-text-secondary)"
     : key === "text"
       ? "var(--color-text-primary)"
       : `var(--color-${key})`;
 
+  const pickPaletteKey = (key) => {
+    // Clearing the custom hex when picking a palette key keeps the two
+    // mutually exclusive — a palette pick always wins.
+    persist({ wave_color_key: key, wave_color_custom: null });
+    setOpen(false);
+  };
+
+  const pickCustom = (hex) => {
+    persist({ wave_color_custom: hex });
+  };
+
+  // What the trigger swatch should show.
+  const triggerStyle = currentKey === "background" && !usingCustom
+    ? undefined
+    : { backgroundColor: usingCustom ? customHex : cssVarFor(currentKey) };
+  const triggerIsOff = currentKey === "background" && !usingCustom;
+
   return (
-    <div className="space-y-2">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Wave colour</p>
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-        Which palette colour the header's animated wave uses (at 0.3 opacity). Pick <strong>Off</strong> to hide the wave entirely.
-      </p>
-      <div className="grid grid-cols-4 gap-1.5">
-        {WAVE_COLOR_KEYS.map((key) => {
-          const isCurrent = current === key;
-          const isOff = key === "background";
-          return (
-            <button
-              key={key}
-              type="button"
-              onClick={() => setKey(key)}
-              className={`flex flex-col items-center gap-1.5 px-2 py-2 rounded-xl border transition-all ${
-                isCurrent ? "border-primary/60 bg-primary/10" : "border-border/50 bg-card hover:bg-muted/30"
-              }`}
-            >
-              {/* The "Off" swatch (key === "background") shows a
-                  crossed-out tile to communicate "no wave"; every
-                  other key shows the actual palette colour. */}
-              {isOff ? (
-                <div className="w-7 h-7 rounded-lg border-2 border-border bg-muted/40 flex items-center justify-center text-muted-foreground">
-                  <span className="text-base leading-none">⊘</span>
-                </div>
-              ) : (
-                <div
-                  className="w-7 h-7 rounded-lg border-2 border-border overflow-hidden"
+    <div className="relative flex flex-col items-center gap-1" ref={ref}>
+      <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">Wave</span>
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        title="Header wave colour"
+        className="w-14 h-14 rounded-xl border-2 border-border/60 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center overflow-hidden"
+        style={triggerStyle}
+      >
+        {triggerIsOff && <span className="text-lg text-muted-foreground leading-none">⊘</span>}
+      </button>
+      <span className="text-[0.625rem] text-muted-foreground">
+        {usingCustom ? 'Custom' : WAVE_COLOR_LABELS[currentKey]}
+      </span>
+
+      {open && (
+        <div className="absolute top-full mt-1 right-0 z-[85] w-60 bg-background border-2 border-border rounded-xl shadow-2xl p-3 space-y-3">
+          <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+            Colour of the header's animated wave (shown at 0.3 opacity). Pick a palette colour, turn it Off, or set a custom one.
+          </p>
+          <div className="grid grid-cols-4 gap-1.5">
+            {WAVE_COLOR_KEYS.map((key) => {
+              const isOff = key === "background";
+              const isCurrent = !usingCustom && currentKey === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => pickPaletteKey(key)}
+                  title={WAVE_COLOR_LABELS[key]}
+                  className={`flex flex-col items-center gap-1 px-1 py-1.5 rounded-lg border transition-all ${
+                    isCurrent ? "border-primary/60 bg-primary/10" : "border-border/50 hover:bg-muted/30"
+                  }`}
                 >
-                  <div className="w-full h-full" style={{ backgroundColor: cssVarFor(key) }} />
-                </div>
+                  {isOff ? (
+                    <div className="w-6 h-6 rounded-md border-2 border-border bg-muted/40 flex items-center justify-center text-muted-foreground">
+                      <span className="text-sm leading-none">⊘</span>
+                    </div>
+                  ) : (
+                    <div className="w-6 h-6 rounded-md border-2 border-border overflow-hidden">
+                      <div className="w-full h-full" style={{ backgroundColor: cssVarFor(key) }} />
+                    </div>
+                  )}
+                  <span className={`text-[0.5625rem] leading-none ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                    {WAVE_COLOR_LABELS[key]}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="space-y-2 pt-1 border-t border-border/40">
+            <div className="flex items-center justify-between">
+              <span className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider">Custom colour</span>
+              {usingCustom && (
+                <button
+                  type="button"
+                  onClick={() => persist({ wave_color_custom: null })}
+                  className="text-[0.625rem] text-muted-foreground hover:text-foreground underline underline-offset-2"
+                >
+                  Use palette
+                </button>
               )}
-              <span className={`text-[0.625rem] ${isCurrent ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                {WAVE_COLOR_LABELS[key]}
-              </span>
-            </button>
-          );
-        })}
-      </div>
+            </div>
+            <HexColorPicker
+              color={usingCustom ? customHex : (cssVarFor(currentKey).startsWith('#') ? customHex : '#94A3B8')}
+              onChange={pickCustom}
+              style={{ width: '100%', height: 120 }}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -287,14 +349,29 @@ function BuiltInPresetDropdown({ presets, names, selectedTheme, customColors, on
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
+// What a saved preset can capture. Keyed so the Save form can render a
+// checkbox per group and only the checked groups end up in the payload.
+const PRESET_PARTS = [
+  { id: 'colors',     label: 'Colours' },
+  { id: 'fonts',      label: 'Fonts' },
+  { id: 'uiSize',     label: 'UI size' },
+  { id: 'themeMode',  label: 'Theme mode (light/dark)' },
+  { id: 'wave',       label: 'Wave colour' },
+  { id: 'corner',     label: 'Corner style' },
+  { id: 'dashboard',  label: 'Dashboard layout' },
+  { id: 'navigation', label: 'Navigation' },
+  { id: 'terms',      label: 'Terminology' },
+  { id: 'banner',     label: 'System banner' },
+];
+
+// ── Main component — renders the WHOLE Appearance section body ─────────────────
 export default function AdvancedAppearance() {
   const t = useTerms();
   const qc = useQueryClient();
   const {
-    themeMode, setThemeMode, cycleThemeMode,
+    themeMode, setThemeMode,
     selectedTheme, setSelectedTheme,
-    customColors, updateCustomColors, updateCustomColorsFull, clearCustomColors,
+    customColors, updateCustomColorsFull, clearCustomColors,
     presets, allPresets,
     userCustomPresets, saveCustomPreset, deleteUserPreset,
     alterThemeLinks, linkAlterTheme, unlinkAlterTheme,
@@ -352,6 +429,14 @@ export default function AdvancedAppearance() {
   // Save preset state
   const [presetName, setPresetName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
+  // Which parts of the current look the next saved preset captures.
+  // Defaults to the look-and-feel essentials; layout/terms left off so a
+  // saved colour theme doesn't quietly rearrange the whole app on load.
+  const [presetParts, setPresetParts] = useState(() => ({
+    colors: true, fonts: true, uiSize: true, themeMode: true, wave: true,
+    corner: false, dashboard: false, navigation: false, terms: false, banner: false,
+  }));
+  const togglePart = (id) => setPresetParts((p) => ({ ...p, [id]: !p[id] }));
 
   // Alter data for fronter linking
   const { data: alters = [] } = useQuery({
@@ -387,8 +472,6 @@ export default function AdvancedAppearance() {
   }, [customColors, selectedTheme, isDark, allPresets, userCustomPresets]);
 
   // Live CSS as a fallback for any colors the source dictionary is missing.
-  // We re-read after each theme change so a fronter-theme override or external
-  // CSS update is still reflected.
   const [liveColors, setLiveColors] = useState(() => {
     if (typeof document === 'undefined') return {};
     return Object.fromEntries(
@@ -396,8 +479,6 @@ export default function AdvancedAppearance() {
     );
   });
   useEffect(() => {
-    // Defer to the next frame so ThemeContext's effect (which sets the CSS
-    // variables) has run before we read.
     const id = requestAnimationFrame(() => setLiveColors(readCssColors()));
     return () => cancelAnimationFrame(id);
   }, [selectedTheme, customColors, themeMode, isDark]);
@@ -408,40 +489,30 @@ export default function AdvancedAppearance() {
         Object.keys(COLOR_LABELS).map(k => [k, sourceColors[k] || liveColors[k] || '#888888'])
       );
 
-  const modeIcon = { light: '☀️', dark: '🌙', system: '💻' }[themeMode] || '🌙';
-
   // ── Font + size handlers ─────────────────────────────────────
-  // Both Appearance and Accessibility surface the Text & UI Size
-  // picker (user explicitly wanted it reachable from both). They
-  // write to the same accessibility-storage key, so changes here
-  // are live in Accessibility on the next render and vice versa.
-  // Saved theme presets capture both via `currentFont` /
-  // `currentSize` so a preset can pin a coordinated typography
-  // choice.
   const handleFontSelect = (value) => {
     setCurrentFont(value);
     setAccessibilityFontFamily(value);
   };
 
-  const handleSizeSelect = (value) => {
-    setCurrentSize(value);
-    setAccessibilityFontSize(value);
-  };
-
   // ── Preset handlers ──────────────────────────────────────────
+  // Only apply the keys actually present in the preset — a granular
+  // save omits unchecked groups, and loading must not touch them.
   const handleSelectPreset = async (name) => {
-    clearCustomColors();
-    setSelectedTheme(name);
+    const preset = allPresets[name] || userCustomPresets[name];
+    // Colours: only swap if this preset carries a colour payload.
+    if (preset?.light || preset?.dark) {
+      clearCustomColors();
+      setSelectedTheme(name);
+    }
     setPendingColors(null);
     setEditingColor(null);
-    const preset = allPresets[name] || userCustomPresets[name];
     if (preset?.font) { setCurrentFont(preset.font); setAccessibilityFontFamily(preset.font); }
     if (preset?.headingFont) { setCurrentHeadingFont(preset.headingFont); setAccessibilityHeadingFont(preset.headingFont); }
     if (preset?.themeMode) setThemeMode(preset.themeMode);
     if (preset?.fontSize) { setCurrentSize(preset.fontSize); setAccessibilityFontSize(preset.fontSize); }
     // Every other Appearance-section setting lives on the singleton
-    // SystemSettings row — batch them all into one write so loading
-    // a preset is a single round-trip.
+    // SystemSettings row — batch them all into one write.
     const settingsPatch = {};
     if (preset?.terms) {
       settingsPatch.term_system = preset.terms.system || 'system';
@@ -451,12 +522,24 @@ export default function AdvancedAppearance() {
     }
     if (preset?.waveColorKey && WAVE_COLOR_KEYS.includes(preset.waveColorKey)) {
       settingsPatch.wave_color_key = preset.waveColorKey;
+      // A palette-keyed wave clears any custom hex so they stay exclusive.
+      settingsPatch.wave_color_custom = preset.waveColorCustom || null;
+    } else if (preset?.waveColorCustom) {
+      settingsPatch.wave_color_custom = preset.waveColorCustom;
     }
     if (preset?.cornerMode) settingsPatch.corner_mode = preset.cornerMode;
     if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
     if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
+    // System banner config — only re-apply when the preset captured it.
+    if (preset?.banner) {
+      const b = preset.banner;
+      if (b.system_banner_url !== undefined) settingsPatch.system_banner_url = b.system_banner_url;
+      if (b.system_banner_height !== undefined) settingsPatch.system_banner_height = b.system_banner_height;
+      if (b.system_banner_position !== undefined) settingsPatch.system_banner_position = b.system_banner_position;
+      if (b.system_banner_scope !== undefined) settingsPatch.system_banner_scope = b.system_banner_scope;
+    }
     if (Object.keys(settingsPatch).length > 0) {
       if (systemSettings?.id) {
         await base44.entities.SystemSettings.update(systemSettings.id, settingsPatch);
@@ -474,7 +557,6 @@ export default function AdvancedAppearance() {
       const presetColors = allPresets[selectedTheme] || userCustomPresets[selectedTheme];
       const light = { ...(customColors?.light || presetColors?.light || {}) };
       const dark  = { ...(customColors?.dark  || presetColors?.dark  || {}) };
-      // Seed any missing keys from the currently applied CSS variables
       const cssColors = readCssColors();
       Object.keys(COLOR_LABELS).forEach(k => {
         if (!light[k]) light[k] = isDark ? '#888888' : cssColors[k];
@@ -505,48 +587,63 @@ export default function AdvancedAppearance() {
     setEditingColor(null);
   };
 
-  // ── Save as named preset ─────────────────────────────────────
-  // A saved preset should capture EVERYTHING the user can tune in
-  // the Appearance section so re-applying the preset brings the app
-  // back to the exact look they saved. That's:
-  //   - theme colors (light + dark)
-  //   - body font + heading font
-  //   - theme mode
-  //   - text/UI size
-  //   - header wave colour
-  //   - corner style (rounded / sharp)
-  //   - alter-label mode (name / alias / both)
-  //   - dashboard layout (block order + on/off)
-  //   - navigation layout (top bar, bottom bar, dashboard grid)
-  //   - upcoming-plans surfaces (where the planned-activity widget
-  //     surfaces)
-  //   - terminology
-  // Missing any of these would silently revert that aspect to the
-  // last applied value when loading the preset.
+  // ── Save as named preset (granular) ──────────────────────────
+  // Only the checked groups get captured. Omitting a key means loading
+  // the preset later won't touch that aspect of the app.
   const handleSavePreset = () => {
     const name = presetName.trim();
     if (!name) return;
-    const colors = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
-    if (!colors) return;
-    saveCustomPreset(name, {
-      ...colors,
-      font: currentFont,
-      headingFont: currentHeadingFont,
-      themeMode,
-      fontSize: currentSize,
-      waveColorKey: readWaveColorKey(systemSettings),
-      // SystemSettings-driven Appearance items. Stored as-is and
-      // re-applied on preset load via a single SystemSettings patch.
-      cornerMode: systemSettings?.corner_mode,
-      alterLabelMode: systemSettings?.alter_label_mode,
-      dashboardLayout: systemSettings?.dashboard_layout,
-      navigationConfig: systemSettings?.navigation_config,
-      upcomingPlansSurfaces: systemSettings?.upcoming_plans_surfaces,
-      terms: { system: t.system, alter: t.alter, switch: t.switch, front: t.front },
-    });
+    const payload = {};
+
+    if (presetParts.colors) {
+      const colors = customColors || allPresets[selectedTheme] || userCustomPresets[selectedTheme];
+      if (colors?.light || colors?.dark) {
+        payload.light = colors.light;
+        payload.dark = colors.dark;
+      }
+    }
+    if (presetParts.fonts) {
+      payload.font = currentFont;
+      payload.headingFont = currentHeadingFont;
+    }
+    if (presetParts.uiSize) payload.fontSize = currentSize;
+    if (presetParts.themeMode) payload.themeMode = themeMode;
+    if (presetParts.wave) {
+      payload.waveColorKey = readWaveColorKey(systemSettings);
+      if (typeof systemSettings?.wave_color_custom === 'string') {
+        payload.waveColorCustom = systemSettings.wave_color_custom;
+      }
+    }
+    if (presetParts.corner) payload.cornerMode = systemSettings?.corner_mode;
+    if (presetParts.dashboard) {
+      payload.dashboardLayout = systemSettings?.dashboard_layout;
+      payload.upcomingPlansSurfaces = systemSettings?.upcoming_plans_surfaces;
+    }
+    if (presetParts.navigation) payload.navigationConfig = systemSettings?.navigation_config;
+    if (presetParts.terms) {
+      payload.terms = { system: t.system, alter: t.alter, switch: t.switch, front: t.front };
+    }
+    if (presetParts.banner) {
+      payload.banner = {
+        system_banner_url: systemSettings?.system_banner_url ?? null,
+        system_banner_height: systemSettings?.system_banner_height,
+        system_banner_position: systemSettings?.system_banner_position,
+        system_banner_scope: systemSettings?.system_banner_scope,
+      };
+    }
+    // alterLabelMode rides with colours/fonts implicitly when present; keep
+    // it only when fonts (typography identity) are saved.
+    if (presetParts.fonts) payload.alterLabelMode = systemSettings?.alter_label_mode;
+
+    if (Object.keys(payload).length === 0) {
+      toast.error("Pick at least one thing to save");
+      return;
+    }
+    saveCustomPreset(name, payload);
     setPresetName('');
     setShowSaveForm(false);
-    toast.success(`Theme "${name}" saved — includes every Appearance setting`);
+    const count = PRESET_PARTS.filter((p) => presetParts[p.id]).length;
+    toast.success(`Preset "${name}" saved (${count} ${count === 1 ? 'setting' : 'settings'})`);
   };
 
   // Collect all presets for display
@@ -554,289 +651,329 @@ export default function AdvancedAppearance() {
   const userPresetNames = Object.keys(userCustomPresets);
   const allPresetNames = [...builtInNames, ...userPresetNames];
 
+  // Top nav bar only matters where it's actually shown. On native /
+  // mobile the top bar is hidden, so we surface only the bottom-bar
+  // config there; on web (wide layouts) we keep both.
+  const showTopBarConfig = !isNative();
+
   return (
-    <>
-      {/* ── Body Font + Heading Font (side by side) ───────────────
-              These are the typography-style choices. Text & UI Size
-              lives in Accessibility — moving it there avoided the
-              duplicate slider we used to render in both sections. */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div className="space-y-2 min-w-0">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font Family</p>
-          <FontPicker currentFont={currentFont} onSelect={handleFontSelect} options={appFontOptions} />
-          <p className="text-xs text-muted-foreground">
-            Preview: <span style={{ fontFamily: findFontOption(currentFont).value }}>
-              The quick brown fox jumps over the lazy dog
-            </span>
-          </p>
+    <div className="space-y-5">
+      {/* 1. UI SIZE — directly on the card. */}
+      <UiSizeControl />
+
+      {/* 2. ADVANCED — touch target + nav height sliders. */}
+      <SubSection title="Advanced" defaultOpen={false}>
+        <TouchTargetControl />
+        <NavHeightControl />
+      </SubSection>
+
+      {/* 3. FONTS — directly on the card. Body font with the
+              "download more" button on its right; heading font below. */}
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font family</p>
+          <div className="flex items-stretch gap-2">
+            <div className="flex-1 min-w-0">
+              <FontPicker currentFont={currentFont} onSelect={handleFontSelect} options={appFontOptions} />
+            </div>
+            {extraInstalled ? (
+              <button
+                type="button"
+                onClick={handleRemoveExtraFonts}
+                title="Remove the downloaded extra fonts"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-3 rounded-xl border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Remove fonts
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={handleInstallExtraFonts}
+                disabled={installingFonts}
+                title="Download 14 more fonts (one-time, needs internet)"
+                className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-3 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+              >
+                {installingFonts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
+                {installingFonts ? "Downloading…" : "More fonts"}
+              </button>
+            )}
+          </div>
         </div>
-        <div className="space-y-2 min-w-0">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading Font</p>
+        <div className="space-y-1.5">
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Heading font</p>
           <FontPicker
             currentFont={currentHeadingFont}
             onSelect={handleHeadingFontSelect}
             options={headingFontOptions}
             resolveCurrent={(v) => headingFontOptions.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
           />
-          <p className="text-xs text-muted-foreground">
-            Preview: <span className="font-display" style={{ fontFamily: currentHeadingFont === "default" ? "'DM Serif Display', 'Playfair Display', serif" : currentHeadingFont }}>
-              Your System
-            </span>
-          </p>
         </div>
-      </div>
-      <p className="text-xs text-muted-foreground -mt-1">
-        Heading font is used for page titles and the app name. Body text uses the Font Family.
-      </p>
-
-      {/* ── Optional extra fonts — compact "Download more fonts" button. ─── */}
-      <div className="flex items-center justify-between gap-2 -mt-1">
         <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-          {extraInstalled
-            ? "Extra fonts installed — they appear in the pickers above."
-            : "14 more fonts available as a one-time download (needs internet)."}
+          Body text uses the font family; headings and the app name use the heading font.
         </p>
-        {extraInstalled ? (
-          <button
-            type="button"
-            onClick={handleRemoveExtraFonts}
-            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
-          >
-            <Trash2 className="w-3.5 h-3.5" /> Remove
-          </button>
-        ) : (
-          <button
-            type="button"
-            onClick={handleInstallExtraFonts}
-            disabled={installingFonts}
-            className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-md bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
-          >
-            {installingFonts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-            {installingFonts ? "Downloading…" : "Download more fonts"}
-          </button>
-        )}
       </div>
 
-      {/* Theme mode + UI size were moved out: theme mode is now the chip in the
-          "Theme & colours" section header, and UI size sits at the top of the
-          Appearance section. */}
+      {/* 4. THEME — expandable, with the light/dark cycle chip in its header. */}
+      <SubSection title="Theme" defaultOpen={false} right={<ThemeModeChip />}>
+        {/* a. Built-in preset swatch dropdown. */}
+        <BuiltInPresetDropdown
+          presets={presets}
+          names={builtInNames}
+          selectedTheme={selectedTheme}
+          customColors={customColors}
+          onSelect={handleSelectPreset}
+        />
 
-      {/* ── Wave colour picker ────────────────────────────────────
-              Lets the user pick which palette swatch the header's
-              animated wave uses for its fill. Writes
-              SystemSettings.wave_color_key; HeaderWaveBlock reads via
-              the same systemSettings react-query cache so changes
-              are live. Default is "muted". */}
-      <WaveColorPicker />
-
-      {/* ── Built-in Theme Presets — swatch dropdown ───────────── */}
-      <BuiltInPresetDropdown
-        presets={presets}
-        names={builtInNames}
-        selectedTheme={selectedTheme}
-        customColors={customColors}
-        onSelect={handleSelectPreset}
-      />
-
-      {/* ── Custom Color Editor ────────────────────────────────── */}
-      <div className="space-y-2">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom Colors</p>
-          {customColors && (
-            <button
-              type="button"
-              onClick={() => {
-                clearCustomColors();
-                setPendingColors(null);
-                // If the captured "originalTheme" is still "custom" (the user
-                // had custom colours when Settings opened, no real preset to
-                // fall back to), use the first built-in preset instead so
-                // selectedTheme ends up resolvable.
-                const fallback = allPresets[originalTheme]
-                  ? originalTheme
-                  : Object.keys(allPresets || {})[0] || "cool";
-                setSelectedTheme(fallback);
-              }}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-            >
-              Revert to preset
-            </button>
-          )}
-        </div>
-        <div className="flex flex-wrap gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
-          {Object.entries(COLOR_LABELS).map(([key, label]) => (
-            <ColorSwatch
-              key={key}
-              label={label}
-              color={currentColors[key] || '#888'}
-              onClick={() => handleStartEdit(key)}
-            />
-          ))}
-        </div>
-        <p className="text-xs text-muted-foreground">Tap a color swatch to edit it.</p>
-      </div>
-
-      {/* ── Save as Named Preset ───────────────────────────────── */}
-      <div className="space-y-2">
-        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Save as Preset</p>
-        {showSaveForm ? (
-          <div className="flex gap-2">
-            <input
-              autoFocus
-              value={presetName}
-              onChange={e => setPresetName(e.target.value)}
-              onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); if (e.key === 'Escape') setShowSaveForm(false); }}
-              placeholder="Preset name…"
-              className="flex-1 h-9 px-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
-            />
-            <button
-              type="button"
-              onClick={handleSavePreset}
-              className="px-3 h-9 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
-            >
-              <Save className="w-4 h-4" />
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowSaveForm(false)}
-              className="px-3 h-9 rounded-xl bg-muted text-muted-foreground text-sm"
-            >
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        ) : (
-          <button
-            type="button"
-            onClick={() => setShowSaveForm(true)}
-            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
-          >
-            <Save className="w-4 h-4" /> Save current theme as preset
-          </button>
-        )}
-      </div>
-
-      {/* ── User-saved Presets ────────────────────────────────────*/}
-      {userPresetNames.length > 0 && (
+        {/* b. Custom colours (4×2 grid) + the larger Wave swatch on the right. */}
         <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your Presets</p>
-          <div className="space-y-1.5">
-            {userPresetNames.map(name => {
-              const preset = userCustomPresets[name];
-              const isActive = selectedTheme === name;
-              const linkedAlters = alters.filter(a => alterThemeLinks[a.id] === name);
-              return (
-                <div key={name}
-                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all ${
-                    isActive ? 'border-primary/60 bg-primary/10' : 'border-border/40 bg-card'
-                  }`}
-                >
-                  {/* Color preview */}
-                  <div
-                    className="w-7 h-7 rounded-lg flex-shrink-0 border border-border/30"
-                    style={{ background: `linear-gradient(135deg, ${preset.light?.bg || '#888'}, ${preset.light?.primary || '#aaa'})` }}
-                  />
-                  <div className="flex-1 min-w-0">
-                    <p className={`text-sm font-semibold truncate ${isActive ? 'text-primary' : ''}`}>{name}</p>
-                    {preset.terms && (
-                      <p className="text-[0.625rem] text-muted-foreground truncate">
-                        {preset.terms.alter} · {preset.terms.front}ing · {preset.terms.system}
-                      </p>
-                    )}
-                    {linkedAlters.length > 0 && (
-                      <p className="text-[0.625rem] text-muted-foreground truncate">
-                        Linked: {linkedAlters.map(a => a.alias || a.name).join(', ')}
-                      </p>
-                    )}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={() => handleSelectPreset(name)}
-                    className={`text-xs px-2 py-1 rounded-lg transition-colors flex-shrink-0 ${
-                      isActive ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground hover:text-foreground'
-                    }`}
-                  >
-                    {isActive ? 'Active' : 'Apply'}
-                  </button>
-                  <button
-                    type="button"
-                    title="Delete preset"
-                    onClick={() => { if (confirm(`Delete preset "${name}"?`)) deleteUserPreset(name); }}
-                    className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* ── Fronter-linked Themes ─────────────────────────────── */}
-      {alters.length > 0 && allPresetNames.length > 0 && (
-        <div className="space-y-2">
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.Fronter} Themes</p>
-          <p className="text-xs text-muted-foreground">
-            When a {t.alter} becomes primary {t.fronter}, their linked theme (including light/dark mode) switches automatically.
-          </p>
-          <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input bg-background">
-            <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-            <input
-              value={alterSearch}
-              onChange={e => setAlterSearch(e.target.value)}
-              placeholder={`Search ${t.alters}…`}
-              className="flex-1 bg-transparent text-xs outline-none"
-            />
-            {alterSearch && (
-              <button type="button" onClick={() => setAlterSearch('')} className="text-muted-foreground hover:text-foreground">
-                <X className="w-3 h-3" />
+          <div className="flex items-center justify-between">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Custom colours</p>
+            {customColors && (
+              <button
+                type="button"
+                onClick={() => {
+                  clearCustomColors();
+                  setPendingColors(null);
+                  const fallback = allPresets[originalTheme]
+                    ? originalTheme
+                    : Object.keys(allPresets || {})[0] || "cool";
+                  setSelectedTheme(fallback);
+                }}
+                className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Revert to preset
               </button>
             )}
           </div>
-          <div className="max-h-[240px] overflow-y-auto space-y-1 pr-0.5">
-            {alters.filter(a => !a.is_archived && (alterSearch === '' || (a.alias || a.name).toLowerCase().includes(alterSearch.toLowerCase()))).map(alter => {
-              const linked = alterThemeLinks[alter.id];
-              return (
-                <div key={alter.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-card">
-                  <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || '#8b5cf6' }} />
-                  <span className="flex-1 text-xs truncate min-w-0">{alter.alias || alter.name}</span>
-                  <select
-                    value={linked || ''}
-                    onChange={e => {
-                      const val = e.target.value;
-                      if (val) linkAlterTheme(alter.id, val);
-                      else unlinkAlterTheme(alter.id);
-                    }}
-                    className="text-xs rounded-md border border-input bg-background px-1.5 py-1 focus:outline-none max-w-[130px]"
+          <div className="flex items-start gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+            <div className="grid grid-cols-4 gap-x-3 gap-y-2 flex-1">
+              {Object.entries(COLOR_LABELS).map(([key, label]) => (
+                <ColorSwatch
+                  key={key}
+                  label={label}
+                  color={currentColors[key] || '#888'}
+                  onClick={() => handleStartEdit(key)}
+                />
+              ))}
+            </div>
+            <div className="flex-shrink-0 border-l border-border/40 pl-3">
+              <WaveColorSwatch />
+            </div>
+          </div>
+          <p className="text-[0.6875rem] text-muted-foreground">Tap a swatch to edit it. The Wave swatch sets the header wave colour.</p>
+        </div>
+      </SubSection>
+
+      {/* 5. CORNER STYLE — directly on the card. */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Corner style</p>
+        <CornerStyleSettings embedded />
+      </div>
+
+      {/* 6. PRESETS — save (granular), your presets, fronter themes. */}
+      <SubSection title="Presets" defaultOpen={false}>
+        {/* Save as preset, with element checkboxes. */}
+        <div className="space-y-2">
+          {showSaveForm ? (
+            <div className="space-y-2.5 rounded-xl border border-border/50 p-3 bg-muted/10">
+              <input
+                autoFocus
+                value={presetName}
+                onChange={e => setPresetName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') handleSavePreset(); if (e.key === 'Escape') setShowSaveForm(false); }}
+                placeholder="Preset name…"
+                className="w-full h-9 px-3 rounded-xl border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
+              <div>
+                <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Include in this preset</p>
+                <div className="grid grid-cols-2 gap-1.5">
+                  {PRESET_PARTS.map((part) => {
+                    const on = !!presetParts[part.id];
+                    return (
+                      <button
+                        key={part.id}
+                        type="button"
+                        onClick={() => togglePart(part.id)}
+                        className={`flex items-center gap-2 px-2.5 py-1.5 rounded-lg border text-left text-xs transition-colors ${
+                          on ? 'border-primary/60 bg-primary/10 text-foreground' : 'border-border/50 text-muted-foreground hover:bg-muted/30'
+                        }`}
+                      >
+                        <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center flex-shrink-0 ${on ? 'bg-primary border-primary' : 'border-border'}`}>
+                          {on && <Check className="w-2.5 h-2.5 text-white" />}
+                        </span>
+                        <span className="truncate">{part.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={handleSavePreset}
+                  className="flex-1 inline-flex items-center justify-center gap-1.5 px-3 h-9 rounded-xl bg-primary text-primary-foreground text-sm font-medium"
+                >
+                  <Save className="w-4 h-4" /> Save preset
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSaveForm(false)}
+                  className="px-3 h-9 rounded-xl bg-muted text-muted-foreground text-sm"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setShowSaveForm(true)}
+              className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-sm text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors"
+            >
+              <Save className="w-4 h-4" /> Save current look as a preset
+            </button>
+          )}
+        </div>
+
+        {/* Your presets. */}
+        {userPresetNames.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Your presets</p>
+            <div className="space-y-1.5">
+              {userPresetNames.map(name => {
+                const preset = userCustomPresets[name];
+                const isActive = selectedTheme === name;
+                const linkedAlters = alters.filter(a => alterThemeLinks[a.id] === name);
+                return (
+                  <div key={name}
+                    className={`flex items-center gap-2 px-3 py-2.5 rounded-xl border transition-all ${
+                      isActive ? 'border-primary/60 bg-primary/10' : 'border-border/40 bg-card'
+                    }`}
                   >
-                    <option value="">No theme</option>
-                    <optgroup label="Built-in">
-                      {builtInNames.map(n => <option key={n} value={n}>{n}</option>)}
-                    </optgroup>
-                    {userPresetNames.length > 0 && (
-                      <optgroup label="Your presets">
-                        {userPresetNames.map(n => <option key={n} value={n}>{n}</option>)}
-                      </optgroup>
-                    )}
-                  </select>
-                  {linked ? (
+                    <div
+                      className="w-7 h-7 rounded-lg flex-shrink-0 border border-border/30"
+                      style={{ background: `linear-gradient(135deg, ${preset.light?.bg || '#888'}, ${preset.light?.primary || '#aaa'})` }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-sm font-semibold truncate ${isActive ? 'text-primary' : ''}`}>{name}</p>
+                      {preset.terms && (
+                        <p className="text-[0.625rem] text-muted-foreground truncate">
+                          {preset.terms.alter} · {preset.terms.front}ing · {preset.terms.system}
+                        </p>
+                      )}
+                      {linkedAlters.length > 0 && (
+                        <p className="text-[0.625rem] text-muted-foreground truncate">
+                          Linked: {linkedAlters.map(a => a.alias || a.name).join(', ')}
+                        </p>
+                      )}
+                    </div>
                     <button
                       type="button"
-                      title="Remove link"
-                      onClick={() => unlinkAlterTheme(alter.id)}
-                      className="p-1 rounded text-muted-foreground hover:text-foreground flex-shrink-0"
+                      onClick={() => handleSelectPreset(name)}
+                      className={`text-xs px-2 py-1 rounded-lg transition-colors flex-shrink-0 ${
+                        isActive ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground hover:text-foreground'
+                      }`}
                     >
-                      <Unlink className="w-3 h-3" />
+                      {isActive ? 'Active' : 'Apply'}
                     </button>
-                  ) : (
-                    <div className="w-5 flex-shrink-0" />
-                  )}
-                </div>
-              );
-            })}
+                    <button
+                      type="button"
+                      title="Delete preset"
+                      onClick={() => { if (confirm(`Delete preset "${name}"?`)) deleteUserPreset(name); }}
+                      className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
+                    >
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      )}
+        )}
+
+        {/* Fronter-linked themes. */}
+        {alters.length > 0 && allPresetNames.length > 0 && (
+          <div className="space-y-2">
+            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">{t.Fronter} themes</p>
+            <p className="text-xs text-muted-foreground">
+              When a {t.alter} becomes primary {t.fronter}, their linked theme (including light/dark mode) switches automatically.
+            </p>
+            <div className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-input bg-background">
+              <Search className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+              <input
+                value={alterSearch}
+                onChange={e => setAlterSearch(e.target.value)}
+                placeholder={`Search ${t.alters}…`}
+                className="flex-1 bg-transparent text-xs outline-none"
+              />
+              {alterSearch && (
+                <button type="button" onClick={() => setAlterSearch('')} className="text-muted-foreground hover:text-foreground">
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </div>
+            <div className="max-h-[240px] overflow-y-auto space-y-1 pr-0.5">
+              {alters.filter(a => !a.is_archived && (alterSearch === '' || (a.alias || a.name).toLowerCase().includes(alterSearch.toLowerCase()))).map(alter => {
+                const linked = alterThemeLinks[alter.id];
+                return (
+                  <div key={alter.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-card">
+                    <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter.color || '#8b5cf6' }} />
+                    <span className="flex-1 text-xs truncate min-w-0">{alter.alias || alter.name}</span>
+                    <select
+                      value={linked || ''}
+                      onChange={e => {
+                        const val = e.target.value;
+                        if (val) linkAlterTheme(alter.id, val);
+                        else unlinkAlterTheme(alter.id);
+                      }}
+                      className="text-xs rounded-md border border-input bg-background px-1.5 py-1 focus:outline-none max-w-[130px]"
+                    >
+                      <option value="">No theme</option>
+                      <optgroup label="Built-in">
+                        {builtInNames.map(n => <option key={n} value={n}>{n}</option>)}
+                      </optgroup>
+                      {userPresetNames.length > 0 && (
+                        <optgroup label="Your presets">
+                          {userPresetNames.map(n => <option key={n} value={n}>{n}</option>)}
+                        </optgroup>
+                      )}
+                    </select>
+                    {linked ? (
+                      <button
+                        type="button"
+                        title="Remove link"
+                        onClick={() => unlinkAlterTheme(alter.id)}
+                        className="p-1 rounded text-muted-foreground hover:text-foreground flex-shrink-0"
+                      >
+                        <Unlink className="w-3 h-3" />
+                      </button>
+                    ) : (
+                      <div className="w-5 flex-shrink-0" />
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </SubSection>
+
+      {/* 7. DASHBOARD LAYOUT — expandable. */}
+      <SubSection title="Dashboard layout" defaultOpen={false}>
+        <DashboardLayoutSettings />
+      </SubSection>
+
+      {/* 8. NAVIGATION — directly on the card (bottom bar always; top bar
+              only where it's actually shown). */}
+      <div className="space-y-2">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation</p>
+        <NavigationSettings settings={systemSettings} showTopBar={showTopBarConfig} />
+      </div>
+
+      {/* 9. UPCOMING PLANS SURFACES — expandable, bottom. */}
+      <SubSection title="Upcoming plans surfaces" defaultOpen={false}>
+        <UpcomingPlansSurfacesSection />
+      </SubSection>
 
       {/* ── Color editor modal ────────────────────────────────── */}
       {editingColor && (
@@ -872,6 +1009,6 @@ export default function AdvancedAppearance() {
           </div>
         </div>
       )}
-    </>
+    </div>
   );
 }

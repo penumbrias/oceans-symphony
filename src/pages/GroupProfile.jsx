@@ -37,7 +37,7 @@ import {
 } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileSurfaceCss } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 
@@ -259,6 +259,7 @@ function GroupProfileInner() {
   const bgOpacity = ps.bgOpacity;
   const headerOpacity = ps.headerOpacity;
   const surfaceCss = profileSurfaceCss("os-pf", cf);
+  const themeCss = profileThemeCss("os-pf", cf);
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
   const headerBgColor = cf[HEADER_BG_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
@@ -292,6 +293,7 @@ function GroupProfileInner() {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-3">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
@@ -322,6 +324,7 @@ function GroupProfileInner() {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
         <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         <div className="flex items-center justify-between">
@@ -423,10 +426,14 @@ function GroupProfileInner() {
   const formBgImage = formPs.bgImage;
   const formBgOpacity = formPs.bgOpacity;
   const formReadability = formPs.readability;
+  const formSurfaceCss = profileSurfaceCss("os-pf", form.custom_fields || {});
+  const formThemeCss = profileThemeCss("os-pf", form.custom_fields || {});
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
       <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
-      <div className="relative z-10 space-y-4">
+      {formThemeCss && <style>{formThemeCss}</style>}
+      {formSurfaceCss && <style>{formSurfaceCss}</style>}
+      <div className="relative z-10 os-pf space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
           <Eye className="w-4 h-4 mr-1.5" /> View
@@ -651,11 +658,16 @@ function PageBackground({ bgColor, bgImage, bgOpacity }) {
   const hasImage = !!(bgImage && resolvedBg);
   return (
     // Fixed full-screen background — fills the viewport, edge-to-edge, doesn't
-    // scroll. When an image is set it's the image ONLY; _bg_color fills the
-    // surfaces (via profileSurfaceCss), never the whole page.
+    // scroll. When an image is set, _bg_color is painted as a SOLID base layer
+    // UNDER the image so lowering the image opacity reveals the colour (and the
+    // profile's bg colour wins over the app page bg here). The surfaces are
+    // additionally tinted via profileSurfaceCss.
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
       {hasImage ? (
-        <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+        <>
+          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor }} />}
+          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
+        </>
       ) : (
         bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />
       )}

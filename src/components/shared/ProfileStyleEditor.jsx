@@ -43,6 +43,21 @@ const HIDE_HEADER_KEY = "_hide_header";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
 
+// Per-profile theme palette keys (mirror PS.* in profileStyle.js). Eight theme
+// colours + a wave colour. When set they override the app theme for this
+// profile's pages via profileThemeCss().
+const THEME_KEYS = [
+  { key: "_theme_bg", label: "Background" },
+  { key: "_theme_surface", label: "Surface" },
+  { key: "_theme_primary", label: "Primary" },
+  { key: "_theme_secondary", label: "Secondary" },
+  { key: "_theme_accent", label: "Accent" },
+  { key: "_theme_muted", label: "Muted" },
+  { key: "_theme_text", label: "Text" },
+  { key: "_theme_text2", label: "Text 2nd" },
+];
+const THEME_WAVE_KEY = "_theme_wave";
+
 function FontSelect({ value, onChange, ariaLabel }) {
   return (
     <select
@@ -209,6 +224,23 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           slider("Background opacity", BG_OPACITY_KEY, 0.15, "Background colour opacity")
         ) : null}
       </div>
+
+      {/* PAGE COLOURS — a full per-profile theme palette that overrides the
+          app theme for this profile's pages (collapsed by default). Sets all 8
+          theme colours + a wave colour; only the ones you set take effect. */}
+      <SubSection title="Page colours" defaultOpen={false}>
+        <p className="text-[0.625rem] text-muted-foreground leading-snug">
+          Override the app's theme colours for this profile only. Anything you leave unset keeps the app theme. These tint every card, button, and text colour on the page.
+        </p>
+        <div className="grid grid-cols-2 gap-3">
+          {THEME_KEYS.map(({ key, label }) => (
+            <React.Fragment key={key}>{colorRow(label, key)}</React.Fragment>
+          ))}
+        </div>
+        <div className="pt-1 border-t border-border/30">
+          {colorRow("Wave colour", THEME_WAVE_KEY)}
+        </div>
+      </SubSection>
 
       {colorPickerFor && (
         <ColorPickerModal

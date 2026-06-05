@@ -38,9 +38,6 @@ const NAV_HEIGHT_OPTIONS = [
   { value: "extra-tall", label: "Extra Tall", desc: "80px — maximum height" },
 ];
 
-const selectClass =
-  "w-full text-sm rounded-lg border border-input bg-background px-3 py-2 focus:outline-none focus:ring-1 focus:ring-ring";
-
 // ── UI size — a slider across the discrete font-size steps. ──
 export function UiSizeControl() {
   const [value, setValue] = useState(() => getAccessibilitySettings().fontSize || "default");
@@ -78,43 +75,66 @@ export function UiSizeControl() {
   );
 }
 
-// ── Touch target size — dropdown. ──
+// ── Touch target size — a slider across the discrete options. ──
 export function TouchTargetControl() {
   const [value, setValue] = useState(() => getAccessibilitySettings().largeTouch || "default");
+  const idx = Math.max(0, TOUCH_OPTIONS.findIndex((o) => o.value === value));
+  const current = TOUCH_OPTIONS[idx] || TOUCH_OPTIONS[0];
+  const apply = (i) => {
+    const opt = TOUCH_OPTIONS[i];
+    if (!opt) return;
+    setValue(opt.value);
+    setAccessibilityLargeTouch(opt.value);
+  };
   return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Touch target size</p>
-      <select
-        value={value}
-        onChange={(e) => { setValue(e.target.value); setAccessibilityLargeTouch(e.target.value); }}
-        className={selectClass}
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Touch target size</p>
+        <span className="text-xs text-muted-foreground">{current.label}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={TOUCH_OPTIONS.length - 1}
+        step={1}
+        value={idx}
+        onChange={(e) => apply(parseInt(e.target.value, 10))}
+        className="w-full h-1.5 accent-primary"
         aria-label="Touch target size"
-      >
-        {TOUCH_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
-        ))}
-      </select>
+      />
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug">{current.desc}.</p>
     </div>
   );
 }
 
-// ── Nav bar height — dropdown. ──
+// ── Nav bar height — a slider across the discrete options. ──
 export function NavHeightControl() {
   const [value, setValue] = useState(() => getAccessibilitySettings().navHeight || "default");
+  const idx = Math.max(0, NAV_HEIGHT_OPTIONS.findIndex((o) => o.value === value));
+  const current = NAV_HEIGHT_OPTIONS[idx] || NAV_HEIGHT_OPTIONS[1];
+  const apply = (i) => {
+    const opt = NAV_HEIGHT_OPTIONS[i];
+    if (!opt) return;
+    setValue(opt.value);
+    setAccessibilityNavHeight(opt.value);
+  };
   return (
-    <div className="space-y-1.5">
-      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation bar height</p>
-      <select
-        value={value}
-        onChange={(e) => { setValue(e.target.value); setAccessibilityNavHeight(e.target.value); }}
-        className={selectClass}
+    <div className="space-y-2">
+      <div className="flex items-baseline justify-between">
+        <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Navigation bar height</p>
+        <span className="text-xs text-muted-foreground">{current.label}</span>
+      </div>
+      <input
+        type="range"
+        min={0}
+        max={NAV_HEIGHT_OPTIONS.length - 1}
+        step={1}
+        value={idx}
+        onChange={(e) => apply(parseInt(e.target.value, 10))}
+        className="w-full h-1.5 accent-primary"
         aria-label="Navigation bar height"
-      >
-        {NAV_HEIGHT_OPTIONS.map((o) => (
-          <option key={o.value} value={o.value}>{o.label} — {o.desc}</option>
-        ))}
-      </select>
-      <p className="text-[0.6875rem] text-muted-foreground leading-snug">Height of the bottom tab bar on mobile.</p>
+      />
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug">{current.desc} — height of the bottom tab bar on mobile.</p>
     </div>
   );
 }

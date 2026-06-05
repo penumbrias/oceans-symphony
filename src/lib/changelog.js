@@ -17,11 +17,23 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
-        text: "Settings → Appearance reorganised: UI size plus a new \"Advanced\" block (touch-target size, nav-bar height) now live here, moved from Accessibility, and the light/dark/system toggle sits in the Theme header.",
+        text: "Settings → Appearance fully reorganised: UI size + touch/nav sliders up top, fonts as direct rows, a tidier Theme section (preset swatch dropdown, custom colours, wave colour), then Corner style, Presets, Dashboard layout, and navigation.",
+      },
+      {
+        type: "feature",
+        text: "Saving a theme preset now lets you pick exactly which parts to include — colours, fonts, UI size, corner style, layouts, system banner, terminology, and more.",
+      },
+      {
+        type: "feature",
+        text: "Profile style: set a full per-page colour palette (all 8 theme colours) that overrides the app theme on that profile — and the background colour now shows through as you lower the image opacity, filling the cards and inputs.",
       },
       {
         type: "improve",
-        text: "Appearance: built-in themes are now a swatch dropdown, and \"Download more fonts\" is a quick button next to the font pickers.",
+        text: "The header wave colour can now be any of your palette colours or a fully custom colour.",
+      },
+      {
+        type: "improve",
+        text: "Removed the dashboard-grid editor from Settings — rearrange the dashboard grid directly on the dashboard page.",
       },
       {
         type: "fix",

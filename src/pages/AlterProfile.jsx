@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileSurfaceCss } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
 
@@ -205,6 +205,7 @@ function AlterProfileInner() {
   const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
   const hasPageBg = ps.hasPageBg;
   const surfaceCss = profileSurfaceCss("os-pf", cf);
+  const themeCss = profileThemeCss("os-pf", cf);
 
   const sortedAlters = [...alters].filter(a => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || ""));
   const currentIndex = sortedAlters.findIndex(a => a.id === alter.id);
@@ -221,16 +222,23 @@ function AlterProfileInner() {
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
           {pageBgImage && resolvedBgImage ? (
-            // Image fills the page at its own opacity. The _bg_color does NOT
-            // wash the whole page — it fills the surfaces (cards + entry
-            // windows) via the scoped surface CSS below.
-            <div className="absolute inset-0" style={{
-              backgroundImage: `url("${resolvedBgImage}")`,
-              backgroundSize: "cover",
-              backgroundPosition: "center",
-              backgroundRepeat: "no-repeat",
-              opacity: pageBgOpacity,
-            }} />
+            <>
+              {/* SOLID full-opacity base layer of _bg_color UNDER the image, so
+                  lowering the image opacity reveals the colour beneath it (and
+                  the profile's bg colour takes precedence over the app page bg
+                  for this page). */}
+              {pageBgColor && (
+                <div className="absolute inset-0" style={{ backgroundColor: pageBgColor }} />
+              )}
+              {/* Image on top at its own opacity. */}
+              <div className="absolute inset-0" style={{
+                backgroundImage: `url("${resolvedBgImage}")`,
+                backgroundSize: "cover",
+                backgroundPosition: "center",
+                backgroundRepeat: "no-repeat",
+                opacity: pageBgOpacity,
+              }} />
+            </>
           ) : pageBgColor ? (
             <div className="absolute inset-0" style={{ backgroundColor: pageBgColor, opacity: pageBgOpacity }} />
           ) : null}
@@ -240,6 +248,10 @@ function AlterProfileInner() {
       {pageTextColor && (
         <style>{`.apc .text-foreground{color:${pageTextColor}}.apc .text-muted-foreground{color:${pageTextColor}99}.apc .text-muted-foreground\\/70{color:${pageTextColor}66}`}</style>
       )}
+      {/* Per-profile theme palette — overrides the app's --color-* variables
+          for this profile's pages (view + edit), so every card/text/button
+          inside .os-pf adopts the profile's colours. */}
+      {themeCss && <style>{themeCss}</style>}
       {/* With a bg image, _bg_color fills the surfaces (cards + entry windows),
           in both view and edit mode — never the whole page. */}
       {surfaceCss && <style>{surfaceCss}</style>}

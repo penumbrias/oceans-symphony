@@ -749,7 +749,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🎨",
       title: "Appearance — Fonts, Colors & Presets",
-      body: `The Appearance section starts with UI Size (a slider) and an Advanced block (touch-target size, nav-bar height) — both moved here from Accessibility. Theme & colours holds your fonts (27+ across 7 categories, with "Download more fonts" for extras), the built-in theme presets as a swatch dropdown, and a Custom Colors panel with 8 swatches you can edit for light and dark separately. The ☀️/🌙 chip in the Theme header cycles light / dark / system. Save your look as a named preset — presets also capture your terminology (${t.system}, ${t.alter}, ${t.switch}, ${t.front}). Below are Corner style, Dashboard layout, and Top & bottom navigation.`,
+      body: `Appearance opens with a UI Size slider and an Advanced block (touch-target + nav-bar-height sliders). Below sit your Font family and Heading font (with "More fonts" for extras). The Theme section — its ☀️/🌙 header chip cycles light / dark / system — holds the built-in presets as a swatch dropdown, your 8 custom colours (editable for light and dark), and the wave colour. Then Corner style, a Presets section (save your look — choosing exactly which parts to include — plus your saved presets and ${t.Fronter} Themes), Dashboard layout, and the navigation bar.`,
       route: "/settings", target: "settings-appearance",
       look: `the highlighted Appearance section — tap its header to expand it`, action: null,
     },
