@@ -47,38 +47,58 @@ export default async function handler(req, res) {
   }
   await Promise.all(storeOps);
 
-  // Fire push notifications to friends who opted in (best-effort, non-blocking)
+  // Notify friends who opted in (best-effort, non-blocking). Two delivery
+  // channels, sent in the same pass so a friend gets notified on whatever
+  // they've registered (a friend could have Web Push on desktop AND FCM on
+  // their phone — both fire):
+  //   - Web Push  → browser / TWA  (user:<id>:pushsub,   VAPID_* env vars)
+  //   - FCM       → native Android (user:<id>:fcmtoken,  FIREBASE_SERVICE_ACCOUNT env var)
   const friends = await getFriends(userId);
   const notifyFriends = Object.entries(friends)
     .filter(([, f]) => f.status === 'approved' && f.notifyOnChange);
 
   if (notifyFriends.length > 0) {
+    const label = displayName || systemName || 'A friend';
+
+    // ── Web Push setup ──
+    let webpush = null;
     const vapidPub = process.env.VAPID_PUBLIC_KEY;
     const vapidPriv = process.env.VAPID_PRIVATE_KEY;
     const mailto = process.env.VAPID_MAILTO || 'mailto:hello@symphony.app';
-
     if (vapidPub && vapidPriv) {
-      const { default: webpush } = await import('web-push');
-      webpush.setVapidDetails(mailto, vapidPub, vapidPriv);
+      try {
+        webpush = (await import('web-push')).default;
+        webpush.setVapidDetails(mailto, vapidPub, vapidPriv);
+      } catch { webpush = null; }
+    }
 
-      const label = displayName || systemName || 'A friend';
+    // ── FCM setup ── (firebase-admin, dynamically imported so it doesn't
+    // slow cold starts on deployments that haven't configured FCM).
+    let messaging = null;
+    const svcRaw = process.env.FIREBASE_SERVICE_ACCOUNT;
+    if (svcRaw) {
+      try {
+        const { initializeApp, getApps, cert } = await import('firebase-admin/app');
+        const { getMessaging } = await import('firebase-admin/messaging');
+        let svc = null;
+        try { svc = JSON.parse(svcRaw); } catch { svc = null; }
+        if (svc) {
+          if (!getApps().length) initializeApp({ credential: cert(svc) });
+          messaging = getMessaging();
+        }
+      } catch { messaging = null; }
+    }
 
+    if (webpush || messaging) {
       await Promise.allSettled(notifyFriends.map(async ([friendUserId]) => {
-        const sub = await kv.get(`user:${friendUserId}:pushsub`);
-        if (!sub) return;
-
-        // Use per-friend fronter list if available, otherwise default
+        // Per-friend fronter list + privacy (mirrors the stored override)
         const perFriend = perFriendFronters[friendUserId];
         const effectiveFronters = perFriend ? perFriend.fronters : fronters;
         const effectivePrivacy = perFriend ? perFriend.privacyLevel : (privacyLevel || 'names');
 
-        let notifyFronters = effectiveFronters;
-        if (effectivePrivacy === 'hidden') notifyFronters = [];
-        else if (effectivePrivacy === 'count_only') notifyFronters = effectiveFronters; // keep count but don't use names
-
-        const fronterNames = effectivePrivacy === 'count_only'
+        const fronterNames = (effectivePrivacy === 'count_only' || effectivePrivacy === 'hidden')
           ? []
-          : notifyFronters.filter(f => f.isPrimary || f.isCofronter).map(f => f.name);
+          : effectiveFronters.filter(f => f.isPrimary || f.isCofronter).map(f => f.name);
 
         const body = effectivePrivacy === 'hidden'
           ? `${label} updated their front`
@@ -88,15 +108,45 @@ export default async function handler(req, res) {
               ? `${fronterNames.join(', ')} ${fronterNames.length === 1 ? 'is' : 'are'} now ${terms.fronting || 'fronting'}`
               : `${label}'s front is now clear`;
 
-        try {
-          await webpush.sendNotification(sub, JSON.stringify({
-            title: label,
-            body,
-            tag: `front-change-${userId}`,
-          }));
-        } catch (e) {
-          if (e.statusCode === 410 || e.statusCode === 404) {
-            await kv.del(`user:${friendUserId}:pushsub`);
+        const tag = `front-change-${userId}`;
+
+        // Web Push
+        if (webpush) {
+          const sub = await kv.get(`user:${friendUserId}:pushsub`);
+          if (sub) {
+            try {
+              await webpush.sendNotification(sub, JSON.stringify({ title: label, body, tag }));
+            } catch (e) {
+              if (e.statusCode === 410 || e.statusCode === 404) {
+                await kv.del(`user:${friendUserId}:pushsub`);
+              }
+            }
+          }
+        }
+
+        // FCM (native Android)
+        if (messaging) {
+          const token = await kv.get(`user:${friendUserId}:fcmtoken`);
+          if (token) {
+            try {
+              await messaging.send({
+                token,
+                notification: { title: label, body },
+                android: {
+                  priority: 'high',
+                  // reminders-switch = the silent / banner-only channel the
+                  // native app creates (see src/lib/nativeNotifications.js).
+                  notification: { channelId: 'reminders-switch', tag },
+                },
+                data: { kind: 'front-change', fromUserId: String(userId) },
+              });
+            } catch (e) {
+              const code = (e && (e.errorInfo?.code || e.code)) || '';
+              if (code.includes('registration-token-not-registered') ||
+                  code.includes('invalid-registration-token')) {
+                await kv.del(`user:${friendUserId}:fcmtoken`);
+              }
+            }
           }
         }
       }));

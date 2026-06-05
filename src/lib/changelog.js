@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Instant friend notifications: when a friend you follow changes who's fronting, your phone is now alerted within seconds — even with the app fully closed — once you've turned on their bell and allowed notifications.",
+      },
+      {
+        type: "feature",
         text: "New Settings → Alter setup → \"Find & remove duplicates\": cleans up duplicate imported alters (ones sharing a Simply Plural / PluralKit id), keeping the most complete copy and moving its fronting history onto it.",
       },
       {

@@ -191,15 +191,26 @@ export async function toggleNotify(friendUserId, notifyOnChange) {
   const identity = await getLocalIdentity();
   if (!identity) return;
 
-  // Save push sub server-side so the friend can notify us
+  // Register the right push channel server-side so the friend can notify us:
+  //   - native (Capacitor): FCM device token via @capacitor/push-notifications
+  //   - web / TWA: Web Push subscription (the WebView has no PushManager)
+  // Dynamic import of fcmPush avoids a static import cycle (fcmPush imports
+  // getLocalIdentity / FRIENDS_API_BASE from this module).
   if (notifyOnChange) {
-    const sub = await getActivePushSubscription().catch(() => null);
-    if (sub) {
-      await fetch(`${BASE}/save-push-sub`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),
-      });
+    if (isNative()) {
+      try {
+        const { registerFcmPush } = await import("@/lib/fcmPush");
+        await registerFcmPush();
+      } catch { /* non-fatal — falls back to the 15-min background poll */ }
+    } else {
+      const sub = await getActivePushSubscription().catch(() => null);
+      if (sub) {
+        await fetch(`${BASE}/save-push-sub`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId: identity.userId, secret: identity.secret, subscription: sub }),
+        });
+      }
     }
   }
 
