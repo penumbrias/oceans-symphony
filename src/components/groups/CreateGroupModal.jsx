@@ -14,6 +14,7 @@ import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import GroupSelect from "@/components/groups/GroupSelect";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import BioEditor from "@/components/alters/BioEditor";
 import { useTerms } from "@/lib/useTerms";
@@ -169,6 +170,28 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
             <Input value={avatarUrl} onChange={(e) => setAvatarUrl(e.target.value)} placeholder="https://… or paste an image URL" />
           )}
 
+          {/* Manage members — opens the same full "Manage members" modal used
+              everywhere else (selection-only here since the group doesn't
+              exist yet), instead of a bare dropdown. Pulled up directly under
+              the name so the form doesn't leave a tall gap. */}
+          <div>
+            <button type="button" onClick={() => setShowMembers(true)}
+              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
+              <Users className="w-4 h-4" /> Manage members{selectedMembers.size ? ` (${selectedMembers.size})` : ""}
+            </button>
+            {showMembers && (
+              <GroupMembersModal
+                selectionMode
+                isOpen={showMembers}
+                onClose={() => setShowMembers(false)}
+                group={{ id: "__new__", name: name.trim() || "New group", color }}
+                allGroups={allGroups}
+                selectedIds={selectedMembers}
+                onToggleSelection={(id) => toggleMember(id)}
+              />
+            )}
+          </div>
+
           {/* Subsystem — collapses to just the toggle when off */}
           <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-2.5">
             <div className="flex items-center justify-between gap-3">
@@ -196,40 +219,10 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
             )}
           </div>
 
-          {/* Parent group */}
+          {/* Parent group — nested, parent-respecting single-select */}
           <div className="space-y-1.5">
             <Label className="flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Parent group</Label>
-            <select
-              value={parent}
-              onChange={(e) => setParent(e.target.value)}
-              className="w-full text-sm rounded-lg border border-input bg-background px-2 py-2"
-            >
-              <option value="">None (top level)</option>
-              {allGroups.map((g) => (
-                <option key={g.id} value={g.sp_id || g.id}>{g.name}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Manage members — opens the same full "Manage members" modal used
-              everywhere else (selection-only here since the group doesn't
-              exist yet), instead of a bare dropdown. */}
-          <div>
-            <button type="button" onClick={() => setShowMembers(true)}
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
-              <Users className="w-4 h-4" /> Manage members{selectedMembers.size ? ` (${selectedMembers.size})` : ""}
-            </button>
-            {showMembers && (
-              <GroupMembersModal
-                selectionMode
-                isOpen={showMembers}
-                onClose={() => setShowMembers(false)}
-                group={{ id: "__new__", name: name.trim() || "New group", color }}
-                allGroups={allGroups}
-                selectedIds={selectedMembers}
-                onToggleSelection={(id) => toggleMember(id)}
-              />
-            )}
+            <GroupSelect groups={allGroups} value={parent} onChange={setParent} zIndex={10000} />
           </div>
 
           {/* Description / Bio */}

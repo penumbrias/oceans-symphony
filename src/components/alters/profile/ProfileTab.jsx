@@ -12,6 +12,8 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { SubSection } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
@@ -879,131 +881,20 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         );
       })()}
 
-      {/* Profile Background — compact */}
-      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-        <div className="flex items-center justify-between">
-          <label className="text-xs font-medium text-foreground flex items-center gap-1.5">
-            <Image className="w-3.5 h-3.5 text-primary" /> Profile Style
-          </label>
-          <div className="flex items-center gap-3">
-            <button type="button" onClick={() => setBgField(HIDE_HEADER_KEY, !hideHeader)}
-              className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground transition-colors">
-              {hideHeader ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {hideHeader ? "Header hidden" : "Header visible"}
-            </button>
-            {(bgColor || bgImage || headerTextColor) && (
-              <button type="button" onClick={clearBg} className="text-xs text-destructive hover:text-destructive/80 transition-colors">Clear</button>
-            )}
-          </div>
-        </div>
-
-        {/* Compact bg preview */}
-        <div className="relative w-full h-12 rounded-lg overflow-hidden border border-border/40 bg-muted/20">
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />}
-          {bgImage && resolvedEditBgImage && <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedEditBgImage}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />}
-          <div className="absolute inset-0 flex items-center justify-center gap-3">
-            <span className="text-sm font-semibold" style={{ color: headerTextColor || "hsl(var(--foreground)/0.6)" }}>{form.name || "Name"}</span>
-            <span className="text-xs" style={{ color: headerTextColor ? `${headerTextColor}cc` : "hsl(var(--muted-foreground))" }}>{form.pronouns || "they/them"}</span>
-          </div>
-        </div>
-
-        {/* Colors grid */}
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Background color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowBgColorPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 relative"
-                style={{ backgroundColor: bgColor || "transparent" }}>
-                {!bgColor && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
-              </button>
-              <Input value={bgColor} onChange={e => setBgField(BG_COLOR_KEY, e.target.value)}
-                placeholder="#1a0a2e" className="font-mono text-xs flex-1 h-7" />
-              {bgColor && <button type="button" onClick={() => setBgField(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Page text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowPageTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: pageTextColor || "transparent" }}>
-                {!pageTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={pageTextColor} onChange={e => setBgField(PAGE_TEXT_KEY, e.target.value)}
-                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
-              {pageTextColor && <button type="button" onClick={() => setBgField(PAGE_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Header text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowHeaderTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border cursor-pointer hover:ring-2 hover:ring-primary transition-all flex-shrink-0 flex items-center justify-center"
-                style={{ backgroundColor: headerTextColor || "transparent" }}>
-                {!headerTextColor && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={headerTextColor} onChange={e => setBgField(HEADER_TEXT_KEY, e.target.value)}
-                placeholder="Default" className="font-mono text-xs flex-1 h-7" />
-              {headerTextColor && <button type="button" onClick={() => setBgField(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-        </div>
-
-        {/* Header banner image */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Header image <span className="text-muted-foreground/50">(banner at top)</span></label>
-          <div className="flex gap-2">
-            <Input value={headerImage} onChange={e => setBgField(HEADER_IMAGE_KEY, e.target.value)}
-              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
-            <AssetButton onPick={(url) => setBgField(HEADER_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
-            <button type="button" onClick={() => headerFileInputRef.current?.click()} disabled={uploadingHeader}
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
-              {uploadingHeader ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
-            </button>
-            <input ref={headerFileInputRef} type="file" accept="image/*" hidden onChange={handleHeaderUpload} />
-            {headerImage && <button type="button" onClick={() => setBgField(HEADER_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
-          </div>
-        </div>
-
-        {/* Full-page background image */}
-        <div className="space-y-1">
-          <label className="text-xs text-muted-foreground font-medium">Background image <span className="text-muted-foreground/50">(covers whole page)</span></label>
-          <div className="flex gap-2">
-            <Input value={bgImage} onChange={e => setBgField(BG_IMAGE_KEY, e.target.value)}
-              placeholder="https://… or upload →" className="flex-1 text-xs h-7" />
-            <AssetButton onPick={(url) => setBgField(BG_IMAGE_KEY, url)} className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0" />
-            <button type="button" onClick={() => bgFileInputRef.current?.click()} disabled={uploadingBg}
-              className="h-7 w-7 flex items-center justify-center rounded-md border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0">
-              {uploadingBg ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3 text-muted-foreground" />}
-            </button>
-            <input ref={bgFileInputRef} type="file" accept="image/*" hidden onChange={handleBgUpload} />
-            {bgImage && <button type="button" onClick={() => setBgField(BG_IMAGE_KEY, "")} className="text-muted-foreground hover:text-destructive flex-shrink-0"><X className="w-3 h-3" /></button>}
-          </div>
-        </div>
-
-        {/* Opacity — only show if bg set */}
-        {(bgColor || bgImage) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">BG opacity</label>
-            <input type="range" min={0.02} max={1} step={0.01} value={bgOpacity}
-              onChange={e => setBgField(BG_OPACITY_KEY, parseFloat(e.target.value))}
-              className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(bgOpacity * 100)}%</span>
-          </div>
-        )}
-
-        {/* Section readability — always show when any bg is set */}
-        {(bgColor || bgImage) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">Readability</label>
-            <input type="range" min={0} max={0.97} step={0.01} value={sectionBgOpacity}
-              onChange={e => setBgField(SECTION_BG_KEY, parseFloat(e.target.value))}
-              className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground flex-shrink-0">{Math.round(sectionBgOpacity * 100)}%</span>
-          </div>
-        )}
-      </div>
+      {/* Profile style — shared editor (collapsible Header / Body with
+          colours, images, fonts, opacity + readability). Matches the
+          Add New {alter} modal pattern. */}
+      <SubSection title="Profile style" icon={Image} defaultOpen={false}>
+        <ProfileStyleEditor
+          customFields={form.custom_fields}
+          setField={setBgField}
+          clearField={(key) => setForm((f) => {
+            const cf = { ...f.custom_fields };
+            delete cf[key];
+            return { ...f, custom_fields: cf };
+          })}
+        />
+      </SubSection>
 
       <BioEditor value={form.description} onChange={(val) => set("description", val)} />
 

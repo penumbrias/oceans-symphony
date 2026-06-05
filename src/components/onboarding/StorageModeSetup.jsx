@@ -385,7 +385,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
             }
           </div>
           <h2 className="font-display text-2xl font-semibold text-foreground text-center">
-            {mode === "unlock" ? "Unlock Symphony" : "Welcome to Oceans Symphony"}
+            {mode === "unlock" ? "Unlock Symphony" : "Set up your storage"}
           </h2>
           {mode !== "unlock" && (
             <p className="text-sm text-muted-foreground text-center mt-1">

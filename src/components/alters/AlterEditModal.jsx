@@ -11,7 +11,6 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupTreeSelect from "@/components/groups/GroupTreeSelect";
 import { useTerms } from "@/lib/useTerms";
-import ColorPicker from "@/components/shared/ColorPicker";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, getLocalImageId, deleteLocalImage, processUploadedImage } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
@@ -84,6 +83,10 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   // for these because they live inside overflow-hidden SubSections, which
   // would clip an absolutely-positioned popover.
   const [colorPickerFor, setColorPickerFor] = useState(null);
+  // Main alter colour swatch — also uses the portaled modal (the old inline
+  // ColorPicker popover was clipped by the dialog and clicks fell through to
+  // the page behind it).
+  const [mainColorOpen, setMainColorOpen] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
@@ -361,7 +364,17 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             </div>
             <div className="space-y-1.5">
               <Label>Color</Label>
-              <ColorPicker value={form.color || "#8b5cf6"} onChange={(v) => set("color", v)} />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setMainColorOpen(true)}
+                  className="w-9 h-9 rounded-lg border-2 border-border hover:border-primary/50 transition-colors flex-shrink-0 shadow-sm"
+                  style={{ backgroundColor: form.color || "#8b5cf6" }}
+                  title="Pick colour"
+                  aria-label="Pick colour"
+                />
+                <span className="flex-1 text-xs font-mono text-muted-foreground truncate">{form.color || "#8b5cf6"}</span>
+              </div>
             </div>
           </div>
 
@@ -543,6 +556,15 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
           label="Pick colour"
           onSave={(hex) => setCF(colorPickerFor, hex)}
           onClose={() => setColorPickerFor(null)}
+        />
+      )}
+
+      {mainColorOpen && (
+        <ColorPickerModal
+          color={form.color || "#8b5cf6"}
+          label="Pick colour"
+          onSave={(hex) => set("color", hex)}
+          onClose={() => setMainColorOpen(false)}
         />
       )}
     </Dialog>

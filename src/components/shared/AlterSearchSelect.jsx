@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, Check } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
 
@@ -74,7 +75,7 @@ export default function AlterSearchSelect({
         <ChevronDown className="w-3.5 h-3.5 opacity-60 flex-shrink-0" />
       </button>
 
-      {open && (
+      {open && createPortal((
         <>
           <div className="fixed inset-0" style={{ zIndex }} onClick={() => setOpen(false)} />
           <div
@@ -128,7 +129,7 @@ export default function AlterSearchSelect({
             </div>
           </div>
         </>
-      )}
+      ), document.body)}
     </div>
   );
 }

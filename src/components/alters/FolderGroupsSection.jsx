@@ -372,7 +372,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           setCreateGroupOpen(false);
           refetchGroups();
         }}
-        parentGroupId={currentGroup?.id || null} />
+        parentGroup={currentGroup || null} />
       
 
       {currentGroup &&

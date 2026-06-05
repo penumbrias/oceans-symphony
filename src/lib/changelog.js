@@ -16,6 +16,30 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Refreshed the first-run welcome screen with the app icon and a clearer description of what Oceans Symphony does.",
+      },
+      {
+        type: "fix",
+        text: "The \"choose root alter\" dropdown and the alter colour picker in the group/alter editors no longer pop up in the wrong place or get cut off, and taps no longer fall through to the page behind.",
+      },
+      {
+        type: "improve",
+        text: "The \"Parent group\" picker is now a nested, searchable dropdown that respects your group/subsystem nesting, and the members + subsystem options sit higher up the Add New Group form.",
+      },
+      {
+        type: "improve",
+        text: "Creating a group from Manage Groups now opens the full Add New Group screen (avatar, colour, bio, profile style) instead of just a name box.",
+      },
+      {
+        type: "feature",
+        text: "Triple-tapping to open the Grocery List privacy cover now shows a one-time \"What's this?\" explainer, with controls to change how many taps trigger it — or turn it off.",
+      },
+      {
+        type: "improve",
+        text: "Editing an alter's or group's profile from its page now uses the same tidy Header/Body style editor — including font choices — as the add-new screens.",
+      },
+      {
         type: "fix",
         text: "Profile background images no longer show a second, scrolling copy — the background is now a single fixed layer behind the whole page.",
       },

@@ -22,6 +22,9 @@ import BioEditor from "@/components/alters/BioEditor";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import GroupSelect from "@/components/groups/GroupSelect";
+import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { SubSection } from "@/components/settings/SettingsUI";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -487,24 +490,18 @@ function GroupProfileInner() {
         </p>
       </div>
 
-      {/* Parent group (nesting) */}
+      {/* Parent group (nesting) — nested, parent-respecting single-select.
+          Excludes this group + its descendants so you can't nest it inside
+          itself or one of its own children. */}
       <div className="space-y-1">
         <label className="text-xs text-muted-foreground font-medium flex items-center gap-1.5"><Folder className="w-3.5 h-3.5" /> Parent group (nest inside)</label>
-        <select
-          value={form.parent}
-          onChange={(e) => setForm((f) => ({ ...f, parent: e.target.value }))}
-          className="w-full text-sm rounded-lg border border-border bg-background px-2 py-2"
-        >
-          <option value="">None (top level)</option>
-          {allGroups.filter((g) => g.id !== group.id).map((g) => {
-            const cycles = wouldCreateGroupParentCycle(allGroups, group.id, g.id);
-            return (
-              <option key={g.id} value={g.id} disabled={cycles}>
-                {g.name}{cycles ? " — would loop" : ""}
-              </option>
-            );
-          })}
-        </select>
+        <GroupSelect
+          groups={allGroups}
+          value={form.parent || ""}
+          onChange={(id) => setForm((f) => ({ ...f, parent: id }))}
+          excludeId={group.id}
+          zIndex={60}
+        />
       </div>
 
       {/* Group config — group-level member-visibility filtering across surfaces */}
@@ -516,55 +513,20 @@ function GroupProfileInner() {
         />
       </div>
 
-      {/* Profile style */}
-      <div className="rounded-xl border border-border/40 bg-muted/10 p-3 space-y-3">
-        <label className="text-xs font-medium text-foreground flex items-center gap-1.5"><ImageIcon className="w-3.5 h-3.5 text-primary" /> Profile Style</label>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Background color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowBgColorPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 relative" style={{ backgroundColor: form.custom_fields[BG_COLOR_KEY] || "transparent" }}>
-                {!form.custom_fields[BG_COLOR_KEY] && <span className="absolute inset-0 flex items-center justify-center text-muted-foreground text-xs">+</span>}
-              </button>
-              <Input value={form.custom_fields[BG_COLOR_KEY] || ""} onChange={(e) => setCf(BG_COLOR_KEY, e.target.value)} placeholder="#1a0a2e" className="font-mono text-xs flex-1 min-w-0 h-7" />
-              {form.custom_fields[BG_COLOR_KEY] && <button type="button" onClick={() => setCf(BG_COLOR_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Page text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowPageTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: form.custom_fields[PAGE_TEXT_KEY] || "transparent" }}>
-                {!form.custom_fields[PAGE_TEXT_KEY] && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={form.custom_fields[PAGE_TEXT_KEY] || ""} onChange={(e) => setCf(PAGE_TEXT_KEY, e.target.value)} placeholder="Default" className="font-mono text-xs flex-1 min-w-0 h-7" />
-              {form.custom_fields[PAGE_TEXT_KEY] && <button type="button" onClick={() => setCf(PAGE_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-          <div className="space-y-1">
-            <label className="text-xs text-muted-foreground font-medium">Header text color</label>
-            <div className="flex items-center gap-2">
-              <button type="button" onClick={() => setShowHeaderTextPicker(true)}
-                className="w-7 h-7 rounded-md border-2 border-border flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: form.custom_fields[HEADER_TEXT_KEY] || "transparent" }}>
-                {!form.custom_fields[HEADER_TEXT_KEY] && <span className="text-muted-foreground text-xs font-bold">A</span>}
-              </button>
-              <Input value={form.custom_fields[HEADER_TEXT_KEY] || ""} onChange={(e) => setCf(HEADER_TEXT_KEY, e.target.value)} placeholder="Default" className="font-mono text-xs flex-1 min-w-0 h-7" />
-              {form.custom_fields[HEADER_TEXT_KEY] && <button type="button" onClick={() => setCf(HEADER_TEXT_KEY, "")} className="text-muted-foreground hover:text-foreground flex-shrink-0"><X className="w-3 h-3" /></button>}
-            </div>
-          </div>
-        </div>
-        <StyleImageRow label="Header image" busy={uploadingHeader} inputRef={headerInputRef} value={form.custom_fields[HEADER_IMAGE_KEY]} onClear={() => setCf(HEADER_IMAGE_KEY, "")} onChange={(e) => handleUpload(e, "header")} onText={(v) => setCf(HEADER_IMAGE_KEY, v)} />
-        <StyleImageRow label="Background image" busy={uploadingBg} inputRef={bgInputRef} value={form.custom_fields[BG_IMAGE_KEY]} onClear={() => setCf(BG_IMAGE_KEY, "")} onChange={(e) => handleUpload(e, "bg")} onText={(v) => setCf(BG_IMAGE_KEY, v)} />
-        {(form.custom_fields[BG_COLOR_KEY] || form.custom_fields[BG_IMAGE_KEY]) && (
-          <div className="flex items-center gap-3">
-            <label className="text-xs text-muted-foreground font-medium flex-shrink-0">BG opacity</label>
-            <input type="range" min={0.02} max={1} step={0.01} value={form.custom_fields[BG_OPACITY_KEY] ?? 0.15}
-              onChange={(e) => setCf(BG_OPACITY_KEY, parseFloat(e.target.value))} className="flex-1 h-1 accent-primary" />
-            <span className="text-xs text-muted-foreground">{Math.round((form.custom_fields[BG_OPACITY_KEY] ?? 0.15) * 100)}%</span>
-          </div>
-        )}
-      </div>
+      {/* Profile style — shared editor (collapsible Header / Body with
+          colours, images, fonts, opacity + readability). Matches the
+          Add New Group modal pattern. */}
+      <SubSection title="Profile style" icon={ImageIcon} defaultOpen={false}>
+        <ProfileStyleEditor
+          customFields={form.custom_fields}
+          setField={setCf}
+          clearField={(key) => setForm((f) => {
+            const cf = { ...f.custom_fields };
+            delete cf[key];
+            return { ...f, custom_fields: cf };
+          })}
+        />
+      </SubSection>
 
       <BioEditor value={form.description} onChange={(val) => setForm((f) => ({ ...f, description: val }))} />
 

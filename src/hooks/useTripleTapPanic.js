@@ -64,7 +64,9 @@ export default function useTripleTapPanic() {
       tapsRef.current = taps;
       if (taps.length >= need) {
         tapsRef.current = [];
-        window.dispatchEvent(new CustomEvent("open-grocery-list"));
+        // source: "panic" lets the panel show its first-time "What's this?"
+        // explainer only when opened via the gesture (not the nav button).
+        window.dispatchEvent(new CustomEvent("open-grocery-list", { detail: { source: "panic" } }));
       }
     };
 

@@ -25,6 +25,8 @@ import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
+const BG_OPACITY_KEY = "_bg_opacity";
+const SECTION_BG_KEY = "_section_bg_opacity";
 const HEADER_BG_KEY = "_header_bg_color";
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_TEXT_KEY = "_header_text_color";
@@ -161,6 +163,32 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
         </div>
+        {(cf[BG_COLOR_KEY] || cf[BG_IMAGE_KEY]) && (
+          <>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs flex-shrink-0 w-24">Background opacity</Label>
+              <input
+                type="range" min={0.02} max={1} step={0.01}
+                value={cf[BG_OPACITY_KEY] ?? 0.15}
+                onChange={(e) => setField(BG_OPACITY_KEY, parseFloat(e.target.value))}
+                className="flex-1 h-1 accent-primary"
+                aria-label="Background opacity"
+              />
+              <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[BG_OPACITY_KEY] ?? 0.15) * 100)}%</span>
+            </div>
+            <div className="flex items-center gap-3">
+              <Label className="text-xs flex-shrink-0 w-24">Readability</Label>
+              <input
+                type="range" min={0} max={0.97} step={0.01}
+                value={cf[SECTION_BG_KEY] ?? 0}
+                onChange={(e) => setField(SECTION_BG_KEY, parseFloat(e.target.value))}
+                className="flex-1 h-1 accent-primary"
+                aria-label="Section readability backdrop"
+              />
+              <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[SECTION_BG_KEY] ?? 0) * 100)}%</span>
+            </div>
+          </>
+        )}
       </SubSection>
 
       {colorPickerFor && (
