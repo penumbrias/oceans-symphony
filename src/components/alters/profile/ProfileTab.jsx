@@ -13,6 +13,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
+import { colorWithAlpha } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import SimplePreview from "@/components/shared/SimplePreview";
 import { htmlToBlocks } from "@/components/shared/BlockEditor";
@@ -456,13 +457,13 @@ useEffect(() => {
   // ── VIEW MODE ──
   const viewHeaderOpacity = alter.custom_fields?.[HEADER_OPACITY_KEY] !== undefined
     ? parseFloat(alter.custom_fields[HEADER_OPACITY_KEY]) : 0.45;
-  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0.1);
+  const viewSectionBgOpacity = parseFloat(alter.custom_fields?.[SECTION_BG_KEY] ?? 0.9);
   const hasSectionBg = viewSectionBgOpacity > 0 && (viewBgColor || viewBgImage || viewHeaderImage);
-  // When a background image is set with a background colour, cards use that
-  // colour (so bio/sections/dropdowns read against the image). Otherwise the
-  // readability tint uses the theme surface colour.
+  // With a background image + background colour, the section cards use that
+  // colour at the surface ("readability") opacity — matching the page's other
+  // surfaces. Otherwise the readability tint uses the theme surface colour.
   const sectionCardStyle = (viewBgImage && viewBgColor)
-    ? { backgroundColor: viewBgColor }
+    ? { backgroundColor: colorWithAlpha(viewBgColor, viewSectionBgOpacity) }
     : hasSectionBg
       ? { backgroundColor: `rgba(var(--color-surface-rgb), ${viewSectionBgOpacity})` }
       : {};

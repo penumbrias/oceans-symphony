@@ -192,7 +192,7 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         </div>
         {bgImageSet && cf[BG_COLOR_KEY] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
-            With a background image set, this colour fills the cards (bio, sections, dropdowns) and tints the page for readability.
+            With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
           </p>
         )}
         {imageRow("Image", BG_IMAGE_KEY, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], BG_IMAGE_KEY, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
@@ -203,7 +203,7 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
         {bgImageSet ? (
           <>
             {slider("Image opacity", BG_OPACITY_KEY, 0.5, "Background image opacity")}
-            {slider("Readability", SECTION_BG_KEY, 0.1, "Readability overlay opacity")}
+            {slider("Surface opacity", SECTION_BG_KEY, 0.9, "Surface (card/input) fill opacity")}
           </>
         ) : cf[BG_COLOR_KEY] ? (
           slider("Background opacity", BG_OPACITY_KEY, 0.15, "Background colour opacity")

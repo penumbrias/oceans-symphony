@@ -37,7 +37,7 @@ import {
 } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileCardCss } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss } from "@/lib/profileStyle";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 
@@ -257,9 +257,8 @@ function GroupProfileInner() {
   const bgColor = ps.bgColor;
   const bgImage = ps.bgImage;
   const bgOpacity = ps.bgOpacity;
-  const readability = ps.readability;
   const headerOpacity = ps.headerOpacity;
-  const cardCss = profileCardCss("os-pf", cf);
+  const surfaceCss = profileSurfaceCss("os-pf", cf);
   const headerImage = cf[HEADER_IMAGE_KEY] || "";
   const headerBgColor = cf[HEADER_BG_KEY] || "";
   const pageTextColor = cf[PAGE_TEXT_KEY] || "";
@@ -292,8 +291,8 @@ function GroupProfileInner() {
   if (tab === "board" || tab === "notes") {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} readability={readability} />
-        {cardCss && <style>{cardCss}</style>}
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-3">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
           <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
@@ -322,8 +321,8 @@ function GroupProfileInner() {
   if (!editMode) {
     return (
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} readability={readability} />
-        {cardCss && <style>{cardCss}</style>}
+        <PageBackground bgColor={bgColor} bgImage={bgImage} bgOpacity={bgOpacity} />
+        {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
@@ -426,7 +425,7 @@ function GroupProfileInner() {
   const formReadability = formPs.readability;
   return (
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="relative">
-      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} readability={formReadability} />
+      <PageBackground bgColor={formBgColor} bgImage={formBgImage} bgOpacity={formBgOpacity} />
       <div className="relative z-10 space-y-4">
       <div className="flex items-center justify-between">
         <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>
@@ -642,7 +641,7 @@ function StyleImageRow({ label, busy, inputRef, value, onClear, onChange, onText
 // the header banner in ViewHeader. Rendered as the first, absolutely
 // positioned child of a `relative` page wrapper; the content alongside
 // it must be `relative z-10` so it paints on top.
-function PageBackground({ bgColor, bgImage, bgOpacity, readability = 0.1 }) {
+function PageBackground({ bgColor, bgImage, bgOpacity }) {
   const [resolvedBg, setResolvedBg] = useState(null);
   useEffect(() => {
     if (bgImage) resolveImageUrl(bgImage).then(setResolvedBg).catch(() => setResolvedBg(null));
@@ -651,16 +650,12 @@ function PageBackground({ bgColor, bgImage, bgOpacity, readability = 0.1 }) {
   if (!bgColor && !bgImage) return null;
   const hasImage = !!(bgImage && resolvedBg);
   return (
-    // Fixed full-screen background (like the alter profile) — fills the whole
-    // viewport, edge-to-edge, and does NOT scroll with the content.
+    // Fixed full-screen background — fills the viewport, edge-to-edge, doesn't
+    // scroll. When an image is set it's the image ONLY; _bg_color fills the
+    // surfaces (via profileSurfaceCss), never the whole page.
     <div className="fixed inset-0 pointer-events-none overflow-hidden z-0" aria-hidden>
       {hasImage ? (
-        <>
-          {/* Image at its own opacity, then a _bg_color tint at the Readability
-              opacity over it. */}
-          <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
-          {bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: readability }} />}
-        </>
+        <div className="absolute inset-0" style={{ backgroundImage: `url("${resolvedBg}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: bgOpacity }} />
       ) : (
         bgColor && <div className="absolute inset-0" style={{ backgroundColor: bgColor, opacity: bgOpacity }} />
       )}

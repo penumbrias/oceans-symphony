@@ -38,7 +38,10 @@ export function readProfileBg(cf = {}) {
   const bgImage = cf[PS.BG_IMAGE] || "";
   const hasImage = !!bgImage;
   const bgOpacity = cf[PS.BG_OPACITY] !== undefined ? cf[PS.BG_OPACITY] : (hasImage ? 0.5 : 0.15);
-  const readability = cf[PS.READABILITY] !== undefined ? cf[PS.READABILITY] : 0.1;
+  // "Surface opacity" / readability: how opaque the _bg_color fill on the
+  // page's surfaces (cards + entry windows) is. Default near-solid so text
+  // stays readable; the user can lower it to let the image show through.
+  const readability = cf[PS.READABILITY] !== undefined ? cf[PS.READABILITY] : 0.9;
   const headerImage = cf[PS.HEADER_IMAGE] || "";
   const headerOpacity = cf[PS.HEADER_OPACITY] !== undefined ? cf[PS.HEADER_OPACITY] : 0.45;
   return {
@@ -55,14 +58,38 @@ export function readProfileBg(cf = {}) {
   };
 }
 
-// CSS that recolours the profile's cards to _bg_color when a background image
-// is set (so cards/bio/dropdowns read against the image). Scoped to a wrapper
-// class so it never leaks out of the profile. Returns "" when not applicable.
-export function profileCardCss(scopeClass, cf = {}) {
-  const { bgColor, hasImage } = readProfileBg(cf);
+function hexToRgb(hex) {
+  const m = /^#?([0-9a-f]{6})$/i.exec((hex || "").trim());
+  if (!m) return null;
+  const n = parseInt(m[1], 16);
+  return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+}
+
+// "#rrggbb" + alpha → rgba() string (falls back to the hex if unparseable).
+export function colorWithAlpha(hex, alpha) {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex || "";
+  return `rgba(${rgb.r},${rgb.g},${rgb.b},${alpha})`;
+}
+
+// CSS that fills the profile's SURFACES — section cards AND entry windows
+// (inputs, textareas, selects, the rich bio editor) — with _bg_color at the
+// surface ("readability") opacity, when a background image is set. This is
+// deliberately scoped to the page's boxes and NOT a full-page wash. Scoped to a
+// wrapper class so it never leaks to modals/nav elsewhere. Returns "" when not
+// applicable.
+export function profileSurfaceCss(scopeClass, cf = {}) {
+  const { bgColor, hasImage, readability } = readProfileBg(cf);
   if (!hasImage || !bgColor) return "";
-  // Target the card surface utility used inside profiles. !important to win
-  // over the Tailwind utility class. Scoped to the profile wrapper so it never
-  // leaks to inputs/modals elsewhere.
-  return `.${scopeClass} .bg-card{background-color:${bgColor} !important;}`;
+  const rgb = hexToRgb(bgColor);
+  const fill = rgb ? `rgba(${rgb.r},${rgb.g},${rgb.b},${readability})` : bgColor;
+  const sel = (s) => `.${scopeClass} ${s}`;
+  const targets = [
+    ".bg-card",
+    'input:not([type="range"]):not([type="checkbox"]):not([type="radio"])',
+    "textarea",
+    "select",
+    '[contenteditable="true"]',
+  ].map(sel).join(",");
+  return `${targets}{background-color:${fill} !important;}`;
 }

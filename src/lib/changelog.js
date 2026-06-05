@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 4, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Profile background colour no longer washes the whole page over a background image — it now fills the cards and entry windows (bio, sections, inputs) in both view and edit mode, with a \"Surface opacity\" slider to let the image show through.",
+      },
+      {
         type: "improve",
         text: "Removed the redundant \"labels in lists\" setting from Appearance — switch a name between display name, alias, or both from the toggle shown inline wherever alters are listed.",
       },
