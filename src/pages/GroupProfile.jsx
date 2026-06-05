@@ -37,7 +37,7 @@ import {
 } from "@/lib/subsystemUtils";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars } from "@/lib/profileStyle";
 import GroupConfigToggles from "@/components/groups/GroupConfigToggles";
 import { pickGroupConfig } from "@/lib/groupConfig";
 
@@ -698,7 +698,7 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
   // header image (for contrast), else the group's name colour.
   const nameColor = headerTextColor || (hasHeader ? undefined : groupNameColor(group.color));
   return (
-    <div className="relative rounded-2xl overflow-hidden" style={{ ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
+    <div className="relative rounded-2xl overflow-hidden" style={{ ...headerThemeStyleVars(group.custom_fields || {}), ...(headerTextColor ? { color: headerTextColor } : {}), ...(headerBgColor ? { backgroundColor: headerBgColor } : {}) }}>
       {hasHeader && (
         <div className="absolute inset-0 pointer-events-none" style={{ backgroundImage: `url("${resolvedHeader}")`, backgroundSize: "cover", backgroundPosition: "center", opacity: headerOpacity }} />
       )}

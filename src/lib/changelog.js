@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Profile style: the Header and Body each have their own full custom-colour palette now (like Settings → Appearance) — the header leaves out the wave colour, and the separate colours section is gone.",
+      },
+      {
+        type: "feature",
+        text: "Relationship types can now be nested under a parent to group them (e.g. Family → Sibling, Child).",
+      },
+      {
+        type: "feature",
         text: "Alter-specific custom fields (in the Info tab) now support the same field types as system-wide fields — text, number, yes/no, and list — and format the same way.",
       },
       {

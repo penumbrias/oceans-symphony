@@ -62,6 +62,36 @@ const THEME_KEYS = [
 ];
 const THEME_WAVE_KEY = "_theme_wave";
 
+// BODY palette — the full custom-colour set (same as Settings → Appearance),
+// INCLUDING the wave. Background + Text keep the existing body keys (so existing
+// profiles render unchanged); the deeper colours use the per-profile theme keys
+// (rendered page-wide by profileThemeCss on .os-pf). Wave is body-only.
+const BODY_PALETTE = [
+  { key: BG_COLOR_KEY, label: "Background" },
+  { key: "_theme_surface", label: "Surface" },
+  { key: "_theme_primary", label: "Primary" },
+  { key: "_theme_secondary", label: "Secondary" },
+  { key: "_theme_accent", label: "Accent" },
+  { key: "_theme_muted", label: "Muted" },
+  { key: PAGE_TEXT_KEY, label: "Text" },
+  { key: "_theme_text2", label: "Text 2nd" },
+  { key: THEME_WAVE_KEY, label: "Wave" },
+];
+// HEADER palette — the same set MINUS the wave (the wave doesn't render in the
+// header). Background + Text keep the existing header keys (so the banner paints
+// exactly as before); the deeper colours use header-scoped keys applied only to
+// the header via headerThemeStyleVars(). Independent of the body palette.
+const HEADER_PALETTE = [
+  { key: HEADER_BG_KEY, label: "Background" },
+  { key: "_header_theme_surface", label: "Surface" },
+  { key: "_header_theme_primary", label: "Primary" },
+  { key: "_header_theme_secondary", label: "Secondary" },
+  { key: "_header_theme_accent", label: "Accent" },
+  { key: "_header_theme_muted", label: "Muted" },
+  { key: HEADER_TEXT_KEY, label: "Text" },
+  { key: "_header_theme_text2", label: "Text 2nd" },
+];
+
 function FontSelect({ value, onChange, ariaLabel }) {
   return (
     <select
@@ -140,6 +170,31 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
     </div>
   );
 
+  // The Settings → Appearance "Custom Colours" swatch grid, reused for the
+  // header and body colour palettes. Tap a swatch to pick; "clear" reverts that
+  // colour to the app theme.
+  const paletteGrid = (palette) => (
+    <div className="flex flex-wrap gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
+      {palette.map(({ key, label }) => (
+        <div key={key} className="flex flex-col items-center gap-1">
+          <button
+            type="button"
+            onClick={() => setColorPickerFor(key)}
+            title={`Edit ${label}`}
+            className="w-10 h-10 rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center"
+            style={{ backgroundColor: cf[key] || "transparent" }}
+          >
+            {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+          </button>
+          <span className="text-[0.625rem] text-muted-foreground">{label}</span>
+          {cf[key]
+            ? <button type="button" onClick={() => clearField(key)} className="text-[0.5625rem] text-muted-foreground hover:text-destructive leading-none">clear</button>
+            : <span className="h-[0.5625rem]" />}
+        </div>
+      ))}
+    </div>
+  );
+
   const imageRow = (label, fieldKey, fileRef, busy, onUpload, resolvedPreview) => (
     <div className="space-y-1.5">
       <Label className="text-xs">{label}</Label>
@@ -182,10 +237,16 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
   // Reuses the same setField / clearField the rest of the editor writes
   // through, so it goes straight into the profile's custom_fields.
   const SYNC_PAIRS = [
-    [BG_COLOR_KEY, HEADER_BG_KEY],          // background colour
-    [PAGE_TEXT_KEY, HEADER_TEXT_KEY],       // text colour
-    [PAGE_FONT_KEY, HEADER_FONT_KEY],       // font
-    [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],// background opacity
+    [BG_COLOR_KEY, HEADER_BG_KEY],                      // background
+    ["_theme_surface", "_header_theme_surface"],        // surface
+    ["_theme_primary", "_header_theme_primary"],        // primary
+    ["_theme_secondary", "_header_theme_secondary"],    // secondary
+    ["_theme_accent", "_header_theme_accent"],          // accent
+    ["_theme_muted", "_header_theme_muted"],            // muted
+    [PAGE_TEXT_KEY, HEADER_TEXT_KEY],                   // text
+    ["_theme_text2", "_header_theme_text2"],            // text 2nd
+    [PAGE_FONT_KEY, HEADER_FONT_KEY],                   // font
+    [BG_OPACITY_KEY, HEADER_BG_OPACITY_KEY],            // background opacity
   ];
   const syncStyles = (direction) => {
     // direction: "headerToBody" copies header values onto the body keys;
@@ -218,11 +279,10 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
             onCheckedChange={(v) => (v ? clearField(HIDE_HEADER_KEY) : setField(HIDE_HEADER_KEY, true))}
           />
         </div>
-        {/* Background + text colour side by side to save vertical space. */}
-        <div className="grid grid-cols-2 gap-3">
-          {colorRow("Background", HEADER_BG_KEY)}
-          {colorRow("Text", HEADER_TEXT_KEY)}
-        </div>
+        {/* Header colour palette — the full custom-colour set EXCEPT the wave
+            (it doesn't render in the header). These colours apply only to the
+            header banner, independent of the body. */}
+        {paletteGrid(HEADER_PALETTE)}
         {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
         {headerImageSet && slider("Image opacity", HEADER_OPACITY_KEY, 0.45, "Header image opacity")}
         {cf[HEADER_BG_KEY] && slider("Background opacity", HEADER_BG_OPACITY_KEY, 1, "Header background colour opacity")}
@@ -236,10 +296,9 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           dropdown; only the Header collapses). */}
       <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
-        <div className="grid grid-cols-2 gap-3">
-          {colorRow("Background", BG_COLOR_KEY)}
-          {colorRow("Text", PAGE_TEXT_KEY)}
-        </div>
+        {/* Body colour palette — the full custom-colour set INCLUDING the wave.
+            Same colours as Settings → Appearance, applied to the whole page. */}
+        {paletteGrid(BODY_PALETTE)}
         {bgImageSet && cf[BG_COLOR_KEY] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
             With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
@@ -286,38 +345,6 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           </button>
         </div>
       </div>
-
-      {/* PAGE COLOURS — a full per-profile theme palette that overrides the
-          app theme for this profile's pages. Open by default so the whole
-          palette (8 theme colours + wave) is visible, not buried behind a
-          collapsed header — this is the same grid as Settings → Custom
-          Colours. Only the swatches you set take effect. */}
-      <SubSection title="Custom colours (full palette)" defaultOpen={true}>
-        <p className="text-[0.625rem] text-muted-foreground leading-snug">
-          The same colours as Settings → Appearance → Custom Colours, but just for this profile's pages. Tap any swatch to set it — including the <strong>Wave</strong> colour. Anything you leave unset keeps the app theme. These tint every card, button, header wave, and text colour on the page.
-        </p>
-        {/* The same swatch grid as Settings → Appearance → Custom Colours —
-            tap a swatch to set it; unset swatches keep the app theme. */}
-        <div className="flex flex-wrap gap-3 p-3 bg-muted/20 rounded-xl border border-border/40">
-          {[...THEME_KEYS, { key: THEME_WAVE_KEY, label: "Wave" }].map(({ key, label }) => (
-            <div key={key} className="flex flex-col items-center gap-1">
-              <button
-                type="button"
-                onClick={() => setColorPickerFor(key)}
-                title={`Edit ${label}`}
-                className="w-10 h-10 rounded-xl border-2 border-border/50 hover:border-primary/60 transition-colors shadow-sm flex items-center justify-center"
-                style={{ backgroundColor: cf[key] || "transparent" }}
-              >
-                {!cf[key] && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
-              </button>
-              <span className="text-[0.625rem] text-muted-foreground">{label}</span>
-              {cf[key]
-                ? <button type="button" onClick={() => clearField(key)} className="text-[0.5625rem] text-muted-foreground hover:text-destructive leading-none">clear</button>
-                : <span className="h-[0.5625rem]" />}
-            </div>
-          ))}
-        </div>
-      </SubSection>
 
       {colorPickerFor && (
         <ColorPickerModal

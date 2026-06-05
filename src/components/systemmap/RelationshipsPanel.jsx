@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import CreateRelationshipModal from "./CreateRelationshipModal";
-import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
+import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
@@ -35,6 +35,22 @@ function DirArrow({ direction }) {
 
 function RelTypeLabel({ rel }) {
   return rel.relationship_type === "Custom" ? (rel.custom_label || "Custom") : rel.relationship_type;
+}
+
+// Cycle-safe, depth-indented <option>s for a relationship-type <select>.
+// The option VALUE is the type's label — AlterRelationship.relationship_type
+// stores the label (not the id), so nesting never changes what's saved.
+function GroupedTypeOptions({ types }) {
+  const tree = flattenTypeTree(types);
+  const NB = String.fromCharCode(160); // U+00A0; ASCII spaces collapse in <option>
+  return tree.map(t => {
+    const depth = t._depth || 0;
+    return (
+      <option key={t.id ?? t.label} value={t.label}>
+        {depth > 0 ? NB.repeat(depth * 2) + "↳ " : ""}{t.label}
+      </option>
+    );
+  });
 }
 
 function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
@@ -87,9 +103,7 @@ function EditRelationshipModal({ rel, alterMap, onSave, onClose }) {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
           <select value={relType} onChange={e => handleTypeChange(e.target.value)}
             className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            {relTypes.map(t => (
-              <option key={t.id || t.label} value={t.label}>{t.label}</option>
-            ))}
+            <GroupedTypeOptions types={relTypes} />
           </select>
         </div>
         <div>

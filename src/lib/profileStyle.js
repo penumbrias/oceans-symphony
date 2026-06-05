@@ -52,6 +52,17 @@ export const PS = {
   THEME_TEXT: "_theme_text",
   THEME_TEXT2: "_theme_text2",
   THEME_WAVE: "_theme_wave",
+  // Header-scoped palette (independent of the body/page theme). Background +
+  // text reuse the existing HEADER_BG / HEADER_TEXT keys (so existing profiles
+  // are untouched); these add the DEEPER colours so the header banner can have
+  // its own full palette. No wave — it doesn't render in the header. Applied as
+  // inline CSS vars on the header element via headerThemeStyleVars().
+  HEADER_THEME_SURFACE: "_header_theme_surface",
+  HEADER_THEME_PRIMARY: "_header_theme_primary",
+  HEADER_THEME_SECONDARY: "_header_theme_secondary",
+  HEADER_THEME_ACCENT: "_header_theme_accent",
+  HEADER_THEME_MUTED: "_header_theme_muted",
+  HEADER_THEME_TEXT2: "_header_theme_text2",
 };
 
 // Normalised read of the background-related style keys, with the contextual
@@ -219,4 +230,39 @@ export function profileThemeCss(scopeClass, cf = {}) {
   if (wave) lines.push(`--color-wave:${wave};`);
   if (lines.length === 0) return "";
   return `.${scopeClass}{${lines.join("")}}`;
+}
+
+// Header-scoped palette → inline CSS-variable overrides for the HEADER element
+// only, so the banner can carry its own colour palette independent of the body/
+// page theme. Returns a style object to spread onto the header wrapper; the vars
+// cascade to the header's descendants and override the page-level
+// profileThemeCss values within the header. Background + text come from the
+// existing HEADER_BG / HEADER_TEXT keys (the banner already paints those
+// explicitly; we mirror them into --color-bg / --color-text-primary so
+// utility-based header children adopt them too). The deeper colours come from
+// the _header_theme_* keys. No wave — it doesn't render in the header. Only set
+// keys emit a var, so unset colours fall through to the page theme.
+export function headerThemeStyleVars(cf = {}) {
+  if (!cf) return {};
+  const map = [
+    [PS.HEADER_BG, "--color-bg"],
+    [PS.HEADER_THEME_SURFACE, "--color-surface"],
+    [PS.HEADER_THEME_PRIMARY, "--color-primary"],
+    [PS.HEADER_THEME_SECONDARY, "--color-secondary"],
+    [PS.HEADER_THEME_ACCENT, "--color-accent"],
+    [PS.HEADER_THEME_MUTED, "--color-muted"],
+    [PS.HEADER_TEXT, "--color-text-primary"],
+    [PS.HEADER_THEME_TEXT2, "--color-text-secondary"],
+  ];
+  const vars = {};
+  for (const [key, cssVar] of map) {
+    const val = cf[key];
+    if (val) vars[cssVar] = val;
+  }
+  const surface = cf[PS.HEADER_THEME_SURFACE];
+  if (surface) {
+    const rgb = hexToRgb(surface);
+    if (rgb) vars["--color-surface-rgb"] = `${rgb.r}, ${rgb.g}, ${rgb.b}`;
+  }
+  return vars;
 }

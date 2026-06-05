@@ -5,7 +5,7 @@ import { X } from "lucide-react";
 import { HexColorPicker } from "react-colorful";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { DEFAULT_RELATIONSHIP_TYPES } from "@/lib/relationshipTypes";
+import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
 
 // Kept for backward compat with RelationshipsPanel import
@@ -21,6 +21,22 @@ function useRelationshipTypes() {
     },
   });
   return data;
+}
+
+// Cycle-safe, depth-tagged render order for a <select> of relationship types,
+// so children appear indented under their parent. The OPTION value stays the
+// type's label — `relationship_type` on AlterRelationship has always stored
+// the label, never the id, so nesting must not change what's saved.
+function TypeOptions({ types }) {
+  const tree = flattenTypeTree(types);
+  // (removed) const NBSP = "  ";
+  const NB = String.fromCharCode(160); // U+00A0 survives in <option>; ASCII spaces collapse
+  const indent = (d) => (d > 0 ? NB.repeat(d * 2) + "↳ " : "");
+  return tree.map(t => (
+    <option key={t.id ?? t.label} value={t.label} data-depth={t._depth || 0}>
+      {indent(t._depth || 0)}{t.label}{false && `${"  ".repeat(t._depth || 0)}${t.label}`}
+    </option>
+  ));
 }
 
 // Cycles: a_to_b → b_to_a → bidirectional → a_to_b
@@ -200,9 +216,7 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
           <select value={relType} onChange={e => handleTypeChange(e.target.value)}
             className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            {relTypes.map(t => (
-              <option key={t.id || t.label} value={t.label}>{t.label}</option>
-            ))}
+            <TypeOptions types={relTypes} />
           </select>
         </div>
 
