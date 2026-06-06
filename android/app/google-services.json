@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "220070199671",
+    "project_id": "oceans-symphony-a456a",
+    "storage_bucket": "oceans-symphony-a456a.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:220070199671:android:6f744d6fe8cb894b2c6172",
+        "android_client_info": {
+          "package_name": "app.oceans_symphony.twa"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyC2enJIxuoHuIXyyGr3ZfqVs7cDIhUUn9Y"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

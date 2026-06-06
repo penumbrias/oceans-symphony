@@ -53,3 +53,15 @@ export async function clearBackgroundRunnerIdentity() {
   if (!isNative()) return false;
   return dispatchRunnerEvent("clearIdentity", {});
 }
+
+// Tell the 15-minute background poll whether instant FCM push is live.
+// When true the runner keeps its "last seen" snapshot fresh but SKIPS
+// firing notifications — FCM (see src/lib/fcmPush.js) is delivering the
+// same friend-front changes instantly, so the poll would only double-buzz.
+// When false (FCM not configured / permission refused / no token) the
+// poll resumes notifying as the fallback path. Driven by fcmPush on every
+// successful token save + on boot, so it self-corrects.
+export async function setBackgroundRunnerFcmActive(active) {
+  if (!isNative()) return false;
+  return dispatchRunnerEvent("setFcmActive", { active: !!active });
+}

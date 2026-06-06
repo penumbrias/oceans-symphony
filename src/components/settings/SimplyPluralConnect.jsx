@@ -261,6 +261,13 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
                 if (existing) {
                   if (importMode !== "new_only") {
                     const updateData = { ...incoming };
+                    // Preserve the alter's LOCAL folder / subsystem membership
+                    // on re-sync. mapMemberToAlter sets `groups` from SP's
+                    // current view; overwriting it every sync threw alters out
+                    // of folders the user organised locally (silent data loss).
+                    // `groups` is seeded only on CREATE below. ("Replace all"
+                    // re-imports membership from scratch if you want that.)
+                    delete updateData.groups;
                     // custom_fields update would otherwise REPLACE the whole
                     // object, wiping local-only profile-style keys (_bg_color,
                     // _header_image, _hide_header, …). Merge: preserve local-
@@ -399,7 +406,16 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               groupIdBySpId[mapped.sp_id] = created.id;
               groupsCreated++;
             } else if (importMode !== "new_only") {
-              await localEntities.Group.update(existing.id, { ...mapped, parent: existing.parent });
+              // Preserve LOCAL membership + nesting on re-sync: overwriting
+              // member_sp_ids with SP's current list threw manually-organised
+              // alters out of their folders/subsystems every sync (data loss).
+              // Refresh display metadata only; keep membership + parent local.
+              // ("Replace all" re-imports membership from scratch.)
+              await localEntities.Group.update(existing.id, {
+                ...mapped,
+                parent: existing.parent,
+                member_sp_ids: existing.member_sp_ids || [],
+              });
               groupIdBySpId[mapped.sp_id] = existing.id;
               groupsUpdated++;
             } else {

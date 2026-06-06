@@ -31,6 +31,11 @@
 const KEY_USER_ID = "friend_userId";
 const KEY_SECRET = "friend_secret";
 const KEY_LAST_STATE = "friend_last_state_v1";
+// "1" when the main app has registered for instant FCM push. While set,
+// this poll still tracks state but does NOT fire notifications — FCM
+// (src/lib/fcmPush.js + /api/friends/update-front) delivers the same
+// friend-front changes instantly, so notifying here too would double-buzz.
+const KEY_FCM_ACTIVE = "friend_fcm_active";
 const API_BASE = "https://oceans-symphony.app/api/friends";
 // Mirrors REMINDERS_CHANNEL_ID / SWITCH_CHANNEL_ID over in
 // src/lib/nativeNotifications.js — kept in sync manually because this
@@ -109,7 +114,12 @@ addEventListener("checkFriends", async (resolve, reject) => {
       });
     }
 
-    if (toNotify.length > 0) {
+    // If instant FCM push is live, FCM already delivered these — keep the
+    // snapshot fresh (below) but don't fire a duplicate from the poll.
+    let fcmActive = false;
+    try { fcmActive = CapacitorKV.get(KEY_FCM_ACTIVE) === "1"; } catch (_) { /* ignore */ }
+
+    if (toNotify.length > 0 && !fcmActive) {
       const notifications = toNotify.map(({ friend }) => ({
         id: notificationIdFor(friend.userId),
         title: `${friend.displayName || "A friend"} updated their front`,
@@ -154,11 +164,24 @@ addEventListener("setIdentity", (resolve, reject, args) => {
   }
 });
 
+// Main app flips this when FCM push registration succeeds (true) or
+// fails / is turned off (false). While "1", checkFriends tracks state
+// but suppresses its own notifications so FCM is the sole delivery path.
+addEventListener("setFcmActive", (resolve, reject, args) => {
+  try {
+    CapacitorKV.set(KEY_FCM_ACTIVE, args && args.active ? "1" : "0");
+    resolve();
+  } catch (e) {
+    reject(e && e.message ? e.message : "setFcmActive_failed");
+  }
+});
+
 // Called when the user deletes their friend profile / wipes data —
 // clears everything we know about so the periodic task no-ops.
 addEventListener("clearIdentity", (resolve) => {
   try { CapacitorKV.remove(KEY_USER_ID); } catch (_) {}
   try { CapacitorKV.remove(KEY_SECRET); } catch (_) {}
   try { CapacitorKV.remove(KEY_LAST_STATE); } catch (_) {}
+  try { CapacitorKV.remove(KEY_FCM_ACTIVE); } catch (_) {}
   resolve();
 });

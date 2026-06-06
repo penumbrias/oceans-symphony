@@ -114,6 +114,22 @@ export async function initNativeShell() {
     await pushIdentityToBackgroundRunner();
   } catch { /* non-fatal */ }
 
+  // Re-register with Firebase Cloud Messaging so friend-front changes push
+  // INSTANTLY even when the app is fully closed. FCM rotates tokens, so we
+  // refresh + re-save on every boot. prompt:false → never raises a
+  // permission dialog here (only the explicit "turn on a friend's bell"
+  // path prompts); if permission isn't already granted, or
+  // google-services.json isn't in the build, this no-ops and the 15-minute
+  // background poll stays the fallback. Gated on having a Friends profile.
+  try {
+    const { getLocalIdentity } = await import("@/lib/friendsApi");
+    const identity = await getLocalIdentity().catch(() => null);
+    if (identity?.userId) {
+      const { registerFcmPush } = await import("@/lib/fcmPush");
+      await registerFcmPush({ prompt: false });
+    }
+  } catch { /* non-fatal */ }
+
   // Document-level interceptor for external anchor clicks. In a
   // Capacitor WebView, <a target="_blank"> opens INSIDE the WebView
   // instead of in the user's browser — which means tapping a
