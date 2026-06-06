@@ -34,6 +34,7 @@ export default function RemindersSettings() {
   const settings = settingsList[0] || null;
 
   const [quietEnabled, setQuietEnabled] = useState(false);
+  const [includeReminderText, setIncludeReminderText] = useState(true);
   const [quietStart, setQuietStart] = useState("22:00");
   const [quietEnd, setQuietEnd] = useState("08:00");
   const [paused, setPaused] = useState(false);
@@ -70,6 +71,7 @@ export default function RemindersSettings() {
     setQuietEnd(qh.end || "08:00");
     setPaused(!!settings.reminders_paused);
     setDefaultSnooze(settings.default_snooze_options || DEFAULT_SNOOZE_OPTIONS);
+    setIncludeReminderText(settings.reminder_push_include_text !== false);
   }, [settings]);
 
   const save = async () => {
@@ -77,6 +79,7 @@ export default function RemindersSettings() {
     const data = {
       quiet_hours: { enabled: quietEnabled, start: quietStart, end: quietEnd },
       reminders_paused: paused,
+      reminder_push_include_text: includeReminderText,
       default_snooze_options: defaultSnooze,
     };
     if (settings?.id) {
@@ -217,6 +220,20 @@ export default function RemindersSettings() {
         </div>
         <Switch checked={paused} onCheckedChange={v => { setPaused(v); toast(v ? "All reminders paused" : "Reminders resumed"); }} />
       </div>
+
+      {/* Reminder-push privacy — whether the reminder's wording is stored on
+          the relay (so the notification can show it) or kept fully local. */}
+      {pushEnabled && (
+        <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40 gap-3">
+          <div>
+            <p className="font-semibold text-sm">Show reminder text in notifications</p>
+            <p className="text-xs text-muted-foreground">
+              On: the notification shows what the reminder says (e.g. "Take meds") — its title and time are stored on the notification relay so it can fire even when the app is closed. Off: the relay only knows a reminder is due and sends a generic "You have a reminder"; the details appear when you open the app.
+            </p>
+          </div>
+          <Switch checked={includeReminderText} onCheckedChange={setIncludeReminderText} />
+        </div>
+      )}
 
       {/* Activity reminders — Dashboard nag for past-time plans that
           haven't been resolved yet. Stored in localStorage; the card

@@ -76,6 +76,12 @@ import { snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 export const REMINDER_ACTION_TYPE_ID = "REMINDER_ACTIONS";
 
 const LOG_KEY = "symphony_native_reminder_log_v1";
+// Mirror of ACTIVE_FLAG_KEY in serverReminderSync.js. When "1", server-
+// scheduled push (FCM) owns reminder delivery — it fires even when the app
+// is swiped away, which OS alarms can't — so we SUPPRESS the OS pre-schedule
+// to avoid double notifications. Read directly (not imported) to avoid an
+// import cycle with serverReminderSync.js.
+const SERVER_PUSH_ACTIVE_KEY = "symphony_server_reminder_push_active_v1";
 
 // Cap to keep AlarmManager pressure low and avoid surprise OEM throttling.
 const MAX_TOTAL_SCHEDULED = 64;
@@ -268,6 +274,17 @@ export async function reconcileNativeSchedule(reminders, settings) {
   if (settings?.reminders_paused) {
     writeLog([]);
     return { scheduled: 0, cancelled: oldLog.length, skipped: "paused" };
+  }
+
+  // Server-scheduled push takes over closed-app delivery when active (the
+  // relay fires reminders via FCM regardless of force-stop). Suppress the OS
+  // pre-schedule so reminders aren't delivered twice. Self-correcting: if
+  // push isn't ready, serverReminderSync clears the flag and we resume.
+  let serverPushActive = false;
+  try { serverPushActive = localStorage.getItem(SERVER_PUSH_ACTIVE_KEY) === "1"; } catch { /* ignore */ }
+  if (serverPushActive) {
+    writeLog([]);
+    return { scheduled: 0, cancelled: oldLog.length, skipped: "server_push_active" };
   }
 
   const now = new Date();

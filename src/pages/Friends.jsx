@@ -416,10 +416,11 @@ function PrivacyDisclaimer() {
               </ul>
             </li>
             <li><strong>Friend relationships</strong> — who approved who.</li>
-            <li><strong>Push subscription tokens</strong>, only if you opt in to friend-front notifications.</li>
+            <li><strong>Push tokens</strong> — a web-push subscription, or a Firebase/FCM token on the installed app — only if you opt in to notifications.</li>
+            <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
           </ul>
           <p>
-            Your {t.alter} profiles, journal text, check-in data, symptoms, timeline history — <strong>none of that touches the friends server</strong>. The friends server only ever knows what you explicitly push via "Update Front", filtered by the privacy setting above.
+            Your {t.alter} profiles, journal text, check-in data, symptoms, and timeline history — <strong>none of that touches the friends server</strong>. It only ever holds what you explicitly send it: your current {t.front} via "Update Front" (filtered by the privacy setting above) and, if you opt into push reminders, your reminder schedule (and wording, unless you've turned that off).
           </p>
           <p>
             Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, zero data leaves the device. The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
@@ -659,10 +660,12 @@ export default function FriendsPage() {
     queryKey: ['friendsList'],
     queryFn: fetchFriendsList,
     enabled: !!identity,
-    // Poll more aggressively so incoming/responded requests appear quickly
-    // for both sides without needing a manual refresh.
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
+    // Push-instead-of-poll: front changes trigger an instant refetch via the
+    // push signal (see the effect below), so the timer can be slow and
+    // foreground-only — a big cut to relay traffic + battery vs the old 10s
+    // background poll. 30s still surfaces new friend requests promptly.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -710,6 +713,27 @@ export default function FriendsPage() {
       } catch (_) {}
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
+
+  // Push-instead-of-poll: refetch the friends list the moment a front-change
+  // push arrives — on web via the service worker's "push-received" message,
+  // on native via the FCM foreground event dispatched by fcmPush.js. Keeps
+  // the list feeling live while the timer poll above stays lazy.
+  useEffect(() => {
+    if (!identity) return;
+    const refetch = () => refetchFriends();
+    let swHandler = null;
+    try {
+      if (navigator.serviceWorker) {
+        swHandler = (e) => { if (e.data?.type === "push-received") refetch(); };
+        navigator.serviceWorker.addEventListener("message", swHandler);
+      }
+    } catch { /* no SW here */ }
+    window.addEventListener("fcm-front-change", refetch);
+    return () => {
+      window.removeEventListener("fcm-front-change", refetch);
+      try { if (swHandler && navigator.serviceWorker) navigator.serviceWorker.removeEventListener("message", swHandler); } catch { /* ignore */ }
+    };
+  }, [identity, refetchFriends]);
 
   // On mount, re-save push subscription to the relay if push is enabled.
   // This handles the case where VAPID keys were added after notifyOnChange was set.

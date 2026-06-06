@@ -622,27 +622,12 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
     const file = e.target.files?.[0];
     if (!file || !editingLocation) return;
     e.target.value = "";
-    const compressImage = (f, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const url = URL.createObjectURL(f);
-      img.onload = async () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-        canvas.width = width; canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(url);
-        const { encodeCanvasForMime } = await import("@/lib/localImageStorage");
-        // Preserve PNG transparency.
-        resolve(encodeCanvasForMime(canvas, f.type, quality));
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-    const dataUrl = await compressImage(file);
+    // Shared helper preserves animated GIFs (stores them untouched) and only
+    // recompresses static JPEG/PNG — the old inline canvas froze GIFs.
+    const { processUploadedImage, saveLocalImage: save, createLocalImageUrl: makeUrl } = await import("@/lib/localImageStorage");
+    const { dataUrl } = await processUploadedImage(file, 1200, 0.8);
     let imageUrl = dataUrl;
     if (isLocalMode()) {
-      const { saveLocalImage: save, createLocalImageUrl: makeUrl } = await import("@/lib/localImageStorage");
       const imageId = `location-bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await save(imageId, dataUrl);
       imageUrl = makeUrl(imageId);

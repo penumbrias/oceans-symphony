@@ -13,8 +13,89 @@
 
 export const CHANGELOG = [
   {
+    date: "June 6, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Locations now have their own profile pages (like alter and group profiles) — see a location's description, which alters and sub-locations are inside it, and its map link. Open one from a location's editor, the Relationships & Locations list, or search.",
+      },
+    ],
+  },
+  {
     date: "June 5, 2026",
     changes: [
+      {
+        type: "fix",
+        text: "Inner-world map: brought back the lock toggle for locations — a locked location can't be moved or resized until you unlock it.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: Snap to grid now applies to locations and backdrop images too, not just placed members.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: locations now show which map and layer they live on in the Relationships & Locations list and detail view.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: following a location link to a specific layer now isolates that layer (hides the others), so it's meaningfully different from linking to a whole map. Tap \"show all\" to bring the rest back.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the group/subsystem filter and the location-link picker are now proper searchable, nested pickers (matching the rest of the app) instead of flat menus, and the toolbar is a tidy, consistent set of icons.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: in View mode, backdrop images can no longer be selected or highlighted — it's display-and-navigate only, as intended.",
+      },
+      {
+        type: "improve",
+        text: "Image pickers now also let you paste a direct image URL, alongside choosing from your asset library or uploading.",
+      },
+      {
+        type: "feature",
+        text: "Inner-world map: a View mode (display & navigate only — switch hidden layers and follow location links without risk of moving anything), plus the ability to lock individual backdrop images or whole layers against accidental edits.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: the backdrop-image editor no longer covers the whole map, its sliders actually slide now, and a placed image can be moved, resized, and adjusted.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: tapping a placed alter to select it no longer risks deleting it — the remove × only appears once it's selected. Added search + group/subsystem filtering to the \"not on this layer\" list and a clearer indicator of which layer you're on.",
+      },
+      {
+        type: "improve",
+        text: "Image pickers (including inner-world backdrops & location backgrounds) can now choose from your asset library, not just upload new. The create-relationship type picker now shows nested relationship types properly (searchable & indented).",
+      },
+      {
+        type: "improve",
+        text: "Friends list now refreshes the instant a friend changes who's fronting (push-driven) and polls far less in the background — lighter on your data and battery.",
+      },
+      {
+        type: "feature",
+        text: "Inner-world map: you can now drop in backdrop images (placed behind everything — drag, resize, set opacity) and link a location to another map or layer (tap its ↗ badge to jump there).",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: your existing maps and locations now show immediately on first open after the update, instead of appearing blank until you tapped something. (Nothing was ever lost — it was a refresh timing issue.)",
+      },
+      {
+        type: "improve",
+        text: "Friends privacy notice now reflects push reminders: it explains that turning on reminder push also uses the relay, and how to keep the reminder's wording on your device (switch off \"Show reminder text in notifications\").",
+      },
+      {
+        type: "feature",
+        text: "The inner-world map now supports multiple maps and layers — make separate maps, add named layers you can show/hide and reorder, and place the same alter on more than one layer. Your existing inner world moves into a default map automatically. (More coming: backdrop images and location links.)",
+      },
+      {
+        type: "fix",
+        text: "Animated GIFs now stay animated when used as a bio image or an inner-world map background — they were being flattened to a single still frame. (Avatars, banners, and posts already kept them moving.)",
+      },
+      {
+        type: "feature",
+        text: "Reminders now fire as push notifications — arriving on time (and vibrating) even when the app is fully closed or swiped away, not just while it's open. A new Reminder-settings toggle controls whether the reminder's text shows in the notification or stays private.",
+      },
       {
         type: "fix",
         text: "Restoring a backup with \"Replace All\" no longer deletes your Friends profile — your identity is kept, so friends stop seeing a duplicate \"ghost\" of you.",

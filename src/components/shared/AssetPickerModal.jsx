@@ -47,6 +47,7 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
   const [folder, setFolder] = useState("all");
   const [uploadFolder, setUploadFolder] = useState("");
   const [uploading, setUploading] = useState(false);
+  const [urlInput, setUrlInput] = useState("");
   const fileRef = useRef(null);
 
   const { data: assets = [] } = useQuery({
@@ -166,6 +167,14 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
               Upload{folder !== "all" ? ` to ${folder}` : ""}
             </button>
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleFiles} />
+          </div>
+          {/* …or paste a direct image URL */}
+          <div className="flex items-center gap-2">
+            <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="…or paste an image URL"
+              onKeyDown={(e) => { if (e.key === "Enter" && urlInput.trim()) onSelect(urlInput.trim()); }}
+              className="flex-1 h-8 px-2.5 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
+            <button type="button" disabled={!urlInput.trim()} onClick={() => { const u = urlInput.trim(); if (u) onSelect(u); }}
+              className="h-8 px-3 rounded-lg border border-border bg-muted/30 hover:bg-muted/60 text-xs font-medium disabled:opacity-50 flex-shrink-0">Use URL</button>
           </div>
         </div>
 

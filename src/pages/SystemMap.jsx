@@ -5,7 +5,10 @@ import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import AnalyticsMap from "@/components/system/SystemMap";
-import InnerWorldMap from "@/components/systemmap/InnerWorldMap";
+// Inner World tab uses the new layered/multi-map canvas (InnerWorldMapV2,
+// built on innerWorldModel + useInnerWorld). The legacy single-placement
+// InnerWorldMap.jsx is kept in the repo as a one-line rollback if needed.
+import InnerWorldMap from "@/components/systemmap/InnerWorldMapV2";
 import RelationshipsPanel from "@/components/systemmap/RelationshipsPanel";
 import { useTerms } from "@/lib/useTerms";
 import { Map, Globe } from "lucide-react";

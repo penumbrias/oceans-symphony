@@ -129,6 +129,53 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
   );
 }
 
+// Searchable, nesting-aware picker for the relationship TYPE — mirrors the
+// AlterPickerDropdown pattern above (and the app's other nested pickers) so a
+// type's parent→child hierarchy shows with real indentation, not a flat native
+// <select>. The saved value stays the type's LABEL (relationship_type on
+// AlterRelationship has always stored the label, never the id), so nesting
+// never changes what's persisted. (Supersedes the old TypeOptions <select>.)
+function TypePickerDropdown({ types, value, onChange }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const tree = flattenTypeTree(types);
+  const selected = types.find((t) => t.label === value);
+  const q = search.trim().toLowerCase();
+  const rows = q
+    ? tree.filter((t) => (t.label || "").toLowerCase().includes(q)).map((t) => ({ ...t, _depth: 0 }))
+    : tree;
+  return (
+    <div className="relative">
+      <button type="button" onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-md border border-border bg-background text-sm text-left">
+        {selected && <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: selected.color || "#6b7280" }} />}
+        <span className="flex-1 truncate">{value || "Select a type…"}</span>
+        <span className="text-muted-foreground text-xs">▾</span>
+      </button>
+      {open && (
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50">
+          <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search types…"
+            className="w-full px-3 py-2 border-b border-border/50 bg-background rounded-t-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+          <div className="max-h-52 overflow-y-auto">
+            {rows.length === 0 ? (
+              <p className="px-3 py-2 text-xs text-muted-foreground">No types found</p>
+            ) : rows.map((t) => (
+              <button key={t.id ?? t.label} type="button"
+                onClick={() => { onChange(t.label); setOpen(false); setSearch(""); }}
+                className={`w-full flex items-center gap-2 py-1.5 pr-3 text-left text-sm hover:bg-muted/40 ${t.label === value ? "bg-primary/10" : ""}`}
+                style={{ paddingLeft: 12 + (t._depth || 0) * 16 }}>
+                {(t._depth || 0) > 0 && <span className="text-muted-foreground/50 flex-shrink-0">↳</span>}
+                <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: t.color || "#6b7280" }} />
+                <span className="truncate">{t.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function CreateRelationshipModal({ alterA: initialAlterA, allAlters = [], alterB: initialAlterB, onSave, onClose }) {
   const relTypes = useRelationshipTypes();
   const [selectedAlterA, setSelectedAlterA] = useState(initialAlterA || null);
@@ -212,13 +259,10 @@ export default function CreateRelationshipModal({ alterA: initialAlterA, allAlte
           </button>
         </div>
 
-        {/* Type */}
+        {/* Type — searchable, nesting-aware picker */}
         <div>
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">Type</p>
-          <select value={relType} onChange={e => handleTypeChange(e.target.value)}
-            className="w-full h-9 px-3 rounded-md border border-border bg-background text-sm">
-            <TypeOptions types={relTypes} />
-          </select>
+          <TypePickerDropdown types={relTypes} value={relType} onChange={handleTypeChange} />
         </div>
 
         {/* Strength */}

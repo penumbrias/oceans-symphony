@@ -93,6 +93,13 @@ export async function registerFcmPush({ prompt = true } = {}) {
         // saveTokenToServer never runs (so fcm_active is never set true).
         console.warn("[fcmPush] registration error:", err?.error || err);
       });
+      // A foreground FCM message (e.g. a friend's front changed) — nudge any
+      // open Friends page to refetch immediately instead of waiting for its
+      // timer (push-instead-of-poll). Tray display is handled by the OS /
+      // the in-app toast hook; this is only the "go refresh the list" signal.
+      await PushNotifications.addListener("pushNotificationReceived", () => {
+        try { window.dispatchEvent(new CustomEvent("fcm-front-change")); } catch { /* non-fatal */ }
+      });
       // Tapping the OS notification already brings the app to the foreground.
       // Surface the payload so a future listener can route to the friend;
       // harmless if nothing listens.
