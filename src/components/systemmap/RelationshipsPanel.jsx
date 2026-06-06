@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from "react";
-import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload, Settings2 } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload, Settings2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
@@ -472,6 +473,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
 
 function LocationDetailModal({ location, alters, locationMap, scope, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
   const t = useTerms();
+  const navigate = useNavigate();
   const bgFileRef = useRef(null);
   const [editing, setEditing] = useState(false);
   const [editData, setEditData] = useState(location);
@@ -556,6 +558,10 @@ function LocationDetailModal({ location, alters, locationMap, scope, getParentLo
               <MapPin className="w-3.5 h-3.5 flex-shrink-0" /> {scope}
             </div>
           )}
+          <button onClick={() => { onClose(); navigate(`/location/${location.id}`); }}
+            className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-medium transition-colors">
+            <ExternalLink className="w-3.5 h-3.5" /> Open full profile page
+          </button>
           {/* Description */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</p>

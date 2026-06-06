@@ -422,7 +422,7 @@ export function buildInnerWorldLocationRecords({ items = [] }) {
     id: l.id,
     title: l.name || "Location",
     subtitle: snippet(l.description) || "Inner world location",
-    path: "/system-map",
+    path: `/location/${l.id}`,
     searchableText: joinNonEmpty([l.name, l.description]).toLowerCase(),
   }));
 }

@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 6, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Locations now have their own profile pages (like alter and group profiles) — see a location's description, which alters and sub-locations are inside it, and its map link. Open one from a location's editor, the Relationships & Locations list, or search.",
+      },
+    ],
+  },
+  {
     date: "June 5, 2026",
     changes: [
       {

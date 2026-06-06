@@ -27,7 +27,7 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
-  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin,
+  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin, ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -844,6 +844,10 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                   <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
                 </div>
               </div>
+              <button onClick={() => navigate(`/location/${editingLocation.id}`)}
+                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-medium transition-colors">
+                <ExternalLink className="w-3.5 h-3.5" /> Open full profile page
+              </button>
               <div className="grid grid-cols-2 gap-2">
                 <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="h-7 px-2 text-xs border border-border rounded bg-background" />
                 <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }} className="h-7 px-2 text-xs border border-border rounded bg-background">
