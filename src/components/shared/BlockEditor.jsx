@@ -4,7 +4,6 @@ import {
   LayoutGrid, Minus, Type, Eye, X, Upload, Loader2, GripVertical, Crop
 } from "lucide-react";
 import { toast } from "sonner";
-import { encodeCanvasForMime } from "@/lib/localImageStorage";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, verticalListSortingStrategy } from "@dnd-kit/sortable";
@@ -167,23 +166,15 @@ export function ImagePickerModal({ initial = {}, onConfirm, onClose, title = "In
     const file = e.target.files?.[0]; if (!file) return;
     setUploading(true);
     try {
-      const compressImage = (f, maxWidth = 800, quality = 0.8) => new Promise((resolve, reject) => {
-        const img = new window.Image();
-        const url = URL.createObjectURL(f);
-        img.onload = () => {
-          const canvas = document.createElement("canvas");
-          let { width, height } = img;
-          if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-          canvas.width = width; canvas.height = height;
-          canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-          URL.revokeObjectURL(url);
-          // Preserve PNG transparency.
-          resolve(encodeCanvasForMime(canvas, f.type, quality));
-        };
-        img.onerror = reject;
-        img.src = url;
-      });
-      const dataUrl = await compressImage(file);
+      // Route through the shared helper, which detects GIFs (and other
+      // animated / uncompressible formats) and stores them UNTOUCHED so they
+      // keep animating — it only canvas-recompresses static JPEG/PNG. The old
+      // inline canvas here flattened GIFs to a single frame.
+      const { processUploadedImage } = await import("@/lib/localImageStorage");
+      const { dataUrl, isGif, sizeKB } = await processUploadedImage(file, 800, 0.8);
+      if (isGif && sizeKB > 3000) {
+        toast.warning("That GIF is large — it may load slowly and bloat backups.");
+      }
       const { isLocalMode } = await import("@/lib/storageMode");
       if (isLocalMode()) {
         const { saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");

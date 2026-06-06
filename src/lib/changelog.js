@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Animated GIFs now stay animated when used as a bio image or an inner-world map background — they were being flattened to a single still frame. (Avatars, banners, and posts already kept them moving.)",
+      },
+      {
         type: "feature",
         text: "Reminders now fire as push notifications — arriving on time (and vibrating) even when the app is fully closed or swiped away, not just while it's open. A new Reminder-settings toggle controls whether the reminder's text shows in the notification or stays private.",
       },

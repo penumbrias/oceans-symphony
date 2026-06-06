@@ -9,7 +9,6 @@ import { useTerms } from "@/lib/useTerms";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
-import { encodeCanvasForMime } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 export function AlterAvatar({ alter, size = 24 }) {
@@ -484,27 +483,13 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
     const file = e.target.files?.[0];
     if (!file) return;
     e.target.value = '';
-    const compressImage = (f, maxWidth = 1200, quality = 0.8) => new Promise((resolve, reject) => {
-      const img = new window.Image();
-      const url = URL.createObjectURL(f);
-      img.onload = () => {
-        const canvas = document.createElement("canvas");
-        let { width, height } = img;
-        if (width > maxWidth) { height = Math.round((height * maxWidth) / width); width = maxWidth; }
-        canvas.width = width; canvas.height = height;
-        canvas.getContext("2d").drawImage(img, 0, 0, width, height);
-        URL.revokeObjectURL(url);
-        // Preserve PNG transparency.
-        resolve(encodeCanvasForMime(canvas, f.type, quality));
-      };
-      img.onerror = reject;
-      img.src = url;
-    });
-    const dataUrl = await compressImage(file);
+    // Shared helper preserves animated GIFs (stores them untouched) and only
+    // recompresses static JPEG/PNG — the old inline canvas froze GIFs.
+    const { processUploadedImage, saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
+    const { dataUrl } = await processUploadedImage(file, 1200, 0.8);
     const { isLocalMode } = await import("@/lib/storageMode");
     let imageUrl = dataUrl;
     if (isLocalMode()) {
-      const { saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
       const imageId = `location-bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(imageId, dataUrl);
       imageUrl = createLocalImageUrl(imageId);
