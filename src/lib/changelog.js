@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Reminders now fire as push notifications — arriving on time (and vibrating) even when the app is fully closed or swiped away, not just while it's open. A new Reminder-settings toggle controls whether the reminder's text shows in the notification or stays private.",
+      },
+      {
         type: "fix",
         text: "Restoring a backup with \"Replace All\" no longer deletes your Friends profile — your identity is kept, so friends stop seeing a duplicate \"ghost\" of you.",
       },

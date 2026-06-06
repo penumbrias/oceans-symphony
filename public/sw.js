@@ -248,16 +248,21 @@ self.addEventListener('push', (event) => {
     body: body || '',
     icon: '/icon-192.png',
     badge: '/icon-192.png',
-    // Diagnostic pushes use a unique tag so they don't get collapsed into
-    // one notification by the OS. Reminder pushes use a stable tag so
-    // repeats of the same reminder replace.
-    tag: payload?.diagId
-      ? `diag-${payload.diagId}`
-      : (reminderInstanceId ? `reminder-${reminderInstanceId}` : 'reminder'),
-    data: { reminderInstanceId, inlineActions },
+    // Tag precedence: an explicit payload.tag (server-scheduled reminders
+    // send `reminder-<id>`) wins; diagnostic pushes use a unique tag so they
+    // aren't collapsed; otherwise fall back to the instance/stable tag.
+    tag: payload?.tag
+      ? payload.tag
+      : (payload?.diagId
+        ? `diag-${payload.diagId}`
+        : (reminderInstanceId ? `reminder-${reminderInstanceId}` : 'reminder')),
+    data: { reminderInstanceId, inlineActions, url: payload?.url || '/reminders' },
     actions: inlineActions.slice(0, 2).map(a => ({ action: a.action_type, title: a.label })),
     requireInteraction: false,
   };
+  // Vibration pattern (timed reminders ask to buzz). Android Chrome honours
+  // this; other browsers ignore it harmlessly.
+  if (Array.isArray(payload?.vibrate)) notifOptions.vibrate = payload.vibrate;
 
   event.waitUntil(self.registration.showNotification(title, notifOptions));
 });

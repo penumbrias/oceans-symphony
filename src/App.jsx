@@ -66,6 +66,7 @@ import {
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
+import { useServerReminderSync } from '@/lib/serverReminderSync';
 import { usePlanReminderSync } from '@/lib/planReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
@@ -103,6 +104,11 @@ const AuthenticatedApp = () => {
   // poll client-side and fire LocalNotifications on change. No-op
   // on web/TWA (Web Push handles it there).
   useFriendsFrontChangeNotifications();
+  // Mirror upcoming reminder fire-times to the relay so a per-minute cron
+  // can push them via FCM / Web Push even when the app is fully closed /
+  // swiped away (OS alarms get cancelled on force-stop). Runs on all
+  // platforms; no-ops without a Friends identity + push enabled.
+  useServerReminderSync();
   // When the user taps a native OS notification we route to the
   // reminders inbox; the actual ReminderInstance was already recorded
   // by the bootstrap listener.
