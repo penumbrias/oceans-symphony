@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Inner-world map: the group/subsystem filter and the location-link picker are now proper searchable, nested pickers (matching the rest of the app) instead of flat menus, and the toolbar is a tidy, consistent set of icons.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: in View mode, backdrop images can no longer be selected or highlighted — it's display-and-navigate only, as intended.",
+      },
+      {
+        type: "improve",
+        text: "Image pickers now also let you paste a direct image URL, alongside choosing from your asset library or uploading.",
+      },
+      {
         type: "feature",
         text: "Inner-world map: a View mode (display & navigate only — switch hidden layers and follow location links without risk of moving anything), plus the ability to lock individual backdrop images or whole layers against accidental edits.",
       },

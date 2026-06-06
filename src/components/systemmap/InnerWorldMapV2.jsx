@@ -27,9 +27,10 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
-  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, Lock, Unlock, Search,
+  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocationNode from "./LocationNode";
 import MapImageNode from "./MapImageNode";
@@ -49,6 +50,28 @@ function toLocalScheme(url) {
     return `local-image://${decodeURIComponent(url.slice("/local-image/".length))}`;
   }
   return url;
+}
+
+// Flatten groups into a depth-tagged list by folder nesting (group.parent may
+// reference an id OR an sp_id), cycle-guarded + depth-clamped. Feeds the nested
+// group/subsystem FILTER picker — never a flat native <select> (CLAUDE.md rule).
+function flattenGroupTree(groups) {
+  const byId = Object.fromEntries(groups.map((g) => [g.id, g]));
+  const spToId = {};
+  for (const g of groups) if (g.sp_id) spToId[g.sp_id] = g.id;
+  const resolveParent = (p) => (!p || p === "root" ? null : byId[p] ? p : spToId[p] || null);
+  const childrenOf = (pid) => groups.filter((g) => resolveParent(g.parent) === pid).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const out = [];
+  const seen = new Set();
+  const visit = (g, depth) => {
+    if (!g || seen.has(g.id) || depth > 12) return;
+    seen.add(g.id);
+    out.push({ ...g, _depth: depth });
+    for (const c of childrenOf(g.id)) visit(c, depth + 1);
+  };
+  for (const g of childrenOf(null)) visit(g, 0);
+  for (const g of groups) if (!seen.has(g.id)) { seen.add(g.id); out.push({ ...g, _depth: 0 }); }
+  return out;
 }
 
 function UnplacedAlterAvatar({ alter }) {
@@ -509,6 +532,35 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const activeLayer = layerById[activeLayerId];
   const linkValue = editingLocation?.link_target_type ? `${editingLocation.link_target_type}:${editingLocation.link_target_id}` : "";
 
+  // Indented option renderer for the nested pickers (SearchableSelect).
+  const renderNestedOpt = (opt) => (
+    <>
+      {opt._depth > 0 && <span style={{ width: opt._depth * 14 }} className="flex-shrink-0 inline-block" />}
+      {opt._depth > 0 && <span className="text-muted-foreground/50 flex-shrink-0">↳</span>}
+      {opt.isSub && <span className="text-primary/70 flex-shrink-0 text-xs">◆</span>}
+      {opt.color && <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: opt.color }} />}
+      <span className="truncate text-sm flex-1">{opt.label}</span>
+    </>
+  );
+  // Group/subsystem filter options (folder-nested + subsystem-marked).
+  const groupFilterOptions = useMemo(() => ([
+    { id: "all", label: `All ${terms.groups || "groups"}` },
+    ...flattenGroupTree(groups).map((g) => ({ id: g.id, label: g.name || "Unnamed", color: g.color, _depth: g._depth, isSub: isSubsystem(g) })),
+  ]), [groups, terms.groups]);
+  // Location-link options — other maps and (nested under them) their layers.
+  const linkOptions = useMemo(() => {
+    const opts = [{ id: "", label: "Nothing (no link)" }];
+    for (const m of maps.filter((mm) => mm.id !== activeMapId)) {
+      opts.push({ id: `map:${m.id}`, label: m.name || "Map", _depth: 0, isMap: true });
+      for (const l of allLayers.filter((x) => x.map_id === m.id).sort((a, b) => (a.order || 0) - (b.order || 0))) {
+        opts.push({ id: `layer:${l.id}`, label: l.name || "Layer", _depth: 1 });
+      }
+    }
+    return opts;
+  }, [maps, allLayers, activeMapId]);
+  // Consistent toolbar icon-button styling.
+  const tbBtn = (active) => `h-8 w-8 flex items-center justify-center rounded-lg border bg-card/90 backdrop-blur-sm transition-colors ${active ? "border-primary/40 text-primary bg-primary/15" : "border-border text-muted-foreground hover:border-primary/30"}`;
+
   return (
     <div className="relative w-full h-full flex flex-col" style={{ touchAction: "none" }}>
       {/* Maps bar */}
@@ -582,12 +634,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     <input value={unplacedSearch} onChange={(e) => setUnplacedSearch(e.target.value)} placeholder="Search…"
                       className="w-full h-7 pl-6 pr-2 text-xs border border-border/50 rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
                   </div>
-                  <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-full h-7 px-1.5 text-xs border border-border/50 rounded bg-background">
-                    <option value="all">All {terms.groups || "groups"}</option>
-                    {[...groups].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((g) => (
-                      <option key={g.id} value={g.id}>{isSubsystem(g) ? "◆ " : ""}{g.name || "Unnamed"}</option>
-                    ))}
-                  </select>
+                  <SearchableSelect value={groupFilter} onChange={(v) => setGroupFilter(v || "all")} options={groupFilterOptions}
+                    placeholder="Filter by group…" searchPlaceholder="Search groups…" renderOption={renderNestedOpt} className="w-full" />
                 </div>
                 <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
                   {filteredUnplaced.map((alter) => (
@@ -644,10 +692,10 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     {images.filter((im) => im.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((im) => {
                       const locked = layerLocked || im.is_locked;
                       return (
-                        <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} locked={locked} zoom={transform.scale}
-                          onSelect={() => { if (!panMovedRef.current) { setSelectedImage(im); } }}
+                        <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} selectable={!layerLocked} locked={locked} zoom={transform.scale}
+                          onSelect={() => { if (!panMovedRef.current && !layerLocked) setSelectedImage(im); }}
                           onUpdate={(fields) => iw.updateImage(im.id, fields)}
-                          onEdit={() => { if (!locked) openImageEditor(im); }} />
+                          onEdit={() => { if (!layerLocked) openImageEditor(im); }} />
                       );
                     })}
                     {/* Locations */}
@@ -703,22 +751,22 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </div>
           )}
 
-          {/* Toolbar */}
+          {/* Toolbar — consistent icon-only buttons */}
           <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
-            <button onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); }}
-              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${viewOnly ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-              {viewOnly ? <Eye className="w-3 h-3" /> : <Pencil className="w-3 h-3" />} {viewOnly ? "View" : "Edit"}
+            <button title={viewOnly ? "Switch to edit mode" : "Switch to view mode (display only)"} className={tbBtn(viewOnly)}
+              onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); setSelectedImage(null); setSelectedLocation(null); setSelectedAlter(null); }}>
+              {viewOnly ? <PencilOff className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
             </button>
             {!viewOnly && (
               <>
-                <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}><Plus className="w-3 h-3" /> Location</Button>
-                <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addImage}><ImageIcon className="w-3 h-3" /> Image</Button>
-                <button onClick={() => setSnapToGrid((v) => !v)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}><Grid className="w-3 h-3" /> Snap</button>
+                <button title="Add location" className={tbBtn(false)} onClick={addLocation}><MapPin className="w-4 h-4" /></button>
+                <button title="Add image" className={tbBtn(false)} onClick={addImage}><ImageIcon className="w-4 h-4" /></button>
+                <button title={snapToGrid ? "Snap to grid: on" : "Snap to grid: off"} className={tbBtn(snapToGrid)} onClick={() => setSnapToGrid((v) => !v)}><Grid className="w-4 h-4" /></button>
               </>
             )}
-            <button onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${relMode !== "none" ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-              {relMode === "all" ? <Eye className="w-3 h-3" /> : relMode === "selected" ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
-              {relMode === "all" ? "Rels: All" : relMode === "selected" ? "Rels: Selected" : "Rels: Hidden"}
+            <button title={`Relationship lines: ${relMode === "all" ? "all" : relMode === "selected" ? "selected only" : "hidden"}`} className={tbBtn(relMode !== "none")}
+              onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))}>
+              {relMode === "all" ? <Eye className="w-4 h-4" /> : relMode === "selected" ? <Users className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
           </div>
 
@@ -795,16 +843,19 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <textarea value={editingLocation.description || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, description: v })); updateLocation(editingLocation, { description: v }); }} placeholder="Description..." rows={2} className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Tapping the ↗ jumps to…</p>
-                <select value={linkValue} onChange={(e) => {
-                  const v = e.target.value;
-                  if (!v) { setEditingLocation((l) => ({ ...l, link_target_type: null, link_target_id: null })); iw.clearLocationLink(editingLocation.id); return; }
-                  const [type, id] = v.split(":");
-                  setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(editingLocation.id, type, id);
-                }} className="w-full h-7 px-2 text-xs border border-border rounded bg-background">
-                  <option value="">Nothing (no link)</option>
-                  {maps.filter((m) => m.id !== activeMapId).map((m) => <option key={`map:${m.id}`} value={`map:${m.id}`}>Map: {m.name}</option>)}
-                  {allLayers.filter((l) => l.map_id !== activeMapId).map((l) => { const mp = maps.find((mm) => mm.id === l.map_id); return <option key={`layer:${l.id}`} value={`layer:${l.id}`}>Layer: {mp?.name ? mp.name + " / " : ""}{l.name}</option>; })}
-                </select>
+                <SearchableSelect value={linkValue} options={linkOptions} placeholder="Nothing (no link)" searchPlaceholder="Search maps & layers…"
+                  renderOption={(opt) => (
+                    <>
+                      {opt._depth > 0 && <span style={{ width: opt._depth * 14 }} className="flex-shrink-0 inline-block" />}
+                      {opt._depth > 0 ? <span className="text-muted-foreground/50 flex-shrink-0">↳</span> : (opt.isMap ? <LayersIcon className="w-3 h-3 text-muted-foreground flex-shrink-0" /> : null)}
+                      <span className="truncate text-sm flex-1">{opt.label}</span>
+                    </>
+                  )}
+                  onChange={(v) => {
+                    if (!v) { setEditingLocation((l) => ({ ...l, link_target_type: null, link_target_id: null })); iw.clearLocationLink(editingLocation.id); return; }
+                    const [type, id] = v.split(":");
+                    setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(editingLocation.id, type, id);
+                  }} />
               </div>
               <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { if (window.confirm("Delete this location?")) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>Delete Location</Button>
             </div>

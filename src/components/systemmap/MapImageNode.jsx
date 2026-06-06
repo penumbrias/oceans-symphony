@@ -1,14 +1,20 @@
 // A backdrop image element on the inner-world canvas (InnerWorldImage).
 // NOT a location — purely decorative. Always rendered BELOW locations and
 // alters. Mirrors LocationNode's drag + resize-handle + local-image://
-// resolution. `locked` (image is_locked, a locked layer, or global view
-// mode) disables move/resize/edit — the image still displays + can be tapped.
+// resolution.
+//
+//   selectable — can the user tap to select it (showing the outline + ✎)?
+//                false in global View mode → the image is pure display, no
+//                highlight at all.
+//   locked     — disables move + resize (image is_locked, or its layer is
+//                locked). The ✎ still shows when selected so the user can
+//                open the editor and UN-lock it.
 
 import React, { useRef, useState, useEffect } from "react";
 
 const MIN = 40;
 
-export default function MapImageNode({ image, isSelected, locked = false, zoom = 1, onSelect, onUpdate, onEdit }) {
+export default function MapImageNode({ image, isSelected, selectable = true, locked = false, zoom = 1, onSelect, onUpdate, onEdit }) {
   const { x = 0, y = 0, width = 320, height = 220, opacity = 1, rotation = 0, image_url } = image;
   const [resolvedUrl, setResolvedUrl] = useState(image_url || null);
   const dragStart = useRef(null);
@@ -21,6 +27,8 @@ export default function MapImageNode({ image, isSelected, locked = false, zoom =
     });
   }, [image_url]);
 
+  const maybeSelect = () => { if (selectable) onSelect?.(); };
+
   const handleMouseDown = (e) => {
     e.stopPropagation();
     dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false };
@@ -32,7 +40,7 @@ export default function MapImageNode({ image, isSelected, locked = false, zoom =
       if (!locked) onUpdate({ x: dragStart.current.x + dx, y: dragStart.current.y + dy });
     };
     const onUp = () => {
-      if (dragStart.current && !dragStart.current.moved) onSelect?.();
+      if (dragStart.current && !dragStart.current.moved) maybeSelect();
       dragStart.current = null;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
@@ -58,7 +66,7 @@ export default function MapImageNode({ image, isSelected, locked = false, zoom =
   const handleTouchEnd = (e) => {
     if (!dragStart.current) return;
     e.stopPropagation();
-    if (!dragStart.current.moved && Date.now() - dragStart.current.time < 500) onSelect?.();
+    if (!dragStart.current.moved && Date.now() - dragStart.current.time < 500) maybeSelect();
     dragStart.current = null;
   };
 
@@ -81,30 +89,32 @@ export default function MapImageNode({ image, isSelected, locked = false, zoom =
   };
 
   const cx = x + width / 2, cy = y + height / 2;
+  // Only show the selection chrome if this image is actually selectable
+  // (never in view mode — the image is display-only there).
+  const showSelection = isSelected && selectable;
   return (
     <g transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined} style={{ touchAction: "none" }}>
       {resolvedUrl ? (
         <image href={resolvedUrl} x={x} y={y} width={width} height={height} opacity={opacity} preserveAspectRatio="xMidYMid slice"
-          style={{ cursor: locked ? "default" : "grab" }}
+          style={{ cursor: locked ? (selectable ? "pointer" : "default") : "grab" }}
           onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} />
       ) : (
         <rect x={x} y={y} width={width} height={height} fill="var(--color-muted)" opacity={0.3}
           onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} />
       )}
-      {isSelected && (
+      {showSelection && (
         <>
           <rect x={x} y={y} width={width} height={height} fill="none" stroke="#3b82f6" strokeWidth={2} strokeDasharray="6,3" pointerEvents="none" />
           {!locked && (
-            <>
-              <rect x={x + width - 18} y={y + height - 18} width={18} height={18} fill="#3b82f6" opacity={0.6} rx={2}
-                style={{ cursor: "se-resize", touchAction: "none" }} onMouseDown={handleResizeDown} onTouchStart={handleResizeTouch} />
-              <g onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }} onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }} style={{ cursor: "pointer" }}>
-                <rect x={x + 4} y={y + 4} width={22} height={22} rx={4} fill="#3b82f6" opacity={0.85} />
-                <text x={x + 15} y={y + 19} textAnchor="middle" fontSize={12} fill="white" pointerEvents="none">✎</text>
-              </g>
-            </>
+            <rect x={x + width - 18} y={y + height - 18} width={18} height={18} fill="#3b82f6" opacity={0.6} rx={2}
+              style={{ cursor: "se-resize", touchAction: "none" }} onMouseDown={handleResizeDown} onTouchStart={handleResizeTouch} />
           )}
-          {locked && <text x={x + 8} y={y + 20} fontSize={14} pointerEvents="none">🔒</text>}
+          {/* ✎ opens the editor (kept available even when locked, so you can unlock there). */}
+          <g onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }} onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }} style={{ cursor: "pointer" }}>
+            <rect x={x + 4} y={y + 4} width={22} height={22} rx={4} fill="#3b82f6" opacity={0.85} />
+            <text x={x + 15} y={y + 19} textAnchor="middle" fontSize={12} fill="white" pointerEvents="none">✎</text>
+          </g>
+          {locked && <text x={x + 30} y={y + 20} fontSize={13} pointerEvents="none">🔒</text>}
         </>
       )}
     </g>
