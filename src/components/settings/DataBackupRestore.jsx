@@ -94,7 +94,9 @@ const ENTITY_NAMES = [
   "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
-  "AlterRelationship", "RelationshipType", "InnerWorldLocation", "GroundingTechnique", "GroundingPreference",
+  "AlterRelationship", "RelationshipType", "InnerWorldLocation",
+  "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement",
+  "GroundingTechnique", "GroundingPreference",
   "SupportJournalEntry", "LearningProgress", "ReportTemplate", "ReportExport",
   "DiaryTemplate", "Reminder", "ReminderInstance", "Poll", "TriggerType",
   "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "GroceryList", "QuickAction",
@@ -117,7 +119,7 @@ function resolveCatDesc(cat, terms) {
 }
 
 const EXPORT_CATEGORIES = [
-  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner world" },
+  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers & placements" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
   { id: "checkins",      label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                                  desc: "Emotion & system check-ins" },
