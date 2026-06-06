@@ -640,7 +640,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "systemmap", sectionLabel: `${t.System} Map`,
       emoji: "🌌",
       title: "Inner World Canvas",
-      body: `Switch to the "Inner World" tab to arrange ${t.alter} nodes freely by dragging them. Long-press between two ${t.alters} to draw a relationship line. Tap any ${t.alter} node to highlight their connections. Use this canvas to map out your inner world however makes sense to your ${t.system}.`,
+      body: `Switch to the "Inner World" tab to lay out your inner world. Drag ${t.alters} to place them, build several separate maps, and stack named layers you can show/hide and reorder — the same ${t.alter} can sit on more than one layer. Tap an ${t.alter} to see their connections; double-tap one then tap another to link them.`,
       route: "/system-map", target: "system-map-canvas",
       look: `the map canvas — switch to "Inner World" tab and try dragging an ${t.alter} circle`, action: null,
     },

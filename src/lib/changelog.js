@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "feature",
+        text: "The inner-world map now supports multiple maps and layers — make separate maps, add named layers you can show/hide and reorder, and place the same alter on more than one layer. Your existing inner world moves into a default map automatically. (More coming: backdrop images and location links.)",
+      },
+      {
         type: "fix",
         text: "Animated GIFs now stay animated when used as a bio image or an inner-world map background — they were being flattened to a single still frame. (Avatars, banners, and posts already kept them moving.)",
       },
