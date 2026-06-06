@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "fix",
+        text: "PluralKit / Simply Plural sync no longer throws alters out of the folders and subsystems you organised them into — re-syncing now keeps your local grouping. (Use \"Replace all\" if you want the import to take over instead.)",
+      },
+      {
+        type: "improve",
+        text: "The push-notification test now shows the real error code when a send fails, making it easier to pin down a key or config problem.",
+      },
+      {
         type: "feature",
         text: "Instant friend notifications: when a friend you follow changes who's fronting, your phone is now alerted within seconds — even with the app fully closed — once you've turned on their bell and allowed notifications.",
       },

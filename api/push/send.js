@@ -34,7 +34,18 @@ export default async function handler(req, res) {
     if (err.statusCode === 410 || err.statusCode === 404) {
       return res.status(410).json({ error: 'Subscription expired' });
     }
-    console.error('[push/send]', err.message);
-    return res.status(500).json({ error: err.message });
+    // Surface the push service's REAL status + body so the client
+    // diagnostic can tell a VAPID key mismatch (usually 403 — the
+    // subscription was signed with a different public key than the
+    // server's VAPID pair) apart from a generic failure. Also echo the
+    // server's public key so the client can compare it to its build-time
+    // VITE_VAPID_PUBLIC_KEY even on failure.
+    console.error('[push/send]', err.statusCode, err.message, typeof err.body === 'string' ? err.body.slice(0, 200) : '');
+    return res.status(500).json({
+      error: err.message,
+      pushStatusCode: err.statusCode || null,
+      pushBody: typeof err.body === 'string' ? err.body.slice(0, 300) : null,
+      vapidPub: pub,
+    });
   }
 }

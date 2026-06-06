@@ -279,9 +279,16 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             Object.entries(match.custom_fields || {}).filter(([k]) => k.startsWith("_"))
           );
           mapped.custom_fields = { ...localOnly, ...(mapped.custom_fields || {}) };
-          // Never un-archive on re-import — preserve the local archive flag
-          // (the mapper hardcodes is_archived:false for the create path only).
-          const { is_archived, ...updatePayload } = mapped;
+          // Strip fields we must NOT overwrite on re-import:
+          //   is_archived — preserve the local archive flag (mapper hardcodes
+          //     false; only the create path should set it).
+          //   groups — preserve the alter's LOCAL folder / subsystem
+          //     membership. The user organises alters into local folders and
+          //     subsystems PK has no concept of; clobbering `groups` on every
+          //     sync threw alters out of their folders (silent data loss).
+          //     Groups are seeded only when CREATING a new alter below. Use
+          //     the "Replace all" mode if you want PK to be the authority.
+          const { is_archived, groups, ...updatePayload } = mapped;
           await localEntities.Alter.update(match.id, updatePayload);
           updated += 1;
         } else {
