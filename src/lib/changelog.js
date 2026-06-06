@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Inner-world map: you can now drop in backdrop images (placed behind everything — drag, resize, set opacity) and link a location to another map or layer (tap its ↗ badge to jump there).",
+      },
+      {
         type: "fix",
         text: "Inner-world map: your existing maps and locations now show immediately on first open after the update, instead of appearing blank until you tapped something. (Nothing was ever lost — it was a refresh timing issue.)",
       },

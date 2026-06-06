@@ -1,19 +1,23 @@
-// Inner-world map (v2) — layered, multi-map canvas built on the new data
-// model (src/lib/innerWorldModel.js + useInnerWorld). Replaces the legacy
-// single-placement InnerWorldMap.jsx in the Inner World tab; the old file is
-// kept untouched so the tab can be reverted in one line if needed.
+// Inner-world map (v2) — layered, multi-map canvas on the new data model
+// (innerWorldModel + useInnerWorld). Replaces the legacy single-placement
+// InnerWorldMap.jsx in the Inner World tab; the old file is kept untouched
+// so the tab can be reverted in one line.
 //
-// Increment 1 (this file): multiple maps (switch/create/rename/delete), layers
-// within a map (show/hide, reorder, rename, add/delete, pick the active one),
-// and the canvas rendering each visible layer's locations + alter placements
-// (an alter can be placed on multiple layers). Pan / zoom / drag ported from
-// v1. Backdrop images and location→map/layer links are follow-up increments
-// (2b / 2c) — the entities + hooks already exist for them.
+// Features:
+//   - Multiple maps (switch / create / rename / delete).
+//   - Layers within a map (show/hide, reorder, rename, add/delete, active).
+//   - Alter placements — an alter can be placed on multiple layers/maps.
+//   - Backdrop images (2b) — place images that aren't locations; they render
+//     BELOW locations + alters; drag/resize/opacity/rotation/reorder.
+//   - Location links (2c) — link a location to another map/layer; the ↗ badge
+//     jumps there.
+// Render order per visible layer (bottom→top): images → locations → alters;
+// relationship lines on top.
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
-import { useQueryClient } from "@tanstack/react-query";
-import { base44 } from "@/api/base44Client";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { base44, localEntities } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { useTerms } from "@/lib/useTerms";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
@@ -22,11 +26,12 @@ import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload,
-  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil,
+  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, Image as ImageIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ColorPicker from "@/components/shared/ColorPicker";
 import LocationNode from "./LocationNode";
+import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
 import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
 
@@ -34,15 +39,12 @@ const SNAP = 20;
 const NODE_RADIUS = 28;
 const snapVal = (v) => Math.round(v / SNAP) * SNAP;
 
-// ── Avatars (resolve legacy local-image:// before render) ────────────────────
-
 function UnplacedAlterAvatar({ alter }) {
   const resolved = useResolvedAvatarUrl(alter?.avatar_url);
   return resolved ? (
     <img src={resolved} className="w-6 h-6 rounded-full object-cover flex-shrink-0" onError={(e) => { e.currentTarget.style.display = "none"; }} />
   ) : (
-    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0"
-      style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
+    <div className="w-6 h-6 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0" style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 10 }}>
       {alter.name?.charAt(0)?.toUpperCase()}
     </div>
   );
@@ -53,14 +55,11 @@ function SelectedAlterAvatar({ alter }) {
   return resolved ? (
     <img src={resolved} className="w-8 h-8 rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = "none"; }} />
   ) : (
-    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold"
-      style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 12 }}>
+    <div className="w-8 h-8 rounded-full flex items-center justify-center text-white font-bold" style={{ backgroundColor: alter.color || "#8b5cf6", fontSize: 12 }}>
       {alter.name?.charAt(0)?.toUpperCase()}
     </div>
   );
 }
-
-// ── Alter node (position comes from a PLACEMENT, not the alter record) ────────
 
 function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDoubleTap, onDragEnd, zoom }) {
   const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
@@ -87,14 +86,8 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
         }
       } else {
         const now = Date.now();
-        if (now - tapRef.current.time < 300) {
-          clearTimeout(tapRef.current.timer);
-          tapRef.current.time = 0;
-          onDoubleTap();
-        } else {
-          tapRef.current.time = now;
-          tapRef.current.timer = setTimeout(() => onTap(), 310);
-        }
+        if (now - tapRef.current.time < 300) { clearTimeout(tapRef.current.timer); tapRef.current.time = 0; onDoubleTap(); }
+        else { tapRef.current.time = now; tapRef.current.timer = setTimeout(() => onTap(), 310); }
       }
       dragRef.current = null;
       window.removeEventListener("mousemove", onMove);
@@ -103,7 +96,6 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-
   const handleTouchStart = (e) => {
     e.stopPropagation(); e.preventDefault();
     const t = e.touches[0];
@@ -132,35 +124,21 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
     } else if (elapsed < 500) {
       dragRef.current = null;
       const now = Date.now();
-      if (now - touchTapRef.current.time < 300) {
-        clearTimeout(touchTapRef.current.timer);
-        touchTapRef.current.time = 0;
-        onDoubleTap();
-      } else {
-        touchTapRef.current.time = now;
-        touchTapRef.current.timer = setTimeout(() => onTap(), 310);
-      }
-    } else {
-      dragRef.current = null;
-    }
+      if (now - touchTapRef.current.time < 300) { clearTimeout(touchTapRef.current.timer); touchTapRef.current.time = 0; onDoubleTap(); }
+      else { touchTapRef.current.time = now; touchTapRef.current.timer = setTimeout(() => onTap(), 310); }
+    } else { dragRef.current = null; }
   };
 
   const ringColor = isRelMode ? "#f59e0b" : isSelected ? "#3b82f6" : "transparent";
   return (
-    <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-      style={{ cursor: locked ? "default" : "grab", touchAction: "none" }}>
+    <g onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} style={{ cursor: locked ? "default" : "grab", touchAction: "none" }}>
       <circle cx={x} cy={y} r={NODE_RADIUS + 18} fill="transparent" />
-      {(isSelected || isRelMode) && (
-        <circle cx={x} cy={y} r={NODE_RADIUS + 5} fill="none" stroke={ringColor} strokeWidth={2.5} opacity={0.8} />
-      )}
+      {(isSelected || isRelMode) && <circle cx={x} cy={y} r={NODE_RADIUS + 5} fill="none" stroke={ringColor} strokeWidth={2.5} opacity={0.8} />}
       <circle cx={x} cy={y} r={NODE_RADIUS} fill={alter.color || "#8b5cf6"} opacity={0.9} />
       {resolvedAvatar ? (
-        <image x={x - NODE_RADIUS + 2} y={y - NODE_RADIUS + 2} width={(NODE_RADIUS - 2) * 2} height={(NODE_RADIUS - 2) * 2}
-          href={resolvedAvatar} preserveAspectRatio="xMidYMid slice" style={{ clipPath: `circle(${NODE_RADIUS - 2}px)` }} />
+        <image x={x - NODE_RADIUS + 2} y={y - NODE_RADIUS + 2} width={(NODE_RADIUS - 2) * 2} height={(NODE_RADIUS - 2) * 2} href={resolvedAvatar} preserveAspectRatio="xMidYMid slice" style={{ clipPath: `circle(${NODE_RADIUS - 2}px)` }} />
       ) : (
-        <text x={x} y={y + 5} textAnchor="middle" fontSize={14} fontWeight="bold" fill="white" pointerEvents="none">
-          {alter.name?.charAt(0)?.toUpperCase()}
-        </text>
+        <text x={x} y={y + 5} textAnchor="middle" fontSize={14} fontWeight="bold" fill="white" pointerEvents="none">{alter.name?.charAt(0)?.toUpperCase()}</text>
       )}
       <text x={x} y={y + NODE_RADIUS + 13} textAnchor="middle" fontSize={10} fill="var(--color-text-primary)" pointerEvents="none" style={{ userSelect: "none" }}>
         {alter.name?.length > 14 ? alter.name.slice(0, 12) + "…" : alter.name}
@@ -170,8 +148,6 @@ function AlterNode({ alter, x, y, locked, isSelected, isRelMode, onTap, onDouble
   );
 }
 
-// ── Relationship lines (positions come from a posById map of placements) ──────
-
 function RelationshipLines({ relationships, posById, relMode, selectedAlterId, onRelClick }) {
   if (relMode === "none") return null;
   const visibleRels = (relMode === "selected"
@@ -180,10 +156,7 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
   ).filter((r) => posById[r.alter_id_a] && posById[r.alter_id_b]);
 
   const pairGroups = {};
-  visibleRels.forEach((rel) => {
-    const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
-    (pairGroups[key] = pairGroups[key] || []).push(rel);
-  });
+  visibleRels.forEach((rel) => { const key = [rel.alter_id_a, rel.alter_id_b].sort().join("-"); (pairGroups[key] = pairGroups[key] || []).push(rel); });
 
   const lines = [];
   visibleRels.forEach((rel) => {
@@ -195,8 +168,7 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
     const baseOffset = (relIndex - (pairRels.length - 1) / 2) * 10;
     const dx = b.x - a.x, dy = b.y - a.y;
     const len = Math.sqrt(dx * dx + dy * dy) || 1;
-    const perpX = -dy / len, perpY = dx / len;
-    const ox = perpX * baseOffset, oy = perpY * baseOffset;
+    const ox = (-dy / len) * baseOffset, oy = (dx / len) * baseOffset;
     const color = rel.color || "#6b7280";
     const title = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
     const markerId = `iw2arrow-${rel.id}`;
@@ -204,7 +176,7 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
 
     if (rel.direction === "b_to_a") {
       lines.push(
-        <g key={`${rel.id}`} style={{ cursor: "pointer" }} onClick={handleClick}>
+        <g key={rel.id} style={{ cursor: "pointer" }} onClick={handleClick}>
           <line x1={b.x + ox} y1={b.y + oy} x2={a.x + ox} y2={a.y + oy} stroke="transparent" strokeWidth={12} />
           <line x1={b.x + ox} y1={b.y + oy} x2={a.x + ox} y2={a.y + oy} stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`}><title>{title}</title></line>
         </g>
@@ -212,11 +184,9 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
     } else if (rel.direction === "bidirectional") {
       const startId = `${markerId}-start`;
       lines.push(
-        <React.Fragment key={`${rel.id}`}>
+        <React.Fragment key={rel.id}>
           <defs>
-            <marker id={startId} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto-start-reverse">
-              <path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} />
-            </marker>
+            <marker id={startId} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto-start-reverse"><path d="M0,0 L0,6 L8,3 z" fill={color} opacity={0.9} /></marker>
           </defs>
           <g style={{ cursor: "pointer" }} onClick={handleClick}>
             <line x1={a.x + ox} y1={a.y + oy} x2={b.x + ox} y2={b.y + oy} stroke="transparent" strokeWidth={12} />
@@ -226,7 +196,7 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
       );
     } else {
       lines.push(
-        <g key={`${rel.id}`} style={{ cursor: "pointer" }} onClick={handleClick}>
+        <g key={rel.id} style={{ cursor: "pointer" }} onClick={handleClick}>
           <line x1={a.x + ox} y1={a.y + oy} x2={b.x + ox} y2={b.y + oy} stroke="transparent" strokeWidth={12} />
           <line x1={a.x + ox} y1={a.y + oy} x2={b.x + ox} y2={b.y + oy} stroke={color} strokeWidth={2} opacity={0.75} markerEnd={`url(#${markerId})`}><title>{title}</title></line>
         </g>
@@ -238,9 +208,7 @@ function RelationshipLines({ relationships, posById, relMode, selectedAlterId, o
     <g>
       <defs>
         {visibleRels.map((rel) => (
-          <marker key={`arr-${rel.id}`} id={`iw2arrow-${rel.id}`} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto">
-            <path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.9} />
-          </marker>
+          <marker key={`arr-${rel.id}`} id={`iw2arrow-${rel.id}`} markerWidth="8" markerHeight="6" refX={NODE_RADIUS + 6} refY="3" orient="auto"><path d="M0,0 L0,6 L8,3 z" fill={rel.color || "#6b7280"} opacity={0.9} /></marker>
         ))}
       </defs>
       {lines}
@@ -272,8 +240,6 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
   );
 }
 
-// ── Main component ───────────────────────────────────────────────────────────
-
 export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships }) {
   const terms = useTerms();
   const navigate = useNavigate();
@@ -281,6 +247,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const svgRef = useRef(null);
   const mapContainerRef = useRef(null);
   const bgFileRef = useRef(null);
+  const imgFileRef = useRef(null);
+  const replaceImgFileRef = useRef(null);
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
   const justSelectedRef = useRef(false);
@@ -288,12 +256,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
   const { maps, createMap, renameMap, deleteMap } = useInnerWorldMaps();
   const [activeMapId, setActiveMapId] = useState(null);
-  useEffect(() => {
-    if (maps.length && !maps.find((m) => m.id === activeMapId)) setActiveMapId(maps[0].id);
-  }, [maps, activeMapId]);
+  useEffect(() => { if (maps.length && !maps.find((m) => m.id === activeMapId)) setActiveMapId(maps[0].id); }, [maps, activeMapId]);
 
   const iw = useInnerWorld(activeMapId);
-  const { layers, locations, placements } = iw;
+  const { layers, locations, placements, images } = iw;
+  // All layers across all maps — for the location-link target picker + jumps.
+  const { data: allLayers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => localEntities.InnerWorldLayer.list() });
 
   const [activeLayerId, setActiveLayerId] = useState(null);
   useEffect(() => {
@@ -320,23 +288,20 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [resolvedEditBgUrl, setResolvedEditBgUrl] = useState(null);
   const [relPopover, setRelPopover] = useState(null);
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [editingImage, setEditingImage] = useState(null);
+
+  // Opening one editor closes the others so only one side panel shows.
+  const openLocationEditor = (loc) => { setSelectedLocation(loc); setEditingLocation(loc); setEditingImage(null); setSelectedImage(null); };
+  const openImageEditor = (im) => { setSelectedImage(im); setEditingImage(im); setEditingLocation(null); setSelectedLocation(null); };
 
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map((a) => [a.id, a])), [allAlters]);
   const visibleLayerIds = useMemo(() => new Set(layers.filter((l) => l.is_visible).map((l) => l.id)), [layers]);
   const layersBottomToTop = useMemo(() => [...layers].sort((a, b) => (a.order || 0) - (b.order || 0)), [layers]);
 
-  // Placements on the active layer (for the "unplaced" calc) and all visible
-  // placements (for rendering). One alter can have several placements.
-  const alterIdsOnActiveLayer = useMemo(
-    () => new Set(placements.filter((p) => p.layer_id === activeLayerId).map((p) => p.alter_id)),
-    [placements, activeLayerId]
-  );
-  const unplacedAlters = useMemo(
-    () => allAlters.filter((a) => !a.is_archived && !alterIdsOnActiveLayer.has(a.id)),
-    [allAlters, alterIdsOnActiveLayer]
-  );
+  const alterIdsOnActiveLayer = useMemo(() => new Set(placements.filter((p) => p.layer_id === activeLayerId).map((p) => p.alter_id)), [placements, activeLayerId]);
+  const unplacedAlters = useMemo(() => allAlters.filter((a) => !a.is_archived && !alterIdsOnActiveLayer.has(a.id)), [allAlters, alterIdsOnActiveLayer]);
 
-  // posById for relationship lines — prefer a placement on a visible layer.
   const posById = useMemo(() => {
     const m = {};
     for (const p of placements) {
@@ -359,10 +324,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     e.preventDefault();
     if (e.touches.length === 2) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
-      if (lastPinchRef.current !== null) {
-        const delta = dist / lastPinchRef.current;
-        setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * delta)) }));
-      }
+      if (lastPinchRef.current !== null) { const delta = dist / lastPinchRef.current; setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * delta)) })); }
       lastPinchRef.current = dist;
     } else if (e.touches.length === 1 && isDragging) {
       const dx = Math.abs(e.touches[0].clientX - (dragStart.x + transform.x));
@@ -380,13 +342,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       if (dx <= 8 && dy <= 8) {
         if (placingAlter && e.target === svgRef.current) {
           const rect = svgRef.current.getBoundingClientRect();
-          const nx = (touch.clientX - rect.left - transform.x) / transform.scale;
-          const ny = (touch.clientY - rect.top - transform.y) / transform.scale;
-          placeAt(placingAlter, nx, ny);
+          placeAt(placingAlter, (touch.clientX - rect.left - transform.x) / transform.scale, (touch.clientY - rect.top - transform.y) / transform.scale);
           setPlacingAlter(null);
-        } else {
-          setRelPopover(null);
-        }
+        } else { setRelPopover(null); }
       }
     }
     setIsDragging(false);
@@ -406,11 +364,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     setTransform((t) => ({ ...t, x: e.clientX - dragStart.x, y: e.clientY - dragStart.y }));
   };
   const handleMouseUp = () => setIsDragging(false);
-  const handleWheel = useCallback((e) => {
-    e.preventDefault();
-    const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * delta)) }));
-  }, []);
+  const handleWheel = useCallback((e) => { e.preventDefault(); const delta = e.deltaY > 0 ? 0.9 : 1.1; setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * delta)) })); }, []);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -436,29 +390,20 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     resolveImageUrl(url).then(setResolvedEditBgUrl);
   }, [editingLocation?.background_image_url]);
 
-  // ── Placement helpers ──
+  // ── Placements ──
   const placeAt = useCallback(async (alter, nx, ny) => {
     if (!activeLayerId) { toast.error("Add a layer first"); return; }
-    const fx = snapToGrid ? snapVal(nx) : nx;
-    const fy = snapToGrid ? snapVal(ny) : ny;
-    await iw.placeAlter(alter.id, activeLayerId, fx, fy);
+    await iw.placeAlter(alter.id, activeLayerId, snapToGrid ? snapVal(nx) : nx, snapToGrid ? snapVal(ny) : ny);
   }, [activeLayerId, snapToGrid, iw]);
-
   const movePlacement = useCallback(async (placement, nx, ny) => {
-    const fx = snapToGrid ? snapVal(nx) : nx;
-    const fy = snapToGrid ? snapVal(ny) : ny;
-    await iw.moveAlterPlacement(placement.id, fx, fy);
+    await iw.moveAlterPlacement(placement.id, snapToGrid ? snapVal(nx) : nx, snapToGrid ? snapVal(ny) : ny);
   }, [snapToGrid, iw]);
-
   const handleSvgDrop = (e) => {
     e.preventDefault();
-    const alterId = e.dataTransfer.getData("alterId");
-    const alter = allAlters.find((a) => a.id === alterId);
+    const alter = allAlters.find((a) => a.id === e.dataTransfer.getData("alterId"));
     if (!alter) return;
     const rect = svgRef.current.getBoundingClientRect();
-    const nx = (e.clientX - rect.left - transform.x) / transform.scale;
-    const ny = (e.clientY - rect.top - transform.y) / transform.scale;
-    placeAt(alter, nx, ny);
+    placeAt(alter, (e.clientX - rect.left - transform.x) / transform.scale, (e.clientY - rect.top - transform.y) / transform.scale);
   };
 
   // ── Locations ──
@@ -467,12 +412,51 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     const cx = (-transform.x / transform.scale) + 200;
     const cy = (-transform.y / transform.scale) + 200;
     const loc = await iw.createLocation(activeLayerId, { name: "New Location", color: "#6366f1", x: cx, y: cy, order: locations.length });
-    setSelectedLocation(loc);
-    setEditingLocation(loc);
+    openLocationEditor(loc);
   };
   const updateLocation = useCallback((loc, fields) => iw.updateLocation(loc.id, fields), [iw]);
 
-  // ── Alter tap handlers ──
+  const jumpToLink = useCallback((location) => {
+    const link = iw.resolveLocationLink(location);
+    if (!link) return;
+    if (link.type === "map") { setActiveMapId(link.id); setActiveLayerId(null); }
+    else if (link.type === "layer") {
+      const layer = allLayers.find((l) => l.id === link.id);
+      if (layer) { setActiveMapId(layer.map_id); setActiveLayerId(layer.id); }
+    }
+    setSelectedLocation(null); setEditingLocation(null); setSelectedImage(null); setEditingImage(null);
+  }, [iw, allLayers]);
+
+  // ── Images (backdrops) ──
+  const addImage = () => { if (!activeLayerId) { toast.error("Add a layer first"); return; } imgFileRef.current?.click(); };
+  const uploadImage = async (file) => {
+    const { processUploadedImage, saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
+    const { dataUrl } = await processUploadedImage(file, 1600, 0.85);
+    if (isLocalMode()) {
+      const id = `iw-image-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(id, dataUrl);
+      return createLocalImageUrl(id);
+    }
+    return dataUrl;
+  };
+  const handleAddImageFile = async (e) => {
+    const file = e.target.files?.[0]; if (!file || !activeLayerId) return;
+    e.target.value = "";
+    const url = await uploadImage(file);
+    const cx = (-transform.x / transform.scale) + 220;
+    const cy = (-transform.y / transform.scale) + 220;
+    const img = await iw.createImage(activeLayerId, { image_url: url, x: cx, y: cy, width: 320, height: 220 });
+    openImageEditor(img);
+  };
+  const handleReplaceImageFile = async (e) => {
+    const file = e.target.files?.[0]; if (!file || !editingImage) return;
+    e.target.value = "";
+    const url = await uploadImage(file);
+    setEditingImage((im) => ({ ...im, image_url: url }));
+    iw.updateImage(editingImage.id, { image_url: url });
+  };
+
+  // ── Alter taps / relationships ──
   const handleAlterTap = (alter) => {
     justSelectedRef.current = true;
     setTimeout(() => { justSelectedRef.current = false; }, 50);
@@ -480,9 +464,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       if (relModeAlter.id === alter.id) { setRelModeAlter(null); return; }
       setCreateRelModal({ alterA: relModeAlter, alterB: alter });
       setRelModeAlter(null);
-    } else {
-      setSelectedAlter((prev) => (prev?.id === alter.id ? null : alter));
-    }
+    } else { setSelectedAlter((prev) => (prev?.id === alter.id ? null : alter)); }
   };
   const handleAlterDoubleTap = (alter) => { setRelModeAlter((prev) => (prev?.id === alter.id ? null : alter)); setSelectedAlter(null); };
   const handleSaveRelationship = async (data) => {
@@ -496,19 +478,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     const file = e.target.files?.[0];
     if (!file || !editingLocation) return;
     e.target.value = "";
-    const { processUploadedImage, saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
-    const { dataUrl } = await processUploadedImage(file, 1200, 0.8);
-    let imageUrl = dataUrl;
-    if (isLocalMode()) {
-      const imageId = `location-bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveLocalImage(imageId, dataUrl);
-      imageUrl = createLocalImageUrl(imageId);
-    }
-    setEditingLocation((l) => ({ ...l, background_image_url: imageUrl }));
-    updateLocation(editingLocation, { background_image_url: imageUrl });
+    const url = await uploadImage(file);
+    setEditingLocation((l) => ({ ...l, background_image_url: url }));
+    updateLocation(editingLocation, { background_image_url: url });
   };
 
   const activeMap = maps.find((m) => m.id === activeMapId);
+  const linkValue = editingLocation?.link_target_type ? `${editingLocation.link_target_type}:${editingLocation.link_target_id}` : "";
 
   return (
     <div className="relative w-full h-full flex flex-col" style={{ touchAction: "none" }}>
@@ -521,16 +497,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           </button>
         ))}
         <button onClick={async () => { const name = window.prompt("New map name", "New map"); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
-          className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map">
-          <Plus className="w-3.5 h-3.5" />
-        </button>
+          className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map"><Plus className="w-3.5 h-3.5" /></button>
         {activeMap && (
           <>
-            <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }}
-              className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
+            <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
             {maps.length > 1 && (
-              <button onClick={async () => { if (window.confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`)) { await deleteMap(activeMap.id); setActiveMapId(null); } }}
-                className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
+              <button onClick={async () => { if (window.confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`)) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
             )}
           </>
         )}
@@ -545,40 +517,30 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <button onClick={() => setPanelOpen(false)} className="text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
             </div>
             <div className="p-2 space-y-1 border-b border-border/40">
-              {/* top layer first in the list */}
               {[...layersBottomToTop].reverse().map((layer, idxFromTop) => {
                 const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
                 return (
-                  <div key={layer.id}
-                    onClick={() => setActiveLayerId(layer.id)}
+                  <div key={layer.id} onClick={() => setActiveLayerId(layer.id)}
                     className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/50 bg-primary/10" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
                     <button onClick={(e) => { e.stopPropagation(); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
                       {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
                     </button>
                     <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}</span>
-                    <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }}
-                      disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }}
-                      disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
-                    <button onClick={async (e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }}
-                      className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
+                    <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
                     {layers.length > 1 && (
-                      <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete layer "${layer.name}" and everything on it?`)) iw.deleteLayer(layer.id); }}
-                        className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
+                      <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete layer "${layer.name}" and everything on it?`)) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
                     )}
                   </div>
                 );
               })}
-              <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }}
-                className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30">
-                <Plus className="w-3 h-3" /> Add layer
-              </button>
+              <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
             </div>
             <div className="px-2 py-1.5 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer</div>
             <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
               {unplacedAlters.map((alter) => (
-                <div key={alter.id} draggable onDragStart={(e) => e.dataTransfer.setData("alterId", alter.id)}
-                  onClick={() => setPlacingAlter(alter)}
+                <div key={alter.id} draggable onDragStart={(e) => e.dataTransfer.setData("alterId", alter.id)} onClick={() => setPlacingAlter(alter)}
                   className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${placingAlter?.id === alter.id ? "border-primary/60 bg-primary/15 animate-pulse" : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"}`}>
                   <UnplacedAlterAvatar alter={alter} />
                   <span className="text-xs text-foreground truncate">{alter.name}</span>
@@ -588,9 +550,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </div>
           </div>
         ) : (
-          <button onClick={() => setPanelOpen(true)} title="Show layers" className="flex-shrink-0 w-8 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 z-10">
-            <LayersIcon className="w-4 h-4 text-muted-foreground" />
-          </button>
+          <button onClick={() => setPanelOpen(true)} title="Show layers" className="flex-shrink-0 w-8 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 z-10"><LayersIcon className="w-4 h-4 text-muted-foreground" /></button>
         )}
 
         {placingAlter && (
@@ -601,47 +561,56 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         )}
 
         {/* SVG canvas */}
-        <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden"
-          style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
-          <svg ref={svgRef} className="w-full h-full"
-            style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
+        <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+          <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
             onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
-            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd}
-            onDrop={handleSvgDrop} onDragOver={(e) => e.preventDefault()}
+            onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onDrop={handleSvgDrop} onDragOver={(e) => e.preventDefault()}
             onClick={(e) => {
               if (justSelectedRef.current) return;
               if (e.target.tagName === "svg" && e.target === svgRef.current) {
                 if (placingAlter) {
                   const rect = svgRef.current.getBoundingClientRect();
-                  const nx = (e.clientX - rect.left - transform.x) / transform.scale;
-                  const ny = (e.clientY - rect.top - transform.y) / transform.scale;
-                  placeAt(placingAlter, nx, ny);
+                  placeAt(placingAlter, (e.clientX - rect.left - transform.x) / transform.scale, (e.clientY - rect.top - transform.y) / transform.scale);
                   setPlacingAlter(null);
-                } else { setRelPopover(null); setSelectedLocation(null); }
+                } else { setRelPopover(null); setSelectedLocation(null); setSelectedImage(null); }
               }
             }}>
             <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
-              {/* Layers bottom → top: locations then alter placements */}
               {layersBottomToTop.filter((l) => l.is_visible).map((layer) => (
                 <g key={layer.id}>
-                  {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
-                    <LocationNode key={loc.id} location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={false}
-                      onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
-                      onDoubleSelect={() => { if (!panMovedRef.current) { setSelectedLocation(loc); setEditingLocation(loc); } }}
-                      onLongPress={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
-                      onEdit={() => { setSelectedLocation(loc); setEditingLocation(loc); }}
-                      onUpdate={(fields) => updateLocation(loc, fields)}
-                      onDelete={() => iw.deleteLocation(loc.id)} />
+                  {/* Backdrop images — below locations + alters */}
+                  {images.filter((im) => im.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((im) => (
+                    <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} zoom={transform.scale}
+                      onSelect={() => { if (!panMovedRef.current) { setSelectedImage(im); setEditingLocation(null); setSelectedLocation(null); } }}
+                      onUpdate={(fields) => iw.updateImage(im.id, fields)}
+                      onEdit={() => openImageEditor(im)} />
                   ))}
+                  {/* Locations */}
+                  {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
+                    <g key={loc.id}>
+                      <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={false}
+                        onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
+                        onDoubleSelect={() => { if (!panMovedRef.current) openLocationEditor(loc); }}
+                        onLongPress={() => openLocationEditor(loc)}
+                        onEdit={() => openLocationEditor(loc)}
+                        onUpdate={(fields) => updateLocation(loc, fields)}
+                        onDelete={() => iw.deleteLocation(loc.id)} />
+                      {loc.link_target_type && (
+                        <g onClick={(e) => { e.stopPropagation(); jumpToLink(loc); }} style={{ cursor: "pointer" }}>
+                          <circle cx={(loc.x || 0) + 14} cy={(loc.y || 0) + (loc.height || 150) - 14} r={11} fill="#3b82f6" opacity={0.9} />
+                          <text x={(loc.x || 0) + 14} y={(loc.y || 0) + (loc.height || 150) - 10} textAnchor="middle" fontSize={12} fill="white" pointerEvents="none">↗</text>
+                        </g>
+                      )}
+                    </g>
+                  ))}
+                  {/* Alter placements */}
                   {placements.filter((p) => p.layer_id === layer.id).map((p) => {
                     const alter = alterMap[p.alter_id];
                     if (!alter || alter.is_archived) return null;
                     return (
                       <g key={p.id}>
-                        <AlterNode alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={p.is_locked}
-                          isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
-                          onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)}
-                          onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
+                        <AlterNode alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={p.is_locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
+                          onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)} onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
                         <g onClick={() => iw.removePlacement(p.id)} style={{ cursor: "pointer" }}>
                           <circle cx={(p.x ?? 0) + NODE_RADIUS} cy={(p.y ?? 0) - NODE_RADIUS} r={12} fill="#ef4444" opacity={0.85} />
                           <text x={(p.x ?? 0) + NODE_RADIUS} y={(p.y ?? 0) - NODE_RADIUS + 4} textAnchor="middle" fontSize={10} fill="white" pointerEvents="none">×</text>
@@ -651,7 +620,6 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                   })}
                 </g>
               ))}
-
               <RelationshipLines relationships={relationships} posById={posById} relMode={relMode} selectedAlterId={selectedAlter?.id}
                 onRelClick={(rel, e) => { const rect = svgRef.current?.getBoundingClientRect(); setRelPopover({ rel, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) }); }} />
             </g>
@@ -665,17 +633,16 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
           {/* Toolbar */}
           <div className="absolute top-3 right-3 flex flex-col gap-1 z-20">
-            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}>
-              <Plus className="w-3 h-3" /> Location
-            </Button>
-            <button onClick={() => setSnapToGrid((v) => !v)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
-              <Grid className="w-3 h-3" /> Snap
-            </button>
+            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}><Plus className="w-3 h-3" /> Location</Button>
+            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addImage}><ImageIcon className="w-3 h-3" /> Image</Button>
+            <button onClick={() => setSnapToGrid((v) => !v)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}><Grid className="w-3 h-3" /> Snap</button>
             <button onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${relMode !== "none" ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
               {relMode === "all" ? <Eye className="w-3 h-3" /> : relMode === "selected" ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               {relMode === "all" ? "Rels: All" : relMode === "selected" ? "Rels: Selected" : "Rels: Hidden"}
             </button>
           </div>
+          <input ref={imgFileRef} type="file" accept="image/*" hidden onChange={handleAddImageFile} />
+          <input ref={replaceImgFileRef} type="file" accept="image/*" hidden onChange={handleReplaceImageFile} />
 
           {/* Zoom controls */}
           <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
@@ -684,6 +651,34 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5" /></Button>
           </div>
 
+          {/* Backdrop image edit panel */}
+          {editingImage && (
+            <div className="absolute right-3 top-32 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-160px)] overflow-y-auto">
+              <div className="flex items-center justify-between">
+                <p className="text-xs font-semibold text-foreground">Edit Backdrop Image</p>
+                <button onClick={() => { setEditingImage(null); setSelectedImage(null); }}><X className="w-3 h-3 text-muted-foreground" /></button>
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Opacity</p><span className="text-xs font-mono text-muted-foreground">{Math.round((editingImage.opacity ?? 1) * 100)}%</span></div>
+                <input type="range" min={0.1} max={1} step={0.05} value={editingImage.opacity ?? 1} onChange={(e) => { const v = parseFloat(e.target.value); setEditingImage((im) => ({ ...im, opacity: v })); iw.updateImage(editingImage.id, { opacity: v }); }} className="w-full accent-primary" />
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Rotation</p><span className="text-xs font-mono text-muted-foreground">{Math.round(editingImage.rotation ?? 0)}°</span></div>
+                <input type="range" min={0} max={360} step={1} value={editingImage.rotation ?? 0} onChange={(e) => { const v = parseInt(e.target.value, 10); setEditingImage((im) => ({ ...im, rotation: v })); iw.updateImage(editingImage.id, { rotation: v }); }} className="w-full accent-primary" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-xs text-muted-foreground">Stacking (within layer)</p>
+                <div className="flex gap-1">
+                  <button onClick={() => { const o = (editingImage.order || 0) + 1; setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↑ Forward</button>
+                  <button onClick={() => { const o = Math.max(0, (editingImage.order || 0) - 1); setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↓ Back</button>
+                </div>
+              </div>
+              <button onClick={() => replaceImgFileRef.current?.click()} className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 text-muted-foreground"><Upload className="w-3 h-3" /> Replace image</button>
+              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { iw.deleteImage(editingImage.id); setEditingImage(null); setSelectedImage(null); }}>Remove image</Button>
+              <p className="text-[0.625rem] text-muted-foreground/70">Drag to move; drag the corner handle to resize.</p>
+            </div>
+          )}
+
           {/* Location edit sidebar */}
           {editingLocation && (
             <div className="absolute right-3 top-32 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-160px)] overflow-y-auto">
@@ -691,10 +686,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
                 <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
               </div>
-              <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }}
-                placeholder="Name" className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
-              <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }}
-                className="w-full h-7 px-2 text-xs border border-border rounded bg-background">
+              <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
+              <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }} className="w-full h-7 px-2 text-xs border border-border rounded bg-background">
                 <option value="rectangle">Rectangle</option>
                 <option value="oval">Oval</option>
               </select>
@@ -704,25 +697,33 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Background image</p>
-                <button onClick={() => bgFileRef.current?.click()} className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 hover:bg-muted/30 text-muted-foreground">
-                  <Upload className="w-3 h-3" /> Upload image
-                </button>
+                <button onClick={() => bgFileRef.current?.click()} className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 hover:bg-muted/30 text-muted-foreground"><Upload className="w-3 h-3" /> Upload image</button>
                 <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
                 {editingLocation.background_image_url && (
                   <div className="relative">
                     <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg" className="w-full h-16 object-cover rounded border border-border" />
                     <div className="absolute bottom-1 left-1">
-                      <LocalImageFixer value={editingLocation.background_image_url} maxWidth={1200} quality={0.8}
-                        onFixed={(url) => { setEditingLocation((l) => ({ ...l, background_image_url: url })); updateLocation(editingLocation, { background_image_url: url }); }} />
+                      <LocalImageFixer value={editingLocation.background_image_url} maxWidth={1200} quality={0.8} onFixed={(url) => { setEditingLocation((l) => ({ ...l, background_image_url: url })); updateLocation(editingLocation, { background_image_url: url }); }} />
                     </div>
                   </div>
                 )}
               </div>
-              <textarea value={editingLocation.description || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, description: v })); updateLocation(editingLocation, { description: v }); }}
-                placeholder="Description..." rows={2} className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
-              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { if (window.confirm("Delete this location?")) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>
-                Delete Location
-              </Button>
+              <textarea value={editingLocation.description || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, description: v })); updateLocation(editingLocation, { description: v }); }} placeholder="Description..." rows={2} className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
+              {/* Link to another map / layer */}
+              <div className="space-y-1 pt-1 border-t border-border/40">
+                <p className="text-xs text-muted-foreground">Tapping the ↗ jumps to…</p>
+                <select value={linkValue} onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) { setEditingLocation((l) => ({ ...l, link_target_type: null, link_target_id: null })); iw.clearLocationLink(editingLocation.id); return; }
+                  const [type, id] = v.split(":");
+                  setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(editingLocation.id, type, id);
+                }} className="w-full h-7 px-2 text-xs border border-border rounded bg-background">
+                  <option value="">Nothing (no link)</option>
+                  {maps.filter((m) => m.id !== activeMapId).map((m) => <option key={`map:${m.id}`} value={`map:${m.id}`}>Map: {m.name}</option>)}
+                  {allLayers.filter((l) => l.map_id !== activeMapId).map((l) => { const mp = maps.find((mm) => mm.id === l.map_id); return <option key={`layer:${l.id}`} value={`layer:${l.id}`}>Layer: {mp?.name ? mp.name + " / " : ""}{l.name}</option>; })}
+                </select>
+              </div>
+              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { if (window.confirm("Delete this location?")) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>Delete Location</Button>
             </div>
           )}
 
@@ -744,8 +745,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
           {/* Alter detail panel */}
           {selectedAlter && !relModeAlter && (
-            <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto"
-              onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+            <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2"><SelectedAlterAvatar alter={selectedAlter} /><p className="text-sm font-semibold">{selectedAlter.name}</p></div>
                 <button onClick={() => setSelectedAlter(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
@@ -762,9 +762,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />
       )}
       {editingRelFromPopover && (
-        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap}
-          onClose={() => setEditingRelFromPopover(null)}
-          onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
+        <EditRelFromPopover rel={editingRelFromPopover} alterMap={alterMap} onClose={() => setEditingRelFromPopover(null)} onSaved={() => { queryClient.invalidateQueries({ queryKey: ["alterRelationships"] }); onRefreshRelationships?.(); setEditingRelFromPopover(null); }} />
       )}
     </div>
   );
