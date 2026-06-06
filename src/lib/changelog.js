@@ -19,6 +19,10 @@ export const CHANGELOG = [
         type: "feature",
         text: "Locations now have their own profile pages (like alter and group profiles) — see a location's description, which alters and sub-locations are inside it, and its map link. Open one from a location's editor, the Relationships & Locations list, or search.",
       },
+      {
+        type: "improve",
+        text: "Location profile pages now use the same look and feel as alter and group profiles — themed banner, page background, custom fonts and colours, and a rich description editor.",
+      },
     ],
   },
   {
