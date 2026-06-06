@@ -439,7 +439,23 @@ export default function DataBackupRestore() {
       importLocalSettings(localSettings);
     }
     if (importMode === "replace") {
-      await loadDbDump(data);
+      // Device-bound entities (FriendIdentity, PushSubscription) are
+      // deliberately excluded from backups so they can't be restored onto a
+      // DIFFERENT device and impersonate the user. But a Replace-All restore
+      // must still PRESERVE them on THIS device — wiping the FriendIdentity
+      // deletes the user's Friends profile, forcing a re-register that mints
+      // a brand-new server userId and leaves a duplicate "ghost" profile on
+      // every friend's list (reported bug). Carry the current device's copies
+      // forward into the replacement dump. (RecoveryScreen's intentional
+      // "fresh start" still wipes everything — it calls loadDbDump directly.)
+      const preserved = {};
+      try {
+        const current = getFullDbDump();
+        for (const name of ["FriendIdentity", "PushSubscription"]) {
+          if (current[name]) preserved[name] = current[name];
+        }
+      } catch { /* no current DB to preserve from — nothing to carry forward */ }
+      await loadDbDump({ ...data, ...preserved });
       showStatus("success", "Data replaced! The app will reload.");
     } else {
       await mergeDbDump(data);

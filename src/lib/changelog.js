@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Restoring a backup with \"Replace All\" no longer deletes your Friends profile — your identity is kept, so friends stop seeing a duplicate \"ghost\" of you.",
+      },
+      {
+        type: "fix",
         text: "PluralKit / Simply Plural sync no longer throws alters out of the folders and subsystems you organised them into — re-syncing now keeps your local grouping. (Use \"Replace all\" if you want the import to take over instead.)",
       },
       {
