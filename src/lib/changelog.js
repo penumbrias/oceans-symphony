@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Inner-world map: a View mode (display & navigate only — switch hidden layers and follow location links without risk of moving anything), plus the ability to lock individual backdrop images or whole layers against accidental edits.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: the backdrop-image editor no longer covers the whole map, its sliders actually slide now, and a placed image can be moved, resized, and adjusted.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: tapping a placed alter to select it no longer risks deleting it — the remove × only appears once it's selected. Added search + group/subsystem filtering to the \"not on this layer\" list and a clearer indicator of which layer you're on.",
+      },
+      {
+        type: "improve",
+        text: "Image pickers (including inner-world backdrops & location backgrounds) can now choose from your asset library, not just upload new. The create-relationship type picker now shows nested relationship types properly (searchable & indented).",
+      },
+      {
         type: "improve",
         text: "Friends list now refreshes the instant a friend changes who's fronting (push-driven) and polls far less in the background — lighter on your data and battery.",
       },

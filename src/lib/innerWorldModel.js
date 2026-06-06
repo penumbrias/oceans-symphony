@@ -148,6 +148,7 @@ export async function createLayer(mapId, name = "New layer") {
 }
 export const renameLayer = (id, name) => localEntities.InnerWorldLayer.update(id, { name });
 export const setLayerVisible = (id, visible) => localEntities.InnerWorldLayer.update(id, { is_visible: !!visible });
+export const setLayerLocked = (id, locked) => localEntities.InnerWorldLayer.update(id, { is_locked: !!locked });
 export async function reorderLayers(orderedIds) {
   await Promise.all(orderedIds.map((id, i) => localEntities.InnerWorldLayer.update(id, { order: i })));
 }

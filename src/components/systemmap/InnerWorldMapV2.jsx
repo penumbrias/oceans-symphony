@@ -3,30 +3,31 @@
 // InnerWorldMap.jsx in the Inner World tab; the old file is kept untouched
 // so the tab can be reverted in one line.
 //
-// Features:
-//   - Multiple maps (switch / create / rename / delete).
-//   - Layers within a map (show/hide, reorder, rename, add/delete, active).
-//   - Alter placements — an alter can be placed on multiple layers/maps.
-//   - Backdrop images (2b) — place images that aren't locations; they render
-//     BELOW locations + alters; drag/resize/opacity/rotation/reorder.
-//   - Location links (2c) — link a location to another map/layer; the ↗ badge
-//     jumps there.
-// Render order per visible layer (bottom→top): images → locations → alters;
-// relationship lines on top.
+// Features: multiple maps; layers (show/hide, reorder, rename, LOCK); alter
+// placements (an alter on multiple layers); backdrop images (drag/resize/
+// opacity/rotation/LOCK, sourced from the asset library); location links;
+// a global VIEW MODE (display + navigate only). Render order per visible
+// layer: images → locations → alters; relationship lines on top.
+//
+// View/lock model: an element is non-editable (no move/resize/edit/remove)
+// when global view mode is on, OR its layer is locked, OR (image/placement)
+// it's individually locked. Layer visibility + location links still work in
+// view mode — it's navigate-only, not hidden.
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
-import { isLocalMode } from "@/lib/storageMode";
 import { useTerms } from "@/lib/useTerms";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
-  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Upload,
-  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, Image as ImageIcon,
+  ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
+  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, Lock, Unlock, Search,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import ColorPicker from "@/components/shared/ColorPicker";
@@ -38,6 +39,17 @@ import { useInnerWorldMaps, useInnerWorld } from "@/hooks/useInnerWorld";
 const SNAP = 20;
 const NODE_RADIUS = 28;
 const snapVal = (v) => Math.round(v / SNAP) * SNAP;
+
+// The asset picker hands back the SW-path form (/local-image/<id>); the map
+// nodes (and resolveImageUrl) speak the scheme form (local-image://<id>),
+// which also resolves on native where the SW may not intercept. Normalise so
+// stored image URLs stay in the scheme form the rest of the map uses.
+function toLocalScheme(url) {
+  if (typeof url === "string" && url.startsWith("/local-image/")) {
+    return `local-image://${decodeURIComponent(url.slice("/local-image/".length))}`;
+  }
+  return url;
+}
 
 function UnplacedAlterAvatar({ alter }) {
   const resolved = useResolvedAvatarUrl(alter?.avatar_url);
@@ -246,9 +258,6 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const queryClient = useQueryClient();
   const svgRef = useRef(null);
   const mapContainerRef = useRef(null);
-  const bgFileRef = useRef(null);
-  const imgFileRef = useRef(null);
-  const replaceImgFileRef = useRef(null);
   const lastPinchRef = useRef(null);
   const touchStartPos = useRef(null);
   const justSelectedRef = useRef(false);
@@ -260,8 +269,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
   const iw = useInnerWorld(activeMapId);
   const { layers, locations, placements, images } = iw;
-  // All layers across all maps — for the location-link target picker + jumps.
   const { data: allLayers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => localEntities.InnerWorldLayer.list() });
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => localEntities.Group.list() });
 
   const [activeLayerId, setActiveLayerId] = useState(null);
   useEffect(() => {
@@ -279,6 +288,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [relMode, setRelMode] = useState("all");
   const [panelOpen, setPanelOpen] = useState(true);
+  const [viewOnly, setViewOnly] = useState(false);
+  const [unplacedSearch, setUnplacedSearch] = useState("");
+  const [groupFilter, setGroupFilter] = useState("all");
 
   const [selectedAlter, setSelectedAlter] = useState(null);
   const [relModeAlter, setRelModeAlter] = useState(null);
@@ -290,17 +302,36 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
   const [editingImage, setEditingImage] = useState(null);
+  const [assetPicker, setAssetPicker] = useState({ open: false, mode: null });
 
-  // Opening one editor closes the others so only one side panel shows.
-  const openLocationEditor = (loc) => { setSelectedLocation(loc); setEditingLocation(loc); setEditingImage(null); setSelectedImage(null); };
-  const openImageEditor = (im) => { setSelectedImage(im); setEditingImage(im); setEditingLocation(null); setSelectedLocation(null); };
+  // Open one editor closes the others + any selected alter (so a bottom-sheet
+  // editor doesn't fight the alter detail card).
+  const openLocationEditor = (loc) => { setSelectedLocation(loc); setEditingLocation(loc); setEditingImage(null); setSelectedImage(null); setSelectedAlter(null); };
+  const openImageEditor = (im) => { setSelectedImage(im); setEditingImage(im); setEditingLocation(null); setSelectedLocation(null); setSelectedAlter(null); };
 
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map((a) => [a.id, a])), [allAlters]);
+  const layerById = useMemo(() => Object.fromEntries(layers.map((l) => [l.id, l])), [layers]);
+  const isLayerLocked = useCallback((layerId) => !!layerById[layerId]?.is_locked, [layerById]);
   const visibleLayerIds = useMemo(() => new Set(layers.filter((l) => l.is_visible).map((l) => l.id)), [layers]);
   const layersBottomToTop = useMemo(() => [...layers].sort((a, b) => (a.order || 0) - (b.order || 0)), [layers]);
 
   const alterIdsOnActiveLayer = useMemo(() => new Set(placements.filter((p) => p.layer_id === activeLayerId).map((p) => p.alter_id)), [placements, activeLayerId]);
   const unplacedAlters = useMemo(() => allAlters.filter((a) => !a.is_archived && !alterIdsOnActiveLayer.has(a.id)), [allAlters, alterIdsOnActiveLayer]);
+
+  // Search + group/subsystem filter for the "not on this layer" list.
+  const groupFilterIds = useMemo(() => {
+    if (groupFilter === "all") return null;
+    const g = groups.find((x) => x.id === groupFilter);
+    if (!g) return null;
+    return new Set(getMemberAlters(g, allAlters).map((a) => a.id));
+  }, [groupFilter, groups, allAlters]);
+  const filteredUnplaced = useMemo(() => {
+    const q = unplacedSearch.trim().toLowerCase();
+    return unplacedAlters.filter((a) =>
+      (!q || (a.name || "").toLowerCase().includes(q) || (a.alias || "").toLowerCase().includes(q)) &&
+      (!groupFilterIds || groupFilterIds.has(a.id))
+    );
+  }, [unplacedAlters, unplacedSearch, groupFilterIds]);
 
   const posById = useMemo(() => {
     const m = {};
@@ -321,7 +352,6 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     }
   };
   const handleTouchMove = (e) => {
-    e.preventDefault();
     if (e.touches.length === 2) {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       if (lastPinchRef.current !== null) { const delta = dist / lastPinchRef.current; setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * delta)) })); }
@@ -375,7 +405,10 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   useEffect(() => {
     const el = mapContainerRef.current;
     if (!el) return;
-    const prevent = (e) => e.preventDefault();
+    // Block page scroll / browser pinch over the canvas — BUT let touches that
+    // land inside an editor panel ([data-iw-panel]) through, so its sliders and
+    // scroll work (the old blanket preventDefault is why sliders only tapped).
+    const prevent = (e) => { if (e.target?.closest?.("[data-iw-panel]")) return; e.preventDefault(); };
     el.addEventListener("wheel", prevent, { passive: false });
     el.addEventListener("touchmove", prevent, { passive: false });
     return () => { el.removeEventListener("wheel", prevent); el.removeEventListener("touchmove", prevent); };
@@ -393,13 +426,15 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   // ── Placements ──
   const placeAt = useCallback(async (alter, nx, ny) => {
     if (!activeLayerId) { toast.error("Add a layer first"); return; }
+    if (isLayerLocked(activeLayerId)) { toast.error("This layer is locked"); return; }
     await iw.placeAlter(alter.id, activeLayerId, snapToGrid ? snapVal(nx) : nx, snapToGrid ? snapVal(ny) : ny);
-  }, [activeLayerId, snapToGrid, iw]);
+  }, [activeLayerId, snapToGrid, iw, isLayerLocked]);
   const movePlacement = useCallback(async (placement, nx, ny) => {
     await iw.moveAlterPlacement(placement.id, snapToGrid ? snapVal(nx) : nx, snapToGrid ? snapVal(ny) : ny);
   }, [snapToGrid, iw]);
   const handleSvgDrop = (e) => {
     e.preventDefault();
+    if (viewOnly) return;
     const alter = allAlters.find((a) => a.id === e.dataTransfer.getData("alterId"));
     if (!alter) return;
     const rect = svgRef.current.getBoundingClientRect();
@@ -427,33 +462,25 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     setSelectedLocation(null); setEditingLocation(null); setSelectedImage(null); setEditingImage(null);
   }, [iw, allLayers]);
 
-  // ── Images (backdrops) ──
-  const addImage = () => { if (!activeLayerId) { toast.error("Add a layer first"); return; } imgFileRef.current?.click(); };
-  const uploadImage = async (file) => {
-    const { processUploadedImage, saveLocalImage, createLocalImageUrl } = await import("@/lib/localImageStorage");
-    const { dataUrl } = await processUploadedImage(file, 1600, 0.85);
-    if (isLocalMode()) {
-      const id = `iw-image-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-      await saveLocalImage(id, dataUrl);
-      return createLocalImageUrl(id);
+  // ── Backdrop images (sourced via the asset picker = upload OR library) ──
+  const addImage = () => { if (!activeLayerId) { toast.error("Add a layer first"); return; } setAssetPicker({ open: true, mode: "add" }); };
+  const onAssetSelect = async (rawUrl) => {
+    const mode = assetPicker.mode;
+    const url = toLocalScheme(rawUrl);
+    setAssetPicker({ open: false, mode: null });
+    if (mode === "add") {
+      if (!activeLayerId) return;
+      const cx = (-transform.x / transform.scale) + 220;
+      const cy = (-transform.y / transform.scale) + 220;
+      const img = await iw.createImage(activeLayerId, { image_url: url, x: cx, y: cy, width: 320, height: 220 });
+      openImageEditor(img);
+    } else if (mode === "locationBg" && editingLocation) {
+      setEditingLocation((l) => ({ ...l, background_image_url: url }));
+      updateLocation(editingLocation, { background_image_url: url });
+    } else if (mode === "replaceImage" && editingImage) {
+      setEditingImage((im) => ({ ...im, image_url: url }));
+      iw.updateImage(editingImage.id, { image_url: url });
     }
-    return dataUrl;
-  };
-  const handleAddImageFile = async (e) => {
-    const file = e.target.files?.[0]; if (!file || !activeLayerId) return;
-    e.target.value = "";
-    const url = await uploadImage(file);
-    const cx = (-transform.x / transform.scale) + 220;
-    const cy = (-transform.y / transform.scale) + 220;
-    const img = await iw.createImage(activeLayerId, { image_url: url, x: cx, y: cy, width: 320, height: 220 });
-    openImageEditor(img);
-  };
-  const handleReplaceImageFile = async (e) => {
-    const file = e.target.files?.[0]; if (!file || !editingImage) return;
-    e.target.value = "";
-    const url = await uploadImage(file);
-    setEditingImage((im) => ({ ...im, image_url: url }));
-    iw.updateImage(editingImage.id, { image_url: url });
   };
 
   // ── Alter taps / relationships ──
@@ -466,7 +493,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       setRelModeAlter(null);
     } else { setSelectedAlter((prev) => (prev?.id === alter.id ? null : alter)); }
   };
-  const handleAlterDoubleTap = (alter) => { setRelModeAlter((prev) => (prev?.id === alter.id ? null : alter)); setSelectedAlter(null); };
+  const handleAlterDoubleTap = (alter) => {
+    if (viewOnly) return; // relationship creation is an edit action
+    setRelModeAlter((prev) => (prev?.id === alter.id ? null : alter));
+    setSelectedAlter(null);
+  };
   const handleSaveRelationship = async (data) => {
     await base44.entities.AlterRelationship.create(data);
     queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
@@ -474,16 +505,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
     setCreateRelModal(null);
   };
 
-  const handleBgImageFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingLocation) return;
-    e.target.value = "";
-    const url = await uploadImage(file);
-    setEditingLocation((l) => ({ ...l, background_image_url: url }));
-    updateLocation(editingLocation, { background_image_url: url });
-  };
-
   const activeMap = maps.find((m) => m.id === activeMapId);
+  const activeLayer = layerById[activeLayerId];
   const linkValue = editingLocation?.link_target_type ? `${editingLocation.link_target_type}:${editingLocation.link_target_id}` : "";
 
   return (
@@ -496,13 +519,17 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             {m.name}
           </button>
         ))}
-        <button onClick={async () => { const name = window.prompt("New map name", "New map"); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
-          className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map"><Plus className="w-3.5 h-3.5" /></button>
-        {activeMap && (
+        {!viewOnly && (
           <>
-            <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
-            {maps.length > 1 && (
-              <button onClick={async () => { if (window.confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`)) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
+            <button onClick={async () => { const name = window.prompt("New map name", "New map"); if (name) { const m = await createMap(name); setActiveMapId(m.id); } }}
+              className="px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/40" title="New map"><Plus className="w-3.5 h-3.5" /></button>
+            {activeMap && (
+              <>
+                <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
+                {maps.length > 1 && (
+                  <button onClick={async () => { if (window.confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`)) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
+                )}
+              </>
             )}
           </>
         )}
@@ -521,47 +548,80 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
                 return (
                   <div key={layer.id} onClick={() => setActiveLayerId(layer.id)}
-                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/50 bg-primary/10" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
+                    className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/60 bg-primary/15 ring-1 ring-primary/40" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
                     <button onClick={(e) => { e.stopPropagation(); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
                       {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
                     </button>
-                    <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}</span>
-                    <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
-                    <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
-                    {layers.length > 1 && (
-                      <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete layer "${layer.name}" and everything on it?`)) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
+                    <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}{layer.is_locked ? " 🔒" : ""}</span>
+                    {!viewOnly && (
+                      <>
+                        <button onClick={(e) => { e.stopPropagation(); iw.setLayerLocked(layer.id, !layer.is_locked); }} title={layer.is_locked ? "Unlock layer" : "Lock layer (view-only)"} className="text-muted-foreground hover:text-foreground">
+                          {layer.is_locked ? <Lock className="w-3 h-3 text-amber-500" /> : <Unlock className="w-3 h-3" />}
+                        </button>
+                        <button onClick={(e) => { e.stopPropagation(); if (idx < layersBottomToTop.length - 1) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx + 1)); }} disabled={idxFromTop === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move up"><ChevronUp className="w-3 h-3" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
+                        <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
+                        {layers.length > 1 && (
+                          <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete layer "${layer.name}" and everything on it?`)) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
+                        )}
+                      </>
                     )}
                   </div>
                 );
               })}
-              <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
+              {!viewOnly && (
+                <button onClick={async () => { const n = window.prompt("New layer name", `Layer ${layers.length + 1}`); if (n) { const l = await iw.createLayer(n); setActiveLayerId(l.id); } }} className="w-full flex items-center justify-center gap-1 px-2 py-1 rounded-lg text-xs border border-dashed border-border/60 text-muted-foreground hover:bg-muted/30"><Plus className="w-3 h-3" /> Add layer</button>
+              )}
             </div>
-            <div className="px-2 py-1.5 text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer</div>
-            <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-              {unplacedAlters.map((alter) => (
-                <div key={alter.id} draggable onDragStart={(e) => e.dataTransfer.setData("alterId", alter.id)} onClick={() => setPlacingAlter(alter)}
-                  className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${placingAlter?.id === alter.id ? "border-primary/60 bg-primary/15 animate-pulse" : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"}`}>
-                  <UnplacedAlterAvatar alter={alter} />
-                  <span className="text-xs text-foreground truncate">{alter.name}</span>
+            {!viewOnly && (
+              <>
+                <div className="px-2 py-1.5 space-y-1.5 border-b border-border/40">
+                  <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer</p>
+                  <div className="relative">
+                    <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                    <input value={unplacedSearch} onChange={(e) => setUnplacedSearch(e.target.value)} placeholder="Search…"
+                      className="w-full h-7 pl-6 pr-2 text-xs border border-border/50 rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+                  </div>
+                  <select value={groupFilter} onChange={(e) => setGroupFilter(e.target.value)} className="w-full h-7 px-1.5 text-xs border border-border/50 rounded bg-background">
+                    <option value="all">All {terms.groups || "groups"}</option>
+                    {[...groups].sort((a, b) => (a.name || "").localeCompare(b.name || "")).map((g) => (
+                      <option key={g.id} value={g.id}>{isSubsystem(g) ? "◆ " : ""}{g.name || "Unnamed"}</option>
+                    ))}
+                  </select>
                 </div>
-              ))}
-              {unplacedAlters.length === 0 && <p className="text-xs text-muted-foreground/60 italic px-1">Everyone's on this layer.</p>}
-            </div>
+                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
+                  {filteredUnplaced.map((alter) => (
+                    <div key={alter.id} draggable onDragStart={(e) => e.dataTransfer.setData("alterId", alter.id)} onClick={() => setPlacingAlter(alter)}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${placingAlter?.id === alter.id ? "border-primary/60 bg-primary/15 animate-pulse" : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"}`}>
+                      <UnplacedAlterAvatar alter={alter} />
+                      <span className="text-xs text-foreground truncate">{alter.name}</span>
+                    </div>
+                  ))}
+                  {filteredUnplaced.length === 0 && <p className="text-xs text-muted-foreground/60 italic px-1">{unplacedAlters.length === 0 ? "Everyone's on this layer." : "No matches."}</p>}
+                </div>
+              </>
+            )}
           </div>
         ) : (
           <button onClick={() => setPanelOpen(true)} title="Show layers" className="flex-shrink-0 w-8 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 z-10"><LayersIcon className="w-4 h-4 text-muted-foreground" /></button>
         )}
 
         {placingAlter && (
-          <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
-            <span>Tap to place {placingAlter.name} on “{layers.find((l) => l.id === activeLayerId)?.name}”</span>
+          <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
+            <span>Tap to place {placingAlter.name} on “{activeLayer?.name}”</span>
             <button onClick={() => setPlacingAlter(null)}><X className="w-3 h-3" /></button>
           </div>
         )}
 
         {/* SVG canvas */}
         <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
+          {/* Active layer / view-mode indicator */}
+          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 max-w-[60%]">
+            {viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
+            <span className="text-muted-foreground flex-shrink-0">{viewOnly ? "Viewing" : "On"}:</span>
+            <span className="font-medium text-foreground truncate">{activeLayer?.name || "—"}</span>
+          </div>
+
           <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
             onMouseDown={handleMouseDown} onMouseMove={handleMouseMove} onMouseUp={handleMouseUp} onMouseLeave={handleMouseUp}
             onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} onDrop={handleSvgDrop} onDragOver={(e) => e.preventDefault()}
@@ -576,73 +636,91 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               }
             }}>
             <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
-              {layersBottomToTop.filter((l) => l.is_visible).map((layer) => (
-                <g key={layer.id}>
-                  {/* Backdrop images — below locations + alters */}
-                  {images.filter((im) => im.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((im) => (
-                    <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} zoom={transform.scale}
-                      onSelect={() => { if (!panMovedRef.current) { setSelectedImage(im); setEditingLocation(null); setSelectedLocation(null); } }}
-                      onUpdate={(fields) => iw.updateImage(im.id, fields)}
-                      onEdit={() => openImageEditor(im)} />
-                  ))}
-                  {/* Locations */}
-                  {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
-                    <g key={loc.id}>
-                      <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={false}
-                        onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
-                        onDoubleSelect={() => { if (!panMovedRef.current) openLocationEditor(loc); }}
-                        onLongPress={() => openLocationEditor(loc)}
-                        onEdit={() => openLocationEditor(loc)}
-                        onUpdate={(fields) => updateLocation(loc, fields)}
-                        onDelete={() => iw.deleteLocation(loc.id)} />
-                      {loc.link_target_type && (
-                        <g onClick={(e) => { e.stopPropagation(); jumpToLink(loc); }} style={{ cursor: "pointer" }}>
-                          <circle cx={(loc.x || 0) + 14} cy={(loc.y || 0) + (loc.height || 150) - 14} r={11} fill="#3b82f6" opacity={0.9} />
-                          <text x={(loc.x || 0) + 14} y={(loc.y || 0) + (loc.height || 150) - 10} textAnchor="middle" fontSize={12} fill="white" pointerEvents="none">↗</text>
-                        </g>
-                      )}
-                    </g>
-                  ))}
-                  {/* Alter placements */}
-                  {placements.filter((p) => p.layer_id === layer.id).map((p) => {
-                    const alter = alterMap[p.alter_id];
-                    if (!alter || alter.is_archived) return null;
-                    return (
-                      <g key={p.id}>
-                        <AlterNode alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={p.is_locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
-                          onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)} onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
-                        <g onClick={() => iw.removePlacement(p.id)} style={{ cursor: "pointer" }}>
-                          <circle cx={(p.x ?? 0) + NODE_RADIUS} cy={(p.y ?? 0) - NODE_RADIUS} r={12} fill="#ef4444" opacity={0.85} />
-                          <text x={(p.x ?? 0) + NODE_RADIUS} y={(p.y ?? 0) - NODE_RADIUS + 4} textAnchor="middle" fontSize={10} fill="white" pointerEvents="none">×</text>
-                        </g>
+              {layersBottomToTop.filter((l) => l.is_visible).map((layer) => {
+                const layerLocked = viewOnly || layer.is_locked;
+                return (
+                  <g key={layer.id}>
+                    {/* Backdrop images — below locations + alters */}
+                    {images.filter((im) => im.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((im) => {
+                      const locked = layerLocked || im.is_locked;
+                      return (
+                        <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} locked={locked} zoom={transform.scale}
+                          onSelect={() => { if (!panMovedRef.current) { setSelectedImage(im); } }}
+                          onUpdate={(fields) => iw.updateImage(im.id, fields)}
+                          onEdit={() => { if (!locked) openImageEditor(im); }} />
+                      );
+                    })}
+                    {/* Locations */}
+                    {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
+                      <g key={loc.id}>
+                        <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
+                          onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
+                          onDoubleSelect={() => { if (!panMovedRef.current && !layerLocked) openLocationEditor(loc); }}
+                          onLongPress={() => { if (!layerLocked) openLocationEditor(loc); }}
+                          onEdit={() => { if (!layerLocked) openLocationEditor(loc); }}
+                          onUpdate={(fields) => updateLocation(loc, fields)}
+                          onDelete={() => iw.deleteLocation(loc.id)} />
+                        {loc.link_target_type && (
+                          <g onClick={(e) => { e.stopPropagation(); jumpToLink(loc); }} style={{ cursor: "pointer" }}>
+                            <circle cx={(loc.x || 0) + 14} cy={(loc.y || 0) + (loc.height || 150) - 14} r={11} fill="#3b82f6" opacity={0.9} />
+                            <text x={(loc.x || 0) + 14} y={(loc.y || 0) + (loc.height || 150) - 10} textAnchor="middle" fontSize={12} fill="white" pointerEvents="none">↗</text>
+                          </g>
+                        )}
                       </g>
-                    );
-                  })}
-                </g>
-              ))}
+                    ))}
+                    {/* Alter placements */}
+                    {placements.filter((p) => p.layer_id === layer.id).map((p) => {
+                      const alter = alterMap[p.alter_id];
+                      if (!alter || alter.is_archived) return null;
+                      const locked = layerLocked || p.is_locked;
+                      const canRemove = !layerLocked && selectedAlter?.id === alter.id;
+                      return (
+                        <g key={p.id}>
+                          <AlterNode alter={alter} x={p.x ?? 0} y={p.y ?? 0} locked={locked} isSelected={selectedAlter?.id === alter.id} isRelMode={relModeAlter?.id === alter.id} zoom={transform.scale}
+                            onTap={() => handleAlterTap(alter)} onDoubleTap={() => handleAlterDoubleTap(alter)} onDragEnd={(nx, ny) => movePlacement(p, nx, ny)} />
+                          {/* Remove × only once the alter is selected — stops accidental
+                              deletes when you just tap to select, especially zoomed out. */}
+                          {canRemove && (
+                            <g onClick={() => iw.removePlacement(p.id)} style={{ cursor: "pointer" }}>
+                              <circle cx={(p.x ?? 0) + NODE_RADIUS} cy={(p.y ?? 0) - NODE_RADIUS} r={12} fill="#ef4444" opacity={0.9} />
+                              <text x={(p.x ?? 0) + NODE_RADIUS} y={(p.y ?? 0) - NODE_RADIUS + 4} textAnchor="middle" fontSize={10} fill="white" pointerEvents="none">×</text>
+                            </g>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </g>
+                );
+              })}
               <RelationshipLines relationships={relationships} posById={posById} relMode={relMode} selectedAlterId={selectedAlter?.id}
                 onRelClick={(rel, e) => { const rect = svgRef.current?.getBoundingClientRect(); setRelPopover({ rel, x: e.clientX - (rect?.left || 0), y: e.clientY - (rect?.top || 0) }); }} />
             </g>
           </svg>
 
           {relModeAlter && (
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20">
+            <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-amber-500/90 text-white text-xs font-semibold px-4 py-1.5 rounded-full shadow-lg z-20">
               Relationship mode: tap another {terms.alter} — Esc to cancel
             </div>
           )}
 
           {/* Toolbar */}
-          <div className="absolute top-3 right-3 flex flex-col gap-1 z-20">
-            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}><Plus className="w-3 h-3" /> Location</Button>
-            <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addImage}><ImageIcon className="w-3 h-3" /> Image</Button>
-            <button onClick={() => setSnapToGrid((v) => !v)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}><Grid className="w-3 h-3" /> Snap</button>
+          <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
+            <button onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); }}
+              className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${viewOnly ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
+              {viewOnly ? <Eye className="w-3 h-3" /> : <Pencil className="w-3 h-3" />} {viewOnly ? "View" : "Edit"}
+            </button>
+            {!viewOnly && (
+              <>
+                <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addLocation}><Plus className="w-3 h-3" /> Location</Button>
+                <Button size="sm" variant="outline" className="text-xs h-7 gap-1 px-2 bg-card/90 backdrop-blur-sm" onClick={addImage}><ImageIcon className="w-3 h-3" /> Image</Button>
+                <button onClick={() => setSnapToGrid((v) => !v)} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${snapToGrid ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}><Grid className="w-3 h-3" /> Snap</button>
+              </>
+            )}
             <button onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))} className={`flex items-center gap-1 px-2 py-1 rounded-lg text-xs border bg-card/90 backdrop-blur-sm ${relMode !== "none" ? "bg-primary/20 text-primary border-primary/40" : "border-border text-muted-foreground"}`}>
               {relMode === "all" ? <Eye className="w-3 h-3" /> : relMode === "selected" ? <Users className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
               {relMode === "all" ? "Rels: All" : relMode === "selected" ? "Rels: Selected" : "Rels: Hidden"}
             </button>
           </div>
-          <input ref={imgFileRef} type="file" accept="image/*" hidden onChange={handleAddImageFile} />
-          <input ref={replaceImgFileRef} type="file" accept="image/*" hidden onChange={handleReplaceImageFile} />
 
           {/* Zoom controls */}
           <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
@@ -651,66 +729,71 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5" /></Button>
           </div>
 
-          {/* Backdrop image edit panel */}
-          {editingImage && (
-            <div className="absolute right-3 top-32 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-160px)] overflow-y-auto">
+          {/* Backdrop image edit — bottom sheet (data-iw-panel lets its sliders slide) */}
+          {editingImage && !viewOnly && (
+            <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl max-h-[55%] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-foreground">Edit Backdrop Image</p>
-                <button onClick={() => { setEditingImage(null); setSelectedImage(null); }}><X className="w-3 h-3 text-muted-foreground" /></button>
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Opacity</p><span className="text-xs font-mono text-muted-foreground">{Math.round((editingImage.opacity ?? 1) * 100)}%</span></div>
-                <input type="range" min={0.1} max={1} step={0.05} value={editingImage.opacity ?? 1} onChange={(e) => { const v = parseFloat(e.target.value); setEditingImage((im) => ({ ...im, opacity: v })); iw.updateImage(editingImage.id, { opacity: v }); }} className="w-full accent-primary" />
-              </div>
-              <div className="space-y-1">
-                <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Rotation</p><span className="text-xs font-mono text-muted-foreground">{Math.round(editingImage.rotation ?? 0)}°</span></div>
-                <input type="range" min={0} max={360} step={1} value={editingImage.rotation ?? 0} onChange={(e) => { const v = parseInt(e.target.value, 10); setEditingImage((im) => ({ ...im, rotation: v })); iw.updateImage(editingImage.id, { rotation: v }); }} className="w-full accent-primary" />
-              </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Stacking (within layer)</p>
-                <div className="flex gap-1">
-                  <button onClick={() => { const o = (editingImage.order || 0) + 1; setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↑ Forward</button>
-                  <button onClick={() => { const o = Math.max(0, (editingImage.order || 0) - 1); setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↓ Back</button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { const v = !editingImage.is_locked; setEditingImage((im) => ({ ...im, is_locked: v })); iw.updateImage(editingImage.id, { is_locked: v }); }}
+                    className={`px-2 py-0.5 rounded text-xs flex items-center gap-1 border ${editingImage.is_locked ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40" : "border-border text-muted-foreground"}`}>
+                    {editingImage.is_locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />} {editingImage.is_locked ? "Locked" : "Lock"}
+                  </button>
+                  <button onClick={() => { setEditingImage(null); setSelectedImage(null); }}><X className="w-3 h-3 text-muted-foreground" /></button>
                 </div>
               </div>
-              <button onClick={() => replaceImgFileRef.current?.click()} className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 text-muted-foreground"><Upload className="w-3 h-3" /> Replace image</button>
-              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { iw.deleteImage(editingImage.id); setEditingImage(null); setSelectedImage(null); }}>Remove image</Button>
-              <p className="text-[0.625rem] text-muted-foreground/70">Drag to move; drag the corner handle to resize.</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Opacity</p><span className="text-xs font-mono text-muted-foreground">{Math.round((editingImage.opacity ?? 1) * 100)}%</span></div>
+                  <input type="range" min={0.1} max={1} step={0.05} value={editingImage.opacity ?? 1} onChange={(e) => { const v = parseFloat(e.target.value); setEditingImage((im) => ({ ...im, opacity: v })); iw.updateImage(editingImage.id, { opacity: v }); }} className="w-full accent-primary" />
+                </div>
+                <div className="space-y-1">
+                  <div className="flex items-center justify-between"><p className="text-xs text-muted-foreground">Rotation</p><span className="text-xs font-mono text-muted-foreground">{Math.round(editingImage.rotation ?? 0)}°</span></div>
+                  <input type="range" min={0} max={360} step={1} value={editingImage.rotation ?? 0} onChange={(e) => { const v = parseInt(e.target.value, 10); setEditingImage((im) => ({ ...im, rotation: v })); iw.updateImage(editingImage.id, { rotation: v }); }} className="w-full accent-primary" />
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex-shrink-0">Stack:</span>
+                <button onClick={() => { const o = (editingImage.order || 0) + 1; setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↑ Forward</button>
+                <button onClick={() => { const o = Math.max(0, (editingImage.order || 0) - 1); setEditingImage((im) => ({ ...im, order: o })); iw.updateImage(editingImage.id, { order: o }); }} className="flex-1 h-7 text-xs border border-border rounded hover:bg-muted/50">↓ Back</button>
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAssetPicker({ open: true, mode: "replaceImage" })} className="flex-1 flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 text-muted-foreground"><ImageIcon className="w-3 h-3" /> Replace</button>
+                <Button size="sm" variant="destructive" className="flex-1 h-7 text-xs" onClick={() => { iw.deleteImage(editingImage.id); setEditingImage(null); setSelectedImage(null); }}>Remove</Button>
+              </div>
+              <p className="text-[0.625rem] text-muted-foreground/70">Drag the image to move; drag its corner handle to resize.</p>
             </div>
           )}
 
-          {/* Location edit sidebar */}
-          {editingLocation && (
-            <div className="absolute right-3 top-32 bg-card border border-border rounded-xl p-3 space-y-2 w-56 z-20 shadow-lg max-h-[calc(100%-160px)] overflow-y-auto">
+          {/* Location edit — bottom sheet */}
+          {editingLocation && !viewOnly && (
+            <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl max-h-[55%] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
                 <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
               </div>
-              <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="w-full h-7 px-2 text-xs border border-border rounded bg-background" />
-              <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }} className="w-full h-7 px-2 text-xs border border-border rounded bg-background">
-                <option value="rectangle">Rectangle</option>
-                <option value="oval">Oval</option>
-              </select>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Color</p>
-                <ColorPicker value={editingLocation.color || "#6366f1"} onChange={(v) => { setEditingLocation((l) => ({ ...l, color: v })); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v }); }} className="justify-between" />
+              <div className="grid grid-cols-2 gap-2">
+                <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="h-7 px-2 text-xs border border-border rounded bg-background" />
+                <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }} className="h-7 px-2 text-xs border border-border rounded bg-background">
+                  <option value="rectangle">Rectangle</option>
+                  <option value="oval">Oval</option>
+                </select>
               </div>
-              <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Background image</p>
-                <button onClick={() => bgFileRef.current?.click()} className="w-full flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 hover:bg-muted/30 text-muted-foreground"><Upload className="w-3 h-3" /> Upload image</button>
-                <input ref={bgFileRef} type="file" accept="image/*" hidden onChange={handleBgImageFile} />
+              <div className="flex items-center gap-2">
+                <span className="text-xs text-muted-foreground flex-shrink-0">Colour</span>
+                <ColorPicker value={editingLocation.color || "#6366f1"} onChange={(v) => { setEditingLocation((l) => ({ ...l, color: v })); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v }); }} className="justify-between flex-1" />
+              </div>
+              <div className="flex items-center gap-2">
+                <button onClick={() => setAssetPicker({ open: true, mode: "locationBg" })} className="flex-1 flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 text-muted-foreground"><ImageIcon className="w-3 h-3" /> {editingLocation.background_image_url ? "Change background" : "Background image"}</button>
                 {editingLocation.background_image_url && (
-                  <div className="relative">
-                    <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg" className="w-full h-16 object-cover rounded border border-border" />
-                    <div className="absolute bottom-1 left-1">
-                      <LocalImageFixer value={editingLocation.background_image_url} maxWidth={1200} quality={0.8} onFixed={(url) => { setEditingLocation((l) => ({ ...l, background_image_url: url })); updateLocation(editingLocation, { background_image_url: url }); }} />
-                    </div>
-                  </div>
+                  <>
+                    <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg" className="w-10 h-7 object-cover rounded border border-border flex-shrink-0" />
+                    <LocalImageFixer value={editingLocation.background_image_url} maxWidth={1200} quality={0.8} onFixed={(url) => { setEditingLocation((l) => ({ ...l, background_image_url: url })); updateLocation(editingLocation, { background_image_url: url }); }} />
+                  </>
                 )}
               </div>
               <textarea value={editingLocation.description || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, description: v })); updateLocation(editingLocation, { description: v }); }} placeholder="Description..." rows={2} className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
-              {/* Link to another map / layer */}
-              <div className="space-y-1 pt-1 border-t border-border/40">
+              <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Tapping the ↗ jumps to…</p>
                 <select value={linkValue} onChange={(e) => {
                   const v = e.target.value;
@@ -732,20 +815,20 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             const rel = relPopover.rel;
             const label = rel.relationship_type === "Custom" ? rel.custom_label : rel.relationship_type;
             return (
-              <div className="absolute z-30 bg-card border border-border rounded-xl p-3 shadow-lg space-y-1.5 min-w-[160px]" style={{ left: relPopover.x + 8, top: relPopover.y + 8 }} onClick={(e) => e.stopPropagation()}>
+              <div data-iw-panel className="absolute z-30 bg-card border border-border rounded-xl p-3 shadow-lg space-y-1.5 min-w-[160px]" style={{ left: relPopover.x + 8, top: relPopover.y + 8 }} onClick={(e) => e.stopPropagation()}>
                 <div className="flex items-center justify-between gap-2">
                   <span className="text-xs font-semibold text-foreground">{label}</span>
                   <button onClick={() => setRelPopover(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
                 </div>
                 {rel.notes && <p className="text-xs text-muted-foreground italic">{rel.notes}</p>}
-                <button onClick={() => { setEditingRelFromPopover(rel); setRelPopover(null); }} className="text-xs text-primary hover:underline block">Edit relationship</button>
+                {!viewOnly && <button onClick={() => { setEditingRelFromPopover(rel); setRelPopover(null); }} className="text-xs text-primary hover:underline block">Edit relationship</button>}
               </div>
             );
           })()}
 
           {/* Alter detail panel */}
           {selectedAlter && !relModeAlter && (
-            <div className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
+            <div data-iw-panel className="absolute bottom-3 left-3 bg-card border border-border rounded-xl p-3 space-y-1.5 w-52 z-20 shadow-lg max-h-80 overflow-y-auto" onClick={(e) => e.stopPropagation()} onTouchStart={(e) => e.stopPropagation()} onTouchEnd={(e) => e.stopPropagation()}>
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2"><SelectedAlterAvatar alter={selectedAlter} /><p className="text-sm font-semibold">{selectedAlter.name}</p></div>
                 <button onClick={() => setSelectedAlter(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
@@ -757,6 +840,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           )}
         </div>
       </div>
+
+      <AssetPickerModal open={assetPicker.open} onClose={() => setAssetPicker({ open: false, mode: null })} onSelect={onAssetSelect} />
 
       {createRelModal && (
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />

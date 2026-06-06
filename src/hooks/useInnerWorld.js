@@ -85,6 +85,7 @@ export function useInnerWorld(mapId) {
     createLayer: async (name) => { const l = await IW.createLayer(mapId, name); inv(IW.IW_KEYS.layers); return l; },
     renameLayer: async (id, name) => { await IW.renameLayer(id, name); inv(IW.IW_KEYS.layers); },
     setLayerVisible: async (id, v) => { await IW.setLayerVisible(id, v); inv(IW.IW_KEYS.layers); },
+    setLayerLocked: async (id, v) => { await IW.setLayerLocked(id, v); inv(IW.IW_KEYS.layers); },
     reorderLayers: async (ids) => { await IW.reorderLayers(ids); inv(IW.IW_KEYS.layers); },
     deleteLayer: async (id) => { await IW.deleteLayer(id); inv(IW.IW_KEYS.layers); inv(IW.IW_KEYS.locations); inv(IW.IW_KEYS.images); inv(IW.IW_KEYS.placements); },
 
