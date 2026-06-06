@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Friends privacy notice now reflects push reminders: it explains that turning on reminder push also uses the relay, and how to keep the reminder's wording on your device (switch off \"Show reminder text in notifications\").",
+      },
+      {
         type: "feature",
         text: "The inner-world map now supports multiple maps and layers — make separate maps, add named layers you can show/hide and reorder, and place the same alter on more than one layer. Your existing inner world moves into a default map automatically. (More coming: backdrop images and location links.)",
       },

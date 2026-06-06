@@ -416,10 +416,11 @@ function PrivacyDisclaimer() {
               </ul>
             </li>
             <li><strong>Friend relationships</strong> — who approved who.</li>
-            <li><strong>Push subscription tokens</strong>, only if you opt in to friend-front notifications.</li>
+            <li><strong>Push tokens</strong> — a web-push subscription, or a Firebase/FCM token on the installed app — only if you opt in to notifications.</li>
+            <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
           </ul>
           <p>
-            Your {t.alter} profiles, journal text, check-in data, symptoms, timeline history — <strong>none of that touches the friends server</strong>. The friends server only ever knows what you explicitly push via "Update Front", filtered by the privacy setting above.
+            Your {t.alter} profiles, journal text, check-in data, symptoms, and timeline history — <strong>none of that touches the friends server</strong>. It only ever holds what you explicitly send it: your current {t.front} via "Update Front" (filtered by the privacy setting above) and, if you opt into push reminders, your reminder schedule (and wording, unless you've turned that off).
           </p>
           <p>
             Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, zero data leaves the device. The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
