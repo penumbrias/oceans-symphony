@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Friends list now refreshes the instant a friend changes who's fronting (push-driven) and polls far less in the background — lighter on your data and battery.",
+      },
+      {
         type: "feature",
         text: "Inner-world map: you can now drop in backdrop images (placed behind everything — drag, resize, set opacity) and link a location to another map or layer (tap its ↗ badge to jump there).",
       },

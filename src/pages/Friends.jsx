@@ -660,10 +660,12 @@ export default function FriendsPage() {
     queryKey: ['friendsList'],
     queryFn: fetchFriendsList,
     enabled: !!identity,
-    // Poll more aggressively so incoming/responded requests appear quickly
-    // for both sides without needing a manual refresh.
-    refetchInterval: 10_000,
-    refetchIntervalInBackground: true,
+    // Push-instead-of-poll: front changes trigger an instant refetch via the
+    // push signal (see the effect below), so the timer can be slow and
+    // foreground-only — a big cut to relay traffic + battery vs the old 10s
+    // background poll. 30s still surfaces new friend requests promptly.
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: false,
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: 0,
@@ -711,6 +713,27 @@ export default function FriendsPage() {
       } catch (_) {}
     })();
   }, [identity, terms.fronting, terms.front, terms.alter, terms.system]);
+
+  // Push-instead-of-poll: refetch the friends list the moment a front-change
+  // push arrives — on web via the service worker's "push-received" message,
+  // on native via the FCM foreground event dispatched by fcmPush.js. Keeps
+  // the list feeling live while the timer poll above stays lazy.
+  useEffect(() => {
+    if (!identity) return;
+    const refetch = () => refetchFriends();
+    let swHandler = null;
+    try {
+      if (navigator.serviceWorker) {
+        swHandler = (e) => { if (e.data?.type === "push-received") refetch(); };
+        navigator.serviceWorker.addEventListener("message", swHandler);
+      }
+    } catch { /* no SW here */ }
+    window.addEventListener("fcm-front-change", refetch);
+    return () => {
+      window.removeEventListener("fcm-front-change", refetch);
+      try { if (swHandler && navigator.serviceWorker) navigator.serviceWorker.removeEventListener("message", swHandler); } catch { /* ignore */ }
+    };
+  }, [identity, refetchFriends]);
 
   // On mount, re-save push subscription to the relay if push is enabled.
   // This handles the case where VAPID keys were added after notifyOnChange was set.
