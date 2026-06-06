@@ -153,6 +153,13 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
   const alterMap = Object.fromEntries(alters.map(a => [a.id, a]));
   const locationMap = Object.fromEntries(locations.map(l => [l.id, l]));
 
+  // Resolve each location's map + layer name so rows can show where it lives
+  // ("Map · Layer") — a location (or a layer link) is meaningless without
+  // knowing which map/layer it's on.
+  const { data: iwMaps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => base44.entities.InnerWorldMap.list() });
+  const { data: iwLayers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => base44.entities.InnerWorldLayer.list() });
+  const locScope = (loc) => [iwMaps.find(m => m.id === loc?.map_id)?.name, iwLayers.find(l => l.id === loc?.layer_id)?.name].filter(Boolean).join(" · ");
+
   const filteredRels = (filterMode === "relationships" || filterMode === "all") 
     ? filterAlterId
       ? relationships.filter(r => r.alter_id_a === filterAlterId || r.alter_id_b === filterAlterId)
@@ -345,6 +352,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
                     className="text-xs text-primary hover:underline font-medium">
                     {loc?.name || "Unknown location"}
                   </button>
+                  {locScope(loc) && <span className="text-[0.625rem] text-muted-foreground">· {locScope(loc)}</span>}
                 </div>
               );
             })}
@@ -360,7 +368,10 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
                     onClick={() => setSelectedLocation(loc)}
                     className="w-full text-left flex items-center gap-2.5">
                     <div className="w-4 h-4 rounded flex-shrink-0" style={{ backgroundColor: loc.color || "#6366f1" }} />
-                    <span className="text-xs text-foreground font-medium flex-1">{loc.name}</span>
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs text-foreground font-medium block truncate">{loc.name}</span>
+                      {locScope(loc) && <span className="text-[0.625rem] text-muted-foreground block truncate flex items-center gap-1"><MapPin className="w-2.5 h-2.5 flex-shrink-0" />{locScope(loc)}</span>}
+                    </div>
                     {subLocs.length > 0 && <span className="text-xs text-muted-foreground text-right">{subLocs.length} sub</span>}
                     {altersInLoc.length > 0 && <span className="text-xs text-muted-foreground text-right">{altersInLoc.length} {t.alters}</span>}
                   </button>
@@ -448,6 +459,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
           location={selectedLocation}
           alters={alters}
           locationMap={locationMap}
+          scope={locScope(selectedLocation)}
           getParentLocation={getParentLocation}
           getSubLocations={getSubLocations}
           getAltersInLocation={getAltersInLocation}
@@ -458,7 +470,7 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
   );
 }
 
-function LocationDetailModal({ location, alters, locationMap, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
+function LocationDetailModal({ location, alters, locationMap, scope, getParentLocation, getSubLocations, getAltersInLocation, onClose }) {
   const t = useTerms();
   const bgFileRef = useRef(null);
   const [editing, setEditing] = useState(false);
@@ -539,6 +551,11 @@ function LocationDetailModal({ location, alters, locationMap, getParentLocation,
 
         {/* Content */}
         <div className="p-5 space-y-5">
+          {scope && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0" /> {scope}
+            </div>
+          )}
           {/* Description */}
           <div>
             <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide mb-2">Description</p>

@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Inner-world map: brought back the lock toggle for locations — a locked location can't be moved or resized until you unlock it.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: Snap to grid now applies to locations and backdrop images too, not just placed members.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: locations now show which map and layer they live on in the Relationships & Locations list and detail view.",
+      },
+      {
         type: "improve",
         text: "Inner-world map: following a location link to a specific layer now isolates that layer (hides the others), so it's meaningfully different from linking to a whole map. Tap \"show all\" to bring the rest back.",
       },

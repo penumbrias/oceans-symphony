@@ -569,6 +569,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   }, [maps, allLayers, activeMapId]);
   // Consistent toolbar icon-button styling.
   const tbBtn = (active) => `h-8 w-8 flex items-center justify-center rounded-lg border bg-card/90 backdrop-blur-sm transition-colors ${active ? "border-primary/40 text-primary bg-primary/15" : "border-border text-muted-foreground hover:border-primary/30"}`;
+  // Snap dragged/resized coords to the grid when Snap is on — applies to
+  // locations + backdrop images too, not just alter placements.
+  const snapFields = (f) => {
+    if (!snapToGrid) return f;
+    const out = { ...f };
+    for (const k of ["x", "y", "width", "height"]) if (typeof out[k] === "number") out[k] = snapVal(out[k]);
+    return out;
+  };
 
   return (
     <div className="relative w-full h-full flex flex-col" style={{ touchAction: "none" }}>
@@ -704,7 +712,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                       return (
                         <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} selectable={!layerLocked} locked={locked} zoom={transform.scale}
                           onSelect={() => { if (!panMovedRef.current && !layerLocked) setSelectedImage(im); }}
-                          onUpdate={(fields) => iw.updateImage(im.id, fields)}
+                          onUpdate={(fields) => iw.updateImage(im.id, snapFields(fields))}
                           onEdit={() => { if (!layerLocked) openImageEditor(im); }} />
                       );
                     })}
@@ -716,7 +724,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                           onDoubleSelect={() => { if (!panMovedRef.current && !layerLocked) openLocationEditor(loc); }}
                           onLongPress={() => { if (!layerLocked) openLocationEditor(loc); }}
                           onEdit={() => { if (!layerLocked) openLocationEditor(loc); }}
-                          onUpdate={(fields) => updateLocation(loc, fields)}
+                          onUpdate={(fields) => updateLocation(loc, snapFields(fields))}
                           onDelete={() => iw.deleteLocation(loc.id)} />
                         {loc.link_target_type && (
                           <g onClick={(e) => { e.stopPropagation(); jumpToLink(loc); }} style={{ cursor: "pointer" }}>
@@ -828,7 +836,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl max-h-[55%] overflow-y-auto">
               <div className="flex items-center justify-between">
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
-                <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
+                <div className="flex items-center gap-2">
+                  <button onClick={() => { const v = !editingLocation.is_locked; setEditingLocation((l) => ({ ...l, is_locked: v })); updateLocation(editingLocation, { is_locked: v }); }}
+                    className={`px-2 py-0.5 rounded text-xs flex items-center gap-1 border ${editingLocation.is_locked ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40" : "border-border text-muted-foreground"}`}>
+                    {editingLocation.is_locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />} {editingLocation.is_locked ? "Locked" : "Lock"}
+                  </button>
+                  <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-2">
                 <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="h-7 px-2 text-xs border border-border rounded bg-background" />
