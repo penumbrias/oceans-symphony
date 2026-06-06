@@ -312,6 +312,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [relMode, setRelMode] = useState("all");
   const [panelOpen, setPanelOpen] = useState(true);
   const [viewOnly, setViewOnly] = useState(false);
+  const [soloLayerId, setSoloLayerId] = useState(null); // set by a layer-link jump → show ONLY this layer
   const [unplacedSearch, setUnplacedSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
 
@@ -335,8 +336,15 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map((a) => [a.id, a])), [allAlters]);
   const layerById = useMemo(() => Object.fromEntries(layers.map((l) => [l.id, l])), [layers]);
   const isLayerLocked = useCallback((layerId) => !!layerById[layerId]?.is_locked, [layerById]);
-  const visibleLayerIds = useMemo(() => new Set(layers.filter((l) => l.is_visible).map((l) => l.id)), [layers]);
+  const visibleLayerIds = useMemo(() => {
+    const solo = soloLayerId && layers.some((l) => l.id === soloLayerId) ? soloLayerId : null;
+    return new Set((solo ? layers.filter((l) => l.id === solo) : layers.filter((l) => l.is_visible)).map((l) => l.id));
+  }, [layers, soloLayerId]);
   const layersBottomToTop = useMemo(() => [...layers].sort((a, b) => (a.order || 0) - (b.order || 0)), [layers]);
+  // A location link to a specific LAYER isolates it (solo) so it's distinct
+  // from linking to a whole map. Guarded: a stale solo (layer not on the
+  // active map) falls back to normal per-layer visibility.
+  const effectiveSolo = soloLayerId && layers.some((l) => l.id === soloLayerId) ? soloLayerId : null;
 
   const alterIdsOnActiveLayer = useMemo(() => new Set(placements.filter((p) => p.layer_id === activeLayerId).map((p) => p.alter_id)), [placements, activeLayerId]);
   const unplacedAlters = useMemo(() => allAlters.filter((a) => !a.is_archived && !alterIdsOnActiveLayer.has(a.id)), [allAlters, alterIdsOnActiveLayer]);
@@ -477,10 +485,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const jumpToLink = useCallback((location) => {
     const link = iw.resolveLocationLink(location);
     if (!link) return;
-    if (link.type === "map") { setActiveMapId(link.id); setActiveLayerId(null); }
+    if (link.type === "map") { setActiveMapId(link.id); setActiveLayerId(null); setSoloLayerId(null); }
     else if (link.type === "layer") {
       const layer = allLayers.find((l) => l.id === link.id);
-      if (layer) { setActiveMapId(layer.map_id); setActiveLayerId(layer.id); }
+      // Isolate the linked layer — show ONLY it (distinct from a map link).
+      if (layer) { setActiveMapId(layer.map_id); setActiveLayerId(layer.id); setSoloLayerId(layer.id); }
     }
     setSelectedLocation(null); setEditingLocation(null); setSelectedImage(null); setEditingImage(null);
   }, [iw, allLayers]);
@@ -566,7 +575,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       {/* Maps bar */}
       <div className="flex items-center gap-1 flex-wrap pb-2">
         {maps.map((m) => (
-          <button key={m.id} onClick={() => setActiveMapId(m.id)}
+          <button key={m.id} onClick={() => { setActiveMapId(m.id); setSoloLayerId(null); }}
             className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${m.id === activeMapId ? "bg-primary/15 border-primary/50 text-primary" : "border-border/50 bg-card text-muted-foreground hover:bg-muted/40"}`}>
             {m.name}
           </button>
@@ -599,9 +608,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               {[...layersBottomToTop].reverse().map((layer, idxFromTop) => {
                 const idx = layersBottomToTop.findIndex((l) => l.id === layer.id);
                 return (
-                  <div key={layer.id} onClick={() => setActiveLayerId(layer.id)}
+                  <div key={layer.id} onClick={() => { setActiveLayerId(layer.id); setSoloLayerId(null); }}
                     className={`flex items-center gap-1 px-1.5 py-1 rounded-lg border cursor-pointer text-xs ${layer.id === activeLayerId ? "border-primary/60 bg-primary/15 ring-1 ring-primary/40" : "border-border/40 bg-muted/15 hover:bg-muted/30"}`}>
-                    <button onClick={(e) => { e.stopPropagation(); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
+                    <button onClick={(e) => { e.stopPropagation(); setSoloLayerId(null); iw.setLayerVisible(layer.id, !layer.is_visible); }} title={layer.is_visible ? "Hide layer" : "Show layer"} className="text-muted-foreground hover:text-foreground">
                       {layer.is_visible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5 opacity-50" />}
                     </button>
                     <span className={`flex-1 truncate ${layer.is_visible ? "text-foreground" : "text-muted-foreground/60"}`}>{layer.name}{layer.is_locked ? " 🔒" : ""}</span>
@@ -664,10 +673,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
         {/* SVG canvas */}
         <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
           {/* Active layer / view-mode indicator */}
-          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 max-w-[60%]">
-            {viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
-            <span className="text-muted-foreground flex-shrink-0">{viewOnly ? "Viewing" : "On"}:</span>
-            <span className="font-medium text-foreground truncate">{activeLayer?.name || "—"}</span>
+          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 max-w-[70%]">
+            {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
+            <span className="text-muted-foreground flex-shrink-0">{effectiveSolo ? "Only:" : viewOnly ? "Viewing:" : "On:"}</span>
+            <span className="font-medium text-foreground truncate">{(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
+            {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="ml-1 text-primary hover:underline flex-shrink-0">show all</button>}
           </div>
 
           <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
@@ -684,7 +694,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               }
             }}>
             <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
-              {layersBottomToTop.filter((l) => l.is_visible).map((layer) => {
+              {layersBottomToTop.filter((l) => (effectiveSolo ? l.id === effectiveSolo : l.is_visible)).map((layer) => {
                 const layerLocked = viewOnly || layer.is_locked;
                 return (
                   <g key={layer.id}>

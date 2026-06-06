@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Inner-world map: following a location link to a specific layer now isolates that layer (hides the others), so it's meaningfully different from linking to a whole map. Tap \"show all\" to bring the rest back.",
+      },
+      {
+        type: "improve",
         text: "Inner-world map: the group/subsystem filter and the location-link picker are now proper searchable, nested pickers (matching the rest of the app) instead of flat menus, and the toolbar is a tidy, consistent set of icons.",
       },
       {
