@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 5, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Inner-world map: your existing maps and locations now show immediately on first open after the update, instead of appearing blank until you tapped something. (Nothing was ever lost — it was a refresh timing issue.)",
+      },
+      {
         type: "improve",
         text: "Friends privacy notice now reflects push reminders: it explains that turning on reminder push also uses the relay, and how to keep the reminder's wording on your device (switch off \"Show reminder text in notifications\").",
       },

@@ -26,9 +26,21 @@ export function useInnerWorldMaps() {
   const qc = useQueryClient();
 
   // One-time additive migration (default map/layer + stamp existing data).
+  // After it runs we MUST invalidate every inner-world query, not just maps:
+  // the migration stamps existing locations with map_id/layer_id and creates
+  // layers + placements in storage, but any list loaded BEFORE migration is
+  // now stale (its rows lack map_id, so they filter out as "empty"). Without
+  // this, a returning user saw a blank map until some action forced a refetch
+  // — the data was on disk the whole time, just not re-read.
   useEffect(() => {
     IW.ensureInnerWorldMigrated()
-      .then(() => qc.invalidateQueries({ queryKey: IW.IW_KEYS.maps }))
+      .then(() => {
+        qc.invalidateQueries({ queryKey: IW.IW_KEYS.maps });
+        qc.invalidateQueries({ queryKey: IW.IW_KEYS.layers });
+        qc.invalidateQueries({ queryKey: IW.IW_KEYS.locations });
+        qc.invalidateQueries({ queryKey: IW.IW_KEYS.images });
+        qc.invalidateQueries({ queryKey: IW.IW_KEYS.placements });
+      })
       .catch(() => {});
   }, [qc]);
 
