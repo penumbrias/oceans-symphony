@@ -4,7 +4,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Folder, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -88,7 +88,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
           title={formatAlter(alter)}
           className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}
         >
-          {formatAlter(alter)}
+          {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
         </span>
       )}
       {ownsSubsystem && (

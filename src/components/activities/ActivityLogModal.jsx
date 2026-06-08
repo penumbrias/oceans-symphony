@@ -6,9 +6,11 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
+import { UserPlus, X } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
-import { SearchableMultiSelect } from "@/components/shared/SearchableSelect";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
@@ -37,6 +39,21 @@ function parseTimeToDate(baseDate, timeStr) {
   const d = new Date(baseDate);
   d.setHours(h, m, 0, 0);
   return d;
+}
+
+// A compact selected-fronter chip (avatar + label + remove) for the list below
+// the "Choose who was fronting" button.
+function SelectedFronterChip({ alter, label, onRemove }) {
+  const avatar = useResolvedAvatarUrl(alter?.avatar_url);
+  return (
+    <span className="inline-flex items-center gap-1.5 pl-1 pr-1.5 py-0.5 rounded-full border border-border bg-muted/30 text-xs">
+      <span className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[0.5625rem] text-white flex-shrink-0" style={{ backgroundColor: alter?.color || "#8b5cf6" }}>
+        {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : (alter?.name?.[0]?.toUpperCase() || "?")}
+      </span>
+      <span className="truncate max-w-[140px]">{label}</span>
+      <button type="button" onClick={onRemove} aria-label="Remove" className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+    </span>
+  );
 }
 
 export default function ActivityLogModal({
@@ -72,6 +89,7 @@ export default function ActivityLogModal({
   // Whether the selected fronters are STILL fronting now (open session) vs the
   // activity's front having ended (closed session). Defaults from end ≈ now.
   const [stillFronting, setStillFronting] = useState(true);
+  const [fronterPickerOpen, setFronterPickerOpen] = useState(false);
 
   const startDate = selectedDateStr ? new Date(`${selectedDateStr}T00:00:00`) : null;
   const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00`) : startDate;
@@ -153,12 +171,7 @@ export default function ActivityLogModal({
     return diff > 0 ? diff : 0;
   }, [startDate, endDate, startTime, endTime]);
 
-  const alterOptions = useMemo(
-    () => (alters || []).filter((a) => !a.is_archived).map((a) => ({
-      id: a.id, label: formatAlter(a), avatar_url: a.avatar_url, color: a.color, sublabel: a.pronouns || undefined,
-    })),
-    [alters, formatAlter]
-  );
+  const altersById = useMemo(() => Object.fromEntries((alters || []).map((a) => [a.id, a])), [alters]);
 
   // Apply a quick duration. Anchored on END (default) → moves START back by n;
   // anchored on START → moves END forward by n. Handles day rollover.
@@ -307,25 +320,38 @@ export default function ActivityLogModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Date */}
-          <div>
-            <label className="text-sm font-medium block mb-1">Date</label>
-            <input
-              type="date"
-              value={selectedDateStr}
-              onChange={(e) => {
-                setSelectedDateStr(e.target.value);
-                // Keep end date in sync unless the user has already split it.
-                if (!isCrossDay) setEndDateStr(e.target.value);
-              }}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-            />
+          {/* Start / end date */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-sm font-medium block mb-1">Start date</label>
+              <input
+                type="date"
+                value={selectedDateStr}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  setSelectedDateStr(v);
+                  // Push the end date forward if it now precedes the start.
+                  if (!endDateStr || endDateStr < v) setEndDateStr(v);
+                }}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-sm font-medium block mb-1">End date</label>
+              <input
+                type="date"
+                value={endDateStr}
+                min={selectedDateStr || undefined}
+                onChange={(e) => setEndDateStr(e.target.value)}
+                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+              />
+            </div>
           </div>
 
           {/* Start / end time + duration */}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">Time</label>
+              <label className="text-sm font-medium block mb-1">Start time</label>
               <input
                 type="time"
                 value={startTime}
@@ -391,7 +417,8 @@ export default function ActivityLogModal({
             onActivityChange={setSelectedActivityCategories}
           />
 
-          {/* Alters — searchable multi-select, same pattern as the rest of the app */}
+          {/* Alters — reuses the standard Set Fronters modal in selection mode
+              (same picker as "Choose who's near" in system meetings). */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Who was {terms.fronting}?
@@ -401,13 +428,19 @@ export default function ActivityLogModal({
                 </span>
               )}
             </label>
-            <SearchableMultiSelect
-              value={selectedAlters}
-              onChange={setSelectedAlters}
-              options={alterOptions}
-              placeholder={`Add ${terms.fronters || terms.alters}…`}
-              searchPlaceholder={`Search ${terms.alters}…`}
-            />
+            <Button type="button" variant="outline" onClick={() => setFronterPickerOpen(true)} className="w-full gap-2">
+              <UserPlus className="w-4 h-4" />
+              {selectedAlters.length > 0 ? `Add or remove ${terms.alters}` : `Choose who was ${terms.fronting}…`}
+            </Button>
+            {selectedAlters.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {selectedAlters.map((id) => {
+                  const a = altersById[id];
+                  if (!a) return null;
+                  return <SelectedFronterChip key={id} alter={a} label={formatAlter(a)} onRemove={() => setSelectedAlters((prev) => prev.filter((x) => x !== id))} />;
+                })}
+              </div>
+            )}
             {selectedAlters.length > 0 && (
               <label className="flex items-center justify-between gap-2 mt-2.5 px-1 cursor-pointer">
                 <span className="text-sm text-foreground">Still {terms.fronting} now</span>
@@ -441,6 +474,16 @@ export default function ActivityLogModal({
               {isLoading ? "Saving..." : "Save Activity"}
             </Button>
           </div>
+
+          <SetFrontModal
+            open={fronterPickerOpen}
+            onClose={() => setFronterPickerOpen(false)}
+            alters={alters || []}
+            selectionMode
+            preselectedIds={selectedAlters}
+            onConfirm={(ids) => setSelectedAlters(ids)}
+            confirmLabel="Add to activity"
+          />
         </div>
       </DialogContent>
     </Dialog>

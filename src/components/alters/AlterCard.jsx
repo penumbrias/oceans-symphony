@@ -1,14 +1,13 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { User, ChevronRight, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { User, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AlterActionMenu from "./AlterActionMenu";
@@ -196,11 +195,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const isPrimary = mySession?.is_primary ?? false;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      className="flex items-center gap-2">
+    <div className="flex items-center gap-2 select-none">
       <div className="flex-1 min-w-0 relative" {...bind}
         style={{
           transform: hideFront ? undefined : `translateX(${dragX}px)`,
@@ -255,6 +250,6 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       {rightAccessory}
       {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} />}
       {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
-    </motion.div>
+    </div>
   );
 }

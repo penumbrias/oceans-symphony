@@ -17,7 +17,19 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
-        text: "Swiping an alter card to add or change front works reliably again — a swipe that drifts a little as you lift your finger still registers.",
+        text: "Swiping to add or change front works in the alters LIST view again (it had broken there — grid view still worked).",
+      },
+      {
+        type: "fix",
+        text: "“Who was fronting?” in Log Activity now uses the standard searchable Set Fronters picker, so the search actually works.",
+      },
+      {
+        type: "improve",
+        text: "Log Activity now has separate start-date and end-date fields, for activities that cross midnight.",
+      },
+      {
+        type: "fix",
+        text: "The emoji field is back in the alter profile editor (next to Alias), and alter emojis show on grid cards again.",
       },
       {
         type: "feature",

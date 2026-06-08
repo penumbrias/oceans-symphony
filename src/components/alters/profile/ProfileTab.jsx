@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
-import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Eye, EyeOff, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
+import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -153,7 +153,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const avatarFileRef = useRef(null);
   const [form, setForm, formHistory] = useUndoRedo({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
-    description: "", color: "", avatar_url: "", emoji: "", subsystems_icon: "",
+    description: "", color: "", avatar_url: "", emoji: "", use_emoji_as_alias: false, subsystems_icon: "",
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -217,6 +217,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
       emoji: alter.emoji || "",
+      use_emoji_as_alias: !!alter.use_emoji_as_alias,
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
     });
@@ -842,9 +843,21 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           </div>
           <div className="space-y-1">
             <label className="text-xs text-muted-foreground font-medium">Alias</label>
-            <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+            <div className="flex gap-2">
+              <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" className="flex-1 min-w-0" />
+              <Input value={form.emoji} onChange={(e) => set("emoji", e.target.value)} placeholder="😀" maxLength={8} aria-label="Emoji" className="w-14 flex-shrink-0 text-center text-lg" />
+            </div>
+            <button
+              type="button"
+              onClick={() => form.emoji && set("use_emoji_as_alias", !form.use_emoji_as_alias)}
+              disabled={!form.emoji}
+              className={`flex items-center gap-1.5 text-[0.6875rem] ${form.emoji ? "text-muted-foreground cursor-pointer" : "text-muted-foreground/40 cursor-not-allowed"}`}
+            >
+              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[0.625rem] leading-none ${form.use_emoji_as_alias ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{form.use_emoji_as_alias ? "✓" : ""}</span>
+              Use emoji as an alias for mentions{form.emoji ? <> — type <span className="font-medium">@{form.emoji}</span></> : ""}
+            </button>
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-              Used as a shorthand for @ mentions and - signposts.
+              The alias (or emoji) is a shorthand for @ mentions and - signposts.
             </p>
           </div>
         </div>

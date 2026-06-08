@@ -330,13 +330,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               <div className="space-y-1.5">
                 <Label>Alias</Label>
                 <div className="flex gap-2">
-                  <Input
-                    value={form.use_emoji_as_alias && form.emoji ? "" : form.alias}
-                    onChange={(e) => set("alias", e.target.value)}
-                    placeholder={form.use_emoji_as_alias && form.emoji ? `Using ${form.emoji}` : "For mentions"}
-                    disabled={form.use_emoji_as_alias && !!form.emoji}
-                    className="flex-1 min-w-0"
-                  />
+                  <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" className="flex-1 min-w-0" />
                   <Input
                     value={form.emoji}
                     onChange={(e) => set("emoji", e.target.value)}
@@ -348,7 +342,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
                 </div>
                 <label className={`flex items-center gap-2 text-xs ${form.emoji ? "text-muted-foreground cursor-pointer" : "text-muted-foreground/40"}`}>
                   <Switch checked={!!form.use_emoji_as_alias} onCheckedChange={(v) => set("use_emoji_as_alias", !!v)} disabled={!form.emoji} className="scale-90" />
-                  <span>Use emoji as alias{form.emoji ? <> — mention with <span className="font-medium">@{form.emoji}</span></> : ""}</span>
+                  <span>Use emoji as an alias for mentions{form.emoji ? <> — type <span className="font-medium">@{form.emoji}</span></> : ""}</span>
                 </label>
               </div>
             </div>
