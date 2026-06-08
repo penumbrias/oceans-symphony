@@ -4,7 +4,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, Crown, Folder, X, Link2, Palette, Eye, User } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -71,7 +71,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "",
-    birthday: "", origin_year: "", is_pinned: false, emoji: "",
+    birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false,
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -118,11 +118,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "",
-        birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "",
+        birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "", use_emoji_as_alias: !!alter.use_emoji_as_alias,
         custom_fields: alter.custom_fields || {},
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "", custom_fields: {} });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {} });
     }
     setShowAvatarUrl(false);
   }, [alter, open, isNew]);
@@ -329,7 +329,27 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               </div>
               <div className="space-y-1.5">
                 <Label>Alias</Label>
-                <Input value={form.alias} onChange={(e) => set("alias", e.target.value)} placeholder="For mentions" />
+                <div className="flex gap-2">
+                  <Input
+                    value={form.use_emoji_as_alias && form.emoji ? "" : form.alias}
+                    onChange={(e) => set("alias", e.target.value)}
+                    placeholder={form.use_emoji_as_alias && form.emoji ? `Using ${form.emoji}` : "For mentions"}
+                    disabled={form.use_emoji_as_alias && !!form.emoji}
+                    className="flex-1 min-w-0"
+                  />
+                  <Input
+                    value={form.emoji}
+                    onChange={(e) => set("emoji", e.target.value)}
+                    placeholder="😀"
+                    maxLength={8}
+                    aria-label="Emoji"
+                    className="w-14 flex-shrink-0 text-center text-lg"
+                  />
+                </div>
+                <label className={`flex items-center gap-2 text-xs ${form.emoji ? "text-muted-foreground cursor-pointer" : "text-muted-foreground/40"}`}>
+                  <Switch checked={!!form.use_emoji_as_alias} onCheckedChange={(v) => set("use_emoji_as_alias", !!v)} disabled={!form.emoji} className="scale-90" />
+                  <span>Use emoji as alias{form.emoji ? <> — mention with <span className="font-medium">@{form.emoji}</span></> : ""}</span>
+                </label>
               </div>
             </div>
             <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">

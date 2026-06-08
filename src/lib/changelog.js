@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Swiping an alter card to add or change front works reliably again — a swipe that drifts a little as you lift your finger still registers.",
+      },
+      {
+        type: "feature",
+        text: "Alters can have an emoji again — it sits next to Alias when editing, with an option to use the emoji as the alias (mention with @ that emoji).",
+      },
+      {
+        type: "improve",
+        text: "Log Activity now defaults to ending at the current time and starting 30 minutes earlier, with quick 15m / 30m / 1hr duration presets and a “from end/start” toggle.",
+      },
+      {
+        type: "feature",
+        text: "Logging an activity with fronters now records a matching fronting session for them, with a “Still fronting now” toggle to keep it open. The fronter picker there is now searchable.",
+      },
+      {
         type: "feature",
         text: "Locations now have their own profile pages (like alter and group profiles) — see a location's description, which alters and sub-locations are inside it, and its map link. Open one from a location's editor, the Relationships & Locations list, or search.",
       },

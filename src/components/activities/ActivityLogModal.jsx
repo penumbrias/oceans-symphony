@@ -1,13 +1,15 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Switch } from "@/components/ui/switch";
 import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { SearchableMultiSelect } from "@/components/shared/SearchableSelect";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -51,6 +53,8 @@ export default function ActivityLogModal({
   onSave,
 }) {
   const terms = useTerms();
+  const queryClient = useQueryClient();
+  const formatAlter = useAlterLabel();
 
   const [selectedDateStr, setSelectedDateStr] = useState("");
   const [endDateStr, setEndDateStr] = useState("");
@@ -60,6 +64,14 @@ export default function ActivityLogModal({
   const [selectedAlters, setSelectedAlters] = useState([]);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Quick-duration presets: which end stays fixed when a preset is applied.
+  // "end"  → preset sets START to (end − n).  "start" → sets END to (start + n).
+  const [presetAnchor, setPresetAnchor] = useState("end");
+  const [customAmt, setCustomAmt] = useState("");
+  const [customUnit, setCustomUnit] = useState("m"); // "m" | "h"
+  // Whether the selected fronters are STILL fronting now (open session) vs the
+  // activity's front having ended (closed session). Defaults from end ≈ now.
+  const [stillFronting, setStillFronting] = useState(true);
 
   const startDate = selectedDateStr ? new Date(`${selectedDateStr}T00:00:00`) : null;
   const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00`) : startDate;
@@ -70,28 +82,34 @@ export default function ActivityLogModal({
   useEffect(() => {
     if (!isOpen) return;
     const seedDate = startDateProp || new Date();
-    setSelectedDateStr(format(seedDate, "yyyy-MM-dd"));
-    setEndDateStr(format(endDateProp || seedDate, "yyyy-MM-dd"));
+    const nearNow = (d) => Math.abs(Date.now() - d.getTime()) < 15 * 60000;
     if (startHour !== undefined) {
-      const s = toTimeString(seedDate, startHour, startMinute);
-      setStartTime(s);
+      // Seeded from a tapped day-view slot — honour those hours.
+      setSelectedDateStr(format(seedDate, "yyyy-MM-dd"));
+      setEndDateStr(format(endDateProp || seedDate, "yyyy-MM-dd"));
+      setStartTime(toTimeString(seedDate, startHour, startMinute));
+      let endDt;
       if (endHour != null) {
-        setEndTime(toTimeString(endDateProp || seedDate, endHour, endMinute));
+        const eDate = endDateProp || seedDate;
+        setEndTime(toTimeString(eDate, endHour, endMinute));
+        endDt = new Date(eDate); endDt.setHours(endHour, endMinute, 0, 0);
       } else {
-        // Default to start + 30 min so the End-time field is always usable.
         const endH = (startHour + Math.floor((startMinute + 30) / 60)) % 24;
         const endM = (startMinute + 30) % 60;
         setEndTime(toTimeString(seedDate, endH, endM));
+        endDt = new Date(seedDate); endDt.setHours(endH, endM, 0, 0);
       }
+      setStillFronting(nearNow(endDt));
     } else {
-      // No seed hour — default to a 30-minute slot starting "now" rounded down.
+      // No seed — default to End = now (rounded to 5 min), Start = end − 30 min.
       const now = new Date();
-      const startH = now.getHours();
-      const startM = Math.floor(now.getMinutes() / 5) * 5;
-      setStartTime(toTimeString(now, startH, startM));
-      const endH = (startH + Math.floor((startM + 30) / 60)) % 24;
-      const endM = (startM + 30) % 60;
-      setEndTime(toTimeString(now, endH, endM));
+      const end = new Date(now); end.setMinutes(Math.floor(now.getMinutes() / 5) * 5, 0, 0);
+      const start = new Date(end.getTime() - 30 * 60000);
+      setSelectedDateStr(format(start, "yyyy-MM-dd"));
+      setEndDateStr(format(end, "yyyy-MM-dd"));
+      setStartTime(format(start, "HH:mm"));
+      setEndTime(format(end, "HH:mm"));
+      setStillFronting(true);
     }
     setSelectedActivityCategories([]);
     setNotes("");
@@ -135,10 +153,33 @@ export default function ActivityLogModal({
     return diff > 0 ? diff : 0;
   }, [startDate, endDate, startTime, endTime]);
 
-  const handleToggleAlter = (alterId) => {
-    setSelectedAlters((prev) =>
-      prev.includes(alterId) ? prev.filter((id) => id !== alterId) : [...prev, alterId]
-    );
+  const alterOptions = useMemo(
+    () => (alters || []).filter((a) => !a.is_archived).map((a) => ({
+      id: a.id, label: formatAlter(a), avatar_url: a.avatar_url, color: a.color, sublabel: a.pronouns || undefined,
+    })),
+    [alters, formatAlter]
+  );
+
+  // Apply a quick duration. Anchored on END (default) → moves START back by n;
+  // anchored on START → moves END forward by n. Handles day rollover.
+  const applyDuration = (mins) => {
+    if (!mins || mins <= 0) return;
+    if (presetAnchor === "end") {
+      const base = parseTimeToDate(endDate || startDate || new Date(), endTime || format(new Date(), "HH:mm"));
+      const ns = new Date(base.getTime() - mins * 60000);
+      setSelectedDateStr(format(ns, "yyyy-MM-dd"));
+      setStartTime(format(ns, "HH:mm"));
+    } else {
+      const base = parseTimeToDate(startDate || new Date(), startTime || format(new Date(), "HH:mm"));
+      const ne = new Date(base.getTime() + mins * 60000);
+      setEndDateStr(format(ne, "yyyy-MM-dd"));
+      setEndTime(format(ne, "HH:mm"));
+    }
+  };
+  const applyCustom = () => {
+    const n = parseInt(customAmt, 10);
+    if (!n || n <= 0) return;
+    applyDuration(customUnit === "h" ? n * 60 : n);
   };
 
   const handleSave = async () => {
@@ -200,23 +241,20 @@ export default function ActivityLogModal({
         } catch { /* best-effort */ }
       }
 
-      // Fronting-session sync — only for the past-time log path. Same
-      // logic the mega-modal had: never promote based on selection order;
-      // a brand-new front gets a fresh set of co-fronter sessions, an
-      // existing front gets new co-fronters joined to it.
-      if (selectedAlters.length > 0 && timestamp.getTime() <= Date.now()) {
-        const now = new Date();
-        const diffMins = (now - timestamp) / 60000;
-        const isCurrentTime = diffMins < 10;
-        const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-        if (isCurrentTime && activeSessions.length > 0) {
-          const alreadyActive = new Set();
-          for (const s of activeSessions) {
-            if (s.alter_id) alreadyActive.add(s.alter_id);
-            if (s.primary_alter_id) alreadyActive.add(s.primary_alter_id);
-            for (const id of (s.co_fronter_ids || [])) alreadyActive.add(id);
-          }
-          for (const alterId of selectedAlters) {
+      // Fronting-session sync — create an associated session for each selected
+      // alter. The "Still fronting now" toggle decides whether that session is
+      // OPEN (continues on front) or CLOSED at the activity's end time.
+      if (selectedAlters.length > 0) {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const alreadyActive = new Set();
+        for (const s of active) {
+          if (s.alter_id) alreadyActive.add(s.alter_id);
+          if (s.primary_alter_id) alreadyActive.add(s.primary_alter_id);
+          for (const id of (s.co_fronter_ids || [])) alreadyActive.add(id);
+        }
+        for (const alterId of selectedAlters) {
+          if (stillFronting) {
+            // Continue on front — skip if they already have an open session.
             if (alreadyActive.has(alterId)) continue;
             await base44.entities.FrontingSession.create({
               alter_id: alterId,
@@ -224,19 +262,19 @@ export default function ActivityLogModal({
               start_time: timestamp.toISOString(),
               is_active: true,
             });
-          }
-        } else {
-          const isStillActive = endDt ? endDt >= now : true;
-          for (const alterId of selectedAlters) {
+          } else {
+            // Closed historical session spanning the activity's window.
             await base44.entities.FrontingSession.create({
               alter_id: alterId,
               is_primary: false,
               start_time: timestamp.toISOString(),
-              end_time: isStillActive ? null : endDt?.toISOString(),
-              is_active: isStillActive,
+              end_time: (endDt || timestamp).toISOString(),
+              is_active: false,
             });
           }
         }
+        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       }
 
       setSelectedActivityCategories([]);
@@ -318,13 +356,42 @@ export default function ActivityLogModal({
             )}
           </div>
 
+          {/* Quick-duration presets. The "from end/start" toggle on the right
+              decides which time stays fixed — e.g. "30m" from end sets the
+              start to (end − 30m). */}
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {[{ l: "1hr", m: 60 }, { l: "30m", m: 30 }, { l: "15m", m: 15 }].map((p) => (
+              <button key={p.l} type="button" onClick={() => applyDuration(p.m)}
+                className="px-2.5 h-7 rounded-md border border-border text-xs text-foreground hover:bg-muted/50 transition-colors">
+                {p.l}
+              </button>
+            ))}
+            <div className="flex items-center rounded-md border border-border overflow-hidden h-7">
+              <input type="number" min="1" inputMode="numeric" value={customAmt}
+                onChange={(e) => setCustomAmt(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCustom(); } }}
+                placeholder="—" className="w-10 h-full px-1.5 text-xs bg-background outline-none text-center" aria-label="Custom amount" />
+              <button type="button" onClick={() => setCustomUnit((u) => (u === "m" ? "h" : "m"))}
+                className="px-1.5 h-full text-xs border-l border-border bg-muted/30 text-muted-foreground" title="Toggle minutes / hours">
+                {customUnit === "m" ? "min" : "hr"}
+              </button>
+              <button type="button" onClick={applyCustom}
+                className="px-2 h-full text-xs border-l border-border bg-primary/10 text-primary font-medium">set</button>
+            </div>
+            <button type="button" onClick={() => setPresetAnchor((a) => (a === "end" ? "start" : "end"))}
+              className="ml-auto px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+              title="Which time the presets keep fixed">
+              from <span className="font-medium text-foreground">{presetAnchor}</span>
+            </button>
+          </div>
+
           {/* Activity categories */}
           <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
           />
 
-          {/* Alters */}
+          {/* Alters — searchable multi-select, same pattern as the rest of the app */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Who was {terms.fronting}?
@@ -334,20 +401,26 @@ export default function ActivityLogModal({
                 </span>
               )}
             </label>
-            <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/20">
-              {alters.map((alter) => (
-                <div key={alter.id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedAlters.includes(alter.id)}
-                    onCheckedChange={() => handleToggleAlter(alter.id)}
-                    id={`log-alter-${alter.id}`}
-                  />
-                  <label htmlFor={`log-alter-${alter.id}`} className="text-sm cursor-pointer flex-1">
-                    {alter.alias || alter.name}
-                  </label>
-                </div>
-              ))}
-            </div>
+            <SearchableMultiSelect
+              value={selectedAlters}
+              onChange={setSelectedAlters}
+              options={alterOptions}
+              placeholder={`Add ${terms.fronters || terms.alters}…`}
+              searchPlaceholder={`Search ${terms.alters}…`}
+            />
+            {selectedAlters.length > 0 && (
+              <label className="flex items-center justify-between gap-2 mt-2.5 px-1 cursor-pointer">
+                <span className="text-sm text-foreground">Still {terms.fronting} now</span>
+                <Switch checked={stillFronting} onCheckedChange={setStillFronting} />
+              </label>
+            )}
+            {selectedAlters.length > 0 && (
+              <p className="text-xs text-muted-foreground px-1 mt-1">
+                {stillFronting
+                  ? `They'll stay on ${terms.front} after saving (an open ${terms.fronting} session).`
+                  : `A closed ${terms.fronting} session is recorded for the activity's time.`}
+              </p>
+            )}
           </div>
 
           {/* Notes */}

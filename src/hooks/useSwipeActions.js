@@ -46,6 +46,12 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
   const leftReached = useRef(false);
   const leftAnchorY = useRef(0);
   const cornerFired = useRef(false);
+  // Peak signed horizontal travel during the gesture, recorded only while the
+  // move was horizontally dominant. We classify the swipe on this peak rather
+  // than the end-point delta, so a clear horizontal swipe still fires even if
+  // the finger drifts vertically or eases back as it lifts (the "animation
+  // happened but nothing triggered" bug).
+  const peakDx = useRef(0);
   const [corner, setCorner] = useState(false);
   const [dragX, setDragX] = useState(0);
 
@@ -63,6 +69,7 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     longPressFired.current = false;
     leftReached.current = false;
     cornerFired.current = false;
+    peakDx.current = 0;
     setCorner(false);
     setDragX(0);
     if (onLongPress) {
@@ -81,6 +88,7 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     const dy = t.clientY - startY.current;
     if (Math.abs(dx) > Math.abs(dy)) {
       setDragX(Math.max(-60, Math.min(60, dx)));
+      if (Math.abs(dx) > Math.abs(peakDx.current)) peakDx.current = dx;
     }
     // Any meaningful movement cancels the long-press timer.
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelLongPress();
@@ -127,13 +135,21 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
       return;
     }
 
-    if (adx > SWIPE_THRESHOLD && adx > ady) {
+    // Classify on the PEAK horizontal travel (recorded only while the move was
+    // horizontally dominant), falling back to the end-point delta. This catches
+    // swipes where the finger drifted vertically or eased back on release —
+    // previously those showed the slide animation but fired no action.
+    const peak = peakDx.current;
+    const apx = Math.abs(peak);
+    const isSwipe = apx > SWIPE_THRESHOLD || (adx > SWIPE_THRESHOLD && adx > ady);
+    const dir = apx > SWIPE_THRESHOLD ? peak : dx;
+    if (isSwipe) {
       // Suppress the synthetic click that mobile WebViews emit next —
       // otherwise the click could land on a different element and fire
       // a tap there. preventDefault on touchend cancels it across the
       // whole document for this gesture.
       if (typeof e.preventDefault === "function") e.preventDefault();
-      if (dx > 0) onSwipeRight?.();
+      if (dir > 0) onSwipeRight?.();
       else onSwipeLeft?.();
     } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
       if (typeof e.preventDefault === "function") e.preventDefault();
@@ -145,6 +161,7 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     cancelLongPress();
     leftReached.current = false;
     cornerFired.current = false;
+    peakDx.current = 0;
     setCorner(false);
     setDragX(0);
   };

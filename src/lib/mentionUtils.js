@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { effectiveAlias } from "@/lib/alterLabel";
 
 // A character that can be part of a name/alias (letters, numbers, _ — any
 // script). Used to require a boundary AFTER a matched @mention so "@Sam"
@@ -13,6 +14,9 @@ export function extractMentionedIds(content, alters) {
   for (const a of alters) {
     if (a.name) tokens.push({ token: `@${a.name}`, id: a.id });
     if (a.alias) tokens.push({ token: `@${a.alias}`, id: a.id });
+    // Emoji-as-alias: @😀 resolves to the alter just like an alias would.
+    const ea = effectiveAlias(a);
+    if (ea && ea !== a.alias) tokens.push({ token: `@${ea}`, id: a.id });
   }
   tokens.sort((x, y) => y.token.length - x.token.length);
 

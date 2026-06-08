@@ -26,10 +26,19 @@ export function isAlterLabelMode(v) {
     || v === ALTER_LABEL_MODES.BOTH;
 }
 
+// The alias that actually applies for display + mentions. When an alter has
+// "use emoji as alias" on (and an emoji set), the emoji stands in for the
+// alias everywhere — labels in alias/both mode, and @emoji mentions.
+export function effectiveAlias(alter) {
+  if (!alter) return "";
+  if (alter.use_emoji_as_alias && alter.emoji) return String(alter.emoji).trim();
+  return (alter.alias || "").trim();
+}
+
 export function formatAlterLabel(alter, mode = DEFAULT_ALTER_LABEL_MODE) {
   if (!alter) return "";
   const name = (alter.name || "").trim();
-  const alias = (alter.alias || "").trim();
+  const alias = effectiveAlias(alter);
   const m = isAlterLabelMode(mode) ? mode : DEFAULT_ALTER_LABEL_MODE;
   if (m === ALTER_LABEL_MODES.ALIAS) return alias || name;
   if (m === ALTER_LABEL_MODES.BOTH) {
