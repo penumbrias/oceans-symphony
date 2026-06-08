@@ -11,6 +11,7 @@ import AnalyticsMap from "@/components/system/SystemMap";
 import InnerWorldMap from "@/components/systemmap/InnerWorldMapV2";
 import RelationshipsPanel from "@/components/systemmap/RelationshipsPanel";
 import { useTerms } from "@/lib/useTerms";
+import { useSearchParams } from "react-router-dom";
 import { Map, Globe } from "lucide-react";
 
 const localMode = isLocalMode ? isLocalMode() : false;
@@ -29,7 +30,14 @@ const ANALYTICS_MAP_TOO_LARGE_THRESHOLD = 500;
 
 export default function SystemMapPage() {
   const terms = useTerms();
-  const [tab, setTab] = useState("analytics");
+  // Deep-link support: a location's "open on map" / layer-link from its profile
+  // navigates here with ?view=inner&map=…&layer=…&solo=1 so it opens on the
+  // Inner World tab focused on that map/layer (instead of the Analytics tab).
+  const [searchParams] = useSearchParams();
+  const [tab, setTab] = useState(searchParams.get("view") === "inner" ? "inner" : "analytics");
+  const initialMapId = searchParams.get("map") || null;
+  const initialLayerId = searchParams.get("layer") || null;
+  const initialSolo = searchParams.get("solo") === "1";
 
   const { data: allAlters = [] } = useQuery({
     queryKey: ["alters"],
@@ -109,6 +117,9 @@ export default function SystemMapPage() {
             alters={alters}
             relationships={relationships}
             onRefreshRelationships={refetchRelationships}
+            initialMapId={initialMapId}
+            initialLayerId={initialLayerId}
+            initialSolo={initialSolo}
           />
         )}
       </div>

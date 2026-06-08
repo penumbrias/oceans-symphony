@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "On a location's profile page, “Open inner-world map” and the map/layer link now open the inner-world map focused on the right map (and layer) — they used to dump you on the analytics map.",
+      },
+      {
+        type: "fix",
         text: "Swiping to add or change front works in the alters LIST view again (it had broken there — grid view still worked).",
       },
       {

@@ -290,6 +290,21 @@ function LocationProfileInner() {
   const linkName = location.link_target_type === "map" ? mapName(location.link_target_id)
     : location.link_target_type === "layer" ? layerName(location.link_target_id) : null;
 
+  // Open the inner-world map on the right tab + map, optionally soloing a layer.
+  const openInnerWorld = (mapId, layerId) => {
+    let url = "/system-map?view=inner";
+    if (mapId) url += `&map=${encodeURIComponent(mapId)}`;
+    if (layerId) url += `&layer=${encodeURIComponent(layerId)}&solo=1`;
+    navigate(url);
+  };
+  const followLink = () => {
+    if (location.link_target_type === "map") openInnerWorld(location.link_target_id);
+    else if (location.link_target_type === "layer") {
+      const tl = layers.find((l) => l.id === location.link_target_id);
+      openInnerWorld(tl?.map_id, location.link_target_id);
+    }
+  };
+
   // ---------- VIEW MODE ----------
   if (!editMode) {
     const cf = location.custom_fields || {};
@@ -338,7 +353,7 @@ function LocationProfileInner() {
           )}
 
           {linkName && (
-            <button type="button" onClick={() => navigate("/system-map")}
+            <button type="button" onClick={followLink}
               className="w-full flex items-center gap-2.5 p-3 rounded-xl border border-primary/30 bg-primary/5 hover:bg-primary/10 transition-colors text-left">
               <ExternalLink className="w-4 h-4 text-primary flex-shrink-0" />
               <div className="min-w-0 flex-1">
@@ -377,7 +392,7 @@ function LocationProfileInner() {
             )}
           </div>
 
-          <Button variant="outline" className="w-full gap-1.5" onClick={() => navigate("/system-map")}>
+          <Button variant="outline" className="w-full gap-1.5" onClick={() => openInnerWorld(location.map_id)}>
             <MapIcon className="w-4 h-4" /> Open inner-world map
           </Button>
         </div>
