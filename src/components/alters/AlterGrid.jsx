@@ -1,7 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Search, Users, Folder, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, List, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Pin, Filter } from "lucide-react";
+import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -326,12 +325,19 @@ export default function AlterGrid({ alters }) {
               {/* Anonymize toggle */}
               <button
                 onClick={cycleAnonymize}
-                title={{ "off": "Screenshot mode: tap to blur names", "names": "Blurring names — tap to also blur avatars", "all": "Blurring names & avatars — tap to disable" }[anonymize]}
+                title={{
+                  off: "Screenshot mode: tap to blur names",
+                  names: "Blurring names — tap to blur avatars only",
+                  avatars: "Blurring avatars — tap to blur both",
+                  all: "Blurring names & avatars — tap to turn off",
+                }[anonymize]}
                 className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${
                   anonymize === "off"
                     ? "text-muted-foreground hover:text-foreground hover:bg-muted/60"
                     : anonymize === "names"
                     ? "text-amber-500 bg-amber-500/10"
+                    : anonymize === "avatars"
+                    ? "text-sky-500 bg-sky-500/10"
                     : "text-primary bg-primary/10"
                 }`}>
                 {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}

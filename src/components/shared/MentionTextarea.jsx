@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -76,7 +77,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     const q = (menu.query || "").toLowerCase();
     return alters
       .filter((a) => !a.is_archived && !hidden.has(a.id))
-      .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)))
+      .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)) || (a.use_emoji_as_alias && a.emoji && a.emoji.includes(q)))
       .slice(0, 8);
   }, [menu, alters, hidden]);
 
@@ -127,7 +128,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
   // (e.g. so Enter picks a suggestion instead of sending the message).
   const pickFirst = () => {
     if (!open) return false;
-    if (suggestions[0]) { insert(suggestions[0].alias || suggestions[0].name); return true; }
+    if (suggestions[0]) { insert(effectiveAlias(suggestions[0]) || suggestions[0].name); return true; }
     if (menu.type === "signpost" && showSystemRow) { insert(sysToken); return true; }
     return false;
   };
@@ -182,8 +183,8 @@ const MentionTextarea = forwardRef(function MentionTextarea(
             <SuggestionRow
               key={a.id}
               alter={a}
-              label={formatAlter ? formatAlter(a) : (a.alias || a.name)}
-              onSelect={() => insert(a.alias || a.name)}
+              label={formatAlter ? formatAlter(a) : (effectiveAlias(a) || a.name)}
+              onSelect={() => insert(effectiveAlias(a) || a.name)}
             />
           ))}
         </div>

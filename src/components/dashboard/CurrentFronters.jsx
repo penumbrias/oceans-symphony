@@ -2,12 +2,11 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
-import { TOUR_DEMO_ALTERS, TOUR_DEMO_SESSIONS } from "@/lib/tourDemoData";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import SessionActionPopover from "@/components/fronting/SessionActionPopover";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
-  Check, Loader2, MessageSquare, BookOpen
+  Check, Loader2, BookOpen
 } from "lucide-react";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
@@ -23,7 +22,7 @@ import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
-import useAnonymizeMode from "@/hooks/useAnonymizeMode";
+import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 
 const TRIGGER_CATEGORIES = [
@@ -62,8 +61,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   // Mirror the anonymize toggle from the Alters page so the chips here
   // blur the same way for screenshots.
   const { mode: anonymize } = useAnonymizeMode();
-  const blurNames = anonymize !== "off";
-  const blurAvatar = anonymize === "all";
+  const blurNames = anonymizeBlurNames(anonymize);
+  const blurAvatar = anonymizeBlurAvatars(anonymize);
 
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;

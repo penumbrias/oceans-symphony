@@ -17,7 +17,51 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Screenshot blur mode has a new “avatars only” option — blur icons/avatars but keep names readable. The toggle now cycles off → names → avatars → both.",
+      },
+      {
+        type: "improve",
+        text: "On the Alters page, the grid/list view and blur toggles now also apply to the Groups section — group folders blur and can switch to a grid, just like alters.",
+      },
+      {
+        type: "fix",
+        text: "On a location's profile page, “Open inner-world map” and the map/layer link now open the inner-world map focused on the right map (and layer) — they used to dump you on the analytics map.",
+      },
+      {
+        type: "fix",
+        text: "Swiping to add or change front works in the alters LIST view again (it had broken there — grid view still worked).",
+      },
+      {
+        type: "fix",
+        text: "“Who was fronting?” in Log Activity now uses the standard searchable Set Fronters picker, so the search actually works.",
+      },
+      {
+        type: "improve",
+        text: "Log Activity now has separate start-date and end-date fields, for activities that cross midnight.",
+      },
+      {
+        type: "fix",
+        text: "The emoji field is back in the alter profile editor (next to Alias), and alter emojis show on grid cards again.",
+      },
+      {
+        type: "feature",
+        text: "Alters can have an emoji again — it sits next to Alias when editing, with an option to use the emoji as the alias (mention with @ that emoji).",
+      },
+      {
+        type: "improve",
+        text: "Log Activity now defaults to ending at the current time and starting 30 minutes earlier, with quick 15m / 30m / 1hr duration presets and a “from end/start” toggle.",
+      },
+      {
+        type: "feature",
+        text: "Logging an activity with fronters now records a matching fronting session for them, with a “Still fronting now” toggle to keep it open. The fronter picker there is now searchable.",
+      },
+      {
+        type: "feature",
         text: "Locations now have their own profile pages (like alter and group profiles) — see a location's description, which alters and sub-locations are inside it, and its map link. Open one from a location's editor, the Relationships & Locations list, or search.",
+      },
+      {
+        type: "improve",
+        text: "Location profile pages now use the same look and feel as alter and group profiles — themed banner, page background, custom fonts and colours, and a rich description editor.",
       },
     ],
   },

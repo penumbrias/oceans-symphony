@@ -1,16 +1,16 @@
 import React, { useState, useRef } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { motion } from "framer-motion";
-import { User, ChevronRight, Zap } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { User, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
-import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
+import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import AlterActionMenu from "./AlterActionMenu";
 
 function getContrastColor(hex) {
@@ -196,11 +196,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const isPrimary = mySession?.is_primary ?? false;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ duration: 0.3, delay: index * 0.03 }}
-      className="flex items-center gap-2">
+    <div className="flex items-center gap-2 select-none">
       <div className="flex-1 min-w-0 relative" {...bind}
         style={{
           transform: hideFront ? undefined : `translateX(${dragX}px)`,
@@ -215,7 +211,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
-            className={`w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymize === "all" ? "blur-sm" : ""}`}
+            className={`w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
             style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
             {resolvedAvatar ? (
               <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
@@ -227,10 +223,10 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             </div>
           </div>
           <div className="flex-1 min-w-0">
-            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>
+            <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}>
               {alter.emoji ? <span className="mr-1">{alter.emoji}</span> : null}{formatAlter(alter)}
             </p>
-            {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymize !== "off" ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
+            {alter.pronouns && <p className={`text-xs text-muted-foreground truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}>{alter.pronouns}</p>}
           </div>
           {alter.role && (() => {
             // The role chip sits on bg-card (the surface colour). If the
@@ -241,7 +237,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             const halo = bgColor && needsHalo(bgColor, surfaceBg);
             const fillColor = halo ? adjustForContrast(bgColor, surfaceBg) : bgColor;
             return (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${anonymize !== "off" ? "blur-sm" : ""}`}
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
               style={{
                 backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "hsl(var(--muted))",
                 color: halo ? "hsl(var(--foreground))" : (bgColor || "hsl(var(--muted-foreground))"),
@@ -255,6 +251,6 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       {rightAccessory}
       {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} />}
       {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
-    </motion.div>
+    </div>
   );
 }

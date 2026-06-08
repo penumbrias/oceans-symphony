@@ -11,11 +11,11 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
-import { needsHalo, haloColor, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { useTerms } from "@/lib/useTerms";
-import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import useLongPress from "@/hooks/useLongPress";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import AlterCard from "./AlterCard";
 import SubsystemAlterList from "./SubsystemAlterList";
 import AlterGridView from "./AlterGridView";
@@ -101,7 +101,7 @@ function MemberRow({ alter, onClick, activeSessions, ownedSubsystem, onOpenSubsy
 
 }
 
-function FolderRow({ group, onClick, onLongOpen }) {
+function FolderRow({ group, onClick, onLongOpen, anonymize = "off" }) {
   const color = group.color || "";
   // Tap drills into the group (breadcrumb browse); press-and-hold opens
   // the group's profile page. Scroll-safe via useLongPress.
@@ -117,13 +117,39 @@ function FolderRow({ group, onClick, onLongOpen }) {
       title={`${group.name} — tap to open, hold for its profile`}
       className="bg-card pr-3 pl-3 text-left rounded-xl w-full flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
       style={{ borderLeftColor: color || "transparent", borderLeftWidth: color ? 3 : 1, touchAction: "pan-y" }}>
-      <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-xl border border-border/40" />
+      <span className={anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}>
+        <GroupIcon group={group} boxed className="w-9 h-9" boxClassName="rounded-xl border border-border/40" />
+      </span>
       <div className="flex-1 min-w-0">
-        <p className="font-medium text-sm text-foreground group-hover:opacity-80 transition-opacity" style={{ color: groupNameColor(group.color) }}>{group.name}</p>
+        <p className={`font-medium text-sm text-foreground group-hover:opacity-80 transition-opacity ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={{ color: groupNameColor(group.color) }}>{group.name}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
     </motion.button>);
 
+}
+
+// Compact grid tile for a group folder — the grid-view counterpart to
+// FolderRow, mirroring AlterGridView's circle tiles. Tap drills in; hold
+// opens the actions menu. Honours the same anonymize blur.
+function FolderTile({ group, onClick, onLongOpen, anonymize = "off" }) {
+  const press = useLongPress({
+    onClick: () => onClick(group),
+    onLongPress: () => onLongOpen?.(group),
+  });
+  return (
+    <motion.button
+      initial={{ opacity: 0, scale: 0.95 }}
+      animate={{ opacity: 1, scale: 1 }}
+      {...press}
+      title={`${group.name} — tap to open, hold for its profile`}
+      className="flex flex-col items-center gap-1.5 p-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 hover:border-border transition-all cursor-pointer"
+      style={{ touchAction: "pan-y" }}>
+      <span className={anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}>
+        <GroupIcon group={group} boxed className="w-12 h-12" boxClassName="rounded-xl border border-border/40" />
+      </span>
+      <span className={`text-xs text-center font-medium truncate w-full ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`} style={{ color: groupNameColor(group.color) }}>{group.name}</span>
+    </motion.button>
+  );
 }
 
 export default function FolderGroupsSection({ alters, sortDir = "asc", activeSessions = [], headerControls, anonymize = "off", displayMode = "list" }) {
@@ -325,9 +351,23 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           </div>
         )}
 
-        {/* Group folders — tap to drill in, hold for the actions popup. */}
-        {childGroups.map((g) =>
-        <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} />
+        {/* Group folders — tap to drill in, hold for the actions popup.
+            List or grid, matching the alters display-mode toggle; both honour
+            the anonymize blur. */}
+        {childGroups.length > 0 && (
+          displayMode === "list" ? (
+            <div className="space-y-2">
+              {childGroups.map((g) => (
+                <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+              ))}
+            </div>
+          ) : (
+            <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${parseInt(displayMode) || 3}, minmax(0,1fr))` }}>
+              {childGroups.map((g) => (
+                <FolderTile key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+              ))}
+            </div>
+          )
         )}
 
         {/* Member alters — rendered with the exact same components as the

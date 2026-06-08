@@ -4,9 +4,10 @@ import { useTerms } from "@/lib/useTerms";
 import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { ChevronDown, ChevronRight, Plus, Folder, ArrowLeft } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
+import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
@@ -60,7 +61,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
             src={resolvedUrl}
             alt={alter.name}
             style={{ boxShadow }}
-            className={`rounded-full object-cover transition-all cursor-pointer ${sizeClass} ${anonymize === "all" ? "blur-sm" : ""}`}
+            className={`rounded-full object-cover transition-all cursor-pointer ${sizeClass} ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
             draggable={false}
             onError={() => setImgError(true)}
           />
@@ -70,7 +71,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
               backgroundColor: fronting ? `${alterColor}30` : "hsl(var(--muted))",
               boxShadow,
             }}
-            className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${sizeClass} ${anonymize === "all" ? "blur-sm" : ""}`}
+            className={`rounded-full flex items-center justify-center transition-all cursor-pointer ${sizeClass} ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
           >
             <span className="text-xs font-semibold text-muted-foreground">
               {(formatAlter(alter) || alter.name || "?").slice(0, 2)}
@@ -86,9 +87,9 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
       {!swipeHint && (
         <span
           title={formatAlter(alter)}
-          className={`text-xs text-center font-medium truncate w-full px-1 ${anonymize !== "off" ? "blur-sm" : ""}`}
+          className={`text-xs text-center font-medium truncate w-full px-1 ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
         >
-          {formatAlter(alter)}
+          {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
         </span>
       )}
       {ownsSubsystem && (

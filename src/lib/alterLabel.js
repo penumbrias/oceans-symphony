@@ -26,6 +26,17 @@ export function isAlterLabelMode(v) {
     || v === ALTER_LABEL_MODES.BOTH;
 }
 
+// The emoji-as-alias mention token. When an alter has "use emoji as alias" on
+// (and an emoji set), the emoji works as a mention / signpost token (@😀, -😀)
+// just like an alias would. This is used by the mention resolver + the @
+// autocomplete — NOT by the display label (the emoji shows as a visual prefix
+// on chips/header instead, so the label keeps the readable alias text).
+export function effectiveAlias(alter) {
+  if (!alter) return "";
+  if (alter.use_emoji_as_alias && alter.emoji) return String(alter.emoji).trim();
+  return (alter.alias || "").trim();
+}
+
 export function formatAlterLabel(alter, mode = DEFAULT_ALTER_LABEL_MODE) {
   if (!alter) return "";
   const name = (alter.name || "").trim();

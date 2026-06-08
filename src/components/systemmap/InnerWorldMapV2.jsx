@@ -275,7 +275,7 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
   );
 }
 
-export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships }) {
+export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -287,7 +287,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const panMovedRef = useRef(false);
 
   const { maps, createMap, renameMap, deleteMap } = useInnerWorldMaps();
-  const [activeMapId, setActiveMapId] = useState(null);
+  // Seed the active map from a deep-link (e.g. a location's "open on map" /
+  // layer-link from its profile page) so it opens focused, not on map[0].
+  const [activeMapId, setActiveMapId] = useState(initialMapId || null);
   useEffect(() => { if (maps.length && !maps.find((m) => m.id === activeMapId)) setActiveMapId(maps[0].id); }, [maps, activeMapId]);
 
   const iw = useInnerWorld(activeMapId);
@@ -303,6 +305,19 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       setActiveLayerId(topVisible.id);
     }
   }, [layers, activeLayerId]);
+  // One-time deep-link focus: once the target layer's map has loaded, select
+  // (and optionally solo) that layer. Runs after the default layer-pick effect
+  // so it wins; the ref makes it fire only once.
+  const appliedInitialFocus = useRef(false);
+  useEffect(() => {
+    if (appliedInitialFocus.current) return;
+    if (!initialLayerId) { appliedInitialFocus.current = true; return; }
+    if (layers.find((l) => l.id === initialLayerId)) {
+      setActiveLayerId(initialLayerId);
+      if (initialSolo) setSoloLayerId(initialLayerId);
+      appliedInitialFocus.current = true;
+    }
+  }, [layers, initialLayerId, initialSolo]);
 
   const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
