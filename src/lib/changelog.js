@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Screenshot blur mode has a new “avatars only” option — blur icons/avatars but keep names readable. The toggle now cycles off → names → avatars → both.",
+      },
+      {
+        type: "improve",
+        text: "On the Alters page, the grid/list view and blur toggles now also apply to the Groups section — group folders blur and can switch to a grid, just like alters.",
+      },
+      {
         type: "fix",
         text: "On a location's profile page, “Open inner-world map” and the map/layer link now open the inner-world map focused on the right map (and layer) — they used to dump you on the analytics map.",
       },

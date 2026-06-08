@@ -8,7 +8,7 @@ import { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useS
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import useAnonymizeMode from "@/hooks/useAnonymizeMode";
+import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import AlterActionMenu from "./AlterActionMenu";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
@@ -198,8 +198,8 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
-  const blurNames = anonymize !== "off";
-  const blurAvatar = anonymize === "all";
+  const blurNames = anonymizeBlurNames(anonymize);
+  const blurAvatar = anonymizeBlurAvatars(anonymize);
   const label = formatAlter(alter);
 
   const { bind, dragY, hint } = useVerticalChipSwipe({
