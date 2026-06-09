@@ -19,6 +19,18 @@ export const CHANGELOG = [
         type: "fix",
         text: "Syncing from Simply Plural no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info Simply Plural owns and leaves your organisation alone.",
       },
+      {
+        type: "improve",
+        text: "Inner-world map: open a location's editor by tapping its name or double-tapping the location — and it now opens reliably. Added a button in the editor to lock a location's position.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: you can now clear a location's width/height field and type a new number instead of it snapping back to 40.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: in view mode, double-tap a location for a quick popup of its linked location, sub-locations, and the alters inside — with collapsible sections.",
+      },
     ],
   },
   {

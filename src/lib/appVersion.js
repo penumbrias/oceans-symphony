@@ -5,7 +5,7 @@
 //
 // CLAUDE.md NOTE: every time a changelog entry is added, bump APP_VERSION
 // in this file in the same commit. Default to a PATCH bump.
-export const APP_VERSION = "0.53.6";
+export const APP_VERSION = "0.53.7";
 
 // Pre-release label rendered as a chip beside the version. Empty string
 // hides the chip. Once the app is stable enough to drop the alpha tag,

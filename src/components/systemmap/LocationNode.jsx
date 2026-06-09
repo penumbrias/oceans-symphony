@@ -3,7 +3,7 @@ import { Lock, Edit2 } from "lucide-react";
 
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, viewOnly = false, zoom = 1 }) {
+export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
   const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
@@ -35,6 +35,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
+    // Clear the canvas pan-moved flag so a fresh tap on a location is never
+    // mistaken for the tail end of a previous map pan (that stale flag is what
+    // made the editor/popup fail to open after panning around).
+    onInteractStart?.();
     if (viewOnly) {
       // In view mode, just allow tap/double-tap
       fireTap();
@@ -78,6 +82,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleTouchStart = (e) => {
     e.stopPropagation();
+    onInteractStart?.();
     if (viewOnly) {
       // In view mode, just allow tap/double-tap
       fireTap();
@@ -177,7 +182,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
+    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={(is_locked || viewOnly) ? handleMouseDown : undefined} onTouchStart={(is_locked || viewOnly) ? handleTouchStart : undefined}>
       <defs>
         {resolvedBgUrl && (
           <>
@@ -199,7 +204,11 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
         stroke={borderColor}
         strokeWidth={isSelected ? 2.5 : 1.5}
         strokeDasharray={isSelected ? "6,3" : "none"}
-        pointerEvents={is_locked || viewOnly ? "none" : "auto"}
+        // Keep the body hit-testable in view mode + for locked locations so
+        // taps/double-taps still register — events with no rect handler bubble
+        // up to the <g> (which carries handlers when locked or in view mode).
+        // Only an *editable, draggable* rect needs its own down/move/end set.
+        pointerEvents={is_locked && !viewOnly ? "none" : "auto"}
         onMouseDown={!is_locked && !viewOnly ? handleMouseDown : undefined}
         onTouchStart={!is_locked && !viewOnly ? handleTouchStart : undefined}
         onTouchMove={!is_locked && !viewOnly ? handleTouchMove : undefined}
@@ -218,6 +227,19 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       >
         {name?.length > 20 ? name.slice(0, 18) + "…" : name}
       </text>
+
+      {/* Tap the name to open the editor — a large, reliable target (fires on
+          press, like the ✏️ button) so you don't have to hit the small pencil.
+          Sits to the left of the ✏️ so it never overlaps it. Edit mode only. */}
+      {!viewOnly && (
+        <rect
+          x={x} y={y} width={Math.max(10, width - 36)} height={28}
+          fill="transparent"
+          onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }}
+          onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }}
+          style={{ cursor: "pointer", pointerEvents: "auto" }}
+        />
+      )}
 
       {/* Resize handle (bottom-right) */}
       {!is_locked && !viewOnly && (

@@ -335,6 +335,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
   const [viewLocExpanded, setViewLocExpanded] = useState(false); // view-mode location popup: members list
+  const [viewLocSubsExpanded, setViewLocSubsExpanded] = useState(false); // view-mode location popup: sub-locations list
   const [relPopover, setRelPopover] = useState(null);
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -461,8 +462,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const handleZoom = (dir) => setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * (dir === "in" ? 1.2 : 0.85))) }));
   const handleReset = () => setTransform({ x: 0, y: 0, scale: 1 });
 
-  // Collapse the "members here" list whenever the viewed location changes.
-  useEffect(() => { setViewLocExpanded(false); }, [selectedLocation?.id]);
+  // Collapse the popup's expandable sections whenever the viewed location changes.
+  useEffect(() => { setViewLocExpanded(false); setViewLocSubsExpanded(false); }, [selectedLocation?.id]);
 
   // ── Placements ──
   const placeAt = useCallback(async (alter, nx, ny) => {
@@ -730,8 +731,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
                       <g key={loc.id}>
                         <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
-                          onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
-                          onDoubleSelect={() => { if (!panMovedRef.current && !layerLocked) openLocationEditor(loc); }}
+                          onInteractStart={() => { panMovedRef.current = false; }}
+                          onSelect={() => { if (panMovedRef.current || viewOnly) return; setSelectedLocation(loc); }}
+                          onDoubleSelect={() => {
+                            if (panMovedRef.current) return;
+                            // View mode → read-only info popup; edit mode → open the editor.
+                            if (viewOnly) setSelectedLocation(loc);
+                            else if (!layerLocked) openLocationEditor(loc);
+                          }}
                           onLongPress={() => { if (!layerLocked) openLocationEditor(loc); }}
                           onEdit={() => { if (!layerLocked) openLocationEditor(loc); }}
                           onUpdate={(fields) => updateLocation(loc, snapFields(fields))}
@@ -849,6 +856,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
                 <div className="flex-1" />
+                <button onClick={() => { const v = !editingLocation.is_locked; setEditingLocation((l) => ({ ...l, is_locked: v })); updateLocation(editingLocation, { is_locked: v }); }}
+                  title={editingLocation.is_locked ? "Position locked — tap to unlock" : "Lock position (no move/resize)"}
+                  className={`p-1 rounded ${editingLocation.is_locked ? "text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:bg-muted/50"}`}>
+                  {editingLocation.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                </button>
                 <button onClick={() => navigate(`/location/${editingLocation.id}`)} title="Open full profile page" className="text-primary p-1 hover:bg-primary/10 rounded"><ExternalLink className="w-4 h-4" /></button>
                 <button onClick={() => setEditingLocation(null)} title="Close"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
@@ -870,15 +882,13 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                   className={`h-8 w-9 flex items-center justify-center border rounded flex-shrink-0 ${editingLocation.background_image_url ? "border-primary/40 text-primary bg-primary/5" : "border-border text-muted-foreground"}`}>
                   <ImageIcon className="w-4 h-4" />
                 </button>
-                {/* Manual width / height */}
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground flex-shrink-0" title="Width">↔</span>
-                  <input type="number" min="40" value={Math.round(editingLocation.width || 200)} onChange={(e) => { const v = Math.max(40, parseInt(e.target.value, 10) || 0); setEditingLocation((l) => ({ ...l, width: v })); updateLocation(editingLocation, { width: v }); }} className="w-full min-w-0 h-8 px-1.5 text-xs border border-border rounded bg-background" />
-                </div>
-                <div className="flex items-center gap-1 flex-1 min-w-0">
-                  <span className="text-xs text-muted-foreground flex-shrink-0" title="Height">↕</span>
-                  <input type="number" min="40" value={Math.round(editingLocation.height || 150)} onChange={(e) => { const v = Math.max(40, parseInt(e.target.value, 10) || 0); setEditingLocation((l) => ({ ...l, height: v })); updateLocation(editingLocation, { height: v }); }} className="w-full min-w-0 h-8 px-1.5 text-xs border border-border rounded bg-background" />
-                </div>
+                {/* Manual width / height — free-typing inputs (clearable; clamp
+                    to the minimum only on blur, so you can wipe "40" and type
+                    "500" without it snapping back mid-keystroke). */}
+                <DimensionInput label="Width" symbol="↔" value={Math.round(editingLocation.width || 200)} min={40}
+                  onCommit={(v) => { setEditingLocation((l) => ({ ...l, width: v })); updateLocation(editingLocation, { width: v }); }} />
+                <DimensionInput label="Height" symbol="↕" value={Math.round(editingLocation.height || 150)} min={40}
+                  onCommit={(v) => { setEditingLocation((l) => ({ ...l, height: v })); updateLocation(editingLocation, { height: v }); }} />
               </div>
               <div className="space-y-1">
                 <p className="text-xs text-muted-foreground">Tapping the ↗ on the map jumps to…</p>
@@ -947,15 +957,20 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 )}
                 {subs.length > 0 && (
                   <div>
-                    <p className="text-xs font-medium text-muted-foreground">Sub-locations ({subs.length})</p>
-                    <div className="mt-1 space-y-1">
-                      {subs.map((s) => (
-                        <button key={s.id} onClick={() => setSelectedLocation(s)} className="w-full flex items-center gap-2 text-xs text-foreground hover:text-primary text-left">
-                          <span className="w-2.5 h-2.5 rounded flex-shrink-0" style={{ backgroundColor: s.color || "#6366f1" }} />
-                          <span className="truncate">{s.name}</span>
-                        </button>
-                      ))}
-                    </div>
+                    <button onClick={() => setViewLocSubsExpanded((v) => !v)} className="w-full flex items-center justify-between text-xs font-medium text-foreground">
+                      <span>Sub-locations ({subs.length})</span>
+                      {viewLocSubsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                    {viewLocSubsExpanded && (
+                      <div className="mt-1.5 space-y-1">
+                        {subs.map((s) => (
+                          <button key={s.id} onClick={() => setSelectedLocation(s)} className="w-full flex items-center gap-2 text-xs text-foreground hover:text-primary text-left">
+                            <span className="w-2.5 h-2.5 rounded flex-shrink-0" style={{ backgroundColor: s.color || "#6366f1" }} />
+                            <span className="truncate">{s.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 )}
               </div>
@@ -1006,6 +1021,47 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 }
 
 function swap(arr, i, j) { const next = [...arr]; [next[i], next[j]] = [next[j], next[i]]; return next; }
+
+// Free-typing numeric input for the location width/height. The old inline
+// <input> clamped on every keystroke (Math.max(40, parseInt || 0)), so clearing
+// the field instantly refilled it with 40 — you could never wipe it and type a
+// new number like 500. This keeps a local text draft: empty/partial input is
+// allowed while typing, a valid value is pushed through live, and it clamps to
+// the minimum only on blur / Enter.
+function DimensionInput({ label, symbol, value, min = 40, onCommit }) {
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  // Sync from external changes (e.g. drag-resize) only while NOT being edited,
+  // so we never clobber what the user is mid-typing.
+  useEffect(() => { if (!focused) setText(String(value)); }, [value, focused]);
+  const commit = () => {
+    const n = parseInt(text, 10);
+    const next = Number.isFinite(n) ? Math.max(min, n) : Math.max(min, value);
+    setText(String(next));
+    onCommit(next);
+  };
+  return (
+    <div className="flex items-center gap-1 flex-1 min-w-0">
+      <span className="text-xs text-muted-foreground flex-shrink-0" title={label}>{symbol}</span>
+      <input
+        type="number" inputMode="numeric" min={min} value={text} aria-label={label}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          // Live preview while typing, but never rewrite the field — only push
+          // through values at/above the minimum so a partial entry (e.g. "5" on
+          // the way to "500") doesn't resize to something tiny mid-keystroke.
+          const n = parseInt(raw, 10);
+          if (Number.isFinite(n) && n >= min) onCommit(n);
+        }}
+        onBlur={() => { setFocused(false); commit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="w-full min-w-0 h-8 px-1.5 text-xs border border-border rounded bg-background"
+      />
+    </div>
+  );
+}
 
 function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
   const [direction, setDirection] = useState(rel.direction);
