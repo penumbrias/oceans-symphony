@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 9, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Data & Privacy settings have a cleaner layout: Backup & export, a new Import group (with Simply Plural & PluralKit nested inside it), Automatic backups, Storage & encryption, and Privacy cover. The “cache images offline / recompress images” tools moved down into Storage & encryption.",
+      },
+      {
         type: "fix",
         text: "Syncing from Simply Plural no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info Simply Plural owns and leaves your organisation alone.",
       },
