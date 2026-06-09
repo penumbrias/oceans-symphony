@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Syncing from PluralKit (“Update + add new”, including with “use display name”) no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info PluralKit owns and leaves your organisation alone.",
+      },
+      {
         type: "improve",
         text: "Header extras now has a separate toggle for an alter's own custom fields (vs shared/system ones), and anything shown in the header is moved there — it no longer also appears in the body below.",
       },

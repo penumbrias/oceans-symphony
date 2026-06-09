@@ -279,16 +279,31 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
             Object.entries(match.custom_fields || {}).filter(([k]) => k.startsWith("_"))
           );
           mapped.custom_fields = { ...localOnly, ...(mapped.custom_fields || {}) };
-          // Strip fields we must NOT overwrite on re-import:
-          //   is_archived — preserve the local archive flag (mapper hardcodes
-          //     false; only the create path should set it).
-          //   groups — preserve the alter's LOCAL folder / subsystem
-          //     membership. The user organises alters into local folders and
-          //     subsystems PK has no concept of; clobbering `groups` on every
-          //     sync threw alters out of their folders (silent data loss).
-          //     Groups are seeded only when CREATING a new alter below. Use
-          //     the "Replace all" mode if you want PK to be the authority.
-          const { is_archived, groups, ...updatePayload } = mapped;
+          // ALLOWLIST — write ONLY the fields PluralKit owns. Everything else
+          // on the local Alter is left exactly as the user arranged it. This
+          // is the folder-loss fix: a blocklist (strip a few fields) silently
+          // lets any other mapped field clobber local data — e.g. the mapper
+          // sets `tags: []`, which used to wipe local tags every sync, and
+          // `groups`, which threw alters out of their LOCAL folders /
+          // subsystems (PK has no concept of those). With an allowlist, local
+          // organisation — groups (alter.groups + Group.member_sp_ids), sp_id,
+          // tags, archive flag, pins, friends visibility, preset answers — can
+          // NEVER be touched by a sync. (Use "Replace all" if you want PK to be
+          // the authority.) Note custom_fields was already merged above to keep
+          // local-only `_*` profile-style keys.
+          const updatePayload = {
+            pk_id: mapped.pk_id,
+            pk_uuid: mapped.pk_uuid,
+            name: mapped.name,
+            display_name: mapped.display_name,
+            pronouns: mapped.pronouns,
+            description: mapped.description,
+            color: mapped.color,
+            avatar_url: mapped.avatar_url,
+            banner_url: mapped.banner_url,
+            birthday: mapped.birthday,
+            custom_fields: mapped.custom_fields,
+          };
           await localEntities.Alter.update(match.id, updatePayload);
           updated += 1;
         } else {
