@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The PluralKit connector is now import-only — the “Export to PluralKit” button has been removed.",
+      },
+      {
+        type: "improve",
         text: "Data & Privacy settings have a cleaner layout: Backup & export, a new Import group (with Simply Plural & PluralKit nested inside it), Automatic backups, Storage & encryption, and Privacy cover. The “cache images offline / recompress images” tools moved down into Storage & encryption.",
       },
       {

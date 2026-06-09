@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft, ArrowUpRight, AlertTriangle, ShieldAlert } from "lucide-react";
+import { Loader2, CheckCircle2, Link2, Unlink, ArrowDownLeft, AlertTriangle, ShieldAlert } from "lucide-react";
 import { base44, localEntities } from "@/api/base44Client";
 import { isEncryptionEnabled } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
@@ -15,7 +15,6 @@ import {
   getGroups,
   getSwitches,
   mapPkMemberToAlter,
-  exportAltersToPluralKit,
 } from "@/lib/pluralKit";
 
 // Download a remote image and return a data URL. Returns null on any
@@ -415,54 +414,6 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
     }
   };
 
-  // ── Export to PluralKit ────────────────────────────────────────────────
-  const [exportConfirm, setExportConfirm] = useState(false);
-  const handleExport = async () => {
-    if (!settings?.pk_token) return;
-    if (!exportConfirm) {
-      setExportConfirm(true);
-      setTimeout(() => setExportConfirm(false), 5000);
-      return;
-    }
-    setExportConfirm(false);
-    setWorking(true);
-    setProgress("Preparing export…");
-    try {
-      const alters = (await localEntities.Alter.list()).filter((a) => !a.is_archived);
-      const { created, updated, failed } = await exportAltersToPluralKit(
-        settings.pk_token,
-        alters,
-        setProgress
-      );
-      // Write the new pk_ids back to the local records so subsequent
-      // exports PATCH instead of creating a duplicate.
-      for (const { alterId, pkId } of created) {
-        await localEntities.Alter.update(alterId, { pk_id: pkId });
-      }
-      qc.invalidateQueries({ queryKey: ["alters"] });
-      const parts = [`${created.length} created`, `${updated.length} updated`];
-      if (failed.length) parts.push(`${failed.length} failed`);
-      toast.success(`Export complete · ${parts.join(" · ")}`);
-      if (failed.length) {
-        // Surface the first failure's reason so the user isn't left guessing
-        // (pkFetch already redacts any token-shaped string from errors).
-        const first = failed[0];
-        toast.warning(
-          `${failed.length} ${failed.length === 1 ? "alter" : "alters"} couldn't be sent${first?.name ? ` (e.g. "${first.name}")` : ""}.${first?.error ? ` PluralKit said: ${first.error}` : ""}`,
-          { duration: 11000 }
-        );
-        // eslint-disable-next-line no-console
-        console.warn("PluralKit export — failed entries:", failed);
-      } else if (created.length === 0 && updated.length === 0) {
-        toast.info("Nothing to export — no active (non-archived) alters found.");
-      }
-    } catch (e) {
-      toast.error(e.message || "Export failed.");
-    } finally {
-      setWorking(false);
-      setProgress("");
-    }
-  };
 
   return (
     <Card className="border-border/50">
@@ -474,7 +425,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
           <div>
             <CardTitle className="text-lg">PluralKit</CardTitle>
             <CardDescription>
-              Import members &amp; switch history from PluralKit, and export local alters back.
+              Import members &amp; switch history from PluralKit.
             </CardDescription>
           </div>
         </div>
@@ -620,32 +571,6 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
                   {working ? <Loader2 className="w-4 h-4 animate-spin" /> : "Import switches"}
                 </Button>
               </div>
-            </div>
-
-            {/* Export */}
-            <div className="border-t pt-4 space-y-2">
-              <div className="flex items-center gap-2">
-                <ArrowUpRight className="w-4 h-4 text-emerald-500" />
-                <h4 className="font-medium text-sm">Export to PluralKit</h4>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                Sends your local alters to PluralKit. Alters previously imported from PK get their PK profile <strong>updated</strong>; new local alters get <strong>created</strong> on PK. Archived alters and switches are NOT exported. Avatars/banners only transfer if they're public web URLs — locally-uploaded images can't be reached by PluralKit, so they're skipped (everything else still sends). Two-tap confirm to prevent accidents.
-              </p>
-              <Button
-                onClick={handleExport}
-                disabled={working}
-                size="sm"
-                variant={exportConfirm ? "destructive" : "default"}
-                className="w-full sm:w-auto"
-              >
-                {working ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : exportConfirm ? (
-                  "Tap again to export →"
-                ) : (
-                  "Export to PluralKit"
-                )}
-              </Button>
             </div>
 
             {progress && (
