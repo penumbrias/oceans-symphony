@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Swiping an alter in the list view to add/remove/change front now actually works — it was silently failing while the slide animation still played.",
+      },
+      {
         type: "feature",
         text: "Screenshot blur mode has a new “avatars only” option — blur icons/avatars but keep names readable. The toggle now cycles off → names → avatars → both.",
       },

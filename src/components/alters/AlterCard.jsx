@@ -174,6 +174,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const textColor = hasColor ? getContrastColor(alter.color) : null;
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Long-press opens the quick-actions menu (profile, subsystem, front,
