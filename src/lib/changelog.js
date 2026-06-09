@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 9, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Syncing from Simply Plural no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info Simply Plural owns and leaves your organisation alone.",
+      },
+    ],
+  },
+  {
     date: "June 6, 2026",
     changes: [
       {
