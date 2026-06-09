@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Header extras now has a separate toggle for an alter's own custom fields (vs shared/system ones), and anything shown in the header is moved there — it no longer also appears in the body below.",
+      },
+      {
+        type: "fix",
+        text: "Pronouns in the profile header are back to hiding when the name already contains them; a new “Always show pronouns” toggle (in Header extras) forces them to show.",
+      },
+      {
+        type: "improve",
         text: "Inner-world map: the Edit Location popup is now compact (name, colour, shape, background, width/height, link, delete). Description and other details live on the location's profile page — open it with the ↗.",
       },
       {

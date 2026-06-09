@@ -55,6 +55,8 @@ const HEADER_SHOW_GROUPS_KEY = "_header_show_groups";
 const HEADER_SHOW_SUBSYSTEMS_KEY = "_header_show_subsystems";
 const HEADER_SHOW_FIELDS_KEY = "_header_show_fields";
 const HEADER_CHIP_MODE_KEY = "_header_chip_mode"; // "icon" | "name" | "both"
+const HEADER_SHOW_ALTER_FIELDS_KEY = "_header_show_alter_fields"; // ad-hoc per-alter fields
+const HEADER_SHOW_PRONOUNS_KEY = "_header_show_pronouns"; // force-show pronouns even if name contains them
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
@@ -454,6 +456,13 @@ useEffect(() => {
   const viewHideHeader = alter.custom_fields?.[HIDE_HEADER_KEY] || false;
   const viewHeaderImage = alter.custom_fields?.[HEADER_IMAGE_KEY] || "";
   const viewHeaderFont = fontStackFor(alter.custom_fields?.[HEADER_FONT_KEY]);
+  // Header-extras flags — when on, that info renders in the header and is
+  // MOVED out of the body (not duplicated).
+  const headerShowGroups = !!alter.custom_fields?.[HEADER_SHOW_GROUPS_KEY];
+  const headerShowSubsystems = !!alter.custom_fields?.[HEADER_SHOW_SUBSYSTEMS_KEY];
+  const headerShowFields = !!alter.custom_fields?.[HEADER_SHOW_FIELDS_KEY];
+  const headerShowAlterFields = !!alter.custom_fields?.[HEADER_SHOW_ALTER_FIELDS_KEY];
+  const headerShowPronouns = !!alter.custom_fields?.[HEADER_SHOW_PRONOUNS_KEY];
   const viewPageFont = fontStackFor(alter.custom_fields?.[PAGE_FONT_KEY]);
   const hasBg = viewBgColor || viewBgImage;
   const alterTextContrast = alter.color ? getContrastColor(alter.color) : null;
@@ -573,7 +582,7 @@ useEffect(() => {
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
                 )}
-                {alter.pronouns && (
+                {alter.pronouns && (headerShowPronouns || !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase())) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>
                 )}
                 {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
@@ -625,24 +634,21 @@ useEffect(() => {
                     link to their pages; chip mode = icon / name / both. */}
                 {(() => {
                   const cf = alter.custom_fields || {};
-                  const showG = !!cf[HEADER_SHOW_GROUPS_KEY];
-                  const showS = !!cf[HEADER_SHOW_SUBSYSTEMS_KEY];
-                  const showF = !!cf[HEADER_SHOW_FIELDS_KEY];
-                  if (!showG && !showS && !showF) return null;
+                  if (!headerShowGroups && !headerShowSubsystems && !headerShowFields && !headerShowAlterFields) return null;
                   const chipMode = cf[HEADER_CHIP_MODE_KEY] || "both";
-                  const hgroups = showG ? (alter.groups || []).map((g) => allGroups.find((x) => x.id === g.id || x.sp_id === g.id) || g) : [];
-                  const hsubs = showS ? ownedSubsystems : [];
+                  const hgroups = headerShowGroups ? (alter.groups || []).map((g) => allGroups.find((x) => x.id === g.id || x.sp_id === g.id) || g) : [];
+                  const hsubs = headerShowSubsystems ? ownedSubsystems : [];
                   const fieldChips = [];
-                  if (showF) {
+                  if (headerShowFields) {
                     for (const f of systemFields) {
                       const v = cf[f.id];
                       if (f.is_visible !== false && v && v !== "false") {
                         fieldChips.push({ label: f.name, value: f.field_type === "boolean" ? "Yes" : String(v) });
                       }
                     }
-                    if (Array.isArray(alter.alter_custom_fields)) {
-                      for (const f of alter.alter_custom_fields) if (f?.value) fieldChips.push({ label: f.name, value: String(f.value) });
-                    }
+                  }
+                  if (headerShowAlterFields && Array.isArray(alter.alter_custom_fields)) {
+                    for (const f of alter.alter_custom_fields) if (f?.value) fieldChips.push({ label: f.name, value: String(f.value) });
                   }
                   if (!hgroups.length && !hsubs.length && !fieldChips.length) return null;
                   const chipStyle = (c) => ({
@@ -700,7 +706,7 @@ useEffect(() => {
           </div>
         )}
 
-        {alter.groups && alter.groups.length > 0 && (() => {
+        {alter.groups && alter.groups.length > 0 && !headerShowGroups && (() => {
           // Group chips render against the page background here (bio area).
           // When the group's user-picked colour is very close to the page
           // bg (e.g. a dark group colour in dark mode), the tinted fill
@@ -733,7 +739,7 @@ useEffect(() => {
           );
         })()}
 
-        {ownedSubsystems.length > 0 && (
+        {ownedSubsystems.length > 0 && !headerShowSubsystems && (
           <div>
             <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
               {alter.name}'s {subsystemTerm}{ownedSubsystems.length === 1 ? "" : "s"}
@@ -841,13 +847,16 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           const alterSpecific = Array.isArray(alter.alter_custom_fields)
             ? alter.alter_custom_fields.filter(f => f.value)
             : [];
-          if (visibleFilled.length === 0 && alterSpecific.length === 0) return null;
+          // Fields shown in the header are MOVED there, not duplicated here.
+          const bodyFilled = headerShowFields ? [] : visibleFilled;
+          const bodyAdhoc = headerShowAlterFields ? [] : alterSpecific;
+          if (bodyFilled.length === 0 && bodyAdhoc.length === 0) return null;
           return (
             <div>
               <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
               <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden" style={sectionCardStyle}>
-                {visibleFilled.map((field, i) => (
-                  <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < visibleFilled.length + alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
+                {bodyFilled.map((field, i) => (
+                  <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < bodyFilled.length + bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
                     {/* div (not span) so text-type fields can host the
                         block-level MarkdownText without invalid nesting. */}
@@ -868,8 +877,8 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                     </div>
                   </div>
                 ))}
-                {alterSpecific.map((field, idx) => (
-                  <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < alterSpecific.length - 1 ? "border-b border-border/30" : ""}`}>
+                {bodyAdhoc.map((field, idx) => (
+                  <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`}>
                     <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
                     <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
                       <MarkdownText>{String(field.value)}</MarkdownText>
@@ -1074,11 +1083,13 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       </SubSection>
 
       <SubSection title="Header extras" icon={Users} defaultOpen={false}>
-        <p className="text-xs text-muted-foreground mb-1.5">Show extra info in this profile's header. Group &amp; {subsystemTerm} chips link to their pages.</p>
+        <p className="text-xs text-muted-foreground mb-1.5">Show extra info in this profile's header — it moves up there instead of showing in the body below. Group &amp; {subsystemTerm} chips link to their pages.</p>
         {[
           { key: HEADER_SHOW_GROUPS_KEY, label: "Show groups" },
           { key: HEADER_SHOW_SUBSYSTEMS_KEY, label: `Show ${subsystemTerm}s` },
           { key: HEADER_SHOW_FIELDS_KEY, label: "Show custom fields" },
+          { key: HEADER_SHOW_ALTER_FIELDS_KEY, label: `Show ${t.alter}-specific custom fields` },
+          { key: HEADER_SHOW_PRONOUNS_KEY, label: "Always show pronouns" },
         ].map(({ key, label }) => {
           const on = !!form.custom_fields?.[key];
           return (
