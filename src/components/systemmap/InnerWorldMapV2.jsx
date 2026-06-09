@@ -30,6 +30,7 @@ import {
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import ColorPicker from "@/components/shared/ColorPicker";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocationNode from "./LocationNode";
 import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
@@ -334,6 +335,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
+  const [showLocColor, setShowLocColor] = useState(false); // location colour picker modal
   const [viewLocExpanded, setViewLocExpanded] = useState(false); // view-mode location popup: members list
   const [viewLocSubsExpanded, setViewLocSubsExpanded] = useState(false); // view-mode location popup: sub-locations list
   const [relPopover, setRelPopover] = useState(null);
@@ -722,6 +724,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                       const locked = layerLocked || im.is_locked;
                       return (
                         <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} selectable={!layerLocked} locked={locked} zoom={transform.scale}
+                          onInteractStart={() => { panMovedRef.current = false; }}
                           onSelect={() => { if (!panMovedRef.current && !layerLocked) openImageEditor(im); }}
                           onUpdate={(fields) => iw.updateImage(im.id, snapFields(fields))}
                           onEdit={() => { if (!layerLocked) openImageEditor(im); }} />
@@ -865,9 +868,28 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 <button onClick={() => setEditingLocation(null)} title="Close"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
               <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Location name" className="w-full h-8 px-2 text-sm border border-border rounded bg-background" />
+              {/* Colour swatch + opacity + rotation + stack order — packed into
+                  the row freed by dropping the hex-code field (tap the square to
+                  pick a colour). */}
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground flex-shrink-0">Colour</span>
-                <ColorPicker value={editingLocation.color || "#6366f1"} onChange={(v) => { setEditingLocation((l) => ({ ...l, color: v })); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v }); }} className="justify-between flex-1" />
+                <button onClick={() => setShowLocColor(true)} title="Colour"
+                  className="w-8 h-8 rounded-lg border-2 border-border flex-shrink-0" style={{ backgroundColor: editingLocation.color || "#6366f1" }} />
+                <label className="flex items-center gap-1 flex-1 min-w-0" title="Opacity">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">◐</span>
+                  <input type="range" min={0.1} max={1} step={0.05} value={editingLocation.opacity ?? 1}
+                    onChange={(e) => { const v = parseFloat(e.target.value); setEditingLocation((l) => ({ ...l, opacity: v })); updateLocation(editingLocation, { opacity: v }); }}
+                    className="flex-1 min-w-0 accent-primary" />
+                </label>
+                <label className="flex items-center gap-1 flex-1 min-w-0" title="Rotation">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">⟳</span>
+                  <input type="range" min={0} max={360} step={1} value={editingLocation.rotation ?? 0}
+                    onChange={(e) => { const v = parseInt(e.target.value, 10); setEditingLocation((l) => ({ ...l, rotation: v })); updateLocation(editingLocation, { rotation: v }); }}
+                    className="flex-1 min-w-0 accent-primary" />
+                </label>
+                <button onClick={() => { const v = (editingLocation.order || 0) + 1; setEditingLocation((l) => ({ ...l, order: v })); updateLocation(editingLocation, { order: v }); }}
+                  title="Bring forward" className="h-8 w-7 flex items-center justify-center border border-border rounded text-muted-foreground flex-shrink-0">↑</button>
+                <button onClick={() => { const v = Math.max(0, (editingLocation.order || 0) - 1); setEditingLocation((l) => ({ ...l, order: v })); updateLocation(editingLocation, { order: v }); }}
+                  title="Send back" className="h-8 w-7 flex items-center justify-center border border-border rounded text-muted-foreground flex-shrink-0">↓</button>
               </div>
               <div className="flex items-center gap-2">
                 {/* Single shape toggle (rectangle ↔ oval) */}
@@ -1009,6 +1031,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       </div>
 
       <AssetPickerModal open={assetPicker.open} onClose={() => setAssetPicker({ open: false, mode: null })} onSelect={onAssetSelect} />
+      {showLocColor && editingLocation && (
+        <ColorPickerModal color={editingLocation.color || "#6366f1"} label="Location colour"
+          onSave={(hex) => { setEditingLocation((l) => ({ ...l, color: hex })); updateLocation(editingLocation, { color: hex }); }}
+          onClose={() => setShowLocColor(false)} />
+      )}
 
       {createRelModal && (
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />

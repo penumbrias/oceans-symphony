@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 9, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Inner-world map: animated GIFs now keep playing as location backgrounds and backdrop images — they previously only moved while you were dragging or resizing.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: a backdrop image's edit popup can be reopened again after you close it.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the Edit Location popup gained opacity, rotation, and stack-order (forward/back) controls, and the colour is now a single tappable swatch (no hex field) to keep it compact.",
+      },
+      {
         type: "improve",
         text: "The PluralKit connector is now import-only — the “Export to PluralKit” button has been removed.",
       },
