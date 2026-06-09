@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 9, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
+      },
+      {
         type: "fix",
         text: "Inner-world map: animated GIFs now keep playing as location backgrounds and backdrop images — they previously only moved while you were dragging or resizing.",
       },

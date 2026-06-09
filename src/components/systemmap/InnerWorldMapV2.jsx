@@ -681,7 +681,12 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             )}
           </div>
         ) : (
-          <button onClick={() => setPanelOpen(true)} title="Show layers" className="flex-shrink-0 w-8 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 z-10"><LayersIcon className="w-4 h-4 text-muted-foreground" /></button>
+          // Collapsed → a floating button in the bottom-left corner (absolute,
+          // so it doesn't reserve a left strip — the canvas gets full width).
+          <button onClick={() => setPanelOpen(true)} title="Show layers"
+            className="absolute bottom-3 left-3 z-30 w-9 h-9 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow flex items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground">
+            <LayersIcon className="w-4 h-4" />
+          </button>
         )}
 
         {placingAlter && (
