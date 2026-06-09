@@ -48,6 +48,13 @@ const HIDE_HEADER_KEY = "_hide_header";
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_FONT_KEY = "_header_font";
 const HEADER_OPACITY_KEY = "_header_opacity";
+// Optional header extras — surface groups / subsystems / custom fields in the
+// profile header. Group/subsystem chips render as icon / name / both and link
+// to their pages.
+const HEADER_SHOW_GROUPS_KEY = "_header_show_groups";
+const HEADER_SHOW_SUBSYSTEMS_KEY = "_header_show_subsystems";
+const HEADER_SHOW_FIELDS_KEY = "_header_show_fields";
+const HEADER_CHIP_MODE_KEY = "_header_chip_mode"; // "icon" | "name" | "both"
 const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
@@ -566,7 +573,7 @@ useEffect(() => {
                 {alter.alias && !(alter.name || "").toLowerCase().includes(alter.alias.toLowerCase()) && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>aka {alter.alias}</p>
                 )}
-                {alter.pronouns && !(alter.name || "").toLowerCase().includes(alter.pronouns.toLowerCase()) && (
+                {alter.pronouns && (
                   <p className="text-sm" style={{ color: viewHeaderText ? `${viewHeaderText}cc` : "hsl(var(--muted-foreground))" }}>{alter.pronouns}</p>
                 )}
                 {alter.birthday && <p className="text-xs" style={{ color: viewHeaderText ? `${viewHeaderText}99` : "hsl(var(--muted-foreground))" }}>🎂 {alter.birthday}</p>}
@@ -611,6 +618,56 @@ useEffect(() => {
                       }}>
                       {alter.role}
                     </span>
+                  );
+                })()}
+                {/* Optional header extras — groups / subsystems / custom fields,
+                    toggled per-alter on the edit page. Group & subsystem chips
+                    link to their pages; chip mode = icon / name / both. */}
+                {(() => {
+                  const cf = alter.custom_fields || {};
+                  const showG = !!cf[HEADER_SHOW_GROUPS_KEY];
+                  const showS = !!cf[HEADER_SHOW_SUBSYSTEMS_KEY];
+                  const showF = !!cf[HEADER_SHOW_FIELDS_KEY];
+                  if (!showG && !showS && !showF) return null;
+                  const chipMode = cf[HEADER_CHIP_MODE_KEY] || "both";
+                  const hgroups = showG ? (alter.groups || []).map((g) => allGroups.find((x) => x.id === g.id || x.sp_id === g.id) || g) : [];
+                  const hsubs = showS ? ownedSubsystems : [];
+                  const fieldChips = [];
+                  if (showF) {
+                    for (const f of systemFields) {
+                      const v = cf[f.id];
+                      if (f.is_visible !== false && v && v !== "false") {
+                        fieldChips.push({ label: f.name, value: f.field_type === "boolean" ? "Yes" : String(v) });
+                      }
+                    }
+                    if (Array.isArray(alter.alter_custom_fields)) {
+                      for (const f of alter.alter_custom_fields) if (f?.value) fieldChips.push({ label: f.name, value: String(f.value) });
+                    }
+                  }
+                  if (!hgroups.length && !hsubs.length && !fieldChips.length) return null;
+                  const chipStyle = (c) => ({
+                    backgroundColor: viewHeaderText ? `${viewHeaderText}18` : (c ? `${c}20` : "hsl(var(--muted))"),
+                    borderColor: viewHeaderText ? `${viewHeaderText}40` : (c ? `${c}55` : "hsl(var(--border))"),
+                    color: viewHeaderText || c || "hsl(var(--foreground))",
+                  });
+                  const linkChip = (g, key) => (
+                    <button key={key} type="button" onClick={() => navigate(`/group/${g.id}`)} title={`Open ${g.name}`}
+                      className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border hover:brightness-110 transition max-w-full"
+                      style={chipStyle(g.color)}>
+                      {chipMode !== "name" && <GroupIcon group={g} className="w-3.5 h-3.5 flex-shrink-0" />}
+                      {chipMode !== "icon" && <span className="truncate">{g.emoji ? `${g.emoji} ` : ""}{g.name}</span>}
+                    </button>
+                  );
+                  return (
+                    <div className="flex flex-wrap gap-1.5 pt-1.5">
+                      {hgroups.map((g) => linkChip(g, `hg-${g.id}`))}
+                      {hsubs.map((g) => linkChip(g, `hs-${g.id}`))}
+                      {fieldChips.map((f, i) => (
+                        <span key={`hf-${i}`} className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border max-w-full" style={chipStyle(null)}>
+                          <span className="opacity-70">{f.label}:</span><span className="truncate font-medium">{f.value}</span>
+                        </span>
+                      ))}
+                    </div>
                   );
                 })()}
               </div>
@@ -1014,6 +1071,39 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             return { ...f, custom_fields: cf };
           })}
         />
+      </SubSection>
+
+      <SubSection title="Header extras" icon={Users} defaultOpen={false}>
+        <p className="text-xs text-muted-foreground mb-1.5">Show extra info in this profile's header. Group &amp; {subsystemTerm} chips link to their pages.</p>
+        {[
+          { key: HEADER_SHOW_GROUPS_KEY, label: "Show groups" },
+          { key: HEADER_SHOW_SUBSYSTEMS_KEY, label: `Show ${subsystemTerm}s` },
+          { key: HEADER_SHOW_FIELDS_KEY, label: "Show custom fields" },
+        ].map(({ key, label }) => {
+          const on = !!form.custom_fields?.[key];
+          return (
+            <button key={key} type="button" onClick={() => setBgField(key, !on)} className="w-full flex items-center justify-between gap-2 py-1.5">
+              <span className="text-sm text-foreground">{label}</span>
+              <span className={`w-9 h-5 rounded-full p-0.5 flex items-center transition-colors ${on ? "bg-primary justify-end" : "bg-muted justify-start"}`}>
+                <span className="w-4 h-4 rounded-full bg-white shadow-sm" />
+              </span>
+            </button>
+          );
+        })}
+        <div className="pt-2">
+          <p className="text-xs text-muted-foreground mb-1">Group / {subsystemTerm} chip style</p>
+          <div className="flex gap-1.5">
+            {["icon", "name", "both"].map((m) => {
+              const active = (form.custom_fields?.[HEADER_CHIP_MODE_KEY] || "both") === m;
+              return (
+                <button key={m} type="button" onClick={() => setBgField(HEADER_CHIP_MODE_KEY, m)}
+                  className={`flex-1 h-8 rounded-lg border text-xs font-medium capitalize transition-colors ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`}>
+                  {m}
+                </button>
+              );
+            })}
+          </div>
+        </div>
       </SubSection>
 
       {presetAnswerRows.length > 0 && (

@@ -228,7 +228,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "✏️",
       title: "Edit Profile",
-      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, alias, pronouns, role, color, avatar, first appearance, bio, profile style, groups, and ${t.subsystem || "subsystem"}s. Tap Save when done. The View button switches back to read-only without saving.`,
+      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, alias, pronouns, role, color, avatar, first appearance, bio, profile style, groups, and ${t.subsystem || "subsystem"}s. Under "Header extras" you can choose to show this ${t.alter}'s groups, ${t.subsystem || "subsystem"}s, or custom fields right in the profile header (as icon, name, or both — and they link to their pages). Tap Save when done. The View button switches back to read-only without saving.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-edit-btn" : null,
       look: ai ? `the highlighted "Edit" button in the top-right of the profile page` : `open a profile and look for the Edit button in the top-right`, action: null,

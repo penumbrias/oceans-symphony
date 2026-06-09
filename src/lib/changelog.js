@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Alter profile headers can now show the alter's groups, subsystems, and custom fields as chips (icon, name, or both) — turn them on under “Header extras” in the profile editor. Group/subsystem chips link to their pages.",
+      },
+      {
+        type: "fix",
+        text: "An alter's pronouns now always show in their profile header.",
+      },
+      {
         type: "fix",
         text: "Swiping an alter in the list view to add/remove/change front now actually works — it was silently failing while the slide animation still played.",
       },
