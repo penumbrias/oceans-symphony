@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 6, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Inner-world map: the Edit Location popup is now compact (name, colour, shape, background, width/height, link, delete). Description and other details live on the location's profile page — open it with the ↗.",
+      },
+      {
+        type: "feature",
+        text: "Inner-world map: in view mode, tapping a location shows a quick popup with its description, link, an expandable list of the alters there, and any sub-locations. Tap its name to open the full profile.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: tap a backdrop image in edit mode to adjust it (opacity, rotation, stacking, replace) — the same way you edit locations.",
+      },
+      {
         type: "feature",
         text: "Alter profile headers can now show the alter's groups, subsystems, and custom fields as chips (icon, name, or both) — turn them on under “Header extras” in the profile editor. Group/subsystem chips link to their pages.",
       },
