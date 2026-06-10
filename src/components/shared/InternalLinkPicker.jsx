@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Link, User, BookOpen, FolderOpen, Heart, MapPin } from "lucide-react";
+import { X, Link, User, BookOpen, FolderOpen, Heart, MapPin, ChevronDown, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
@@ -48,6 +48,8 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
   const [query, setQuery] = useState("");
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [collapsed, setCollapsed] = useState(() => new Set());
+  const toggleCategory = (type) => setCollapsed((s) => { const n = new Set(s); if (n.has(type)) n.delete(type); else n.add(type); return n; });
 
   useEffect(() => {
     let cancelled = false;
@@ -159,13 +161,22 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
           ) : (
             grouped.map(({ type, items }) => {
               const meta = TYPE_META[type];
+              // When the user is searching, keep every category open so matches
+              // aren't hidden; otherwise honour the collapsed toggle.
+              const isOpen = !!query.trim() || !collapsed.has(type);
               return (
                 <div key={type}>
-                  <div className="px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/20 flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => toggleCategory(type)}
+                    aria-expanded={isOpen}
+                    className="w-full sticky top-0 px-4 py-1.5 text-xs font-semibold text-muted-foreground uppercase tracking-wide bg-muted/40 hover:bg-muted/60 flex items-center gap-1.5 transition-colors">
+                    {isOpen ? <ChevronDown className="w-3.5 h-3.5 flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 flex-shrink-0" />}
                     <span className={meta.color}>{meta.icon}</span>
                     {meta.label}
-                  </div>
-                  {items.map(item => (
+                    <span className="ml-auto text-muted-foreground/60 normal-case">{items.length}</span>
+                  </button>
+                  {isOpen && items.map(item => (
                     <button
                       key={item.id}
                       type="button"

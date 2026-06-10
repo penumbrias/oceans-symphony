@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -59,7 +59,7 @@ export default function SafetyPlan() {
         </div>
 
         <div className="flex justify-center">
-          <Button size="lg" onClick={() => navigate("/grounding?tab=learn&module=4&topic=3")} className="gap-2">
+          <Button size="lg" onClick={() => navigate("/grounding?tab=learn&topic=m4_t3")} className="gap-2">
             <Lightbulb className="w-4 h-4" /> Go to Safety Plan lesson
           </Button>
         </div>

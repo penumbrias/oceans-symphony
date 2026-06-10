@@ -188,6 +188,7 @@ export default function Journals() {
 
   const [searchParams] = useSearchParams();
   const pendingId = searchParams.get('id');
+  const pendingFolder = searchParams.get('folder');
 
   useEffect(() => {
     if (pendingId && entries.length > 0) {
@@ -195,6 +196,12 @@ export default function Journals() {
       if (entry) setViewingEntry(entry);
     }
   }, [pendingId, entries.length]);
+
+  // Deep-link to a folder (e.g. an inserted "📁 Dreams" link → /journals?folder=Dreams)
+  // — open that folder instead of dumping the user at the root listing.
+  useEffect(() => {
+    if (pendingFolder != null) setViewingFolder(pendingFolder || null);
+  }, [pendingFolder]);
 
   useMentionHighlight("id", entries.length > 0);
 

@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Inserted links now land where they should: a link to a journal folder opens that folder, and the “Go to Safety Plan lesson” button opens the actual lesson (both used to drop you on the generic page).",
+      },
+      {
+        type: "improve",
+        text: "Insert-link picker: the categories (members, journals, folders, check-ins, locations) are now collapsible, so the list is easier to navigate.",
+      },
+      {
         type: "improve",
         text: "Accessibility: screen readers now announce in-app notifications and reminders, the formatting-toolbar buttons have proper labels, and several form fields gained labels.",
       },

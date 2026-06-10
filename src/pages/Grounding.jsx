@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Shield, Shuffle, AlertTriangle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
@@ -101,8 +101,11 @@ const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
 export default function Grounding({ initialPath = null }) {
   // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [path, setPath] = useState(initialPath || "entry");
-  const [activeTab, setActiveTab] = useState("support"); // "support" | "learn"
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
+  // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
+  const deepLinkTopicId = searchParams.get("topic");
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedTechnique, setSelectedTechnique] = useState(null);
   const [selectedBreathing, setSelectedBreathing] = useState(null);
@@ -592,7 +595,7 @@ export default function Grounding({ initialPath = null }) {
     return (
       <div className="max-w-xl mx-auto">
         <TabBar />
-        <LearnSection onTryTechnique={handleTryTechniqueByName} />
+        <LearnSection onTryTechnique={handleTryTechniqueByName} initialTopicId={deepLinkTopicId} />
       </div>
     );
   }
