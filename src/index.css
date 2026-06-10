@@ -281,8 +281,10 @@ html.a11y-mode [class*="grid-cols-"]:not(.grid-cols-1) {
   grid-template-columns: minmax(0, 1fr) !important;
 }
 
-/* Never hide content behind an ellipsis or a fixed-height clip — let it wrap. */
-html.a11y-mode .truncate {
+/* Never hide content behind an ellipsis or a fixed-height clip — let it wrap.
+   Chrome opts out via .a11y-keep-truncate (a wrapping app-name in a
+   fixed-height header would overflow the bar). */
+html.a11y-mode .truncate:not(.a11y-keep-truncate) {
   white-space: normal !important;
   overflow: visible !important;
   text-overflow: clip !important;
@@ -308,6 +310,25 @@ html.a11y-mode li {
 html.a11y-mode :focus-visible {
   outline: 3px solid var(--color-primary) !important;
   outline-offset: 2px !important;
+}
+
+/* App chrome (top header + bottom tab bar) stays a fixed, comfortable size so
+   maxing out the text scale enlarges the page CONTENT, not the navigation bars.
+   Without this, the rem-based header height balloons at 200% text and eats a
+   third of the screen (worst in landscape, where vertical space is scarcest).
+   The bottom-nav outer height is already px-driven (--bottom-nav-height); here
+   we also pin its icons + labels so they can't overflow the bar at large
+   scales. Landscape trims the header further (the decorative wave is already
+   hidden there) — rotating to landscape is the most usable layout for low
+   vision, so we make sure the header doesn't fight it. */
+html.a11y-mode .a11y-header-row { height: 52px !important; }
+html.a11y-mode .a11y-header-row svg { width: 22px !important; height: 22px !important; }
+html.a11y-mode .a11y-header-title { font-size: 18px !important; line-height: 1.2 !important; }
+html.a11y-mode .a11y-bottom-nav svg { width: 22px !important; height: 22px !important; }
+html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 1.1 !important; }
+@media (orientation: landscape) {
+  html.a11y-mode .a11y-header-row { height: 44px !important; }
+  html.a11y-mode .a11y-header-title { font-size: 16px !important; }
 }
 
 /* Honour the OS "reduce motion" setting everywhere (in addition to the manual

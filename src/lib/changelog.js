@@ -21,6 +21,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Accessibility mode: at very large text sizes the top header and bottom bar stay slim instead of ballooning, and the header shrinks further in landscape — so rotating your phone gives more room for content.",
+      },
+      {
+        type: "improve",
         text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
       },
       {

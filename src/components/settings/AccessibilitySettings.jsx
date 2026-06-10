@@ -63,6 +63,9 @@ export default function AccessibilitySettings() {
           <p className="text-xs text-muted-foreground mt-0.5">
             Reconfigures the layout for low vision — stacks content into a single column, enlarges tap targets, and stops cutting text off — instead of only enlarging content (which can overlap). Best paired with a larger text size below. Fully reversible.
           </p>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            💡 On a phone, try <strong>landscape</strong> — in this mode the header and tab bar stay slim so the extra width goes to your content.
+          </p>
         </div>
         <Switch
           checked={settings.a11yMode}

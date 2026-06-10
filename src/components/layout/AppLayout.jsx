@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Wifi, Menu, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -473,7 +473,7 @@ const handleNotifClick = (mentionLog) => {
             targets cleanly and matches the Apple/Google 44px minimum.
             Landscape stays tighter so chrome doesn't eat a sixth of the
             viewport on the typical ~360 CSS px short edge. */}
-        <div className="flex items-center justify-between px-2 h-12 landscape:h-11 relative" style={{ zIndex: 1 }}>
+        <div className="a11y-header-row flex items-center justify-between px-2 h-12 landscape:h-11 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
@@ -496,9 +496,9 @@ const handleNotifClick = (mentionLog) => {
           <button
             onClick={() => navigate("/")}
             aria-label="Home"
-            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 select-none px-2 max-w-[60%] truncate"
+            className="a11y-keep-truncate absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 select-none px-2 max-w-[60%] truncate"
           >
-            <span className="font-display text-lg font-normal tracking-tight text-foreground">
+            <span className="a11y-header-title font-display text-lg font-normal tracking-tight text-foreground">
               Oceans Symphony
             </span>
           </button>
@@ -660,7 +660,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           height: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
