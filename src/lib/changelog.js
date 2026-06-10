@@ -36,6 +36,14 @@ export const CHANGELOG = [
         text: "Accessibility mode: long passages of text no longer stretch too wide on big or landscape screens, with a little extra letter spacing for easier reading.",
       },
       {
+        type: "feature",
+        text: "Settings → Accessibility now has the Text size slider plus button-size and nav-bar-height controls right there — so you can make the font bigger without hunting through Appearance.",
+      },
+      {
+        type: "improve",
+        text: "Screen-reader support: added a “Skip to main content” link and spoken page names when you move between pages.",
+      },
+      {
         type: "improve",
         text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
       },

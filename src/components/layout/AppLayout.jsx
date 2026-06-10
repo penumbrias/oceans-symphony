@@ -232,6 +232,15 @@ const bottomNavItems = useMemo(() => {
     .map(page => ({ ...page, label: termMap[page.id] || page.label }));
 }, [navConfig.bottomBar, termMap]);
 
+// Name of the current page, for the polite screen-reader route announcer
+// below. SPA route changes are otherwise silent to assistive tech.
+const routeAnnouncement = useMemo(() => {
+  const p = location.pathname;
+  if (p === "/") return "Dashboard";
+  const match = ALL_PAGES.find(pg => pg.path && pg.path !== "/" && p.startsWith(pg.path));
+  return match ? (termMap[match.id] || match.label) : "";
+}, [location.pathname, termMap]);
+
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
 
@@ -379,6 +388,19 @@ const handleNotifClick = (mentionLog) => {
     // and drags the "sticky" header up with it in some Capacitor
     // WebView versions.
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Skip link — the first focusable element; lets keyboard / switch users
+          jump straight to the page content, past the header + nav (WCAG 2.4.1).
+          Visually hidden until focused. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-semibold focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      {/* Polite route announcer — names the current page for screen readers on
+          each navigation (SPA route changes are otherwise silent). */}
+      <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
+
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -644,7 +666,7 @@ const handleNotifClick = (mentionLog) => {
             BEHIND content via a negative z-index inside main's `isolate`
             stacking context (and negative insets to reach edge-to-edge past
             the padding), so no content wrapper is needed. */}
-        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
+        <main id="main-content" tabIndex={-1} role="main" className="app-content-main focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
