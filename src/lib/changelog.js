@@ -17,6 +17,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activity Tracker: the “show alters” toggle now actually shows who was fronting during each activity (it was using an old detection method and never showed anyone).",
+      },
+      {
+        type: "improve",
+        text: "Page titles now use one consistent heading style across the app (Activity Tracker, Timeline, Reminders, To-Do, and more), matching the more polished pages.",
+      },
+      {
+        type: "fix",
+        text: "Opening a page now starts at the top instead of sometimes appearing already scrolled down.",
+      },
+      {
+        type: "fix",
         text: "Emoji aliases now sign posts: if a member uses an emoji as their alias, just including that emoji in a bulletin, message, or comment signs the entry as them. Mentions still put @ before the emoji (like @😀).",
       },
       {

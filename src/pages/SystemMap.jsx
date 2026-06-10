@@ -82,7 +82,7 @@ export default function SystemMapPage() {
   return (
     <div data-tour="system-map-canvas" className="flex flex-col gap-3 pb-6">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">{terms.System} Structure Map</h1>
+        <h1 className="font-display text-3xl font-semibold text-foreground">{terms.System} Structure Map</h1>
         <p className="text-muted-foreground mt-1 text-sm">
           {tab === "analytics"
             ? `Shows every ${terms.alter} sized by fronting time. Select one to reposition others by how often they co-fronted — closer means more overlap.`

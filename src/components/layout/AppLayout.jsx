@@ -363,6 +363,18 @@ const handleNotifClick = (mentionLog) => {
     setHistoryIdx(window.history.state?.idx ?? 0);
   }, [location.pathname]);
 
+  // Scroll the content area back to the top on each navigation. <main> is the
+  // only scroll context, and it's the SAME DOM element across route changes, so
+  // it otherwise keeps the previous page's scroll position — which is why a new
+  // page sometimes opened part-way down. Skip when a ?highlight=… deep-link is
+  // present, since useHighlightScroll will scroll to the target row itself.
+  const mainScrollRef = useRef(null);
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has("highlight")) return;
+    const el = mainScrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, [location.pathname, location.search]);
+
   const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);
 
   // Bulletproof back: try navigate(-1) if we genuinely have history to
@@ -668,7 +680,7 @@ const handleNotifClick = (mentionLog) => {
             BEHIND content via a negative z-index inside main's `isolate`
             stacking context (and negative insets to reach edge-to-edge past
             the padding), so no content wrapper is needed. */}
-        <main id="main-content" tabIndex={-1} role="main" className="app-content-main focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
+        <main ref={mainScrollRef} id="main-content" tabIndex={-1} role="main" className="app-content-main focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}

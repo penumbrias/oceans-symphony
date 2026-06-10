@@ -51,6 +51,11 @@ export function getAlterIdsForSlot(date, hour, minute, intervalMinutes, fronting
     const start = parseDate(s.start_time);
     const end = s.end_time ? parseDate(s.end_time) : new Date();
     if (start < slotEnd && end > slotStart) {
+      // Current per-alter session shape (one row per fronter) uses `alter_id`;
+      // legacy rows use `primary_alter_id` + `co_fronter_ids`. Read all three
+      // so the "show alters" toggle surfaces modern sessions too (it previously
+      // only read the legacy fields, so nothing ever showed).
+      if (s.alter_id) ids.add(s.alter_id);
       if (s.primary_alter_id) ids.add(s.primary_alter_id);
       (s.co_fronter_ids || []).forEach(id => ids.add(id));
     }

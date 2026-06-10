@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
-import { Activity, Heart, Users, Calendar, BarChart3, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
+import { Activity, Heart, Users, Calendar, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
@@ -235,7 +235,7 @@ export default function Timeline() {
   return (
     <div data-tour="timeline-container" className="space-y-4 max-w-3xl mx-auto" ref={containerRef}>
       <div className="flex items-center justify-between flex-wrap gap-3">
-        <h1 className="text-3xl font-bold">Timeline</h1>
+        <h1 className="font-display text-3xl font-semibold text-foreground">Timeline</h1>
         <div data-tour="timeline-jump" className="flex items-center gap-2 flex-wrap">
           <input
             type="date"

@@ -6,7 +6,6 @@ import { localEntities } from "@/api/base44Client";
 import ReportBuilder from "@/components/report/ReportBuilder";
 import ExportModal from "@/components/report/ExportModal";
 import ReportCustomizePreview from "@/components/report/ReportCustomizePreview";
-import { Toaster } from "@/components/ui/toaster";
 import { toast } from "sonner";
 import * as reportSections from "@/lib/reportSections";
 import { generateTherapyReport, formatTherapyReportAsText } from "@/lib/reportGenerator";
@@ -404,7 +403,7 @@ export default function TherapyReportPage() {
   return (
     <div data-tour="therapy-report-builder" className="max-w-3xl mx-auto p-6 space-y-8">
       <div>
-        <h1 className="text-3xl font-bold text-foreground">Therapy Report</h1>
+        <h1 className="font-display text-3xl font-semibold text-foreground">Therapy Report</h1>
         <p className="text-muted-foreground mt-2">
           Create a structured report to bring to your therapist. The report bridges the amnesia gap by surfacing what happened, who was fronting, and what was notable.
         </p>
