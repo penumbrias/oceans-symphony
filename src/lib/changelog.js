@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Each member's profile has a new Locations tab listing the inner-world locations they're in, with links to each location and to its spot on the map.",
+      },
+      {
+        type: "feature",
+        text: "Alters page: a new flatten button shows every member in one list (ignoring subsystem nesting), so you can see them all at once.",
+      },
+      {
         type: "fix",
         text: "Activity Tracker: the “show alters” toggle now actually shows who was fronting during each activity (it was using an old detection method and never showed anyone).",
       },

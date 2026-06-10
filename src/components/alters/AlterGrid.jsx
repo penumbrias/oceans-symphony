@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter } from "lucide-react";
+import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -200,7 +200,14 @@ export default function AlterGrid({ alters }) {
   const topLevelAlters = search
     ? filtered
     : filtered.filter((a) => !insideSubsystems.has(a.id) && !hiddenFromLists.has(a.id));
-  const flatAlters = filterMemberIds ? filtered.filter((a) => filterMemberIds.has(a.id)) : filtered;
+  // Flat list. With a membership filter, show its members (incl. hidden ones —
+  // explicitly chosen). When searching, show every match so hidden alters are
+  // still findable. When flat is on via the toggle (no search/filter), show
+  // everyone EXCEPT alters a group setting hides from lists — i.e. flatten the
+  // subsystem nesting but still honour the "hide from lists" setting.
+  const flatAlters = filterMemberIds
+    ? filtered.filter((a) => filterMemberIds.has(a.id))
+    : (search ? filtered : filtered.filter((a) => !hiddenFromLists.has(a.id)));
   const visibleAlters = showFlat ? flatAlters : topLevelAlters;
 
   const groupControls = (active) => (
@@ -314,6 +321,16 @@ export default function AlterGrid({ alters }) {
             <div className="flex-1 h-px bg-border/50" />
             <div className="flex items-center gap-1">
               <AlterLabelToggle size="xs" />
+              {/* Flatten / nest toggle — flat shows every (non-hidden) alter in
+                  one list, ignoring subsystem nesting, so you can see them all
+                  at once. Tap again to return to the grouped/nested view. */}
+              <button
+                onClick={() => setFilters((f) => ({ ...f, nested: !f.nested }))}
+                aria-pressed={!filters.nested}
+                title={filters.nested ? `Show all ${terms.alters} in one flat list` : "Back to nested view"}
+                className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${!filters.nested ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+                <List className="w-4 h-4" />
+              </button>
               {/* View / column cycle */}
               <button
                 data-tour="alter-view-toggle"
