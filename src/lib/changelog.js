@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "feature",
+        text: "You can now drag the floating support bubble (🫧) to the “hide” target at the bottom of the screen to turn it off, and bring it back from the Quick Support page (or Settings → Accessibility).",
+      },
+      {
+        type: "improve",
+        text: "Edit Bulletin: the author picker is now searchable and scrollable with removable chips, matching the rest of the app.",
+      },
+      {
         type: "fix",
         text: "Inserted links now land where they should: a link to a journal folder opens that folder, and the “Go to Safety Plan lesson” button opens the actual lesson (both used to drop you on the generic page).",
       },
