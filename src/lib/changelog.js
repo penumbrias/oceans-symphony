@@ -33,6 +33,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "Accessibility mode: long passages of text no longer stretch too wide on big or landscape screens, with a little extra letter spacing for easier reading.",
+      },
+      {
+        type: "improve",
         text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
       },
       {

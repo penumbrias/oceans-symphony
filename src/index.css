@@ -334,6 +334,21 @@ html.a11y-mode li {
   overflow-wrap: anywhere;
 }
 
+/* Cap line length for long-form text (WCAG 1.4.8 AAA, ≤~80 chars) so wide
+   screens — landscape especially — don't produce hard-to-track long lines, and
+   add gentle letter/word spacing that aids low-vision reading without looking
+   broken. Max-width is limited to clear prose (p / blockquote) so it can't
+   shrink flex rows, the map canvas, or chat layouts. */
+html.a11y-mode p,
+html.a11y-mode blockquote {
+  max-width: 72ch;
+}
+html.a11y-mode p,
+html.a11y-mode li {
+  letter-spacing: 0.012em;
+  word-spacing: 0.04em;
+}
+
 /* Always-visible, high-contrast focus ring for keyboard / switch users (2.4.7). */
 html.a11y-mode :focus-visible {
   outline: 3px solid var(--color-primary) !important;
