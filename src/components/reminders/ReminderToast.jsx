@@ -176,7 +176,7 @@ export default function ReminderToast() {
   return (
     <>
       {visible.length > 0 && (
-        <div className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+        <div role="status" aria-live="polite" aria-atomic="false" className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
           {visible.slice(0, 3).map(({ instance, reminder }) => {
             const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
             const inlineActions = reminder.inline_actions || [];
@@ -213,7 +213,7 @@ export default function ReminderToast() {
                     {moreActions.length > 0 && (
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
-                          <Button size="icon" variant="outline" className="h-7 w-7">
+                          <Button size="icon" variant="outline" className="h-7 w-7" aria-label="More reminder actions">
                             <MoreHorizontal className="w-3.5 h-3.5" />
                           </Button>
                         </DropdownMenuTrigger>

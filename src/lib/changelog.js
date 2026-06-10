@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Accessibility: screen readers now announce in-app notifications and reminders, the formatting-toolbar buttons have proper labels, and several form fields gained labels.",
+      },
+      {
         type: "fix",
         text: "Bulletins: a new 🔒 Whisper toggle lets you pick exactly who can read a post — it's hidden behind a tap-to-reveal bar for everyone else. More reliable than typing “/w” (which still works).",
       },
