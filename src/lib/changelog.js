@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Daily Tasks: the preset “check-in” now clears when you open the app, not only when you open the Daily Tasks page.",
+      },
+      {
+        type: "improve",
+        text: "Journal entries: the “Signing as” authors are now removable — tap × to drop one you didn't mean to include.",
+      },
+      {
         type: "improve",
         text: "Comments now have the same 🔒 Whisper toggle as bulletins — pick exactly who can read a comment, hidden behind a tap-to-reveal bar for everyone else.",
       },

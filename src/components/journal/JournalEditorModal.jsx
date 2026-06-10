@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { base44 } from "@/api/base44Client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { encryptContent, decryptContent } from "@/lib/encryption";
-import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code, PenLine, ChevronDown } from "lucide-react";
+import { Lock, AlertCircle, Loader2, Folder, LayoutGrid, Type, Eye, Code, PenLine, ChevronDown, X } from "lucide-react";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -65,6 +65,9 @@ export default function JournalEditorModal({
   const [decryptionError, setDecryptionError] = useState("");
   const [mentionNote, setMentionNote] = useState("");
   const [authorAlterId, setAuthorAlterId] = useState(null);
+  // Authors the user removed from the live "Signing as" list (delete-only — you
+  // add authors via the signpost field / dropdown). Keyed by alter id.
+  const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
   const [coAuthorIds, setCoAuthorIds] = useState([]);
   const [showAuthorPicker, setShowAuthorPicker] = useState(false);
   const [authorSearch, setAuthorSearch] = useState("");
@@ -109,17 +112,26 @@ export default function JournalEditorModal({
   // sentinel, treat the entry as unattributed (author_alter_id: null)
   // and ignore co-authors — "system" represents the absence of a
   // specific author.
-  const signpostHeadIsSystem = isSystemSignpost(signpostAuthors[0]);
-  const effectiveAuthorId = signpostHeadIsSystem
+  // The live "Signing as" list, minus anyone the user removed via the chip ×.
+  const visibleSignpostAuthors = useMemo(
+    () => signpostAuthors.filter(a => !removedAuthorIds.has(a.id)),
+    [signpostAuthors, removedAuthorIds]
+  );
+  const signpostHeadIsSystem = isSystemSignpost(visibleSignpostAuthors[0]);
+  // If the user removed every signposted author, treat the entry as unattributed
+  // rather than silently falling back to the dropdown selection.
+  const allSignpostAuthorsRemoved = signpostAuthors.length > 0 && visibleSignpostAuthors.length === 0;
+  const effectiveAuthorId = (signpostHeadIsSystem || allSignpostAuthorsRemoved)
     ? null
-    : (signpostAuthors[0]?.id ?? authorAlterId);
-  const effectiveCoAuthorIds = signpostHeadIsSystem
+    : (visibleSignpostAuthors[0]?.id ?? authorAlterId);
+  const effectiveCoAuthorIds = (signpostHeadIsSystem || allSignpostAuthorsRemoved)
     ? []
-    : (signpostAuthors.length > 0
-        ? signpostAuthors.slice(1).filter(a => !isSystemSignpost(a)).map(a => a.id)
+    : (visibleSignpostAuthors.length > 0
+        ? visibleSignpostAuthors.slice(1).filter(a => !isSystemSignpost(a)).map(a => a.id)
         : coAuthorIds);
 
 useEffect(() => {
+    setRemovedAuthorIds(new Set());
     if (editingEntryFinal) {
       setTitle(editingEntryFinal.title || "");
       setIsEncrypted(editingEntryFinal.is_encrypted || false);
@@ -433,18 +445,26 @@ useEffect(() => {
               </div>
             </div>
 
-            {signpostAuthors.length > 0 && (
-              <div className="flex items-center gap-2 pl-5 text-xs text-muted-foreground">
+            {visibleSignpostAuthors.length > 0 && (
+              <div className="flex items-center gap-1.5 flex-wrap pl-5 text-xs text-muted-foreground">
                 <span>Signing as:</span>
-                {signpostAuthors.map((a, i) => (
-                  <span key={a.id} className="flex items-center gap-1">
+                {visibleSignpostAuthors.map((a, i) => (
+                  <span key={a.id} className="inline-flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-full border border-border/50 bg-card">
                     {isSystemSignpost(a) ? (
                       <SystemAvatar size="sm" />
                     ) : (
-                      <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
                     )}
-                    {isSystemSignpost(a) ? systemIdentity.name : a.name}
-                    {i === 0 && signpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
+                    <span className="truncate max-w-[7rem]">{isSystemSignpost(a) ? systemIdentity.name : a.name}</span>
+                    {i === 0 && visibleSignpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
+                    <button
+                      type="button"
+                      aria-label={`Remove ${isSystemSignpost(a) ? systemIdentity.name : a.name} as author`}
+                      onClick={() => setRemovedAuthorIds((s) => new Set(s).add(a.id))}
+                      className="text-muted-foreground hover:text-destructive flex-shrink-0"
+                    >
+                      <X className="w-3 h-3" />
+                    </button>
                   </span>
                 ))}
               </div>

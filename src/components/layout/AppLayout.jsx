@@ -12,6 +12,7 @@ import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
+import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -72,6 +73,9 @@ export default function AppLayout() {
   // rows, multiple is_primary) once per session, so users who never open
   // the Set Fronters modal don't sit with stuck data forever.
   useFrontSessionSweep();
+  // Credit the daily "App opened" check-in on launch, not only when the Daily
+  // Tasks page is first visited.
+  useDailyCheckInOnOpen();
 
   // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
   // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered
