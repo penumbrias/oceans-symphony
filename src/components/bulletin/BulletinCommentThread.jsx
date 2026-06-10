@@ -17,6 +17,7 @@ import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib
 import { isLocalMode } from "@/lib/storageMode";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 
 const REACTION_EMOJIS = ["👍", "❤️", "😊", "😂", "😢", "💜", "🔥", "⚠️"];
 
@@ -30,6 +31,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const systemIdentity = useSystemIdentity();
   const qc = useQueryClient();
   const [text, setText] = useState("");
+  const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [menuMode, setMenuMode] = useState("signpost");
@@ -148,6 +150,19 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     else insertSignpost(alter);
   };
 
+  // Live attribution preview (signpost / emoji wins, else fronters) minus any
+  // the user removed; falls back to a System chip so it's always visible.
+  const resolvedAuthors = React.useMemo(() => {
+    const { authors } = parseAndStripSignposts(text, alters, systemKeywords);
+    if (isSystemSignpost(authors[0])) return [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+    const ids = authors.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
+    const useIds = ids.length > 0 ? ids : frontingAlterIds;
+    return useIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+  }, [text, alters, systemKeywords, frontingAlterIds]);
+  const liveAuthors = resolvedAuthors.filter((a) => !removedAuthorIds.has(a.id));
+  const displayAuthors = liveAuthors.length ? liveAuthors : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+  const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
+
   const handleSubmit = async () => {
     if (!text.trim()) return;
     // Whisper transform first — comments are a posting surface, so a
@@ -183,6 +198,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
         } catch { /* fall through with the system-attributed save */ }
       }
     }
+    // Honour authors removed from the live chip list.
+    finalAuthorIds = finalAuthorIds.filter((id) => !removedAuthorIds.has(id));
     const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,
@@ -287,6 +304,8 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
       </div>
+
+      <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} label="Signed by" />
 
       {richMode && (
         <div className="mt-1.5 rounded-lg border border-border/40 overflow-hidden">

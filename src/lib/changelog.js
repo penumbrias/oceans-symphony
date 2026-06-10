@@ -24,6 +24,10 @@ export const CHANGELOG = [
         text: "The @mention picker in chat now matches and inserts emoji aliases too.",
       },
       {
+        type: "feature",
+        text: "Writing a bulletin or comment now shows a live “Signed by” list of who it'll be attributed to — tap × to remove anyone you didn't mean to include.",
+      },
+      {
         type: "fix",
         text: "Currently-fronting panel: a member's note/feelings panel now opens directly under the member you tapped, instead of below the whole list.",
       },

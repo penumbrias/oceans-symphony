@@ -1,9 +1,7 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,9 +10,9 @@ import { applyWhisper } from "@/lib/whisperUtils";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
-import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -51,6 +49,9 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     return out;
   }, [terms.system, systemIdentity.name]);
   const [content, setContent] = useState(initialContent);
+  // Authors the user has explicitly removed from this post (delete-only — you
+  // add authors by signposting in the text). Keyed by alter id.
+  const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
   const [pinned, setPinned] = useState(false);
   const [showPoll, setShowPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
@@ -123,6 +124,20 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // boundary-aware matcher from mentionUtils (so "@Sam" no longer matches
   // inside "@Samantha").
 
+  // Live preview of who this post will be attributed to: an explicit signpost
+  // (emoji / -name) wins, otherwise the current fronters; minus anyone the user
+  // removed. Falls back to a System chip so the attribution is always visible.
+  const resolvedAuthors = React.useMemo(() => {
+    const { authors } = parseAndStripSignposts(content, alters, systemKeywords);
+    if (isSystemSignpost(authors[0])) return [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+    const signpostedIds = authors.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
+    const ids = signpostedIds.length > 0 ? signpostedIds : frontingAlterIds;
+    return ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+  }, [content, alters, systemKeywords, frontingAlterIds]);
+  const liveAuthors = resolvedAuthors.filter((a) => !removedAuthorIds.has(a.id));
+  const displayAuthors = liveAuthors.length ? liveAuthors : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+  const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
+
   const handlePost = async () => {
     if (!content.trim()) return;
     // Whisper transform first — bulletins are a posting surface, so a
@@ -164,6 +179,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
+    // Honour authors the user removed from the live chip list.
+    finalAuthorIds = finalAuthorIds.filter((id) => !removedAuthorIds.has(id));
     const mentionedIds = [...new Set([...extractMentionedIds(cleanContent, alters), ...whisperRecipientIds])];
 
     const data = {
@@ -330,6 +347,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
         </div>
       )}
+
+      <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} label="Signed by" />
 
       <div className="flex gap-1 mt-2 flex-wrap">
         {QUICK_EMOJIS.map(e => (
