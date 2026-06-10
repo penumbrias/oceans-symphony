@@ -269,6 +269,58 @@ html.a11y-high-contrast {
   filter: contrast(1.15) saturate(1.1);
 }
 
+/* ── Accessibility Mode (low vision) — opt-in LAYOUT reconfiguration ──
+   Toggled by `html.a11y-mode`. Reflows to one column, enlarges + separates
+   targets, stops truncating, and loosens spacing — it reconfigures the layout
+   rather than just scaling it. Composes with the text-size slider. See
+   ACCESSIBILITY_AUDIT.md (claude/accessibility-mode branch). */
+
+/* Reflow: collapse multi-column grids to a single column so enlarged content
+   stacks vertically instead of cramming / overlapping. (grid-cols-1 left as-is.) */
+html.a11y-mode [class*="grid-cols-"]:not(.grid-cols-1) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Never hide content behind an ellipsis or a fixed-height clip — let it wrap. */
+html.a11y-mode .truncate {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Larger tap targets (WCAG 2.5.5 / 2.5.8). Switches keep their designed shape
+   (same role="switch" exclusion as the large-touch rule above). */
+html.a11y-mode button:not([role="switch"]),
+html.a11y-mode [role="button"]:not([role="switch"]) {
+  min-height: 44px;
+  min-width: 44px;
+}
+html.a11y-mode a[class] { min-height: 44px; }
+
+/* Comfortable reading: looser line-height + word wrapping for body text. */
+html.a11y-mode p,
+html.a11y-mode li {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Always-visible, high-contrast focus ring for keyboard / switch users (2.4.7). */
+html.a11y-mode :focus-visible {
+  outline: 3px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* Honour the OS "reduce motion" setting everywhere (in addition to the manual
+   toggle), per platform guidance — applies regardless of a11y-mode. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* ── End Accessibility ── */
 
 @keyframes suggestionFadeIn {

@@ -2,11 +2,9 @@ import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import {
   getAccessibilitySettings,
-  setAccessibilityFontSize,
   setAccessibilityReduceMotion,
   setAccessibilityHighContrast,
-  setAccessibilityLargeTouch,
-  setAccessibilityNavHeight,
+  setAccessibilityMode,
 } from "@/lib/useAccessibility";
 import {
   isGroundingButtonEnabled,
@@ -54,6 +52,23 @@ export default function AccessibilitySettings() {
 
   return (
     <div className="space-y-6">
+
+      {/* Master Accessibility Mode — the low-vision LAYOUT reconfiguration. */}
+      <div className="rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3.5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+            ♿ Accessibility mode
+            <span className="text-[0.625rem] font-medium uppercase tracking-wide text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Low vision</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Reconfigures the layout for low vision — stacks content into a single column, enlarges tap targets, and stops cutting text off — instead of only enlarging content (which can overlap). Best paired with a larger text size below. Fully reversible.
+          </p>
+        </div>
+        <Switch
+          checked={settings.a11yMode}
+          onCheckedChange={v => update("a11yMode", v, setAccessibilityMode)}
+        />
+      </div>
 
       {/* UI size, Touch target size, and Nav bar height moved to
           Settings → Appearance (top of the section + "Advanced"). */}
