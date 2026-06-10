@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { X, Link, User, BookOpen, FolderOpen, Heart, MapPin, ChevronDown, ChevronRight } from "lucide-react";
+import { X, Link, User, BookOpen, FolderOpen, Heart, MapPin, Layers, ChevronDown, ChevronRight } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
 import { localEntities } from "@/api/base44Client";
@@ -15,6 +15,7 @@ const TYPE_META = {
   folder:  { label: "Journal Folder",icon: <FolderOpen className="w-3.5 h-3.5" />, color: "text-amber-500" },
   checkin: { label: "Check-in",      icon: <Heart className="w-3.5 h-3.5" />,      color: "text-rose-500" },
   location:{ label: "Location",      icon: <MapPin className="w-3.5 h-3.5" />,     color: "text-green-500" },
+  layer:   { label: "Map Layer",     icon: <Layers className="w-3.5 h-3.5" />,     color: "text-cyan-500" },
 };
 
 function buildRoute(item) {
@@ -23,7 +24,11 @@ function buildRoute(item) {
     case "journal":  return `/journals?id=${item.id}`;
     case "folder":   return `/journals?folder=${encodeURIComponent(item.id)}`; // id = folder path string
     case "checkin":  return `/checkin-log?id=${item.id}`;
-    case "location": return `/system-map?location=${item.id}`;
+    // A location's own profile page (the /system-map?location= form just landed
+    // on the analytics tab, which never reads that param).
+    case "location": return `/location/${item.id}`;
+    // Open the inner-world map on this layer's map, soloed to the layer.
+    case "layer":    return `/system-map?view=inner&map=${item.mapId}&layer=${item.id}&solo=1`;
     default:         return "/";
   }
 }
@@ -34,6 +39,7 @@ const TYPE_EMOJI = {
   folder: "📁",
   checkin: "💙",
   location: "🗺️",
+  layer: "🗂️",
 };
 
 export function buildInternalLinkHTML(item) {
@@ -48,18 +54,23 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
   const [query, setQuery] = useState("");
   const [allItems, setAllItems] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [collapsed, setCollapsed] = useState(() => new Set());
+  // Layers start collapsed — they're a power-user link target and there can be
+  // a lot of them; the user can expand the section when they want one.
+  const [collapsed, setCollapsed] = useState(() => new Set(["layer"]));
   const toggleCategory = (type) => setCollapsed((s) => { const n = new Set(s); if (n.has(type)) n.delete(type); else n.add(type); return n; });
 
   useEffect(() => {
     let cancelled = false;
     async function load() {
-      const [alters, journals, checkIns, locations] = await Promise.all([
+      const [alters, journals, checkIns, locations, maps, layers] = await Promise.all([
         db.Alter.list().catch(() => []),
         db.JournalEntry.list().catch(() => []),
         db.EmotionCheckIn.list().catch(() => []),
         db.InnerWorldLocation.list().catch(() => []),
+        db.InnerWorldMap.list().catch(() => []),
+        db.InnerWorldLayer.list().catch(() => []),
       ]);
+      const mapNameById = Object.fromEntries((maps || []).map((m) => [m.id, m.name || "Map"]));
 
       // Journal folders from localStorage
       let folders = [];
@@ -102,6 +113,10 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
           name: l.name || "Unnamed location",
           search: (l.name || "").toLowerCase(),
         })),
+        ...(layers || []).map(l => {
+          const nm = `${mapNameById[l.map_id] || "Map"} · ${l.name || "Layer"}`;
+          return { type: "layer", id: l.id, mapId: l.map_id, name: nm, search: nm.toLowerCase() };
+        }),
       ];
 
       setAllItems(items);
@@ -119,7 +134,7 @@ export default function InternalLinkPicker({ onSelect, onClose }) {
 
   // Group by type in a stable order
   const grouped = useMemo(() => {
-    const order = ["alter", "journal", "folder", "checkin", "location"];
+    const order = ["alter", "journal", "folder", "checkin", "location", "layer"];
     const groups = {};
     filtered.forEach(item => {
       if (!groups[item.type]) groups[item.type] = [];

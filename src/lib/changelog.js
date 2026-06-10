@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Insert-link: linking to a location now opens that location's page (it was landing on the analytics map).",
+      },
+      {
+        type: "feature",
+        text: "Insert-link: you can now link to a map layer too — it opens the inner-world map on that layer. Layers sit in a collapsed section in the picker.",
+      },
+      {
+        type: "fix",
         text: "Daily Tasks: the preset “check-in” now clears when you open the app, not only when you open the Daily Tasks page.",
       },
       {
