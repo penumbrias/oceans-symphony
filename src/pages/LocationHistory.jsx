@@ -222,7 +222,7 @@ export default function LocationHistory() {
     <div className="py-6 max-w-2xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold">Location History</h1>
+          <h1 className="font-display text-3xl font-semibold text-foreground">Location History</h1>
           <p className="text-muted-foreground text-sm mt-1">Track where you go and see patterns over time</p>
         </div>
         <Button onClick={openAdd} className="bg-primary hover:bg-primary/90">

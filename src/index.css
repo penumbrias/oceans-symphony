@@ -265,8 +265,124 @@ html.a11y-reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 
-html.a11y-high-contrast {
-  filter: contrast(1.15) saturate(1.1);
+/* High-contrast colour scheme (WCAG 1.4.6 AAA target). Replaces the old weak
+   `filter: contrast()` wash with a real token swap: pure black/white page +
+   text, near-black/near-white secondary text (the old slate-grey secondary was
+   the app's biggest contrast failure), and primary/accent darkened to values
+   that still pass with their hardcoded #FFF button text. These override
+   ThemeContext's inline `--color-*` because stylesheet `!important` beats a
+   non-important inline custom property. Mode-aware via the `.dark` class that
+   ThemeContext toggles. Brand colour is deliberately sacrificed for legibility
+   — this is an opt-in accessibility scheme. */
+html.a11y-high-contrast:not(.dark) {
+  --color-bg: #FFFFFF !important;
+  --color-surface: #FFFFFF !important;
+  --color-surface-rgb: 255, 255, 255 !important;
+  --color-primary: #1D4ED8 !important;
+  --color-secondary: #DBE4FF !important;
+  --color-accent: #0E7490 !important;
+  --color-muted: #767676 !important;       /* visible border + WCAG-min grey */
+  --color-text-primary: #000000 !important;
+  --color-text-secondary: #2A2A2A !important;
+}
+html.a11y-high-contrast.dark {
+  --color-bg: #000000 !important;
+  --color-surface: #000000 !important;
+  --color-surface-rgb: 0, 0, 0 !important;
+  --color-primary: #1D4ED8 !important;
+  --color-secondary: #243B5A !important;
+  --color-accent: #0E7490 !important;
+  --color-muted: #5A5A5A !important;
+  --color-text-primary: #FFFFFF !important;
+  --color-text-secondary: #E0E0E0 !important;
+}
+
+/* ── Accessibility Mode (low vision) — opt-in LAYOUT reconfiguration ──
+   Toggled by `html.a11y-mode`. Reflows to one column, enlarges + separates
+   targets, stops truncating, and loosens spacing — it reconfigures the layout
+   rather than just scaling it. Composes with the text-size slider. See
+   ACCESSIBILITY_AUDIT.md (claude/accessibility-mode branch). */
+
+/* Reflow: collapse multi-column grids to a single column so enlarged content
+   stacks vertically instead of cramming / overlapping. (grid-cols-1 left as-is.) */
+html.a11y-mode [class*="grid-cols-"]:not(.grid-cols-1) {
+  grid-template-columns: minmax(0, 1fr) !important;
+}
+
+/* Never hide content behind an ellipsis or a fixed-height clip — let it wrap.
+   Chrome opts out via .a11y-keep-truncate (a wrapping app-name in a
+   fixed-height header would overflow the bar). */
+html.a11y-mode .truncate:not(.a11y-keep-truncate) {
+  white-space: normal !important;
+  overflow: visible !important;
+  text-overflow: clip !important;
+}
+
+/* Larger tap targets (WCAG 2.5.5 / 2.5.8). Switches keep their designed shape
+   (same role="switch" exclusion as the large-touch rule above). */
+html.a11y-mode button:not([role="switch"]),
+html.a11y-mode [role="button"]:not([role="switch"]) {
+  min-height: 44px;
+  min-width: 44px;
+}
+html.a11y-mode a[class] { min-height: 44px; }
+
+/* Comfortable reading: looser line-height + word wrapping for body text. */
+html.a11y-mode p,
+html.a11y-mode li {
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+
+/* Cap line length for long-form text (WCAG 1.4.8 AAA, ≤~80 chars) so wide
+   screens — landscape especially — don't produce hard-to-track long lines, and
+   add gentle letter/word spacing that aids low-vision reading without looking
+   broken. Max-width is limited to clear prose (p / blockquote) so it can't
+   shrink flex rows, the map canvas, or chat layouts. */
+html.a11y-mode p,
+html.a11y-mode blockquote {
+  max-width: 72ch;
+}
+html.a11y-mode p,
+html.a11y-mode li {
+  letter-spacing: 0.012em;
+  word-spacing: 0.04em;
+}
+
+/* Always-visible, high-contrast focus ring for keyboard / switch users (2.4.7). */
+html.a11y-mode :focus-visible {
+  outline: 3px solid var(--color-primary) !important;
+  outline-offset: 2px !important;
+}
+
+/* App chrome (top header + bottom tab bar) stays a fixed, comfortable size so
+   maxing out the text scale enlarges the page CONTENT, not the navigation bars.
+   Without this, the rem-based header height balloons at 200% text and eats a
+   third of the screen (worst in landscape, where vertical space is scarcest).
+   The bottom-nav outer height is already px-driven (--bottom-nav-height); here
+   we also pin its icons + labels so they can't overflow the bar at large
+   scales. Landscape trims the header further (the decorative wave is already
+   hidden there) — rotating to landscape is the most usable layout for low
+   vision, so we make sure the header doesn't fight it. */
+html.a11y-mode .a11y-header-row { height: 52px !important; }
+html.a11y-mode .a11y-header-row svg { width: 22px !important; height: 22px !important; }
+html.a11y-mode .a11y-header-title { font-size: 18px !important; line-height: 1.2 !important; }
+html.a11y-mode .a11y-bottom-nav svg { width: 22px !important; height: 22px !important; }
+html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 1.1 !important; }
+@media (orientation: landscape) {
+  html.a11y-mode .a11y-header-row { height: 44px !important; }
+  html.a11y-mode .a11y-header-title { font-size: 16px !important; }
+}
+
+/* Honour the OS "reduce motion" setting everywhere (in addition to the manual
+   toggle), per platform guidance — applies regardless of a11y-mode. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }
 
 /* ── End Accessibility ── */

@@ -260,31 +260,45 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               try {
                 if (existing) {
                   if (importMode !== "new_only") {
-                    const updateData = { ...incoming };
-                    // Preserve the alter's LOCAL folder / subsystem membership
-                    // on re-sync. mapMemberToAlter sets `groups` from SP's
-                    // current view; overwriting it every sync threw alters out
-                    // of folders the user organised locally (silent data loss).
-                    // `groups` is seeded only on CREATE below. ("Replace all"
-                    // re-imports membership from scratch if you want that.)
-                    delete updateData.groups;
-                    // custom_fields update would otherwise REPLACE the whole
-                    // object, wiping local-only profile-style keys (_bg_color,
-                    // _header_image, _hide_header, …). Merge: preserve local-
-                    // only `_*` keys from the existing record, then layer SP
-                    // fields on top. `_header_image` is treated as part of the
-                    // avatar/banner bundle and respects `includeAvatars`.
+                    // ALLOWLIST — write ONLY the fields Simply Plural owns.
+                    // Everything else on the local Alter is left exactly as the
+                    // user arranged it. A blocklist (strip a few fields) silently
+                    // lets any OTHER mapped field clobber local data — e.g.
+                    // mapMemberToAlter sets `tags` and `groups` (SP's current
+                    // folder view), which used to wipe local tags and throw
+                    // alters out of folders the user organised locally every sync
+                    // (silent data loss; same bug class fixed in PluralKitConnect
+                    // v0.53.5). With an allowlist, local organisation — groups
+                    // (alter.groups + Group.member_sp_ids), tags, archive flag,
+                    // pins, friends visibility, preset answers — can NEVER be
+                    // touched by a sync. ("Replace all" re-imports membership
+                    // from scratch if you want SP to be the authority.)
+                    //
+                    // custom_fields is MERGED, not replaced: preserve local-only
+                    // `_*` profile-style keys (_bg_color, _header_image,
+                    // _hide_header, …) from the existing record, then layer SP
+                    // fields on top. `_header_image` is part of the avatar/banner
+                    // bundle and respects `includeAvatars`.
                     const localOnly = Object.fromEntries(
                       Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
                     );
                     const incomingFields = { ...(incoming.custom_fields || {}) };
-                    if (!includeAvatars) {
-                      delete updateData.avatar_url;
-                      delete updateData.banner_url;
-                      delete incomingFields._header_image;
+                    if (!includeAvatars) delete incomingFields._header_image;
+                    const updatePayload = {
+                      sp_id: incoming.sp_id,
+                      name: incoming.name,
+                      pronouns: incoming.pronouns,
+                      description: incoming.description,
+                      color: incoming.color,
+                      role: incoming.role,
+                      birthday: incoming.birthday,
+                      custom_fields: { ...localOnly, ...incomingFields },
+                    };
+                    if (includeAvatars) {
+                      updatePayload.avatar_url = incoming.avatar_url;
+                      updatePayload.banner_url = incoming.banner_url;
                     }
-                    updateData.custom_fields = { ...localOnly, ...incomingFields };
-                    await localEntities.Alter.update(existing.id, updateData);
+                    await localEntities.Alter.update(existing.id, updatePayload);
                     altersUpdated++;
                   }
                   alterIdBySpId[incoming.sp_id] = existing.id;
@@ -328,20 +342,27 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
             const existing = existingBySpId[mapped.sp_id];
             if (existing) {
               if (importMode !== "new_only") {
-                const updateData = { ...mapped };
-                // Same merge rule as the members path — preserve local-only
-                // `_*` keys; `_header_image` follows `includeAvatars`.
+                // ALLOWLIST — same rule as the members path above. Write ONLY
+                // the fields SP owns; never touch local organisation (groups,
+                // tags, archive flag, pins, …). custom_fields is merged to keep
+                // local-only `_*` keys; `_header_image` follows `includeAvatars`.
                 const localOnly = Object.fromEntries(
                   Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
                 );
                 const incomingFields = { ...(mapped.custom_fields || {}) };
-                if (!includeAvatars) {
-                  delete updateData.avatar_url;
-                  delete updateData.banner_url;
-                  delete incomingFields._header_image;
+                if (!includeAvatars) delete incomingFields._header_image;
+                const updatePayload = {
+                  sp_id: mapped.sp_id,
+                  name: mapped.name,
+                  description: mapped.description,
+                  color: mapped.color,
+                  custom_fields: { ...localOnly, ...incomingFields },
+                };
+                if (includeAvatars) {
+                  updatePayload.avatar_url = mapped.avatar_url;
+                  updatePayload.banner_url = mapped.banner_url;
                 }
-                updateData.custom_fields = { ...localOnly, ...incomingFields };
-                await localEntities.Alter.update(existing.id, updateData);
+                await localEntities.Alter.update(existing.id, updatePayload);
                 customFrontsUpdated++;
               }
               alterIdBySpId[mapped.sp_id] = existing.id;

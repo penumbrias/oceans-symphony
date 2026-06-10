@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Shield, Shuffle, AlertTriangle } from "lucide-react";
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { isGroundingButtonEnabled, setGroundingButtonEnabled, subscribeGroundingButton } from "@/lib/groundingButtonPrefs";
 import StateCheckFlow from "@/components/grounding/StateCheckFlow";
 import TechniqueCard from "@/components/grounding/TechniqueCard";
 import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
@@ -101,8 +102,15 @@ const BREATHING_NAMES = Object.keys(BREATHING_PATTERNS);
 export default function Grounding({ initialPath = null }) {
   // path: 'entry' | 'state-check' | 'suggestions' | 'all' | 'breathing' | 'guided' | 'custom-form'
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [path, setPath] = useState(initialPath || "entry");
-  const [activeTab, setActiveTab] = useState("support"); // "support" | "learn"
+  const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
+  // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
+  const deepLinkTopicId = searchParams.get("topic");
+  // Whether the floating support bubble is currently shown (so this page can
+  // offer to bring it back after the user dragged it away to hide it).
+  const [bubbleEnabled, setBubbleEnabled] = useState(() => isGroundingButtonEnabled());
+  useEffect(() => subscribeGroundingButton(() => setBubbleEnabled(isGroundingButtonEnabled())), []);
   const [selectedStates, setSelectedStates] = useState([]);
   const [selectedTechnique, setSelectedTechnique] = useState(null);
   const [selectedBreathing, setSelectedBreathing] = useState(null);
@@ -592,7 +600,7 @@ export default function Grounding({ initialPath = null }) {
     return (
       <div className="max-w-xl mx-auto">
         <TabBar />
-        <LearnSection onTryTechnique={handleTryTechniqueByName} />
+        <LearnSection onTryTechnique={handleTryTechniqueByName} initialTopicId={deepLinkTopicId} />
       </div>
     );
   }
@@ -607,6 +615,13 @@ export default function Grounding({ initialPath = null }) {
           <h1 className="text-2xl font-semibold text-foreground">Quick support</h1>
           <p className="text-sm text-muted-foreground">Let's find something that might help right now.</p>
         </div>
+
+        {!bubbleEnabled && (
+          <div className="rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground text-left">The floating support bubble (🫧) is hidden right now.</p>
+            <Button size="sm" variant="outline" className="flex-shrink-0" onClick={() => setGroundingButtonEnabled(true)}>Show it</Button>
+          </div>
+        )}
 
         <details className="rounded-xl border border-amber-500/30 bg-amber-500/5">
           <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium text-amber-700 dark:text-amber-400">

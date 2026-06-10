@@ -880,6 +880,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             <DialogDescription className="flex items-center gap-2 pt-1">
               <input
                 type="datetime-local"
+                aria-label="Check-in date and time"
                 value={entryTime}
                 onChange={e => setEntryTime(e.target.value)}
                 className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"

@@ -851,6 +851,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                   <input
                     value={triggerLabel}
                     onChange={e => setTriggerLabel(e.target.value)}
+                    aria-label={`Describe what triggered the ${terms.switch}`}
                     placeholder={`Describe what triggered the ${terms.switch}...`}
                     className="w-full text-xs bg-transparent border-0 border-b border-border/40 pb-1 outline-none text-foreground placeholder:text-muted-foreground/40 focus:border-border"
                   />

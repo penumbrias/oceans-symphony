@@ -29,10 +29,40 @@
 // out (or, for parseAndStripSignposts, also a cleaned text). They
 // preserve order of first appearance and dedupe by id.
 
+import { effectiveAlias } from "@/lib/alterLabel";
+
 export const SYSTEM_SENTINEL_ID = "__system__";
 
 export function isSystemSignpost(author) {
   return author && author.id === SYSTEM_SENTINEL_ID;
+}
+
+function escapeRegex(s) {
+  return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+// Bare-emoji signposts: an alter with "use emoji as alias" on can sign a text
+// entry simply by including their emoji — no `-` needed. e.g. if their emoji is
+// ":)", then "wow cool day :)" is authored by them, exactly as "wow cool day
+// -alias" would be. We attribute authorship and (optionally) strip the emoji,
+// but we SKIP emoji that are part of an @mention (preceded by "@"), since those
+// are mentions, not authorship, and stay in the text.
+function applyEmojiSignposts(text, alters, found, strip) {
+  let working = String(text);
+  for (const a of alters) {
+    if (!a?.use_emoji_as_alias || !a?.emoji) continue;
+    const emoji = String(a.emoji).trim();
+    if (!emoji) continue;
+    const esc = escapeRegex(emoji);
+    // Present (not as part of an @mention)?
+    if (!new RegExp(`(?<!@)${esc}`).test(working)) continue;
+    if (!found.find((f) => f.id === a.id)) found.push(a);
+    if (strip) {
+      // Eat one leading space with the emoji so "day :)" → "day", not "day ".
+      working = working.replace(new RegExp(`\\s?(?<!@)${esc}`, "g"), "");
+    }
+  }
+  return working;
 }
 
 function makeSystemSentinel() {
@@ -67,7 +97,8 @@ function resolveTerm(term, alters, systemKeywords) {
   let alter = alters.find(
     (a) =>
       a?.name?.toLowerCase() === term ||
-      (a?.alias && a.alias.toLowerCase() === term),
+      (a?.alias && a.alias.toLowerCase() === term) ||
+      (effectiveAlias(a) && effectiveAlias(a).toLowerCase() === term),
   );
   if (!alter) {
     const candidates = alters.filter(
@@ -91,6 +122,8 @@ export function parseSignpostAuthors(text, alters, systemKeywords) {
       if (alter && !found.find((f) => f.id === alter.id)) found.push(alter);
     }
   }
+  // Bare-emoji signposts (no dash) — attribute, but don't need to strip here.
+  applyEmojiSignposts(text, safeAlters, found, false);
   return found;
 }
 
@@ -115,5 +148,7 @@ export function parseAndStripSignposts(text, alters, systemKeywords) {
       cleanText = cleanText.replace(match[0], "");
     }
   }
+  // Bare-emoji signposts (no dash) — attribute AND strip the emoji from the body.
+  cleanText = applyEmojiSignposts(cleanText, safeAlters, found, true);
   return { authors: found, cleanText: cleanText.trim() };
 }

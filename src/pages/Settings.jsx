@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from "react";
+import React, { useState, useEffect } from "react";
 import { APP_VERSION, APP_RELEASE_STAGE } from "@/lib/appVersion";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import { base44 } from "@/api/base44Client";
@@ -7,7 +7,6 @@ import { motion } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
 import { useTerms } from "@/lib/useTerms";
@@ -31,7 +30,7 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Zap, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
+import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
@@ -42,7 +41,7 @@ import { toast } from "sonner";
 import { useAnalyticsGrouping } from "@/lib/useAnalyticsGrouping";
 import { getInferPresenceEnabled, setInferPresenceEnabled, getInferPresenceWindowMinutes, setInferPresenceWindowMinutes } from "@/lib/inferredPresence";
 import RecentUpdates from "@/components/settings/RecentUpdates";
-import { SubSection, IconButton, Field, iconBtnClass } from "@/components/settings/SettingsUI";
+import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
@@ -691,25 +690,34 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
-          {/* Backup & Export first — it's the action people open this
-              section to do most often. Auto-backup follows it so both
-              manual and scheduled backups live together. */}
-          <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore /></SubSection>
+          {/* Backup + Export first — what people open this section to do most
+              often: export options, format, and the copy/paste fallback. */}
+          <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore section="export" /></SubSection>
+          {/* Import groups the file/text restore together with the
+              service connectors (Simply Plural, PluralKit) nested inside. */}
+          <SubSection title="Import" defaultOpen={false}>
+            <DataBackupRestore section="import" />
+            <SubSection title="Simply Plural" defaultOpen={false}>
+              <SimplyPluralConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            <SubSection title="PluralKit" defaultOpen={false}>
+              <PluralKitConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+          </SubSection>
           <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
-          <SubSection title="Storage & encryption" defaultOpen={false}><StorageModeSettings /></SubSection>
+          {/* Storage & encryption — the image cache / recompress tools moved
+              down here (they used to sit at the top of Backup & export). */}
+          <SubSection title="Storage & encryption" defaultOpen={false}>
+            <StorageModeSettings />
+            <DataBackupRestore section="storage" />
+          </SubSection>
           <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
-          <SubSection title="Simply Plural" defaultOpen={false}>
-            <SimplyPluralConnect settings={settings} onSettingsChange={() => {
-              refetch();
-              queryClient.invalidateQueries({ queryKey: ["alters"] });
-            }} />
-          </SubSection>
-          <SubSection title="PluralKit" defaultOpen={false}>
-            <PluralKitConnect settings={settings} onSettingsChange={() => {
-              refetch();
-              queryClient.invalidateQueries({ queryKey: ["alters"] });
-            }} />
-          </SubSection>
         </Section>
 
         {/* ── ABOUT & HELP ──

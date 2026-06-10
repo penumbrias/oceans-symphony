@@ -4,7 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Search, Check, X } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -34,6 +34,7 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
   const [content, setContent] = useState(bulletin?.content || "");
   const [selectedAuthorIds, setSelectedAuthorIds] = useState(initialAuthorIds);
   const [systemAuthor, setSystemAuthor] = useState(initialSystemAuthor);
+  const [authorSearch, setAuthorSearch] = useState("");
   const [saving, setSaving] = useState(false);
 
   React.useEffect(() => {
@@ -104,49 +105,74 @@ export default function BulletinEditModal({ bulletin, alters, open, onClose }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium block mb-1.5">
-              Author{selectedAuthorIds.length > 1 ? "s" : ""}
-              {selectedAuthorIds.length > 0 && !systemAuthor && (
-                <span className="text-xs font-normal text-muted-foreground ml-2">
-                  ({selectedAuthorIds.length} selected)
-                </span>
-              )}
-            </label>
-            <div className="border border-border rounded-lg bg-muted/20 max-h-56 overflow-y-auto">
-              <label className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/40 border-b border-border/50">
-                <Checkbox
-                  checked={systemAuthor}
-                  onCheckedChange={toggleSystem}
-                  id="bulletin-edit-system-author"
-                />
-                <SystemAvatar size="sm" />
-                <span className="text-sm flex-1">
-                  {systemIdentity.name || "System"}
-                  <span className="text-muted-foreground text-xs ml-1">
-                    (no specific {terms.alter})
+            <label className="text-sm font-medium block mb-1.5">Signed by</label>
+            {/* Selected authors as removable chips (matches the composer). */}
+            {(systemAuthor || selectedAuthorIds.length > 0) && (
+              <div className="flex flex-wrap gap-1 mb-2">
+                {systemAuthor ? (
+                  <span className="inline-flex items-center gap-1 pl-1 pr-1.5 py-0.5 rounded-full border border-border/60 bg-card text-xs">
+                    <SystemAvatar size="sm" />
+                    <span className="truncate max-w-[8rem]">{systemIdentity.name || "System"}</span>
                   </span>
-                </span>
-              </label>
-              {activeAlters.map((alter) => (
-                <label
-                  key={alter.id}
-                  className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/40 last:border-b-0 border-b border-border/30"
-                >
-                  <Checkbox
-                    checked={selectedAuthorIds.includes(alter.id)}
-                    onCheckedChange={() => toggleAlter(alter.id)}
-                    id={`bulletin-edit-alter-${alter.id}`}
-                  />
-                  <div
-                    className="w-6 h-6 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}
-                  />
-                  <span className="text-sm">{formatAlter(alter)}</span>
-                </label>
-              ))}
+                ) : (
+                  selectedAuthorIds.map((id) => {
+                    const a = activeAlters.find((x) => x.id === id);
+                    if (!a) return null;
+                    return (
+                      <span key={id} className="inline-flex items-center gap-1 pl-1.5 pr-1 py-0.5 rounded-full border border-border/60 bg-card text-xs">
+                        <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#6366f1" }} />
+                        <span className="truncate max-w-[8rem]">{formatAlter(a)}</span>
+                        <button type="button" aria-label={`Remove ${formatAlter(a)}`} onClick={() => toggleAlter(id)} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                      </span>
+                    );
+                  })
+                )}
+              </div>
+            )}
+            {/* Searchable, scrollable picker. */}
+            <div className="relative mb-1.5">
+              <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+              <input
+                value={authorSearch}
+                onChange={(e) => setAuthorSearch(e.target.value)}
+                aria-label={`Search ${terms.alters}`}
+                placeholder={`Search ${terms.alters}…`}
+                className="w-full h-8 pl-8 pr-2.5 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <div className="border border-border/50 rounded-lg bg-muted/10 max-h-48 overflow-y-auto overscroll-contain divide-y divide-border/30">
+              <button
+                type="button"
+                aria-pressed={systemAuthor}
+                onClick={toggleSystem}
+                className={`w-full flex items-center gap-2 px-2.5 py-2 text-left text-xs transition-colors min-h-[40px] ${systemAuthor ? "bg-primary/10" : "hover:bg-muted/40"}`}
+              >
+                <SystemAvatar size="sm" />
+                <span className="flex-1 truncate">{systemIdentity.name || "System"} <span className="text-muted-foreground">(no specific {terms.alter})</span></span>
+                {systemAuthor && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
+              </button>
+              {activeAlters
+                .filter((a) => { const q = authorSearch.toLowerCase(); return !q || a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q); })
+                .map((alter) => {
+                  const on = selectedAuthorIds.includes(alter.id);
+                  return (
+                    <button
+                      key={alter.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => toggleAlter(alter.id)}
+                      className={`w-full flex items-center gap-2 px-2.5 py-2 text-left text-xs transition-colors min-h-[40px] ${on ? "bg-primary/10" : "hover:bg-muted/40"}`}
+                    >
+                      <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
+                        {on && <Check className="w-3.5 h-3.5 text-white" />}
+                      </span>
+                      <span className="flex-1 truncate">{formatAlter(alter)}</span>
+                    </button>
+                  );
+                })}
             </div>
             <p className="text-xs text-muted-foreground mt-1.5">
-              Pick one or more {terms.alters} to re-attribute this post, or check {systemIdentity.name || "System"} to attribute it to the whole {terms.system}.
+              Pick one or more {terms.alters} to re-attribute this post, or {systemIdentity.name || "System"} for the whole {terms.system}.
             </p>
           </div>
 

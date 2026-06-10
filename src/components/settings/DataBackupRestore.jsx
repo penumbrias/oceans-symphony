@@ -222,8 +222,14 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   });
 }
 
-export default function DataBackupRestore() {
+export default function DataBackupRestore({ section = "all" }) {
   const terms = useTerms();
+  // Which slice to render — lets Settings split this into separate accordion
+  // sections (export / import / storage tools) without forking the logic.
+  // "all" keeps the original single-card layout for any other caller.
+  const showStorageTools = section === "all" || section === "storage";
+  const showExport = section === "all" || section === "export";
+  const showImport = section === "all" || section === "import";
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
   const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact"
@@ -734,20 +740,8 @@ export default function DataBackupRestore() {
     }
   };
 
-  return (
-    <Card className="border-border/50">
-      <CardHeader>
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-            <FileJson className="w-5 h-5 text-accent-foreground" />
-          </div>
-          <div>
-            <CardTitle className="text-lg">Backup & Export</CardTitle>
-            <CardDescription>Export your data to a file, or import from a previous backup.</CardDescription>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-3">
+  const inner = (
+    <>
         {status && (
           <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
             status.type === "success"
@@ -761,6 +755,7 @@ export default function DataBackupRestore() {
           </div>
         )}
 
+        {showStorageTools && (<>
         <div className="space-y-2 pb-3 border-b border-border/40">
             <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Cache URL Images Offline</p>
             <p className="text-xs text-muted-foreground">Download any images stored as external URLs (e.g. avatars pasted as links) into local storage so they display offline.</p>
@@ -808,7 +803,9 @@ export default function DataBackupRestore() {
             </div>
           </Button>
         </div>
+        </>)}
 
+        {showExport && (<>
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
 
@@ -1065,7 +1062,9 @@ export default function DataBackupRestore() {
             </div>
           )}
         </div>
+        </>)}
 
+        {showImport && (<>
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Import</p>
           <div className="flex gap-2">
@@ -1159,13 +1158,35 @@ export default function DataBackupRestore() {
             </div>
           )}
         </div>
-      </CardContent>
-      <EncryptedImportPasswordModal
-        open={!!pendingEncryptedImport}
-        onClose={() => setPendingEncryptedImport(null)}
-        onSubmit={handleDecryptAndImport}
-        busy={importLoading}
-      />
+        </>)}
+    </>
+  );
+  const modal = (
+    <EncryptedImportPasswordModal
+      open={!!pendingEncryptedImport}
+      onClose={() => setPendingEncryptedImport(null)}
+      onSubmit={handleDecryptAndImport}
+      busy={importLoading}
+    />
+  );
+  if (section !== "all") {
+    return <div className="space-y-3">{inner}{modal}</div>;
+  }
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
+            <FileJson className="w-5 h-5 text-accent-foreground" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">Backup & Export</CardTitle>
+            <CardDescription>Export your data to a file, or import from a previous backup.</CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">{inner}</CardContent>
+      {modal}
     </Card>
   );
 }

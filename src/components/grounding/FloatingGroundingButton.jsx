@@ -3,8 +3,10 @@ import { X } from "lucide-react";
 import Grounding from "@/pages/Grounding";
 import {
   isGroundingButtonEnabled,
+  setGroundingButtonEnabled,
   subscribeGroundingButton,
 } from "@/lib/groundingButtonPrefs";
+import { toast } from "sonner";
 
 const LS_KEY = "symphony_grounding_btn_pos";
 const BTN_SIZE = 48;
@@ -90,7 +92,20 @@ export default function FloatingGroundingButton() {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState(() => loadPos());
   const [isDragging, setIsDragging] = useState(false);
+  // True while a drag is hovering the center-bottom "drag here to hide" target.
+  const [overDrop, setOverDrop] = useState(false);
+  const overDropRef = useRef(false);
   const posRef = useRef(pos);
+
+  // The center-bottom dismiss zone — drop the bubble here to hide it. Tested
+  // against the POINTER (not the clamped bubble) so it's reachable even though
+  // the bubble can't be dragged below the bottom nav.
+  const inDropZone = (x, y) => {
+    const cx = window.innerWidth / 2;
+    const halfW = Math.min(150, window.innerWidth * 0.3);
+    const bandTop = window.innerHeight - getBottomNavGuard() - 110;
+    return Math.abs(x - cx) <= halfW && y >= bandTop;
+  };
 
   // Keep ref in sync so the drag closure always has the latest y
   useEffect(() => { posRef.current = pos; }, [pos]);
@@ -150,6 +165,8 @@ export default function FloatingGroundingButton() {
           Math.min(window.innerHeight - BTN_SIZE - getBottomNavGuard(), startY + dy)
         );
         setPos((prev) => ({ ...prev, y: clampedY }));
+        const od = inDropZone(x, y);
+        if (od !== overDropRef.current) { overDropRef.current = od; setOverDrop(od); }
       }
     };
 
@@ -160,13 +177,21 @@ export default function FloatingGroundingButton() {
       window.removeEventListener("touchend", onUp);
       document.body.style.overflow = "";
       setIsDragging(false);
+      setOverDrop(false);
+      overDropRef.current = false;
       dragCleanupRef.current = null;
     };
 
     const onUp = () => {
       const didMove = moved;
+      const droppedToHide = overDropRef.current;
       cleanup();
       if (didMove) {
+        if (droppedToHide) {
+          setGroundingButtonEnabled(false);
+          toast("Support bubble hidden — turn it back on from Quick Support or Settings → Accessibility.");
+          return;
+        }
         const side = currentX < window.innerWidth / 2 ? "left" : "right";
         setPos((prev) => ({ ...prev, side }));
       } else {
@@ -195,6 +220,20 @@ export default function FloatingGroundingButton() {
 
   return (
     <>
+      {/* Center-bottom "drag here to hide" target — only while dragging. */}
+      {isDragging && (
+        <div
+          className="fixed left-0 right-0 z-[45] flex justify-center pointer-events-none"
+          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
+          aria-hidden="true"
+        >
+          <div className={`flex flex-col items-center gap-1 px-5 py-3 rounded-2xl border-2 border-dashed transition-colors ${overDrop ? "border-destructive bg-destructive/15 text-destructive scale-105" : "border-border bg-card/90 text-muted-foreground"}`}>
+            <X className="w-5 h-5" />
+            <span className="text-xs font-medium whitespace-nowrap">{overDrop ? "Release to hide" : "Drag here to hide"}</span>
+          </div>
+        </div>
+      )}
+
       <button
         onMouseDown={onPointerDown}
         onTouchStart={onPointerDown}

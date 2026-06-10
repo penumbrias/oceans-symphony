@@ -1,16 +1,15 @@
 import React, { useRef, useState, useEffect } from "react";
-import { Lock, Edit2 } from "lucide-react";
 
 const MIN_SIZE = 80;
 
-export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, viewOnly = false, zoom = 1 }) {
+export default function LocationNode({ location, isSelected, onSelect, onDoubleSelect, onLongPress, onUpdate, onDelete, onEdit, onInteractStart, viewOnly = false, zoom = 1 }) {
   const [dragging, setDragging] = useState(false);
   const [pressingId, setPressingId] = useState(false);
   const dragStart = useRef(null);
   const tapRef = useRef({ time: 0, timer: null });
   const longPressRef = useRef(null);
 
-  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked } = location;
+  const { x, y, width = 200, height = 150, color = "#6366f1", shape = "rectangle", name, background_image_url, background_opacity, is_locked, opacity = 1, rotation = 0 } = location;
 
   const [resolvedBgUrl, setResolvedBgUrl] = useState(background_image_url || null);
   useEffect(() => {
@@ -35,6 +34,10 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
+    // Clear the canvas pan-moved flag so a fresh tap on a location is never
+    // mistaken for the tail end of a previous map pan (that stale flag is what
+    // made the editor/popup fail to open after panning around).
+    onInteractStart?.();
     if (viewOnly) {
       // In view mode, just allow tap/double-tap
       fireTap();
@@ -78,6 +81,7 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
 
   const handleTouchStart = (e) => {
     e.stopPropagation();
+    onInteractStart?.();
     if (viewOnly) {
       // In view mode, just allow tap/double-tap
       fireTap();
@@ -177,33 +181,44 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const ry = isOval ? height / 2 : 8;
 
   return (
-    <g style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }} onMouseDown={is_locked ? handleMouseDown : undefined} onTouchStart={is_locked ? handleTouchStart : undefined}>
-      <defs>
-        {resolvedBgUrl && (
-          <>
-            <clipPath id={`loc-clip-${location.id}`}>
-              <rect x={x} y={y} width={width} height={height} rx={rx} ry={ry} />
-            </clipPath>
-            <pattern id={`loc-bg-${location.id}`} patternUnits="userSpaceOnUse" x={x} y={y} width={width} height={height}>
-              <image href={resolvedBgUrl || background_image_url} x={0} y={0} width={width} height={height} preserveAspectRatio="xMidYMid slice" opacity={background_opacity ?? 0.7} />
-            </pattern>
-          </>
-        )}
-      </defs>
-
-      {/* Background fill */}
+    <g opacity={opacity} transform={rotation ? `rotate(${rotation} ${x + width / 2} ${y + height / 2})` : undefined}
+      style={{ cursor: is_locked ? "default" : dragging ? "grabbing" : "grab", touchAction: "none" }}
+      onMouseDown={(is_locked || viewOnly) ? handleMouseDown : undefined} onTouchStart={(is_locked || viewOnly) ? handleTouchStart : undefined}>
+      {/* Base fill + hit target (no stroke — the border is drawn on top so the
+          background image never covers it). Keep it hit-testable in view mode +
+          for locked locations so taps bubble to the <g>. */}
       <rect
         x={x} y={y} width={width} height={height}
         rx={rx} ry={ry}
-        fill={resolvedBgUrl ? `url(#loc-bg-${location.id})` : fill}
-        stroke={borderColor}
-        strokeWidth={isSelected ? 2.5 : 1.5}
-        strokeDasharray={isSelected ? "6,3" : "none"}
-        pointerEvents={is_locked || viewOnly ? "none" : "auto"}
+        fill={resolvedBgUrl ? "transparent" : fill}
+        pointerEvents={is_locked && !viewOnly ? "none" : "auto"}
         onMouseDown={!is_locked && !viewOnly ? handleMouseDown : undefined}
         onTouchStart={!is_locked && !viewOnly ? handleTouchStart : undefined}
         onTouchMove={!is_locked && !viewOnly ? handleTouchMove : undefined}
         onTouchEnd={!is_locked && !viewOnly ? handleTouchEnd : undefined}
+      />
+
+      {/* Background image — HTML <img> in a foreignObject (not an SVG <image>)
+          so animated GIFs actually play. pointerEvents none so taps fall
+          through to the fill rect below; clipped to the box shape. */}
+      {resolvedBgUrl && (
+        <foreignObject x={x} y={y} width={width} height={height} style={{ pointerEvents: "none" }}>
+          <div style={{ width: "100%", height: "100%", borderRadius: isOval ? "50%" : 8, overflow: "hidden" }}>
+            <img src={resolvedBgUrl} alt="" draggable={false}
+              style={{ width: "100%", height: "100%", objectFit: "cover", opacity: background_opacity ?? 0.7, display: "block" }} />
+          </div>
+        </foreignObject>
+      )}
+
+      {/* Border on top of the fill + image */}
+      <rect
+        x={x} y={y} width={width} height={height}
+        rx={rx} ry={ry}
+        fill="none"
+        stroke={borderColor}
+        strokeWidth={isSelected ? 2.5 : 1.5}
+        strokeDasharray={isSelected ? "6,3" : "none"}
+        pointerEvents="none"
       />
 
       {/* Name label */}
@@ -218,6 +233,19 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
       >
         {name?.length > 20 ? name.slice(0, 18) + "…" : name}
       </text>
+
+      {/* Tap the name to open the editor — a large, reliable target (fires on
+          press, like the ✏️ button) so you don't have to hit the small pencil.
+          Sits to the left of the ✏️ so it never overlaps it. Edit mode only. */}
+      {!viewOnly && (
+        <rect
+          x={x} y={y} width={Math.max(10, width - 36)} height={28}
+          fill="transparent"
+          onMouseDown={(e) => { e.stopPropagation(); onEdit?.(); }}
+          onTouchStart={(e) => { e.stopPropagation(); onEdit?.(); }}
+          style={{ cursor: "pointer", pointerEvents: "auto" }}
+        />
+      )}
 
       {/* Resize handle (bottom-right) */}
       {!is_locked && !viewOnly && (

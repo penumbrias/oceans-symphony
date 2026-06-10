@@ -1,20 +1,19 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2 } from "lucide-react";
+import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loader2, Lock, Check } from "lucide-react";
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
-import { applyWhisper } from "@/lib/whisperUtils";
+import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
-import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import AuthorChipsEditable from "@/components/shared/AuthorChipsEditable";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -50,7 +49,17 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
     return out;
   }, [terms.system, systemIdentity.name]);
+  const formatAlter = useAlterLabel();
   const [content, setContent] = useState(initialContent);
+  // Authors the user has explicitly removed from this post (delete-only — you
+  // add authors by signposting in the text). Keyed by alter id.
+  const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
+  // Explicit whisper: a reliable alternative to typing "/w" — toggle on, pick
+  // recipients, and the whole post becomes a tap-to-reveal whisper only they
+  // can read. (Inline "/w @name …" still works when this is off.)
+  const [whisperOn, setWhisperOn] = useState(false);
+  const [whisperTo, setWhisperTo] = useState(() => new Set());
+  const [whisperSearch, setWhisperSearch] = useState("");
   const [pinned, setPinned] = useState(false);
   const [showPoll, setShowPoll] = useState(false);
   const [pollQuestion, setPollQuestion] = useState("");
@@ -123,17 +132,49 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // boundary-aware matcher from mentionUtils (so "@Sam" no longer matches
   // inside "@Samantha").
 
+  // Live preview of who this post will be attributed to: an explicit signpost
+  // (emoji / -name) wins, otherwise the current fronters; minus anyone the user
+  // removed. Falls back to a System chip so the attribution is always visible.
+  const resolvedAuthors = React.useMemo(() => {
+    const { authors } = parseAndStripSignposts(content, alters, systemKeywords);
+    if (isSystemSignpost(authors[0])) return [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+    const signpostedIds = authors.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
+    const ids = signpostedIds.length > 0 ? signpostedIds : frontingAlterIds;
+    return ids.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+  }, [content, alters, systemKeywords, frontingAlterIds]);
+  const liveAuthors = resolvedAuthors.filter((a) => !removedAuthorIds.has(a.id));
+  const displayAuthors = liveAuthors.length ? liveAuthors : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+  const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
+
   const handlePost = async () => {
     if (!content.trim()) return;
-    // Whisper transform first — bulletins are a posting surface, so a
-    // no-bracket "/w @name …" blurs the whole post (no warning). Bulletins
-    // always render rich, so keep the HTML raw (rich:true).
-    const w = applyWhisper(content, alters, { allowWholeBlur: true, rich: true, surfaceLabel: "bulletin" });
-    if (w === null) return; // user backed out of the whole-blur warning
-    const workingContent = w.content;
-    const whisperRecipientIds = w.recipientIds || [];
     setSaving(true);
-    const { authors: signpostedAuthors, cleanContent } = parseSignposts(workingContent, alters, systemKeywords);
+    // Parse signpost authorship from the ORIGINAL text FIRST, so the whisper
+    // wrapping below can't be mangled by signpost stripping (the dash matcher
+    // would otherwise chew on the whisper span's data-whisper-for attribute).
+    const { authors: signpostedAuthors, cleanContent: signpostClean } = parseSignposts(content, alters, systemKeywords);
+
+    // Whisper. The explicit toggle is the reliable path — it produces a
+    // guaranteed-correct whisper span addressed to the chosen recipients,
+    // bypassing the fragile "/w" regex (which still works as a fallback when
+    // the toggle is off).
+    let cleanContent = signpostClean;
+    let whisperRecipientIds = [];
+    let isWhisper = false;
+    if (whisperOn && whisperTo.size > 0) {
+      const names = [...whisperTo]
+        .map((id) => { const a = alters.find((x) => x.id === id); return a ? (a.alias || a.name) : null; })
+        .filter(Boolean);
+      cleanContent = whisperSpan(signpostClean, names);
+      whisperRecipientIds = [...whisperTo];
+      isWhisper = true;
+    } else {
+      const w = applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "bulletin" });
+      if (w === null) { setSaving(false); return; } // user backed out of the whole-blur warning
+      cleanContent = w.content;
+      whisperRecipientIds = w.recipientIds || [];
+      isWhisper = !!w.isWhisper;
+    }
     // An explicit `-system` signpost short-circuits the whole
     // fronter-fallback path: the user has chosen to attribute this
     // bulletin to the system as a whole, even if someone is currently
@@ -164,7 +205,13 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
-    const mentionedIds = [...new Set([...extractMentionedIds(cleanContent, alters), ...whisperRecipientIds])];
+    // Honour authors the user removed from the live chip list.
+    finalAuthorIds = finalAuthorIds.filter((id) => !removedAuthorIds.has(id));
+    // For a whisper, notify ONLY the chosen recipients — any @mentions inside
+    // the hidden body must not leak the secret to non-recipients.
+    const mentionedIds = isWhisper
+      ? [...new Set(whisperRecipientIds)]
+      : [...new Set([...extractMentionedIds(cleanContent, alters), ...whisperRecipientIds])];
 
     const data = {
       author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || authorAlterId || null),
@@ -173,7 +220,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       mentioned_alter_ids: mentionedIds,
       // A whisper embeds an HTML span, so force rich rendering even from
       // Simple mode so it renders the hidden bar rather than raw tags.
-      is_rich: richMode || w.isWhisper,
+      is_rich: richMode || isWhisper,
       group_id: groupId || null,
       is_pinned: pinned,
       reactions: {},
@@ -238,15 +285,19 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       qc.invalidateQueries({ queryKey: ["polls"] });
     }
     qc.invalidateQueries({ queryKey: ["bulletins"] });
-    await saveMentions({
-      content: cleanContent,
-      alters,
-      sourceType: "bulletin",
-      sourceId: bulletin.id,
-      sourceLabel: "Bulletin Board",
-      navigatePath: `/bulletin/${bulletin.id}`,
-      authorAlterId: finalAuthorIds[0] || authorAlterId || null,
-    });
+    // Public @mention notifications — skipped for whispers (the body is hidden;
+    // only the chosen recipients are notified, via the loop below).
+    if (!isWhisper) {
+      await saveMentions({
+        content: cleanContent,
+        alters,
+        sourceType: "bulletin",
+        sourceId: bulletin.id,
+        sourceLabel: "Bulletin Board",
+        navigatePath: `/bulletin/${bulletin.id}`,
+        authorAlterId: finalAuthorIds[0] || authorAlterId || null,
+      });
+    }
     // Whisper recipients are peeled off the body (so saveMentions can't see
     // them) — notify them explicitly so the whisper reaches its target.
     for (const rid of whisperRecipientIds) {
@@ -285,7 +336,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       <div className="flex items-center justify-between mb-3">
         <p className="text-sm font-semibold text-foreground">New Bulletin</p>
         {onClose && (
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+          <button onClick={onClose} aria-label="Close composer" className="text-muted-foreground hover:text-foreground">
             <X className="w-4 h-4" />
           </button>
         )}
@@ -330,6 +381,8 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
           <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleComposerImage} />
         </div>
       )}
+
+      <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} label="Signed by" />
 
       <div className="flex gap-1 mt-2 flex-wrap">
         {QUICK_EMOJIS.map(e => (
@@ -386,11 +439,71 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
               className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground transition-all">
               <AtSign className="w-3.5 h-3.5" /> Mention
             </button>
+            <button onClick={() => { setWhisperOn(v => !v); dismissHint(); }}
+              aria-pressed={whisperOn}
+              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg border transition-all ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+              <Lock className="w-3.5 h-3.5" /> Whisper
+            </button>
           </div>
           <Button onClick={() => { dismissHint(); handlePost(); }} disabled={saving || !content.trim()} size="sm" className="bg-primary">
             <Send className="w-3 h-3 mr-1" /> Post
           </Button>
         </div>
+
+        {whisperOn && (
+          <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-2">
+            <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+              <Lock className="w-3.5 h-3.5" /> Whisper — only the {terms.alters} you pick can read this post
+            </p>
+            {whisperTo.size > 0 && (
+              <div className="flex flex-wrap gap-1">
+                {[...whisperTo].map((id) => {
+                  const a = alters.find((x) => x.id === id);
+                  if (!a) return null;
+                  return (
+                    <span key={id} className="inline-flex items-center gap-1 pl-1.5 pr-1 py-0.5 rounded-full border border-border/60 bg-card text-xs">
+                      <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#6366f1" }} />
+                      <span className="truncate max-w-[7rem]">{formatAlter(a)}</span>
+                      <button type="button" aria-label={`Remove ${formatAlter(a)}`} onClick={() => setWhisperTo((s) => { const n = new Set(s); n.delete(id); return n; })} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                    </span>
+                  );
+                })}
+              </div>
+            )}
+            <input
+              value={whisperSearch}
+              onChange={(e) => setWhisperSearch(e.target.value)}
+              placeholder={`Search ${terms.alters}…`}
+              className="w-full h-8 px-2.5 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+            <div className="max-h-40 overflow-y-auto overscroll-contain space-y-0.5">
+              {alters
+                .filter((a) => !a.is_archived)
+                .filter((a) => { const q = whisperSearch.toLowerCase(); return !q || a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q); })
+                .slice(0, 50)
+                .map((a) => {
+                  const on = whisperTo.has(a.id);
+                  return (
+                    <button
+                      key={a.id}
+                      type="button"
+                      aria-pressed={on}
+                      onClick={() => setWhisperTo((s) => { const n = new Set(s); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })}
+                      className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors min-h-[36px] ${on ? "bg-primary/10" : "hover:bg-muted/40"}`}
+                    >
+                      <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: a.color || "#6366f1" }}>
+                        {on && <Check className="w-3 h-3 text-white" />}
+                      </span>
+                      <span className="flex-1 truncate">{formatAlter(a)}</span>
+                    </button>
+                  );
+                })}
+            </div>
+            {whisperTo.size === 0 && (
+              <p className="text-[0.625rem] text-amber-600 dark:text-amber-400">Pick at least one recipient — otherwise this posts as a normal bulletin.</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Bell, X } from "lucide-react";
@@ -56,7 +56,7 @@ export default function Reminders() {
             <Bell className="w-5 h-5 text-primary" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-foreground">Reminders</h1>
+            <h1 className="font-display text-3xl font-semibold text-foreground">Reminders</h1>
             <p className="text-xs text-muted-foreground">Stay on track with gentle nudges</p>
           </div>
         </div>

@@ -2,9 +2,10 @@ import { useEffect, useState } from "react";
 import { Switch } from "@/components/ui/switch";
 import {
   getAccessibilitySettings,
-  setAccessibilityFontSize,
   setAccessibilityReduceMotion,
   setAccessibilityHighContrast,
+  setAccessibilityMode,
+  setAccessibilityFontSize,
   setAccessibilityLargeTouch,
   setAccessibilityNavHeight,
 } from "@/lib/useAccessibility";
@@ -52,13 +53,97 @@ export default function AccessibilitySettings() {
     setSettings(s => ({ ...s, [key]: value }));
   };
 
+  const fontIdx = FONT_OPTIONS.findIndex(o => o.value === settings.fontSize);
+  const segCls = (active) =>
+    `h-9 rounded-lg border text-xs font-medium transition-colors ${active ? "border-primary/50 bg-primary/10 text-primary" : "border-border text-muted-foreground hover:bg-muted/40"}`;
+
   return (
     <div className="space-y-6">
 
-      {/* UI size, Touch target size, and Nav bar height moved to
-          Settings → Appearance (top of the section + "Advanced"). */}
-      <div className="rounded-xl bg-muted/20 border border-border/40 px-4 py-3 text-xs text-muted-foreground">
-        Looking for <strong>UI size</strong>, <strong>touch target size</strong>, or <strong>navigation bar height</strong>? They now live under <strong>Settings → Appearance</strong>.
+      {/* Master Accessibility Mode — the low-vision LAYOUT reconfiguration. */}
+      <div className="rounded-xl border-2 border-primary/30 bg-primary/5 px-4 py-3.5 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-sm font-semibold flex items-center gap-1.5 flex-wrap">
+            ♿ Accessibility mode
+            <span className="text-[0.625rem] font-medium uppercase tracking-wide text-primary bg-primary/10 px-1.5 py-0.5 rounded-full">Low vision</span>
+          </p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Reconfigures the layout for low vision — stacks content into a single column, enlarges tap targets, and stops cutting text off — instead of only enlarging content (which can overlap). Best paired with a larger text size below. Fully reversible.
+          </p>
+          <p className="text-xs text-muted-foreground mt-1.5">
+            💡 On a phone, try <strong>landscape</strong> — in this mode the header and tab bar stay slim so the extra width goes to your content.
+          </p>
+        </div>
+        <Switch
+          checked={settings.a11yMode}
+          onCheckedChange={v => update("a11yMode", v, setAccessibilityMode)}
+        />
+      </div>
+
+      {/* ── Size controls — text size, tap targets, nav height. These are the
+          same global settings as Settings → Appearance (both write the same
+          preference); surfaced here too because this is where low-vision users
+          look for them. */}
+      <div className="space-y-5 rounded-xl border border-border/50 bg-card/40 p-4">
+        {/* Text size — the primary "make the font bigger" control */}
+        <div>
+          <div className="flex items-center justify-between mb-0.5">
+            <p className="text-sm font-semibold">Text size</p>
+            <span className="text-xs font-mono text-muted-foreground">{(FONT_OPTIONS[fontIdx] || FONT_OPTIONS[4]).desc}</span>
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">Enlarges all text and the interface — this is how you make the font bigger. Drag right to enlarge.</p>
+          <input
+            type="range"
+            min={0}
+            max={FONT_OPTIONS.length - 1}
+            step={1}
+            value={fontIdx < 0 ? 4 : fontIdx}
+            onChange={(e) => update("fontSize", FONT_OPTIONS[Number(e.target.value)].value, setAccessibilityFontSize)}
+            className="w-full accent-primary"
+            aria-label="Text size"
+          />
+          <div className="flex justify-between text-[0.625rem] text-muted-foreground mt-0.5">
+            <span>Smaller</span><span>Larger</span>
+          </div>
+        </div>
+
+        {/* Tap target size */}
+        <div>
+          <p className="text-sm font-semibold">Button &amp; tap target size</p>
+          <p className="text-xs text-muted-foreground mb-2">Adds padding so buttons and links are easier to tap.</p>
+          <div className="grid grid-cols-3 gap-1.5">
+            {TOUCH_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={settings.largeTouch === o.value}
+                onClick={() => update("largeTouch", o.value, setAccessibilityLargeTouch)}
+                className={segCls(settings.largeTouch === o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Navigation bar height */}
+        <div>
+          <p className="text-sm font-semibold">Navigation bar height</p>
+          <p className="text-xs text-muted-foreground mb-2">Sets how tall the bottom tab bar is.</p>
+          <div className="grid grid-cols-2 gap-1.5">
+            {NAV_HEIGHT_OPTIONS.map((o) => (
+              <button
+                key={o.value}
+                type="button"
+                aria-pressed={settings.navHeight === o.value}
+                onClick={() => update("navHeight", o.value, setAccessibilityNavHeight)}
+                className={segCls(settings.navHeight === o.value)}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* Toggles */}
@@ -77,7 +162,7 @@ export default function AccessibilitySettings() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">High contrast</p>
-            <p className="text-xs text-muted-foreground">Slightly boosts contrast and colour saturation</p>
+            <p className="text-xs text-muted-foreground">Switches to a black-and-white colour scheme for maximum legibility. Overrides your theme colours while it's on.</p>
           </div>
           <Switch
             checked={settings.highContrast}

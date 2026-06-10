@@ -7,6 +7,10 @@ const LS_LARGE_TOUCH   = "symphony_a11y_largeTouch";
 const LS_NAV_HEIGHT    = "symphony_a11y_navHeight";
 const LS_FONT_FAMILY   = "symphony_a11y_fontFamily";
 const LS_HEADING_FONT  = "symphony_a11y_headingFont";
+// Master "Accessibility mode" — a low-vision LAYOUT reconfiguration (single-
+// column reflow, larger targets, wrap-don't-truncate, condensed chrome), gated
+// in CSS by `html.a11y-mode`. Independent of the text-size slider.
+const LS_A11Y_MODE     = "symphony_a11y_mode";
 
 const FONT_CLASSES  = ["a11y-text-xs3", "a11y-text-xs2", "a11y-text-xs", "a11y-text-sm", "a11y-text-lg", "a11y-text-xl", "a11y-text-xl2", "a11y-text-xl3", "a11y-text-xl4", "a11y-text-xl5"];
 const TOUCH_CLASSES = ["a11y-touch-comfortable", "a11y-touch-large"];
@@ -121,6 +125,10 @@ function applyHighContrast(enabled) {
   document.documentElement.classList.toggle("a11y-high-contrast", !!enabled);
 }
 
+function applyA11yMode(enabled) {
+  document.documentElement.classList.toggle("a11y-mode", !!enabled);
+}
+
 function applyLargeTouch(value) {
   const el = document.documentElement;
   TOUCH_CLASSES.forEach(c => el.classList.remove(c));
@@ -193,6 +201,7 @@ export function initAccessibility() {
   applyFontSize(localStorage.getItem(LS_FONT_SIZE) || "default");
   applyReduceMotion(localStorage.getItem(LS_REDUCE_MOTION) === "true");
   applyHighContrast(localStorage.getItem(LS_HIGH_CONTRAST) === "true");
+  applyA11yMode(localStorage.getItem(LS_A11Y_MODE) === "true");
   applyLargeTouch(localStorage.getItem(LS_LARGE_TOUCH) || "default");
   applyNavHeight(localStorage.getItem(LS_NAV_HEIGHT) || "default");
   applyFontFamily(localStorage.getItem(LS_FONT_FAMILY) || "inter");
@@ -207,6 +216,7 @@ export function getAccessibilitySettings() {
     fontSize:    localStorage.getItem(LS_FONT_SIZE)    || "default",
     reduceMotion:localStorage.getItem(LS_REDUCE_MOTION) === "true",
     highContrast:localStorage.getItem(LS_HIGH_CONTRAST) === "true",
+    a11yMode:    localStorage.getItem(LS_A11Y_MODE)     === "true",
     largeTouch:  localStorage.getItem(LS_LARGE_TOUCH)  || "default",
     navHeight:   localStorage.getItem(LS_NAV_HEIGHT)   || "default",
     fontFamily:  localStorage.getItem(LS_FONT_FAMILY)  || "inter",
@@ -226,6 +236,8 @@ export function setAccessibilityHeadingFont(value) {
 export function setAccessibilityFontSize(value) {
   localStorage.setItem(LS_FONT_SIZE, value);
   applyFontSize(value);
+  // Let the landscape hint (and any other listeners) re-evaluate immediately.
+  try { window.dispatchEvent(new Event("a11y-fontsize-changed")); } catch { /* SSR / no window */ }
 }
 
 export function setAccessibilityReduceMotion(enabled) {
@@ -236,6 +248,11 @@ export function setAccessibilityReduceMotion(enabled) {
 export function setAccessibilityHighContrast(enabled) {
   localStorage.setItem(LS_HIGH_CONTRAST, String(enabled));
   applyHighContrast(enabled);
+}
+
+export function setAccessibilityMode(enabled) {
+  localStorage.setItem(LS_A11Y_MODE, String(enabled));
+  applyA11yMode(enabled);
 }
 
 export function setAccessibilityLargeTouch(value) {

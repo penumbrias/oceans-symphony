@@ -837,42 +837,38 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
             // surface the disagreement than paper over it.
             const isPrimaryAlter = !!alterSession?.is_primary;
             return (
-              <FronterChip
-                key={alter.id}
-                alter={alter}
-                isPrimary={isPrimaryAlter}
-                startTime={alterSession?.start_time}
-                session={alterSession}
-                onHold={setHoldMenuAlter}
-                coFronterLabel={`Co-${terms.fronting}`}
-                onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
-                onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms)}
-                onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
-                isExpanded={expandedAlterId === alter.id}
-                onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
-              />
+              <React.Fragment key={alter.id}>
+                <FronterChip
+                  alter={alter}
+                  isPrimary={isPrimaryAlter}
+                  startTime={alterSession?.start_time}
+                  session={alterSession}
+                  onHold={setHoldMenuAlter}
+                  coFronterLabel={`Co-${terms.fronting}`}
+                  onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
+                  onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms)}
+                  onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
+                  isExpanded={expandedAlterId === alter.id}
+                  onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
+                />
+                {/* Per-alter panel — opens inline directly under THIS chip
+                    (spanning both columns) when it's tapped, so the note sits
+                    under the alter it belongs to, not below the whole grid. */}
+                {expandedAlterId === alter.id && alterSession && (
+                  <div className="col-span-2 mb-1">
+                    <AlterPanel
+                      alter={alter}
+                      session={alterSession}
+                      onClose={() => setExpandedAlterId(null)}
+                      onSaved={() => setExpandedAlterId(null)}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
             );
           })}
 
         </div>
-
-        {/* Per-alter panel — opens under the chip grid when a fronting chip is tapped */}
-        {(() => {
-          if (!expandedAlterId) return null;
-          const expandedAlter = altersById[expandedAlterId];
-          const expandedSession = activeSessions.find(s => (s.alter_id || s.primary_alter_id) === expandedAlterId);
-          if (!expandedAlter || !expandedSession) return null;
-          return (
-            <div className="mb-2">
-              <AlterPanel
-                alter={expandedAlter}
-                session={expandedSession}
-                onClose={() => setExpandedAlterId(null)}
-                onSaved={() => setExpandedAlterId(null)}
-              />
-            </div>
-          );
-        })()}
 
         <PrivateMessagesIndicator activeFronters={all} />
 

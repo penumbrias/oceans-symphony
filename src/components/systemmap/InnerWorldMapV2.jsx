@@ -19,19 +19,19 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
-import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
   Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin, ExternalLink,
+  Maximize2, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import ColorPicker from "@/components/shared/ColorPicker";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocationNode from "./LocationNode";
 import MapImageNode from "./MapImageNode";
 import CreateRelationshipModal, { RELATIONSHIP_PRESETS } from "./CreateRelationshipModal";
@@ -327,6 +327,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [relMode, setRelMode] = useState("all");
   const [panelOpen, setPanelOpen] = useState(true);
   const [viewOnly, setViewOnly] = useState(false);
+  // Full-screen mode — lifts the whole map UI to a fixed viewport overlay so
+  // the canvas isn't boxed into the page's fixed-height slot.
+  const [fullscreen, setFullscreen] = useState(false);
   const [soloLayerId, setSoloLayerId] = useState(null); // set by a layer-link jump → show ONLY this layer
   const [unplacedSearch, setUnplacedSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -336,7 +339,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [createRelModal, setCreateRelModal] = useState(null);
   const [selectedLocation, setSelectedLocation] = useState(null);
   const [editingLocation, setEditingLocation] = useState(null);
-  const [resolvedEditBgUrl, setResolvedEditBgUrl] = useState(null);
+  const [showLocColor, setShowLocColor] = useState(false); // location colour picker modal
+  const [viewLocExpanded, setViewLocExpanded] = useState(false); // view-mode location popup: members list
+  const [viewLocSubsExpanded, setViewLocSubsExpanded] = useState(false); // view-mode location popup: sub-locations list
   const [relPopover, setRelPopover] = useState(null);
   const [editingRelFromPopover, setEditingRelFromPopover] = useState(null);
   const [selectedImage, setSelectedImage] = useState(null);
@@ -463,11 +468,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const handleZoom = (dir) => setTransform((t) => ({ ...t, scale: Math.max(0.2, Math.min(4, t.scale * (dir === "in" ? 1.2 : 0.85))) }));
   const handleReset = () => setTransform({ x: 0, y: 0, scale: 1 });
 
-  useEffect(() => {
-    const url = editingLocation?.background_image_url;
-    if (!url) { setResolvedEditBgUrl(null); return; }
-    resolveImageUrl(url).then(setResolvedEditBgUrl);
-  }, [editingLocation?.background_image_url]);
+  // Collapse the popup's expandable sections whenever the viewed location changes.
+  useEffect(() => { setViewLocExpanded(false); setViewLocSubsExpanded(false); }, [selectedLocation?.id]);
 
   // ── Placements ──
   const placeAt = useCallback(async (alter, nx, ny) => {
@@ -594,7 +596,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col" style={{ touchAction: "none" }}>
+    <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
       {/* Maps bar */}
       <div className="flex items-center gap-1 flex-wrap pb-2">
         {maps.map((m) => (
@@ -682,9 +684,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               </>
             )}
           </div>
-        ) : (
-          <button onClick={() => setPanelOpen(true)} title="Show layers" className="flex-shrink-0 w-8 bg-card border-r border-border flex items-center justify-center hover:bg-muted/50 z-10"><LayersIcon className="w-4 h-4 text-muted-foreground" /></button>
-        )}
+        ) : null}
 
         {placingAlter && (
           <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
@@ -695,12 +695,21 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
         {/* SVG canvas */}
         <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
-          {/* Active layer / view-mode indicator */}
-          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 max-w-[70%]">
-            {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
-            <span className="text-muted-foreground flex-shrink-0">{effectiveSolo ? "Only:" : viewOnly ? "Viewing:" : "On:"}</span>
-            <span className="font-medium text-foreground truncate">{(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
-            {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="ml-1 text-primary hover:underline flex-shrink-0">show all</button>}
+          {/* Active layer / view-mode indicator — doubles as the layers &
+              alters panel toggle (the floating corner button was removed). */}
+          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
+            <button
+              onClick={() => setPanelOpen((v) => !v)}
+              aria-expanded={panelOpen}
+              title={panelOpen ? "Hide layers & alters" : "Show layers & alters"}
+              className="px-2.5 py-1 min-h-[32px] rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
+            >
+              {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
+              <span className="text-muted-foreground flex-shrink-0">{effectiveSolo ? "Only:" : viewOnly ? "Viewing:" : "On:"}</span>
+              <span className="font-medium text-foreground truncate">{(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
+              <ChevronDown className={`w-3 h-3 text-muted-foreground flex-shrink-0 transition-transform ${panelOpen ? "rotate-180" : ""}`} />
+            </button>
+            {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="text-primary hover:underline text-xs flex-shrink-0 px-1">show all</button>}
           </div>
 
           <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
@@ -726,7 +735,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                       const locked = layerLocked || im.is_locked;
                       return (
                         <MapImageNode key={im.id} image={im} isSelected={selectedImage?.id === im.id} selectable={!layerLocked} locked={locked} zoom={transform.scale}
-                          onSelect={() => { if (!panMovedRef.current && !layerLocked) setSelectedImage(im); }}
+                          onInteractStart={() => { panMovedRef.current = false; }}
+                          onSelect={() => { if (!panMovedRef.current && !layerLocked) openImageEditor(im); }}
                           onUpdate={(fields) => iw.updateImage(im.id, snapFields(fields))}
                           onEdit={() => { if (!layerLocked) openImageEditor(im); }} />
                       );
@@ -735,8 +745,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     {locations.filter((loc) => loc.layer_id === layer.id).sort((a, b) => (a.order || 0) - (b.order || 0)).map((loc) => (
                       <g key={loc.id}>
                         <LocationNode location={loc} isSelected={selectedLocation?.id === loc.id} zoom={transform.scale} viewOnly={layerLocked}
-                          onSelect={() => { if (!panMovedRef.current) setSelectedLocation(loc); }}
-                          onDoubleSelect={() => { if (!panMovedRef.current && !layerLocked) openLocationEditor(loc); }}
+                          onInteractStart={() => { panMovedRef.current = false; }}
+                          onSelect={() => { if (panMovedRef.current || viewOnly) return; setSelectedLocation(loc); }}
+                          onDoubleSelect={() => {
+                            if (panMovedRef.current) return;
+                            // View mode → read-only info popup; edit mode → open the editor.
+                            if (viewOnly) setSelectedLocation(loc);
+                            else if (!layerLocked) openLocationEditor(loc);
+                          }}
                           onLongPress={() => { if (!layerLocked) openLocationEditor(loc); }}
                           onEdit={() => { if (!layerLocked) openLocationEditor(loc); }}
                           onUpdate={(fields) => updateLocation(loc, snapFields(fields))}
@@ -786,6 +802,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
           {/* Toolbar — consistent icon-only buttons */}
           <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
+            <button title={fullscreen ? "Exit full screen" : "Full screen"} className={tbBtn(fullscreen)} onClick={() => setFullscreen((v) => !v)}>
+              {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
             <button title={viewOnly ? "Switch to edit mode" : "Switch to view mode (display only)"} className={tbBtn(viewOnly)}
               onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); setSelectedImage(null); setSelectedLocation(null); setSelectedAlter(null); }}>
               {viewOnly ? <PencilOff className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
@@ -846,46 +865,69 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </div>
           )}
 
-          {/* Location edit — bottom sheet */}
+          {/* Location edit — minimal bottom sheet. Description, lock, and the
+              background-image opacity live on the full profile page (↗) to keep
+              this compact. */}
           {editingLocation && !viewOnly && (
-            <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl max-h-[55%] overflow-y-auto">
-              <div className="flex items-center justify-between">
+            <div data-iw-panel className="absolute left-2 right-2 bottom-2 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-2xl">
+              <div className="flex items-center gap-2">
                 <p className="text-xs font-semibold text-foreground">Edit Location</p>
-                <div className="flex items-center gap-2">
-                  <button onClick={() => { const v = !editingLocation.is_locked; setEditingLocation((l) => ({ ...l, is_locked: v })); updateLocation(editingLocation, { is_locked: v }); }}
-                    className={`px-2 py-0.5 rounded text-xs flex items-center gap-1 border ${editingLocation.is_locked ? "bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40" : "border-border text-muted-foreground"}`}>
-                    {editingLocation.is_locked ? <Lock className="w-3 h-3" /> : <Unlock className="w-3 h-3" />} {editingLocation.is_locked ? "Locked" : "Lock"}
-                  </button>
-                  <button onClick={() => setEditingLocation(null)}><X className="w-3 h-3 text-muted-foreground" /></button>
-                </div>
+                <div className="flex-1" />
+                <button onClick={() => { const v = !editingLocation.is_locked; setEditingLocation((l) => ({ ...l, is_locked: v })); updateLocation(editingLocation, { is_locked: v }); }}
+                  title={editingLocation.is_locked ? "Position locked — tap to unlock" : "Lock position (no move/resize)"}
+                  className={`p-1 rounded ${editingLocation.is_locked ? "text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:bg-muted/50"}`}>
+                  {editingLocation.is_locked ? <Lock className="w-4 h-4" /> : <Unlock className="w-4 h-4" />}
+                </button>
+                <button onClick={() => navigate(`/location/${editingLocation.id}`)} title="Open full profile page" className="text-primary p-1 hover:bg-primary/10 rounded"><ExternalLink className="w-4 h-4" /></button>
+                <button onClick={() => setEditingLocation(null)} title="Close"><X className="w-4 h-4 text-muted-foreground" /></button>
               </div>
-              <button onClick={() => navigate(`/location/${editingLocation.id}`)}
-                className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg border border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-medium transition-colors">
-                <ExternalLink className="w-3.5 h-3.5" /> Open full profile page
-              </button>
-              <div className="grid grid-cols-2 gap-2">
-                <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Name" className="h-7 px-2 text-xs border border-border rounded bg-background" />
-                <select value={editingLocation.shape || "rectangle"} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }} className="h-7 px-2 text-xs border border-border rounded bg-background">
-                  <option value="rectangle">Rectangle</option>
-                  <option value="oval">Oval</option>
-                </select>
+              <input value={editingLocation.name || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, name: v })); updateLocation(editingLocation, { name: v }); }} placeholder="Location name" className="w-full h-8 px-2 text-sm border border-border rounded bg-background" />
+              {/* Colour swatch + opacity + rotation + stack order — packed into
+                  the row freed by dropping the hex-code field (tap the square to
+                  pick a colour). */}
+              <div className="flex items-center gap-2">
+                <button onClick={() => setShowLocColor(true)} title="Colour"
+                  className="w-8 h-8 rounded-lg border-2 border-border flex-shrink-0" style={{ backgroundColor: editingLocation.color || "#6366f1" }} />
+                <label className="flex items-center gap-1 flex-1 min-w-0" title="Opacity">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">◐</span>
+                  <input type="range" min={0.1} max={1} step={0.05} value={editingLocation.opacity ?? 1}
+                    onChange={(e) => { const v = parseFloat(e.target.value); setEditingLocation((l) => ({ ...l, opacity: v })); updateLocation(editingLocation, { opacity: v }); }}
+                    className="flex-1 min-w-0 accent-primary" />
+                </label>
+                <label className="flex items-center gap-1 flex-1 min-w-0" title="Rotation">
+                  <span className="text-xs text-muted-foreground flex-shrink-0">⟳</span>
+                  <input type="range" min={0} max={360} step={1} value={editingLocation.rotation ?? 0}
+                    onChange={(e) => { const v = parseInt(e.target.value, 10); setEditingLocation((l) => ({ ...l, rotation: v })); updateLocation(editingLocation, { rotation: v }); }}
+                    className="flex-1 min-w-0 accent-primary" />
+                </label>
+                <button onClick={() => { const v = (editingLocation.order || 0) + 1; setEditingLocation((l) => ({ ...l, order: v })); updateLocation(editingLocation, { order: v }); }}
+                  title="Bring forward" className="h-8 w-7 flex items-center justify-center border border-border rounded text-muted-foreground flex-shrink-0">↑</button>
+                <button onClick={() => { const v = Math.max(0, (editingLocation.order || 0) - 1); setEditingLocation((l) => ({ ...l, order: v })); updateLocation(editingLocation, { order: v }); }}
+                  title="Send back" className="h-8 w-7 flex items-center justify-center border border-border rounded text-muted-foreground flex-shrink-0">↓</button>
               </div>
               <div className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground flex-shrink-0">Colour</span>
-                <ColorPicker value={editingLocation.color || "#6366f1"} onChange={(v) => { setEditingLocation((l) => ({ ...l, color: v })); if (/^#[0-9a-fA-F]{6}$/.test(v)) updateLocation(editingLocation, { color: v }); }} className="justify-between flex-1" />
+                {/* Single shape toggle (rectangle ↔ oval) */}
+                <button onClick={() => { const v = editingLocation.shape === "oval" ? "rectangle" : "oval"; setEditingLocation((l) => ({ ...l, shape: v })); updateLocation(editingLocation, { shape: v }); }}
+                  title={`Shape: ${editingLocation.shape === "oval" ? "oval" : "rectangle"} — tap to toggle`}
+                  className="h-8 w-9 flex items-center justify-center border border-border rounded text-foreground flex-shrink-0">
+                  <span className={editingLocation.shape === "oval" ? "w-4 h-4 rounded-full border-2 border-current inline-block" : "w-4 h-3 rounded-[2px] border-2 border-current inline-block"} />
+                </button>
+                {/* Background image (icon → asset picker) */}
+                <button onClick={() => setAssetPicker({ open: true, mode: "locationBg" })}
+                  title={editingLocation.background_image_url ? "Change background image" : "Background image"}
+                  className={`h-8 w-9 flex items-center justify-center border rounded flex-shrink-0 ${editingLocation.background_image_url ? "border-primary/40 text-primary bg-primary/5" : "border-border text-muted-foreground"}`}>
+                  <ImageIcon className="w-4 h-4" />
+                </button>
+                {/* Manual width / height — free-typing inputs (clearable; clamp
+                    to the minimum only on blur, so you can wipe "40" and type
+                    "500" without it snapping back mid-keystroke). */}
+                <DimensionInput label="Width" symbol="↔" value={Math.round(editingLocation.width || 200)} min={40}
+                  onCommit={(v) => { setEditingLocation((l) => ({ ...l, width: v })); updateLocation(editingLocation, { width: v }); }} />
+                <DimensionInput label="Height" symbol="↕" value={Math.round(editingLocation.height || 150)} min={40}
+                  onCommit={(v) => { setEditingLocation((l) => ({ ...l, height: v })); updateLocation(editingLocation, { height: v }); }} />
               </div>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setAssetPicker({ open: true, mode: "locationBg" })} className="flex-1 flex items-center justify-center gap-1 h-7 text-xs border border-dashed border-border rounded hover:border-primary/50 text-muted-foreground"><ImageIcon className="w-3 h-3" /> {editingLocation.background_image_url ? "Change background" : "Background image"}</button>
-                {editingLocation.background_image_url && (
-                  <>
-                    <img src={resolvedEditBgUrl || editingLocation.background_image_url} alt="bg" className="w-10 h-7 object-cover rounded border border-border flex-shrink-0" />
-                    <LocalImageFixer value={editingLocation.background_image_url} maxWidth={1200} quality={0.8} onFixed={(url) => { setEditingLocation((l) => ({ ...l, background_image_url: url })); updateLocation(editingLocation, { background_image_url: url }); }} />
-                  </>
-                )}
-              </div>
-              <textarea value={editingLocation.description || ""} onChange={(e) => { const v = e.target.value; setEditingLocation((l) => ({ ...l, description: v })); updateLocation(editingLocation, { description: v }); }} placeholder="Description..." rows={2} className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
               <div className="space-y-1">
-                <p className="text-xs text-muted-foreground">Tapping the ↗ jumps to…</p>
+                <p className="text-xs text-muted-foreground">Tapping the ↗ on the map jumps to…</p>
                 <SearchableSelect value={linkValue} options={linkOptions} placeholder="Nothing (no link)" searchPlaceholder="Search maps & layers…"
                   renderOption={(opt) => (
                     <>
@@ -903,6 +945,73 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { if (window.confirm("Delete this location?")) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>Delete Location</Button>
             </div>
           )}
+
+          {/* View-mode location popup — read-only: name (→ profile), description,
+              link, an expandable members list, and any sub-locations. */}
+          {viewOnly && selectedLocation && (() => {
+            const loc = selectedLocation;
+            const inLoc = allAlters.filter((a) => !a.is_archived && a.inner_world_location_id === loc.id);
+            const subs = locations.filter((l) => {
+              if (l.id === loc.id) return false;
+              return (l.x ?? 0) >= (loc.x ?? 0) && (l.x ?? 0) + (l.width || 200) <= (loc.x ?? 0) + (loc.width || 200) &&
+                     (l.y ?? 0) >= (loc.y ?? 0) && (l.y ?? 0) + (l.height || 150) <= (loc.y ?? 0) + (loc.height || 150);
+            });
+            const linkName = loc.link_target_type === "map" ? maps.find((m) => m.id === loc.link_target_id)?.name
+              : loc.link_target_type === "layer" ? allLayers.find((l) => l.id === loc.link_target_id)?.name : null;
+            return (
+              <div data-iw-panel className="absolute bottom-3 left-3 right-3 sm:right-auto sm:w-64 bg-card border border-border rounded-xl p-3 space-y-2 z-30 shadow-lg max-h-[60%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+                <div className="flex items-center justify-between gap-2">
+                  <button onClick={() => navigate(`/location/${loc.id}`)} title="Open profile page" className="flex items-center gap-1.5 text-sm font-semibold text-foreground hover:text-primary text-left min-w-0">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: loc.color || "#6366f1" }} />
+                    <span className="truncate">{loc.name}</span>
+                  </button>
+                  <button onClick={() => setSelectedLocation(null)}><X className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /></button>
+                </div>
+                {loc.description && <p className="text-xs text-muted-foreground whitespace-pre-wrap break-words">{loc.description}</p>}
+                {linkName && (
+                  <button onClick={() => jumpToLink(loc)} className="w-full flex items-center gap-1.5 text-xs text-primary hover:underline">
+                    <ExternalLink className="w-3.5 h-3.5 flex-shrink-0" /> Jump to {linkName}
+                  </button>
+                )}
+                {inLoc.length > 0 && (
+                  <div>
+                    <button onClick={() => setViewLocExpanded((v) => !v)} className="w-full flex items-center justify-between text-xs font-medium text-foreground">
+                      <span>{terms.Alters} here ({inLoc.length})</span>
+                      {viewLocExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                    {viewLocExpanded && (
+                      <div className="mt-1.5 space-y-1">
+                        {inLoc.map((a) => (
+                          <button key={a.id} onClick={() => navigate(`/alter/${a.id}`)} className="w-full flex items-center gap-2 text-xs text-foreground hover:text-primary text-left">
+                            <span className="w-4 h-4 rounded-full flex items-center justify-center text-[0.5rem] text-white flex-shrink-0" style={{ backgroundColor: a.color || "#8b5cf6" }}>{a.name?.[0]?.toUpperCase()}</span>
+                            <span className="truncate">{a.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+                {subs.length > 0 && (
+                  <div>
+                    <button onClick={() => setViewLocSubsExpanded((v) => !v)} className="w-full flex items-center justify-between text-xs font-medium text-foreground">
+                      <span>Sub-locations ({subs.length})</span>
+                      {viewLocSubsExpanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+                    </button>
+                    {viewLocSubsExpanded && (
+                      <div className="mt-1.5 space-y-1">
+                        {subs.map((s) => (
+                          <button key={s.id} onClick={() => setSelectedLocation(s)} className="w-full flex items-center gap-2 text-xs text-foreground hover:text-primary text-left">
+                            <span className="w-2.5 h-2.5 rounded flex-shrink-0" style={{ backgroundColor: s.color || "#6366f1" }} />
+                            <span className="truncate">{s.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Relationship popover */}
           {relPopover && (() => {
@@ -936,6 +1045,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
       </div>
 
       <AssetPickerModal open={assetPicker.open} onClose={() => setAssetPicker({ open: false, mode: null })} onSelect={onAssetSelect} />
+      {showLocColor && editingLocation && (
+        <ColorPickerModal color={editingLocation.color || "#6366f1"} label="Location colour"
+          onSave={(hex) => { setEditingLocation((l) => ({ ...l, color: hex })); updateLocation(editingLocation, { color: hex }); }}
+          onClose={() => setShowLocColor(false)} />
+      )}
 
       {createRelModal && (
         <CreateRelationshipModal alterA={createRelModal.alterA} allAlters={allAlters} alterB={createRelModal.alterB} onSave={handleSaveRelationship} onClose={() => setCreateRelModal(null)} />
@@ -948,6 +1062,47 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 }
 
 function swap(arr, i, j) { const next = [...arr]; [next[i], next[j]] = [next[j], next[i]]; return next; }
+
+// Free-typing numeric input for the location width/height. The old inline
+// <input> clamped on every keystroke (Math.max(40, parseInt || 0)), so clearing
+// the field instantly refilled it with 40 — you could never wipe it and type a
+// new number like 500. This keeps a local text draft: empty/partial input is
+// allowed while typing, a valid value is pushed through live, and it clamps to
+// the minimum only on blur / Enter.
+function DimensionInput({ label, symbol, value, min = 40, onCommit }) {
+  const [text, setText] = useState(String(value));
+  const [focused, setFocused] = useState(false);
+  // Sync from external changes (e.g. drag-resize) only while NOT being edited,
+  // so we never clobber what the user is mid-typing.
+  useEffect(() => { if (!focused) setText(String(value)); }, [value, focused]);
+  const commit = () => {
+    const n = parseInt(text, 10);
+    const next = Number.isFinite(n) ? Math.max(min, n) : Math.max(min, value);
+    setText(String(next));
+    onCommit(next);
+  };
+  return (
+    <div className="flex items-center gap-1 flex-1 min-w-0">
+      <span className="text-xs text-muted-foreground flex-shrink-0" title={label}>{symbol}</span>
+      <input
+        type="number" inputMode="numeric" min={min} value={text} aria-label={label}
+        onFocus={() => setFocused(true)}
+        onChange={(e) => {
+          const raw = e.target.value;
+          setText(raw);
+          // Live preview while typing, but never rewrite the field — only push
+          // through values at/above the minimum so a partial entry (e.g. "5" on
+          // the way to "500") doesn't resize to something tiny mid-keystroke.
+          const n = parseInt(raw, 10);
+          if (Number.isFinite(n) && n >= min) onCommit(n);
+        }}
+        onBlur={() => { setFocused(false); commit(); }}
+        onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+        className="w-full min-w-0 h-8 px-1.5 text-xs border border-border rounded bg-background"
+      />
+    </div>
+  );
+}
 
 function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
   const [direction, setDirection] = useState(rel.direction);

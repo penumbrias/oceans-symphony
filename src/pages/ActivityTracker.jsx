@@ -4,7 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight, CalendarPlus, Plus, Settings as SettingsIcon } from "lucide-react";
-import { format, startOfWeek, addDays, addMonths, addYears, startOfMonth, startOfYear } from "date-fns";
+import { format, startOfWeek, addDays, addMonths, addYears } from "date-fns";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
@@ -21,7 +21,6 @@ import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import ActivityNestingRecovery from "@/components/activities/ActivityNestingRecovery";
-import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 
 function lsGet(key, fallback) {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
@@ -278,7 +277,7 @@ export default function ActivityTracker() {
             view-mode pills are intentionally small here; they're a
             view chooser, not a primary action. */}
         <div className="flex items-center justify-between mb-2 gap-2">
-          <h1 className="text-2xl font-bold text-foreground">Activity Tracker</h1>
+          <h1 className="font-display text-3xl font-semibold text-foreground">Activity Tracker</h1>
           {tab === "logged" && (
             <div className="flex gap-0.5 p-0.5 bg-muted/30 rounded-lg">
               {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (

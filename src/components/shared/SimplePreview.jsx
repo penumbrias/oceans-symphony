@@ -14,7 +14,13 @@ function sanitizeBlockHtml(html) {
   // Allow data-* attributes so internal-link / data-edit hooks keep working.
   // Also turn ||spoiler|| markers into censor bars (DOMPurify keeps the
   // class; the global tap handler + .spoiler CSS do the reveal).
-  return DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"] });
+  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"] });
+  // Make hard-coded px font sizes (common in pasted / imported bios) respond to
+  // the accessibility Text size slider by converting them to rem — the same
+  // visual size at the default scale, but now they grow/shrink with the slider.
+  // Without this, such bios silently ignore the slider while the rest of the
+  // page scales.
+  return clean.replace(/font-size:\s*([\d.]+)px/gi, (_, n) => `font-size:${(parseFloat(n) / 16).toFixed(4)}rem`);
 }
 
 export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {

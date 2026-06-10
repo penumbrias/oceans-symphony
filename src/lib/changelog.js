@@ -13,8 +13,214 @@
 
 export const CHANGELOG = [
   {
+    date: "June 10, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Insert-link: linking to a location now opens that location's page (it was landing on the analytics map).",
+      },
+      {
+        type: "feature",
+        text: "Insert-link: you can now link to a map layer too — it opens the inner-world map on that layer. Layers sit in a collapsed section in the picker.",
+      },
+      {
+        type: "fix",
+        text: "Daily Tasks: the preset “check-in” now clears when you open the app, not only when you open the Daily Tasks page.",
+      },
+      {
+        type: "improve",
+        text: "Journal entries: the “Signing as” authors are now removable — tap × to drop one you didn't mean to include.",
+      },
+      {
+        type: "improve",
+        text: "Comments now have the same 🔒 Whisper toggle as bulletins — pick exactly who can read a comment, hidden behind a tap-to-reveal bar for everyone else.",
+      },
+      {
+        type: "feature",
+        text: "You can now drag the floating support bubble (🫧) to the “hide” target at the bottom of the screen to turn it off, and bring it back from the Quick Support page (or Settings → Accessibility).",
+      },
+      {
+        type: "improve",
+        text: "Edit Bulletin: the author picker is now searchable and scrollable with removable chips, matching the rest of the app.",
+      },
+      {
+        type: "fix",
+        text: "Inserted links now land where they should: a link to a journal folder opens that folder, and the “Go to Safety Plan lesson” button opens the actual lesson (both used to drop you on the generic page).",
+      },
+      {
+        type: "improve",
+        text: "Insert-link picker: the categories (members, journals, folders, check-ins, locations) are now collapsible, so the list is easier to navigate.",
+      },
+      {
+        type: "improve",
+        text: "Accessibility: screen readers now announce in-app notifications and reminders, the formatting-toolbar buttons have proper labels, and several form fields gained labels.",
+      },
+      {
+        type: "fix",
+        text: "Bulletins: a new 🔒 Whisper toggle lets you pick exactly who can read a post — it's hidden behind a tap-to-reveal bar for everyone else. More reliable than typing “/w” (which still works).",
+      },
+      {
+        type: "feature",
+        text: "Each member's profile has a new Locations tab listing the inner-world locations they're in, with links to each location and to its spot on the map.",
+      },
+      {
+        type: "feature",
+        text: "Alters page: a new flatten button shows every member in one list (ignoring subsystem nesting), so you can see them all at once.",
+      },
+      {
+        type: "fix",
+        text: "Activity Tracker: the “show alters” toggle now actually shows who was fronting during each activity (it was using an old detection method and never showed anyone).",
+      },
+      {
+        type: "improve",
+        text: "Page titles now use one consistent heading style across the app (Activity Tracker, Timeline, Reminders, To-Do, and more), matching the more polished pages.",
+      },
+      {
+        type: "fix",
+        text: "Opening a page now starts at the top instead of sometimes appearing already scrolled down.",
+      },
+      {
+        type: "fix",
+        text: "Emoji aliases now sign posts: if a member uses an emoji as their alias, just including that emoji in a bulletin, message, or comment signs the entry as them. Mentions still put @ before the emoji (like @😀).",
+      },
+      {
+        type: "improve",
+        text: "The @mention picker in chat now matches and inserts emoji aliases too.",
+      },
+      {
+        type: "feature",
+        text: "Writing a bulletin or comment now shows a live “Signed by” list of who it'll be attributed to — tap × to remove anyone you didn't mean to include.",
+      },
+      {
+        type: "fix",
+        text: "Currently-fronting panel: a member's note/feelings panel now opens directly under the member you tapped, instead of below the whole list.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the layer name in the top-left now opens the layers & members panel (the separate corner button is gone), and there's a new full-screen button.",
+      },
+      {
+        type: "fix",
+        text: "Profile bios with hard-coded text sizes now grow and shrink with the Text size slider like the rest of the app.",
+      },
+      {
+        type: "improve",
+        text: "When your text size is very large, a tip suggests rotating your phone to landscape for easier reading.",
+      },
+    ],
+  },
+  {
+    date: "June 9, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "New Accessibility mode for low-vision users (Settings → Accessibility) — it reconfigures the layout into a single column with larger tap targets and no cut-off text, instead of only enlarging content. More accessibility improvements are on the way.",
+      },
+      {
+        type: "improve",
+        text: "Accessibility mode: at very large text sizes the top header and bottom bar stay slim instead of ballooning, and the header shrinks further in landscape — so rotating your phone gives more room for content.",
+      },
+      {
+        type: "improve",
+        text: "“High contrast” (Settings → Accessibility) is now a true black-and-white scheme for maximum legibility, instead of a slight contrast boost.",
+      },
+      {
+        type: "feature",
+        text: "Inner-world map now has a List view (Canvas/List toggle) — a screen-reader-friendly index of every location grouped by map and layer, each opening its profile. Opens automatically when Accessibility mode is on.",
+      },
+      {
+        type: "improve",
+        text: "Accessibility mode: long passages of text no longer stretch too wide on big or landscape screens, with a little extra letter spacing for easier reading.",
+      },
+      {
+        type: "feature",
+        text: "Settings → Accessibility now has the Text size slider plus button-size and nav-bar-height controls right there — so you can make the font bigger without hunting through Appearance.",
+      },
+      {
+        type: "improve",
+        text: "Screen-reader support: added a “Skip to main content” link and spoken page names when you move between pages.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: animated GIFs now keep playing as location backgrounds and backdrop images — they previously only moved while you were dragging or resizing.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: a backdrop image's edit popup can be reopened again after you close it.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the Edit Location popup gained opacity, rotation, and stack-order (forward/back) controls, and the colour is now a single tappable swatch (no hex field) to keep it compact.",
+      },
+      {
+        type: "improve",
+        text: "The PluralKit connector is now import-only — the “Export to PluralKit” button has been removed.",
+      },
+      {
+        type: "improve",
+        text: "Data & Privacy settings have a cleaner layout: Backup & export, a new Import group (with Simply Plural & PluralKit nested inside it), Automatic backups, Storage & encryption, and Privacy cover. The “cache images offline / recompress images” tools moved down into Storage & encryption.",
+      },
+      {
+        type: "fix",
+        text: "Syncing from Simply Plural no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info Simply Plural owns and leaves your organisation alone.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: open a location's editor by tapping its name or double-tapping the location — and it now opens reliably. Added a button in the editor to lock a location's position.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: you can now clear a location's width/height field and type a new number instead of it snapping back to 40.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: in view mode, double-tap a location for a quick popup of its linked location, sub-locations, and the alters inside — with collapsible sections.",
+      },
+    ],
+  },
+  {
     date: "June 6, 2026",
     changes: [
+      {
+        type: "fix",
+        text: "Syncing from PluralKit (“Update + add new”, including with “use display name”) no longer pulls alters out of your local folders/subsystems or wipes their tags — a sync now only updates the info PluralKit owns and leaves your organisation alone.",
+      },
+      {
+        type: "improve",
+        text: "Header extras now has a separate toggle for an alter's own custom fields (vs shared/system ones), and anything shown in the header is moved there — it no longer also appears in the body below.",
+      },
+      {
+        type: "fix",
+        text: "Pronouns in the profile header are back to hiding when the name already contains them; a new “Always show pronouns” toggle (in Header extras) forces them to show.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the Edit Location popup is now compact (name, colour, shape, background, width/height, link, delete). Description and other details live on the location's profile page — open it with the ↗.",
+      },
+      {
+        type: "feature",
+        text: "Inner-world map: in view mode, tapping a location shows a quick popup with its description, link, an expandable list of the alters there, and any sub-locations. Tap its name to open the full profile.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: tap a backdrop image in edit mode to adjust it (opacity, rotation, stacking, replace) — the same way you edit locations.",
+      },
+      {
+        type: "feature",
+        text: "Alter profile headers can now show the alter's groups, subsystems, and custom fields as chips (icon, name, or both) — turn them on under “Header extras” in the profile editor. Group/subsystem chips link to their pages.",
+      },
+      {
+        type: "fix",
+        text: "An alter's pronouns now always show in their profile header.",
+      },
+      {
+        type: "fix",
+        text: "Swiping an alter in the list view to add/remove/change front now actually works — it was silently failing while the slide animation still played.",
+      },
       {
         type: "feature",
         text: "Screenshot blur mode has a new “avatars only” option — blur icons/avatars but keep names readable. The toggle now cycles off → names → avatars → both.",

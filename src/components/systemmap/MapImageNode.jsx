@@ -14,7 +14,7 @@ import React, { useRef, useState, useEffect } from "react";
 
 const MIN = 40;
 
-export default function MapImageNode({ image, isSelected, selectable = true, locked = false, zoom = 1, onSelect, onUpdate, onEdit }) {
+export default function MapImageNode({ image, isSelected, selectable = true, locked = false, zoom = 1, onSelect, onUpdate, onEdit, onInteractStart }) {
   const { x = 0, y = 0, width = 320, height = 220, opacity = 1, rotation = 0, image_url } = image;
   const [resolvedUrl, setResolvedUrl] = useState(image_url || null);
   const dragStart = useRef(null);
@@ -31,6 +31,7 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
 
   const handleMouseDown = (e) => {
     e.stopPropagation();
+    onInteractStart?.();
     dragStart.current = { mx: e.clientX, my: e.clientY, x, y, moved: false };
     const onMove = (ev) => {
       if (!dragStart.current) return;
@@ -51,6 +52,7 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
 
   const handleTouchStart = (e) => {
     e.stopPropagation();
+    onInteractStart?.();
     const t = e.touches[0];
     dragStart.current = { mx: t.clientX, my: t.clientY, x, y, moved: false, time: Date.now() };
   };
@@ -95,9 +97,14 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
   return (
     <g transform={rotation ? `rotate(${rotation} ${cx} ${cy})` : undefined} style={{ touchAction: "none" }}>
       {resolvedUrl ? (
-        <image href={resolvedUrl} x={x} y={y} width={width} height={height} opacity={opacity} preserveAspectRatio="xMidYMid slice"
-          style={{ cursor: locked ? (selectable ? "pointer" : "default") : "grab" }}
-          onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} />
+        // HTML <img> inside a foreignObject (not an SVG <image>) so animated
+        // GIFs actually play — SVG raster images show only a static frame and
+        // would otherwise "animate" only while the node re-renders (drag/resize).
+        <foreignObject x={x} y={y} width={width} height={height} style={{ overflow: "hidden" }}>
+          <img src={resolvedUrl} alt="" draggable={false}
+            style={{ width: "100%", height: "100%", objectFit: "cover", opacity, display: "block", cursor: locked ? (selectable ? "pointer" : "default") : "grab", touchAction: "none" }}
+            onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} onTouchMove={handleTouchMove} onTouchEnd={handleTouchEnd} />
+        </foreignObject>
       ) : (
         <rect x={x} y={y} width={width} height={height} fill="var(--color-muted)" opacity={0.3}
           onMouseDown={handleMouseDown} onTouchStart={handleTouchStart} />

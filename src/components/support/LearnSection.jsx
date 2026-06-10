@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ModuleCard from "./ModuleCard";
@@ -9,10 +9,20 @@ import ResourcesView from "./ResourcesView";
 import { FileText, Heart, BookOpen, AlertTriangle } from "lucide-react";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 
-export default function LearnSection({ onTryTechnique }) {
+export default function LearnSection({ onTryTechnique, initialTopicId = null }) {
   const [view, setView] = useState("overview"); // "overview" | "topic" | "reflections" | "needs" | "resources"
   const [selectedTopic, setSelectedTopic] = useState(null);
   const [selectedModuleId, setSelectedModuleId] = useState(null);
+
+  // Deep-link: open a specific lesson when arrived via /grounding?tab=learn&topic=<id>
+  // (e.g. the "safety plan lesson" link). Runs once when an id is supplied.
+  useEffect(() => {
+    if (!initialTopicId) return;
+    for (const m of CURRICULUM) {
+      const t = (m.topics || []).find((tp) => tp.id === initialTopicId);
+      if (t) { setSelectedTopic(t); setSelectedModuleId(m.id); setView("topic"); break; }
+    }
+  }, [initialTopicId]);
 
   const { data: progressRecords = [] } = useQuery({
     queryKey: ["learningProgress"],

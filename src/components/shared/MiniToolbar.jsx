@@ -1,11 +1,11 @@
-import React, { useState, useRef, useCallback, useEffect } from "react";
+import React, { useState, useRef, useCallback } from "react";
 import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
   CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff, Eraser,
 } from "lucide-react";
-import InternalLinkPicker, { buildInternalLinkHTML } from "@/components/shared/InternalLinkPicker";
+import InternalLinkPicker from "@/components/shared/InternalLinkPicker";
 
 export const PRESET_COLORS = [
   "#ff4d4d","#ff85a1","#ff1493","#c0392b",
@@ -280,7 +280,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   // Icon button (intuitive lucide glyph) and small text button (xs/sm/…).
   const iconBtn = (Icon, before, after, title) => (
-    <button key={title} type="button" title={title}
+    <button key={title} type="button" title={title} aria-label={title}
       onMouseDown={e => e.preventDefault()}
       onClick={() => onInsert(before, after)}
       className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
@@ -293,7 +293,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // (which can't toggle). `onCommand` is only passed by rich (contentEditable)
   // hosts like the system chat composer.
   const fmtIconBtn = (Icon, cmd, val, before, after, title) => (
-    <button key={title} type="button" title={title}
+    <button key={title} type="button" title={title} aria-label={title}
       onMouseDown={e => e.preventDefault()}
       onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
       className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">

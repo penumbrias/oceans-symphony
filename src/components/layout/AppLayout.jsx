@@ -1,6 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
-import { Settings, ChevronLeft, Wifi, Menu, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
+import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { cn } from "@/lib/utils";
 import { useQuery } from "@tanstack/react-query";
@@ -12,6 +12,7 @@ import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
+import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -24,6 +25,7 @@ import PageTutorialBanner from "@/components/onboarding/PageTutorialBanner";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
+import LandscapeHintBanner from "@/components/layout/LandscapeHintBanner";
 import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
@@ -71,6 +73,9 @@ export default function AppLayout() {
   // rows, multiple is_primary) once per session, so users who never open
   // the Set Fronters modal don't sit with stuck data forever.
   useFrontSessionSweep();
+  // Credit the daily "App opened" check-in on launch, not only when the Daily
+  // Tasks page is first visited.
+  useDailyCheckInOnOpen();
 
   // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
   // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered
@@ -232,6 +237,15 @@ const bottomNavItems = useMemo(() => {
     .map(page => ({ ...page, label: termMap[page.id] || page.label }));
 }, [navConfig.bottomBar, termMap]);
 
+// Name of the current page, for the polite screen-reader route announcer
+// below. SPA route changes are otherwise silent to assistive tech.
+const routeAnnouncement = useMemo(() => {
+  const p = location.pathname;
+  if (p === "/") return "Dashboard";
+  const match = ALL_PAGES.find(pg => pg.path && pg.path !== "/" && p.startsWith(pg.path));
+  return match ? (termMap[match.id] || match.label) : "";
+}, [location.pathname, termMap]);
+
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;
 
@@ -353,6 +367,18 @@ const handleNotifClick = (mentionLog) => {
     setHistoryIdx(window.history.state?.idx ?? 0);
   }, [location.pathname]);
 
+  // Scroll the content area back to the top on each navigation. <main> is the
+  // only scroll context, and it's the SAME DOM element across route changes, so
+  // it otherwise keeps the previous page's scroll position — which is why a new
+  // page sometimes opened part-way down. Skip when a ?highlight=… deep-link is
+  // present, since useHighlightScroll will scroll to the target row itself.
+  const mainScrollRef = useRef(null);
+  useEffect(() => {
+    if (new URLSearchParams(location.search).has("highlight")) return;
+    const el = mainScrollRef.current;
+    if (el) el.scrollTop = 0;
+  }, [location.pathname, location.search]);
+
   const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);
 
   // Bulletproof back: try navigate(-1) if we genuinely have history to
@@ -379,6 +405,19 @@ const handleNotifClick = (mentionLog) => {
     // and drags the "sticky" header up with it in some Capacitor
     // WebView versions.
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      {/* Skip link — the first focusable element; lets keyboard / switch users
+          jump straight to the page content, past the header + nav (WCAG 2.4.1).
+          Visually hidden until focused. */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-[300] focus:px-4 focus:py-2 focus:rounded-lg focus:bg-primary focus:text-primary-foreground focus:text-sm focus:font-semibold focus:shadow-lg"
+      >
+        Skip to main content
+      </a>
+      {/* Polite route announcer — names the current page for screen readers on
+          each navigation (SPA route changes are otherwise silent). */}
+      <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
+
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -473,7 +512,7 @@ const handleNotifClick = (mentionLog) => {
             targets cleanly and matches the Apple/Google 44px minimum.
             Landscape stays tighter so chrome doesn't eat a sixth of the
             viewport on the typical ~360 CSS px short edge. */}
-        <div className="flex items-center justify-between px-2 h-12 landscape:h-11 relative" style={{ zIndex: 1 }}>
+        <div className="a11y-header-row flex items-center justify-between px-2 h-12 landscape:h-11 relative" style={{ zIndex: 1 }}>
           {/* Left: back button or menu icon */}
           {canGoBack ?
             <button
@@ -496,9 +535,9 @@ const handleNotifClick = (mentionLog) => {
           <button
             onClick={() => navigate("/")}
             aria-label="Home"
-            className="absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 select-none px-2 max-w-[60%] truncate"
+            className="a11y-keep-truncate absolute left-1/2 -translate-x-1/2 top-1/2 -translate-y-1/2 select-none px-2 max-w-[60%] truncate"
           >
-            <span className="font-display text-lg font-normal tracking-tight text-foreground">
+            <span className="a11y-header-title font-display text-lg font-normal tracking-tight text-foreground">
               Oceans Symphony
             </span>
           </button>
@@ -536,6 +575,7 @@ const handleNotifClick = (mentionLog) => {
           <main> where the px-4 gutter wraps them. */}
       <PreviewModeBanner />
       <AnnouncementBanner />
+      <LandscapeHintBanner />
 
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}
       <div className="flex flex-1 overflow-hidden">
@@ -644,7 +684,7 @@ const handleNotifClick = (mentionLog) => {
             BEHIND content via a negative z-index inside main's `isolate`
             stacking context (and negative insets to reach edge-to-edge past
             the padding), so no content wrapper is needed. */}
-        <main className="app-content-main relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
+        <main ref={mainScrollRef} id="main-content" tabIndex={-1} role="main" className="app-content-main focus:outline-none relative isolate flex-1 min-w-0 px-4 lg:px-6 py-0 lg:py-8 lg:pb-8 overflow-y-auto overflow-x-hidden">
           {bannerVisible && (
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
@@ -660,7 +700,7 @@ const handleNotifClick = (mentionLog) => {
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           height: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",
