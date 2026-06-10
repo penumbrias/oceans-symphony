@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Emoji aliases now sign posts: if a member uses an emoji as their alias, just including that emoji in a bulletin, message, or comment signs the entry as them. Mentions still put @ before the emoji (like @😀).",
+      },
+      {
+        type: "improve",
+        text: "The @mention picker in chat now matches and inserts emoji aliases too.",
+      },
+      {
+        type: "fix",
         text: "Currently-fronting panel: a member's note/feelings panel now opens directly under the member you tapped, instead of below the whole list.",
       },
       {

@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -146,9 +147,15 @@ const RichMentionInput = forwardRef(function RichMentionInput(
     const q = (menu.query || "").toLowerCase();
     return alters
       .filter((a) => !a.is_archived && !hidden.has(a.id))
-      .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)))
+      .filter((a) => !q || a.name?.toLowerCase().includes(q) || (a.alias && a.alias.toLowerCase().includes(q)) || (a.use_emoji_as_alias && a.emoji && a.emoji.toLowerCase().includes(q)))
       .slice(0, 8);
   }, [menu, alters, hidden]);
+
+  // Token to insert when picking a suggestion. Mentions use the emoji-as-alias
+  // when set (@😀 resolves via mentionUtils); signposts insert the text
+  // alias/name (the `-` parser matches words, not emoji — bare emoji are the
+  // emoji signpost path instead).
+  const tokenFor = (a, type) => (type === "mention" ? (effectiveAlias(a) || a.name) : (a.alias || a.name));
 
   const showSystemRow = useMemo(() => {
     if (!menu || menu.type !== "signpost") return false;
@@ -192,7 +199,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
 
   const pickFirst = () => {
     if (!open) return false;
-    if (suggestions[0]) { pick(suggestions[0].alias || suggestions[0].name, menu.type === "mention" ? "@" : "-"); return true; }
+    if (suggestions[0]) { pick(tokenFor(suggestions[0], menu.type), menu.type === "mention" ? "@" : "-"); return true; }
     if (menu.type === "signpost" && showSystemRow) { pick(sysToken, "-"); return true; }
     return false;
   };
@@ -251,7 +258,7 @@ const RichMentionInput = forwardRef(function RichMentionInput(
               key={a.id}
               alter={a}
               label={formatAlter ? formatAlter(a) : (a.alias || a.name)}
-              onPick={() => pick(a.alias || a.name, menu.type === "mention" ? "@" : "-")}
+              onPick={() => pick(tokenFor(a, menu.type), menu.type === "mention" ? "@" : "-")}
             />
           ))}
         </div>

@@ -123,12 +123,17 @@ const MentionTextarea = forwardRef(function MentionTextarea(
 
   const open = !!menu && (suggestions.length > 0 || (menu.type === "signpost" && showSystemRow));
 
+  // Token to insert for a picked suggestion. Mentions use the emoji-as-alias
+  // (@😀 resolves); signposts insert the text alias/name because the `-` parser
+  // matches words, not emoji (bare emoji are the separate emoji-signpost path).
+  const tokenFor = (a) => (menu?.type === "mention" ? (effectiveAlias(a) || a.name) : (a.alias || a.name));
+
   // Accept the first/best suggestion (Enter or Tab while the menu is open).
   // Returns true if something was inserted so the caller can swallow the key
   // (e.g. so Enter picks a suggestion instead of sending the message).
   const pickFirst = () => {
     if (!open) return false;
-    if (suggestions[0]) { insert(effectiveAlias(suggestions[0]) || suggestions[0].name); return true; }
+    if (suggestions[0]) { insert(tokenFor(suggestions[0])); return true; }
     if (menu.type === "signpost" && showSystemRow) { insert(sysToken); return true; }
     return false;
   };
@@ -184,7 +189,7 @@ const MentionTextarea = forwardRef(function MentionTextarea(
               key={a.id}
               alter={a}
               label={formatAlter ? formatAlter(a) : (effectiveAlias(a) || a.name)}
-              onSelect={() => insert(effectiveAlias(a) || a.name)}
+              onSelect={() => insert(tokenFor(a))}
             />
           ))}
         </div>
