@@ -24,6 +24,7 @@ import PageTutorialBanner from "@/components/onboarding/PageTutorialBanner";
 import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
+import LandscapeHintBanner from "@/components/layout/LandscapeHintBanner";
 import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
@@ -558,6 +559,7 @@ const handleNotifClick = (mentionLog) => {
           <main> where the px-4 gutter wraps them. */}
       <PreviewModeBanner />
       <AnnouncementBanner />
+      <LandscapeHintBanner />
 
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}
       <div className="flex flex-1 overflow-hidden">

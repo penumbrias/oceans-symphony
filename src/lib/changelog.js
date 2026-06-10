@@ -13,6 +13,27 @@
 
 export const CHANGELOG = [
   {
+    date: "June 10, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Currently-fronting panel: a member's note/feelings panel now opens directly under the member you tapped, instead of below the whole list.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the layer name in the top-left now opens the layers & members panel (the separate corner button is gone), and there's a new full-screen button.",
+      },
+      {
+        type: "fix",
+        text: "Profile bios with hard-coded text sizes now grow and shrink with the Text size slider like the rest of the app.",
+      },
+      {
+        type: "improve",
+        text: "When your text size is very large, a tip suggests rotating your phone to landscape for easier reading.",
+      },
+    ],
+  },
+  {
     date: "June 9, 2026",
     changes: [
       {

@@ -236,6 +236,8 @@ export function setAccessibilityHeadingFont(value) {
 export function setAccessibilityFontSize(value) {
   localStorage.setItem(LS_FONT_SIZE, value);
   applyFontSize(value);
+  // Let the landscape hint (and any other listeners) re-evaluate immediately.
+  try { window.dispatchEvent(new Event("a11y-fontsize-changed")); } catch { /* SSR / no window */ }
 }
 
 export function setAccessibilityReduceMotion(enabled) {

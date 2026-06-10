@@ -26,6 +26,7 @@ import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
   Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin, ExternalLink,
+  Maximize2, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -326,6 +327,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [relMode, setRelMode] = useState("all");
   const [panelOpen, setPanelOpen] = useState(true);
   const [viewOnly, setViewOnly] = useState(false);
+  // Full-screen mode — lifts the whole map UI to a fixed viewport overlay so
+  // the canvas isn't boxed into the page's fixed-height slot.
+  const [fullscreen, setFullscreen] = useState(false);
   const [soloLayerId, setSoloLayerId] = useState(null); // set by a layer-link jump → show ONLY this layer
   const [unplacedSearch, setUnplacedSearch] = useState("");
   const [groupFilter, setGroupFilter] = useState("all");
@@ -592,7 +596,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   };
 
   return (
-    <div className="relative w-full h-full flex flex-col" style={{ touchAction: "none" }}>
+    <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
       {/* Maps bar */}
       <div className="flex items-center gap-1 flex-wrap pb-2">
         {maps.map((m) => (
@@ -680,14 +684,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               </>
             )}
           </div>
-        ) : (
-          // Collapsed → a floating button in the bottom-left corner (absolute,
-          // so it doesn't reserve a left strip — the canvas gets full width).
-          <button onClick={() => setPanelOpen(true)} title="Show layers"
-            className="absolute bottom-3 left-3 z-30 w-9 h-9 rounded-lg bg-card/90 backdrop-blur-sm border border-border shadow flex items-center justify-center text-muted-foreground hover:bg-muted/50 hover:text-foreground">
-            <LayersIcon className="w-4 h-4" />
-          </button>
-        )}
+        ) : null}
 
         {placingAlter && (
           <div className="absolute top-12 left-1/2 -translate-x-1/2 bg-primary/90 text-white text-xs font-semibold px-4 py-2 rounded-full shadow-lg z-20 flex items-center gap-2">
@@ -698,12 +695,21 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
         {/* SVG canvas */}
         <div ref={mapContainerRef} className="relative flex-1 min-w-0 h-full bg-card overflow-hidden" style={{ touchAction: "none", backgroundImage: "radial-gradient(circle, var(--color-muted) 1px, transparent 1px)", backgroundSize: "24px 24px" }}>
-          {/* Active layer / view-mode indicator */}
-          <div className="absolute top-3 left-3 z-20 px-2.5 py-1 rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 max-w-[70%]">
-            {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
-            <span className="text-muted-foreground flex-shrink-0">{effectiveSolo ? "Only:" : viewOnly ? "Viewing:" : "On:"}</span>
-            <span className="font-medium text-foreground truncate">{(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
-            {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="ml-1 text-primary hover:underline flex-shrink-0">show all</button>}
+          {/* Active layer / view-mode indicator — doubles as the layers &
+              alters panel toggle (the floating corner button was removed). */}
+          <div className="absolute top-3 left-3 z-20 flex items-center gap-1.5 max-w-[80%]">
+            <button
+              onClick={() => setPanelOpen((v) => !v)}
+              aria-expanded={panelOpen}
+              title={panelOpen ? "Hide layers & alters" : "Show layers & alters"}
+              className="px-2.5 py-1 min-h-[32px] rounded-lg bg-card/90 backdrop-blur-sm border border-border/50 text-xs flex items-center gap-1.5 hover:bg-muted/50 transition-colors"
+            >
+              {effectiveSolo ? <Eye className="w-3 h-3 text-amber-500 flex-shrink-0" /> : viewOnly ? <Eye className="w-3 h-3 text-primary flex-shrink-0" /> : <LayersIcon className="w-3 h-3 text-primary flex-shrink-0" />}
+              <span className="text-muted-foreground flex-shrink-0">{effectiveSolo ? "Only:" : viewOnly ? "Viewing:" : "On:"}</span>
+              <span className="font-medium text-foreground truncate">{(effectiveSolo ? layerById[effectiveSolo]?.name : activeLayer?.name) || "—"}</span>
+              <ChevronDown className={`w-3 h-3 text-muted-foreground flex-shrink-0 transition-transform ${panelOpen ? "rotate-180" : ""}`} />
+            </button>
+            {effectiveSolo && <button onClick={() => setSoloLayerId(null)} className="text-primary hover:underline text-xs flex-shrink-0 px-1">show all</button>}
           </div>
 
           <svg ref={svgRef} className="w-full h-full" style={{ cursor: isDragging ? "grabbing" : relModeAlter || placingAlter ? "crosshair" : "grab", touchAction: "none" }}
@@ -796,6 +802,9 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
 
           {/* Toolbar — consistent icon-only buttons */}
           <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
+            <button title={fullscreen ? "Exit full screen" : "Full screen"} className={tbBtn(fullscreen)} onClick={() => setFullscreen((v) => !v)}>
+              {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
             <button title={viewOnly ? "Switch to edit mode" : "Switch to view mode (display only)"} className={tbBtn(viewOnly)}
               onClick={() => { setViewOnly((v) => !v); setPlacingAlter(null); setRelModeAlter(null); setEditingLocation(null); setEditingImage(null); setSelectedImage(null); setSelectedLocation(null); setSelectedAlter(null); }}>
               {viewOnly ? <PencilOff className="w-4 h-4" /> : <Pencil className="w-4 h-4" />}
