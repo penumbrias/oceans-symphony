@@ -9,10 +9,12 @@ import AnalyticsMap from "@/components/system/SystemMap";
 // built on innerWorldModel + useInnerWorld). The legacy single-placement
 // InnerWorldMap.jsx is kept in the repo as a one-line rollback if needed.
 import InnerWorldMap from "@/components/systemmap/InnerWorldMapV2";
+import InnerWorldListView from "@/components/systemmap/InnerWorldListView";
 import RelationshipsPanel from "@/components/systemmap/RelationshipsPanel";
 import { useTerms } from "@/lib/useTerms";
+import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useSearchParams } from "react-router-dom";
-import { Map, Globe } from "lucide-react";
+import { Map, Globe, List, LayoutGrid } from "lucide-react";
 
 const localMode = isLocalMode ? isLocalMode() : false;
 const db = localMode ? localEntities : base44.entities;
@@ -63,6 +65,19 @@ export default function SystemMapPage() {
     queryKey: ["innerWorldLocations"],
     queryFn: () => base44.entities.InnerWorldLocation.list(),
   });
+  const { data: maps = [] } = useQuery({
+    queryKey: ["innerWorldMaps"],
+    queryFn: () => base44.entities.InnerWorldMap.list(),
+  });
+  const { data: layers = [] } = useQuery({
+    queryKey: ["innerWorldLayers"],
+    queryFn: () => base44.entities.InnerWorldLayer.list(),
+  });
+
+  // Canvas vs accessible List view for the Inner World tab. Defaults to the
+  // list when Accessibility mode is on (the SVG canvas is hard to use with a
+  // screen reader / keyboard / large zoom); everyone can toggle freely.
+  const [innerView, setInnerView] = useState(() => (getAccessibilitySettings().a11yMode ? "list" : "canvas"));
 
   return (
     <div data-tour="system-map-canvas" className="flex flex-col gap-3 pb-6">
@@ -89,10 +104,33 @@ export default function SystemMapPage() {
         </button>
       </div>
 
+      {/* Inner World: canvas vs accessible list toggle */}
+      {tab === "inner" && (
+        <div className="flex items-center gap-2 flex-wrap">
+          <div className="flex gap-1 bg-muted/40 rounded-xl p-1 w-fit" role="group" aria-label="Inner world view">
+            <button
+              onClick={() => setInnerView("canvas")}
+              aria-pressed={innerView === "canvas"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "canvas" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <LayoutGrid className="w-3.5 h-3.5" /> Canvas
+            </button>
+            <button
+              onClick={() => setInnerView("list")}
+              aria-pressed={innerView === "list"}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${innerView === "list" ? "bg-card shadow text-foreground" : "text-muted-foreground hover:text-foreground"}`}>
+              <List className="w-3.5 h-3.5" /> List
+            </button>
+          </div>
+          {innerView === "list" && (
+            <p className="text-xs text-muted-foreground">A screen-reader-friendly index of every location.</p>
+          )}
+        </div>
+      )}
+
       {/* Map area */}
-      <div className="h-[calc(100vh-280px)] min-h-[400px]">
-        {tab === "analytics" && (
-          alters.length > ANALYTICS_MAP_TOO_LARGE_THRESHOLD ? (
+      {tab === "analytics" && (
+        <div className="h-[calc(100vh-280px)] min-h-[400px]">
+          {alters.length > ANALYTICS_MAP_TOO_LARGE_THRESHOLD ? (
             <AnalyticsMapTooLargeFallback
               systemTerm={terms.system}
               alterCount={alters.length}
@@ -110,19 +148,25 @@ export default function SystemMapPage() {
             >
               <AnalyticsMap relationships={relationships} />
             </AnalyticsMapErrorBoundary>
-          )
-        )}
-        {tab === "inner" && (
-          <InnerWorldMap
-            alters={alters}
-            relationships={relationships}
-            onRefreshRelationships={refetchRelationships}
-            initialMapId={initialMapId}
-            initialLayerId={initialLayerId}
-            initialSolo={initialSolo}
-          />
-        )}
-      </div>
+          )}
+        </div>
+      )}
+      {tab === "inner" && (
+        innerView === "list" ? (
+          <InnerWorldListView maps={maps} layers={layers} locations={locations} alters={alters} />
+        ) : (
+          <div className="h-[calc(100vh-280px)] min-h-[400px]">
+            <InnerWorldMap
+              alters={alters}
+              relationships={relationships}
+              onRefreshRelationships={refetchRelationships}
+              initialMapId={initialMapId}
+              initialLayerId={initialLayerId}
+              initialSolo={initialSolo}
+            />
+          </div>
+        )
+      )}
 
       {/* Relationships panel — always visible below both maps */}
       <RelationshipsPanel

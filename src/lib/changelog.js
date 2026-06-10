@@ -28,6 +28,10 @@ export const CHANGELOG = [
         text: "“High contrast” (Settings → Accessibility) is now a true black-and-white scheme for maximum legibility, instead of a slight contrast boost.",
       },
       {
+        type: "feature",
+        text: "Inner-world map now has a List view (Canvas/List toggle) — a screen-reader-friendly index of every location grouped by map and layer, each opening its profile. Opens automatically when Accessibility mode is on.",
+      },
+      {
         type: "improve",
         text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
       },
