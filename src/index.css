@@ -265,8 +265,36 @@ html.a11y-reduce-motion *::after {
   scroll-behavior: auto !important;
 }
 
-html.a11y-high-contrast {
-  filter: contrast(1.15) saturate(1.1);
+/* High-contrast colour scheme (WCAG 1.4.6 AAA target). Replaces the old weak
+   `filter: contrast()` wash with a real token swap: pure black/white page +
+   text, near-black/near-white secondary text (the old slate-grey secondary was
+   the app's biggest contrast failure), and primary/accent darkened to values
+   that still pass with their hardcoded #FFF button text. These override
+   ThemeContext's inline `--color-*` because stylesheet `!important` beats a
+   non-important inline custom property. Mode-aware via the `.dark` class that
+   ThemeContext toggles. Brand colour is deliberately sacrificed for legibility
+   — this is an opt-in accessibility scheme. */
+html.a11y-high-contrast:not(.dark) {
+  --color-bg: #FFFFFF !important;
+  --color-surface: #FFFFFF !important;
+  --color-surface-rgb: 255, 255, 255 !important;
+  --color-primary: #1D4ED8 !important;
+  --color-secondary: #DBE4FF !important;
+  --color-accent: #0E7490 !important;
+  --color-muted: #767676 !important;       /* visible border + WCAG-min grey */
+  --color-text-primary: #000000 !important;
+  --color-text-secondary: #2A2A2A !important;
+}
+html.a11y-high-contrast.dark {
+  --color-bg: #000000 !important;
+  --color-surface: #000000 !important;
+  --color-surface-rgb: 0, 0, 0 !important;
+  --color-primary: #1D4ED8 !important;
+  --color-secondary: #243B5A !important;
+  --color-accent: #0E7490 !important;
+  --color-muted: #5A5A5A !important;
+  --color-text-primary: #FFFFFF !important;
+  --color-text-secondary: #E0E0E0 !important;
 }
 
 /* ── Accessibility Mode (low vision) — opt-in LAYOUT reconfiguration ──

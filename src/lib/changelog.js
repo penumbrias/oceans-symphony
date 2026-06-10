@@ -25,6 +25,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "“High contrast” (Settings → Accessibility) is now a true black-and-white scheme for maximum legibility, instead of a slight contrast boost.",
+      },
+      {
+        type: "improve",
         text: "Inner-world map: when the layers panel is collapsed it's now a small button in the bottom-left corner, so the map canvas uses the full width.",
       },
       {

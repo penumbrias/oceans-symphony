@@ -95,7 +95,7 @@ export default function AccessibilitySettings() {
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm font-semibold">High contrast</p>
-            <p className="text-xs text-muted-foreground">Slightly boosts contrast and colour saturation</p>
+            <p className="text-xs text-muted-foreground">Switches to a black-and-white colour scheme for maximum legibility. Overrides your theme colours while it's on.</p>
           </div>
           <Switch
             checked={settings.highContrast}
