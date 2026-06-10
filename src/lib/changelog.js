@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Comments now have the same 🔒 Whisper toggle as bulletins — pick exactly who can read a comment, hidden behind a tap-to-reveal bar for everyone else.",
+      },
+      {
         type: "feature",
         text: "You can now drag the floating support bubble (🫧) to the “hide” target at the bottom of the screen to turn it off, and bring it back from the Quick Support page (or Settings → Accessibility).",
       },

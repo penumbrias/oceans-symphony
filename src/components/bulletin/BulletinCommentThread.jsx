@@ -2,12 +2,13 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2 } from "lucide-react";
+import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2, Lock, Check, Search, X } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
-import { applyWhisper } from "@/lib/whisperUtils";
+import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
@@ -29,9 +30,13 @@ function parseSignposts(content, alters, systemKeywords) {
 function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, onRefresh }) {
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
+  const formatAlter = useAlterLabel();
   const qc = useQueryClient();
   const [text, setText] = useState("");
   const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
+  const [whisperOn, setWhisperOn] = useState(false);
+  const [whisperTo, setWhisperTo] = useState(() => new Set());
+  const [whisperSearch, setWhisperSearch] = useState("");
   const [saving, setSaving] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const [menuMode, setMenuMode] = useState("signpost");
@@ -165,13 +170,28 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
-    // Whisper transform first — comments are a posting surface, so a
-    // no-bracket "/w @name …" blurs the whole comment (no warning).
-    const w = applyWhisper(text, alters, { allowWholeBlur: true, rich: true, surfaceLabel: "comment" });
-    if (w === null) return; // user backed out of the whole-blur warning
-    const whisperRecipientIds = w.recipientIds || [];
     setSaving(true);
-    const { authors: signpostedAuthors, cleanContent } = parseSignposts(w.content, alters, systemKeywords);
+    // Parse signpost authorship from the ORIGINAL text first so whisper
+    // wrapping can't be mangled by signpost stripping.
+    const { authors: signpostedAuthors, cleanContent: signpostClean } = parseSignposts(text, alters, systemKeywords);
+    // Whisper — explicit toggle is the reliable path; inline "/w" is the fallback.
+    let cleanContent = signpostClean;
+    let whisperRecipientIds = [];
+    let isWhisper = false;
+    if (whisperOn && whisperTo.size > 0) {
+      const names = [...whisperTo]
+        .map((id) => { const a = alters.find((x) => x.id === id); return a ? (a.alias || a.name) : null; })
+        .filter(Boolean);
+      cleanContent = whisperSpan(signpostClean, names);
+      whisperRecipientIds = [...whisperTo];
+      isWhisper = true;
+    } else {
+      const w = applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "comment" });
+      if (w === null) { setSaving(false); return; } // user backed out of the whole-blur warning
+      cleanContent = w.content;
+      whisperRecipientIds = w.recipientIds || [];
+      isWhisper = !!w.isWhisper;
+    }
     const signpostHeadIsSystem = isSystemSignpost(signpostedAuthors[0]);
     const authorIds = signpostedAuthors
       .filter((a) => !isSystemSignpost(a))
@@ -208,7 +228,7 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       content: cleanContent,
       // A whisper embeds an HTML span — force rich rendering so it shows the
       // hidden bar rather than raw tags.
-      is_rich: richMode || w.isWhisper,
+      is_rich: richMode || isWhisper,
       reactions: {},
     });
 
@@ -229,15 +249,19 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
         previewText: cleanContent,
       });
     }
-    await saveMentions({
-      content: cleanContent,
-      alters,
-      sourceType,
-      sourceId: comment.id,
-      sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
-      navigatePath: commentNavPath,
-      authorAlterId: finalAuthorIds[0] || null,
-    });
+    // Skip public @mention notifications for whispers (the body is hidden;
+    // only the chosen recipients are notified, via the loop below).
+    if (!isWhisper) {
+      await saveMentions({
+        content: cleanContent,
+        alters,
+        sourceType,
+        sourceId: comment.id,
+        sourceLabel: `${sourceType === "reply" ? "Reply" : "Comment"} on bulletin`,
+        navigatePath: commentNavPath,
+        authorAlterId: finalAuthorIds[0] || null,
+      });
+    }
     // Whisper recipients are peeled off the body — notify them explicitly.
     for (const rid of whisperRecipientIds) {
       try {
@@ -297,6 +321,15 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           <Sparkles className="w-3.5 h-3.5" />
         </button>
         <button
+          type="button"
+          onClick={() => setWhisperOn((v) => !v)}
+          title="Whisper — only chosen recipients can read it"
+          aria-pressed={whisperOn}
+          className={`flex-shrink-0 h-8 w-8 flex items-center justify-center rounded-lg border transition-colors ${whisperOn ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}
+        >
+          <Lock className="w-3.5 h-3.5" />
+        </button>
+        <button
           onClick={handleSubmit}
           disabled={saving || !text.trim()}
           className="text-xs px-3 h-8 rounded-lg bg-primary text-primary-foreground disabled:opacity-50 font-medium flex-shrink-0"
@@ -304,6 +337,65 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
           {saving ? "..." : parentCommentId ? "Reply" : "Post"}
         </button>
       </div>
+
+      {whisperOn && (
+        <div className="mt-2 rounded-xl border border-primary/30 bg-primary/5 p-2.5 space-y-2">
+          <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+            <Lock className="w-3.5 h-3.5" /> Whisper — only the {terms.alters} you pick can read this
+          </p>
+          {whisperTo.size > 0 && (
+            <div className="flex flex-wrap gap-1">
+              {[...whisperTo].map((id) => {
+                const a = alters.find((x) => x.id === id);
+                if (!a) return null;
+                return (
+                  <span key={id} className="inline-flex items-center gap-1 pl-1.5 pr-1 py-0.5 rounded-full border border-border/60 bg-card text-xs">
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#6366f1" }} />
+                    <span className="truncate max-w-[7rem]">{formatAlter(a)}</span>
+                    <button type="button" aria-label={`Remove ${formatAlter(a)}`} onClick={() => setWhisperTo((s) => { const n = new Set(s); n.delete(id); return n; })} className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                  </span>
+                );
+              })}
+            </div>
+          )}
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
+            <input
+              value={whisperSearch}
+              onChange={(e) => setWhisperSearch(e.target.value)}
+              aria-label={`Search ${terms.alters}`}
+              placeholder={`Search ${terms.alters}…`}
+              className="w-full h-8 pl-8 pr-2.5 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+            />
+          </div>
+          <div className="max-h-40 overflow-y-auto overscroll-contain space-y-0.5">
+            {(alters || [])
+              .filter((a) => !a.is_archived)
+              .filter((a) => { const q = whisperSearch.toLowerCase(); return !q || a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q); })
+              .slice(0, 50)
+              .map((a) => {
+                const on = whisperTo.has(a.id);
+                return (
+                  <button
+                    key={a.id}
+                    type="button"
+                    aria-pressed={on}
+                    onClick={() => setWhisperTo((s) => { const n = new Set(s); if (n.has(a.id)) n.delete(a.id); else n.add(a.id); return n; })}
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs transition-colors min-h-[36px] ${on ? "bg-primary/10" : "hover:bg-muted/40"}`}
+                  >
+                    <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: a.color || "#6366f1" }}>
+                      {on && <Check className="w-3 h-3 text-white" />}
+                    </span>
+                    <span className="flex-1 truncate">{formatAlter(a)}</span>
+                  </button>
+                );
+              })}
+          </div>
+          {whisperTo.size === 0 && (
+            <p className="text-[0.625rem] text-amber-600 dark:text-amber-400">Pick at least one recipient — otherwise this posts as a normal comment.</p>
+          )}
+        </div>
+      )}
 
       <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} label="Signed by" />
 
