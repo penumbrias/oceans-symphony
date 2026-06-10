@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Bulletins: a new 🔒 Whisper toggle lets you pick exactly who can read a post — it's hidden behind a tap-to-reveal bar for everyone else. More reliable than typing “/w” (which still works).",
+      },
+      {
         type: "feature",
         text: "Each member's profile has a new Locations tab listing the inner-world locations they're in, with links to each location and to its spot on the map.",
       },
