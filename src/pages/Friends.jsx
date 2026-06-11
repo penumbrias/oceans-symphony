@@ -32,6 +32,7 @@ import {
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
+import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
@@ -117,6 +118,18 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
     setAllowedLevelIds(next);
     onVisibilityChange(friend.userId, { allowedLevelIds: next });
   }, [friend.userId, onVisibilityChange]);
+
+  // Members this friend shares with me — fetched + decrypted on card expand.
+  const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
+  const [loadingShare, setLoadingShare] = useState(false);
+  useEffect(() => {
+    if (!expanded || sharedMembers !== null) return;
+    setLoadingShare(true);
+    fetchFriendShare(friend.userId)
+      .then((m) => setSharedMembers(Array.isArray(m) ? m : []))
+      .catch(() => setSharedMembers([]))
+      .finally(() => setLoadingShare(false));
+  }, [expanded]);
 
   // Safety number for this friend — computed when the visibility panel opens.
   const [safetyNum, setSafetyNum] = useState(null);
@@ -272,6 +285,48 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                       </div>
                     ))}
                   </div>
+                </div>
+              )}
+
+              {/* Members this friend shares with you (end-to-end encrypted) */}
+              {(loadingShare || (sharedMembers && sharedMembers.length > 0)) && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                    <Lock className="w-3 h-3" /> Members they share with you
+                  </p>
+                  {loadingShare ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Decrypting…</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {sharedMembers.map((m) => {
+                        const meta = [m.pronouns, m.role, m.age != null && m.age !== "" ? `age ${m.age}` : ""].filter(Boolean);
+                        return (
+                          <div key={m.id} className="flex items-start gap-2.5 p-2 rounded-lg border border-border/40 bg-muted/10">
+                            <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[0.625rem] font-bold text-white mt-0.5" style={{ background: m.color || "#6b7280" }}>
+                              {(m.name?.[0] || "?").toUpperCase()}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-foreground">
+                                {m.name || <span className="italic text-muted-foreground">Member</span>}
+                                {meta.length > 0 && <span className="text-xs text-muted-foreground"> · {meta.join(" · ")}</span>}
+                              </p>
+                              {m.groups?.length > 0 && (
+                                <p className="mt-1 flex flex-wrap gap-1">
+                                  {m.groups.map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
+                                </p>
+                              )}
+                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{m.bio}</p>}
+                              {m.customFields?.length > 0 && (
+                                <dl className="mt-1 text-[0.6875rem] text-muted-foreground space-y-0.5">
+                                  {m.customFields.map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
+                                </dl>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -787,6 +842,8 @@ export default function FriendsPage() {
         const kp = await ensureKeyPair();
         if (kp) setMyPublicKeyJwk(kp.publicKeyJwk);
         await publishPublicKey();
+        // Push the current encrypted member-list share now that keys are live.
+        await pushAlterShares();
       } catch { /* non-fatal — sharing just won't be available until keys publish */ }
     })();
   }, [identity]);
@@ -970,6 +1027,8 @@ export default function FriendsPage() {
       fronters,
       terms: { fronting: terms.fronting, front: terms.front, alter: terms.alter, system: terms.system },
     }).catch(() => {});
+    // Re-push the encrypted member-list share so the level change takes effect.
+    pushAlterShares().catch(() => {});
   }, [activeFront, alters, terms, refetchIdentity]);
 
   if (identityLoading) {
