@@ -10,6 +10,7 @@ import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityLogModal from "@/components/activities/ActivityLogModal";
+import ActivitySessionControl from "@/components/activities/ActivitySessionControl";
 import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
@@ -293,6 +294,9 @@ export default function ActivityTracker() {
             </div>
           )}
         </div>
+
+        {/* Start/End an activity in real time (like start/end sleep). */}
+        {tab === "logged" && <ActivitySessionControl />}
 
         {/* Date range nav — kept on its own row so the chevrons stay
             big enough to tap comfortably on a phone. */}

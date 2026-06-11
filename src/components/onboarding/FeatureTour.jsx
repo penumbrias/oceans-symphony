@@ -496,7 +496,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "activities", sectionLabel: "Activities",
       emoji: "🏃",
       title: "Activity Tracker",
-      body: `The Activity Tracker shows a weekly grid view — each day is a column, each activity block spans its time range. Tap any empty time slot to log a new activity there. Tap an existing block to edit it. Navigate weeks with the ← → arrows in the header.`,
+      body: `The Activity Tracker shows a weekly grid view — each day is a column, each activity block spans its time range. Tap any empty time slot to log a new activity there. Tap an existing block to edit it. Navigate weeks with the ← → arrows in the header. The "Start activity" button (top of this tab) times an activity in real time, like start/end sleep — pick what you're doing, and when you tap End it's logged automatically with the elapsed time.`,
       route: "/activities", target: "activities-log",
       look: `the highlighted weekly activity grid — each column is a day, each row a time slot`, action: null,
     },

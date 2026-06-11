@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Activity Tracker: a new “Start activity” button times an activity in real time, like start/end sleep — pick what you're doing and tap End to log it automatically with the elapsed time. It keeps running even if you close the app.",
+      },
+      {
         type: "improve",
         text: "Export members: selected members are now clearly highlighted (the checkmark used to vanish on white-coloured members), you can export as a PDF as well as HTML, and there's an option to organize the export by group/subsystem.",
       },
