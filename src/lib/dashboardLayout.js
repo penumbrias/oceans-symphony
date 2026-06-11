@@ -40,6 +40,10 @@ export const DASHBOARD_ELEMENTS = {
     label: "Current symptoms",
     description: "Active symptom sessions you've started.",
   },
+  current_activities: {
+    label: "Active activities",
+    description: "In-progress activity timers you've started — tap to end & log, adjust the start, or discard.",
+  },
   quick_checkin: {
     label: "Quick Check-In button",
     description: "Heart-icon button that opens the Quick Check-In modal.",
@@ -75,6 +79,7 @@ export const DEFAULT_LAYOUT = [
   { id: "status_note",      enabled: true },
   { id: "dashboard_pins",   enabled: true },
   { id: "current_symptoms", enabled: true },
+  { id: "current_activities", enabled: true },
   { id: "quick_checkin",    enabled: true },
   // Pinned tasks default below the Quick Check-In button so the tour's
   // scroll-into-view leaves room for the bottom-nav + tour card on phones —

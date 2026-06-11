@@ -17,6 +17,7 @@ import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import DashboardPins from "@/components/dashboard/DashboardPins";
 import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
+import CurrentActivities from "@/components/activities/CurrentActivities";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
@@ -610,6 +611,10 @@ export default function Dashboard() {
           case "current_symptoms":
             return (
               <CurrentSymptoms key="current_symptoms" />
+            );
+          case "current_activities":
+            return (
+              <CurrentActivities key="current_activities" />
             );
           case "quick_checkin":
             return (

@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Run several activities at once — active activities now show as their own “Active activities” row on the dashboard (tap one to end & log, adjust its start, or discard). Toggle/reorder it in Settings → Appearance → Dashboard layout.",
+      },
+      {
+        type: "feature",
         text: "Accessibility mode, text size, and high contrast are now reachable from a button on the very first setup screens and all through the guided tour — no need to finish onboarding first.",
       },
       {

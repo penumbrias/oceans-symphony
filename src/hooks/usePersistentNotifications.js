@@ -25,7 +25,7 @@ import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getActiveActivity, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { getActiveActivities, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT } from "@/lib/persistentNotifPrefs";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
@@ -39,7 +39,7 @@ export default function usePersistentNotifications() {
   const qc = useQueryClient();
   const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
-  const [activeActivity, setActiveActivityState] = useState(() => getActiveActivity());
+  const [activeActivities, setActiveActivitiesState] = useState(() => getActiveActivities());
   // Bumped on app resume / window focus so the effects re-run and re-create a
   // notification the user may have swiped away while the app was backgrounded.
   const [resyncTick, setResyncTick] = useState(0);
@@ -47,7 +47,7 @@ export default function usePersistentNotifications() {
   // React to toggle changes (settings) + running-activity changes (start/end).
   useEffect(() => {
     const onPrefs = () => setPrefs(getAllPersistNotifPrefs());
-    const onActivity = () => setActiveActivityState(getActiveActivity());
+    const onActivity = () => setActiveActivitiesState(getActiveActivities());
     window.addEventListener(PERSIST_NOTIF_EVENT, onPrefs);
     window.addEventListener(ACTIVE_ACTIVITY_EVENT, onActivity);
     window.addEventListener("focus", onActivity);
@@ -84,7 +84,7 @@ export default function usePersistentNotifications() {
           const extra = ev?.notification?.extra || {};
           try {
             if (actionId === "end_activity") {
-              await endAndLogActiveActivity();
+              await endAndLogActiveActivity(extra.id);
               qc.invalidateQueries({ queryKey: ["activities"] });
             } else if (actionId === "end_symptom" && extra.sessionId) {
               await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
@@ -177,21 +177,27 @@ export default function usePersistentNotifications() {
   }, [prefs.symptoms, activeSymptomSessions, symptoms, resyncTick]);
 
   // --- Activity timer notification (only when something is running) ---
+  // Supports multiple concurrent activities; the "End & log" button is offered
+  // only when exactly one is running (otherwise which to end is ambiguous).
   useEffect(() => {
     if (!native) return;
-    if (!prefs.activity || !activeActivity) { syncPersistentNotification("activity", { enabled: false }); return; }
-    let started = "";
-    try {
-      started = new Date(activeActivity.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    } catch { /* leave blank */ }
+    if (!prefs.activity || activeActivities.length === 0) { syncPersistentNotification("activity", { enabled: false }); return; }
+    const sinceOf = (a) => {
+      try { return new Date(a.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+      catch { return ""; }
+    };
+    const single = activeActivities.length === 1 ? activeActivities[0] : null;
+    const title = single ? "Activity in progress" : `${activeActivities.length} activities in progress`;
+    const body = activeActivities
+      .map((a) => { const s = sinceOf(a); return `${a.name}${s ? ` · since ${s}` : ""}`; })
+      .join("\n");
     syncPersistentNotification("activity", {
       enabled: true,
-      title: "Activity in progress",
-      body: `${activeActivity.name}${started ? ` · since ${started}` : ""}`,
-      actionTypeId: "ACTIVITY_ACTIONS",
-      extra: { kind: "activity" },
+      title,
+      body,
+      ...(single ? { actionTypeId: "ACTIVITY_ACTIONS", extra: { id: single.id, kind: "activity" } } : {}),
     });
-  }, [prefs.activity, activeActivity, resyncTick]);
+  }, [prefs.activity, activeActivities, resyncTick]);
 
   return null;
 }

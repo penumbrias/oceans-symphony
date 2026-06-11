@@ -15,7 +15,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
-import { setActiveActivity } from "@/lib/activitySession";
+import { addActiveActivity } from "@/lib/activitySession";
 
 // Lean "I did this" log modal. Past-dated capture path.
 //
@@ -247,7 +247,7 @@ export default function ActivityLogModal({
     if (activeMode) {
       const catId = selectedActivityCategories[0];
       const cat = activityCategories.find((c) => c.id === catId);
-      setActiveActivity({
+      addActiveActivity({
         categoryId: catId,
         name: cat?.name || catId,
         color: cat?.color || null,
