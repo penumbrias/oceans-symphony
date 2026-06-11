@@ -828,6 +828,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: "/friends", target: null,
       look: `the Friends list with a friend card expanded to show the notify toggle`, action: null,
     },
+    {
+      section: "friends", sectionLabel: "Friends",
+      emoji: "🔐",
+      title: `Sharing ${t.alters} (encrypted)`,
+      body: `Beyond front status, you can share ${t.alters} themselves. Create "privacy levels" (each chooses what it reveals — name, pronouns, role, bio, and so on) from any profile's Options → Sharing levels, put ${t.alters} into the levels you want (a ${t.alter} can be in several; they're private until you do), then on each friend's card grant them the levels they may see — a simple slider or hand-picked. What they see is end-to-end encrypted: scrambled on your device so the relay can't read it, only that friend can. You can also compare a "safety number" with a friend to be sure no one's impersonating them. Prefer a one-time file instead? The Alters page "Export" button makes a shareable document you send yourself.`,
+      route: "/friends", target: null,
+      look: `a friend card expanded — look for "Members this friend can see" and the safety number`, action: null,
+    },
 
     {
       section: "chat", sectionLabel: `${t.System} Chat`,

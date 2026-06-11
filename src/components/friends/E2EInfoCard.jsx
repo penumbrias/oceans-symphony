@@ -51,6 +51,12 @@ export default function E2EInfoCard() {
                 the existence of the connection.
               </p>
               <p>
+                <strong className="text-foreground">Fronting status is separate.</strong> The member list you share is end-to-end
+                encrypted (above). Your live <em>fronting</em> status is handled differently: it stays readable by the relay so it can
+                send a notification that names who's {terms.fronting} the moment it changes. If you'd rather the relay not see that, set
+                a friend's fronting view to “count only” or “hidden” — then no names are sent.
+              </p>
+              <p>
                 <strong className="text-foreground">Trust.</strong> Public keys are distributed “trust on first use” through the relay,
                 so a malicious or compromised relay could in principle substitute a key to eavesdrop. Comparing a friend's safety number
                 with them through another channel detects that — without verifying, your privacy depends on the relay being honest.

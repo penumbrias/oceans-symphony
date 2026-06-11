@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Friends: a tour walkthrough now covers the new encrypted member-sharing, and the privacy explainer spells out that the shared member list is end-to-end encrypted while your live fronting status stays relay-visible so it can send notifications that name who's fronting (set a friend's fronting view to count-only or hidden for full privacy).",
+      },
+      {
         type: "feature",
         text: "End-to-end-encrypted member sharing is live: members you put in a privacy level are shared with the friends you grant that level, and opening a friend's card shows what they share with you — only the fields each level allows, and nothing the server can read.",
       },

@@ -569,6 +569,7 @@ function PrivacyDisclaimer() {
                 <li><em>Hidden</em> — nothing about who's {t.fronting} at all.</li>
               </ul>
             </li>
+            <li><strong>A member list you choose to share</strong> — <strong>end-to-end encrypted</strong>, so the relay only holds scrambled data it can't read. You control which {t.alters} (via privacy levels) and which details each friend sees; members are private until you add them to a level.</li>
             <li><strong>Friend relationships</strong> — who approved who.</li>
             <li><strong>Push tokens</strong> — a web-push subscription, or a Firebase/FCM token on the installed app — only if you opt in to notifications.</li>
             <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
