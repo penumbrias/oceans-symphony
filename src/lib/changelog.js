@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Privacy levels (groundwork): create privacy levels that each reveal different details, assign members to them (a member can be in several), and choose which levels each friend may see — with a simple slider or by picking exact levels. Members stay private until you add them to a level. Live, encrypted sharing that uses these settings is coming next.",
+      },
+      {
+        type: "feature",
         text: "New “Export members” feature — make a shareable document of your members (pick who, how much detail, and whether to anonymize names) to send to a friend. Export your whole list from the Alters page, or just one from a profile's Options tab.",
       },
       {

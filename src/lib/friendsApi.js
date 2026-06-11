@@ -283,18 +283,32 @@ export async function pushFrontStatus({ fronters, terms, systemName, displayName
 // ─── Per-friend visibility settings ───────────────────────────────────────────
 
 // Save per-friend visibility settings locally.
-// hiddenAlterIds: string[] of local alter IDs to hide from this friend
-// privacyOverride: null | 'names' | 'count_only' | 'hidden'
-export async function saveFriendVisibility(friendUserId, { hiddenAlterIds = [], privacyOverride = null } = {}) {
+// Merge a visibility patch for one friend. Fields (all optional, only the ones
+// you pass are changed):
+//   hiddenAlterIds: string[]   — front-share: alters to hide from this friend
+//   privacyOverride: null | 'names' | 'count_only' | 'hidden'  — front-share level
+//   allowedLevelIds: string[]  — member-list share: privacy levels this friend may see
+//   shownAlterIds: string[]    — member-list share: force-reveal specific alters
+// Merges into the existing entry so front-share and member-share settings don't
+// clobber each other; the entry is removed only when everything is empty.
+export async function saveFriendVisibility(friendUserId, patch = {}) {
   const existing = await getLocalIdentity();
   if (!existing) return null;
 
   const perFriendVisibility = { ...(existing.perFriendVisibility || {}) };
+  const prev = perFriendVisibility[friendUserId] || {};
+  const merged = { ...prev, ...patch };
 
-  if (!hiddenAlterIds.length && !privacyOverride) {
+  const hiddenAlterIds = merged.hiddenAlterIds || [];
+  const allowedLevelIds = merged.allowedLevelIds || [];
+  const shownAlterIds = merged.shownAlterIds || [];
+  const privacyOverride = merged.privacyOverride || null;
+
+  const isEmpty = !hiddenAlterIds.length && !allowedLevelIds.length && !shownAlterIds.length && !privacyOverride;
+  if (isEmpty) {
     delete perFriendVisibility[friendUserId];
   } else {
-    perFriendVisibility[friendUserId] = { hiddenAlterIds, privacyOverride };
+    perFriendVisibility[friendUserId] = { hiddenAlterIds, privacyOverride, allowedLevelIds, shownAlterIds };
   }
 
   await localEntities.FriendIdentity.update(existing.id, { perFriendVisibility });

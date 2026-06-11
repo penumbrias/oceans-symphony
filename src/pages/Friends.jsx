@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
+import { getPrivacyLevels, sortedLevels, levelIdsUpToThreshold, resolveVisibleAlters } from "@/lib/privacyLevels";
 import {
   getLocalIdentity,
   registerIdentity,
@@ -89,12 +90,30 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   // Local copies of visibility settings so toggles feel instant
   const [hiddenAlterIds, setHiddenAlterIds] = useState(() => visibilitySettings.hiddenAlterIds || []);
   const [privacyOverride, setPrivacyOverride] = useState(() => visibilitySettings.privacyOverride || null);
+  // Member-list share: which privacy levels this friend may see.
+  const [allowedLevelIds, setAllowedLevelIds] = useState(() => visibilitySettings.allowedLevelIds || []);
+  const [advancedLevels, setAdvancedLevels] = useState(false);
 
   // Keep in sync if parent reloads identity
   useEffect(() => {
     setHiddenAlterIds(visibilitySettings.hiddenAlterIds || []);
     setPrivacyOverride(visibilitySettings.privacyOverride || null);
-  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride]);
+    setAllowedLevelIds(visibilitySettings.allowedLevelIds || []);
+  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride, visibilitySettings.allowedLevelIds]);
+
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const maxLevelNumber = levels.length ? Math.max(...levels.map((l) => l.number)) : 0;
+  const allowedSet = new Set(allowedLevelIds);
+  const thresholdValue = (() => {
+    const nums = levels.filter((l) => allowedSet.has(l.id)).map((l) => l.number);
+    return nums.length ? Math.max(...nums) : -1;
+  })();
+  const sharedCount = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } }).length;
+  const saveLevels = useCallback((next) => {
+    setAllowedLevelIds(next);
+    onVisibilityChange(friend.userId, { allowedLevelIds: next });
+  }, [friend.userId, onVisibilityChange]);
 
   const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
     setSavingVis(true);
@@ -313,6 +332,50 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                         <SelectItem value="hidden">Hidden</SelectItem>
                       </SelectContent>
                     </Select>
+                  </div>
+
+                  {/* ── Member-list sharing (privacy levels) ── */}
+                  <div className="pt-3 border-t border-border/40 space-y-2">
+                    <span className="text-xs font-medium text-foreground">{terms?.Alters || "Members"} this friend can see</span>
+                    {levels.length === 0 ? (
+                      <p className="text-[0.6875rem] text-muted-foreground">
+                        No privacy levels yet. Create them from a {terms?.alter || "member"}'s profile → Options → Sharing levels.
+                      </p>
+                    ) : (
+                      <>
+                        {!advancedLevels ? (
+                          <div className="space-y-1">
+                            <input
+                              type="range" min={-1} max={maxLevelNumber} step={1} value={thresholdValue}
+                              onChange={(e) => { const n = Number(e.target.value); saveLevels(n < 0 ? [] : levelIdsUpToThreshold(levels, n)); }}
+                              className="w-full accent-primary" aria-label="Privacy levels this friend can see" />
+                            <p className="text-[0.6875rem] text-muted-foreground">
+                              {thresholdValue < 0 ? "Sees none of your levels" : `Sees levels 0–${thresholdValue}`}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {levels.map((l) => {
+                              const on = allowedSet.has(l.id);
+                              return (
+                                <button key={l.id} type="button" aria-pressed={on}
+                                  onClick={() => saveLevels(on ? allowedLevelIds.filter((id) => id !== l.id) : [...allowedLevelIds, l.id])}
+                                  className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
+                                  {l.number}. {l.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <button type="button" onClick={() => setAdvancedLevels((v) => !v)} className="text-[0.6875rem] text-primary hover:underline">
+                            {advancedLevels ? "Use simple slider" : "Pick specific levels"}
+                          </button>
+                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} shared</span>
+                        </div>
+                        <p className="text-[0.625rem] text-muted-foreground">Live, encrypted sharing is coming soon — this sets who'd be included.</p>
+                      </>
+                    )}
                   </div>
 
                   {/* Per-alter toggles — only when effective privacy shows names */}
