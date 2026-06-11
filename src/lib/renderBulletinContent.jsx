@@ -173,8 +173,21 @@ export function renderRichContent(content, { renderText, terms = null } = {}) {
   return Array.from(root.childNodes).map((n, i) => nodeToReact(n, `rc-${i}`, rt));
 }
 
-export function renderBulletinContent(content, alters = [], terms = null) {
-  return renderRichContent(content, {
+// `isRich` (default true for back-compat): when false, the content is plain
+// text — escape it and convert newlines to <br> so paragraph/line breaks
+// survive (otherwise the HTML parser collapses them into one run). Rich content
+// already carries its own block/break markup.
+function escapeHtmlForBreaks(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\r?\n/g, "<br>");
+}
+
+export function renderBulletinContent(content, alters = [], terms = null, { isRich = true } = {}) {
+  const prepared = isRich ? content : escapeHtmlForBreaks(content);
+  return renderRichContent(prepared, {
     terms,
     renderText: (text, key) => renderTextWithMentions(text, alters, key),
   });

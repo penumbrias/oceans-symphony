@@ -313,7 +313,7 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
           if (sp) sp.classList.toggle("revealed");
         }}
       >
-        {renderBulletinContent(bulletin.content, alters, terms)}
+        {renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich })}
       </div>
 
       {/* Poll */}

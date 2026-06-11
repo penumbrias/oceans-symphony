@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -6,7 +6,6 @@ import { ArrowLeft, Pin } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import AuthorsRow from "@/components/bulletin/AuthorsRow";
 import BulletinCommentThread from "@/components/bulletin/BulletinCommentThread";
-import { Link } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
 import { renderBulletinContent } from "@/lib/renderBulletinContent";
 
@@ -97,7 +96,7 @@ export default function BulletinPage() {
 
         {/* Content */}
         <div className="text-sm text-foreground leading-relaxed mb-4 bulletin-prose">
-          {renderBulletinContent(bulletin.content, alters, terms)}
+          {renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich })}
         </div>
 
         {/* Poll */}

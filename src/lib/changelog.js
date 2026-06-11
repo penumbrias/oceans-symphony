@@ -13,6 +13,23 @@
 
 export const CHANGELOG = [
   {
+    date: "June 11, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Bulletins: line breaks and paragraphs in a post now show the way you typed them — they were getting squashed into one block.",
+      },
+      {
+        type: "improve",
+        text: "Editing a bulletin now has the same Simple/Fancy formatting, image/GIF, and @mention tools as writing one — and editing no longer strips a post's formatting.",
+      },
+      {
+        type: "improve",
+        text: "Current Fronters always lists the primary fronter first.",
+      },
+    ],
+  },
+  {
     date: "June 10, 2026",
     changes: [
       {

@@ -775,6 +775,11 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
     coFronters = (active.co_fronter_ids || []).map(id => altersById[id]).filter(Boolean);
   }
   const all = [primary, ...coFronters].filter(Boolean);
+  // Guarantee the primary fronter is always the first chip, whatever order the
+  // sessions came back in (stable for everyone else).
+  if (primaryAlterId) {
+    all.sort((a, b) => (a.id === primaryAlterId ? -1 : 0) - (b.id === primaryAlterId ? -1 : 0));
+  }
 
   return (
     <>
