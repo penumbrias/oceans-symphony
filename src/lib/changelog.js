@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Android app: optional always-on notifications you can pin from Settings → Notifications — current fronters, active symptoms, and an activity timer you can end & log from the tray.",
+      },
+      {
         type: "fix",
         text: "Friends: the “safety number” for verifying an encrypted connection now shows whenever you expand a friend's card (it was buried under Visibility), with a note when a friend hasn't set up encryption yet.",
       },

@@ -13,6 +13,7 @@ import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
+import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -76,6 +77,10 @@ export default function AppLayout() {
   // Credit the daily "App opened" check-in on launch, not only when the Daily
   // Tasks page is first visited.
   useDailyCheckInOnOpen();
+  // Keep the opt-in persistent (ongoing) status notifications — current
+  // fronters, active symptoms, the activity timer — in sync with live state.
+  // No-op on web; gated per-toggle on native.
+  usePersistentNotifications();
 
   // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
   // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered

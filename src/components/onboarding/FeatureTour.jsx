@@ -576,6 +576,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: "/reminders", target: "reminders-inbox-tab",
       look: `the highlighted "Inbox" tab button`, action: null,
     },
+    {
+      section: "reminders", sectionLabel: "Reminders",
+      emoji: "📌",
+      title: "Persistent status notifications",
+      body: `On the Android app you can pin always-on notifications in Settings → Notifications: one showing who's ${t.fronting} right now (updates the instant a ${t.switch} happens), one listing your active symptoms, and an activity timer you can end & log straight from the tray. They're silent and stay put until you turn them off.`,
+      route: "/reminders", target: null,
+      look: `Settings → Notifications → "Persistent status notifications" (Android app only)`, action: null,
+    },
 
     // ─── ANALYTICS ──────────────────────────────────────────────────────────
     {

@@ -1,6 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Info, AlertTriangle, XCircle } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Users, HeartPulse, Timer, Pin } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Switch } from "@/components/ui/switch";
@@ -8,6 +8,7 @@ import { readNotificationPrefs } from "@/lib/notificationPrefs";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { SubSection } from "@/components/settings/SettingsUI";
+import { getAllPersistNotifPrefs, setPersistNotifPref } from "@/lib/persistentNotifPrefs";
 
 // User-facing settings for the in-app toast surface. Persists to
 // SystemSettings.notification_prefs which Sonner's Toaster wrapper
@@ -61,6 +62,72 @@ const TYPE_ROWS = [
   },
 ];
 
+// Android-only ongoing ("persistent") notifications that sit in the tray and
+// update live while the app runs. Toggles are device-local (localStorage via
+// persistentNotifPrefs); the usePersistentNotifications hook in AppLayout does
+// the actual scheduling.
+function PersistentNotificationsSection() {
+  const t = useTerms();
+  const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
+
+  const rows = [
+    {
+      key: "fronters",
+      icon: Users,
+      iconClass: "text-violet-500",
+      label: `Current ${t.fronters}`,
+      description: `An always-on notification showing who's ${t.fronting} right now — updates the moment a ${t.switch} happens.`,
+    },
+    {
+      key: "symptoms",
+      icon: HeartPulse,
+      iconClass: "text-rose-500",
+      label: "Active symptoms",
+      description: "An always-on notification listing the symptoms you've marked as currently active.",
+    },
+    {
+      key: "activity",
+      icon: Timer,
+      iconClass: "text-sky-500",
+      label: "Activity timer",
+      description: "An always-on notification for a running activity, so you can end and log it without digging through the app.",
+    },
+  ];
+
+  const toggle = (key, val) => {
+    setPersistNotifPref(key, val);
+    setPrefs((p) => ({ ...p, [key]: val }));
+  };
+
+  return (
+    <SubSection title="Persistent status notifications" icon={Pin} defaultOpen={false}>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Ongoing notifications that <strong className="text-foreground">stay pinned in your tray</strong> and update as things change — handy for an at-a-glance view without opening the app. They make no sound and can't be swiped away while on. Requires notifications to be allowed (see above).
+      </p>
+      <div className="space-y-2">
+        {rows.map((row) => {
+          const Icon = row.icon;
+          const checked = !!prefs[row.key];
+          return (
+            <div key={row.key} className="flex items-start gap-3 rounded-xl border border-border/60 bg-card px-3 py-2.5">
+              <Icon className={`w-4 h-4 mt-0.5 flex-shrink-0 ${row.iconClass}`} />
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium">{row.label}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-snug">{row.description}</p>
+              </div>
+              <Switch
+                checked={checked}
+                onCheckedChange={(v) => toggle(row.key, v)}
+                aria-label={`${row.label}: ${checked ? "on" : "off"}`}
+              />
+            </div>
+          );
+        })}
+      </div>
+    </SubSection>
+  );
+}
+
 export default function NotificationSettings() {
   const qc = useQueryClient();
   const t = useTerms();
@@ -108,6 +175,7 @@ export default function NotificationSettings() {
           </div>
         </SubSection>
       )}
+      {isNative() && <PersistentNotificationsSection />}
       <div>
         <h3 className="text-sm font-semibold text-foreground flex items-center gap-1.5">
           <Bell className="w-4 h-4" />
