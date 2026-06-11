@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Recurring plan occurrences (including ones in the past) can now be marked done/partial/skipped/cancelled or rescheduled, and show up in your plan lists — they were wrongly treated as already logged.",
+      },
+      {
+        type: "fix",
+        text: "On a group/subsystem page, tapping a member who owns several subsystems now lets you choose which one to open (it used to jump to just one).",
+      },
+      {
         type: "feature",
         text: "Run several activities at once — active activities now show as their own “Active activities” row on the dashboard (tap one to end & log, adjust its start, or discard). Toggle/reorder it in Settings → Appearance → Dashboard layout.",
       },

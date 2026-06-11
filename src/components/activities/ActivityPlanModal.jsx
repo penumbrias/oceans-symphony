@@ -485,7 +485,11 @@ export default function ActivityPlanModal({
         : [timestamp];
 
       for (const occurrence of occurrences) {
-        const occurrenceIsPlanned = occurrence.getTime() > Date.now();
+        // A recurring occurrence is always a PLAN instance to be resolved later
+        // (done/partial/skipped/cancelled), even if its time is already past at
+        // creation — otherwise the first/past occurrences silently auto-"log"
+        // and can't be managed. Non-recurring plans keep the past→logged rule.
+        const isPlanInstance = !!recurrenceGroupId || occurrence.getTime() > Date.now();
         for (const r of records) {
           await base44.entities.Activity.create({
             timestamp: occurrence.toISOString(),
@@ -497,14 +501,14 @@ export default function ActivityPlanModal({
             fronting_alter_ids: selectedAlters,
             notes: finalNotes || null,
             location: location.trim() || null,
-            is_planned: occurrenceIsPlanned,
+            is_planned: isPlanInstance,
             is_quick_plan: isQuickPlan,
             is_critical: isCritical ? true : false,
             critical_lead_steps: isCritical ? leadSteps : null,
             recurrence_group_id: recurrenceGroupId,
             recurrence_interval: recurrenceGroupId ? recurrenceInterval : null,
-            assigned_alter_ids: occurrenceIsPlanned ? selectedAlters : [],
-            status: occurrenceIsPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
+            assigned_alter_ids: isPlanInstance ? selectedAlters : [],
+            status: isPlanInstance ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
             actual_duration_minutes: null,
             reschedule_history: [],
             reminder_offset_minutes: reminderOffset,

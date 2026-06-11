@@ -122,6 +122,9 @@ function MemberAvatar({ alter, size = "w-9 h-9", rounded = "rounded-lg" }) {
 function GroupProfileInner() {
   const { id: groupId } = useParams();
   const navigate = useNavigate();
+  // When a member owns MORE THAN ONE subsystem, tapping their subsystem icon
+  // opens this chooser instead of jumping to an arbitrary one.
+  const [subPicker, setSubPicker] = useState(null);
   const queryClient = useQueryClient();
   const t = useTerms();
   const [editMode, setEditMode] = useState(false);
@@ -408,7 +411,7 @@ function GroupProfileInner() {
           ) : (
             <div className="space-y-2">
               {members.map((m, i) => {
-                const ownedSub = getSubsystemsOwnedBy(allGroups, m.id)[0] || null;
+                const ownedSubs = getSubsystemsOwnedBy(allGroups, m.id);
                 return (
                   <AlterCard
                     key={m.id}
@@ -416,7 +419,7 @@ function GroupProfileInner() {
                     index={i}
                     activeSessions={activeSessions}
                     hideFront
-                    rightAccessory={(m.is_archived || ownedSub) ? (
+                    rightAccessory={(m.is_archived || ownedSubs.length > 0) ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {/* Archived members are hidden from Manage members and the
                             Alters folder, so without this tag the group looked like
@@ -427,10 +430,22 @@ function GroupProfileInner() {
                             <Archive className="w-2.5 h-2.5" /> Archived
                           </span>
                         )}
-                        {ownedSub && (
-                          <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
-                            <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
+                        {ownedSubs.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // One subsystem → jump straight in; several →
+                              // chooser (matches the alters-page behaviour).
+                              if (ownedSubs.length === 1) navigate(`/group/${ownedSubs[0].id}`);
+                              else setSubPicker({ alter: m, subs: ownedSubs });
+                            }}
+                            title={ownedSubs.length === 1 ? `Open ${ownedSubs[0].name}` : `${ownedSubs.length} subsystems`}
+                            className="relative w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                          >
+                            <FolderTree className="w-4 h-4" style={{ color: ownedSubs.length === 1 ? (ownedSubs[0].color || undefined) : undefined }} />
+                            {ownedSubs.length > 1 && (
+                              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[0.5625rem] font-semibold flex items-center justify-center">{ownedSubs.length}</span>
+                            )}
                           </button>
                         )}
                       </div>
@@ -612,6 +627,35 @@ function GroupProfileInner() {
       {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PAGE_TEXT_KEY] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
       {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[HEADER_TEXT_KEY] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
+
+      {/* Multi-subsystem chooser — when a member owns more than one subsystem. */}
+      {subPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSubPicker(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full sm:max-w-xs p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">{subPicker.alter.name}'s subsystems</p>
+              <button type="button" onClick={() => setSubPicker(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-1.5">
+              {subPicker.subs.map((sub) => {
+                const count = getMemberAlters(sub, alters).length;
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => { setSubPicker(null); navigate(`/group/${sub.id}`); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 hover:bg-muted/40 text-left transition-colors"
+                  >
+                    <GroupIcon group={sub} className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
+                    <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </motion.div>
   );
