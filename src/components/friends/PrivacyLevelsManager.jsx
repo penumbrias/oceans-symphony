@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
-import { getPrivacyLevels, makeLevel, sortedLevels, defaultFieldProfile, SHARE_FIELDS, SHARE_FIELD_LABELS } from "@/lib/privacyLevels";
+import { getPrivacyLevels, makeLevel, sortedLevels, defaultFieldProfile, SHARE_FIELDS, SHARE_FIELD_LABELS, selectablePillClass } from "@/lib/privacyLevels";
 
 // Define the catalogue of privacy levels + each level's field profile (what a
 // friend who can see that level gets). Stored on SystemSettings.privacy_levels.
@@ -71,13 +71,13 @@ export default function PrivacyLevelsManager({ isOpen, onClose }) {
                   const on = !!l.fields?.[f];
                   return (
                     <button key={f} type="button" aria-pressed={on} onClick={() => toggleField(l.id, f)}
-                      className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
-                      {SHARE_FIELD_LABELS[f]}
+                      className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                      {on ? "✓ " : ""}{SHARE_FIELD_LABELS[f]}
                     </button>
                   );
                 })}
               </div>
-              <p className="text-[0.625rem] text-muted-foreground">Friends who can see this level get the highlighted fields.</p>
+              <p className="text-[0.625rem] text-muted-foreground">Tap a field to include it. <strong className="text-foreground">Filled</strong> = shared at this level; outlined = hidden.</p>
             </div>
           ))}
           {levels.length === 0 && (

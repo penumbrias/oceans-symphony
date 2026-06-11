@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Friends: you can now manage a privacy level's members directly — add a whole group or subsystem (nesting respected) or individual members — from Friends → Member sharing → Manage by level.",
+      },
+      {
+        type: "improve",
+        text: "Friends privacy levels: selected pills are now clearly filled with a ✓ (vs outlined when off), and each friend's card lists exactly which members they can see right now.",
+      },
+      {
         type: "fix",
         text: "Recurring plan occurrences (including ones in the past) can now be marked done/partial/skipped/cancelled or rescheduled, and show up in your plan lists — they were wrongly treated as already logged.",
       },

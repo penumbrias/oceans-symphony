@@ -1,12 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, ChevronRight, Search, Settings2, ShieldCheck } from "lucide-react";
+import { ChevronDown, ChevronRight, Search, Settings2, ShieldCheck, Users } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
+import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { pushAlterShares } from "@/lib/friendsShare";
 import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
+import LevelMembersModal from "@/components/friends/LevelMembersModal";
 
 // Friends-page hub for member sharing: define privacy levels and assign members
 // to them in one place (previously only reachable from each member's profile).
@@ -19,6 +20,7 @@ export default function MemberSharingPanel() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [showManager, setShowManager] = useState(false);
+  const [levelMembersFor, setLevelMembersFor] = useState(null);
 
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -69,6 +71,27 @@ export default function MemberSharingPanel() {
             <p className="text-xs text-muted-foreground/70 italic text-center py-3">No privacy levels yet — tap “Manage levels” to create some.</p>
           ) : (
             <>
+              {/* Per-level member management — assign whole groups / subsystems
+                  or individual {alters} to a level (the inverse of the pills
+                  below). */}
+              <div className="space-y-1">
+                <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground px-0.5">Manage by level</p>
+                {levels.map((l) => {
+                  const count = liveAlters.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id)).length;
+                  return (
+                    <button key={l.id} type="button" onClick={() => setLevelMembersFor(l)}
+                      className="w-full flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-muted/10 hover:bg-muted/30 text-left transition-colors">
+                      <Users className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                      <span className="text-xs font-medium flex-1 truncate">{l.number}. {l.name}</span>
+                      <span className="text-[0.625rem] text-muted-foreground">{count} {count === 1 ? terms.alter : terms.alters}</span>
+                      <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                    </button>
+                  );
+                })}
+              </div>
+
+              <p className="text-[0.625rem] text-muted-foreground px-0.5 pt-1">Or set levels per {terms.alter}:</p>
+
               <div className="relative">
                 <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
                 <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
@@ -89,8 +112,8 @@ export default function MemberSharingPanel() {
                           const on = cur.includes(l.id);
                           return (
                             <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
-                              className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
-                              {l.number}. {l.name}
+                              className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                              {on ? "✓ " : ""}{l.number}. {l.name}
                             </button>
                           );
                         })}
@@ -106,6 +129,7 @@ export default function MemberSharingPanel() {
       )}
 
       <PrivacyLevelsManager isOpen={showManager} onClose={() => setShowManager(false)} />
+      <LevelMembersModal isOpen={!!levelMembersFor} level={levelMembersFor} onClose={() => setLevelMembersFor(null)} />
     </div>
   );
 }

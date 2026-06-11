@@ -471,7 +471,29 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           </button>
                           <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} shared</span>
                         </div>
-                        <p className="text-[0.625rem] text-muted-foreground">Live, encrypted sharing is coming soon — this sets who'd be included.</p>
+                        {/* Live preview — exactly who this friend can see right now,
+                            recomputed from the granted levels + per-alter hides. */}
+                        {(() => {
+                          const visible = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } });
+                          if (visible.length === 0) {
+                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "members"} visible with the current levels.</p>;
+                          }
+                          return (
+                            <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
+                              <p className="text-[0.625rem] text-muted-foreground">They can currently see:</p>
+                              <div className="flex flex-wrap gap-1">
+                                {visible.slice(0, 40).map(({ alter }) => (
+                                  <span key={alter.id} className="inline-flex items-center gap-1 text-[0.625rem] px-1.5 py-0.5 rounded-full bg-card border border-border/40">
+                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: alter.color || "#6b7280" }} />
+                                    {alter.name}
+                                  </span>
+                                ))}
+                                {visible.length > 40 && <span className="text-[0.625rem] text-muted-foreground self-center">+{visible.length - 40}</span>}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
                       </>
                     )}
                   </div>
