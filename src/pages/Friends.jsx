@@ -26,10 +26,13 @@ import {
   toggleNotify,
   pushFrontStatus,
   saveFriendVisibility,
+  setFriendVerified,
   deleteIdentity,
   FRIENDS_API_BASE,
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
+import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
+import E2EInfoCard from "@/components/friends/E2EInfoCard";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -78,7 +81,7 @@ function FronterBubble({ fronter }) {
 
 // ── Friend card ───────────────────────────────────────────────────────────────
 
-function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms }) {
+function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms, myPublicKeyJwk = null, verifiedNumber = null, onVerify }) {
   const [expanded, setExpanded] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [togglingNotify, setTogglingNotify] = useState(false);
@@ -114,6 +117,18 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
     setAllowedLevelIds(next);
     onVisibilityChange(friend.userId, { allowedLevelIds: next });
   }, [friend.userId, onVisibilityChange]);
+
+  // Safety number for this friend — computed when the visibility panel opens.
+  const [safetyNum, setSafetyNum] = useState(null);
+  useEffect(() => {
+    if (!showVisibility || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
+    let cancelled = false;
+    try {
+      const theirs = JSON.parse(friend.publicKey);
+      safetyNumber(myPublicKeyJwk, theirs).then((n) => { if (!cancelled) setSafetyNum(n); }).catch(() => {});
+    } catch { setSafetyNum(null); }
+    return () => { cancelled = true; };
+  }, [showVisibility, myPublicKeyJwk, friend.publicKey]);
 
   const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
     setSavingVis(true);
@@ -377,6 +392,27 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                       </>
                     )}
                   </div>
+
+                  {/* ── Safety number (E2E key verification) ── */}
+                  {safetyNum && (
+                    <div className="pt-3 border-t border-border/40 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Safety number</span>
+                        {verifiedNumber === safetyNum && (
+                          <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
+                        )}
+                      </div>
+                      <p className="font-mono text-xs tracking-wide text-foreground bg-muted/30 rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                      <p className="text-[0.625rem] text-muted-foreground">
+                        Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.
+                      </p>
+                      {verifiedNumber === safetyNum ? (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                      ) : (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Per-alter toggles — only when effective privacy shows names */}
                   {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
@@ -739,6 +775,27 @@ export default function FriendsPage() {
   const pendingSent = friendsData?.pendingSent || [];
 
   const terms = useTerms();
+  // E2E keys: ensure this device has a keypair + publish the public key so
+  // friends can fetch it. Also loads my public key for safety-number display.
+  const [myPublicKeyJwk, setMyPublicKeyJwk] = useState(null);
+  const keysPublishedRef = useRef(false);
+  useEffect(() => {
+    if (!identity || !isCryptoAvailable() || keysPublishedRef.current) return;
+    keysPublishedRef.current = true;
+    (async () => {
+      try {
+        const kp = await ensureKeyPair();
+        if (kp) setMyPublicKeyJwk(kp.publicKeyJwk);
+        await publishPublicKey();
+      } catch { /* non-fatal — sharing just won't be available until keys publish */ }
+    })();
+  }, [identity]);
+
+  const handleVerifyFriend = useCallback(async (friendUserId, number) => {
+    await setFriendVerified(friendUserId, number);
+    refetchIdentity();
+  }, [refetchIdentity]);
+
   // Sync current front status to the relay once when identity is available (catches cases where
   // the user was already fronting before they set up the Friends profile).
   const syncedRef = useRef(false);
@@ -1092,6 +1149,7 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-3">
+            {isCryptoAvailable() && <E2EInfoCard />}
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Friends ({friends.length})
@@ -1109,6 +1167,9 @@ export default function FriendsPage() {
                 onVisibilityChange={handleVisibilityChange}
                 globalPrivacyLevel={identity?.privacyLevel || 'names'}
                 terms={terms}
+                myPublicKeyJwk={myPublicKeyJwk}
+                verifiedNumber={identity?.verifiedFriends?.[friend.userId] || null}
+                onVerify={handleVerifyFriend}
               />
             ))}
           </div>

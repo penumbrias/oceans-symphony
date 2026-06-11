@@ -314,3 +314,16 @@ export async function saveFriendVisibility(friendUserId, patch = {}) {
   await localEntities.FriendIdentity.update(existing.id, { perFriendVisibility });
   return perFriendVisibility;
 }
+
+// Record that the user has compared + confirmed a friend's E2E safety number.
+// Stored against the number itself so it auto-invalidates if the friend's key
+// (and thus the number) ever changes. Pass null to clear.
+export async function setFriendVerified(friendUserId, safetyNumber) {
+  const existing = await getLocalIdentity();
+  if (!existing) return null;
+  const verifiedFriends = { ...(existing.verifiedFriends || {}) };
+  if (safetyNumber) verifiedFriends[friendUserId] = safetyNumber;
+  else delete verifiedFriends[friendUserId];
+  await localEntities.FriendIdentity.update(existing.id, { verifiedFriends });
+  return verifiedFriends;
+}

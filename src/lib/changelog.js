@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Groundwork for end-to-end-encrypted friend sharing: your device now has its own encryption key, and the Friends page explains how it protects your data (a plain-language and a technical version) plus a per-friend “safety number” you can compare to confirm no one's tampering. Actual encrypted sharing comes next.",
+      },
+      {
+        type: "feature",
         text: "Privacy levels (groundwork): create privacy levels that each reveal different details, assign members to them (a member can be in several), and choose which levels each friend may see — with a simple slider or by picking exact levels. Members stay private until you add them to a level. Live, encrypted sharing that uses these settings is coming next.",
       },
       {

@@ -44,6 +44,8 @@ export default async function handler(req, res) {
       notifyOnChange: friendsMap[fId].notifyOnChange || false,
       addedAt: friendsMap[fId].addedAt,
       front: frontForMe || frontDefault || null,
+      // E2E public key (JSON string of the ECDH public JWK), if published.
+      publicKey: profile?.publicKey || null,
     };
   }));
 
