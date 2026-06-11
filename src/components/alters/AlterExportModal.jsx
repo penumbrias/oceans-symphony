@@ -4,14 +4,14 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Download, Copy, Share2, Check, Search, Loader2, Users } from "lucide-react";
+import { Download, Copy, Share2, Check, Search, Loader2, Users, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { shareFile } from "@/lib/shareFile";
-import { buildAlterListExportHtml, buildAlterListExportText } from "@/lib/alterExport";
+import { buildAlterListExportHtml, buildAlterListExportText, buildAlterListPdf } from "@/lib/alterExport";
 
 // Resolve any image URL (local-image://, blob:, http:) to a portable data URL
 // so it survives in a saved/shared HTML file.
@@ -44,6 +44,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   const [detail, setDetail] = useState("full");
   const [anonymize, setAnonymize] = useState(false);
   const [includeAvatars, setIncludeAvatars] = useState(false);
+  const [groupByGroup, setGroupByGroup] = useState(false);
   const [busy, setBusy] = useState(false);
 
   // Initialise selection when opened: preset alter only, else everyone.
@@ -62,54 +63,61 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   const selectAll = () => setSelected(new Set(liveAlters.map((a) => a.id)));
   const selectNone = () => setSelected(new Set());
 
-  const buildPayload = async () => {
+  const buildBase = async () => {
     const chosen = liveAlters.filter((a) => selected.has(a.id));
     let resolvedAvatars = {};
     if (includeAvatars) {
       const pairs = await Promise.all(chosen.map(async (a) => [a.id, a.image_url ? await resolveToDataUrl(a.image_url) : ""]));
       resolvedAvatars = Object.fromEntries(pairs.filter(([, url]) => url));
     }
-    const options = { detail, anonymize, includeAvatars, resolvedAvatars, systemName: systemIdentity.name || "" };
-    const html = buildAlterListExportHtml({ alters: chosen, groupsById, options });
-    const text = buildAlterListExportText({ alters: chosen, groupsById, options });
-    return { chosen, html, text };
+    const options = { detail, anonymize, includeAvatars, resolvedAvatars, groupBy: groupByGroup ? "group" : "none", systemName: systemIdentity.name || "" };
+    return { chosen, options };
   };
 
-  const filename = () => {
-    const base = (systemIdentity.name || "members").replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "") || "members";
-    return `${base}-members.html`;
-  };
-
-  const doDownload = async () => {
-    if (!selected.size) return;
-    setBusy(true);
-    try {
-      const { html } = await buildPayload();
-      const blob = new Blob([html], { type: "text/html" });
-      const r = await shareFile({ blob, filename: filename(), title: `${terms.System} members`, prefer: "download" });
-      if (r.result === "downloaded" || r.result === "shared") toast.success("Export saved");
-      else if (r.result === "cancelled") { /* silent */ }
-      else toast.error("Couldn't save the export");
-    } finally { setBusy(false); }
-  };
+  const fileBase = () => (systemIdentity.name || "members").replace(/[^a-z0-9]+/gi, "-").toLowerCase().replace(/^-|-$/g, "") || "members";
 
   const doShare = async () => {
     if (!selected.size) return;
     setBusy(true);
     try {
-      const { html } = await buildPayload();
-      const blob = new Blob([html], { type: "text/html" });
-      const r = await shareFile({ blob, filename: filename(), title: `${terms.System} members`, prefer: "share" });
+      const { chosen, options } = await buildBase();
+      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, options })], { type: "text/html" });
+      const r = await shareFile({ blob, filename: `${fileBase()}-members.html`, title: `${terms.System} members`, prefer: "share" });
       if (r.result === "failed") toast.error("Couldn't share the export");
     } finally { setBusy(false); }
+  };
+
+  const doDownloadHtml = async () => {
+    if (!selected.size) return;
+    setBusy(true);
+    try {
+      const { chosen, options } = await buildBase();
+      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, options })], { type: "text/html" });
+      const r = await shareFile({ blob, filename: `${fileBase()}-members.html`, title: `${terms.System} members`, prefer: "download" });
+      if (r.result === "downloaded" || r.result === "shared") toast.success("HTML saved");
+      else if (r.result !== "cancelled") toast.error("Couldn't save the export");
+    } finally { setBusy(false); }
+  };
+
+  const doDownloadPdf = async () => {
+    if (!selected.size) return;
+    setBusy(true);
+    try {
+      const { chosen, options } = await buildBase();
+      const blob = await buildAlterListPdf({ alters: chosen, groupsById, options });
+      const r = await shareFile({ blob, filename: `${fileBase()}-members.pdf`, title: `${terms.System} members`, prefer: "download" });
+      if (r.result === "downloaded" || r.result === "shared") toast.success("PDF saved");
+      else if (r.result !== "cancelled") toast.error("Couldn't make the PDF");
+    } catch (e) { toast.error(e?.message || "Couldn't make the PDF"); }
+    finally { setBusy(false); }
   };
 
   const doCopy = async () => {
     if (!selected.size) return;
     setBusy(true);
     try {
-      const { text } = await buildPayload();
-      await navigator.clipboard.writeText(text);
+      const { chosen, options } = await buildBase();
+      await navigator.clipboard.writeText(buildAlterListExportText({ alters: chosen, groupsById, options }));
       toast.success("Copied as text");
     } catch { toast.error("Couldn't copy"); }
     finally { setBusy(false); }
@@ -148,6 +156,10 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
             <span className="text-sm">Include avatars <span className="text-xs text-muted-foreground">(larger file)</span></span>
             <Switch checked={includeAvatars} onCheckedChange={setIncludeAvatars} />
           </label>
+          <label className="flex items-center justify-between gap-3">
+            <span className="text-sm">Organize by group <span className="text-xs text-muted-foreground">(sections per group/subsystem)</span></span>
+            <Switch checked={groupByGroup} onCheckedChange={setGroupByGroup} />
+          </label>
         </div>
 
         {/* Selection */}
@@ -170,11 +182,10 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
                 const on = selected.has(a.id);
                 return (
                   <button key={a.id} type="button" aria-pressed={on} onClick={() => toggle(a.id)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs min-h-[36px] transition-colors ${on ? "bg-primary/10" : "hover:bg-muted/40"}`}>
-                    <span className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center" style={{ backgroundColor: a.color || "#6366f1" }}>
-                      {on && <Check className="w-3 h-3 text-white" />}
-                    </span>
-                    <span className="flex-1 truncate">{formatAlter(a)}</span>
+                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs min-h-[36px] transition-colors ${on ? "bg-primary/15 ring-1 ring-primary/30" : "hover:bg-muted/40"}`}>
+                    <span className="w-5 h-5 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+                    <span className={`flex-1 truncate ${on ? "font-semibold text-primary" : ""}`}>{formatAlter(a)}</span>
+                    {on && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
                   </button>
                 );
               })}
@@ -188,11 +199,14 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
           <Button onClick={doShare} disabled={busy || !selected.size} className="flex-1 gap-1.5">
             {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />} Share
           </Button>
-          <Button variant="outline" onClick={doDownload} disabled={busy || !selected.size} className="gap-1.5">
-            <Download className="w-4 h-4" /> Download
+          <Button variant="outline" onClick={doDownloadPdf} disabled={busy || !selected.size} className="gap-1.5">
+            <FileText className="w-4 h-4" /> PDF
+          </Button>
+          <Button variant="outline" onClick={doDownloadHtml} disabled={busy || !selected.size} className="gap-1.5">
+            <Download className="w-4 h-4" /> HTML
           </Button>
           <Button variant="outline" onClick={doCopy} disabled={busy || !selected.size} className="gap-1.5">
-            <Copy className="w-4 h-4" /> Copy text
+            <Copy className="w-4 h-4" /> Copy
           </Button>
         </div>
       </DialogContent>

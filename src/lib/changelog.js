@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Export members: selected members are now clearly highlighted (the checkmark used to vanish on white-coloured members), you can export as a PDF as well as HTML, and there's an option to organize the export by group/subsystem.",
+      },
+      {
+        type: "improve",
+        text: "Friends page: a new “Member sharing & privacy levels” section lets you create levels and assign members right there, instead of only from each profile.",
+      },
+      {
         type: "fix",
         text: "Bulletins: line breaks and paragraphs in a post now show the way you typed them — they were getting squashed into one block.",
       },

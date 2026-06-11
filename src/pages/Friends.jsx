@@ -34,6 +34,7 @@ import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration
 import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
+import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -1210,6 +1211,7 @@ export default function FriendsPage() {
         ) : (
           <div className="space-y-3">
             {isCryptoAvailable() && <E2EInfoCard />}
+            <MemberSharingPanel />
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Friends ({friends.length})
