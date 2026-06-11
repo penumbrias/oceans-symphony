@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New “Export members” feature — make a shareable document of your members (pick who, how much detail, and whether to anonymize names) to send to a friend. Export your whole list from the Alters page, or just one from a profile's Options tab.",
+      },
+      {
         type: "fix",
         text: "Insert-link: linking to a location now opens that location's page (it was landing on the analytics map).",
       },

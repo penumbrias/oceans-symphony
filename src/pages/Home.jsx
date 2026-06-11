@@ -2,20 +2,22 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Sparkles, Plus } from "lucide-react";
+import { Sparkles, Plus, Share2 } from "lucide-react";
 import { Link, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
+import AlterExportModal from "@/components/alters/AlterExportModal";
 import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
-import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
 
 export default function Home() {
   const [searchParams] = useSearchParams();
   const [showAddAlter, setShowAddAlter] = useState(false);
+  const [showExport, setShowExport] = useState(false);
   const terms = useTerms();
 
   // Handle bulletin deep-link
@@ -90,14 +92,26 @@ export default function Home() {
         <SystemHeaderCard
           settings={systemSettings}
           action={
-            <Button
-              data-tour="alter-add-btn"
-              size="sm"
-              onClick={() => setShowAddAlter(true)}
-              className="bg-primary hover:bg-primary/90 gap-1.5">
-              <Plus className="w-4 h-4" />
-              Add {terms.Alter}
-            </Button>
+            <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowExport(true)}
+                aria-label={`Export ${terms.alters}`}
+                title={`Export ${terms.alters} to share`}
+                className="gap-1.5">
+                <Share2 className="w-4 h-4" />
+                <span className="hidden sm:inline">Export</span>
+              </Button>
+              <Button
+                data-tour="alter-add-btn"
+                size="sm"
+                onClick={() => setShowAddAlter(true)}
+                className="bg-primary hover:bg-primary/90 gap-1.5">
+                <Plus className="w-4 h-4" />
+                Add {terms.Alter}
+              </Button>
+            </div>
           }
         />
       </motion.div>
@@ -117,7 +131,12 @@ export default function Home() {
         open={showAddAlter}
         onClose={() => setShowAddAlter(false)}
         mode="create" />
-      
+
+      <AlterExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        alters={alters} />
+
     </div>);
 
 }

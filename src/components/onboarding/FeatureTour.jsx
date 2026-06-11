@@ -203,7 +203,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "➕",
       title: `Add a New ${t.Alter}`,
-      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, alias (or set an emoji and use it as the alias — mention with @ that emoji), pronouns, role, color, avatar, first appearance, bio, and profile style. Groups are added from the profile after you save.`,
+      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, alias (or set an emoji and use it as the alias — mention with @ that emoji), pronouns, role, color, avatar, first appearance, bio, and profile style. Groups are added from the profile after you save. The "Export" button next to it makes a shareable document of your ${t.alters} (choose who to include, how much detail, and whether to anonymize names) to send to a friend — and each profile's Options tab can export just that one.`,
       route: "/Home", target: "alter-add-btn",
       look: `the highlighted "+ Add ${t.Alter}" button in the top-right`, action: null,
     },

@@ -3,16 +3,17 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
-import { Button } from "@/components/ui/button";
-import { Trash2, AlertTriangle } from "lucide-react";
+import { Trash2, AlertTriangle, Share2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
 import { useTerms } from "@/lib/useTerms";
+import AlterExportModal from "@/components/alters/AlterExportModal";
 
 export default function OptionsTab({ alter }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const terms = useTerms();
   const [archived, setArchived] = useState(alter.is_archived || false);
+  const [showExport, setShowExport] = useState(false);
   const [friendsVisible, setFriendsVisible] = useState(alter.friends_visible ?? true);
   const [saving, setSaving] = useState(false);
 
@@ -73,6 +74,17 @@ export default function OptionsTab({ alter }) {
         </div>
       )}
 
+      {/* Share / export this profile */}
+      <div>
+        <p className="text-xs font-medium text-primary uppercase tracking-wider mb-3">Share</p>
+        <button
+          onClick={() => setShowExport(true)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 transition-colors text-left">
+          <Share2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-sm font-medium">Export / share this {terms.alter}'s profile</span>
+        </button>
+      </div>
+
       {/* Danger zone */}
       <div>
         <p className="text-xs font-medium text-destructive uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -101,6 +113,12 @@ export default function OptionsTab({ alter }) {
           </AlertDialogContent>
         </AlertDialog>
       </div>
+
+      <AlterExportModal
+        isOpen={showExport}
+        onClose={() => setShowExport(false)}
+        alters={[alter]}
+        presetAlterId={alter.id} />
     </div>
   );
 }
