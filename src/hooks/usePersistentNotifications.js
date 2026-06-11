@@ -4,24 +4,29 @@
 // Mounted once, high in the tree (AppLayout). On web it's an inert no-op —
 // every query is gated on isNative() && the matching pref, so a web user
 // pays nothing. The notification slots themselves are managed by
-// persistentNotifications.js; this hook only decides what text they show.
+// persistentNotifications.js; this hook only decides what text they show,
+// wires the "End & log" / "End" action buttons, and revives a swiped
+// notification when the app resumes.
 //
-// Data sources (deliberately reusing existing query keys so a switch / a
-// symptom start-stop / an activity start-end updates the notification
-// instantly via the shared react-query cache):
+// Data sources (reusing existing query keys so a switch / a symptom
+// start-stop / an activity start-end updates the notification instantly via
+// the shared react-query cache):
 //   fronters → ["activeFront"] + ["alters"]
-//   symptoms → ["symptomSessions"] (active) + ["symptoms"]
+//   symptoms → ["symptomSessions"] (active) + ["symptoms"]   (Symptom.label!)
 //   activity → the localStorage running-activity session (activitySession.js)
+//
+// Notifications are only shown when there's something to show — an empty
+// state cancels the notification rather than displaying "nothing active".
 
 import { useEffect, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { getActiveActivity, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT } from "@/lib/persistentNotifPrefs";
-import { syncPersistentNotification } from "@/lib/persistentNotifications";
+import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
 
 const native = isNative();
 
@@ -29,8 +34,12 @@ export default function usePersistentNotifications() {
   const t = useTerms();
   // useAlterLabel() returns the formatAlter(alter) function directly.
   const formatAlter = useAlterLabel();
+  const qc = useQueryClient();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
   const [activeActivity, setActiveActivityState] = useState(() => getActiveActivity());
+  // Bumped on app resume / window focus so the effects re-run and re-create a
+  // notification the user may have swiped away while the app was backgrounded.
+  const [resyncTick, setResyncTick] = useState(0);
 
   // React to toggle changes (settings) + running-activity changes (start/end).
   useEffect(() => {
@@ -45,6 +54,46 @@ export default function usePersistentNotifications() {
       window.removeEventListener("focus", onActivity);
     };
   }, []);
+
+  // Revive swiped notifications when the app comes back to the foreground.
+  useEffect(() => {
+    const bump = () => setResyncTick((n) => n + 1);
+    window.addEventListener("focus", bump);
+    let appRemove;
+    if (native) {
+      import("@capacitor/app")
+        .then(({ App }) => App.addListener("resume", bump).then((h) => { appRemove = () => h.remove(); }))
+        .catch(() => {});
+    }
+    return () => { window.removeEventListener("focus", bump); try { appRemove?.(); } catch { /* */ } };
+  }, []);
+
+  // Register action types once + handle taps on the inline action buttons.
+  useEffect(() => {
+    if (!native) return;
+    let remove;
+    (async () => {
+      try {
+        const { LocalNotifications } = await import("@capacitor/local-notifications");
+        await registerPersistentActionTypes();
+        const handle = await LocalNotifications.addListener("localNotificationActionPerformed", async (ev) => {
+          const actionId = ev?.actionId;
+          const extra = ev?.notification?.extra || {};
+          try {
+            if (actionId === "end_activity") {
+              await endAndLogActiveActivity();
+              qc.invalidateQueries({ queryKey: ["activities"] });
+            } else if (actionId === "end_symptom" && extra.sessionId) {
+              await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
+              qc.invalidateQueries({ queryKey: ["symptomSessions"] });
+            }
+          } catch { /* end action failed — leave state as-is */ }
+        });
+        remove = () => handle.remove();
+      } catch { /* listener unavailable */ }
+    })();
+    return () => { try { remove?.(); } catch { /* */ } };
+  }, [qc]);
 
   const wantFronters = native && prefs.fronters;
   const wantSymptoms = native && prefs.symptoms;
@@ -72,13 +121,10 @@ export default function usePersistentNotifications() {
     enabled: wantSymptoms,
   });
 
-  // --- Current fronters notification ---
+  // --- Current fronters notification (only when someone is fronting) ---
   useEffect(() => {
     if (!native) return;
-    if (!prefs.fronters) {
-      syncPersistentNotification("fronters", { enabled: false });
-      return;
-    }
+    if (!prefs.fronters) { syncPersistentNotification("fronters", { enabled: false }); return; }
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
     const active = sessions.filter((s) => s.is_active !== false);
     const primary = active.find((s) => s.is_primary);
@@ -87,66 +133,56 @@ export default function usePersistentNotifications() {
       .map((s) => altersById[s.alter_id || s.primary_alter_id])
       .filter(Boolean)
       .map((a) => formatAlter(a));
-    const body = names.length ? names.join(", ") : `No one is ${t.fronting}`;
     syncPersistentNotification("fronters", {
-      enabled: true,
+      enabled: names.length > 0,
       title: `Currently ${t.fronting}`,
-      body,
+      body: names.join(", "),
     });
-  }, [prefs.fronters, sessions, alters, t.fronting, formatAlter]);
+  }, [prefs.fronters, sessions, alters, t.fronting, formatAlter, resyncTick]);
 
-  // --- Active symptoms notification ---
+  // --- Active symptoms / habits notification (only when something is active) ---
   useEffect(() => {
     if (!native) return;
-    if (!prefs.symptoms) {
-      syncPersistentNotification("symptoms", { enabled: false });
-      return;
-    }
+    if (!prefs.symptoms) { syncPersistentNotification("symptoms", { enabled: false }); return; }
     const symptomsById = Object.fromEntries(symptoms.map((s) => [s.id, s]));
-    const names = activeSymptomSessions
-      .map((sess) => symptomsById[sess.symptom_id])
-      .filter((sym) => sym && !sym.is_archived)
-      .map((sym) => sym.name)
-      .filter(Boolean);
-    const unique = [...new Set(names)];
-    const shown = unique.slice(0, 6);
-    const body = unique.length
-      ? shown.join(", ") + (unique.length > 6 ? `, +${unique.length - 6} more` : "")
-      : "No active symptoms";
+    // Symptom records use `label`, not `name`. Habits are just symptoms with
+    // category "habit" / is_positive — they ride the same SymptomSession.
+    const activeDefs = activeSymptomSessions
+      .map((sess) => ({ sess, def: symptomsById[sess.symptom_id] }))
+      .filter((x) => x.def && !x.def.is_archived);
+    const labels = [...new Set(activeDefs.map((x) => x.def.label).filter(Boolean))];
+    const hasHabit = activeDefs.some((x) => x.def.category === "habit" || x.def.is_positive);
+    const hasSymptom = activeDefs.some((x) => x.def.category !== "habit" && !x.def.is_positive);
+    const title = hasHabit && !hasSymptom ? "Active habits" : hasHabit && hasSymptom ? "Active symptoms & habits" : "Active symptoms";
+    const shown = labels.slice(0, 6);
+    const body = shown.join(", ") + (labels.length > 6 ? `, +${labels.length - 6} more` : "");
+    // Offer an "End" button only when exactly one session is active (otherwise
+    // which one to end is ambiguous).
+    const single = activeDefs.length === 1 ? activeDefs[0].sess : null;
     syncPersistentNotification("symptoms", {
-      enabled: true,
-      title: "Active symptoms",
+      enabled: labels.length > 0,
+      title,
       body,
+      ...(single ? { actionTypeId: "SYMPTOM_ACTIONS", extra: { sessionId: single.id } } : {}),
     });
-  }, [prefs.symptoms, activeSymptomSessions, symptoms]);
+  }, [prefs.symptoms, activeSymptomSessions, symptoms, resyncTick]);
 
-  // --- Activity timer notification ---
+  // --- Activity timer notification (only when something is running) ---
   useEffect(() => {
     if (!native) return;
-    if (!prefs.activity) {
-      syncPersistentNotification("activity", { enabled: false });
-      return;
-    }
-    if (!activeActivity) {
-      syncPersistentNotification("activity", {
-        enabled: true,
-        title: "Activity timer",
-        body: "Nothing running — open the app to start one",
-      });
-      return;
-    }
+    if (!prefs.activity || !activeActivity) { syncPersistentNotification("activity", { enabled: false }); return; }
     let started = "";
     try {
       started = new Date(activeActivity.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" });
-    } catch {
-      /* leave blank */
-    }
+    } catch { /* leave blank */ }
     syncPersistentNotification("activity", {
       enabled: true,
       title: "Activity in progress",
-      body: `${activeActivity.name}${started ? ` · since ${started}` : ""} — open to end & log`,
+      body: `${activeActivity.name}${started ? ` · since ${started}` : ""}`,
+      actionTypeId: "ACTIVITY_ACTIONS",
+      extra: { kind: "activity" },
     });
-  }, [prefs.activity, activeActivity]);
+  }, [prefs.activity, activeActivity, resyncTick]);
 
   return null;
 }

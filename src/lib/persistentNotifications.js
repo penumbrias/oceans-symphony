@@ -30,6 +30,26 @@ const IDS = {
 };
 
 let channelEnsured = false;
+let actionTypesRegistered = false;
+
+// Register the inline action buttons used by the activity + symptom
+// notifications ("End & log", "End"). Idempotent; safe to call repeatedly.
+export async function registerPersistentActionTypes() {
+  if (!isNative() || actionTypesRegistered) return;
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    if (!LocalNotifications.registerActionTypes) { actionTypesRegistered = true; return; }
+    await LocalNotifications.registerActionTypes({
+      types: [
+        { id: "ACTIVITY_ACTIONS", actions: [{ id: "end_activity", title: "End & log" }] },
+        { id: "SYMPTOM_ACTIONS", actions: [{ id: "end_symptom", title: "End" }] },
+      ],
+    });
+  } catch {
+    /* non-fatal — notification just won't carry buttons */
+  }
+  actionTypesRegistered = true;
+}
 
 async function ensureChannel(LocalNotifications) {
   if (channelEnsured) return;
@@ -56,7 +76,8 @@ async function ensureChannel(LocalNotifications) {
 // Create/update or cancel a single ongoing notification.
 //   syncPersistentNotification("fronters", { enabled, title, body })
 // When enabled is false or body is empty, the notification is cancelled.
-export async function syncPersistentNotification(type, { enabled, title, body } = {}) {
+// actionTypeId + extra add inline action buttons (see registerPersistentActionTypes).
+export async function syncPersistentNotification(type, { enabled, title, body, actionTypeId, extra } = {}) {
   if (!isNative()) return;
   const id = IDS[type];
   if (!id) return;
@@ -84,12 +105,20 @@ export async function syncPersistentNotification(type, { enabled, title, body } 
           title: title || "",
           body,
           channelId: CHANNEL_ID,
-          ongoing: true, // non-dismissible, persistent (Android)
+          ongoing: true, // sticky/persistent (best-effort — see note below)
           autoCancel: false, // tapping doesn't clear it
+          ...(actionTypeId ? { actionTypeId } : {}),
+          ...(extra ? { extra } : {}),
           // No custom smallIcon — referencing a drawable that isn't bundled
           // throws a native Resources.NotFoundException that crashes past the
           // JS try/catch. Match the working reminder scheduler: let the plugin
           // fall back to the app's default notification icon.
+          //
+          // NOTE on "ongoing": on Android 13- this makes the notification
+          // non-dismissible; on Android 14+ the user can still swipe it away
+          // unless it's backed by a foreground service (which @capacitor/
+          // local-notifications can't create). The watcher re-creates it on
+          // app resume so a swiped one comes back.
         },
       ],
     });

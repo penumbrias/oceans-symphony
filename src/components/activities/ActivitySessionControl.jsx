@@ -6,8 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Play, Square, X, Loader2, Timer } from "lucide-react";
 import { toast } from "sonner";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
-import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
-import { getActiveActivity, setActiveActivity, clearActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { getActiveActivity, setActiveActivity, clearActiveActivity, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 
 function fmtElapsed(ms) {
   const s = Math.max(0, Math.floor(ms / 1000));
@@ -66,24 +65,10 @@ export default function ActivitySessionControl() {
     if (!active) return;
     setBusy(true);
     try {
-      const start = new Date(active.startTime);
-      const end = new Date();
-      const mins = Math.max(1, Math.round((end - start) / 60000));
-      await base44.entities.Activity.create({
-        activity_name: active.name || "Activity",
-        parent_category_id: active.categoryId || null,
-        timestamp: start.toISOString(),
-        start_time: start.toISOString(),
-        end_time: end.toISOString(),
-        duration_minutes: mins,
-        actual_duration_minutes: mins,
-        status: ACTIVITY_STATUSES.LOGGED,
-        alter_id: active.alterId || null,
-      });
-      clearActiveActivity();
+      const res = await endAndLogActiveActivity();
       setActive(null);
       qc.invalidateQueries({ queryKey: ["activities"] });
-      toast.success(`✅ Logged ${active.name} (${mins}m)`);
+      if (res) toast.success(`✅ Logged ${res.name} (${res.minutes}m)`);
     } catch (e) { toast.error(e?.message || "Couldn't save the activity"); }
     finally { setBusy(false); }
   };

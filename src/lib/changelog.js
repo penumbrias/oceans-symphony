@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Persistent activity & symptom notifications now have an “End” button so you can stop and log right from the notification.",
+      },
+      {
+        type: "fix",
+        text: "Persistent “active symptoms” notification now detects your symptoms and habits (it was showing none), and the persistent notifications only appear when something's actually active.",
+      },
+      {
         type: "fix",
         text: "Fixed a crash when turning on the “Current fronters” persistent notification.",
       },

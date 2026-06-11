@@ -102,7 +102,10 @@ function PersistentNotificationsSection() {
   return (
     <SubSection title="Persistent status notifications" icon={Pin} defaultOpen={false}>
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Ongoing notifications that <strong className="text-foreground">stay pinned in your tray</strong> and update as things change — handy for an at-a-glance view without opening the app. They make no sound and can't be swiped away while on. Requires notifications to be allowed (see above).
+        Silent notifications that <strong className="text-foreground">stay in your tray</strong> and refresh as things change — an at-a-glance view without opening the app. They only appear when there's something active (someone {t.fronting}, a symptom or habit running, an activity timer going), and the activity/symptom ones include an <strong className="text-foreground">End</strong> button so you can stop & log straight from the tray. Requires notifications to be allowed (see above).
+      </p>
+      <p className="text-[0.7rem] text-muted-foreground/80 leading-relaxed">
+        Note: on newer Android you can still swipe these away — they'll reappear next time you open the app. (Truly un-swipeable notifications need a foreground service, which is on the roadmap.)
       </p>
       <div className="space-y-2">
         {rows.map((row) => {
