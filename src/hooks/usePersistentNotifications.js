@@ -19,6 +19,7 @@
 // state cancels the notification rather than displaying "nothing active".
 
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
@@ -27,6 +28,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivity, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT } from "@/lib/persistentNotifPrefs";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
+import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 
 const native = isNative();
 
@@ -35,6 +37,7 @@ export default function usePersistentNotifications() {
   // useAlterLabel() returns the formatAlter(alter) function directly.
   const formatAlter = useAlterLabel();
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
   const [activeActivity, setActiveActivityState] = useState(() => getActiveActivity());
   // Bumped on app resume / window focus so the effects re-run and re-create a
@@ -86,14 +89,20 @@ export default function usePersistentNotifications() {
             } else if (actionId === "end_symptom" && extra.sessionId) {
               await base44.entities.SymptomSession.update(extra.sessionId, { is_active: false, end_time: new Date().toISOString() });
               qc.invalidateQueries({ queryKey: ["symptomSessions"] });
+            } else if (actionId === "tap" && extra.kind === "symptom" && extra.sessionId) {
+              // Body tap on the symptom notification → open its severity/end
+              // menu on the dashboard (same as long-pressing the pill).
+              try { localStorage.setItem(PENDING_SYMPTOM_MENU_KEY, extra.sessionId); } catch { /* */ }
+              navigate("/");
+              window.dispatchEvent(new CustomEvent(OPEN_SYMPTOM_MENU_EVENT, { detail: { sessionId: extra.sessionId } }));
             }
-          } catch { /* end action failed — leave state as-is */ }
+          } catch { /* action failed — leave state as-is */ }
         });
         remove = () => handle.remove();
       } catch { /* listener unavailable */ }
     })();
     return () => { try { remove?.(); } catch { /* */ } };
-  }, [qc]);
+  }, [qc, navigate]);
 
   const wantFronters = native && prefs.fronters;
   const wantSymptoms = native && prefs.symptoms;
@@ -163,7 +172,7 @@ export default function usePersistentNotifications() {
       enabled: labels.length > 0,
       title,
       body,
-      ...(single ? { actionTypeId: "SYMPTOM_ACTIONS", extra: { sessionId: single.id } } : {}),
+      ...(single ? { actionTypeId: "SYMPTOM_ACTIONS", extra: { sessionId: single.id, kind: "symptom" } } : {}),
     });
   }, [prefs.symptoms, activeSymptomSessions, symptoms, resyncTick]);
 

@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "New “Active” toggle in Log Activity — start something now and end & log it later (keeps who's fronting + notes). Replaces the separate Start activity button.",
+      },
+      {
+        type: "improve",
+        text: "Tap an active symptom — on the dashboard or its notification — to jump straight to its severity and end-session controls.",
+      },
+      {
+        type: "improve",
         text: "Persistent activity & symptom notifications now have an “End” button so you can stop and log right from the notification.",
       },
       {

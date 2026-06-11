@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { UserPlus, X } from "lucide-react";
+import { UserPlus, X, Play } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
@@ -15,6 +15,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { setActiveActivity } from "@/lib/activitySession";
 
 // Lean "I did this" log modal. Past-dated capture path.
 //
@@ -90,6 +91,9 @@ export default function ActivityLogModal({
   // activity's front having ended (closed session). Defaults from end ≈ now.
   const [stillFronting, setStillFronting] = useState(true);
   const [fronterPickerOpen, setFronterPickerOpen] = useState(false);
+  // "Active" mode = start an in-progress activity now and end/log it later
+  // (an easier entry point — the saved record is identical to a normal log).
+  const [activeMode, setActiveMode] = useState(false);
 
   const startDate = selectedDateStr ? new Date(`${selectedDateStr}T00:00:00`) : null;
   const endDate = endDateStr ? new Date(`${endDateStr}T00:00:00`) : startDate;
@@ -131,7 +135,29 @@ export default function ActivityLogModal({
     }
     setSelectedActivityCategories([]);
     setNotes("");
+    setActiveMode(false);
   }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute]);
+
+  // Turning "Active" on snaps the start to now (still adjustable) and
+  // pre-selects whoever is currently fronting.
+  const enableActiveMode = async (on) => {
+    setActiveMode(on);
+    if (!on) return;
+    const now = new Date();
+    setSelectedDateStr(format(now, "yyyy-MM-dd"));
+    setStartTime(format(now, "HH:mm"));
+    try {
+      const sessions = await base44.entities.FrontingSession.filter({ is_active: true });
+      const ids = new Set();
+      sessions.forEach((s) => {
+        if (s.is_primary && s.alter_id) ids.add(s.alter_id);
+        if (s.alter_id) ids.add(s.alter_id);
+        if (s.primary_alter_id) ids.add(s.primary_alter_id);
+        (s.co_fronter_ids || []).forEach((id) => ids.add(id));
+      });
+      if (ids.size) setSelectedAlters(Array.from(ids));
+    } catch { /* no fronters — leave selection as-is */ }
+  };
 
   // Auto-populate alters from fronting history. Stable date key avoids
   // the infinite-loop bug the mega-modal hit.
@@ -204,7 +230,7 @@ export default function ActivityLogModal({
       toast.error("Set start time");
       return;
     }
-    if (endTime && durationMinutes <= 0) {
+    if (!activeMode && endTime && durationMinutes <= 0) {
       toast.error("End time must be after start time");
       return;
     }
@@ -214,6 +240,28 @@ export default function ActivityLogModal({
     const w = applyWhisper(notes || "", alters || [], { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
     if (w === null) return;
     const finalNotes = w.content;
+
+    // Active mode — start an in-progress activity (timed until you End it).
+    // Reuses the running-session mechanism; on End it logs an Activity that's
+    // identical in shape to a normally-logged one.
+    if (activeMode) {
+      const catId = selectedActivityCategories[0];
+      const cat = activityCategories.find((c) => c.id === catId);
+      setActiveActivity({
+        categoryId: catId,
+        name: cat?.name || catId,
+        color: cat?.color || null,
+        startTime: parseTimeToDate(startDate, startTime).toISOString(),
+        alterIds: selectedAlters,
+        notes: finalNotes || "",
+      });
+      setSelectedActivityCategories([]);
+      setNotes("");
+      onSave?.();
+      onClose();
+      toast.success(`▶ Started ${cat?.name || "activity"}`);
+      return;
+    }
 
     setIsLoading(true);
     const timestamp = parseTimeToDate(startDate, startTime);
@@ -320,7 +368,16 @@ export default function ActivityLogModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Start / end date */}
+          {/* Active toggle — start now, end later (easier entry point) */}
+          <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
+            <div className="min-w-0">
+              <span className="text-sm font-medium flex items-center gap-1.5"><Play className="w-3.5 h-3.5 text-primary" /> Active — start now, end later</span>
+              <p className="text-xs text-muted-foreground mt-0.5">Times it live until you tap End, then it's logged automatically. Start defaults to now (adjustable).</p>
+            </div>
+            <Switch checked={activeMode} onCheckedChange={enableActiveMode} />
+          </label>
+
+          {/* Start {!activeMode && "/ end"} date */}
           <div className="flex gap-3">
             <div className="flex-1">
               <label className="text-sm font-medium block mb-1">Start date</label>
@@ -336,19 +393,21 @@ export default function ActivityLogModal({
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
               />
             </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">End date</label>
-              <input
-                type="date"
-                value={endDateStr}
-                min={selectedDateStr || undefined}
-                onChange={(e) => setEndDateStr(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
+            {!activeMode && (
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-1">End date</label>
+                <input
+                  type="date"
+                  value={endDateStr}
+                  min={selectedDateStr || undefined}
+                  onChange={(e) => setEndDateStr(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                />
+              </div>
+            )}
           </div>
 
-          {/* Start / end time + duration */}
+          {/* Start {!activeMode && "/ end"} time + duration */}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
               <label className="text-sm font-medium block mb-1">Start time</label>
@@ -359,21 +418,23 @@ export default function ActivityLogModal({
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
               />
             </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">
-                End time
-                {isCrossDay && endDate && (
-                  <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
-                )}
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            {durationMinutes > 0 && (
+            {!activeMode && (
+              <div className="flex-1">
+                <label className="text-sm font-medium block mb-1">
+                  End time
+                  {isCrossDay && endDate && (
+                    <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
+                  )}
+                </label>
+                <input
+                  type="time"
+                  value={endTime}
+                  onChange={(e) => setEndTime(e.target.value)}
+                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                />
+              </div>
+            )}
+            {!activeMode && durationMinutes > 0 && (
               <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
                 {durationMinutes >= 60
                   ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
@@ -385,6 +446,7 @@ export default function ActivityLogModal({
           {/* Quick-duration presets. The "from end/start" toggle on the right
               decides which time stays fixed — e.g. "30m" from end sets the
               start to (end − 30m). */}
+          {!activeMode && (
           <div className="flex items-center gap-1.5 flex-wrap">
             {[{ l: "1hr", m: 60 }, { l: "30m", m: 30 }, { l: "15m", m: 15 }].map((p) => (
               <button key={p.l} type="button" onClick={() => applyDuration(p.m)}
@@ -410,6 +472,7 @@ export default function ActivityLogModal({
               from <span className="font-medium text-foreground">{presetAnchor}</span>
             </button>
           </div>
+          )}
 
           {/* Activity categories */}
           <ActivityPillSelector
@@ -441,13 +504,13 @@ export default function ActivityLogModal({
                 })}
               </div>
             )}
-            {selectedAlters.length > 0 && (
+            {!activeMode && selectedAlters.length > 0 && (
               <label className="flex items-center justify-between gap-2 mt-2.5 px-1 cursor-pointer">
                 <span className="text-sm text-foreground">Still {terms.fronting} now</span>
                 <Switch checked={stillFronting} onCheckedChange={setStillFronting} />
               </label>
             )}
-            {selectedAlters.length > 0 && (
+            {!activeMode && selectedAlters.length > 0 && (
               <p className="text-xs text-muted-foreground px-1 mt-1">
                 {stillFronting
                   ? `They'll stay on ${terms.front} after saving (an open ${terms.fronting} session).`
@@ -470,8 +533,10 @@ export default function ActivityLogModal({
 
           <div className="flex gap-2 justify-end">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
-            <Button onClick={handleSave} disabled={isLoading}>
-              {isLoading ? "Saving..." : "Save Activity"}
+            <Button onClick={handleSave} disabled={isLoading} className="gap-1.5">
+              {activeMode
+                ? (<><Play className="w-4 h-4" /> Start activity</>)
+                : (isLoading ? "Saving..." : "Save Activity")}
             </Button>
           </div>
 

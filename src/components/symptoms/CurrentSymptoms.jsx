@@ -1,8 +1,9 @@
-import React, { useRef, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow, format } from "date-fns";
 import { X, Clock } from "lucide-react";
+import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 
 function toLocalDatetimeValue(iso) {
   if (!iso) return "";
@@ -179,9 +180,11 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   );
 }
 
-export default function CurrentSymptoms({ onOpenCheckIn }) {
+export default function CurrentSymptoms() {
   const [activeMenu, setActiveMenu] = useState(null);
-  const timerRefs = useRef({});
+  // A sessionId we've been asked to open the menu for (from a notification tap)
+  // but whose session data may not have loaded yet.
+  const [pendingSessId, setPendingSessId] = useState(null);
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["symptomSessions"],
@@ -200,20 +203,29 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
     .map(sess => ({ sess, symptom: symptomsById[sess.symptom_id] }))
     .filter(x => x.symptom && !x.symptom.is_archived);
 
-  const handleLongPress = (sess, symptom) => {
-    setActiveMenu({ sess, symptom });
-  };
+  // Pick up a deep-link request (notification tap) — from the live event or a
+  // flag left in localStorage if the app was launched cold by the tap.
+  useEffect(() => {
+    const onEvent = (e) => { const id = e?.detail?.sessionId; if (id) setPendingSessId(id); };
+    window.addEventListener(OPEN_SYMPTOM_MENU_EVENT, onEvent);
+    try {
+      const stored = localStorage.getItem(PENDING_SYMPTOM_MENU_KEY);
+      if (stored) setPendingSessId(stored);
+    } catch { /* storage off */ }
+    return () => window.removeEventListener(OPEN_SYMPTOM_MENU_EVENT, onEvent);
+  }, []);
 
-  const startLongPress = (sessId, sess, symptom) => {
-    timerRefs.current[sessId] = setTimeout(() => handleLongPress(sess, symptom), 500);
-  };
-
-  const clearLongPress = (sessId) => {
-    if (timerRefs.current[sessId]) {
-      clearTimeout(timerRefs.current[sessId]);
-      delete timerRefs.current[sessId];
+  // Once the requested session is loaded, open its menu and clear the request.
+  useEffect(() => {
+    if (!pendingSessId) return;
+    const match = active.find((x) => x.sess.id === pendingSessId);
+    if (match) {
+      setActiveMenu(match);
+      setPendingSessId(null);
+      try { localStorage.removeItem(PENDING_SYMPTOM_MENU_KEY); } catch { /* */ }
     }
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingSessId, activeSessions, symptoms]);
 
   if (active.length === 0) return null;
 
@@ -228,12 +240,7 @@ export default function CurrentSymptoms({ onOpenCheckIn }) {
           return (
             <button
               key={sess.id}
-              onClick={() => onOpenCheckIn?.("symptoms")}
-              onMouseDown={() => startLongPress(sess.id, sess, symptom)}
-              onMouseUp={() => clearLongPress(sess.id)}
-              onMouseLeave={() => clearLongPress(sess.id)}
-              onTouchStart={() => startLongPress(sess.id, sess, symptom)}
-              onTouchEnd={() => clearLongPress(sess.id)}
+              onClick={() => setActiveMenu({ sess, symptom })}
               onContextMenu={(e) => {
                 e.preventDefault();
                 setActiveMenu({ sess, symptom });

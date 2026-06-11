@@ -17,7 +17,6 @@ import UnresolvedPlansCard from "@/components/dashboard/UnresolvedPlansCard";
 import DashboardPins from "@/components/dashboard/DashboardPins";
 import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
-import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
@@ -610,13 +609,7 @@ export default function Dashboard() {
             return <PinnedDailyTasksWidget key="pinned_daily_tasks" />;
           case "current_symptoms":
             return (
-              <CurrentSymptoms
-                key="current_symptoms"
-                onOpenCheckIn={(section) => {
-                  setEmotionModalInitialSection(section);
-                  setShowEmotionModal(true);
-                }}
-              />
+              <CurrentSymptoms key="current_symptoms" />
             );
           case "quick_checkin":
             return (
