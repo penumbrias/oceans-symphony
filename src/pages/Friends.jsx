@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
+import { getPrivacyLevels, sortedLevels, levelIdsUpToThreshold, resolveVisibleAlters } from "@/lib/privacyLevels";
 import {
   getLocalIdentity,
   registerIdentity,
@@ -25,10 +26,14 @@ import {
   toggleNotify,
   pushFrontStatus,
   saveFriendVisibility,
+  setFriendVerified,
   deleteIdentity,
   FRIENDS_API_BASE,
 } from "@/lib/friendsApi";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
+import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
+import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
+import E2EInfoCard from "@/components/friends/E2EInfoCard";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -77,7 +82,7 @@ function FronterBubble({ fronter }) {
 
 // ── Friend card ───────────────────────────────────────────────────────────────
 
-function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms }) {
+function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilitySettings = {}, onVisibilityChange, globalPrivacyLevel = 'names', terms, myPublicKeyJwk = null, verifiedNumber = null, onVerify }) {
   const [expanded, setExpanded] = useState(false);
   const [removing, setRemoving] = useState(false);
   const [togglingNotify, setTogglingNotify] = useState(false);
@@ -89,12 +94,54 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   // Local copies of visibility settings so toggles feel instant
   const [hiddenAlterIds, setHiddenAlterIds] = useState(() => visibilitySettings.hiddenAlterIds || []);
   const [privacyOverride, setPrivacyOverride] = useState(() => visibilitySettings.privacyOverride || null);
+  // Member-list share: which privacy levels this friend may see.
+  const [allowedLevelIds, setAllowedLevelIds] = useState(() => visibilitySettings.allowedLevelIds || []);
+  const [advancedLevels, setAdvancedLevels] = useState(false);
 
   // Keep in sync if parent reloads identity
   useEffect(() => {
     setHiddenAlterIds(visibilitySettings.hiddenAlterIds || []);
     setPrivacyOverride(visibilitySettings.privacyOverride || null);
-  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride]);
+    setAllowedLevelIds(visibilitySettings.allowedLevelIds || []);
+  }, [visibilitySettings.hiddenAlterIds, visibilitySettings.privacyOverride, visibilitySettings.allowedLevelIds]);
+
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const maxLevelNumber = levels.length ? Math.max(...levels.map((l) => l.number)) : 0;
+  const allowedSet = new Set(allowedLevelIds);
+  const thresholdValue = (() => {
+    const nums = levels.filter((l) => allowedSet.has(l.id)).map((l) => l.number);
+    return nums.length ? Math.max(...nums) : -1;
+  })();
+  const sharedCount = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } }).length;
+  const saveLevels = useCallback((next) => {
+    setAllowedLevelIds(next);
+    onVisibilityChange(friend.userId, { allowedLevelIds: next });
+  }, [friend.userId, onVisibilityChange]);
+
+  // Members this friend shares with me — fetched + decrypted on card expand.
+  const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
+  const [loadingShare, setLoadingShare] = useState(false);
+  useEffect(() => {
+    if (!expanded || sharedMembers !== null) return;
+    setLoadingShare(true);
+    fetchFriendShare(friend.userId)
+      .then((m) => setSharedMembers(Array.isArray(m) ? m : []))
+      .catch(() => setSharedMembers([]))
+      .finally(() => setLoadingShare(false));
+  }, [expanded]);
+
+  // Safety number for this friend — computed when the visibility panel opens.
+  const [safetyNum, setSafetyNum] = useState(null);
+  useEffect(() => {
+    if (!showVisibility || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
+    let cancelled = false;
+    try {
+      const theirs = JSON.parse(friend.publicKey);
+      safetyNumber(myPublicKeyJwk, theirs).then((n) => { if (!cancelled) setSafetyNum(n); }).catch(() => {});
+    } catch { setSafetyNum(null); }
+    return () => { cancelled = true; };
+  }, [showVisibility, myPublicKeyJwk, friend.publicKey]);
 
   const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
     setSavingVis(true);
@@ -241,6 +288,48 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                 </div>
               )}
 
+              {/* Members this friend shares with you (end-to-end encrypted) */}
+              {(loadingShare || (sharedMembers && sharedMembers.length > 0)) && (
+                <div>
+                  <p className="text-xs font-medium text-muted-foreground mb-2 uppercase tracking-wide flex items-center gap-1.5">
+                    <Lock className="w-3 h-3" /> Members they share with you
+                  </p>
+                  {loadingShare ? (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5"><Loader2 className="w-3 h-3 animate-spin" /> Decrypting…</p>
+                  ) : (
+                    <div className="space-y-1.5">
+                      {sharedMembers.map((m) => {
+                        const meta = [m.pronouns, m.role, m.age != null && m.age !== "" ? `age ${m.age}` : ""].filter(Boolean);
+                        return (
+                          <div key={m.id} className="flex items-start gap-2.5 p-2 rounded-lg border border-border/40 bg-muted/10">
+                            <span className="w-6 h-6 rounded-full flex-shrink-0 flex items-center justify-center text-[0.625rem] font-bold text-white mt-0.5" style={{ background: m.color || "#6b7280" }}>
+                              {(m.name?.[0] || "?").toUpperCase()}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="text-sm text-foreground">
+                                {m.name || <span className="italic text-muted-foreground">Member</span>}
+                                {meta.length > 0 && <span className="text-xs text-muted-foreground"> · {meta.join(" · ")}</span>}
+                              </p>
+                              {m.groups?.length > 0 && (
+                                <p className="mt-1 flex flex-wrap gap-1">
+                                  {m.groups.map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
+                                </p>
+                              )}
+                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{m.bio}</p>}
+                              {m.customFields?.length > 0 && (
+                                <dl className="mt-1 text-[0.6875rem] text-muted-foreground space-y-0.5">
+                                  {m.customFields.map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
+                                </dl>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="space-y-1">
@@ -314,6 +403,71 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                       </SelectContent>
                     </Select>
                   </div>
+
+                  {/* ── Member-list sharing (privacy levels) ── */}
+                  <div className="pt-3 border-t border-border/40 space-y-2">
+                    <span className="text-xs font-medium text-foreground">{terms?.Alters || "Members"} this friend can see</span>
+                    {levels.length === 0 ? (
+                      <p className="text-[0.6875rem] text-muted-foreground">
+                        No privacy levels yet. Create them from a {terms?.alter || "member"}'s profile → Options → Sharing levels.
+                      </p>
+                    ) : (
+                      <>
+                        {!advancedLevels ? (
+                          <div className="space-y-1">
+                            <input
+                              type="range" min={-1} max={maxLevelNumber} step={1} value={thresholdValue}
+                              onChange={(e) => { const n = Number(e.target.value); saveLevels(n < 0 ? [] : levelIdsUpToThreshold(levels, n)); }}
+                              className="w-full accent-primary" aria-label="Privacy levels this friend can see" />
+                            <p className="text-[0.6875rem] text-muted-foreground">
+                              {thresholdValue < 0 ? "Sees none of your levels" : `Sees levels 0–${thresholdValue}`}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="flex flex-wrap gap-1.5">
+                            {levels.map((l) => {
+                              const on = allowedSet.has(l.id);
+                              return (
+                                <button key={l.id} type="button" aria-pressed={on}
+                                  onClick={() => saveLevels(on ? allowedLevelIds.filter((id) => id !== l.id) : [...allowedLevelIds, l.id])}
+                                  className={`text-[0.6875rem] px-2 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
+                                  {l.number}. {l.name}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+                        <div className="flex items-center justify-between">
+                          <button type="button" onClick={() => setAdvancedLevels((v) => !v)} className="text-[0.6875rem] text-primary hover:underline">
+                            {advancedLevels ? "Use simple slider" : "Pick specific levels"}
+                          </button>
+                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} shared</span>
+                        </div>
+                        <p className="text-[0.625rem] text-muted-foreground">Live, encrypted sharing is coming soon — this sets who'd be included.</p>
+                      </>
+                    )}
+                  </div>
+
+                  {/* ── Safety number (E2E key verification) ── */}
+                  {safetyNum && (
+                    <div className="pt-3 border-t border-border/40 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-medium text-foreground">Safety number</span>
+                        {verifiedNumber === safetyNum && (
+                          <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
+                        )}
+                      </div>
+                      <p className="font-mono text-xs tracking-wide text-foreground bg-muted/30 rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                      <p className="text-[0.625rem] text-muted-foreground">
+                        Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.
+                      </p>
+                      {verifiedNumber === safetyNum ? (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                      ) : (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                      )}
+                    </div>
+                  )}
 
                   {/* Per-alter toggles — only when effective privacy shows names */}
                   {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
@@ -415,6 +569,7 @@ function PrivacyDisclaimer() {
                 <li><em>Hidden</em> — nothing about who's {t.fronting} at all.</li>
               </ul>
             </li>
+            <li><strong>A member list you choose to share</strong> — <strong>end-to-end encrypted</strong>, so the relay only holds scrambled data it can't read. You control which {t.alters} (via privacy levels) and which details each friend sees; members are private until you add them to a level.</li>
             <li><strong>Friend relationships</strong> — who approved who.</li>
             <li><strong>Push tokens</strong> — a web-push subscription, or a Firebase/FCM token on the installed app — only if you opt in to notifications.</li>
             <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
@@ -676,6 +831,29 @@ export default function FriendsPage() {
   const pendingSent = friendsData?.pendingSent || [];
 
   const terms = useTerms();
+  // E2E keys: ensure this device has a keypair + publish the public key so
+  // friends can fetch it. Also loads my public key for safety-number display.
+  const [myPublicKeyJwk, setMyPublicKeyJwk] = useState(null);
+  const keysPublishedRef = useRef(false);
+  useEffect(() => {
+    if (!identity || !isCryptoAvailable() || keysPublishedRef.current) return;
+    keysPublishedRef.current = true;
+    (async () => {
+      try {
+        const kp = await ensureKeyPair();
+        if (kp) setMyPublicKeyJwk(kp.publicKeyJwk);
+        await publishPublicKey();
+        // Push the current encrypted member-list share now that keys are live.
+        await pushAlterShares();
+      } catch { /* non-fatal — sharing just won't be available until keys publish */ }
+    })();
+  }, [identity]);
+
+  const handleVerifyFriend = useCallback(async (friendUserId, number) => {
+    await setFriendVerified(friendUserId, number);
+    refetchIdentity();
+  }, [refetchIdentity]);
+
   // Sync current front status to the relay once when identity is available (catches cases where
   // the user was already fronting before they set up the Friends profile).
   const syncedRef = useRef(false);
@@ -850,6 +1028,8 @@ export default function FriendsPage() {
       fronters,
       terms: { fronting: terms.fronting, front: terms.front, alter: terms.alter, system: terms.system },
     }).catch(() => {});
+    // Re-push the encrypted member-list share so the level change takes effect.
+    pushAlterShares().catch(() => {});
   }, [activeFront, alters, terms, refetchIdentity]);
 
   if (identityLoading) {
@@ -1029,6 +1209,7 @@ export default function FriendsPage() {
           </div>
         ) : (
           <div className="space-y-3">
+            {isCryptoAvailable() && <E2EInfoCard />}
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Friends ({friends.length})
@@ -1046,6 +1227,9 @@ export default function FriendsPage() {
                 onVisibilityChange={handleVisibilityChange}
                 globalPrivacyLevel={identity?.privacyLevel || 'names'}
                 terms={terms}
+                myPublicKeyJwk={myPublicKeyJwk}
+                verifiedNumber={identity?.verifiedFriends?.[friend.userId] || null}
+                onVerify={handleVerifyFriend}
               />
             ))}
           </div>

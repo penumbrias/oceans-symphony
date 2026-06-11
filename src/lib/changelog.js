@@ -16,6 +16,26 @@ export const CHANGELOG = [
     date: "June 10, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Friends: a tour walkthrough now covers the new encrypted member-sharing, and the privacy explainer spells out that the shared member list is end-to-end encrypted while your live fronting status stays relay-visible so it can send notifications that name who's fronting (set a friend's fronting view to count-only or hidden for full privacy).",
+      },
+      {
+        type: "feature",
+        text: "End-to-end-encrypted member sharing is live: members you put in a privacy level are shared with the friends you grant that level, and opening a friend's card shows what they share with you — only the fields each level allows, and nothing the server can read.",
+      },
+      {
+        type: "feature",
+        text: "Groundwork for end-to-end-encrypted friend sharing: your device now has its own encryption key, and the Friends page explains how it protects your data (a plain-language and a technical version) plus a per-friend “safety number” you can compare to confirm no one's tampering.",
+      },
+      {
+        type: "feature",
+        text: "Privacy levels (groundwork): create privacy levels that each reveal different details, assign members to them (a member can be in several), and choose which levels each friend may see — with a simple slider or by picking exact levels. Members stay private until you add them to a level.",
+      },
+      {
+        type: "feature",
+        text: "New “Export members” feature — make a shareable document of your members (pick who, how much detail, and whether to anonymize names) to send to a friend. Export your whole list from the Alters page, or just one from a profile's Options tab.",
+      },
+      {
         type: "fix",
         text: "Insert-link: linking to a location now opens that location's page (it was landing on the analytics map).",
       },
