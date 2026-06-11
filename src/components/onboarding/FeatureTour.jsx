@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-reac
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
+import AccessibilityFab from "@/components/accessibility/AccessibilityFab";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
@@ -19,6 +20,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: "Welcome to the Interactive Tour!",
       body: `This tour walks through every page and feature of Oceans Symphony, step by step. The app navigates automatically and highlights each element as it's described. Use "Skip section →" to jump ahead, or Back to revisit. Let's go!`,
       route: "/", target: null, look: null, action: null,
+    },
+    {
+      section: "welcome", sectionLabel: "Welcome",
+      emoji: "♿",
+      title: "Accessibility, anytime",
+      body: `See the "Accessibility" button in the corner? It's here through setup and this whole tour. Tap it any time to turn on accessibility (low-vision) mode, bump up the text size, or switch on high contrast — handy if the text is hard to read right now. Everything's also in Settings → Accessibility later.`,
+      route: "/", target: null,
+      look: `the floating "Accessibility" button in the corner of the screen`, action: null,
     },
 
     // ─── DASHBOARD ──────────────────────────────────────────────────────────
@@ -1216,6 +1225,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
           <div className="h-1" />
         </div>
       </div>
+
+      {/* Accessibility quick-access during the tour — sits on the opposite edge
+          from the tour card so it never overlaps it. */}
+      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} />
     </>,
     document.body
   );

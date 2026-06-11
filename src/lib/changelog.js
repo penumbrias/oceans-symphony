@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Accessibility mode, text size, and high contrast are now reachable from a button on the very first setup screens and all through the guided tour — no need to finish onboarding first.",
+      },
+      {
         type: "improve",
         text: "New “Active” toggle in Log Activity — start something now and end & log it later (keeps who's fronting + notes). Replaces the separate Start activity button.",
       },

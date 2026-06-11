@@ -48,6 +48,7 @@ import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
 import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
+import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
 
 // First run: the welcome intro and the storage-setup screen are now a single
 // combined screen (StorageModeSetup renders the welcome copy above the storage
@@ -333,6 +334,10 @@ function App() {
       <ThemeProvider>
         <QueryClientProvider client={queryClientInstance}>
           <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
+          {/* Accessibility quick-access available from the very first screen,
+              before Settings is reachable. Writes localStorage-backed prefs
+              that apply instantly. */}
+          <AccessibilityFab />
         </QueryClientProvider>
       </ThemeProvider>
     );
