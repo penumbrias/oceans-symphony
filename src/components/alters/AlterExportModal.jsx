@@ -36,7 +36,13 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   const formatAlter = useAlterLabel();
   const systemIdentity = useSystemIdentity();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const groupsById = useMemo(() => Object.fromEntries(groups.map((g) => [g.id, g.name || "Group"])), [groups]);
+  // Key by both id and sp_id so an alter's groups[] reference resolves whether
+  // it stores a local id or an SP id.
+  const groupsById = useMemo(() => {
+    const m = {};
+    groups.forEach((g) => { const name = g.name || "Group"; if (g.id) m[g.id] = name; if (g.sp_id) m[g.sp_id] = name; });
+    return m;
+  }, [groups]);
 
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const [selected, setSelected] = useState(() => new Set());
@@ -81,7 +87,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
     setBusy(true);
     try {
       const { chosen, options } = await buildBase();
-      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, options })], { type: "text/html" });
+      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, groups, allAlters: alters, options })], { type: "text/html" });
       const r = await shareFile({ blob, filename: `${fileBase()}-members.html`, title: `${terms.System} members`, prefer: "share" });
       if (r.result === "failed") toast.error("Couldn't share the export");
     } finally { setBusy(false); }
@@ -92,7 +98,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
     setBusy(true);
     try {
       const { chosen, options } = await buildBase();
-      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, options })], { type: "text/html" });
+      const blob = new Blob([buildAlterListExportHtml({ alters: chosen, groupsById, groups, allAlters: alters, options })], { type: "text/html" });
       const r = await shareFile({ blob, filename: `${fileBase()}-members.html`, title: `${terms.System} members`, prefer: "download" });
       if (r.result === "downloaded" || r.result === "shared") toast.success("HTML saved");
       else if (r.result !== "cancelled") toast.error("Couldn't save the export");
@@ -104,7 +110,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
     setBusy(true);
     try {
       const { chosen, options } = await buildBase();
-      const blob = await buildAlterListPdf({ alters: chosen, groupsById, options });
+      const blob = await buildAlterListPdf({ alters: chosen, groupsById, groups, allAlters: alters, options });
       const r = await shareFile({ blob, filename: `${fileBase()}-members.pdf`, title: `${terms.System} members`, prefer: "download" });
       if (r.result === "downloaded" || r.result === "shared") toast.success("PDF saved");
       else if (r.result !== "cancelled") toast.error("Couldn't make the PDF");
@@ -117,7 +123,7 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
     setBusy(true);
     try {
       const { chosen, options } = await buildBase();
-      await navigator.clipboard.writeText(buildAlterListExportText({ alters: chosen, groupsById, options }));
+      await navigator.clipboard.writeText(buildAlterListExportText({ alters: chosen, groupsById, groups, allAlters: alters, options }));
       toast.success("Copied as text");
     } catch { toast.error("Couldn't copy"); }
     finally { setBusy(false); }

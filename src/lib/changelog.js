@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed a crash when turning on the “Current fronters” persistent notification.",
+      },
+      {
+        type: "fix",
+        text: "Export members: “Organize by group” now nests your groups, subgroups, and subsystems properly instead of listing everyone in one flat pile.",
+      },
+      {
         type: "feature",
         text: "Android app: optional always-on notifications you can pin from Settings → Notifications — current fronters, active symptoms, and an activity timer you can end & log from the tray.",
       },

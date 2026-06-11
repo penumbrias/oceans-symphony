@@ -27,7 +27,8 @@ const native = isNative();
 
 export default function usePersistentNotifications() {
   const t = useTerms();
-  const { formatAlter } = useAlterLabel();
+  // useAlterLabel() returns the formatAlter(alter) function directly.
+  const formatAlter = useAlterLabel();
   const [prefs, setPrefs] = useState(() => getAllPersistNotifPrefs());
   const [activeActivity, setActiveActivityState] = useState(() => getActiveActivity());
 

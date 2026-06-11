@@ -9,10 +9,14 @@
 //                                fields (keeps pronouns/role/age/colour)
 //   includeAvatars: bool       — inline avatars from resolvedAvatars (HTML only)
 //   resolvedAvatars: { [id]: url }
-//   groupBy: "none" | "group"  — section the export by each alter's first group
+//   groupBy: "none" | "group"  — section the export by the real group/subsystem
+//                                tree (folders nest by `parent`; subsystems nest
+//                                under their owner alter), respecting nesting
 //   systemName, title
 // jsPDF is dynamically imported inside buildAlterListPdf so it stays out of the
 // main bundle (only loaded when someone actually exports a PDF).
+
+import { isSubsystem, getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 
 function esc(s) {
   return String(s ?? "")
@@ -36,15 +40,21 @@ function hexToRgb(hex) {
   return [(n >> 16) & 255, (n >> 8) & 255, n & 255];
 }
 
+// A group's stable key (matches GroupFolderView / subsystemUtils).
+function groupKeyOf(g) { return g?.sp_id || g?.id; }
+// A reference inside an alter's `groups` array may be a raw id string or a
+// { id, sp_id } object depending on local vs SP-imported data — handle both.
+function alterGroupKey(x) { return typeof x === "string" ? x : (x?.id || x?.sp_id); }
+
 // Per-alter field bundle. `index` is the alter's GLOBAL position (for stable
-// anonymized "Member N" labels across grouped sections).
+// anonymized "Member N" labels across grouped/nested sections).
 function alterFields(a, index, opts, groupsById) {
   const anon = opts.anonymize;
   const name = anon ? `Member ${index + 1}` : (a.name || "Unnamed");
   const alias = anon ? "" : (a.alias || "");
   const meta = [a.pronouns, a.role, a.age != null && a.age !== "" ? `age ${a.age}` : ""].filter(Boolean);
   const groups = (!anon && opts.detail === "full")
-    ? (Array.isArray(a.groups) ? a.groups.map((id) => groupsById[id]).filter(Boolean) : [])
+    ? (Array.isArray(a.groups) ? a.groups.map((g) => groupsById[alterGroupKey(g)]).filter(Boolean) : [])
     : [];
   const customFields = (!anon && opts.detail === "full" && a.alter_custom_fields)
     ? Object.entries(a.alter_custom_fields).filter(([, v]) => v != null && String(v).trim() !== "")
@@ -54,41 +64,101 @@ function alterFields(a, index, opts, groupsById) {
   return { id: a.id, alter: a, name, alias, color: a.color || "", meta, groups, customFields, bio, avatar };
 }
 
-// Prepare + (optionally) section the rows. Returns [{ title|null, rows }].
-function buildSections(alters, options, groupsById) {
-  const rows = alters.map((a, i) => alterFields(a, i, options, groupsById));
-  if (options.groupBy !== "group") return [{ title: null, rows }];
-  const byTitle = new Map();
-  const order = [];
-  for (const row of rows) {
-    const gid = (Array.isArray(row.alter.groups) && row.alter.groups[0]) || null;
-    const title = gid ? (groupsById[gid] || "Group") : "Ungrouped";
-    if (!byTitle.has(title)) { byTitle.set(title, []); order.push(title); }
-    byTitle.get(title).push(row);
+// Flatten the chosen alters into an ordered list of render items that respect
+// the real nested arrangement:
+//   { type: "header", title, depth, subsystem }   — a group / subsystem heading
+//   { type: "alter",  field, depth }              — an alter card
+// When groupBy !== "group" the result is just the alters flat at depth 0.
+//
+// Every traversal is cycle-guarded + depth-clamped (a bad parent/ownership
+// loop must never spin forever — same rule as the rest of the group tree).
+function buildExportItems(alters, options, groupsById, groups = [], allAlters = []) {
+  const indexById = new Map(alters.map((a, i) => [a.id, i]));
+  const field = (a) => alterFields(a, indexById.get(a.id) ?? 0, options, groupsById);
+
+  if (options.groupBy !== "group") {
+    return alters.map((a) => ({ type: "alter", depth: 0, field: field(a) }));
   }
-  order.sort((a, b) => (a === "Ungrouped" ? 1 : b === "Ungrouped" ? -1 : a.localeCompare(b)));
-  return order.map((t) => ({ title: t, rows: byTitle.get(t) }));
+
+  const selectedIds = new Set(alters.map((a) => a.id));
+  const rendered = new Set();
+
+  // An alter card, plus any subsystems it owns rendered nested beneath it
+  // (recursive — subsystem members can themselves own subsystems).
+  const alterItems = (a, depth, visited) => {
+    rendered.add(a.id);
+    const out = [{ type: "alter", depth, field: field(a) }];
+    if (depth <= MAX_SUBSYSTEM_DEPTH && !visited.has(a.id)) {
+      const nextVisited = new Set(visited).add(a.id);
+      for (const sub of getSubsystemsOwnedBy(groups, a.id)) {
+        const members = getMemberAlters(sub, allAlters).filter((m) => selectedIds.has(m.id));
+        if (!members.length) continue;
+        out.push({ type: "header", title: sub.name || "Subsystem", depth: depth + 1, subsystem: true });
+        for (const m of members) out.push(...alterItems(m, depth + 2, nextVisited));
+      }
+    }
+    return out;
+  };
+
+  // Folder tree — regular (non-subsystem) groups nested by `parent`.
+  const folderGroups = (groups || []).filter((g) => !isSubsystem(g));
+  const folderKeys = new Set(folderGroups.map(groupKeyOf));
+  const childrenOf = (key) =>
+    folderGroups.filter((g) => {
+      const p = g.parent || "";
+      // Top level: no parent, "root", or a parent that points at nothing real.
+      if (key === null) return !p || p === "root" || !folderKeys.has(p);
+      return p === key;
+    });
+
+  // Returns [] for an empty folder subtree (no selected members anywhere) so we
+  // don't emit lonely headings.
+  const renderFolder = (group, depth, visitedGroups) => {
+    const key = groupKeyOf(group);
+    if (visitedGroups.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return [];
+    const nextV = new Set(visitedGroups).add(key);
+    const members = getMemberAlters(group, allAlters).filter((m) => selectedIds.has(m.id));
+    const inner = [];
+    for (const m of members) inner.push(...alterItems(m, depth + 1, new Set()));
+    for (const sub of childrenOf(key)) inner.push(...renderFolder(sub, depth + 1, nextV));
+    if (!inner.length) return [];
+    return [{ type: "header", title: group.name || "Group", depth, subsystem: false }, ...inner];
+  };
+
+  const items = [];
+  for (const root of childrenOf(null)) items.push(...renderFolder(root, 0, new Set()));
+
+  // Anything selected we never placed in a group → "Ungrouped" at the end
+  // (still render any subsystems those alters own).
+  const ungrouped = alters.filter((a) => !rendered.has(a.id));
+  if (ungrouped.length) {
+    items.push({ type: "header", title: "Ungrouped", depth: 0, subsystem: false });
+    for (const a of ungrouped) items.push(...alterItems(a, 1, new Set()));
+  }
+  return items;
 }
 
-export function buildAlterListExportText({ alters = [], groupsById = {}, options = {} }) {
+export function buildAlterListExportText({ alters = [], groupsById = {}, groups = [], allAlters = [], options = {} }) {
   const lines = [];
   const header = options.systemName ? `${options.systemName} — Members` : "Members";
   lines.push(header, "=".repeat(header.length), "");
-  for (const section of buildSections(alters, options, groupsById)) {
-    if (section.title) { lines.push(`— ${section.title} —`, ""); }
-    for (const f of section.rows) {
-      lines.push(f.alias ? `${f.name} (${f.alias})` : f.name);
-      if (f.meta.length) lines.push(`  ${f.meta.join(" · ")}`);
-      if (f.groups.length) lines.push(`  Groups: ${f.groups.join(", ")}`);
-      f.customFields.forEach(([k, v]) => lines.push(`  ${k}: ${stripHtml(String(v))}`));
-      if (f.bio) { const t = stripHtml(f.bio); if (t) lines.push(`  ${t.replace(/\n/g, "\n  ")}`); }
-      lines.push("");
+  for (const item of buildExportItems(alters, options, groupsById, groups, allAlters)) {
+    const ind = "  ".repeat(item.depth);
+    if (item.type === "header") {
+      lines.push("", item.subsystem ? `${ind}↳ ${item.title} (subsystem)` : `${ind}— ${item.title} —`, "");
+      continue;
     }
+    const f = item.field;
+    lines.push(`${ind}${f.alias ? `${f.name} (${f.alias})` : f.name}`);
+    if (f.meta.length) lines.push(`${ind}  ${f.meta.join(" · ")}`);
+    if (f.groups.length) lines.push(`${ind}  Groups: ${f.groups.join(", ")}`);
+    f.customFields.forEach(([k, v]) => lines.push(`${ind}  ${k}: ${stripHtml(String(v))}`));
+    if (f.bio) { const t = stripHtml(f.bio); if (t) lines.push(`${ind}  ${t.replace(/\n/g, `\n${ind}  `)}`); }
   }
-  return lines.join("\n").trim();
+  return lines.join("\n").replace(/\n{3,}/g, "\n\n").trim();
 }
 
-export function buildAlterListExportHtml({ alters = [], groupsById = {}, options = {} }) {
+export function buildAlterListExportHtml({ alters = [], groupsById = {}, groups = [], allAlters = [], options = {} }) {
   const docTitle = options.title || (options.systemName ? `${esc(options.systemName)} — Members` : "Members");
   const cardFor = (f) => {
     const swatch = f.color ? `background:${esc(f.color)}` : "background:#94a3b8";
@@ -105,9 +175,14 @@ export function buildAlterListExportHtml({ alters = [], groupsById = {}, options
       </div>${groupsHtml}${cfHtml}${bioHtml}
     </section>`;
   };
-  const body = buildSections(alters, options, groupsById).map((section) => {
-    const cards = section.rows.map(cardFor).join("\n");
-    return section.title ? `<h2 class="group-h">${esc(section.title)}</h2>${cards}` : cards;
+  const body = buildExportItems(alters, options, groupsById, groups, allAlters).map((item) => {
+    const ml = item.depth * 18;
+    if (item.type === "header") {
+      const cls = item.subsystem ? "group-h sub-h" : "group-h";
+      const tag = item.subsystem ? ` <span class="sub-tag">subsystem</span>` : "";
+      return `<h3 class="${cls}" style="margin-left:${ml}px">${esc(item.title)}${tag}</h3>`;
+    }
+    return `<div class="nest" style="margin-left:${ml}px">${cardFor(item.field)}</div>`;
   }).join("\n");
 
   return `<!doctype html><html lang="en"><head><meta charset="utf-8" />
@@ -119,6 +194,8 @@ export function buildAlterListExportHtml({ alters = [], groupsById = {}, options
   .doc { max-width: 720px; margin: 0 auto; }
   h1 { font-size: 1.6rem; margin: 0 0 4px; }
   .group-h { font-size: 1.05rem; margin: 22px 0 8px; color: #4338ca; border-bottom: 1px solid #e2e8f0; padding-bottom: 4px; }
+  .sub-h { color: #7c3aed; font-size: 0.98rem; border-bottom-style: dashed; }
+  .sub-tag { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; background: #f3e8ff; color: #7c3aed; border-radius: 999px; padding: 1px 7px; vertical-align: middle; }
   .sub { color: #64748b; font-size: 0.85rem; margin: 0 0 20px; }
   .card { background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; padding: 14px 16px; margin-bottom: 14px; position: relative; overflow: hidden; }
   .head { display: flex; align-items: center; gap: 12px; }
@@ -146,7 +223,7 @@ export function buildAlterListExportHtml({ alters = [], groupsById = {}, options
 
 // Real PDF via jsPDF — text-laid-out + paginated. Returns a Blob. Async: jsPDF
 // is dynamically imported so it only loads when a PDF is actually requested.
-export async function buildAlterListPdf({ alters = [], groupsById = {}, options = {} }) {
+export async function buildAlterListPdf({ alters = [], groupsById = {}, groups = [], allAlters = [], options = {} }) {
   const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
   const M = 16, PAGE_W = 210, PAGE_H = 297, CW = PAGE_W - M * 2;
@@ -158,30 +235,34 @@ export async function buildAlterListPdf({ alters = [], groupsById = {}, options 
   doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(120, 130, 145);
   doc.text(`${alters.length} member${alters.length === 1 ? "" : "s"} · exported from Oceans Symphony${options.anonymize ? " · anonymized" : ""}`, M, y); y += 8;
 
-  for (const section of buildSections(alters, options, groupsById)) {
-    if (section.title) {
-      ensure(10);
-      doc.setFont("helvetica", "bold"); doc.setFontSize(12); doc.setTextColor(67, 56, 202);
-      doc.text(section.title, M, y); y += 6;
+  for (const item of buildExportItems(alters, options, groupsById, groups, allAlters)) {
+    const indent = Math.min(item.depth, 8) * 5; // clamp visual indent
+    const x = M + indent;
+    if (item.type === "header") {
+      ensure(10); y += 2;
+      doc.setFont("helvetica", "bold"); doc.setFontSize(item.subsystem ? 10.5 : 12);
+      if (item.subsystem) doc.setTextColor(124, 58, 237); else doc.setTextColor(67, 56, 202);
+      doc.text(item.subsystem ? `${item.title}  ·  subsystem` : item.title, x, y); y += 6;
+      continue;
     }
-    for (const f of section.rows) {
-      ensure(12);
-      const [r, g, b] = hexToRgb(f.color);
-      doc.setFillColor(r, g, b); doc.circle(M + 1.6, y - 1.4, 1.6, "F");
-      doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(30, 41, 59);
-      doc.text(`${f.name}${f.alias ? ` (${f.alias})` : ""}`, M + 5, y); y += 5;
-      doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 100, 115);
-      const metaLine = [...f.meta, ...(f.groups.length ? [`Groups: ${f.groups.join(", ")}`] : [])].join("   ·   ");
-      if (metaLine) { for (const ln of doc.splitTextToSize(metaLine, CW - 5)) { ensure(4.5); doc.text(ln, M + 5, y); y += 4.5; } }
-      for (const [k, v] of f.customFields) {
-        for (const ln of doc.splitTextToSize(`${k}: ${stripHtml(String(v))}`, CW - 5)) { ensure(4.5); doc.text(ln, M + 5, y); y += 4.5; }
-      }
-      if (f.bio) {
-        const bio = stripHtml(f.bio);
-        if (bio) { doc.setTextColor(60, 70, 85); for (const ln of doc.splitTextToSize(bio, CW - 5)) { ensure(4.5); doc.text(ln, M + 5, y); y += 4.5; } }
-      }
-      y += 4;
+    const f = item.field;
+    const availW = CW - indent - 5;
+    ensure(12);
+    const [r, g, b] = hexToRgb(f.color);
+    doc.setFillColor(r, g, b); doc.circle(x + 1.6, y - 1.4, 1.6, "F");
+    doc.setFont("helvetica", "bold"); doc.setFontSize(11.5); doc.setTextColor(30, 41, 59);
+    doc.text(`${f.name}${f.alias ? ` (${f.alias})` : ""}`, x + 5, y); y += 5;
+    doc.setFont("helvetica", "normal"); doc.setFontSize(9); doc.setTextColor(90, 100, 115);
+    const metaLine = [...f.meta, ...(f.groups.length ? [`Groups: ${f.groups.join(", ")}`] : [])].join("   ·   ");
+    if (metaLine) { for (const ln of doc.splitTextToSize(metaLine, availW)) { ensure(4.5); doc.text(ln, x + 5, y); y += 4.5; } }
+    for (const [k, v] of f.customFields) {
+      for (const ln of doc.splitTextToSize(`${k}: ${stripHtml(String(v))}`, availW)) { ensure(4.5); doc.text(ln, x + 5, y); y += 4.5; }
     }
+    if (f.bio) {
+      const bio = stripHtml(f.bio);
+      if (bio) { doc.setTextColor(60, 70, 85); for (const ln of doc.splitTextToSize(bio, availW)) { ensure(4.5); doc.text(ln, x + 5, y); y += 4.5; } }
+    }
+    y += 4;
   }
   return doc.output("blob");
 }

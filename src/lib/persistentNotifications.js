@@ -86,7 +86,10 @@ export async function syncPersistentNotification(type, { enabled, title, body } 
           channelId: CHANNEL_ID,
           ongoing: true, // non-dismissible, persistent (Android)
           autoCancel: false, // tapping doesn't clear it
-          smallIcon: "ic_stat_icon_config_sample",
+          // No custom smallIcon — referencing a drawable that isn't bundled
+          // throws a native Resources.NotFoundException that crashes past the
+          // JS try/catch. Match the working reminder scheduler: let the plugin
+          // fall back to the app's default notification icon.
         },
       ],
     });
