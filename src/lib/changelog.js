@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Friends: the “safety number” for verifying an encrypted connection now shows whenever you expand a friend's card (it was buried under Visibility), with a note when a friend hasn't set up encryption yet.",
+      },
+      {
+        type: "fix",
+        text: "Recurring plans: you can now manage each occurrence — including past ones — by opening it and tapping “Manage this occurrence” to mark it done/partial/skipped/cancelled or reschedule.",
+      },
+      {
+        type: "improve",
+        text: "“Start activity” now uses the same activity picker as logging an activity.",
+      },
+      {
         type: "feature",
         text: "Activity Tracker: a new “Start activity” button times an activity in real time, like start/end sleep — pick what you're doing and tap End to log it automatically with the elapsed time. It keeps running even if you close the app.",
       },

@@ -132,17 +132,17 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
       .finally(() => setLoadingShare(false));
   }, [expanded]);
 
-  // Safety number for this friend — computed when the visibility panel opens.
+  // Safety number for this friend — computed whenever the card is expanded.
   const [safetyNum, setSafetyNum] = useState(null);
   useEffect(() => {
-    if (!showVisibility || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
+    if (!expanded || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
     let cancelled = false;
     try {
       const theirs = JSON.parse(friend.publicKey);
       safetyNumber(myPublicKeyJwk, theirs).then((n) => { if (!cancelled) setSafetyNum(n); }).catch(() => {});
     } catch { setSafetyNum(null); }
     return () => { cancelled = true; };
-  }, [showVisibility, myPublicKeyJwk, friend.publicKey]);
+  }, [expanded, myPublicKeyJwk, friend.publicKey]);
 
   const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
     setSavingVis(true);
@@ -331,6 +331,33 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                 </div>
               )}
 
+              {/* ── Safety number (E2E key verification) — always shown when expanded ── */}
+              <div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground flex items-center gap-1.5"><Lock className="w-3 h-3" /> Safety number</span>
+                  {safetyNum && verifiedNumber === safetyNum && (
+                    <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
+                  )}
+                </div>
+                {safetyNum ? (
+                  <>
+                    <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                    <p className="text-[0.625rem] text-muted-foreground">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
+                    {verifiedNumber === safetyNum ? (
+                      <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                    ) : (
+                      <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                    )}
+                  </>
+                ) : (
+                  <p className="text-[0.625rem] text-muted-foreground">
+                    {friend.publicKey
+                      ? "Preparing…"
+                      : "This friend hasn't set up encrypted sharing yet — the number appears once they've opened the Friends page on a version that supports it."}
+                  </p>
+                )}
+              </div>
+
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="space-y-1">
@@ -448,27 +475,6 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                       </>
                     )}
                   </div>
-
-                  {/* ── Safety number (E2E key verification) ── */}
-                  {safetyNum && (
-                    <div className="pt-3 border-t border-border/40 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">Safety number</span>
-                        {verifiedNumber === safetyNum && (
-                          <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
-                        )}
-                      </div>
-                      <p className="font-mono text-xs tracking-wide text-foreground bg-muted/30 rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
-                      <p className="text-[0.625rem] text-muted-foreground">
-                        Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.
-                      </p>
-                      {verifiedNumber === safetyNum ? (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
-                      ) : (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
-                      )}
-                    </div>
-                  )}
 
                   {/* Per-alter toggles — only when effective privacy shows names */}
                   {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (

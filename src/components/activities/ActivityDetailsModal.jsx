@@ -13,7 +13,6 @@ import AlterAvatar from "@/components/shared/AlterAvatar";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
-import { saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper } from "@/lib/whisperUtils";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
@@ -557,13 +556,18 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                       </div>
                     )}
                     <div className="flex gap-2 pt-2 flex-wrap">
-                      {statusFor(act) !== ACTIVITY_STATUSES.LOGGED && (
+                      {/* Show status management for any non-logged plan AND for
+                          every instance of a recurring series — including past
+                          occurrences (which derive a LOGGED status from their
+                          date), so a missed/attended recurring session can still
+                          be marked done / partial / skipped / rescheduled. */}
+                      {(statusFor(act) !== ACTIVITY_STATUSES.LOGGED || act.recurrence_group_id) && (
                         <Button
                           variant="outline"
                           onClick={() => setLifecycleAct(act)}
                           className="flex-1 min-w-[120px]"
                         >
-                          Manage Plan
+                          {act.recurrence_group_id ? "Manage this occurrence" : "Manage Plan"}
                         </Button>
                       )}
                       <Button

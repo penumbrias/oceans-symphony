@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Play, Square, X, Loader2, Timer } from "lucide-react";
 import { toast } from "sonner";
-import ActivityPicker from "@/components/activities/ActivityPicker";
+import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { getActiveActivity, setActiveActivity, clearActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 
@@ -124,7 +124,7 @@ export default function ActivitySessionControl() {
         <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
           <DialogHeader><DialogTitle>Start an activity</DialogTitle></DialogHeader>
           <p className="text-xs text-muted-foreground -mt-1">Pick what you're doing — it times in real time until you tap End, then it's logged automatically.</p>
-          <ActivityPicker selectedActivities={picked} onActivityChange={setPicked} />
+          <ActivityPillSelector selectedActivities={picked} onActivityChange={setPicked} />
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={() => { setShowStart(false); setPicked([]); }}>Cancel</Button>
             <Button onClick={startActivity} disabled={busy || !picked.length} className="gap-1.5">
