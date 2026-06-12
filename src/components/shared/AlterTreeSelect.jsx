@@ -101,6 +101,8 @@ export default function AlterTreeSelect({
   controlPosition = "below", // "below" (stacked, e.g. pills) | "right" (inline, e.g. an eye toggle)
   busy = false,
   maxHeight = "55vh",
+  alters: altersProp = null, // optional: render a SUBSET instead of the whole system
+  groups: groupsProp = null,
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -112,8 +114,10 @@ export default function AlterTreeSelect({
   const [includeNested, setIncludeNested] = useState(true);
   const [shown, setShown] = useState(PAGE);
 
-  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const { data: altersData = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: !altersProp });
+  const { data: groupsData = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: !groupsProp });
+  const alters = altersProp || altersData;
+  const groups = groupsProp || groupsData;
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const bulk = typeof onSetMany === "function";
 

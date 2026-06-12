@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "More member pickers now use the one standard list (searchable, by subsystem/group, lazy): the journal author filter, the chat speaker picker, and the activity fronter picker.",
+      },
+      {
+        type: "improve",
         text: "The Groups tab (export + privacy levels) now expands so you can see and pick the alters inside each group; subsystems stay under the Members tab.",
       },
       {

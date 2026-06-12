@@ -3,7 +3,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
-import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X, Check } from "lucide-react";
+import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X } from "lucide-react";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import JournalEntryCard from "@/components/journal/JournalEntryCard";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import JournalViewModal from "@/components/journal/JournalViewModal";
 import FolderGrid from "@/components/journal/FolderGrid";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 
 const getSavedFolders = () => {
@@ -59,7 +60,6 @@ export default function Journals() {
   // explicitly refined the selection via the dropdown. Persists for the
   // page lifetime only (intentional — not stored across reloads).
   const [fronterMenuOpen, setFronterMenuOpen] = useState(false);
-  const [fronterMenuSearch, setFronterMenuSearch] = useState("");
   const [fronterFilterIds, setFronterFilterIds] = useState(null);
   const fronterPressTimerRef = useRef(null);
   const fronterLongPressedRef = useRef(false);
@@ -650,42 +650,17 @@ export default function Journals() {
                       Current {terms.fronters}
                     </button>
                   </div>
-                  <div className="px-3 py-2 border-b border-border/50">
-                    <input
-                      autoFocus
-                      value={fronterMenuSearch}
-                      onChange={(e) => setFronterMenuSearch(e.target.value)}
-                      placeholder={`Search ${terms.alters}...`}
-                      className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
-                    />
-                  </div>
-                  <div className="max-h-60 overflow-y-auto">
-                    {alters
-                      .filter((a) => !a.is_archived)
-                      .filter((a) => !fronterMenuSearch || a.name?.toLowerCase().includes(fronterMenuSearch.toLowerCase()))
-                      .sort((a, b) => (a.name || "").localeCompare(b.name || ""))
-                      .map((a) => {
-                        const selected = (fronterFilterIds || new Set(currentAlterIds)).has(a.id);
-                        const isCurrent = currentAlterIds.includes(a.id);
-                        return (
-                          <button
-                            key={a.id}
-                            type="button"
-                            onClick={() => toggleFronterFilterAlter(a.id)}
-                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${selected ? "bg-primary/5" : ""}`}
-                          >
-                            <div className="w-4 h-4 rounded border flex items-center justify-center flex-shrink-0"
-                              style={{ backgroundColor: selected ? (a.color || "#94a3b8") : "transparent", borderColor: selected ? (a.color || "#94a3b8") : "hsl(var(--border))" }}>
-                              {selected && <Check className="w-3 h-3 text-white" />}
-                            </div>
-                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                            <span className={`flex-1 truncate ${selected ? "text-foreground font-medium" : "text-muted-foreground"}`}>{a.name}</span>
-                            {isCurrent && (
-                              <span className="text-[0.5625rem] uppercase tracking-wide text-primary/80 font-semibold">{terms.Front}</span>
-                            )}
-                          </button>
-                        );
+                  <div className="px-3 py-2">
+                    <AlterTreeSelect
+                      isSelected={(id) => (fronterFilterIds || new Set(currentAlterIds)).has(id)}
+                      onToggle={(a) => toggleFronterFilterAlter(a.id)}
+                      onSetMany={(arr, on) => setFronterFilterIds((prev) => {
+                        const base = prev ? new Set(prev) : new Set(currentAlterIds);
+                        for (const a of arr) { if (on) base.add(a.id); else base.delete(a.id); }
+                        return base;
                       })}
+                      maxHeight="48vh"
+                    />
                   </div>
                   <div className="px-3 py-2 border-t border-border/50 flex justify-end">
                     <button
