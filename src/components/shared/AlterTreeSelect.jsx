@@ -48,20 +48,29 @@ function buildSubsystemItems(alters, groups, expanded) {
 }
 
 // Folder tree: non-subsystem groups nested by `parent`; expand a group to see
-// its member alters + child groups. Subsystems never appear as roots here.
+// its member alters + child groups. Subsystems never appear here (they live in
+// the Members tab's by-subsystem view).
+//
+// A group's `parent` may reference its target by EITHER id or sp_id, so we
+// resolve it through a combined lookup — the previous "is the parent in the
+// folder-key set?" test treated every sp_id-referenced (or subsystem-parented)
+// child as a root, which is why the whole tree rendered flat.
 function buildFolderItems(alters, groups, expanded) {
   const folderGroups = (groups || []).filter((g) => !isSubsystem(g));
-  const folderKeys = new Set(folderGroups.map(groupKeyOf));
-  const childrenOf = (key) =>
-    folderGroups.filter((g) => {
-      const p = g.parent || "";
-      if (key === null) return !p || p === "root" || !folderKeys.has(p);
-      return p === key;
-    });
+  const byRef = {};
+  for (const g of folderGroups) { byRef[g.id] = g; if (g.sp_id) byRef[g.sp_id] = g; }
+  const resolveParentKey = (p) => {
+    if (!p || p === "root") return null;
+    const pg = byRef[p];
+    return pg ? groupKeyOf(pg) : null; // dangling / subsystem parent → treat as root
+  };
+  const childrenOf = (key) => folderGroups.filter((g) => resolveParentKey(g.parent) === key);
   const items = [];
+  const seen = new Set();
   const emit = (group, depth, visited) => {
     const key = groupKeyOf(group);
     if (visited.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return;
+    seen.add(key);
     const nv = new Set(visited).add(key);
     const members = getMemberAlters(group, alters);
     items.push({ type: "group", depth, group, members, subsystem: false });
@@ -70,6 +79,9 @@ function buildFolderItems(alters, groups, expanded) {
     for (const sub of childrenOf(key)) emit(sub, depth + 1, nv);
   };
   for (const root of childrenOf(null)) emit(root, 0, new Set());
+  // Cycle / dangling-parent survivors: surface any folder-group not yet reached
+  // at the root so it stays selectable.
+  for (const g of folderGroups) if (!seen.has(groupKeyOf(g))) emit(g, 0, new Set());
   return items;
 }
 

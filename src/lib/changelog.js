@@ -16,6 +16,22 @@ export const CHANGELOG = [
     date: "June 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Revealing a whisper on a Dashboard bulletin no longer opens the author's page by mistake.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin signposting keeps every author again (not just the last one); “Signed by” now has a Clear all.",
+      },
+      {
+        type: "fix",
+        text: "The currently-fronting notification no longer lists the primary fronter twice.",
+      },
+      {
+        type: "fix",
+        text: "Group pickers now show your group folders properly nested instead of flattened to one level.",
+      },
+      {
         type: "improve",
         text: "Set Fronters and the Quick Check-In “Who's fronting” picker now have a by-subsystem/group view for finding members in large systems.",
       },

@@ -9,13 +9,23 @@ import { SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 // the text (an emoji, "-name", or the fronter fallback); this just lets you
 // drop one you didn't mean to include. Terms-aware; reused across the bulletin /
 // comment / chat / journal composers.
-export default function AuthorChipsEditable({ authors = [], onRemove, label }) {
+export default function AuthorChipsEditable({ authors = [], onRemove, onClearAll, label }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   if (!authors.length) return null;
   return (
     <div className="flex items-center gap-1.5 flex-wrap mt-2" role="group" aria-label={label || "Signed by"}>
       <span className="text-[0.625rem] uppercase tracking-wider text-muted-foreground/80 flex-shrink-0">{label || "Signed by"}</span>
+      {onClearAll && authors.length > 1 && (
+        <button
+          type="button"
+          onClick={onClearAll}
+          className="text-[0.625rem] uppercase tracking-wide text-muted-foreground hover:text-destructive flex-shrink-0"
+          title="Remove every author"
+        >
+          Clear all
+        </button>
+      )}
       {authors.map((a) => {
         const isSystem = a.isSystem || a.id === SYSTEM_SENTINEL_ID;
         const name = isSystem ? (terms.System || "System") : formatAlter(a);

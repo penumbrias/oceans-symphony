@@ -146,10 +146,17 @@ export default function usePersistentNotifications() {
     const active = sessions.filter((s) => s.is_active !== false);
     const primary = active.find((s) => s.is_primary);
     const ordered = [primary, ...active.filter((s) => s !== primary)].filter(Boolean);
-    const names = ordered
-      .map((s) => altersById[s.alter_id || s.primary_alter_id])
-      .filter(Boolean)
-      .map((a) => formatAlter(a));
+    // Dedupe by alter id — duplicate active sessions for the same alter (a
+    // known stale-data condition the modal cleans up lazily) otherwise listed
+    // the primary fronter twice in the notification.
+    const seenIds = new Set();
+    const names = [];
+    for (const s of ordered) {
+      const a = altersById[s.alter_id || s.primary_alter_id];
+      if (!a || seenIds.has(a.id)) continue;
+      seenIds.add(a.id);
+      names.push(formatAlter(a));
+    }
     syncPersistentNotification("fronters", {
       enabled: names.length > 0,
       title: `Currently ${t.fronting}`,
