@@ -8,6 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Loader2, GitMerge, Split, MoonStar, Sunrise, ChevronRight, ChevronLeft, Check, X, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 
 // ─── AlterChip ────────────────────────────────────────────────────────────────
@@ -128,8 +129,6 @@ function StepType({ value, onChange }) {
 function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusionTypeChange }) {
   const terms = useTerms();
   const isSingle = type === "split"; // locks to one selection
-  const requiresOne = type !== "fusion"; // validation: "one" vs "two"
-  const [search, setSearch] = useState("");
 
   const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
     : type === "split" ? "Which alter is splitting?"
@@ -137,61 +136,16 @@ function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusi
     : type === "emergence" ? "Which alters emerged or were first recognized?"
     : "Which alters are returning?";
 
-  const filtered = useMemo(() =>
-    alters.filter(a => a.name?.toLowerCase().includes(search.toLowerCase())),
-    [alters, search]
-  );
-
   return (
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground">{label}</p>
 
-      {/* Search input */}
-      <div className="relative">
-        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" />
-        <Input
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          placeholder={`Search ${terms.alters}...`}
-          className="pl-8 text-sm h-8"
-        />
-      </div>
-
-      {/* Scrollable alter list */}
-      <div className="max-h-52 overflow-y-auto space-y-1 rounded-lg border border-border/50 p-1.5 bg-muted/10">
-        {filtered.map(a => {
-          const isSelected = selected.includes(a.id);
-          const isDisabled = isSingle && selected.length > 0 && !isSelected;
-          return (
-            <button
-              key={a.id}
-              type="button"
-              disabled={isDisabled}
-              onClick={() => onToggle(a.id, isSingle)}
-              className={cn(
-                "w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-left transition-all",
-                isSelected
-                  ? "border-primary/50 bg-primary/10"
-                  : "border-transparent hover:border-border/60 hover:bg-muted/40",
-                isDisabled && "opacity-40 cursor-not-allowed"
-              )}
-            >
-              <AlterAvatar alter={a} size={6} />
-              <span className="text-sm font-medium flex-1 truncate min-w-0"
-                style={{ color: isSelected ? (a.color || "hsl(var(--primary))") : undefined }}>
-                {a.name}
-              </span>
-              {isSelected && (
-                <Check className="w-3.5 h-3.5 flex-shrink-0"
-                  style={{ color: a.color || "hsl(var(--primary))" }} />
-              )}
-            </button>
-          );
-        })}
-        {filtered.length === 0 && (
-          <p className="text-xs text-muted-foreground italic px-2.5 py-2">No alters found</p>
-        )}
-      </div>
+      <AlterTreeSelect
+        selectionMode={isSingle ? "single" : "multi"}
+        isSelected={(id) => selected.includes(id)}
+        onToggle={(a) => onToggle(a.id, isSingle)}
+        maxHeight="40vh"
+      />
 
       {/* Selected pills */}
       {selected.length > 0 && (

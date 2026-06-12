@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Inner-world map: the “not on this layer” list is now the standard searchable, by-subsystem/group list — tap an alter to arm it, then tap the canvas to drop it. Recording a fusion/split/dormancy uses the same list too.",
+      },
+      {
+        type: "improve",
         text: "Journal “Written by” now lets you pick one or more authors from the standard searchable, by-subsystem/group list (the first is the primary author). The create-relationship pickers use the same list (single-select).",
       },
       {
