@@ -122,6 +122,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
 
   // Members this friend shares with me — fetched + decrypted on card expand.
   const [showVisibleList, setShowVisibleList] = useState(false);
+  const [visShown, setVisShown] = useState(60);
   const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
   const [loadingShare, setLoadingShare] = useState(false);
   useEffect(() => {
@@ -483,18 +484,19 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           // card — tap to reveal the (capped) list.
                           return (
                             <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
-                              <button type="button" onClick={() => setShowVisibleList((v) => !v)} className="text-[0.625rem] text-primary hover:underline">
+                              <button type="button" onClick={() => { setShowVisibleList((v) => !v); setVisShown(60); }} className="text-[0.625rem] text-primary hover:underline">
                                 {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} they can see
                               </button>
                               {showVisibleList && (
-                                <div className="flex flex-wrap gap-1 pt-1">
-                                  {visible.slice(0, 60).map(({ alter }) => (
-                                    <span key={alter.id} className="inline-flex items-center gap-1 text-[0.625rem] px-1.5 py-0.5 rounded-full bg-card border border-border/40">
-                                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: alter.color || "#6b7280" }} />
-                                      {alter.name}
-                                    </span>
+                                <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 mt-1 pr-1"
+                                  onScroll={(e) => { const el = e.currentTarget; if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) setVisShown((s) => s + 60); }}>
+                                  {[...visible].sort((a, b) => (a.alter.name || "").localeCompare(b.alter.name || "")).slice(0, visShown).map(({ alter }) => (
+                                    <div key={alter.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/20">
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: alter.color || "#6b7280" }} />
+                                      <span className="text-[0.6875rem] text-foreground/90 truncate">{alter.name}</span>
+                                    </div>
                                   ))}
-                                  {visible.length > 60 && <span className="text-[0.625rem] text-muted-foreground self-center">+{visible.length - 60} more</span>}
+                                  {visible.length > visShown && <p className="text-[0.625rem] text-muted-foreground italic py-1 text-center">Loading more… ({visShown}/{visible.length})</p>}
                                 </div>
                               )}
                             </div>

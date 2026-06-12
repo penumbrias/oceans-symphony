@@ -4,10 +4,10 @@ import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
-import { Download, Copy, Share2, Check, Search, Loader2, Users, FileText } from "lucide-react";
+import { Download, Copy, Share2, Loader2, Users, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
-import { useAlterLabel } from "@/lib/useAlterLabel";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { shareFile } from "@/lib/shareFile";
@@ -33,7 +33,6 @@ async function resolveToDataUrl(imageUrl) {
 
 export default function AlterExportModal({ isOpen, onClose, alters = [], presetAlterId = null }) {
   const terms = useTerms();
-  const formatAlter = useAlterLabel();
   const systemIdentity = useSystemIdentity();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   // Key by both id and sp_id so an alter's groups[] reference resolves whether
@@ -46,7 +45,6 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
 
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const [selected, setSelected] = useState(() => new Set());
-  const [search, setSearch] = useState("");
   const [detail, setDetail] = useState("full");
   const [anonymize, setAnonymize] = useState(false);
   const [includeAvatars, setIncludeAvatars] = useState(false);
@@ -57,15 +55,8 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   useEffect(() => {
     if (!isOpen) return;
     setSelected(new Set(presetAlterId ? [presetAlterId] : liveAlters.map((a) => a.id)));
-    setSearch("");
   }, [isOpen, presetAlterId, liveAlters.length]);
 
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return liveAlters.filter((a) => !q || a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q));
-  }, [liveAlters, search]);
-
-  const toggle = (id) => setSelected((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const selectAll = () => setSelected(new Set(liveAlters.map((a) => a.id)));
   const selectNone = () => setSelected(new Set());
 
@@ -178,25 +169,12 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
                 <button type="button" onClick={selectNone} className="text-muted-foreground hover:underline">None</button>
               </div>
             </div>
-            <div className="relative">
-              <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-              <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
-                className="w-full h-8 pl-8 pr-2 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-            </div>
-            <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 rounded-lg border border-border/40 p-1">
-              {filtered.map((a) => {
-                const on = selected.has(a.id);
-                return (
-                  <button key={a.id} type="button" aria-pressed={on} onClick={() => toggle(a.id)}
-                    className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg text-left text-xs min-h-[36px] transition-colors ${on ? "bg-primary/15 ring-1 ring-primary/30" : "hover:bg-muted/40"}`}>
-                    <span className="w-5 h-5 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
-                    <span className={`flex-1 truncate ${on ? "font-semibold text-primary" : ""}`}>{formatAlter(a)}</span>
-                    {on && <Check className="w-4 h-4 text-primary flex-shrink-0" />}
-                  </button>
-                );
-              })}
-              {filtered.length === 0 && <p className="text-xs text-muted-foreground/60 italic px-2 py-3 text-center">No matches.</p>}
-            </div>
+            <AlterTreeSelect
+              isSelected={(id) => selected.has(id)}
+              onToggle={(a, on) => setSelected((s) => { const n = new Set(s); if (on) n.add(a.id); else n.delete(a.id); return n; })}
+              onSetMany={(arr, on) => setSelected((s) => { const n = new Set(s); for (const a of arr) { if (on) n.add(a.id); else n.delete(a.id); } return n; })}
+              maxHeight="42vh"
+            />
           </div>
         )}
 

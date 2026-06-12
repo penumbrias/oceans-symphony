@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Picking members (export, privacy levels) now uses one consistent picker everywhere — Members (by subsystem or flat) + Groups tabs, search, Select all / Clear all — and long lists load as you scroll instead of capping. The Export “who to include” list can now be organized by subsystem too.",
+      },
+      {
+        type: "fix",
+        text: "Friends Groups tab now lists only folder groups (subsystems live under the Members tab), and the “members they can see” list is scrollable + loads on scroll.",
+      },
+      {
+        type: "improve",
         text: "Privacy-level member picker now scales to large systems: a Members tab (by-subsystem or flat, with Select all / Clear all) and a Groups tab to assign a whole group/subsystem at once. Groups stay collapsed until you open them.",
       },
       {
