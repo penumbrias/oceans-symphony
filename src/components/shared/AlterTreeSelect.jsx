@@ -105,6 +105,7 @@ export default function AlterTreeSelect({
   alters: altersProp = null, // optional: render a SUBSET instead of the whole system
   groups: groupsProp = null,
   excludeIds = null, // optional: alter ids to leave out entirely
+  disabledIds = null, // optional: alter ids shown but dimmed + non-selectable (keeps the subtree reachable)
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -121,6 +122,7 @@ export default function AlterTreeSelect({
   const alters = altersProp || altersData;
   const groups = groupsProp || groupsData;
   const excludeSet = useMemo(() => new Set(excludeIds || []), [excludeIds]);
+  const disabledSet = useMemo(() => new Set(disabledIds || []), [disabledIds]);
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived && !excludeSet.has(a.id)), [alters, excludeSet]);
   const single = selectionMode === "single";
   const bulk = typeof onSetMany === "function" && !single;
@@ -141,11 +143,14 @@ export default function AlterTreeSelect({
   const memberItems = useMemo(() => (tab === "members" && nested && !searchHits ? buildSubsystemItems(liveAlters, groups, expanded) : []), [tab, nested, searchHits, liveAlters, groups, expanded]);
   const folderItems = useMemo(() => (tab === "groups" ? buildFolderItems(liveAlters, groups, groupExpanded) : []), [tab, liveAlters, groups, groupExpanded]);
 
-  const AlterRow = ({ a, depth = 0 }) => {
+  // Plain render FUNCTIONS (not inline components) so React doesn't see a new
+  // component type each render and remount the whole list — that remount was
+  // resetting scroll-to-top every time a group expanded or a level changed.
+  const renderAlterRow = (a, depth = 0, key) => {
     if (renderControl) {
       if (controlPosition === "right") {
         return (
-          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/20" style={{ marginLeft: depth * 14 }}>
+          <div key={key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/20" style={{ marginLeft: depth * 14 }}>
             <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
             <span className="text-xs truncate flex-1">{formatAlter(a)}</span>
             {renderControl(a)}
@@ -153,7 +158,7 @@ export default function AlterTreeSelect({
         );
       }
       return (
-        <div className="rounded-lg border border-border/40 bg-muted/10 px-2 py-1.5" style={{ marginLeft: depth * 14 }}>
+        <div key={key} className="rounded-lg border border-border/40 bg-muted/10 px-2 py-1.5" style={{ marginLeft: depth * 14 }}>
           <div className="flex items-center gap-2 mb-1">
             <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
             <span className="text-xs font-medium truncate">{formatAlter(a)}</span>
@@ -163,25 +168,27 @@ export default function AlterTreeSelect({
       );
     }
     const on = isSelected(a.id);
+    const dis = disabledSet.has(a.id);
     return (
-      <button type="button" disabled={busy} onClick={() => onToggle?.(a, single ? true : !on)}
-        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
+      <button key={key} type="button" disabled={busy || dis} onClick={() => !dis && onToggle?.(a, single ? true : !on)}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${dis ? "opacity-40 cursor-not-allowed border-transparent" : on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
         style={{ marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
         <span className={`w-4 h-4 ${single ? "rounded-full" : "rounded-md"} border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && (single ? <span className="w-1.5 h-1.5 rounded-full bg-current" /> : <Check className="w-3 h-3" />)}</span>
         <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
         <span className={`text-xs truncate ${on ? "font-medium text-foreground" : "text-foreground/90"}`}>{formatAlter(a)}</span>
+        {dis && <span className="ml-auto text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0">✓</span>}
       </button>
     );
   };
 
-  const GroupHeader = ({ item, expandedSet, onExpand }) => {
-    const key = groupKeyOf(item.group);
-    const open = expandedSet.has(key);
+  const renderGroupHeader = (item, expandedSet, onExpand, key) => {
+    const gkey = groupKeyOf(item.group);
+    const open = expandedSet.has(gkey);
     const bulkMembers = item.subsystem ? item.members : collectGroupMembers(item.group, liveAlters, groups, includeNested);
     const onCount = bulkMembers.filter((a) => isSelected(a.id)).length;
     return (
-      <div className="flex items-center gap-1.5 pt-1.5 pb-0.5" style={{ paddingLeft: item.depth * 14 }}>
-        <button type="button" onClick={() => onExpand(key)} className="flex items-center gap-1 min-w-0 flex-1">
+      <div key={key} className="flex items-center gap-1.5 pt-1.5 pb-0.5" style={{ paddingLeft: item.depth * 14 }}>
+        <button type="button" onClick={() => onExpand(gkey)} className="flex items-center gap-1 min-w-0 flex-1">
           {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
           {item.subsystem ? <FolderTree className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" /> : <Folder className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
           <span className="text-[0.6875rem] font-semibold uppercase tracking-wide truncate" style={{ color: item.group.color || undefined }}>{item.group.name}</span>
@@ -198,9 +205,9 @@ export default function AlterTreeSelect({
   };
 
   const renderItems = (items, expandedSet, onExpand) => items.slice(0, shown).map((item, idx) => {
-    if (item.type === "alter") return <AlterRow key={`a-${item.alter.id}-${idx}`} a={item.alter} depth={item.depth} />;
+    if (item.type === "alter") return renderAlterRow(item.alter, item.depth, `a-${item.alter.id}-${idx}`);
     if (item.type === "ref") return <p key={`r-${idx}`} className="text-[0.625rem] text-muted-foreground italic py-0.5" style={{ paddingLeft: item.depth * 14 + 8 }}>↳ {item.name} — listed above</p>;
-    return <GroupHeader key={`g-${item.group.id}-${idx}`} item={item} expandedSet={expandedSet} onExpand={onExpand} />;
+    return renderGroupHeader(item, expandedSet, onExpand, `g-${item.group.id}-${idx}`);
   });
 
   return (
@@ -235,7 +242,7 @@ export default function AlterTreeSelect({
           <div className="space-y-0.5 overflow-y-auto overscroll-contain -mx-1 px-1" style={{ maxHeight }} onScroll={onScroll}>
             {searchHits ? (
               <>
-                {searchHits.slice(0, shown).map((a) => <AlterRow key={a.id} a={a} />)}
+                {searchHits.slice(0, shown).map((a) => renderAlterRow(a, 0, a.id))}
                 {searchHits.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more… ({shown}/{searchHits.length})</p>}
                 {searchHits.length === 0 && <p className="text-xs text-muted-foreground/60 italic py-4 text-center">No matches.</p>}
               </>
@@ -246,7 +253,7 @@ export default function AlterTreeSelect({
               </>
             ) : (
               <>
-                {flatAlters.slice(0, shown).map((a) => <AlterRow key={a.id} a={a} />)}
+                {flatAlters.slice(0, shown).map((a) => renderAlterRow(a, 0, a.id))}
                 {flatAlters.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more… ({shown}/{flatAlters.length})</p>}
               </>
             )}

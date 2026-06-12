@@ -668,10 +668,11 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                 <div className="flex-1 overflow-y-auto p-2">
                   {/* Tap an alter to ARM it (single-select highlight), then tap a
                       spot on the canvas to drop it. Already-placed alters are
-                      excluded so the tree only shows who's left. */}
+                      DIMMED (not removed) so a subsystem's members stay reachable
+                      even after its owner is placed. */}
                   <AlterTreeSelect
                     selectionMode="single"
-                    excludeIds={[...alterIdsOnActiveLayer]}
+                    disabledIds={[...alterIdsOnActiveLayer]}
                     isSelected={(id) => placingAlter?.id === id}
                     onToggle={(a) => setPlacingAlter(a)}
                     maxHeight="46vh"

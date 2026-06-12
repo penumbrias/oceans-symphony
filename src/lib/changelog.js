@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Member pickers no longer jump back to the top when you expand a group or change an alter's level.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: after placing a subsystem's root you can now still place its members (they used to disappear) — already-placed alters now show dimmed instead of vanishing.",
+      },
+      {
+        type: "fix",
         text: "Fixed a crash that made the Journals page fail to open.",
       },
       {
