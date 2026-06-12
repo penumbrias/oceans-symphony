@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed a crash that made the Journals page fail to open.",
+      },
+      {
         type: "improve",
         text: "Inner-world map: the “not on this layer” list is now the standard searchable, by-subsystem/group list — tap an alter to arm it, then tap the canvas to drop it. Recording a fusion/split/dormancy uses the same list too.",
       },

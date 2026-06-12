@@ -160,7 +160,6 @@ useEffect(() => {
     setDecryptionPassword("");
     setDecryptionError("");
     setShowAuthorPicker(false);
-    setAuthorSearch("");
     setSignpostText("");
     setSignpostMenuOpen(false);
     setSignpostQuery("");
