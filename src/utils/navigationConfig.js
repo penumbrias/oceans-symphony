@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Map } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -28,6 +28,7 @@ export const ALL_PAGES = [
   { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
   { id: "assets", label: "Image Assets", path: "/assets", icon: Images },
+  { id: "roadmap", label: "Roadmap", path: "/roadmap", icon: Map },
 ];
 
 export const DEFAULT_CONFIG = {
@@ -66,6 +67,7 @@ export const DEFAULT_CONFIG = {
     "therapy-report",
     "reminders",
     "friends",
+    "roadmap",
     "settings",
   ],
   // `bulletins` defaults to removed because the dashboard's own

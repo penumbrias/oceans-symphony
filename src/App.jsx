@@ -45,6 +45,7 @@ import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
+import Roadmap from '@/pages/Roadmap';
 import FriendsPage from '@/pages/Friends';
 import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
@@ -193,6 +194,7 @@ const AuthenticatedApp = () => {
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
         <Route path="/location-history" element={<LocationHistory />} />
+        <Route path="/roadmap" element={<Roadmap />} />
         <Route path="/friends" element={<FriendsPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

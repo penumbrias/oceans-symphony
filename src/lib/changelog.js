@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 12, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New App Roadmap page: a list of planned features and long-term ideas you can add to and sort by status.",
+      },
+      {
+        type: "improve",
+        text: "You can now turn the changelog / “What's new” off in Settings if you'd rather not see it.",
+      },
+      {
         type: "improve",
         text: "Activity Tracker loads faster and paging between weeks/months is now instant (no longer reloads everything each time).",
       },

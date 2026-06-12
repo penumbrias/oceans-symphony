@@ -864,6 +864,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
 
 
+    // ─── ROADMAP ────────────────────────────────────────────────────────────
+    {
+      section: "roadmap", sectionLabel: "Roadmap",
+      emoji: "🗺️",
+      title: "Roadmap",
+      body: `The Roadmap is a public, editable list of planned features and long-term ideas for the app. Items are grouped by status — In progress, Planned, Considering, and Done. Tap "Add item" to jot down a new idea with a title, description, category, and status, or tap any card to edit or delete it. It comes pre-filled with a starter roadmap you can rework however you like.`,
+      route: "/roadmap", target: "roadmap-header",
+      look: `the highlighted Roadmap heading — scroll down to see items grouped by status`, action: null,
+    },
+
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",

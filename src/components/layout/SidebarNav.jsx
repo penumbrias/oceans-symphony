@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Map } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -47,6 +47,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "safety-plan",    label: "Safety Plan",     icon: Shield,     path: "/safety-plan" },
         { id: "unblend",        label: "Help me unblend", icon: HelpCircle, path: "/unblend" },
         { id: "get-to-know-me", label: "Get to know me",  icon: Sparkles,   path: "/get-to-know-me" },
+        { id: "roadmap",        label: "Roadmap",         icon: Map,        path: "/roadmap" },
       ],
     },
     {
