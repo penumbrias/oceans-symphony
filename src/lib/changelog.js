@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Set Fronters and the Quick Check-In “Who's fronting” picker now have a by-subsystem/group view for finding members in large systems.",
+      },
+      {
+        type: "improve",
         text: "Export members and therapy reports can now narrow who's included to a chosen privacy level in one tap.",
       },
     ],

@@ -9,7 +9,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin } from "lucide-react";
+import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree } from "lucide-react";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -217,8 +218,16 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     enabled: !altersProp,
   });
   const alters = altersProp ?? fetchedAlters;
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    enabled: isOpen,
+  });
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // "Who's fronting" list view: flat search list vs the standard
+  // by-subsystem/group tree (AlterTreeSelect).
+  const [frontTreeView, setFrontTreeView] = useState(false);
 
 
 
@@ -423,6 +432,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const soloAlter = (id) => {
     setCoFronterIds([]);
     setPrimaryId(id);
+  };
+
+  // Bulk add/remove for the by-subsystem/group tree view's "+ all / − all"
+  // and "Select all / Clear all". Keeps primary separate; seeds one when none.
+  const setManyFronters = (arr, on) => {
+    const ids = arr.map((a) => a.id);
+    if (!ids.length) return;
+    setCoFronterIds((prev) => {
+      const s = new Set(prev);
+      for (const id of ids) { if (on) s.add(id); else s.delete(id); }
+      return [...s];
+    });
+    if (on) setPrimaryId((p) => p || ids[0] || "");
+    else setPrimaryId((p) => (ids.includes(p) ? "" : p));
   };
 
   const addCustomEmotionMutation = useMutation({
@@ -953,24 +976,53 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   })}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Tap to toggle · swipe left (or hold) for <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary · swipe left+up to solo</p>
-              <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
-                onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
-              <div className="max-h-40 overflow-y-auto space-y-1">
-                {activeAlters
-                  .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
-                  .map(a => (
-                    <FrontPickRow
-                      key={a.id}
-                      alter={a}
-                      isSelected={selectedAlterIds.has(a.id)}
-                      isPrimary={primaryId === a.id}
-                      onToggle={() => toggleAlter(a.id)}
-                      onSetPrimary={() => setAsPrimary(a.id)}
-                      onSolo={() => soloAlter(a.id)}
-                    />
-                  ))}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground flex-1">
+                  {frontTreeView
+                    ? <>Browse by subsystem / group. Tap to toggle; set <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary using the chips above.</>
+                    : <>Tap to toggle · swipe left (or hold) for <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary · swipe left+up to solo</>}
+                </p>
+                <div className="flex gap-1 bg-muted/50 rounded-md p-0.5 flex-shrink-0" role="group" aria-label="View mode">
+                  <button type="button" onClick={() => setFrontTreeView(false)} aria-label="Flat list" aria-pressed={!frontTreeView}
+                    className={`p-1.5 rounded transition-colors ${!frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => setFrontTreeView(true)} aria-label="By subsystem or group" aria-pressed={frontTreeView}
+                    className={`p-1.5 rounded transition-colors ${frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                    <FolderTree className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+              {frontTreeView ? (
+                <AlterTreeSelect
+                  alters={activeAlters}
+                  groups={groups}
+                  isSelected={(id) => selectedAlterIds.has(id)}
+                  onToggle={(a) => toggleAlter(a.id)}
+                  onSetMany={setManyFronters}
+                  maxHeight="40vh"
+                />
+              ) : (
+                <>
+                  <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
+                    onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {activeAlters
+                      .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
+                      .map(a => (
+                        <FrontPickRow
+                          key={a.id}
+                          alter={a}
+                          isSelected={selectedAlterIds.has(a.id)}
+                          isPrimary={primaryId === a.id}
+                          onToggle={() => toggleAlter(a.id)}
+                          onSetPrimary={() => setAsPrimary(a.id)}
+                          onSolo={() => soloAlter(a.id)}
+                        />
+                      ))}
+                  </div>
+                </>
+              )}
               {frontingActuallyChanged && (
                 <div className="border-t border-border/40 pt-2 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
