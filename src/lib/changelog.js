@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The Groups tab (export + privacy levels) now expands so you can see and pick the alters inside each group; subsystems stay under the Members tab.",
+      },
+      {
+        type: "improve",
+        text: "Friends: the “set levels per member” list and the per-friend hide list now use the same searchable, subsystem/group-organized, lazy-loading picker as everywhere else — one consistent pattern across the app.",
+      },
+      {
+        type: "improve",
         text: "Picking members (export, privacy levels) now uses one consistent picker everywhere — Members (by subsystem or flat) + Groups tabs, search, Select all / Clear all — and long lists load as you scroll instead of capping. The Export “who to include” list can now be organized by subsystem too.",
       },
       {

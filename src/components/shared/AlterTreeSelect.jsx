@@ -7,21 +7,24 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getMemberAlters, getSubsystemsOwnedBy, isSubsystem, getAltersInsideSubsystems, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 
 // ── ONE standard alter-selection surface, reused everywhere alters are picked
-// (export, privacy-level assignment, …). Two tabs:
-//   • Members — alters organised BY SUBSYSTEM (nested) or flat; search; lazy.
-//   • Groups  — FOLDER groups only (never subsystems), each with + all / − all.
-// Selection is generic: the caller supplies isSelected/onToggle/onSetMany so
-// the same UI drives a local Set (export) or alter.privacy_levels (sharing).
+// or listed (export, privacy-level assignment, per-alter sharing, per-friend
+// visibility …). Two tabs, BOTH collapsible trees you can drill into:
+//   • Members — alters organised BY SUBSYSTEM (nested) or flat.
+//   • Groups  — FOLDER groups only (never subsystems as roots); expand a group
+//               to see the alters inside it.
+// Search, Select all / Clear all, per-group "+ all / − all", lazy loading.
 //
-// Lazy loading: long flat lists render incrementally as you scroll (no hard
-// cap). The nested view stays cheap because groups are collapsed by default.
+// Selection is generic: the caller supplies isSelected/onToggle/onSetMany so
+// the same UI drives a local Set (export), alter.privacy_levels (sharing), a
+// per-friend hide list (visibility), etc. Pass `renderControl(alter)` to swap
+// the default checkbox for a custom per-row control (e.g. level pills); bulk
+// + all / − all / Select all only show when onSetMany is provided.
 
 function groupKeyOf(g) { return g?.sp_id || g?.id; }
 const PAGE = 60;
 
-// Subsystem tree: top-level alters (those NOT inside any subsystem), each with
-// their owned subsystems nested + collapsible. A subsystem is expanded once
-// (dedup) — repeats get a "listed above" line.
+// Subsystem tree: top-level alters (NOT inside any subsystem), each with their
+// owned subsystems nested + collapsible. A subsystem is expanded once (dedup).
 function buildSubsystemItems(alters, groups, expanded) {
   const inside = getAltersInsideSubsystems(groups, alters);
   const top = alters.filter((a) => !inside.has(a.id));
@@ -36,7 +39,7 @@ function buildSubsystemItems(alters, groups, expanded) {
       if (!members.length) continue;
       if (renderedSubs.has(sub.id)) { items.push({ type: "ref", depth: depth + 1, name: sub.name }); continue; }
       renderedSubs.add(sub.id);
-      items.push({ type: "group", depth: depth + 1, group: sub, members });
+      items.push({ type: "group", depth: depth + 1, group: sub, members, subsystem: true });
       if (expanded.has(sub.id)) for (const m of members) emit(m, depth + 2, nv);
     }
   };
@@ -44,7 +47,33 @@ function buildSubsystemItems(alters, groups, expanded) {
   return items;
 }
 
-// All alters in a FOLDER group (+ its subsystems / subgroups when includeNested).
+// Folder tree: non-subsystem groups nested by `parent`; expand a group to see
+// its member alters + child groups. Subsystems never appear as roots here.
+function buildFolderItems(alters, groups, expanded) {
+  const folderGroups = (groups || []).filter((g) => !isSubsystem(g));
+  const folderKeys = new Set(folderGroups.map(groupKeyOf));
+  const childrenOf = (key) =>
+    folderGroups.filter((g) => {
+      const p = g.parent || "";
+      if (key === null) return !p || p === "root" || !folderKeys.has(p);
+      return p === key;
+    });
+  const items = [];
+  const emit = (group, depth, visited) => {
+    const key = groupKeyOf(group);
+    if (visited.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return;
+    const nv = new Set(visited).add(key);
+    const members = getMemberAlters(group, alters);
+    items.push({ type: "group", depth, group, members, subsystem: false });
+    if (!expanded.has(key)) return;
+    for (const m of members) items.push({ type: "alter", depth: depth + 1, alter: m });
+    for (const sub of childrenOf(key)) emit(sub, depth + 1, nv);
+  };
+  for (const root of childrenOf(null)) emit(root, 0, new Set());
+  return items;
+}
+
+// All alters in a folder group (+ its subsystems / subgroups when includeNested).
 function collectGroupMembers(group, alters, groups, includeNested) {
   if (!group) return [];
   const seen = new Map();
@@ -64,41 +93,70 @@ function collectGroupMembers(group, alters, groups, includeNested) {
   return [...seen.values()];
 }
 
-export default function AlterTreeSelect({ isSelected, onToggle, onSetMany, busy = false, maxHeight = "55vh" }) {
+export default function AlterTreeSelect({
+  isSelected = () => false,
+  onToggle,
+  onSetMany,
+  renderControl = null,
+  controlPosition = "below", // "below" (stacked, e.g. pills) | "right" (inline, e.g. an eye toggle)
+  busy = false,
+  maxHeight = "55vh",
+}) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const [tab, setTab] = useState("members");
   const [search, setSearch] = useState("");
   const [nested, setNested] = useState(true);
   const [expanded, setExpanded] = useState(() => new Set());
+  const [groupExpanded, setGroupExpanded] = useState(() => new Set());
   const [includeNested, setIncludeNested] = useState(true);
   const [shown, setShown] = useState(PAGE);
 
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
-  const folderGroups = useMemo(() => groups.filter((g) => !isSubsystem(g)), [groups]);
+  const bulk = typeof onSetMany === "function";
 
-  const toggleExpand = (key) => setExpanded((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
   useEffect(() => { setShown(PAGE); }, [tab, search, nested, includeNested]);
   const onScroll = (e) => {
     const el = e.currentTarget;
     if (el.scrollHeight - el.scrollTop - el.clientHeight < 240) setShown((s) => s + PAGE);
   };
+  const toggleKey = (setter) => (key) => setter((s) => { const n = new Set(s); if (n.has(key)) n.delete(key); else n.add(key); return n; });
 
   const searchHits = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return null;
     return liveAlters.filter((a) => a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q));
   }, [liveAlters, search]);
-
   const flatAlters = useMemo(() => [...liveAlters].sort((a, b) => (a.name || "").localeCompare(b.name || "")), [liveAlters]);
-  const nestedItems = useMemo(() => (tab === "members" && nested && !searchHits ? buildSubsystemItems(liveAlters, groups, expanded) : []), [tab, nested, searchHits, liveAlters, groups, expanded]);
+  const memberItems = useMemo(() => (tab === "members" && nested && !searchHits ? buildSubsystemItems(liveAlters, groups, expanded) : []), [tab, nested, searchHits, liveAlters, groups, expanded]);
+  const folderItems = useMemo(() => (tab === "groups" ? buildFolderItems(liveAlters, groups, groupExpanded) : []), [tab, liveAlters, groups, groupExpanded]);
 
   const AlterRow = ({ a, depth = 0 }) => {
+    if (renderControl) {
+      if (controlPosition === "right") {
+        return (
+          <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/20" style={{ marginLeft: depth * 14 }}>
+            <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+            <span className="text-xs truncate flex-1">{formatAlter(a)}</span>
+            {renderControl(a)}
+          </div>
+        );
+      }
+      return (
+        <div className="rounded-lg border border-border/40 bg-muted/10 px-2 py-1.5" style={{ marginLeft: depth * 14 }}>
+          <div className="flex items-center gap-2 mb-1">
+            <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+            <span className="text-xs font-medium truncate">{formatAlter(a)}</span>
+          </div>
+          {renderControl(a)}
+        </div>
+      );
+    }
     const on = isSelected(a.id);
     return (
-      <button type="button" disabled={busy} onClick={() => onToggle(a, !on)}
+      <button type="button" disabled={busy} onClick={() => onToggle?.(a, !on)}
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
         style={{ marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
         <span className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && <Check className="w-3 h-3" />}</span>
@@ -108,21 +166,34 @@ export default function AlterTreeSelect({ isSelected, onToggle, onSetMany, busy 
     );
   };
 
-  const GroupBulkRow = ({ group, icon: Icon, subsystem }) => {
-    const members = collectGroupMembers(group, liveAlters, groups, includeNested);
-    const on = members.filter((a) => isSelected(a.id)).length;
+  const GroupHeader = ({ item, expandedSet, onExpand }) => {
+    const key = groupKeyOf(item.group);
+    const open = expandedSet.has(key);
+    const bulkMembers = item.subsystem ? item.members : collectGroupMembers(item.group, liveAlters, groups, includeNested);
+    const onCount = bulkMembers.filter((a) => isSelected(a.id)).length;
     return (
-      <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40 bg-muted/10">
-        <Icon className={`w-3.5 h-3.5 flex-shrink-0 ${subsystem ? "text-violet-500" : "text-muted-foreground"}`} />
-        <span className="text-xs font-medium flex-1 truncate" style={{ color: group.color || undefined }}>{group.name}</span>
-        <span className="text-[0.625rem] text-muted-foreground">{on}/{members.length}</span>
-        <div className="flex gap-1">
-          <button type="button" disabled={busy || members.length === 0 || on === members.length} onClick={() => onSetMany(members, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
-          <button type="button" disabled={busy || on === 0} onClick={() => onSetMany(members, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
-        </div>
+      <div className="flex items-center gap-1.5 pt-1.5 pb-0.5" style={{ paddingLeft: item.depth * 14 }}>
+        <button type="button" onClick={() => onExpand(key)} className="flex items-center gap-1 min-w-0 flex-1">
+          {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+          {item.subsystem ? <FolderTree className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" /> : <Folder className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+          <span className="text-[0.6875rem] font-semibold uppercase tracking-wide truncate" style={{ color: item.group.color || undefined }}>{item.group.name}</span>
+          {bulk && <span className="text-[0.625rem] text-muted-foreground">{onCount}/{bulkMembers.length}</span>}
+        </button>
+        {bulk && bulkMembers.length > 0 && (
+          <div className="flex gap-1">
+            <button type="button" disabled={busy || onCount === bulkMembers.length} onClick={() => onSetMany(bulkMembers, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
+            <button type="button" disabled={busy || onCount === 0} onClick={() => onSetMany(bulkMembers, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
+          </div>
+        )}
       </div>
     );
   };
+
+  const renderItems = (items, expandedSet, onExpand) => items.slice(0, shown).map((item, idx) => {
+    if (item.type === "alter") return <AlterRow key={`a-${item.alter.id}-${idx}`} a={item.alter} depth={item.depth} />;
+    if (item.type === "ref") return <p key={`r-${idx}`} className="text-[0.625rem] text-muted-foreground italic py-0.5" style={{ paddingLeft: item.depth * 14 + 8 }}>↳ {item.name} — listed above</p>;
+    return <GroupHeader key={`g-${item.group.id}-${idx}`} item={item} expandedSet={expandedSet} onExpand={onExpand} />;
+  });
 
   return (
     <div className="space-y-2">
@@ -144,10 +215,12 @@ export default function AlterTreeSelect({ isSelected, onToggle, onSetMany, busy 
               className="w-full h-8 pl-8 pr-2 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
           </div>
           <div className="flex items-center justify-between gap-2 text-[0.6875rem]">
-            <div className="flex gap-2">
-              <button type="button" disabled={busy} onClick={() => onSetMany((searchHits || liveAlters).filter((a) => !isSelected(a.id)), true)} className="text-primary hover:underline disabled:opacity-40">Select all{searchHits ? " shown" : ""}</button>
-              <button type="button" disabled={busy} onClick={() => onSetMany((searchHits || liveAlters).filter((a) => isSelected(a.id)), false)} className="text-muted-foreground hover:underline disabled:opacity-40">Clear all{searchHits ? " shown" : ""}</button>
-            </div>
+            {bulk ? (
+              <div className="flex gap-2">
+                <button type="button" disabled={busy} onClick={() => onSetMany((searchHits || liveAlters).filter((a) => !isSelected(a.id)), true)} className="text-primary hover:underline disabled:opacity-40">Select all{searchHits ? " shown" : ""}</button>
+                <button type="button" disabled={busy} onClick={() => onSetMany((searchHits || liveAlters).filter((a) => isSelected(a.id)), false)} className="text-muted-foreground hover:underline disabled:opacity-40">Clear all{searchHits ? " shown" : ""}</button>
+              </div>
+            ) : <span />}
             {!searchHits && <button type="button" onClick={() => setNested((v) => !v)} className="text-primary hover:underline">{nested ? "Flat list" : "By subsystem"}</button>}
           </div>
 
@@ -160,27 +233,8 @@ export default function AlterTreeSelect({ isSelected, onToggle, onSetMany, busy 
               </>
             ) : nested ? (
               <>
-                {nestedItems.slice(0, shown).map((item, idx) => {
-                  if (item.type === "alter") return <AlterRow key={`a-${item.alter.id}-${idx}`} a={item.alter} depth={item.depth} />;
-                  if (item.type === "ref") return <p key={`r-${idx}`} className="text-[0.625rem] text-muted-foreground italic py-0.5" style={{ paddingLeft: item.depth * 14 + 8 }}>↳ {item.name} — listed above</p>;
-                  const open = expanded.has(item.group.id);
-                  const onCount = item.members.filter((a) => isSelected(a.id)).length;
-                  return (
-                    <div key={`g-${item.group.id}-${idx}`} className="flex items-center gap-1.5 pt-1.5 pb-0.5" style={{ paddingLeft: item.depth * 14 }}>
-                      <button type="button" onClick={() => toggleExpand(item.group.id)} className="flex items-center gap-1 min-w-0 flex-1">
-                        {open ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
-                        <FolderTree className="w-3.5 h-3.5 text-violet-500 flex-shrink-0" />
-                        <span className="text-[0.6875rem] font-semibold uppercase tracking-wide truncate" style={{ color: item.group.color || undefined }}>{item.group.name}</span>
-                        <span className="text-[0.625rem] text-muted-foreground">{onCount}/{item.members.length}</span>
-                      </button>
-                      <div className="flex gap-1">
-                        <button type="button" disabled={busy || onCount === item.members.length} onClick={() => onSetMany(item.members, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
-                        <button type="button" disabled={busy || onCount === 0} onClick={() => onSetMany(item.members, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
-                      </div>
-                    </div>
-                  );
-                })}
-                {nestedItems.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more…</p>}
+                {renderItems(memberItems, expanded, toggleKey(setExpanded))}
+                {memberItems.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more…</p>}
               </>
             ) : (
               <>
@@ -192,14 +246,16 @@ export default function AlterTreeSelect({ isSelected, onToggle, onSetMany, busy 
         </>
       ) : (
         <>
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            <input type="checkbox" checked={includeNested} onChange={(e) => setIncludeNested(e.target.checked)} className="accent-primary" />
-            Include subsystems &amp; subgroups when adding a group
-          </label>
-          <div className="space-y-1 overflow-y-auto overscroll-contain" style={{ maxHeight }} onScroll={onScroll}>
-            {folderGroups.length === 0 && <p className="text-xs text-muted-foreground/60 italic py-4 text-center">No groups yet.</p>}
-            {folderGroups.slice(0, shown).map((g) => <GroupBulkRow key={g.id} group={g} icon={Folder} subsystem={false} />)}
-            {folderGroups.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more…</p>}
+          {bulk && (
+            <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+              <input type="checkbox" checked={includeNested} onChange={(e) => setIncludeNested(e.target.checked)} className="accent-primary" />
+              “+ all / − all” includes subsystems &amp; subgroups
+            </label>
+          )}
+          <div className="space-y-0.5 overflow-y-auto overscroll-contain -mx-1 px-1" style={{ maxHeight }} onScroll={onScroll}>
+            {folderItems.length === 0 && <p className="text-xs text-muted-foreground/60 italic py-4 text-center">No groups yet.</p>}
+            {renderItems(folderItems, groupExpanded, toggleKey(setGroupExpanded))}
+            {folderItems.length > shown && <p className="text-[0.625rem] text-muted-foreground italic py-2 text-center">Loading more…</p>}
           </div>
         </>
       )}

@@ -35,6 +35,7 @@ import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
 import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -507,55 +508,31 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                     )}
                   </div>
 
-                  {/* Per-alter toggles — only when effective privacy shows names */}
+                  {/* Per-alter hide toggles — only when effective privacy shows names.
+                      Uses the standard tree picker (by subsystem / group, searchable,
+                      lazy) with an eye toggle as the per-row control. */}
                   {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        Which {terms?.alters || 'alters'} can they see?
-                      </span>
-                      <div className="space-y-0.5 max-h-44 overflow-y-auto">
-                        {alters.map(alter => {
+                      <span className="text-xs text-muted-foreground">Hide specific {terms?.alters || 'alters'} from this friend:</span>
+                      <AlterTreeSelect
+                        controlPosition="right"
+                        renderControl={(alter) => {
                           const globallyHidden = alter.friends_visible === false;
                           const locallyHidden = hiddenAlterIds.includes(alter.id);
                           const isVisible = !globallyHidden && !locallyHidden;
                           return (
-                            <div
-                              key={alter.id}
-                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
-                                globallyHidden ? 'opacity-40' : 'hover:bg-muted/30'
-                              }`}
+                            <button
+                              disabled={globallyHidden}
+                              onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
+                              className={`flex-shrink-0 p-1 rounded transition-colors ${globallyHidden ? 'cursor-not-allowed opacity-40' : isVisible ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
+                              title={globallyHidden ? 'Hidden from all friends' : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ background: alter.color || '#6b7280' }}
-                                />
-                                <span className="text-xs text-foreground truncate">{alter.name}</span>
-                                {globallyHidden && (
-                                  <span className="text-xs text-muted-foreground flex-shrink-0">(hidden from all friends)</span>
-                                )}
-                              </div>
-                              <button
-                                disabled={globallyHidden}
-                                onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
-                                className={`flex-shrink-0 p-1 rounded transition-colors ${
-                                  globallyHidden
-                                    ? 'cursor-not-allowed'
-                                    : isVisible
-                                      ? 'text-primary hover:text-primary/70'
-                                      : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                                title={isVisible ? 'Visible — click to hide' : 'Hidden — click to show'}
-                              >
-                                {isVisible
-                                  ? <Eye className="w-3.5 h-3.5" />
-                                  : <EyeOff className="w-3.5 h-3.5" />
-                                }
-                              </button>
-                            </div>
+                              {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            </button>
                           );
-                        })}
-                      </div>
+                        }}
+                        maxHeight="44vh"
+                      />
                     </div>
                   )}
                 </div>

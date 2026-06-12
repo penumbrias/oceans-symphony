@@ -1,13 +1,13 @@
 import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ChevronDown, ChevronRight, Search, Settings2, ShieldCheck, Users } from "lucide-react";
+import { ChevronDown, ChevronRight, Settings2, ShieldCheck, Users } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
-import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { pushAlterShares } from "@/lib/friendsShare";
 import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
 import LevelMembersModal from "@/components/friends/LevelMembersModal";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 // Friends-page hub for member sharing: define privacy levels and assign members
 // to them in one place (previously only reachable from each member's profile).
@@ -15,10 +15,8 @@ import LevelMembersModal from "@/components/friends/LevelMembersModal";
 // half. Collapsible so it stays out of the way.
 export default function MemberSharingPanel() {
   const terms = useTerms();
-  const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const [showManager, setShowManager] = useState(false);
   const [levelMembersFor, setLevelMembersFor] = useState(null);
 
@@ -27,10 +25,7 @@ export default function MemberSharingPanel() {
   const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
 
   const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
-  const filtered = useMemo(() => {
-    const q = search.toLowerCase();
-    return liveAlters.filter((a) => !q || a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q));
-  }, [liveAlters, search]);
+  const altersById = useMemo(() => Object.fromEntries(liveAlters.map((a) => [a.id, a])), [liveAlters]);
 
   const sharedCount = liveAlters.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.length).length;
 
@@ -92,37 +87,27 @@ export default function MemberSharingPanel() {
 
               <p className="text-[0.625rem] text-muted-foreground px-0.5 pt-1">Or set levels per {terms.alter}:</p>
 
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
-                  className="w-full h-8 pl-8 pr-2 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-              </div>
-              <div className="max-h-72 overflow-y-auto overscroll-contain space-y-1.5">
-                {filtered.map((a) => {
+              <AlterTreeSelect
+                isSelected={(id) => { const a = altersById[id]; return Array.isArray(a?.privacy_levels) && a.privacy_levels.length > 0; }}
+                renderControl={(a) => {
                   const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
                   return (
-                    <div key={a.id} className="rounded-lg border border-border/40 bg-muted/10 p-2">
-                      <div className="flex items-center gap-2 mb-1.5">
-                        <span className="w-4 h-4 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
-                        <span className="text-xs font-medium truncate">{formatAlter(a)}</span>
-                        {cur.length === 0 && <span className="text-[0.625rem] text-muted-foreground ml-auto">Private</span>}
-                      </div>
-                      <div className="flex flex-wrap gap-1">
-                        {levels.map((l) => {
-                          const on = cur.includes(l.id);
-                          return (
-                            <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
-                              className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
-                              {on ? "✓ " : ""}{l.number}. {l.name}
-                            </button>
-                          );
-                        })}
-                      </div>
+                    <div className="flex flex-wrap gap-1 items-center">
+                      {cur.length === 0 && <span className="text-[0.625rem] text-muted-foreground mr-1">Private</span>}
+                      {levels.map((l) => {
+                        const on = cur.includes(l.id);
+                        return (
+                          <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(a, l.id)}
+                            className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                            {on ? "✓ " : ""}{l.number}. {l.name}
+                          </button>
+                        );
+                      })}
                     </div>
                   );
-                })}
-                {filtered.length === 0 && <p className="text-xs text-muted-foreground/60 italic px-1 py-2 text-center">No matches.</p>}
-              </div>
+                }}
+                maxHeight="48vh"
+              />
             </>
           )}
         </div>
