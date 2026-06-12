@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
-  Undo2, Redo2,
+  Undo2, Redo2, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupSelect from "@/components/groups/GroupSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection } from "@/components/settings/SettingsUI";
+import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
+import { pushAlterShares } from "@/lib/friendsShare";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -609,6 +611,8 @@ function GroupProfileInner() {
         />
       </SubSection>
 
+      <GroupFriendsVisibility group={group} members={members} allGroups={allGroups} alters={alters} />
+
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}
       </button>
@@ -801,6 +805,81 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
         </div>
       </div>
     </div>
+  );
+}
+
+// Set friends-sharing privacy levels for this group/subsystem's members in one
+// place — the same assignment available in Friends → Member sharing, but scoped
+// to this group (optionally including nested subsystems). Hidden when no levels
+// exist yet.
+function GroupFriendsVisibility({ group, members, allGroups, alters }) {
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const qc = useQueryClient();
+  const [includeSubs, setIncludeSubs] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const targets = useMemo(() => {
+    const seen = new Map();
+    members.forEach((a) => seen.set(a.id, a));
+    if (includeSubs) {
+      const walk = (list, depth, visited) => {
+        if (depth > 12) return;
+        for (const a of list) {
+          for (const sub of getSubsystemsOwnedBy(allGroups, a.id)) {
+            if (visited.has(sub.id)) continue;
+            const nv = new Set(visited).add(sub.id);
+            const sm = getMemberAlters(sub, alters);
+            sm.forEach((m) => seen.set(m.id, m));
+            walk(sm, depth + 1, nv);
+          }
+        }
+      };
+      walk(members, 0, new Set());
+    }
+    return [...seen.values()].filter((a) => !a.is_archived);
+  }, [members, includeSubs, allGroups, alters]);
+
+  const setLevelOn = async (levelId, on) => {
+    setBusy(true);
+    try {
+      for (const a of targets) {
+        const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
+        const has = cur.includes(levelId);
+        if (on && !has) await base44.entities.Alter.update(a.id, { privacy_levels: [...cur, levelId] });
+        else if (!on && has) await base44.entities.Alter.update(a.id, { privacy_levels: cur.filter((id) => id !== levelId) });
+      }
+      qc.invalidateQueries({ queryKey: ["alters"] });
+      pushAlterShares().catch(() => {});
+    } catch (e) { toast.error(e?.message || "Couldn't update"); }
+    finally { setBusy(false); }
+  };
+
+  if (levels.length === 0) return null;
+
+  return (
+    <SubSection title="Friends sharing" icon={ShieldCheck} defaultOpen={false}>
+      <p className="text-xs text-muted-foreground">Add or remove this group's members from your privacy levels in one go. Friends see a level only if you grant it to them on the Friends page.</p>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+        <input type="checkbox" checked={includeSubs} onChange={(e) => setIncludeSubs(e.target.checked)} className="accent-primary" /> Include members of nested subsystems
+      </label>
+      <div className="space-y-1.5">
+        {levels.map((l) => {
+          const on = targets.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id)).length;
+          return (
+            <div key={l.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-muted/10">
+              <span className="text-xs font-medium flex-1 truncate">{l.number}. {l.name}</span>
+              <span className="text-[0.625rem] text-muted-foreground">{on}/{targets.length}</span>
+              <div className="flex gap-1">
+                <button type="button" disabled={busy || targets.length === 0 || on === targets.length} onClick={() => setLevelOn(l.id, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
+                <button type="button" disabled={busy || on === 0} onClick={() => setLevelOn(l.id, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {busy && <p className="text-[0.625rem] text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" /> Saving…</p>}
+    </SubSection>
   );
 }
 

@@ -121,6 +121,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   }, [friend.userId, onVisibilityChange]);
 
   // Members this friend shares with me — fetched + decrypted on card expand.
+  const [showVisibleList, setShowVisibleList] = useState(false);
   const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
   const [loadingShare, setLoadingShare] = useState(false);
   useEffect(() => {
@@ -478,18 +479,24 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           if (visible.length === 0) {
                             return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "members"} visible with the current levels.</p>;
                           }
+                          // Collapsed by default so large systems don't flood the
+                          // card — tap to reveal the (capped) list.
                           return (
                             <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
-                              <p className="text-[0.625rem] text-muted-foreground">They can currently see:</p>
-                              <div className="flex flex-wrap gap-1">
-                                {visible.slice(0, 40).map(({ alter }) => (
-                                  <span key={alter.id} className="inline-flex items-center gap-1 text-[0.625rem] px-1.5 py-0.5 rounded-full bg-card border border-border/40">
-                                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: alter.color || "#6b7280" }} />
-                                    {alter.name}
-                                  </span>
-                                ))}
-                                {visible.length > 40 && <span className="text-[0.625rem] text-muted-foreground self-center">+{visible.length - 40}</span>}
-                              </div>
+                              <button type="button" onClick={() => setShowVisibleList((v) => !v)} className="text-[0.625rem] text-primary hover:underline">
+                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} they can see
+                              </button>
+                              {showVisibleList && (
+                                <div className="flex flex-wrap gap-1 pt-1">
+                                  {visible.slice(0, 60).map(({ alter }) => (
+                                    <span key={alter.id} className="inline-flex items-center gap-1 text-[0.625rem] px-1.5 py-0.5 rounded-full bg-card border border-border/40">
+                                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: alter.color || "#6b7280" }} />
+                                      {alter.name}
+                                    </span>
+                                  ))}
+                                  {visible.length > 60 && <span className="text-[0.625rem] text-muted-foreground self-center">+{visible.length - 60} more</span>}
+                                </div>
+                              )}
                             </div>
                           );
                         })()}

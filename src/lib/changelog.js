@@ -17,6 +17,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Privacy-level member picker now scales to large systems: a Members tab (by-subsystem or flat, with Select all / Clear all) and a Groups tab to assign a whole group/subsystem at once. Groups stay collapsed until you open them.",
+      },
+      {
+        type: "feature",
+        text: "Set a group's or subsystem's friends-sharing levels right from its profile page — “Friends sharing”, optionally including nested subsystems.",
+      },
+      {
+        type: "improve",
         text: "Posts, comments and bulletins now turn web links — both [text](https://…) and pasted https:// URLs — into clickable links.",
       },
       {
