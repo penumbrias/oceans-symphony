@@ -8,6 +8,7 @@ import { Download, Copy, Share2, Loader2, Users, FileText } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { shareFile } from "@/lib/shareFile";
@@ -35,6 +36,8 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
   const terms = useTerms();
   const systemIdentity = useSystemIdentity();
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const privacyLevels = sortedLevels(getPrivacyLevels(settingsList[0]));
   // Key by both id and sp_id so an alter's groups[] reference resolves whether
   // it stores a local id or an SP id.
   const groupsById = useMemo(() => {
@@ -169,6 +172,18 @@ export default function AlterExportModal({ isOpen, onClose, alters = [], presetA
                 <button type="button" onClick={selectNone} className="text-muted-foreground hover:underline">None</button>
               </div>
             </div>
+            {privacyLevels.length > 0 && (
+              <div className="flex flex-wrap items-center gap-1.5">
+                <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide">By privacy level:</span>
+                {privacyLevels.map((l) => (
+                  <button key={l.id} type="button"
+                    onClick={() => setSelected(new Set(liveAlters.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id)).map((a) => a.id)))}
+                    className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
+                    {l.number}. {l.name}
+                  </button>
+                ))}
+              </div>
+            )}
             <AlterTreeSelect
               isSelected={(id) => selected.has(id)}
               onToggle={(a, on) => setSelected((s) => { const n = new Set(s); if (on) n.add(a.id); else n.delete(a.id); return n; })}

@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 12, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Export members and therapy reports can now narrow who's included to a chosen privacy level in one tap.",
+      },
+    ],
+  },
+  {
     date: "June 11, 2026",
     changes: [
       {
