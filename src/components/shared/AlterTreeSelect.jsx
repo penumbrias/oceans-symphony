@@ -97,12 +97,14 @@ export default function AlterTreeSelect({
   isSelected = () => false,
   onToggle,
   onSetMany,
+  selectionMode = "multi", // "multi" | "single" (single hides bulk + uses a radio dot)
   renderControl = null,
   controlPosition = "below", // "below" (stacked, e.g. pills) | "right" (inline, e.g. an eye toggle)
   busy = false,
   maxHeight = "55vh",
   alters: altersProp = null, // optional: render a SUBSET instead of the whole system
   groups: groupsProp = null,
+  excludeIds = null, // optional: alter ids to leave out entirely
 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
@@ -118,8 +120,10 @@ export default function AlterTreeSelect({
   const { data: groupsData = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list(), enabled: !groupsProp });
   const alters = altersProp || altersData;
   const groups = groupsProp || groupsData;
-  const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
-  const bulk = typeof onSetMany === "function";
+  const excludeSet = useMemo(() => new Set(excludeIds || []), [excludeIds]);
+  const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived && !excludeSet.has(a.id)), [alters, excludeSet]);
+  const single = selectionMode === "single";
+  const bulk = typeof onSetMany === "function" && !single;
 
   useEffect(() => { setShown(PAGE); }, [tab, search, nested, includeNested]);
   const onScroll = (e) => {
@@ -160,10 +164,10 @@ export default function AlterTreeSelect({
     }
     const on = isSelected(a.id);
     return (
-      <button type="button" disabled={busy} onClick={() => onToggle?.(a, !on)}
+      <button type="button" disabled={busy} onClick={() => onToggle?.(a, single ? true : !on)}
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
         style={{ marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
-        <span className={`w-4 h-4 rounded-md border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && <Check className="w-3 h-3" />}</span>
+        <span className={`w-4 h-4 ${single ? "rounded-full" : "rounded-md"} border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && (single ? <span className="w-1.5 h-1.5 rounded-full bg-current" /> : <Check className="w-3 h-3" />)}</span>
         <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
         <span className={`text-xs truncate ${on ? "font-medium text-foreground" : "text-foreground/90"}`}>{formatAlter(a)}</span>
       </button>

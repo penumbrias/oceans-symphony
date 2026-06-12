@@ -8,6 +8,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DEFAULT_RELATIONSHIP_TYPES, flattenTypeTree } from "@/lib/relationshipTypes";
 import { useTerms } from "@/lib/useTerms";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 // Kept for backward compat with RelationshipsPanel import
 export const RELATIONSHIP_PRESETS = DEFAULT_RELATIONSHIP_TYPES.map(t => ({ type: t.label, color: t.color }));
@@ -52,29 +53,12 @@ function directionLabel(direction, nameA, nameB) {
 
 // Resolve legacy local-image:// avatars before rendering (raw <img src> on
 // those renders broken). Rendered inside a .map(), so it must be a child.
-function ListItemAvatar({ alter }) {
-  const resolved = useResolvedAvatarUrl(alter?.avatar_url);
-  return resolved ? (
-    <img src={resolved} className="w-5 h-5 rounded-full object-cover flex-shrink-0" onError={e => { e.currentTarget.style.display = "none"; }} />
-  ) : (
-    <div className="w-5 h-5 rounded-full flex items-center justify-center text-white font-bold flex-shrink-0 text-xs"
-      style={{ backgroundColor: alter.color || "#8b5cf6" }}>
-      {alter.name?.charAt(0)?.toUpperCase()}
-    </div>
-  );
-}
 
-function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }) {
+function AlterPickerDropdown({ label, selected, excludeId, onSelect }) {
   const terms = useTerms();
   const [open, setOpen] = useState(false);
-  const [search, setSearch] = useState("");
   const selectedResolvedUrl = useResolvedAvatarUrl(selected?.avatar_url);
   const [selectedImgError, setSelectedImgError] = useState(false);
-
-  const filtered = allAlters.filter(a =>
-    a.id !== excludeId &&
-    (search === "" || a.name.toLowerCase().includes(search.toLowerCase()))
-  );
 
   return (
     <div className="space-y-1 relative">
@@ -100,29 +84,14 @@ function AlterPickerDropdown({ label, selected, allAlters, excludeId, onSelect }
       </button>
 
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50">
-          <input
-            type="text"
-            placeholder={`Search ${terms.alters}...`}
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            className="w-full px-3 py-2 border-b border-border/50 bg-background rounded-t-lg text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        <div className="absolute top-full left-0 right-0 mt-1 bg-card border border-border rounded-lg shadow-lg z-50 p-2">
+          <AlterTreeSelect
+            selectionMode="single"
+            excludeIds={excludeId ? [excludeId] : []}
+            isSelected={(id) => selected?.id === id}
+            onToggle={(a) => { onSelect(a); setOpen(false); }}
+            maxHeight="42vh"
           />
-          <div className="max-h-48 overflow-y-auto">
-            {filtered.length === 0 ? (
-              <p className="px-3 py-2 text-xs text-muted-foreground">No alters found</p>
-            ) : (
-              filtered.map(alter => (
-                <button
-                  key={alter.id}
-                  onClick={() => { onSelect(alter); setOpen(false); setSearch(""); }}
-                  className="w-full flex items-center gap-2 px-3 py-2 border-b border-border/30 hover:bg-muted/40 transition-colors text-left">
-                  <ListItemAvatar alter={alter} />
-                  <p className="text-sm font-medium text-foreground truncate">{alter.name}</p>
-                </button>
-              ))
-            )}
-          </div>
         </div>
       )}
     </div>

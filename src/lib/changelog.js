@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Journal “Written by” now lets you pick one or more authors from the standard searchable, by-subsystem/group list (the first is the primary author). The create-relationship pickers use the same list (single-select).",
+      },
+      {
+        type: "improve",
         text: "More member pickers now use the one standard list (searchable, by subsystem/group, lazy): the journal author filter, the chat speaker picker, and the activity fronter picker.",
       },
       {
