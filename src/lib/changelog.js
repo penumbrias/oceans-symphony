@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 12, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Quick Check-In: each chosen activity can be set active (+) right there, and given a quick duration or note inline.",
+      },
+      {
+        type: "improve",
+        text: "Log Activity and New Plan: a “Now” button next to start/end fills in the current date & time.",
+      },
+      {
         type: "fix",
         text: "Revealing a whisper on a Dashboard bulletin no longer opens the author's page by mistake.",
       },

@@ -9,8 +9,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -149,6 +150,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
   const [activityNote, setActivityNote] = useState("");
+  // Per-activity optional details (duration / note) the user can log inline
+  // without opening the Activity Tracker. Keyed by category id.
+  const [activityDetails, setActivityDetails] = useState({});
+  const [expandedActId, setExpandedActId] = useState(null);
+  // Live active-activity sessions (so a "+ active" toggle mirrors the symptom
+  // active affordance — start an open-ended session that logs on end).
+  const [activeActs, setActiveActs] = useState(() => getActiveActivities());
+  useEffect(() => {
+    const refresh = () => setActiveActs(getActiveActivities());
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+    return () => window.removeEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+  }, []);
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
   // Diary
@@ -468,23 +481,53 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setNewActivityName("");setShowNewActivity(false);
   };
 
+  // Start/stop an activity as an ACTIVE session (mirrors the symptom "+"
+  // affordance). Starting opens an open-ended session that logs an Activity
+  // when ended; ending logs it now. Active activities are skipped by the
+  // stamp-on-save path below so they're never double-logged.
+  const toggleActiveActivity = async (cat) => {
+    const existing = getActiveActivities().find((a) => a.categoryId === cat.id);
+    if (existing) {
+      await endAndLogActiveActivity(existing.id);
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      toast.success(`${cat.name} ended & logged`);
+    } else {
+      addActiveActivity({
+        categoryId: cat.id,
+        name: cat.name,
+        color: cat.color || null,
+        startTime: new Date().toISOString(),
+        alterIds: selectedAlters,
+        notes: activityDetails[cat.id]?.note?.trim() || "",
+      });
+      toast.success(`${cat.name} set to active`);
+    }
+  };
+
   const handleSaveActivities = async (timestamp) => {
     if (selectedActivityCategories.length === 0) return;
     const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+    // Skip any activity that's currently running as an active session — that
+    // session logs its own Activity on end, so stamping here would double-log.
+    const activeCatIds = new Set(getActiveActivities().map((a) => a.categoryId));
     for (const catId of selectedActivityCategories) {
+      if (activeCatIds.has(catId)) continue;
       const cat = catById[catId];
+      const d = activityDetails[catId] || {};
+      const dur = d.duration || activityDuration;
+      const noteVal = (d.note || activityNote || "").trim();
       await base44.entities.Activity.create({
         timestamp,
         activity_name: cat?.name || catId,
         activity_category_ids: [catId],
-        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        duration_minutes: dur ? parseInt(dur) : null,
         fronting_alter_ids: selectedAlters,
         // Emotions are NOT copied onto the activity — they live on the
         // EmotionCheckIn this same save creates (the source of truth). Stamping
         // them here duplicated them onto every activity and made them appear to
         // "extend" when an activity was lengthened. The day view reads emotions
         // from the check-in, not the activity.
-        notes: activityNote.trim() || null,
+        notes: noteVal || null,
       });
     }
   };
@@ -1065,8 +1108,69 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             onActivityChange={setSelectedActivityCategories}
             allowCreate={false}
             duration={activityDuration} onDurationChange={setActivityDuration} />
+
+              {/* Selected activities — each can be set ACTIVE now (+ / − like a
+                  symptom) and gets minimal inline detail pills (duration + note)
+                  so you can log details without opening the Activity Tracker. */}
+              {selectedActivityCategories.length > 0 && (
+                <div className="space-y-1.5">
+                  {selectedActivityCategories.map((catId) => {
+                    const cat = activityCategories.find((c) => c.id === catId);
+                    if (!cat) return null;
+                    const isActive = activeActs.some((a) => a.categoryId === catId);
+                    const d = activityDetails[catId] || {};
+                    const open = expandedActId === catId;
+                    const color = cat.color || "#8b5cf6";
+                    const setDetail = (patch) => setActivityDetails((s) => ({ ...s, [catId]: { ...s[catId], ...patch } }));
+                    return (
+                      <div key={catId} className="rounded-lg border border-border/50 bg-muted/10">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                          <button type="button" onClick={() => setExpandedActId(open ? null : catId)}
+                            className="flex-1 min-w-0 text-left text-sm font-medium truncate flex items-center gap-1.5">
+                            {cat.name}
+                            {(d.duration || d.note) && <SlidersHorizontal className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                          </button>
+                          {isActive && <span className="text-[0.5625rem] uppercase tracking-wide font-semibold text-emerald-500 flex-shrink-0">Active</span>}
+                          <button
+                            type="button"
+                            onClick={() => toggleActiveActivity(cat)}
+                            title={isActive ? "End & log this activity" : "Set active now"}
+                            aria-label={isActive ? `End ${cat.name}` : `Set ${cat.name} active`}
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border transition-all"
+                            style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? color : "transparent", color: isActive ? "#fff" : color }}
+                          >
+                            {isActive ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                          </button>
+                        </div>
+                        {open && (
+                          <div className="px-2.5 pb-2 pt-1 space-y-1.5 border-t border-border/40">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide mr-0.5">Duration</span>
+                              {["5", "15", "30", "60", "90"].map((m) => (
+                                <button key={m} type="button"
+                                  onClick={() => setDetail({ duration: d.duration === m ? "" : m })}
+                                  className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${d.duration === m ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
+                                  {m}m
+                                </button>
+                              ))}
+                              <input type="number" min="0" inputMode="numeric" placeholder="min" value={d.duration || ""}
+                                onChange={(e) => setDetail({ duration: e.target.value })}
+                                className="w-14 h-6 px-1.5 text-[0.6875rem] rounded border border-border/60 bg-background" />
+                            </div>
+                            <input type="text" placeholder="Note for this activity (optional)" value={d.note || ""}
+                              onChange={(e) => setDetail({ note: e.target.value })}
+                              className="w-full h-7 px-2 text-xs rounded border border-border/60 bg-background" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <Textarea
-                placeholder="Add a note about this activity... (optional)"
+                placeholder="General note for these activities... (optional)"
                 value={activityNote}
                 onChange={e => setActivityNote(e.target.value)}
                 className="text-sm min-h-[60px] resize-none"

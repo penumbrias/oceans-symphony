@@ -410,7 +410,11 @@ export default function ActivityLogModal({
           {/* Start {!activeMode && "/ end"} time + duration */}
           <div className="flex gap-3 items-end">
             <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">Start time</label>
+              <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
+                <span>Start time</span>
+                <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
+                  className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
+              </label>
               <input
                 type="time"
                 value={startTime}
@@ -420,11 +424,15 @@ export default function ActivityLogModal({
             </div>
             {!activeMode && (
               <div className="flex-1">
-                <label className="text-sm font-medium block mb-1">
-                  End time
-                  {isCrossDay && endDate && (
-                    <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
-                  )}
+                <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
+                  <span>
+                    End time
+                    {isCrossDay && endDate && (
+                      <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
+                    )}
+                  </span>
+                  <button type="button" onClick={() => { const n = new Date(); setEndDateStr(format(n, "yyyy-MM-dd")); setEndTime(format(n, "HH:mm")); }}
+                    className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
                 </label>
                 <input
                   type="time"
