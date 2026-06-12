@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Activity Tracker loads faster and paging between weeks/months is now instant (no longer reloads everything each time).",
+      },
+      {
+        type: "improve",
         text: "Quick Check-In: each chosen activity can be set active (+) right there, and given a quick duration or note inline.",
       },
       {
