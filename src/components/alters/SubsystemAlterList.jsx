@@ -186,9 +186,10 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
 }
 
 function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize, onDrillInto }) {
-  const t = useTerms();
   const [expanded, setExpanded] = useState(false);
-  const [activeSubId, setActiveSubId] = useState(null);
+  // A SET of expanded subsystem ids — so an alter who owns several subsystems
+  // can have more than one open at once (the icons/rows all stay visible).
+  const [expandedSubIds, setExpandedSubIds] = useState(() => new Set());
   const [menuGroup, setMenuGroup] = useState(null);
 
   const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
@@ -197,11 +198,8 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
   const multi = ownedSubs.length > 1;
   // Inline = members nest here; otherwise drilling in resets the view.
   const inlineExpandable = hasSub && depth < MAX_INLINE_DEPTH;
-  const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
-
-  const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === activeSubId) || null : ownedSubs[0]);
-  const members = (expanded && activeSub && inlineExpandable) ? getMemberAlters(activeSub, allAlters) : [];
   const nextVisited = hasSub ? new Set(visited).add(alter.id) : visited;
+  const toggleSub = (id) => setExpandedSubIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const indentStyle = { marginLeft: INDENT_PX, paddingLeft: INDENT_PX / 2 };
 
   return (
@@ -230,67 +228,71 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
 
       {hasSub && expanded && (
         <div className="border-l-2 border-border/40 mt-2 flex flex-col gap-2" style={indentStyle}>
-          {multi && !activeSub ? (
+          {multi ? (
+            // All subsystems stay listed — each opens/closes independently, so
+            // several can be expanded at once.
             ownedSubs.map((sub) => {
-              const count = getMemberAlters(sub, allAlters).length;
+              const subExpanded = expandedSubIds.has(sub.id);
+              const subMembers = (subExpanded && inlineExpandable) ? getMemberAlters(sub, allAlters) : [];
               return (
-                <div key={sub.id} className="flex items-center gap-2">
-                  <button
-                    type="button"
-                    // At the depth cap, picking a subsystem drills in
-                    // (breadcrumb); otherwise it shows members inline.
-                    onClick={() => (inlineExpandable ? setActiveSubId(sub.id) : onDrillInto?.(sub))}
-                    className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
-                    style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
-                  >
-                    <GroupIcon group={sub} className="w-4 h-4" />
-                    <span className="text-sm flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
-                    <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{count}</span>
-                    <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
-                  </button>
-                  <button type="button" onClick={() => setMenuGroup(sub)} title="Options"
-                    className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
-                    <Settings2 className="w-4 h-4" />
-                  </button>
+                <div key={sub.id} className="flex flex-col gap-2">
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      // At the depth cap, picking a subsystem drills in
+                      // (breadcrumb); otherwise it toggles members inline.
+                      onClick={() => (inlineExpandable ? toggleSub(sub.id) : onDrillInto?.(sub))}
+                      className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
+                      style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
+                    >
+                      <GroupIcon group={sub} className="w-4 h-4" />
+                      <span className="text-sm flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
+                      <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{getMemberAlters(sub, allAlters).length}</span>
+                      {inlineExpandable && subExpanded
+                        ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                        : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                    </button>
+                    <button type="button" onClick={() => setMenuGroup(sub)} title="Options"
+                      className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
+                      <Settings2 className="w-4 h-4" />
+                    </button>
+                  </div>
+                  {subExpanded && inlineExpandable && (
+                    <div className="border-l-2 border-border/40 flex flex-col gap-2" style={indentStyle}>
+                      {subMembers.length > 0 ? (
+                        subMembers.map((m, j) => (
+                          <SubsystemNode key={m.id} alter={m} index={j} depth={depth + 1} visited={nextVisited}
+                            allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto} />
+                        ))
+                      ) : (
+                        <button type="button" onClick={() => setMenuGroup(sub)}
+                          className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-colors text-sm">
+                          <span className="w-7 h-7 rounded-full border border-dashed border-current flex items-center justify-center flex-shrink-0"><Plus className="w-4 h-4" /></span>
+                          Add a member to {sub.name}
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               );
             })
-          ) : activeSub && inlineExpandable ? (
-            <>
-              {multi && (
-                <button type="button" onClick={() => setActiveSubId(null)}
-                  className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground px-1">
-                  <ArrowLeft className="w-3.5 h-3.5" /> All {subTerm}s
-                </button>
-              )}
-              {members.length > 0 ? (
-                members.map((m, j) => (
-                  <SubsystemNode
-                    key={m.id}
-                    alter={m}
-                    index={j}
-                    depth={depth + 1}
-                    visited={nextVisited}
-                    allAlters={allAlters}
-                    allGroups={allGroups}
-                    activeSessions={activeSessions}
-                    anonymize={anonymize}
-                    onDrillInto={onDrillInto}
-                  />
+          ) : inlineExpandable ? (
+            (() => {
+              const sub = ownedSubs[0];
+              const subMembers = getMemberAlters(sub, allAlters);
+              return subMembers.length > 0 ? (
+                subMembers.map((m, j) => (
+                  <SubsystemNode key={m.id} alter={m} index={j} depth={depth + 1} visited={nextVisited}
+                    allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto} />
                 ))
               ) : (
-                <button
-                  type="button"
-                  onClick={() => setMenuGroup(activeSub)}
-                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-colors text-sm"
-                >
-                  <span className="w-7 h-7 rounded-full border border-dashed border-current flex items-center justify-center flex-shrink-0">
-                    <Plus className="w-4 h-4" />
-                  </span>
-                  Add a member to {activeSub.name}
+                <button type="button" onClick={() => setMenuGroup(sub)}
+                  className="flex items-center gap-2 px-3 py-2.5 rounded-xl border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-border hover:bg-muted/20 transition-colors text-sm">
+                  <span className="w-7 h-7 rounded-full border border-dashed border-current flex items-center justify-center flex-shrink-0"><Plus className="w-4 h-4" /></span>
+                  Add a member to {sub.name}
                 </button>
-              )}
-            </>
+              );
+            })()
           ) : null}
         </div>
       )}

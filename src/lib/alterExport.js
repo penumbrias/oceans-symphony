@@ -82,6 +82,10 @@ function buildExportItems(alters, options, groupsById, groups = [], allAlters = 
 
   const selectedIds = new Set(alters.map((a) => a.id));
   const rendered = new Set();
+  // A subsystem's full member list is written ONCE — if its owner appears in
+  // several groups, repeating the whole subsystem each time is wasteful, so
+  // later appearances get a one-line "listed above" reference instead.
+  const expandedSubs = new Set();
 
   // An alter card, plus any subsystems it owns rendered nested beneath it
   // (recursive — subsystem members can themselves own subsystems).
@@ -93,6 +97,11 @@ function buildExportItems(alters, options, groupsById, groups = [], allAlters = 
       for (const sub of getSubsystemsOwnedBy(groups, a.id)) {
         const members = getMemberAlters(sub, allAlters).filter((m) => selectedIds.has(m.id));
         if (!members.length) continue;
+        if (expandedSubs.has(sub.id)) {
+          out.push({ type: "header", title: `${sub.name || "Subsystem"} — listed above`, depth: depth + 1, subsystem: true, ref: true });
+          continue;
+        }
+        expandedSubs.add(sub.id);
         out.push({ type: "header", title: sub.name || "Subsystem", depth: depth + 1, subsystem: true });
         for (const m of members) out.push(...alterItems(m, depth + 2, nextVisited));
       }

@@ -115,11 +115,15 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const compact = cols >= 4;
   const [expandedOwners, setExpandedOwners] = useState(new Set());
   const [subsystemMenuGroup, setSubsystemMenuGroup] = useState(null);
-  // For owners with multiple subsystems: which one's members are shown
-  // (keyed by node PATH, not alter id — the same alter can appear in more
-  // than one branch and each instance expands independently). Absent → chooser.
-  const [gridActiveSub, setGridActiveSub] = useState({});
-  const setActiveSubFor = (path, subId) => setGridActiveSub((m) => ({ ...m, [path]: subId }));
+  // For owners with multiple subsystems: a SET of expanded subsystem ids per
+  // node PATH (not alter id — the same alter can appear in more than one branch
+  // and each instance expands independently). Several can be open at once.
+  const [gridExpandedSubs, setGridExpandedSubs] = useState({});
+  const toggleSubFor = (path, subId) => setGridExpandedSubs((m) => {
+    const cur = new Set(m[path] || []);
+    if (cur.has(subId)) cur.delete(subId); else cur.add(subId);
+    return { ...m, [path]: cur };
+  });
 
   // Breadcrumb drill-in stack of subsystems (groups). Empty = top level.
   // Once inline nesting would get too cramped, drilling resets the grid to
@@ -220,8 +224,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     // Inline = members nest here; otherwise drilling in resets the view.
     const inlineExpandable = hasSub && depth < MAX_GRID_INLINE_DEPTH;
     const expanded = hasSub && expandedOwners.has(path);
-    const activeSub = !hasSub ? null : (multi ? ownedSubs.find((s) => s.id === gridActiveSub[path]) || null : ownedSubs[0]);
-    const members = (expanded && activeSub && inlineExpandable) ? getMemberAlters(activeSub, allAlters) : [];
+    const expandedSet = gridExpandedSubs[path] || null;
     const ownerColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
     const low = needsHalo(ownerColor, surfaceBg);
     const borderColor = low ? adjustForContrast(ownerColor, surfaceBg) : ownerColor;
@@ -249,43 +252,61 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
             }}
             className="rounded-2xl p-3"
           >
-            {multi && !activeSub ? (
-              // Chooser: tiles for each of the alter's subsystems.
-              <>
-                <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1">Subsystems</p>
-                <div className={`grid ${colsClass} gap-3`}>
-                  {ownedSubs.map((sub) => (
-                    <button key={sub.id} type="button"
-                      onClick={() => (inlineExpandable ? setActiveSubFor(path, sub.id) : drillInto(sub))}
-                      className="flex flex-col items-center gap-2 select-none" title={sub.name}>
-                      <GroupIcon group={sub} boxed className={ICON} boxClassName="rounded-full border-2 border-border/50" iconClassName="w-5 h-5" />
-                      <span className="text-xs text-center font-medium truncate w-full px-1" style={{ color: groupNameColor(sub.color) }}>{sub.name}</span>
-                    </button>
-                  ))}
-                </div>
-              </>
-            ) : activeSub ? (
-              <>
-                <div className="flex items-center justify-between mb-2 px-1">
-                  <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground truncate" style={{ color: groupNameColor(activeSub.color) }}>{activeSub.name}</p>
-                  {multi && (
-                    <button type="button" onClick={() => setActiveSubFor(path, null)}
-                      className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground inline-flex items-center gap-1 flex-shrink-0">
-                      <ArrowLeft className="w-3 h-3" /> All
-                    </button>
-                  )}
-                </div>
-                <div className={`grid ${colsClass} gap-3`}>
-                  {members.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
-                  <button type="button" onClick={() => setSubsystemMenuGroup(activeSub)}
-                    className="flex flex-col items-center gap-2 select-none" title={`Manage ${activeSub.name}`}>
-                    <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
-                      <Plus className="w-5 h-5" />
-                    </span>
-                    <span className="text-xs text-center font-medium text-muted-foreground">{members.length === 0 ? "Add member" : "Manage"}</span>
-                  </button>
-                </div>
-              </>
+            {multi ? (
+              // All subsystems listed — each expands/collapses independently so
+              // several can be open at once.
+              <div className="space-y-2">
+                <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground px-1">Subsystems</p>
+                {ownedSubs.map((sub) => {
+                  const subOpen = inlineExpandable && !!expandedSet && expandedSet.has(sub.id);
+                  const subMembers = subOpen ? getMemberAlters(sub, allAlters) : [];
+                  return (
+                    <div key={sub.id}>
+                      <button type="button"
+                        onClick={() => (inlineExpandable ? toggleSubFor(path, sub.id) : drillInto(sub))}
+                        className="w-full flex items-center gap-2 px-2 py-1.5 rounded-xl border border-border/50 bg-card/60 hover:bg-muted/30 transition-colors text-left"
+                        style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}>
+                        <GroupIcon group={sub} className="w-4 h-4 flex-shrink-0" />
+                        <span className="text-xs font-medium flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
+                        <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{getMemberAlters(sub, allAlters).length}</span>
+                        {inlineExpandable && subOpen ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />}
+                      </button>
+                      {subOpen && (
+                        <div className={`grid ${colsClass} gap-3 mt-2 pl-2`}>
+                          {subMembers.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
+                          <button type="button" onClick={() => setSubsystemMenuGroup(sub)}
+                            className="flex flex-col items-center gap-2 select-none" title={`Manage ${sub.name}`}>
+                            <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
+                              <Plus className="w-5 h-5" />
+                            </span>
+                            <span className="text-xs text-center font-medium text-muted-foreground">{subMembers.length === 0 ? "Add member" : "Manage"}</span>
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            ) : inlineExpandable ? (
+              (() => {
+                const sub = ownedSubs[0];
+                const subMembers = getMemberAlters(sub, allAlters);
+                return (
+                  <>
+                    <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-2 px-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.name}</p>
+                    <div className={`grid ${colsClass} gap-3`}>
+                      {subMembers.map((m) => renderNode(m, nextVisited, depth + 1, `${path}/${m.id}`))}
+                      <button type="button" onClick={() => setSubsystemMenuGroup(sub)}
+                        className="flex flex-col items-center gap-2 select-none" title={`Manage ${sub.name}`}>
+                        <span className={`rounded-full border-2 border-dashed border-border/70 flex items-center justify-center text-muted-foreground hover:text-foreground hover:border-border transition-colors ${ICON}`}>
+                          <Plus className="w-5 h-5" />
+                        </span>
+                        <span className="text-xs text-center font-medium text-muted-foreground">{subMembers.length === 0 ? "Add member" : "Manage"}</span>
+                      </button>
+                    </div>
+                  </>
+                );
+              })()
             ) : null}
           </div>
         )}

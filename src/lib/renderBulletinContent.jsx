@@ -70,25 +70,54 @@ function applyTerms(content, terms) {
   return content.replace(/\{[A-Za-z]+\}/g, (m) => map[m] ?? m);
 }
 
+// Tokenises a plain-text run into @mentions, markdown links [text](url), bare
+// http(s) URLs, and plain text — rendering each appropriately. Runs on TEXT
+// NODES only (the HTML parser has already decoded entities + separated real
+// tags), so the regexes are safe. This is why typing `[label](https://…)` or a
+// bare URL into a post just works, in addition to the toolbar's link button.
+const TOKEN_RE = /(\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))|(\bhttps?:\/\/[^\s<]+)|(@\w+)/g;
+
 function renderTextWithMentions(text, alters, baseKey) {
   if (!text) return null;
   const altersByName = Object.fromEntries(alters.map((a) => [a.name, a]));
   const altersByAlias = Object.fromEntries(alters.filter((a) => a.alias).map((a) => [a.alias, a]));
-  const parts = text.split(/(@\w+)/g);
-  return parts.map((part, i) => {
-    if (part.startsWith("@")) {
-      const mention = part.slice(1).trim();
-      const alter = altersByName[mention] || altersByAlias[mention];
+
+  const out = [];
+  let last = 0;
+  let m;
+  let i = 0;
+  TOKEN_RE.lastIndex = 0;
+  const linkCls = "underline text-primary break-words";
+  while ((m = TOKEN_RE.exec(text)) !== null) {
+    if (m.index > last) out.push(<React.Fragment key={`${baseKey}-t${i}`}>{text.slice(last, m.index)}</React.Fragment>);
+    const [full, mdLink, bareUrl, mention] = m;
+    if (mdLink) {
+      const lm = /^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)$/.exec(mdLink);
+      out.push(<a key={`${baseKey}-l${i}`} href={lm[2]} target="_blank" rel="noopener noreferrer" className={linkCls}>{lm[1]}</a>);
+    } else if (bareUrl) {
+      // Don't swallow trailing sentence punctuation into the URL.
+      const trail = bareUrl.match(/[.,!?;:)\]]+$/);
+      const url = trail ? bareUrl.slice(0, -trail[0].length) : bareUrl;
+      out.push(<a key={`${baseKey}-u${i}`} href={url} target="_blank" rel="noopener noreferrer" className={linkCls}>{url}</a>);
+      if (trail) out.push(<React.Fragment key={`${baseKey}-tp${i}`}>{trail[0]}</React.Fragment>);
+    } else if (mention) {
+      const name = mention.slice(1).trim();
+      const alter = altersByName[name] || altersByAlias[name];
       if (alter) {
-        return (
-          <Link key={`${baseKey}-${i}`} to={`/alter/${alter.id}`}>
-            <span className="font-semibold rounded px-0.5" style={{ color: alter.color || "hsl(var(--primary))" }}>{part}</span>
+        out.push(
+          <Link key={`${baseKey}-m${i}`} to={`/alter/${alter.id}`}>
+            <span className="font-semibold rounded px-0.5" style={{ color: alter.color || "hsl(var(--primary))" }}>{mention}</span>
           </Link>
         );
+      } else {
+        out.push(<React.Fragment key={`${baseKey}-m${i}`}>{mention}</React.Fragment>);
       }
     }
-    return <React.Fragment key={`${baseKey}-${i}`}>{part}</React.Fragment>;
-  });
+    last = m.index + full.length;
+    i++;
+  }
+  if (last < text.length) out.push(<React.Fragment key={`${baseKey}-t${i}`}>{text.slice(last)}</React.Fragment>);
+  return out;
 }
 
 function nodeToReact(node, key, renderText) {

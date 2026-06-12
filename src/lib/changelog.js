@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Posts, comments and bulletins now turn web links — both [text](https://…) and pasted https:// URLs — into clickable links.",
+      },
+      {
+        type: "improve",
+        text: "Alters page: you can now expand several of an alter's subsystems at once, instead of only one at a time.",
+      },
+      {
+        type: "fix",
+        text: "Export members organized by group: a subsystem is now written out in full only once (repeats just say “listed above”) instead of repeating the whole thing wherever its owner appears.",
+      },
+      {
         type: "feature",
         text: "Friends: you can now manage a privacy level's members directly — add a whole group or subsystem (nesting respected) or individual members — from Friends → Member sharing → Manage by level.",
       },
