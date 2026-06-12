@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 11, 2026",
     changes: [
       {
+        type: "improve",
+        text: "When ending an active activity you can now set the end time, in case you forgot to end it at the actual moment.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a persistent notification now opens the right place — current fronters opens the switch screen; the activity timer opens Activities (symptoms already opened their menu).",
+      },
+      {
         type: "fix",
         text: "Member pickers no longer jump back to the top when you expand a group or change an alter's level.",
       },

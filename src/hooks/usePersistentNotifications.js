@@ -95,6 +95,14 @@ export default function usePersistentNotifications() {
               try { localStorage.setItem(PENDING_SYMPTOM_MENU_KEY, extra.sessionId); } catch { /* */ }
               navigate("/");
               window.dispatchEvent(new CustomEvent(OPEN_SYMPTOM_MENU_EVENT, { detail: { sessionId: extra.sessionId } }));
+            } else if (actionId === "tap" && extra.kind === "fronters") {
+              // Tapping the current-fronters notification opens the Set Front
+              // modal so you can switch right away (reuses CurrentFronters'
+              // existing "open-set-front" listener).
+              navigate("/");
+              setTimeout(() => window.dispatchEvent(new Event("open-set-front")), 80);
+            } else if (actionId === "tap" && extra.kind === "activity") {
+              navigate("/activities");
             }
           } catch { /* action failed — leave state as-is */ }
         });
@@ -146,6 +154,7 @@ export default function usePersistentNotifications() {
       enabled: names.length > 0,
       title: `Currently ${t.fronting}`,
       body: names.join(", "),
+      extra: { kind: "fronters" },
     });
   }, [prefs.fronters, sessions, alters, t.fronting, formatAlter, resyncTick]);
 
@@ -195,7 +204,8 @@ export default function usePersistentNotifications() {
       enabled: true,
       title,
       body,
-      ...(single ? { actionTypeId: "ACTIVITY_ACTIONS", extra: { id: single.id, kind: "activity" } } : {}),
+      ...(single ? { actionTypeId: "ACTIVITY_ACTIONS" } : {}),
+      extra: { kind: "activity", ...(single ? { id: single.id } : {}) },
     });
   }, [prefs.activity, activeActivities, resyncTick]);
 

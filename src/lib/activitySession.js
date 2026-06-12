@@ -73,12 +73,13 @@ export function updateActiveActivity(id, patch) {
 // started via the "Active" toggle is indistinguishable from one logged with
 // explicit start/end times. Returns { record, minutes, name } or null.
 // With no id and exactly one running session, ends that one.
-export async function endAndLogActiveActivity(id) {
+export async function endAndLogActiveActivity(id, endTimeIso) {
   const arr = getActiveActivities();
   const active = id ? arr.find((a) => a.id === id) : (arr.length === 1 ? arr[0] : null);
   if (!active) return null;
   const start = new Date(active.startTime);
-  const end = new Date();
+  // Custom end time lets you fix it up if you forgot to end at the real moment.
+  const end = endTimeIso ? new Date(endTimeIso) : new Date();
   const minutes = Math.max(1, Math.round((end - start) / 60000));
   const alterIds = active.alterIds || (active.alterId ? [active.alterId] : []);
   const record = await base44.entities.Activity.create({

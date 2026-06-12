@@ -23,6 +23,8 @@ function ActivityActionMenu({ activity, onClose }) {
   const [busy, setBusy] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(activity.startTime));
+  // Blank = end now; set it to backfill a forgotten end time.
+  const [endDraft, setEndDraft] = useState("");
 
   const handleSaveStart = () => {
     if (!startDraft) return;
@@ -33,9 +35,10 @@ function ActivityActionMenu({ activity, onClose }) {
   };
 
   const handleEnd = async () => {
+    if (endDraft && new Date(endDraft) <= new Date(activity.startTime)) { toast.error("End time must be after the start"); return; }
     setBusy(true);
     try {
-      const res = await endAndLogActiveActivity(activity.id);
+      const res = await endAndLogActiveActivity(activity.id, endDraft ? new Date(endDraft).toISOString() : undefined);
       qc.invalidateQueries({ queryKey: ["activities"] });
       if (res) toast.success(`✅ Logged ${res.name} (${res.minutes}m)`);
     } catch (e) { toast.error(e?.message || "Couldn't save the activity"); }
@@ -82,6 +85,12 @@ function ActivityActionMenu({ activity, onClose }) {
             <span className="text-xs text-muted-foreground">({format(new Date(activity.startTime), "MMM d, h:mm a")})</span>
           </button>
         )}
+
+        <div className="space-y-1">
+          <p className="text-xs font-medium text-muted-foreground">End time <span className="font-normal">(blank = now)</span></p>
+          <input type="datetime-local" value={endDraft} onChange={(e) => setEndDraft(e.target.value)}
+            className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm" />
+        </div>
 
         <button type="button" onClick={handleEnd} disabled={busy}
           className="w-full flex items-center justify-center gap-1.5 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50 transition-colors">
