@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 12, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Currently-fronting notification now shows just each fronter's name, not the alias too.",
+      },
+      {
         type: "feature",
         text: "New App Roadmap page: a list of planned features and long-term ideas you can add to and sort by status.",
       },

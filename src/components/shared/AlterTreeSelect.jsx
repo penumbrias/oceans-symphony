@@ -48,40 +48,57 @@ function buildSubsystemItems(alters, groups, expanded) {
 }
 
 // Folder tree: non-subsystem groups nested by `parent`; expand a group to see
-// its member alters + child groups. Subsystems never appear here (they live in
-// the Members tab's by-subsystem view).
+// its member alters + child groups, mirroring the alters-page folder nesting
+// (GroupFolderView uses the same `g.parent === parentKey` rule, parentKey =
+// sp_id||id). Subsystems ARE included and nested in place (marked with the
+// subsystem icon) so a folder parented under a subsystem still nests correctly
+// — excluding them used to orphan their children to the root.
 //
-// A group's `parent` may reference its target by EITHER id or sp_id, so we
-// resolve it through a combined lookup — the previous "is the parent in the
-// folder-key set?" test treated every sp_id-referenced (or subsystem-parented)
-// child as a root, which is why the whole tree rendered flat.
+// A group's `parent` references its target by EITHER id or sp_id, so resolve
+// through a combined lookup. Reachability is computed by a FULL traversal that
+// ignores expand state — otherwise collapsed children (only emitted when their
+// parent is expanded) looked "unreached" and the survivor pass hoisted every
+// one of them to the root, which is exactly why the tree rendered flat.
 function buildFolderItems(alters, groups, expanded) {
-  const folderGroups = (groups || []).filter((g) => !isSubsystem(g));
+  const all = groups || [];
   const byRef = {};
-  for (const g of folderGroups) { byRef[g.id] = g; if (g.sp_id) byRef[g.sp_id] = g; }
+  for (const g of all) { byRef[g.id] = g; if (g.sp_id) byRef[g.sp_id] = g; }
   const resolveParentKey = (p) => {
     if (!p || p === "root") return null;
     const pg = byRef[p];
-    return pg ? groupKeyOf(pg) : null; // dangling / subsystem parent → treat as root
+    return pg ? groupKeyOf(pg) : null; // dangling parent → treat as root
   };
-  const childrenOf = (key) => folderGroups.filter((g) => resolveParentKey(g.parent) === key);
+  const childrenOf = (key) => all.filter((g) => resolveParentKey(g.parent) === key);
+
+  // Structural reachability from the roots, independent of expand state, so we
+  // can tell a genuinely-orphaned / cycle-trapped group from a merely-collapsed
+  // child.
+  const reachable = new Set();
+  const markReach = (g, depth, vis) => {
+    const k = groupKeyOf(g);
+    if (vis.has(k) || depth > MAX_SUBSYSTEM_DEPTH) return;
+    reachable.add(k);
+    const nv = new Set(vis).add(k);
+    for (const c of childrenOf(k)) markReach(c, depth + 1, nv);
+  };
+  for (const r of childrenOf(null)) markReach(r, 0, new Set());
+
   const items = [];
-  const seen = new Set();
   const emit = (group, depth, visited) => {
     const key = groupKeyOf(group);
     if (visited.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return;
-    seen.add(key);
     const nv = new Set(visited).add(key);
     const members = getMemberAlters(group, alters);
-    items.push({ type: "group", depth, group, members, subsystem: false });
+    items.push({ type: "group", depth, group, members, subsystem: isSubsystem(group) });
     if (!expanded.has(key)) return;
     for (const m of members) items.push({ type: "alter", depth: depth + 1, alter: m });
-    for (const sub of childrenOf(key)) emit(sub, depth + 1, nv);
+    for (const c of childrenOf(key)) emit(c, depth + 1, nv);
   };
-  for (const root of childrenOf(null)) emit(root, 0, new Set());
-  // Cycle / dangling-parent survivors: surface any folder-group not yet reached
-  // at the root so it stays selectable.
-  for (const g of folderGroups) if (!seen.has(groupKeyOf(g))) emit(g, 0, new Set());
+  for (const r of childrenOf(null)) emit(r, 0, new Set());
+  // Orphans / cycle-trapped groups that no root can reach — surface them at the
+  // root so they stay selectable. Collapsed children are reachable, so they are
+  // NOT hoisted here (that was the flat-tree bug).
+  for (const g of all) if (!reachable.has(groupKeyOf(g))) emit(g, 0, new Set());
   return items;
 }
 

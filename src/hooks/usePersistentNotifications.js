@@ -25,6 +25,7 @@ import { base44 } from "@/api/base44Client";
 import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { formatAlterLabel } from "@/lib/alterLabel";
 import { getActiveActivities, endAndLogActiveActivity, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { getAllPersistNotifPrefs, PERSIST_NOTIF_EVENT } from "@/lib/persistentNotifPrefs";
 import { syncPersistentNotification, registerPersistentActionTypes } from "@/lib/persistentNotifications";
@@ -155,7 +156,10 @@ export default function usePersistentNotifications() {
       const a = altersById[s.alter_id || s.primary_alter_id];
       if (!a || seenIds.has(a.id)) continue;
       seenIds.add(a.id);
-      names.push(formatAlter(a));
+      // Force "name" mode in the notification — the user's label mode may be
+      // "both" ("alias — name"), which is too cluttered for a glanceable
+      // status line. Just the display name (matches the dashboard cards).
+      names.push(formatAlterLabel(a, "name"));
     }
     syncPersistentNotification("fronters", {
       enabled: names.length > 0,
