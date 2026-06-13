@@ -468,6 +468,13 @@ html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 
 .bulletin-prose ol { padding-left: 1.4em; margin: .25em 0; }
 .bulletin-prose li { margin: .15em 0; }
 .bulletin-prose a { color: hsl(var(--primary)); text-decoration: underline; }
+/* Tailwind's preflight resets h1–h3 to inherit, so headings inserted from the
+ * rich toolbar rendered at body size ("headings not working"). Restore a
+ * sensible scale scoped to rendered bulletin/comment content. */
+.bulletin-prose h1 { font-size: 1.5em; font-weight: 700; line-height: 1.2; margin: .5em 0 .3em; }
+.bulletin-prose h2 { font-size: 1.25em; font-weight: 700; line-height: 1.25; margin: .5em 0 .3em; }
+.bulletin-prose h3 { font-size: 1.1em; font-weight: 600; line-height: 1.3; margin: .4em 0 .25em; }
+.bulletin-prose blockquote { border-left: 3px solid hsl(var(--primary)); margin: .4em 0; padding: .25em .75em; color: hsl(var(--muted-foreground)); }
 
 /* Corner-mode toggle (Settings → Appearance → Corner style). When the
  * user picks "Sharp" we zero out every Tailwind rounded-* class via a

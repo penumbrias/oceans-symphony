@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 13, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Rich-text “web link” button now asks for the address and inserts a working link (it used to add a dead placeholder).",
+      },
+      {
+        type: "fix",
+        text: "Headings (H1–H3) added from the formatting toolbar now show at heading sizes in posts.",
+      },
+      {
         type: "improve",
         text: "The “What's new” bar shows on the dashboard automatically again whenever a new version ships.",
       },
