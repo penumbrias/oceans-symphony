@@ -1,13 +1,6 @@
-import { useState, useEffect } from "react";
-import { ChevronDown, Download, Loader2 } from "lucide-react";
+import { useState } from "react";
+import { ChevronDown } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
-import { Button } from "@/components/ui/button";
-import {
-  isChangelogInstalled,
-  installChangelog,
-  OPTIONAL_CONTENT_EVENT,
-} from "@/lib/optionalContent";
-import { toast } from "sonner";
 
 const TYPE_STYLES = {
   feature: { dot: "bg-primary", label: "New", labelCls: "text-primary bg-primary/10" },
@@ -20,47 +13,8 @@ const INITIAL_SHOW = 2;
 
 export default function RecentUpdates() {
   const [expanded, setExpanded] = useState(false);
-  // The changelog is an OPTIONAL add-on, default OFF. When it isn't
-  // installed we show a short note + Install button instead of the list.
-  // The main on/off toggle lives in Settings → Appearance → Optional
-  // add-ons; this surface stays in sync via OPTIONAL_CONTENT_EVENT.
-  const [installed, setInstalled] = useState(() => isChangelogInstalled());
-  const [installing, setInstalling] = useState(false);
-
-  useEffect(() => {
-    const onChange = () => setInstalled(isChangelogInstalled());
-    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-  }, []);
-
-  const handleInstall = async () => {
-    setInstalling(true);
-    try {
-      await installChangelog();
-      setInstalled(true);
-      toast.success("Changelog enabled");
-    } catch {
-      toast.error("Couldn't enable the changelog");
-    } finally {
-      setInstalling(false);
-    }
-  };
 
   const visible = expanded ? CHANGELOG : CHANGELOG.slice(0, INITIAL_SHOW);
-
-  if (!installed) {
-    return (
-      <div className="space-y-3">
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          The changelog and the dashboard "What's new" bar are an optional add-on, off by default to keep the app lean. Turn it on to see recent updates here. You can also manage it under Appearance → Optional add-ons.
-        </p>
-        <Button onClick={handleInstall} disabled={installing} className="gap-2">
-          {installing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-          {installing ? "Enabling…" : "Enable changelog"}
-        </Button>
-      </div>
-    );
-  }
 
   return (
     <div className="space-y-4">

@@ -3,7 +3,6 @@ import { Link } from "react-router-dom";
 import { X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
-import { isChangelogInstalled, OPTIONAL_CONTENT_EVENT } from "@/lib/optionalContent";
 
 // "What's new" strip on the dashboard. Shows the latest changelog
 // date block whenever the user opens the app on a version they
@@ -45,16 +44,6 @@ export default function NewFeaturesBar() {
   // addition to the headline (most-recent) block. Reset every mount.
   const [extraBlocks, setExtraBlocks] = useState(0);
 
-  // The whole changelog (and this bar) is an OPTIONAL add-on, default
-  // OFF. Read the install flag and re-read live when the user toggles it
-  // in Settings so the bar appears/disappears without a reload.
-  const [changelogInstalled, setChangelogInstalled] = useState(() => isChangelogInstalled());
-  useEffect(() => {
-    const onChange = () => setChangelogInstalled(isChangelogInstalled());
-    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-  }, []);
-
   // Pre-filter the whole changelog once: drop hotfixes, drop empty
   // blocks. The order is preserved (newest first).
   const filteredChangelog = useMemo(() => {
@@ -93,8 +82,6 @@ export default function NewFeaturesBar() {
     catch { /* ignore — bar stays dismissed for this session */ }
   };
 
-  // Off by default — the changelog must be opted into in Settings.
-  if (!changelogInstalled) return null;
   if (dismissed || !block) return null;
 
   // Older blocks revealed via "Show older changes". Slice picks up

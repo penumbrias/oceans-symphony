@@ -1,6 +1,6 @@
 import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
-import { useState, useEffect, lazy, Suspense } from 'react';
+import { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -45,9 +45,6 @@ import Polls from '@/pages/Polls.jsx';
 import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
-// Roadmap is an OPTIONAL add-on (opt-in, default off) — lazy-loaded into
-// its own chunk so it stays out of the base bundle. See optionalContent.js.
-const Roadmap = lazy(() => import('@/pages/Roadmap'));
 import FriendsPage from '@/pages/Friends';
 import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
@@ -196,18 +193,6 @@ const AuthenticatedApp = () => {
         <Route path="/checkin-log" element={<CheckInLog />} />
         <Route path="/system-history" element={<SystemHistory />} />
         <Route path="/location-history" element={<LocationHistory />} />
-        <Route
-          path="/roadmap"
-          element={
-            <Suspense fallback={
-              <div className="flex justify-center py-16">
-                <div className="w-6 h-6 border-2 border-muted border-t-primary rounded-full animate-spin" />
-              </div>
-            }>
-              <Roadmap />
-            </Suspense>
-          }
-        />
         <Route path="/friends" element={<FriendsPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />

@@ -1,13 +1,12 @@
-import React, { useState, useMemo, useCallback, useEffect } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images, Map } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
-import { isRoadmapInstalled, OPTIONAL_CONTENT_EVENT } from "@/lib/optionalContent";
 import GlobalSearch from "./GlobalSearch";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -40,7 +39,6 @@ function buildNavGroups(altersLabel, systemLabel) {
       { id: "therapy-report", label: "Therapy Report",  icon: FileText,    path: "/therapy-report" },
       { id: "support",        label: "Support & Learn", icon: BookOpen,    path: "/grounding" },
       { id: "safety-plan",    label: "Safety Plan",     icon: Shield,      path: "/safety-plan" },
-      { id: "roadmap",        label: "Roadmap",         icon: Map,         path: "/roadmap" },
     ],
     "Analytics": [
       { id: "analytics",        label: "Analytics",              icon: BarChart2, path: "/analytics" },
@@ -74,7 +72,6 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "polls",           label: "Polls",                  icon: Vote,          path: "/polls",            color: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
     { id: "system-history",  label: `${systemLabel} History`, icon: GitMerge,      path: "/system-history",   color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "location-history",label: "Location History",       icon: MapPin,        path: "/location-history", color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
-    { id: "roadmap",         label: "Roadmap",                icon: Map,           path: "/roadmap",          color: "bg-cyan-500/15 text-cyan-600 dark:text-cyan-400" },
     { id: "settings",        label: "Settings",               icon: Settings,      path: "/settings",         color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "home",            label: "Home",                   icon: CheckSquare,   path: "/",                 color: "bg-slate-500/15 text-slate-600 dark:text-slate-400" },
     { id: "friends",         label: "Friends",                icon: UserRound,     path: "/friends",          color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
@@ -244,27 +241,8 @@ export default function QuickNavMenu() {
     return systemSettingsData?.[0]?.navigation_config || DEFAULT_CONFIG;
   }, [systemSettingsData]);
 
-  // The Roadmap is an optional add-on (default off) — keep its tile /
-  // nav entry out of the rendered grid + popover until installed.
-  // Re-read live when the user toggles it in Settings.
-  const [roadmapInstalled, setRoadmapInstalled] = useState(() => isRoadmapInstalled());
-  useEffect(() => {
-    const onChange = () => setRoadmapInstalled(isRoadmapInstalled());
-    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
-  }, []);
-
-  const NAV_GROUPS = useMemo(() => {
-    const built = buildNavGroups(terms.Alters, terms.System);
-    if (roadmapInstalled) return built;
-    return Object.fromEntries(
-      Object.entries(built).map(([group, items]) => [group, items.filter(it => it.id !== "roadmap")])
-    );
-  }, [terms.Alters, terms.System, roadmapInstalled]);
-  const GRID_ITEMS = useMemo(() => {
-    const built = buildGridItems(terms.Alters, terms.System);
-    return roadmapInstalled ? built : built.filter(it => it.id !== "roadmap");
-  }, [terms.Alters, terms.System, roadmapInstalled]);
+  const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
 
   const configuredGridItems = useMemo(() => {
     const removed = navConfig.dashboardGridRemoved || [];

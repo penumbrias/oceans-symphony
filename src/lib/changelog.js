@@ -13,19 +13,20 @@
 
 export const CHANGELOG = [
   {
+    date: "June 13, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "The “What's new” bar shows on the dashboard automatically again whenever a new version ships.",
+      },
+    ],
+  },
+  {
     date: "June 12, 2026",
     changes: [
       {
         type: "fix",
         text: "Currently-fronting notification now shows just each fronter's name, not the alias too.",
-      },
-      {
-        type: "feature",
-        text: "New App Roadmap — an optional add-on (Settings → Appearance) with a curated, read-only list of planned features and long-term direction.",
-      },
-      {
-        type: "improve",
-        text: "Changelog & “What's new” are now an optional add-on (Settings → Appearance), so the app stays lean unless you turn them on.",
       },
       {
         type: "improve",

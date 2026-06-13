@@ -864,16 +864,6 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
 
 
-    // ─── ROADMAP ────────────────────────────────────────────────────────────
-    {
-      section: "roadmap", sectionLabel: "Roadmap",
-      emoji: "🗺️",
-      title: "Roadmap",
-      body: `The Roadmap is a curated, read-only list of planned features and the app's long-term direction, grouped by status — In progress, Planned, Backburner, Considering, and Done. It's maintained by the developers, so there's nothing to add or edit. It's an optional add-on, off by default — turn it on under Settings → Appearance → Optional add-ons.`,
-      route: "/roadmap", target: "roadmap-header",
-      look: `the highlighted Roadmap heading — scroll down to see items grouped by status`, action: null,
-    },
-
     // ─── DONE ───────────────────────────────────────────────────────────────
     {
       section: "done", sectionLabel: "Done!",
