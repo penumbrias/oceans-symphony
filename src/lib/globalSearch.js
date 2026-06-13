@@ -583,21 +583,6 @@ export function buildPollRecords({ items = [] }) {
   }));
 }
 
-export function buildRoadmapRecords({ items = [] }) {
-  return items.map((r) => ({
-    type: "roadmap",
-    id: r.id,
-    title: r.title || "Roadmap item",
-    subtitle: snippet(r.description) || [r.category, r.status].filter(Boolean).join(" · ") || "Roadmap",
-    path: "/roadmap",
-    searchableText: joinNonEmpty([
-      r.title, r.description, r.category, r.status,
-      dateSearchBlob(r.created_date),
-    ]).toLowerCase(),
-    sortDate: r.created_date,
-  }));
-}
-
 export function buildGroceryRecords({ items = [] }) {
   return items.map((g) => ({
     type: "grocery",
@@ -636,7 +621,6 @@ export function buildSearchIndex(sources = {}) {
     groceries,
     chatMessages, chatChannels,
     groundingTechniques, innerWorldLocations,
-    roadmapItems,
   } = sources;
 
   const records = [];
@@ -666,7 +650,6 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
-  records.push(...buildRoadmapRecords({ items: roadmapItems || [] }));
   return records;
 }
 

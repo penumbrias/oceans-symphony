@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images, Map } from "lucide-react";
@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { isRoadmapInstalled, OPTIONAL_CONTENT_EVENT } from "@/lib/optionalContent";
 import GlobalSearch from "./GlobalSearch";
 import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
@@ -243,8 +244,27 @@ export default function QuickNavMenu() {
     return systemSettingsData?.[0]?.navigation_config || DEFAULT_CONFIG;
   }, [systemSettingsData]);
 
-  const NAV_GROUPS = useMemo(() => buildNavGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
-  const GRID_ITEMS = useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  // The Roadmap is an optional add-on (default off) — keep its tile /
+  // nav entry out of the rendered grid + popover until installed.
+  // Re-read live when the user toggles it in Settings.
+  const [roadmapInstalled, setRoadmapInstalled] = useState(() => isRoadmapInstalled());
+  useEffect(() => {
+    const onChange = () => setRoadmapInstalled(isRoadmapInstalled());
+    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+  }, []);
+
+  const NAV_GROUPS = useMemo(() => {
+    const built = buildNavGroups(terms.Alters, terms.System);
+    if (roadmapInstalled) return built;
+    return Object.fromEntries(
+      Object.entries(built).map(([group, items]) => [group, items.filter(it => it.id !== "roadmap")])
+    );
+  }, [terms.Alters, terms.System, roadmapInstalled]);
+  const GRID_ITEMS = useMemo(() => {
+    const built = buildGridItems(terms.Alters, terms.System);
+    return roadmapInstalled ? built : built.filter(it => it.id !== "roadmap");
+  }, [terms.Alters, terms.System, roadmapInstalled]);
 
   const configuredGridItems = useMemo(() => {
     const removed = navConfig.dashboardGridRemoved || [];

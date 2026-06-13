@@ -4,6 +4,7 @@ import { useTerms } from "@/lib/useTerms";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Map } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
+import { isRoadmapInstalled, OPTIONAL_CONTENT_EVENT } from "@/lib/optionalContent";
 
 function buildSidebarGroups(altersLabel, systemLabel) {
   return [
@@ -67,7 +68,24 @@ export default function SidebarNav({ open, onClose }) {
   const terms = useTerms();
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
-  const groups = useMemo(() => buildSidebarGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
+
+  // The Roadmap is an optional add-on (default off). Hide its nav entry
+  // until installed; re-read live when the user toggles it in Settings.
+  const [roadmapInstalled, setRoadmapInstalled] = React.useState(() => isRoadmapInstalled());
+  useEffect(() => {
+    const onChange = () => setRoadmapInstalled(isRoadmapInstalled());
+    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+  }, []);
+
+  const groups = useMemo(() => {
+    const built = buildSidebarGroups(terms.Alters, terms.System);
+    if (roadmapInstalled) return built;
+    return built.map(group => ({
+      ...group,
+      items: group.items.filter(item => item.id !== "roadmap"),
+    }));
+  }, [terms.Alters, terms.System, roadmapInstalled]);
 
   // Close on navigation
   useEffect(() => { onClose(); }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps

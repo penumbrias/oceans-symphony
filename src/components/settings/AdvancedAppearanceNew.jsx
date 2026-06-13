@@ -8,6 +8,12 @@ import {
   setAccessibilityHeadingFont, HEADING_FONT_OPTIONS,
 } from '@/lib/useAccessibility';
 import { isExtraFontsInstalled, installExtraFonts, uninstallExtraFonts } from '@/lib/fontPacks';
+import {
+  isChangelogInstalled, installChangelog, uninstallChangelog,
+  isRoadmapInstalled, installRoadmap, uninstallRoadmap,
+  OPTIONAL_CONTENT_EVENT,
+} from '@/lib/optionalContent';
+import { Switch } from '@/components/ui/switch';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { X, ChevronDown, Search, Check, Trash2, Unlink, Save, Download, Loader2 } from 'lucide-react';
@@ -744,6 +750,12 @@ export default function AdvancedAppearance() {
         </p>
       </div>
 
+      {/* 3b. OPTIONAL ADD-ONS — opt-in extras kept out of the base app so it
+              stays lean. Mirrors the Extra Fonts install pattern. */}
+      <SubSection title="Optional add-ons" defaultOpen={false}>
+        <OptionalAddOns />
+      </SubSection>
+
       {/* 4. THEME — expandable, with the light/dark cycle chip in its header. */}
       <SubSection title="Theme" defaultOpen={false} right={<ThemeModeChip />}>
         {/* a. Built-in preset swatch dropdown. */}
@@ -1037,6 +1049,77 @@ export default function AdvancedAppearance() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+// Optional, opt-in content packs (default OFF) — keeps the changelog and
+// the roadmap out of the base experience so the app stays lean. Mirrors
+// the Extra Fonts install toggle: a Switch per add-on that flips the
+// localStorage flag via optionalContent.js (which dispatches
+// OPTIONAL_CONTENT_EVENT so the gated surfaces update live).
+function OptionalAddOns() {
+  const [changelogOn, setChangelogOn] = useState(() => isChangelogInstalled());
+  const [roadmapOn, setRoadmapOn] = useState(() => isRoadmapInstalled());
+
+  // Keep in sync if the flags are flipped elsewhere (e.g. the Enable
+  // button in Settings → About → What's new).
+  useEffect(() => {
+    const onChange = () => {
+      setChangelogOn(isChangelogInstalled());
+      setRoadmapOn(isRoadmapInstalled());
+    };
+    window.addEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+    return () => window.removeEventListener(OPTIONAL_CONTENT_EVENT, onChange);
+  }, []);
+
+  const toggleChangelog = async (next) => {
+    setChangelogOn(next);
+    try {
+      if (next) { await installChangelog(); toast.success("Changelog enabled"); }
+      else { uninstallChangelog(); toast.success("Changelog removed"); }
+    } catch {
+      setChangelogOn(isChangelogInstalled());
+      toast.error("Couldn't update the changelog add-on");
+    }
+  };
+
+  const toggleRoadmap = async (next) => {
+    setRoadmapOn(next);
+    try {
+      if (next) { await installRoadmap(); toast.success("Roadmap enabled"); }
+      else { uninstallRoadmap(); toast.success("Roadmap removed"); }
+    } catch {
+      setRoadmapOn(isRoadmapInstalled());
+      toast.error("Couldn't update the roadmap add-on");
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+        Extra surfaces you can switch on or off. Off by default to keep the app lean — nothing is downloaded from the internet.
+      </p>
+
+      <label className="flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">Changelog &amp; What's new</p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            Recent-updates list and the dashboard What's New bar. Off by default to keep the app lean.
+          </p>
+        </div>
+        <Switch checked={changelogOn} onCheckedChange={toggleChangelog} />
+      </label>
+
+      <label className="flex items-start justify-between gap-3 rounded-lg border border-border/50 bg-card px-3 py-2.5">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-foreground">App Roadmap</p>
+          <p className="text-xs text-muted-foreground leading-snug">
+            A curated, read-only list of planned features and long-term direction.
+          </p>
+        </div>
+        <Switch checked={roadmapOn} onCheckedChange={toggleRoadmap} />
+      </label>
     </div>
   );
 }

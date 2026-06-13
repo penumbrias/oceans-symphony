@@ -21,11 +21,11 @@ export const CHANGELOG = [
       },
       {
         type: "feature",
-        text: "New App Roadmap page: a list of planned features and long-term ideas you can add to and sort by status.",
+        text: "New App Roadmap — an optional add-on (Settings → Appearance) with a curated, read-only list of planned features and long-term direction.",
       },
       {
         type: "improve",
-        text: "You can now turn the changelog / “What's new” off in Settings if you'd rather not see it.",
+        text: "Changelog & “What's new” are now an optional add-on (Settings → Appearance), so the app stays lean unless you turn them on.",
       },
       {
         type: "improve",
