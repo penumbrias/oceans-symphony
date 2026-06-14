@@ -388,6 +388,9 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
 
       await base44.entities.FrontingSession.update(session.id, updates);
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      // The edited row is an ACTIVE session — refresh the canonical query the
+      // dashboard / notification / friends-sync read, or they'd show stale data.
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       toast.success("Saved");
       onSaved();
     } catch {
@@ -607,10 +610,23 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  // Read the SAME canonical active-front query the rest of the app uses and
+  // invalidates after every set-front / switch (FrontingBar, the persistent
+  // notification, friends front-sync). Previously this widget read the 50-row
+  // ["frontHistory"] list and filtered in memory — a different cache that the
+  // write paths didn't always refresh, so the dashboard could show "no one
+  // fronting" off stale data even when a front was set. The server-side
+  // { is_active: true } filter is also the correct predicate (excludes ended /
+  // ghost rows) and never relies on the active row being in the newest 50.
+  const { data: activeFrontRows = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
+  // Most-recent-first, matching the old "-start_time" ordering this widget
+  // relied on for its fallback active pick + display order.
+  const realActiveSessions = [...activeFrontRows].sort(
+    (a, b) => new Date(b.start_time || 0) - new Date(a.start_time || 0)
+  );
 
   // Latest status note for display — sorted descending, just grab first
   const { data: allStatusNotes = [] } = useQuery({
@@ -621,7 +637,6 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
     .slice()
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0] ?? null;
 
-  const realActiveSessions = sessions.filter(s => s.is_active);
   const isDemo = realActiveSessions.length === 0 && !!window.__tourActive;
   const demoAlterSource = alters.length > 0 ? alters.slice(0, 2) : TOUR_DEMO_ALTERS.slice(0, 2);
   const demoSessions = isDemo

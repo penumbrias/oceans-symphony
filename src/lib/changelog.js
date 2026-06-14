@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Dashboard now reliably shows who's fronting — it reads the same live front data the rest of the app uses, so it no longer occasionally showed “no one fronting” after you'd set a front.",
+      },
+      {
+        type: "fix",
         text: "Rich-text “web link” button now asks for the address and inserts a working link (it used to add a dead placeholder).",
       },
       {

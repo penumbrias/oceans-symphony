@@ -144,7 +144,9 @@ export default function usePersistentNotifications() {
     if (!native) return;
     if (!prefs.fronters) { syncPersistentNotification("fronters", { enabled: false }); return; }
     const altersById = Object.fromEntries(alters.map((a) => [a.id, a]));
-    const active = sessions.filter((s) => s.is_active !== false);
+    // "active" === is_active true (matches the server filter the query uses and
+    // every other consumer). `!== false` would also accept ghost rows.
+    const active = sessions.filter((s) => s.is_active === true);
     const primary = active.find((s) => s.is_primary);
     const ordered = [primary, ...active.filter((s) => s !== primary)].filter(Boolean);
     // Dedupe by alter id — duplicate active sessions for the same alter (a
