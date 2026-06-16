@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 13, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Import your members from another plural app (Simply Plural or PluralKit) right from the Alters page — no need to dig into Settings.",
+      },
+      {
         type: "fix",
         text: "Recording a system change event (e.g. an Emergence) no longer crashes to a white screen.",
       },
