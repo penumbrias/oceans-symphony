@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Recording a system change event (e.g. an Emergence) no longer crashes to a white screen.",
+      },
+      {
+        type: "fix",
         text: "Dashboard now reliably shows who's fronting — it reads the same live front data the rest of the app uses, so it no longer occasionally showed “no one fronting” after you'd set a front.",
       },
       {

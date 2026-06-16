@@ -129,6 +129,8 @@ function StepType({ value, onChange }) {
 function StepSourceAlters({ type, alters, selected, onToggle, fusionType, onFusionTypeChange }) {
   const terms = useTerms();
   const isSingle = type === "split"; // locks to one selection
+  // Fusion needs 2+ source alters; every other event type needs at least one.
+  const requiresOne = type !== "fusion";
 
   const label = type === "fusion" ? "Alters involved in the fusion (select 2+)"
     : type === "split" ? "Which alter is splitting?"
