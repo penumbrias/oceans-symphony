@@ -27,4 +27,19 @@ export default defineConfig({
       '@': path.resolve('./src'),
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        // Keep the OpenPlural zip dependency (fflate) in its own lazily-loaded
+        // chunk so it stays OUT of the main entry bundle — it's only fetched
+        // when a user actually opens the OpenPlural / PluralSpace importer and
+        // picks a .zip (see src/lib/openPlural.js's dynamic `import("fflate")`).
+        // Without this, Rollup folds the single-consumer dynamic import back
+        // into the entry chunk since the app isn't otherwise code-split.
+        manualChunks(id) {
+          if (id.includes('node_modules/fflate')) return 'fflate'
+        },
+      },
+    },
+  },
 })

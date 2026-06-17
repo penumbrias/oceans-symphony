@@ -1,0 +1,587 @@
+import React, { useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Label } from "@/components/ui/label";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import {
+  Loader2, CheckCircle2, FileArchive, ArrowDownLeft, Clock, FileText,
+  Users, Layers, ImageOff, Link2, Upload,
+} from "lucide-react";
+import { localEntities } from "@/api/base44Client";
+import {
+  parseOpenPluralFile,
+  buildMemberGroups,
+  buildMemberCustomFields,
+  resolveAssetUri,
+  opFieldType,
+  mapMemberToAlter,
+  mapGroupToLocalGroup,
+  mapFrontAssignment,
+  mapNoteToJournalEntry,
+  mapRelationshipEdge,
+} from "@/lib/openPlural";
+import {
+  processUploadedImage,
+  saveLocalImage,
+  createLocalImageUrl,
+} from "@/lib/localImageStorage";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
+
+// ── Front-history range presets (mirror SimplyPluralConnect) ──────────────────
+// Each period is bounded by its started_at; we filter assignments whose period
+// started within the chosen window. Default to 1 year, not All, since real
+// exports carry hundreds of periods.
+const RANGE_PRESETS = [
+  { id: "30d", label: "Last 30 days", ms: 30 * 24 * 60 * 60 * 1000 },
+  { id: "3mo", label: "Last 3 months", ms: 90 * 24 * 60 * 60 * 1000 },
+  { id: "1yr", label: "Last year", ms: 365 * 24 * 60 * 60 * 1000 },
+  { id: "all", label: "All time", ms: null },
+];
+
+// Pull a member's avatar (or system avatar) out of the parsed media map and
+// store it as a local image. Returns a local-image:// URL, or "" if there's no
+// avatar / no media (raw-JSON import) / the bytes can't be processed.
+async function storeAssetAsLocalImage(assetId, assetsById, media, localIdPrefix) {
+  const uri = resolveAssetUri(assetId, assetsById);
+  if (!uri) return "";
+  const entry = media.get(uri);
+  if (!entry || !entry.bytes) return "";
+  try {
+    const blob = new Blob([entry.bytes], { type: entry.mime || "image/png" });
+    const fileName = uri.split("/").pop() || "avatar.png";
+    const file = new File([blob], fileName, { type: entry.mime || "image/png" });
+    const { dataUrl } = await processUploadedImage(file);
+    const imageId = `op-${localIdPrefix}-${assetId}`;
+    await saveLocalImage(imageId, dataUrl);
+    return createLocalImageUrl(imageId);
+  } catch (e) {
+    console.warn("[OpenPlural import] avatar store failed", assetId, e);
+    return "";
+  }
+}
+
+export default function OpenPluralConnect({ settings, onSettingsChange }) {
+  const queryClient = useQueryClient();
+  const t = useTerms();
+  const fileInputRef = useRef(null);
+
+  // Parsed-file state
+  const [parsing, setParsing] = useState(false);
+  const [parsed, setParsed] = useState(null); // { data, media }
+  const [fileName, setFileName] = useState("");
+
+  // Toggles
+  const [includeAlters, setIncludeAlters] = useState(true);
+  const [includeGroups, setIncludeGroups] = useState(true);
+  const [includeCustomFields, setIncludeCustomFields] = useState(true);
+  const [includeAvatars, setIncludeAvatars] = useState(true);
+  const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
+  const [historyRange, setHistoryRange] = useState("1yr");
+  const [includeJournals, setIncludeJournals] = useState(false);
+  const [includeRelationships, setIncludeRelationships] = useState(false);
+
+  const [importing, setImporting] = useState(false);
+  const [progress, setProgress] = useState("");
+
+  // ── File selection / parse ─────────────────────────────────────────────────
+  const handleFile = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setParsing(true);
+    setParsed(null);
+    setFileName(file.name);
+    try {
+      const result = await parseOpenPluralFile(file);
+      if (!result?.data || !Array.isArray(result.data.members)) {
+        throw new Error("This file doesn't look like an OpenPlural export.");
+      }
+      setParsed(result);
+    } catch (err) {
+      toast.error(err.message || "Couldn't read that file");
+      setFileName("");
+    } finally {
+      setParsing(false);
+      // Allow re-selecting the same file
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
+  // Counts for the preview card. is_custom_front members are NOT real alters.
+  const data = parsed?.data;
+  const realMembers = (data?.members || []).filter((m) => !m.is_custom_front);
+  const counts = data ? {
+    members: realMembers.length,
+    customFronts: (data.members || []).length - realMembers.length,
+    groups: (data.groups || []).length,
+    customFields: (data.custom_fields || []).length,
+    fronts: (data.front_periods || []).length,
+    notes: (data.notes || []).length,
+    relationships: (data.relationships?.edges || []).length,
+    system: data.systems?.[0]?.name || "",
+  } : null;
+
+  // ── Import ───────────────────────────────────────────────────────────────
+  const handleImport = async () => {
+    if (!parsed?.data) return;
+    setImporting(true);
+    setProgress("");
+    try {
+      const { data: d, media } = parsed;
+
+      const assetsById = {};
+      for (const a of d.assets || []) { if (a?.id) assetsById[a.id] = a; }
+
+      // alter_id keyed by OpenPlural member id — built up as alters are created
+      // / matched, then reused by fronts / journals / relationships.
+      const alterIdByOpId = {};
+      // local Group id keyed by OpenPlural group id — populated in the groups
+      // step, then used to remap alter.groups[].id from OpenPlural ids to local
+      // ids so group membership actually resolves (getMemberAlters matches
+      // a.groups[].id === group.id, the LOCAL id).
+      const groupIdByOpId = {};
+
+      // ── Step 1: Custom fields (dedup by op_id, then by name) ──
+      const fieldIdMap = {}; // opFieldId → local CustomField id
+      let fieldsCreated = 0;
+      {
+        const existingFields = await localEntities.CustomField.list();
+        const existingByOpId = {};
+        const existingByName = {};
+        for (const f of existingFields) {
+          if (f.op_id) existingByOpId[f.op_id] = f;
+          if (f.name) existingByName[f.name.toLowerCase().trim()] = f;
+        }
+        if (includeCustomFields) {
+          setProgress("Importing custom fields…");
+          let order = existingFields.length;
+          for (const opField of d.custom_fields || []) {
+            const opId = opField.id || "";
+            if (!opId) continue;
+            const existing = existingByOpId[opId] || existingByName[(opField.name || "").toLowerCase().trim()];
+            const fieldData = {
+              op_id: opId,
+              name: opField.name || "Unnamed Field",
+              field_type: opFieldType(opField.field_type),
+            };
+            if (existing) {
+              fieldIdMap[opId] = existing.id;
+              // Backfill op_id on a name-matched field so future imports are exact.
+              if (!existing.op_id) await localEntities.CustomField.update(existing.id, { op_id: opId });
+            } else {
+              const created = await localEntities.CustomField.create({ ...fieldData, order: order++ });
+              fieldIdMap[opId] = created.id;
+              fieldsCreated++;
+            }
+          }
+        } else {
+          // Still build the map so alter custom_field refs resolve to existing fields.
+          for (const f of existingFields) { if (f.op_id) fieldIdMap[f.op_id] = f.id; }
+        }
+      }
+
+      // Pre-build per-member group + custom-field lookups.
+      const memberGroupsById = includeGroups
+        ? buildMemberGroups(d.groups || [], d.group_memberships || [])
+        : {};
+      const memberCustomFieldsById = includeCustomFields
+        ? buildMemberCustomFields(d.custom_field_values || [], fieldIdMap)
+        : {};
+
+      // ── Step 2: Alters ──
+      let altersCreated = 0, altersUpdated = 0, avatarsStored = 0;
+      const alterFailures = [];
+      if (includeAlters) {
+        const existingAlters = await localEntities.Alter.list();
+        const existingByOpId = {};
+        const existingByName = {};
+        for (const a of existingAlters) {
+          if (a.op_id) existingByOpId[a.op_id] = a;
+          const key = (a.name || "").toLowerCase().trim();
+          if (key && !existingByName[key]) existingByName[key] = a;
+        }
+        let idx = 0;
+        for (const member of realMembers) {
+          idx++;
+          setProgress(`Importing ${t.alters}… (${idx}/${realMembers.length})`);
+          // Resolve avatar/banner from media (optional).
+          let avatarUrl = "";
+          let bannerUrl = "";
+          if (includeAvatars) {
+            avatarUrl = await storeAssetAsLocalImage(member.avatar_asset_id, assetsById, media, `member-avatar-${member.id}`);
+            bannerUrl = await storeAssetAsLocalImage(member.banner_asset_id, assetsById, media, `member-banner-${member.id}`);
+            if (avatarUrl) avatarsStored++;
+          }
+          const mapped = mapMemberToAlter(member, {
+            memberGroups: memberGroupsById[member.id] || [],
+            customFields: memberCustomFieldsById[member.id] || {},
+            avatarUrl,
+            bannerUrl,
+          });
+          const existing = existingByOpId[member.id] || existingByName[(member.name || "").toLowerCase().trim()];
+          try {
+            if (existing) {
+              // ALLOWLIST — write ONLY the fields OpenPlural owns; never touch
+              // local organisation (tags, archive flag managed locally, pins,
+              // friends visibility, etc.). Merge custom_fields so local-only
+              // `_*` profile keys survive; `_header_image` follows includeAvatars.
+              const localOnly = Object.fromEntries(
+                Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
+              );
+              const incomingFields = { ...(mapped.custom_fields || {}) };
+              if (!includeAvatars) delete incomingFields._header_image;
+              const updatePayload = {
+                op_id: mapped.op_id,
+                name: mapped.name,
+                alias: mapped.alias,
+                pronouns: mapped.pronouns,
+                description: mapped.description,
+                color: mapped.color,
+                groups: includeGroups ? mapped.groups : (existing.groups || []),
+                custom_fields: { ...localOnly, ...incomingFields },
+              };
+              if (includeAvatars && avatarUrl) updatePayload.avatar_url = avatarUrl;
+              if (includeAvatars && bannerUrl) updatePayload.banner_url = bannerUrl;
+              await localEntities.Alter.update(existing.id, updatePayload);
+              alterIdByOpId[member.id] = existing.id;
+              altersUpdated++;
+            } else {
+              const created = await localEntities.Alter.create(mapped);
+              alterIdByOpId[member.id] = created.id;
+              altersCreated++;
+            }
+          } catch (err) {
+            console.error("[OpenPlural import] Alter write failed", mapped?.name, member.id, err);
+            alterFailures.push({ name: mapped?.name || "(unnamed)", reason: err?.message || String(err) });
+          }
+        }
+      } else {
+        // Alters skipped — still build alterIdByOpId so fronts/journals/relationships resolve.
+        const existingAlters = await localEntities.Alter.list();
+        for (const a of existingAlters) { if (a.op_id) alterIdByOpId[a.op_id] = a.id; }
+      }
+
+      // ── Step 3: Groups + nesting ──
+      let groupsCreated = 0, groupsUpdated = 0;
+      if (includeGroups) {
+        setProgress("Importing groups…");
+        const existingGroups = await localEntities.Group.list();
+        const existingByOpId = {};
+        for (const g of existingGroups) { if (g.op_id) existingByOpId[g.op_id] = g; }
+        for (const opGroup of d.groups || []) {
+          const mapped = mapGroupToLocalGroup(opGroup);
+          if (!mapped.op_id) continue;
+          const existing = existingByOpId[mapped.op_id];
+          if (existing) {
+            // Refresh display metadata only; preserve local parent (nesting set
+            // in the pass below from the source's parent when present).
+            await localEntities.Group.update(existing.id, {
+              op_id: mapped.op_id,
+              name: mapped.name,
+              color: mapped.color,
+              description: mapped.description,
+            });
+            groupIdByOpId[mapped.op_id] = existing.id;
+            groupsUpdated++;
+          } else {
+            const created = await localEntities.Group.create({
+              op_id: mapped.op_id,
+              name: mapped.name,
+              color: mapped.color,
+              description: mapped.description,
+              parent: "",
+            });
+            groupIdByOpId[mapped.op_id] = created.id;
+            groupsCreated++;
+          }
+        }
+        // Second pass: resolve parent_group_id → local parent id.
+        setProgress("Resolving group nesting…");
+        for (const opGroup of d.groups || []) {
+          const opId = opGroup.id || "";
+          const localId = groupIdByOpId[opId];
+          if (!localId) continue;
+          const opParent = opGroup.parent_group_id || "";
+          const localParent = opParent ? (groupIdByOpId[opParent] || "") : "";
+          await localEntities.Group.update(localId, { parent: localParent });
+        }
+
+        // Third pass: rewrite each imported alter's groups[].id from the
+        // OpenPlural group id to the LOCAL Group id. mapMemberToAlter built the
+        // groups array from group_memberships using OpenPlural ids (groups
+        // didn't exist locally yet when alters were created); group membership
+        // only resolves when a.groups[].id === the local group.id.
+        if (includeAlters) {
+          setProgress("Linking members to groups…");
+          for (const member of realMembers) {
+            const localAlterId = alterIdByOpId[member.id];
+            const opGroups = memberGroupsById[member.id] || [];
+            if (!localAlterId || opGroups.length === 0) continue;
+            const remapped = opGroups
+              .map((g) => ({ ...g, id: groupIdByOpId[g.id] || g.id }))
+              .filter((g) => g.id);
+            await localEntities.Alter.update(localAlterId, { groups: remapped });
+          }
+        }
+      }
+
+      // ── Step 4: Front history (optional) ──
+      let frontsCreated = 0, frontsSkipped = 0;
+      if (includeFrontHistory) {
+        setProgress("Importing front history…");
+        const preset = RANGE_PRESETS.find((p) => p.id === historyRange);
+        const cutoff = preset?.ms ? Date.now() - preset.ms : null;
+
+        const existingSessions = await localEntities.FrontingSession.list();
+        const existingOpFrontIds = new Set(
+          existingSessions.filter((s) => s.op_front_id).map((s) => s.op_front_id)
+        );
+        const toCreate = [];
+        for (const period of d.front_periods || []) {
+          const startedMs = period.started_at ? new Date(period.started_at).getTime() : null;
+          if (cutoff && startedMs && startedMs < cutoff) continue;
+          for (const assignment of period.assignments || []) {
+            const session = mapFrontAssignment(period, assignment, alterIdByOpId);
+            if (!session) continue;
+            if (session.op_front_id && existingOpFrontIds.has(session.op_front_id)) { frontsSkipped++; continue; }
+            existingOpFrontIds.add(session.op_front_id);
+            toCreate.push(session);
+          }
+        }
+        if (toCreate.length > 0) {
+          setProgress(`Creating ${toCreate.length} fronting sessions…`);
+          if (typeof localEntities.FrontingSession.bulkCreate === "function") {
+            await localEntities.FrontingSession.bulkCreate(toCreate);
+          } else {
+            for (const s of toCreate) await localEntities.FrontingSession.create(s);
+          }
+        }
+        frontsCreated = toCreate.length;
+      }
+
+      // ── Step 5: Journals / notes (optional) ──
+      let journalsCreated = 0;
+      if (includeJournals) {
+        setProgress("Importing journals…");
+        const existingJournals = await localEntities.JournalEntry.list();
+        const existingByOpId = new Set(existingJournals.filter((j) => j.op_id).map((j) => j.op_id));
+        for (const note of d.notes || []) {
+          const mapped = mapNoteToJournalEntry(note, alterIdByOpId);
+          if (!mapped) continue;
+          if (mapped.op_id && existingByOpId.has(mapped.op_id)) continue;
+          await localEntities.JournalEntry.create(mapped);
+          if (mapped.op_id) existingByOpId.add(mapped.op_id);
+          journalsCreated++;
+        }
+      }
+
+      // ── Step 6: Relationships (optional) ──
+      let relsCreated = 0;
+      if (includeRelationships) {
+        setProgress("Importing relationships…");
+        // Resolve type_id → label. relationships.types may be empty.
+        const typeLabelById = {};
+        for (const ty of d.relationships?.types || []) {
+          if (ty?.id) typeLabelById[ty.id] = ty.name || ty.label || "";
+        }
+        const existingRels = await localEntities.AlterRelationship.list();
+        const existingByOpId = new Set(existingRels.filter((r) => r.op_id).map((r) => r.op_id));
+        for (const edge of d.relationships?.edges || []) {
+          const label = typeLabelById[edge.type_id] || "Related";
+          const mapped = mapRelationshipEdge(edge, alterIdByOpId, label);
+          if (!mapped) continue;
+          if (mapped.op_id && existingByOpId.has(mapped.op_id)) continue;
+          await localEntities.AlterRelationship.create(mapped);
+          if (mapped.op_id) existingByOpId.add(mapped.op_id);
+          relsCreated++;
+        }
+      }
+
+      // ── Finish ──
+      onSettingsChange?.();
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
+      queryClient.invalidateQueries({ queryKey: ["customFields"] });
+      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+      queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
+      setProgress("");
+
+      const parts = [
+        includeAlters && `${t.Alters}: ${altersCreated} new, ${altersUpdated} updated${alterFailures.length ? `, ${alterFailures.length} failed` : ""}`,
+        includeAvatars && avatarsStored > 0 && `Avatars: ${avatarsStored}`,
+        includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
+        includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
+        includeFrontHistory && `${t.Fronting}: ${frontsCreated} new${frontsSkipped ? `, ${frontsSkipped} existed` : ""}`,
+        includeJournals && journalsCreated > 0 && `Journals: ${journalsCreated}`,
+        includeRelationships && relsCreated > 0 && `Relationships: ${relsCreated}`,
+      ].filter(Boolean).join(" · ");
+
+      if (alterFailures.length > 0) {
+        console.warn("[OpenPlural import] Some alters failed to import:", alterFailures);
+        const sample = alterFailures.slice(0, 3).map((f) => f.name).join(", ");
+        toast.error(
+          `Import partial — ${alterFailures.length} ${alterFailures.length === 1 ? t.alter : t.alters} failed (${sample}${alterFailures.length > 3 ? ", …" : ""}). See devtools console.`,
+          { duration: 12000 },
+        );
+      }
+      toast.success(`Import complete! ${parts}`);
+    } catch (e) {
+      setProgress("");
+      console.error("[OpenPlural import] failed", e);
+      toast.error(e.message || "Import failed");
+    } finally {
+      setImporting(false);
+    }
+  };
+
+  // ── Render ─────────────────────────────────────────────────────────────────
+  return (
+    <Card className="border-border/50">
+      <CardHeader>
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center">
+            <FileArchive className="w-5 h-5 text-primary" />
+          </div>
+          <div>
+            <CardTitle className="text-lg">OpenPlural / PluralSpace</CardTitle>
+            <CardDescription>
+              Import {t.alters}, front history, and more from an OpenPlural export (.zip from PluralSpace).
+            </CardDescription>
+          </div>
+        </div>
+      </CardHeader>
+      <CardContent>
+        <div className="space-y-5">
+          {/* File picker */}
+          <div className="space-y-2">
+            <Label className="text-sm font-medium">Export file</Label>
+            <p className="text-xs text-muted-foreground">
+              Choose your OpenPlural export. A <code className="font-mono bg-muted px-1 rounded">.zip</code> keeps avatars; a raw <code className="font-mono bg-muted px-1 rounded">.json</code> works too (without images).
+            </p>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".zip,.json,application/zip,application/json"
+              onChange={handleFile}
+              className="hidden"
+              id="op-file-input"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={parsing || importing}
+              className="w-full"
+            >
+              {parsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+              {parsing ? "Reading…" : (fileName ? "Choose a different file" : "Choose export file")}
+            </Button>
+            {fileName && !parsing && (
+              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                <Link2 className="w-3 h-3" /> {fileName}
+              </p>
+            )}
+          </div>
+
+          {/* Preview */}
+          {counts && (
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-1.5">
+              <div className="flex items-center gap-2 text-sm">
+                <CheckCircle2 className="w-4 h-4 text-green-500" />
+                <span className="font-medium">{counts.system || "OpenPlural export"}</span>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Found {counts.members} {counts.members === 1 ? t.alter : t.alters}
+                {counts.customFronts > 0 && ` (${counts.customFronts} custom front${counts.customFronts === 1 ? "" : "s"} skipped)`}
+                , {counts.groups} group{counts.groups === 1 ? "" : "s"}, {counts.customFields} custom field{counts.customFields === 1 ? "" : "s"}, {counts.fronts} front period{counts.fronts === 1 ? "" : "s"}, {counts.notes} note{counts.notes === 1 ? "" : "s"}, {counts.relationships} relationship{counts.relationships === 1 ? "" : "s"}.
+              </p>
+            </div>
+          )}
+
+          {/* Options */}
+          {counts && (
+            <div className="border-t pt-4 space-y-3">
+              <p className="text-xs text-muted-foreground font-medium">Include:</p>
+              <div className="space-y-1.5">
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeAlters} onChange={(e) => setIncludeAlters(e.target.checked)} className="rounded" />
+                  <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                  {t.Alters}
+                </label>
+                {includeAlters && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none ml-5">
+                    <input type="checkbox" checked={includeAvatars} onChange={(e) => setIncludeAvatars(e.target.checked)} className="rounded" />
+                    <ImageOff className="w-3.5 h-3.5 text-muted-foreground" />
+                    <span>Avatars &amp; banners <span className="text-muted-foreground/60 text-xs">(.zip only)</span></span>
+                  </label>
+                )}
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeGroups} onChange={(e) => setIncludeGroups(e.target.checked)} className="rounded" />
+                  <Layers className="w-3.5 h-3.5 text-muted-foreground" />
+                  Groups
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeCustomFields} onChange={(e) => setIncludeCustomFields(e.target.checked)} className="rounded" />
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  Custom Fields
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeFrontHistory} onChange={(e) => setIncludeFrontHistory(e.target.checked)} className="rounded" />
+                  <Clock className="w-3.5 h-3.5 text-muted-foreground" />
+                  Front history
+                </label>
+                {includeFrontHistory && (
+                  <div className="ml-5 flex items-center gap-2 flex-wrap">
+                    <Label htmlFor="op-history-range" className="text-xs">Range:</Label>
+                    <select
+                      id="op-history-range"
+                      value={historyRange}
+                      onChange={(e) => setHistoryRange(e.target.value)}
+                      className="text-xs border rounded-md px-2 py-1 bg-card"
+                    >
+                      {RANGE_PRESETS.map((p) => (
+                        <option key={p.id} value={p.id}>{p.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeJournals} onChange={(e) => setIncludeJournals(e.target.checked)} className="rounded" />
+                  <FileText className="w-3.5 h-3.5 text-muted-foreground" />
+                  Journals / notes
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeRelationships} onChange={(e) => setIncludeRelationships(e.target.checked)} className="rounded" />
+                  <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
+                  Relationships
+                </label>
+              </div>
+
+              {progress && (
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <Loader2 className="w-3 h-3 animate-spin" />
+                  {progress}
+                </div>
+              )}
+              <Button
+                onClick={handleImport}
+                disabled={importing}
+                size="sm"
+                className="bg-blue-600 hover:bg-blue-700 w-full"
+              >
+                {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowDownLeft className="w-4 h-4 mr-2" />}
+                {importing ? "Importing…" : "Import Now"}
+              </Button>
+              <p className="text-[11px] text-muted-foreground">
+                Re-importing the same export updates existing records instead of duplicating them. Nothing is ever deleted.
+              </p>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+}

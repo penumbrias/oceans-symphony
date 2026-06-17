@@ -6,6 +6,7 @@ import { Download } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
+import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 
 // Surfaces the existing Simply Plural + PluralKit importers right on the Alters
 // page (and the empty-state) so new users can bring their members in without
@@ -38,6 +39,7 @@ export default function ImportAltersModal({ open, onClose }) {
         <div className="space-y-4">
           <SimplyPluralConnect settings={settings} onSettingsChange={onSettingsChange} />
           <PluralKitConnect settings={settings} onSettingsChange={onSettingsChange} />
+          <OpenPluralConnect settings={settings} onSettingsChange={onSettingsChange} />
         </div>
       </DialogContent>
     </Dialog>

@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 16, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Import from OpenPlural exports (e.g. PluralSpace): members, groups, custom fields, front history, journals, and relationships — from a .zip or .json in the Import screen.",
+      },
+    ],
+  },
+  {
     date: "June 13, 2026",
     changes: [
       {

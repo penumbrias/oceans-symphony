@@ -17,6 +17,7 @@ import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
+import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -705,6 +706,12 @@ export default function Settings() {
             </SubSection>
             <SubSection title="PluralKit" defaultOpen={false}>
               <PluralKitConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            <SubSection title="OpenPlural / PluralSpace" defaultOpen={false}>
+              <OpenPluralConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />
