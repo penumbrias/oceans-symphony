@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 17, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Export to a Simply Plural file (Settings → Data & Privacy → Export) — import it into PluralSpace, Simply Plural, or any app that reads SP exports.",
+      },
+    ],
+  },
+  {
     date: "June 16, 2026",
     changes: [
       {

@@ -19,6 +19,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
+import SimplyPluralExport from "@/components/settings/SimplyPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -699,6 +700,10 @@ export default function Settings() {
               the other "get my data out" surface; the matching importer lives
               in the Import → OpenPlural / PluralSpace SubSection below. */}
           <SubSection title="Export (OpenPlural)" defaultOpen={false}><OpenPluralExport /></SubSection>
+          {/* Simply Plural export-file format — importable into PluralSpace /
+              Simply Plural / any app that reads SP exports. JSON-only (no media);
+              avatars travel via the OpenPlural export above. */}
+          <SubSection title="Export (Simply Plural)" defaultOpen={false}><SimplyPluralExport /></SubSection>
           {/* Import groups the file/text restore together with the
               service connectors (Simply Plural, PluralKit) nested inside. */}
           <SubSection title="Import" defaultOpen={false}>
