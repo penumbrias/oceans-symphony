@@ -4,19 +4,23 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Loader2, CheckCircle2, FileArchive, ArrowDownLeft, Clock, FileText,
-  Users, Layers, ImageOff, Link2, Upload,
+  Users, Layers, ImageOff, Link2, Upload, UserCircle,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
 import {
   parseOpenPluralFile,
   buildMemberGroups,
   buildMemberCustomFields,
+  buildMemberTaxonomy,
+  buildSystemIdentityPatch,
   resolveAssetUri,
   opFieldType,
   mapMemberToAlter,
   mapGroupToLocalGroup,
   mapFrontAssignment,
+  noteKind,
   mapNoteToJournalEntry,
+  mapNoteToAlterNote,
   mapRelationshipEdge,
 } from "@/lib/openPlural";
 import {
@@ -78,8 +82,9 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
   const [includeAvatars, setIncludeAvatars] = useState(true);
   const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
   const [historyRange, setHistoryRange] = useState("1yr");
-  const [includeJournals, setIncludeJournals] = useState(false);
-  const [includeRelationships, setIncludeRelationships] = useState(false);
+  const [includeJournals, setIncludeJournals] = useState(true);
+  const [includeRelationships, setIncludeRelationships] = useState(true);
+  const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
 
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState("");
@@ -180,13 +185,20 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
         }
       }
 
-      // Pre-build per-member group + custom-field lookups.
+      // Pre-build per-member group + custom-field + taxonomy lookups.
       const memberGroupsById = includeGroups
         ? buildMemberGroups(d.groups || [], d.group_memberships || [])
         : {};
       const memberCustomFieldsById = includeCustomFields
         ? buildMemberCustomFields(d.custom_field_values || [], fieldIdMap)
         : {};
+      // Taxonomy → per-member { role, tags }. Always built (cheap) so roles/tags
+      // come over whenever alters are imported. OpenPlural has no member.role
+      // field — role is a kind:"role" taxonomy assignment.
+      const memberTaxonomyById = buildMemberTaxonomy(
+        d.taxonomy_terms || [],
+        d.taxonomy_assignments || [],
+      );
 
       // ── Step 2: Alters ──
       let altersCreated = 0, altersUpdated = 0, avatarsStored = 0;
@@ -212,34 +224,56 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
             bannerUrl = await storeAssetAsLocalImage(member.banner_asset_id, assetsById, media, `member-banner-${member.id}`);
             if (avatarUrl) avatarsStored++;
           }
+          const tax = memberTaxonomyById[member.id] || { role: "", tags: [] };
           const mapped = mapMemberToAlter(member, {
             memberGroups: memberGroupsById[member.id] || [],
             customFields: memberCustomFieldsById[member.id] || {},
             avatarUrl,
             bannerUrl,
+            role: tax.role,
+            tags: tax.tags,
           });
           const existing = existingByOpId[member.id] || existingByName[(member.name || "").toLowerCase().trim()];
           try {
             if (existing) {
               // ALLOWLIST — write ONLY the fields OpenPlural owns; never touch
-              // local organisation (tags, archive flag managed locally, pins,
+              // local organisation managed elsewhere (archive flag, pins,
               // friends visibility, etc.). Merge custom_fields so local-only
               // `_*` profile keys survive; `_header_image` follows includeAvatars.
+              // name/pronouns/description/color overwrite (source of truth);
+              // alias/role/age/birthday FILL-IF-EMPTY; tags are UNIONED below.
               const localOnly = Object.fromEntries(
                 Object.entries(existing.custom_fields || {}).filter(([k]) => k.startsWith("_"))
               );
               const incomingFields = { ...(mapped.custom_fields || {}) };
               if (!includeAvatars) delete incomingFields._header_image;
+
+              // Merge-safe extras: alias / role / age / birthday FILL-IF-EMPTY
+              // (never clobber a user-set value); tags are UNIONED (append new
+              // taxonomy tags without dropping local-only tags).
+              const isBlank = (v) => v == null || String(v).trim() === "";
+              const existingTags = Array.isArray(existing.tags) ? existing.tags : [];
+              const mergedTags = [...existingTags];
+              const tagSeen = new Set(existingTags.map((tg) => String(tg).toLowerCase()));
+              for (const tg of (mapped.tags || [])) {
+                const key = String(tg).toLowerCase();
+                if (!tagSeen.has(key)) { tagSeen.add(key); mergedTags.push(tg); }
+              }
+
               const updatePayload = {
                 op_id: mapped.op_id,
                 name: mapped.name,
-                alias: mapped.alias,
                 pronouns: mapped.pronouns,
                 description: mapped.description,
                 color: mapped.color,
                 groups: includeGroups ? mapped.groups : (existing.groups || []),
                 custom_fields: { ...localOnly, ...incomingFields },
+                tags: mergedTags,
               };
+              if (isBlank(existing.alias) && mapped.alias) updatePayload.alias = mapped.alias;
+              if (isBlank(existing.role) && mapped.role) updatePayload.role = mapped.role;
+              if (isBlank(existing.age) && mapped.age) updatePayload.age = mapped.age;
+              if (isBlank(existing.birthday) && mapped.birthday) updatePayload.birthday = mapped.birthday;
               if (includeAvatars && avatarUrl) updatePayload.avatar_url = avatarUrl;
               if (includeAvatars && bannerUrl) updatePayload.banner_url = bannerUrl;
               await localEntities.Alter.update(existing.id, updatePayload);
@@ -360,18 +394,32 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
       }
 
       // ── Step 5: Journals / notes (optional) ──
-      let journalsCreated = 0;
+      // Honor extensions.openplural.note_kind: "note" → AlterNote (per-member
+      // profile note); "journal"/absent → JournalEntry. Each target dedups on
+      // its own op_id set.
+      let journalsCreated = 0, alterNotesCreated = 0;
       if (includeJournals) {
-        setProgress("Importing journals…");
+        setProgress("Importing journals & notes…");
         const existingJournals = await localEntities.JournalEntry.list();
-        const existingByOpId = new Set(existingJournals.filter((j) => j.op_id).map((j) => j.op_id));
+        const journalOpIds = new Set(existingJournals.filter((j) => j.op_id).map((j) => j.op_id));
+        const existingAlterNotes = await localEntities.AlterNote.list();
+        const alterNoteOpIds = new Set(existingAlterNotes.filter((n) => n.op_id).map((n) => n.op_id));
         for (const note of d.notes || []) {
-          const mapped = mapNoteToJournalEntry(note, alterIdByOpId);
-          if (!mapped) continue;
-          if (mapped.op_id && existingByOpId.has(mapped.op_id)) continue;
-          await localEntities.JournalEntry.create(mapped);
-          if (mapped.op_id) existingByOpId.add(mapped.op_id);
-          journalsCreated++;
+          if (noteKind(note) === "note") {
+            const mapped = mapNoteToAlterNote(note, alterIdByOpId);
+            if (!mapped) continue;
+            if (mapped.op_id && alterNoteOpIds.has(mapped.op_id)) continue;
+            await localEntities.AlterNote.create(mapped);
+            if (mapped.op_id) alterNoteOpIds.add(mapped.op_id);
+            alterNotesCreated++;
+          } else {
+            const mapped = mapNoteToJournalEntry(note, alterIdByOpId);
+            if (!mapped) continue;
+            if (mapped.op_id && journalOpIds.has(mapped.op_id)) continue;
+            await localEntities.JournalEntry.create(mapped);
+            if (mapped.op_id) journalOpIds.add(mapped.op_id);
+            journalsCreated++;
+          }
         }
       }
 
@@ -397,6 +445,42 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
         }
       }
 
+      // ── Step 7: System profile (optional, MERGE-SAFE) ──
+      // Fill only the EMPTY identity fields on the existing SystemSettings
+      // singleton from systems[0]; never clobber a user's name/bio/avatar/terms.
+      let systemProfileUpdated = false;
+      if (includeSystemProfile && d.systems?.[0]) {
+        setProgress("Importing system profile…");
+        try {
+          const sys = d.systems[0];
+          // Resolve system avatar/banner the same way as member avatars.
+          let sysAvatarUrl = "";
+          let sysBannerUrl = "";
+          if (includeAvatars) {
+            sysAvatarUrl = await storeAssetAsLocalImage(sys.avatar_asset_id, assetsById, media, `system-avatar-${sys.id || "0"}`);
+            sysBannerUrl = await storeAssetAsLocalImage(sys.banner_asset_id, assetsById, media, `system-banner-${sys.id || "0"}`);
+          }
+          // Read the existing singleton (singleton-merge pattern: read + spread
+          // + update, never list()[0]-clobber).
+          const settingsList = await localEntities.SystemSettings.list();
+          const existingSettings = settingsList[0] || null;
+          const patch = buildSystemIdentityPatch(sys, existingSettings || {}, {
+            systemAvatarUrl: sysAvatarUrl,
+            systemBannerUrl: sysBannerUrl,
+          });
+          if (Object.keys(patch).length > 0) {
+            if (existingSettings?.id) {
+              await localEntities.SystemSettings.update(existingSettings.id, patch);
+            } else {
+              await localEntities.SystemSettings.create(patch);
+            }
+            systemProfileUpdated = true;
+          }
+        } catch (err) {
+          console.warn("[OpenPlural import] system profile import failed", err);
+        }
+      }
+
       // ── Finish ──
       onSettingsChange?.();
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -406,6 +490,8 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
       queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
+      queryClient.invalidateQueries({ queryKey: ["alterNotes"] });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
       setProgress("");
 
       const parts = [
@@ -415,7 +501,9 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
         includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
         includeFrontHistory && `${t.Fronting}: ${frontsCreated} new${frontsSkipped ? `, ${frontsSkipped} existed` : ""}`,
         includeJournals && journalsCreated > 0 && `Journals: ${journalsCreated}`,
+        includeJournals && alterNotesCreated > 0 && `${t.Alter} notes: ${alterNotesCreated}`,
         includeRelationships && relsCreated > 0 && `Relationships: ${relsCreated}`,
+        includeSystemProfile && systemProfileUpdated && `${t.System} profile updated`,
       ].filter(Boolean).join(" · ");
 
       if (alterFailures.length > 0) {
@@ -551,12 +639,17 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeJournals} onChange={(e) => setIncludeJournals(e.target.checked)} className="rounded" />
                   <FileText className="w-3.5 h-3.5 text-muted-foreground" />
-                  Journals / notes
+                  Journals &amp; {t.alter} notes
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeRelationships} onChange={(e) => setIncludeRelationships(e.target.checked)} className="rounded" />
                   <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
                   Relationships
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeSystemProfile} onChange={(e) => setIncludeSystemProfile(e.target.checked)} className="rounded" />
+                  <UserCircle className="w-3.5 h-3.5 text-muted-foreground" />
+                  <span>{t.System} profile <span className="text-muted-foreground/60 text-xs">(fills empty fields only)</span></span>
                 </label>
               </div>
 

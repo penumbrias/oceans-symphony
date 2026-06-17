@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 17, 2026",
     changes: [
       {
+        type: "improve",
+        text: "OpenPlural import/export is now far more complete — roles & tags, system profile (name/bio/avatar/banner), message prefix↔alias, birthdays, and per-member notes, on top of alters/groups/fields/fronts/journals/relationships.",
+      },
+      {
         type: "feature",
         text: "Export to a Simply Plural file (Settings → Data & Privacy → Export) — import it into PluralSpace, Simply Plural, or any app that reads SP exports.",
       },

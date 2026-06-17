@@ -119,14 +119,15 @@ function mimeFromExt(ext) {
 //
 // Inputs (all arrays, defaulting to []):
 //   alters, groups, customFields, frontingSessions, journalEntries,
-//   relationships, systemSettings (the SystemSettings list — [0] is read for
-//   the system identity).
+//   alterNotes, relationships, systemSettings (the SystemSettings list — [0] is
+//   read for the system identity).
 export function buildOpenPluralDocument({
   alters = [],
   groups = [],
   customFields = [],
   frontingSessions = [],
   journalEntries = [],
+  alterNotes = [],
   relationships = [],
   systemSettings = [],
 } = {}) {
@@ -166,6 +167,24 @@ export function buildOpenPluralDocument({
   const systemAvatarAssetId = referenceAsset(settings.system_avatar_url || "", "avatar");
   const systemBannerAssetId = referenceAsset(settings.system_banner_url || "", "banner");
 
+  // Terminology → extensions.terminology, so a round-trip (and other apps that
+  // understand it) can fill empty term fields. Only emit terms the user has
+  // actually customised (a non-empty term_* field on SystemSettings).
+  const termFields = {
+    system: settings.term_system,
+    alter: settings.term_alter,
+    switch: settings.term_switch,
+    front: settings.term_front,
+    fronting: settings.term_fronting,
+    fronter: settings.term_fronter,
+    switching: settings.term_switching,
+  };
+  const terminology = {};
+  for (const [key, val] of Object.entries(termFields)) {
+    if (val && String(val).trim()) terminology[key] = String(val).trim();
+  }
+  const systemExtensions = Object.keys(terminology).length > 0 ? { terminology } : {};
+
   const systems = [{
     id: systemId,
     name: systemName,
@@ -176,13 +195,54 @@ export function buildOpenPluralDocument({
     archived: false,
     privacy: { visibility: "private" },
     source_refs: [],
-    extensions: {},
+    extensions: systemExtensions,
   }];
+
+  // ── Taxonomy accumulator (roles + tags) ──
+  // OpenPlural represents role + tags as taxonomy_terms (deduped by kind+name)
+  // referenced from taxonomy_assignments. Inverse of buildMemberTaxonomy:
+  // alter.role → a kind:"role" term; each alter.tags[] entry → a kind:"tag"
+  // term. Terms are shared across members (dedup), assignments link them.
+  const taxonomyTerms = [];
+  const taxonomyAssignments = [];
+  const termIdByKindName = {}; // `${kind}:${nameLower}` → term id
+  function referenceTerm(kind, name) {
+    const clean = (name || "").toString().trim();
+    if (!clean) return null;
+    const key = `${kind}:${clean.toLowerCase()}`;
+    let id = termIdByKindName[key];
+    if (!id) {
+      id = genId();
+      termIdByKindName[key] = id;
+      taxonomyTerms.push({
+        id,
+        system_id: systemId,
+        kind,
+        name: clean,
+        color: null,
+        source_refs: [],
+        extensions: {},
+      });
+    }
+    return id;
+  }
+  function assignTerm(termId, memberId) {
+    if (!termId || !memberId) return;
+    taxonomyAssignments.push({
+      id: genId(),
+      term_id: termId,
+      subject_type: "member",
+      subject_id: memberId,
+      source_refs: [],
+      extensions: {},
+    });
+  }
 
   // ── Alters → members ──
   // Inverse of mapMemberToAlter: name, display_name←alias, pronouns,
   // description, color, avatar_asset_id←avatar_url, banner_asset_id←
-  // banner_url||custom_fields._header_image, archived←is_archived.
+  // banner_url||custom_fields._header_image, archived←is_archived,
+  // proxy_tags←alias, age←age, birthday←birthday. role/tags → taxonomy.
   const memberIdByAlterId = {}; // local Alter.id → exported member id
   const members = [];
   alters.forEach((alter, index) => {
@@ -196,6 +256,17 @@ export function buildOpenPluralDocument({
     const headerImage = alter.custom_fields && alter.custom_fields._header_image;
     const bannerSource = alter.banner_url || headerImage || "";
     const bannerAssetId = referenceAsset(bannerSource, "banner");
+
+    // proxy_tags from alias (PluralKit-style {prefix, suffix}); age + birthday
+    // pass through. birthday is emitted as the spec object when set.
+    const alias = (alter.alias || "").toString().trim();
+    const proxyTags = alias ? [{ prefix: alias, suffix: null }] : [];
+    const ageRaw = alter.age;
+    const age = (ageRaw != null && String(ageRaw).trim() !== "") ? String(ageRaw).trim() : null;
+    const birthdayRaw = (alter.birthday || "").toString().trim();
+    const birthday = birthdayRaw
+      ? { value: birthdayRaw, precision: "day", year_visible: true }
+      : null;
 
     members.push({
       id: memberId,
@@ -211,11 +282,22 @@ export function buildOpenPluralDocument({
       archived: alter.is_archived === true,
       created_at: toIso(alter.created_date) || exportedAt,
       sort_order: index,
-      proxy_tags: [],
+      proxy_tags: proxyTags,
+      age,
+      birthday,
       privacy: { visibility: "private" },
       source_refs: [],
       extensions: {},
     });
+
+    // role → kind:"role" taxonomy term; tags[] → kind:"tag" terms.
+    const roleId = referenceTerm("role", alter.role);
+    if (roleId) assignTerm(roleId, memberId);
+    const alterTags = Array.isArray(alter.tags) ? alter.tags : [];
+    for (const tag of alterTags) {
+      const tagId = referenceTerm("tag", tag);
+      if (tagId) assignTerm(tagId, memberId);
+    }
   });
 
   // ── Groups → groups ──
@@ -363,8 +445,11 @@ export function buildOpenPluralDocument({
     });
   }
 
-  // ── JournalEntry → notes ──
-  // Inverse of mapNoteToJournalEntry: member_id←author_alter_id, body←content.
+  // ── JournalEntry + AlterNote → notes ──
+  // JournalEntry: member_id←author_alter_id, body←content, note_kind:"journal".
+  // AlterNote: member_id←alter_id, body←content, note_kind:"note" (a per-member
+  // profile note). Both carry `pinned` and stamp note_kind under
+  // extensions.openplural so the importer routes them back to the right target.
   const notes = [];
   for (const je of journalEntries) {
     if (!je || !je.id) continue;
@@ -383,9 +468,36 @@ export function buildOpenPluralDocument({
       created_at: createdAt,
       updated_at: updatedAt,
       entry_date: entryDate,
+      pinned: je.pinned === true,
       visibility: "private",
       source_refs: [],
-      extensions: { kind: "journal" },
+      // `kind` kept for back-compat with the prior exporter; openplural.note_kind
+      // is the spec-canonical location the importer reads.
+      extensions: { kind: "journal", openplural: { note_kind: "journal" } },
+    });
+  }
+  for (const an of alterNotes) {
+    if (!an || !an.id) continue;
+    const memberId = memberIdByAlterId[an.alter_id] || null;
+    if (!memberId) continue; // alter didn't export — drop the orphan note
+    const noteId = idFor(an);
+    const createdAt = toIso(an.created_date) || exportedAt;
+    const updatedAt = toIso(an.updated_date) || createdAt;
+    const entryDate = createdAt.slice(0, 10);
+    notes.push({
+      id: noteId,
+      system_id: systemId,
+      member_id: memberId,
+      author_member_ids: [memberId],
+      title: "",
+      body: an.content || "",
+      created_at: createdAt,
+      updated_at: updatedAt,
+      entry_date: entryDate,
+      pinned: an.pinned === true,
+      visibility: "private",
+      source_refs: [],
+      extensions: { kind: "note", openplural: { note_kind: "note" } },
     });
   }
 
@@ -442,13 +554,13 @@ export function buildOpenPluralDocument({
       exporter_version: EXPORTER_VERSION,
       app_id: PRODUCER_APP_ID,
     },
-    capabilities: { modules: ["relationships"] },
+    capabilities: { modules: ["relationships", "taxonomy", "notes"] },
     systems,
     members,
     groups: exportedGroups,
     group_memberships: groupMemberships,
-    taxonomy_terms: [],
-    taxonomy_assignments: [],
+    taxonomy_terms: taxonomyTerms,
+    taxonomy_assignments: taxonomyAssignments,
     custom_fields: exportedCustomFields,
     custom_field_values: customFieldValues,
     notes,

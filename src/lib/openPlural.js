@@ -16,13 +16,21 @@
 //   group_memberships[]    {id, group_id, member_id}
 //   custom_fields[]        {id, name, field_type ("text"|"date"), supports_markdown, ...}
 //   custom_field_values[]  {id, field_id, subject_type:"member", subject_id, value}
+//   taxonomy_terms[]       {id, kind ("role"|"tag"|"identity"|"topic"|"status"|
+//                           "source"|"custom"|...), name, color?, ...}
+//   taxonomy_assignments[] {id, term_id, subject_type:"member", subject_id}
 //   front_periods[]        {id, started_at, ended_at (null = active), note,
 //                           assignments:[{member_id, front_role, note}]}
 //   notes[]                {id, member_id, author_member_ids[], title, body,
-//                           created_at, entry_date, ...}
+//                           created_at, entry_date, pinned, visibility,
+//                           extensions:{openplural:{note_kind:"note"|"journal"}}}
+//   members[].proxy_tags   [{prefix, suffix}]   (PluralKit-style proxy)
+//   members[].age          string/number
+//   members[].birthday     {value, precision, year_visible} | string
 //   assets[]               {id, kind, mime_type, file_name, uri ("media/<file>")}
 //   relationships{types[],edges[]}  edge: {id, from_member_id, to_member_id, type_id, note}
-//   systems[0]             {id, name, description, color, avatar_asset_id, banner_asset_id}
+//   systems[0]             {id, name, description, color, avatar_asset_id,
+//                           banner_asset_id, extensions:{...terminology...}}
 
 // Same normalisation as simplyPlural.js — coerce a colour to a leading "#".
 export function normalizeColor(raw) {
@@ -93,6 +101,91 @@ export function buildMemberCustomFields(customFieldValues = [], fieldIdMap = {})
   return byMember;
 }
 
+// Build a memberId → { role, tags } map from taxonomy_terms + taxonomy_assignments.
+//
+// OpenPlural v0.1 treats role as a taxonomy assignment of kind "role" (NOT a
+// member field — this is the main reason roles/tags "didn't come over" before).
+// Other identity-ish kinds (tag/identity/topic/status/custom) all collapse into
+// the local `alter.tags` string array; the FIRST kind:"role" term becomes
+// `alter.role`, and any extra role terms are appended to tags so nothing drops.
+//
+// `kind` matching is case-insensitive. Terms with an unknown/blank kind that are
+// still assigned to a member are treated as tags (better surfaced than dropped).
+const TAG_KINDS = new Set(["tag", "identity", "topic", "status", "source", "custom"]);
+
+export function buildMemberTaxonomy(taxonomyTerms = [], taxonomyAssignments = []) {
+  const termsById = {};
+  for (const term of taxonomyTerms) {
+    if (term && term.id) termsById[term.id] = term;
+  }
+  const byMember = {};
+  for (const asn of taxonomyAssignments) {
+    if (!asn || asn.subject_type !== "member") continue;
+    const memberId = asn.subject_id;
+    const term = termsById[asn.term_id];
+    if (!memberId || !term) continue;
+    const name = (term.name || "").toString().trim();
+    if (!name) continue;
+    const kind = (term.kind || "").toString().trim().toLowerCase();
+    if (!byMember[memberId]) byMember[memberId] = { roles: [], tags: [] };
+    if (kind === "role") {
+      byMember[memberId].roles.push(name);
+    } else if (kind === "tag" || TAG_KINDS.has(kind) || !kind) {
+      byMember[memberId].tags.push(name);
+    } else {
+      // Any other recognised-but-unmapped kind still surfaces as a tag.
+      byMember[memberId].tags.push(name);
+    }
+  }
+  // Collapse to { role, tags }: first role becomes alter.role, extra roles join
+  // the tags list. Dedup tags case-insensitively while preserving first casing.
+  const result = {};
+  for (const [memberId, { roles, tags }] of Object.entries(byMember)) {
+    const role = roles[0] || "";
+    const extraRoles = roles.slice(1);
+    const merged = [...tags, ...extraRoles];
+    const seen = new Set();
+    const deduped = [];
+    for (const tag of merged) {
+      const key = tag.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
+      deduped.push(tag);
+    }
+    result[memberId] = { role, tags: deduped };
+  }
+  return result;
+}
+
+// Extract a proxy-tag alias from a member's proxy_tags. OpenPlural proxy_tags are
+// PluralKit-style [{prefix, suffix}]; we surface the first non-empty prefix
+// (falling back to a suffix) as the member's alias. Returns "" when there's no
+// usable proxy tag. The connector only writes this into alter.alias when the
+// alter has no existing alias (don't clobber a user-set alias).
+export function proxyTagAlias(member) {
+  const tags = Array.isArray(member?.proxy_tags) ? member.proxy_tags : [];
+  for (const tag of tags) {
+    if (!tag) continue;
+    const prefix = (tag.prefix || "").toString().trim();
+    if (prefix) return prefix;
+    const suffix = (tag.suffix || "").toString().trim();
+    if (suffix) return suffix;
+  }
+  return "";
+}
+
+// Normalise a member's birthday into the local Alter.birthday string. OpenPlural
+// birthday is either a {value, precision, year_visible} object or a bare string;
+// the local field is a free-text string (see AlterEditModal "first appearance").
+export function normalizeBirthday(birthday) {
+  if (!birthday) return "";
+  if (typeof birthday === "string") return birthday.trim();
+  if (typeof birthday === "object" && birthday.value != null) {
+    return String(birthday.value).trim();
+  }
+  return "";
+}
+
 // Resolve a member's avatar URL from its avatar_asset_id → assets[].uri.
 // Returns the relative "media/<file>" uri (the connector turns that into a
 // local-image:// URI after pulling the blob out of the zip). Returns "" when
@@ -106,7 +199,11 @@ export function resolveAssetUri(assetId, assetsById = {}) {
 // member → Alter. Mirrors mapMemberToAlter in simplyPlural.js: same field
 // names (name, pronouns, description, color, avatar_url, banner_url, role,
 // custom_fields, tags, groups, is_archived), plus op_id for dedup.
-//   - display_name → alias (OS distinguishes name vs alias)
+//   - display_name → alias; proxy_tags[0].prefix is a fallback alias source
+//     (resolved by the connector only when alias is otherwise empty).
+//   - role + tags come from taxonomy (passed in as `role` / `tags` opts —
+//     OpenPlural has no member.role field; see buildMemberTaxonomy).
+//   - age → alter.age; birthday → alter.birthday (string).
 //   - banner doubles as the alter profile header via the `_header_image`
 //     custom-field key that ProfileTab reads (same as the SP mapper).
 // avatar/banner are passed in pre-resolved (the connector resolves the asset
@@ -117,24 +214,34 @@ export function mapMemberToAlter(member, opts = {}) {
     customFields = {},
     avatarUrl = "",
     bannerUrl = "",
+    role = "",
+    tags = [],
   } = opts;
   const opId = member.id || "";
 
   const cf = { ...customFields };
   if (bannerUrl) cf._header_image = bannerUrl;
 
+  // alias: prefer the explicit display_name, then a proxy-tag prefix/suffix.
+  const alias = (member.display_name || "").toString().trim() || proxyTagAlias(member);
+
+  const age = member.age != null && member.age !== "" ? String(member.age) : "";
+  const birthday = normalizeBirthday(member.birthday);
+
   return {
     op_id: opId,
     name: member.name || "Unknown",
-    alias: member.display_name || "",
+    alias,
     pronouns: member.pronouns || "",
     description: member.description || "",
     color: normalizeColor(member.color),
     avatar_url: avatarUrl,
     banner_url: bannerUrl,
-    role: "",
+    role: role || "",
+    age,
+    birthday,
     custom_fields: cf,
-    tags: [],
+    tags: Array.isArray(tags) ? tags : [],
     groups: memberGroups,
     is_archived: member.archived === true,
   };
@@ -185,11 +292,23 @@ export function mapFrontAssignment(period, assignment, alterIdByOpId) {
   };
 }
 
+// Read an OpenPlural note's kind. The spec stamps note_kind under
+// extensions.openplural.note_kind ("note" = a per-member note that lives on the
+// member profile; "journal" / absent = a dated journal entry). Defaults to
+// "journal" when unset so legacy exports without the extension still import.
+export function noteKind(note) {
+  const ext = note?.extensions;
+  const op = ext && (ext.openplural || ext.open_plural || ext);
+  const kind = (op && (op.note_kind || op.noteKind)) || "";
+  return kind === "note" ? "note" : "journal";
+}
+
 // note → JournalEntry. Uses the same JournalEntry fields the in-app editor /
 // SwitchJournalModal write (title, content, entry_type, tags, author_alter_id,
 // allowed_alter_ids). The note's member subject becomes author_alter_id (the
 // alter the note is "about"/by); we also stamp a `created_date` so it lands on
-// the timeline at the right time, and op_id for dedup.
+// the timeline at the right time, and op_id for dedup. `pinned` is carried
+// through so it round-trips even though no current journal UI surfaces it.
 export function mapNoteToJournalEntry(note, alterIdByOpId) {
   const opId = note.id || "";
   const authorAlterId = alterIdByOpId[note.member_id] || "";
@@ -211,6 +330,28 @@ export function mapNoteToJournalEntry(note, alterIdByOpId) {
     author_alter_id: authorAlterId,
     allowed_alter_ids: [],
     created_date: createdDate,
+    pinned: note.pinned === true,
+  };
+}
+
+// note (note_kind:"note") → AlterNote. AlterNote is the per-member note that
+// lives on the alter profile (NotesTab) — distinct from JournalEntry. Fields:
+// alter_id, content (title folded into a bold heading like the SP note mapper),
+// plus op_id for dedup and `pinned` carried through. Returns null when the
+// note's member didn't import or the note is empty.
+export function mapNoteToAlterNote(note, alterIdByOpId) {
+  const opId = note.id || "";
+  const alterId = alterIdByOpId[note.member_id] || "";
+  if (!alterId) return null;
+  const title = (note.title || "").trim();
+  const body = (note.body || "").trim();
+  if (!title && !body) return null;
+  const content = title ? `**${title}**\n\n${body}`.trim() : body;
+  return {
+    op_id: opId,
+    alter_id: alterId,
+    content,
+    pinned: note.pinned === true,
   };
 }
 
@@ -232,6 +373,73 @@ export function mapRelationshipEdge(edge, alterIdByOpId, typeLabel) {
     direction: "a_to_b",
     notes: edge.note || "",
   };
+}
+
+// systems[0] → a MERGE-SAFE SystemSettings patch. Only fills fields that are
+// currently EMPTY on the existing settings record — never clobbers a user's
+// chosen system name / bio / colour / avatar / banner. Returns an object with
+// only the keys that should be written (may be empty). `existing` is the
+// resolved SystemSettings singleton; `systemAvatarUrl` / `systemBannerUrl` are
+// pre-resolved local-image:// URLs (the connector turns asset ids into images,
+// same as member avatars) — pass "" when none / avatars are excluded.
+//
+// Terminology: if systems[0].extensions carries terminology, merge each term
+// into the matching SystemSettings term_* key ONLY when the user hasn't already
+// customised it (the local key is empty). Map from common term keys
+// (system/alter/switch/front + the derived overrides) to the OS field names.
+const OP_TERM_FIELD_MAP = {
+  system: "term_system",
+  alter: "term_alter",
+  switch: "term_switch",
+  front: "term_front",
+  fronting: "term_fronting",
+  fronter: "term_fronter",
+  switching: "term_switching",
+};
+
+export function buildSystemIdentityPatch(system, existing = {}, opts = {}) {
+  const { systemAvatarUrl = "", systemBannerUrl = "" } = opts;
+  if (!system || typeof system !== "object") return {};
+  const patch = {};
+  const isEmpty = (v) => v == null || String(v).trim() === "";
+
+  // Fill-if-empty scalar identity fields.
+  const name = (system.name || "").toString().trim();
+  if (name && isEmpty(existing.system_name)) patch.system_name = name;
+
+  const bio = (system.description || "").toString().trim();
+  if (bio && isEmpty(existing.system_bio) && isEmpty(existing.system_description)) {
+    patch.system_bio = bio;
+  }
+
+  const color = normalizeColor(system.color);
+  if (color && isEmpty(existing.system_color)) patch.system_color = color;
+
+  if (systemAvatarUrl && isEmpty(existing.system_avatar_url)) {
+    patch.system_avatar_url = systemAvatarUrl;
+  }
+  if (systemBannerUrl && isEmpty(existing.system_banner_url)) {
+    patch.system_banner_url = systemBannerUrl;
+  }
+
+  // Carry op_id so a future re-import / export dedups onto the same system row.
+  if (system.id && isEmpty(existing.op_id)) patch.op_id = system.id;
+
+  // Terminology merge (fill-if-empty per key). Accept either a flat
+  // extensions.terminology / extensions.terms map or extensions.openplural.terms.
+  const ext = system.extensions || {};
+  const terms =
+    ext.terminology || ext.terms ||
+    (ext.openplural && (ext.openplural.terminology || ext.openplural.terms)) ||
+    null;
+  if (terms && typeof terms === "object") {
+    for (const [opKey, field] of Object.entries(OP_TERM_FIELD_MAP)) {
+      const incoming = (terms[opKey] || "").toString().trim();
+      if (incoming && isEmpty(existing[field])) patch[field] = incoming;
+    }
+  }
+
+  return patch;
 }
 
 // ── Zip / file parsing ───────────────────────────────────────────────────────

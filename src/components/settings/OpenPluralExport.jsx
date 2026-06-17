@@ -35,6 +35,7 @@ export default function OpenPluralExport() {
         customFields,
         frontingSessions,
         journalEntries,
+        alterNotes,
         relationships,
         systemSettings,
       ] = await Promise.all([
@@ -43,6 +44,7 @@ export default function OpenPluralExport() {
         safeList(localEntities.CustomField),
         safeList(localEntities.FrontingSession),
         safeList(localEntities.JournalEntry),
+        safeList(localEntities.AlterNote),
         safeList(localEntities.AlterRelationship),
         safeList(localEntities.SystemSettings),
       ]);
@@ -54,6 +56,7 @@ export default function OpenPluralExport() {
         customFields,
         frontingSessions,
         journalEntries,
+        alterNotes,
         relationships,
         systemSettings,
       });
