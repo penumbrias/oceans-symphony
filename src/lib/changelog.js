@@ -19,6 +19,10 @@ export const CHANGELOG = [
         type: "feature",
         text: "Export to a Simply Plural file (Settings → Data & Privacy → Export) — import it into PluralSpace, Simply Plural, or any app that reads SP exports.",
       },
+      {
+        type: "fix",
+        text: "An alter who's been fronting a long time now reliably floats to the top of the Alters list (long-running fronters were sometimes missed).",
+      },
     ],
   },
   {

@@ -64,9 +64,15 @@ export default function AlterGrid({ alters }) {
     queryFn: () => base44.entities.Group.list()
   });
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
+  // Canonical active-front query (server-filters is_active:true, no row cap, and
+  // every set-front/switch invalidates it). Filtering the 50-row ["frontHistory"]
+  // list instead meant a long-running fronter whose session had dropped below the
+  // newest 50 by start_time wouldn't get a fronting rank — so they showed as a
+  // fronter elsewhere but didn't float to the top of this list ("only this one
+  // alter"). Same root cause as the dashboard CurrentFronters fix.
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true })
   });
 
   const { data: allSessions = [] } = useQuery({
@@ -93,8 +99,6 @@ export default function AlterGrid({ alters }) {
     }
     return totals;
   }, [allSessions, sortMode]);
-
-  const activeSessions = sessions.filter((s) => s.is_active);
 
   // Build a fronting rank map: 0 = primary, 1 = co-fronter, absent = not fronting
   const frontingRank = useMemo(() => {
