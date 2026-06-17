@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Export your whole system to the portable OpenPlural format (Settings → Data & Privacy → Export) — a .zip you can import into PluralSpace or any OpenPlural app.",
+      },
+      {
+        type: "feature",
         text: "Import from OpenPlural exports (e.g. PluralSpace): members, groups, custom fields, front history, journals, and relationships — from a .zip or .json in the Import screen.",
       },
     ],

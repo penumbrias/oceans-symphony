@@ -18,6 +18,7 @@ import RelationshipTypesManager from "@/components/settings/RelationshipTypesMan
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
+import OpenPluralExport from "@/components/settings/OpenPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
@@ -694,6 +695,10 @@ export default function Settings() {
           {/* Backup + Export first — what people open this section to do most
               often: export options, format, and the copy/paste fallback. */}
           <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore section="export" /></SubSection>
+          {/* Portable cross-app export. Sits next to Backup & export since it's
+              the other "get my data out" surface; the matching importer lives
+              in the Import → OpenPlural / PluralSpace SubSection below. */}
+          <SubSection title="Export (OpenPlural)" defaultOpen={false}><OpenPluralExport /></SubSection>
           {/* Import groups the file/text restore together with the
               service connectors (Simply Plural, PluralKit) nested inside. */}
           <SubSection title="Import" defaultOpen={false}>
