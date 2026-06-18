@@ -5,6 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Download } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 
@@ -38,6 +39,7 @@ export default function ImportAltersModal({ open, onClose }) {
 
         <div className="space-y-4">
           <SimplyPluralConnect settings={settings} onSettingsChange={onSettingsChange} />
+          <SimplyPluralFileImport settings={settings} onSettingsChange={onSettingsChange} />
           <PluralKitConnect settings={settings} onSettingsChange={onSettingsChange} />
           <OpenPluralConnect settings={settings} onSettingsChange={onSettingsChange} />
         </div>

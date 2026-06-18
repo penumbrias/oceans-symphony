@@ -16,6 +16,7 @@ import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
@@ -710,6 +711,15 @@ export default function Settings() {
             <DataBackupRestore section="import" />
             <SubSection title="Simply Plural" defaultOpen={false}>
               <SimplyPluralConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            {/* Simply Plural EXPORT-FILE importer — the only path that brings
+                chat across (the API can't return SP's end-to-end-encrypted
+                chat; the export file has it in plaintext). */}
+            <SubSection title="Simply Plural (export file — incl. chat)" defaultOpen={false}>
+              <SimplyPluralFileImport settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />

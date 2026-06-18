@@ -13,6 +13,15 @@
 
 export const CHANGELOG = [
   {
+    date: "June 18, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Import a Simply Plural export file (Settings → Import) — brings members, groups, fields, front history, system profile, and chat (which the SP API can't provide because it's encrypted) into the app.",
+      },
+    ],
+  },
+  {
     date: "June 17, 2026",
     changes: [
       {
