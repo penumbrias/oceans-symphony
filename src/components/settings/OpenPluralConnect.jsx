@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Loader2, CheckCircle2, FileArchive, ArrowDownLeft, Clock, FileText,
-  Users, Layers, ImageOff, Link2, Upload, UserCircle,
+  Users, Layers, ImageOff, Link2, Upload, UserCircle, MessageSquare,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
 import {
@@ -22,6 +22,9 @@ import {
   mapNoteToJournalEntry,
   mapNoteToAlterNote,
   mapRelationshipEdge,
+  mapChatCategory,
+  mapChatConversation,
+  mapChatMessage,
 } from "@/lib/openPlural";
 import {
   processUploadedImage,
@@ -85,6 +88,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
   const [includeJournals, setIncludeJournals] = useState(true);
   const [includeRelationships, setIncludeRelationships] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
+  const [includeChat, setIncludeChat] = useState(true);
 
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState("");
@@ -123,6 +127,8 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
     fronts: (data.front_periods || []).length,
     notes: (data.notes || []).length,
     relationships: (data.relationships?.edges || []).length,
+    chatChannels: (data.chat?.conversations || []).length,
+    chatMessages: (data.chat?.messages || []).length,
     system: data.systems?.[0]?.name || "",
   } : null;
 
@@ -481,6 +487,134 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
         }
       }
 
+      // ── Step 8: System chat (optional) ──
+      // Channels + categories + messages. Runs AFTER members so author_member_id
+      // resolves to a local alter id via alterIdByOpId. Dedups channels /
+      // categories / messages by op_id; null author (system message) is allowed.
+      let chatChannelsCreated = 0, chatCategoriesCreated = 0, chatMessagesCreated = 0;
+      if (includeChat && d.chat) {
+        setProgress("Importing chat…");
+        const opChat = d.chat;
+
+        // 8a: Categories (dedup by op_id), then resolve nesting.
+        const categoryIdByOpId = {}; // op category id → local SystemChatCategory id
+        {
+          const existingCats = await localEntities.SystemChatCategory.list();
+          const existingByOpId = {};
+          for (const c of existingCats) { if (c.op_id) existingByOpId[c.op_id] = c; }
+          for (const opCat of opChat.categories || []) {
+            const mapped = mapChatCategory(opCat);
+            if (!mapped.op_id) continue;
+            const existing = existingByOpId[mapped.op_id];
+            if (existing) {
+              await localEntities.SystemChatCategory.update(existing.id, {
+                op_id: mapped.op_id,
+                name: mapped.name,
+                color: mapped.color,
+                sort_order: mapped.sort_order,
+                collapsed: mapped.collapsed,
+              });
+              categoryIdByOpId[mapped.op_id] = existing.id;
+            } else {
+              const created = await localEntities.SystemChatCategory.create({
+                op_id: mapped.op_id,
+                name: mapped.name,
+                color: mapped.color,
+                sort_order: mapped.sort_order,
+                collapsed: mapped.collapsed,
+                parent_category_id: null,
+                created_date: new Date().toISOString(),
+              });
+              categoryIdByOpId[mapped.op_id] = created.id;
+              chatCategoriesCreated++;
+            }
+          }
+          // Second pass: resolve parent_category_id (op id → local id).
+          for (const opCat of opChat.categories || []) {
+            const mapped = mapChatCategory(opCat);
+            const localId = categoryIdByOpId[mapped.op_id];
+            if (!localId) continue;
+            const localParent = mapped.op_parent_id ? (categoryIdByOpId[mapped.op_parent_id] || null) : null;
+            await localEntities.SystemChatCategory.update(localId, { parent_category_id: localParent });
+          }
+        }
+
+        // 8b: Channels (dedup by op_id). Resolve category_id + private members.
+        const channelIdByOpId = {}; // op conversation id → local SystemChatChannel id
+        {
+          const existingChannels = await localEntities.SystemChatChannel.list();
+          const existingByOpId = {};
+          for (const c of existingChannels) { if (c.op_id) existingByOpId[c.op_id] = c; }
+          for (const opConv of opChat.conversations || []) {
+            // Only "channel"-kind conversations map to SystemChatChannel.
+            if (opConv?.kind && opConv.kind !== "channel") continue;
+            const mapped = mapChatConversation(opConv);
+            if (!mapped.op_id) continue;
+            const localCategoryId = mapped.op_category_id ? (categoryIdByOpId[mapped.op_category_id] || null) : null;
+            const localMemberIds = (mapped.op_member_ids || [])
+              .map((id) => alterIdByOpId[id])
+              .filter(Boolean);
+            const payload = {
+              op_id: mapped.op_id,
+              name: mapped.name,
+              description: mapped.description,
+              color: mapped.color,
+              sort_order: mapped.sort_order,
+              is_archived: mapped.is_archived,
+              is_private: mapped.is_private,
+              category_id: localCategoryId,
+              member_alter_ids: localMemberIds,
+            };
+            const existing = existingByOpId[mapped.op_id];
+            if (existing) {
+              await localEntities.SystemChatChannel.update(existing.id, payload);
+              channelIdByOpId[mapped.op_id] = existing.id;
+            } else {
+              const created = await localEntities.SystemChatChannel.create({
+                ...payload,
+                created_date: new Date().toISOString(),
+              });
+              channelIdByOpId[mapped.op_id] = created.id;
+              chatChannelsCreated++;
+            }
+          }
+        }
+
+        // 8c: Messages (dedup by op_id). Two passes so reply_to_id resolves to
+        // an imported message even when a reply precedes its parent.
+        {
+          const existingMsgs = await localEntities.SystemChatMessage.list();
+          const msgIdByOpId = {}; // op message id → local SystemChatMessage id
+          const existingByOpId = {};
+          for (const m of existingMsgs) {
+            if (m.op_id) { existingByOpId[m.op_id] = m; msgIdByOpId[m.op_id] = m.id; }
+          }
+          // Pass 1: create/locate every message without replies, building the id map.
+          const opMessages = opChat.messages || [];
+          const pending = []; // messages that still need reply_to_id wired up
+          for (const opMsg of opMessages) {
+            const opId = opMsg?.id || "";
+            if (!opId) continue;
+            const channelId = channelIdByOpId[opMsg.conversation_id];
+            if (!channelId) continue; // channel didn't import
+            const existing = existingByOpId[opId];
+            if (existing) { msgIdByOpId[opId] = existing.id; continue; }
+            const mapped = mapChatMessage(opMsg, { channelIdByOpId, alterIdByOpId, msgIdByOpId });
+            if (!mapped) continue;
+            // Defer reply linkage to pass 2 (parent may not exist yet).
+            const created = await localEntities.SystemChatMessage.create({ ...mapped, reply_to_id: null });
+            msgIdByOpId[opId] = created.id;
+            chatMessagesCreated++;
+            if (opMsg.reply_to_id) pending.push({ localId: created.id, opReplyId: opMsg.reply_to_id });
+          }
+          // Pass 2: resolve reply_to_id now that every message has a local id.
+          for (const { localId, opReplyId } of pending) {
+            const localReply = msgIdByOpId[opReplyId];
+            if (localReply) await localEntities.SystemChatMessage.update(localId, { reply_to_id: localReply });
+          }
+        }
+      }
+
       // ── Finish ──
       onSettingsChange?.();
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -492,6 +626,9 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
       queryClient.invalidateQueries({ queryKey: ["alterRelationships"] });
       queryClient.invalidateQueries({ queryKey: ["alterNotes"] });
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      queryClient.invalidateQueries({ queryKey: ["systemChatChannels"] });
+      queryClient.invalidateQueries({ queryKey: ["systemChatCategories"] });
+      queryClient.invalidateQueries({ queryKey: ["systemChatMessages"] });
       setProgress("");
 
       const parts = [
@@ -503,6 +640,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
         includeJournals && journalsCreated > 0 && `Journals: ${journalsCreated}`,
         includeJournals && alterNotesCreated > 0 && `${t.Alter} notes: ${alterNotesCreated}`,
         includeRelationships && relsCreated > 0 && `Relationships: ${relsCreated}`,
+        includeChat && (chatChannelsCreated > 0 || chatMessagesCreated > 0) && `Chat: ${chatChannelsCreated} channel${chatChannelsCreated === 1 ? "" : "s"}, ${chatMessagesCreated} message${chatMessagesCreated === 1 ? "" : "s"}`,
         includeSystemProfile && systemProfileUpdated && `${t.System} profile updated`,
       ].filter(Boolean).join(" · ");
 
@@ -584,7 +722,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
               <p className="text-xs text-muted-foreground leading-relaxed">
                 Found {counts.members} {counts.members === 1 ? t.alter : t.alters}
                 {counts.customFronts > 0 && ` (${counts.customFronts} custom front${counts.customFronts === 1 ? "" : "s"} skipped)`}
-                , {counts.groups} group{counts.groups === 1 ? "" : "s"}, {counts.customFields} custom field{counts.customFields === 1 ? "" : "s"}, {counts.fronts} front period{counts.fronts === 1 ? "" : "s"}, {counts.notes} note{counts.notes === 1 ? "" : "s"}, {counts.relationships} relationship{counts.relationships === 1 ? "" : "s"}.
+                , {counts.groups} group{counts.groups === 1 ? "" : "s"}, {counts.customFields} custom field{counts.customFields === 1 ? "" : "s"}, {counts.fronts} front period{counts.fronts === 1 ? "" : "s"}, {counts.notes} note{counts.notes === 1 ? "" : "s"}, {counts.relationships} relationship{counts.relationships === 1 ? "" : "s"}{counts.chatMessages > 0 ? `, ${counts.chatMessages} chat message${counts.chatMessages === 1 ? "" : "s"}` : ""}.
               </p>
             </div>
           )}
@@ -645,6 +783,11 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
                   <input type="checkbox" checked={includeRelationships} onChange={(e) => setIncludeRelationships(e.target.checked)} className="rounded" />
                   <Link2 className="w-3.5 h-3.5 text-muted-foreground" />
                   Relationships
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                  <input type="checkbox" checked={includeChat} onChange={(e) => setIncludeChat(e.target.checked)} className="rounded" />
+                  <MessageSquare className="w-3.5 h-3.5 text-muted-foreground" />
+                  {t.System} chat <span className="text-muted-foreground/60 text-xs">(channels &amp; messages)</span>
                 </label>
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeSystemProfile} onChange={(e) => setIncludeSystemProfile(e.target.checked)} className="rounded" />

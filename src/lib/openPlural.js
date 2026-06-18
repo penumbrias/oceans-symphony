@@ -375,6 +375,110 @@ export function mapRelationshipEdge(edge, alterIdByOpId, typeLabel) {
   };
 }
 
+// ── System chat ──────────────────────────────────────────────────────────────
+//
+// OpenPlural carries chat under `chat.{conversations, messages, categories}`.
+// The OS exporter (openPluralExport.js) writes:
+//   conversation  {id, name, description, kind:"channel",
+//                  extensions:{category_id, color, sort_order, is_archived,
+//                              is_private, member_member_ids}}
+//   category      {id, name, color, parent_category_id, sort_order,
+//                  extensions:{collapsed}}   (chat.categories[])
+//   message       {id, conversation_id, author_member_id, body, created_at,
+//                  edited_at, reply_to_id,
+//                  extensions:{is_whisper, whisper_to_member_ids,
+//                              author_member_ids, mentioned_member_ids}}
+// These mappers are the inverse; the connector owns the create/update loop and
+// resolves member ids → local alter ids via alterIdByOpId.
+
+// chat.category → SystemChatCategory. parent_category_id is captured as
+// op_parent_id for the connector's second pass (it maps op category id → local
+// id once every category exists). op_id dedups on re-import.
+export function mapChatCategory(category) {
+  const ext = category?.extensions || {};
+  return {
+    op_id: category?.id || "",
+    name: category?.name || "Category",
+    color: category?.color || null,
+    sort_order: typeof category?.sort_order === "number" ? category.sort_order : 0,
+    collapsed: ext.collapsed === true,
+    op_parent_id: category?.parent_category_id || "",
+    parent_category_id: null,
+  };
+}
+
+// chat.conversation → SystemChatChannel. Only "channel"-kind conversations
+// import (DMs/threads would need their own model). category_id /
+// member_alter_ids are resolved by the connector (op category id → local id;
+// op member id → local alter id). op_id dedups on re-import.
+export function mapChatConversation(conversation) {
+  const ext = conversation?.extensions || {};
+  return {
+    op_id: conversation?.id || "",
+    name: conversation?.name || "channel",
+    description: conversation?.description || null,
+    color: ext.color || null,
+    sort_order: typeof ext.sort_order === "number" ? ext.sort_order : 0,
+    is_archived: ext.is_archived === true,
+    is_private: ext.is_private === true,
+    // op member ids — the connector remaps these to local alter ids.
+    op_member_ids: Array.isArray(ext.member_member_ids) ? ext.member_member_ids : [],
+    op_category_id: ext.category_id || "",
+    category_id: null,
+    member_alter_ids: [],
+  };
+}
+
+// chat.message → SystemChatMessage. author_member_id (+ extensions
+// author_member_ids) resolve to local alter ids via alterIdByOpId; a null /
+// unresolved author stays null (system message). conversation_id → the created
+// channel's local id (channelIdByOpId); reply_to_id → the created message's
+// local id (msgIdByOpId) — both resolved by the connector and passed in.
+// Returns null when the channel didn't import. op_id dedups on re-import.
+export function mapChatMessage(message, { channelIdByOpId = {}, alterIdByOpId = {}, msgIdByOpId = {} } = {}) {
+  const ext = message?.extensions || {};
+  const opConvId = message?.conversation_id || "";
+  const channelId = channelIdByOpId[opConvId];
+  if (!channelId) return null; // channel didn't import — drop the orphan message
+
+  const authorAlterId = message?.author_member_id ? (alterIdByOpId[message.author_member_id] || null) : null;
+  const authorAlterIds = (Array.isArray(ext.author_member_ids) ? ext.author_member_ids : [])
+    .map((id) => alterIdByOpId[id])
+    .filter(Boolean);
+  // If the multi-author list is empty but a single author resolved, seed it.
+  const finalAuthorIds = authorAlterIds.length > 0
+    ? authorAlterIds
+    : (authorAlterId ? [authorAlterId] : []);
+
+  const mentionedAlterIds = (Array.isArray(ext.mentioned_member_ids) ? ext.mentioned_member_ids : [])
+    .map((id) => alterIdByOpId[id])
+    .filter(Boolean);
+  const whisperToIds = (Array.isArray(ext.whisper_to_member_ids) ? ext.whisper_to_member_ids : [])
+    .map((id) => alterIdByOpId[id])
+    .filter(Boolean);
+
+  const opReplyId = message?.reply_to_id || "";
+  const replyToId = opReplyId ? (msgIdByOpId[opReplyId] || null) : null;
+
+  return {
+    op_id: message?.id || "",
+    channel_id: channelId,
+    author_alter_id: finalAuthorIds[0] || null,
+    author_alter_ids: finalAuthorIds,
+    content: message?.body || "",
+    timestamp: message?.created_at ? new Date(message.created_at).toISOString() : new Date().toISOString(),
+    edited_at: message?.edited_at ? new Date(message.edited_at).toISOString() : null,
+    deleted_at: null,
+    reply_to_id: replyToId,
+    mentioned_alter_ids: mentionedAlterIds,
+    is_whisper: ext.is_whisper === true,
+    whisper_to_ids: whisperToIds,
+    reactions: {},
+    thread_parent_id: null,
+    is_pinned: false,
+  };
+}
+
 // systems[0] → a MERGE-SAFE SystemSettings patch. Only fills fields that are
 // currently EMPTY on the existing settings record — never clobbers a user's
 // chosen system name / bio / colour / avatar / banner. Returns an object with

@@ -139,7 +139,8 @@ function isInternalFieldKey(key) {
 //
 // Inputs (all arrays except systemSettings which is also an array — [0]-ish is
 // read for the system identity):
-//   alters, groups, customFields, frontingSessions, privacyLevels, systemSettings
+//   alters, groups, customFields, frontingSessions, privacyLevels,
+//   systemSettings, chatChannels, chatCategories, chatMessages
 export function buildSimplyPluralExport({
   alters = [],
   groups = [],
@@ -147,6 +148,9 @@ export function buildSimplyPluralExport({
   frontingSessions = [],
   privacyLevels = null,
   systemSettings = [],
+  chatChannels = [],
+  chatCategories = [],
+  chatMessages = [],
 } = {}) {
   const now = Date.now();
   const warnings = [];
@@ -401,6 +405,84 @@ export function buildSimplyPluralExport({
     return out;
   });
 
+  // ── channels[] + channelCategories[] + chatMessages[] ──
+  // OS SystemChatChannel → SP channel; SystemChatCategory → SP channelCategory
+  // (its `channels` array lists the channel _ids it holds); SystemChatMessage →
+  // SP chatMessage. SP chat is normally E2E-encrypted (the export carries an
+  // `iv`); we emit PLAINTEXT (omit `iv`) since OS holds the cleartext. Reuse
+  // sp_id when present so a re-import dedups onto the same record.
+  // chanExportIdByOsId maps a local channel id → its exported _id, used by both
+  // the category `channels` arrays and each message's `channel`.
+  const chanExportIdByOsId = {};
+  const exportedChannels = safe("chat channels", () => {
+    const out = [];
+    chatChannels.forEach((channel) => {
+      if (!channel || !channel.id) return;
+      const cid = idFor(channel);
+      chanExportIdByOsId[channel.id] = cid;
+      out.push({
+        _id: cid,
+        name: channel.name || "channel",
+        desc: channel.description || "",
+        uid,
+        lastOperationTime: now,
+      });
+    });
+    return out;
+  });
+
+  const exportedChannelCategories = safe("chat categories", () => {
+    const out = [];
+    chatCategories.forEach((category) => {
+      if (!category || !category.id) return;
+      const ccid = idFor(category);
+      // Channels that belong to this category, as exported channel _ids.
+      const memberChannelIds = chatChannels
+        .filter((ch) => ch && ch.category_id === category.id)
+        .map((ch) => chanExportIdByOsId[ch.id])
+        .filter(Boolean);
+      out.push({
+        _id: ccid,
+        name: category.name || "Category",
+        desc: "",
+        channels: memberChannelIds,
+        uid,
+        lastOperationTime: now,
+      });
+    });
+    return out;
+  });
+
+  let droppedChatMessages = 0;
+  const exportedChatMessages = safe("chat messages", () => {
+    const out = [];
+    for (const msg of chatMessages) {
+      if (!msg || !msg.id) continue;
+      if (msg.deleted_at) { droppedChatMessages++; continue; } // skip soft-deleted
+      const channelId = chanExportIdByOsId[msg.channel_id];
+      if (!channelId) { droppedChatMessages++; continue; } // channel didn't export
+      // Author: single author_alter_id, else first of author_alter_ids. SP has
+      // one writer per message; a null author (system message) becomes "".
+      const osAuthorId = msg.author_alter_id
+        || (Array.isArray(msg.author_alter_ids) ? msg.author_alter_ids[0] : null)
+        || null;
+      const writer = osAuthorId ? (memberExportIdByAlterId[osAuthorId] || "") : "";
+      out.push({
+        _id: idFor(msg, "sp_chat_id"),
+        message: msg.content || "",
+        channel: channelId,
+        writer,
+        writtenAt: toEpochMs(msg.timestamp) ?? now,
+        uid,
+        lastOperationTime: now,
+      });
+    }
+    return out;
+  });
+  if (droppedChatMessages > 0) {
+    warnings.push(`${droppedChatMessages} chat message${droppedChatMessages === 1 ? "" : "s"} skipped (deleted or in a channel that didn't export).`);
+  }
+
   // ── users[0] (exactly one doc = the system) ──
   const users = [{
     _id: uid,
@@ -426,9 +508,9 @@ export function buildSimplyPluralExport({
     customFields: exportedCustomFields,
     frontHistory,
     frontStatuses: [],
-    channels: [],
-    channelCategories: [],
-    chatMessages: [],
+    channels: exportedChannels,
+    channelCategories: exportedChannelCategories,
+    chatMessages: exportedChatMessages,
     comments: [],
     notes: [],
     boardMessages: [],
@@ -446,6 +528,8 @@ export function buildSimplyPluralExport({
     customFields: exportedCustomFields.length,
     frontHistory: frontHistory.length,
     privacyBuckets: privacyBuckets.length,
+    chatChannels: exportedChannels.length,
+    chatMessages: exportedChatMessages.length,
   };
 
   return { doc, systemName, uid, counts, warnings };

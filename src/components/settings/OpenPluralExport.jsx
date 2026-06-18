@@ -38,6 +38,9 @@ export default function OpenPluralExport() {
         alterNotes,
         relationships,
         systemSettings,
+        chatChannels,
+        chatCategories,
+        chatMessages,
       ] = await Promise.all([
         safeList(localEntities.Alter),
         safeList(localEntities.Group),
@@ -47,6 +50,9 @@ export default function OpenPluralExport() {
         safeList(localEntities.AlterNote),
         safeList(localEntities.AlterRelationship),
         safeList(localEntities.SystemSettings),
+        safeList(localEntities.SystemChatChannel),
+        safeList(localEntities.SystemChatCategory),
+        safeList(localEntities.SystemChatMessage),
       ]);
 
       setProgress("Building the OpenPlural file…");
@@ -59,6 +65,9 @@ export default function OpenPluralExport() {
         alterNotes,
         relationships,
         systemSettings,
+        chatChannels,
+        chatCategories,
+        chatMessages,
       });
 
       const r = result.shareResult?.result;
@@ -69,8 +78,9 @@ export default function OpenPluralExport() {
       if (r === "downloaded" || r === "shared") {
         const c = result.counts;
         const imagePart = result.assetsWritten > 0 ? ` · ${result.assetsWritten} image${result.assetsWritten === 1 ? "" : "s"}` : "";
+        const chatPart = c.chatMessages > 0 ? ` · ${c.chatMessages} chat message${c.chatMessages === 1 ? "" : "s"}` : "";
         toast.success(
-          `Exported ${c.members} ${c.members === 1 ? t.alter : t.alters}, ${c.groups} group${c.groups === 1 ? "" : "s"}, ${c.fronts} front period${c.fronts === 1 ? "" : "s"}${imagePart}.`,
+          `Exported ${c.members} ${c.members === 1 ? t.alter : t.alters}, ${c.groups} group${c.groups === 1 ? "" : "s"}, ${c.fronts} front period${c.fronts === 1 ? "" : "s"}${chatPart}${imagePart}.`,
           { duration: 8000 },
         );
       } else {

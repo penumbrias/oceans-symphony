@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System chat (channels, categories, messages) now transfers too — via OpenPlural import/export and Simply Plural exports.",
+      },
+      {
+        type: "improve",
         text: "OpenPlural import/export is now far more complete — roles & tags, system profile (name/bio/avatar/banner), message prefix↔alias, birthdays, and per-member notes, on top of alters/groups/fields/fronts/journals/relationships.",
       },
       {

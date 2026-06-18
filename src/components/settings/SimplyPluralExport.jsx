@@ -34,12 +34,18 @@ export default function SimplyPluralExport() {
         customFields,
         frontingSessions,
         systemSettings,
+        chatChannels,
+        chatCategories,
+        chatMessages,
       ] = await Promise.all([
         safeList(localEntities.Alter),
         safeList(localEntities.Group),
         safeList(localEntities.CustomField),
         safeList(localEntities.FrontingSession),
         safeList(localEntities.SystemSettings),
+        safeList(localEntities.SystemChatChannel),
+        safeList(localEntities.SystemChatCategory),
+        safeList(localEntities.SystemChatMessage),
       ]);
 
       // Privacy levels live on the SystemSettings singleton (privacy_levels).
@@ -53,6 +59,9 @@ export default function SimplyPluralExport() {
         frontingSessions,
         privacyLevels,
         systemSettings,
+        chatChannels,
+        chatCategories,
+        chatMessages,
       });
 
       const r = result.shareResult?.result;
@@ -62,8 +71,9 @@ export default function SimplyPluralExport() {
       }
       if (r === "downloaded" || r === "shared") {
         const c = result.counts;
+        const chatPart = c.chatMessages > 0 ? `, ${c.chatMessages} chat message${c.chatMessages === 1 ? "" : "s"}` : "";
         toast.success(
-          `Exported ${c.members} ${c.members === 1 ? t.alter : t.alters}, ${c.groups} group${c.groups === 1 ? "" : "s"}, ${c.frontHistory} front record${c.frontHistory === 1 ? "" : "s"}.`,
+          `Exported ${c.members} ${c.members === 1 ? t.alter : t.alters}, ${c.groups} group${c.groups === 1 ? "" : "s"}, ${c.frontHistory} front record${c.frontHistory === 1 ? "" : "s"}${chatPart}.`,
           { duration: 8000 },
         );
         // Surface any per-collection / avatar warnings separately so they don't

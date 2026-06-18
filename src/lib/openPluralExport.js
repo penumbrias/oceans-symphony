@@ -120,7 +120,8 @@ function mimeFromExt(ext) {
 // Inputs (all arrays, defaulting to []):
 //   alters, groups, customFields, frontingSessions, journalEntries,
 //   alterNotes, relationships, systemSettings (the SystemSettings list — [0] is
-//   read for the system identity).
+//   read for the system identity), chatChannels, chatCategories, chatMessages
+//   (the system-chat entities).
 export function buildOpenPluralDocument({
   alters = [],
   groups = [],
@@ -130,6 +131,9 @@ export function buildOpenPluralDocument({
   alterNotes = [],
   relationships = [],
   systemSettings = [],
+  chatChannels = [],
+  chatCategories = [],
+  chatMessages = [],
 } = {}) {
   const exportedAt = nowIso();
 
@@ -532,6 +536,122 @@ export function buildOpenPluralDocument({
     });
   }
 
+  // ── System chat → chat.{conversations, messages, categories} ──
+  // OS SystemChatChannel → conversation (kind:"channel"); SystemChatCategory →
+  // a chat.categories[] extension entry (OpenPlural v0.1 has no first-class chat
+  // category, so we carry it as an extension and reference it from the
+  // conversation's extensions.category_id). SystemChatMessage → chat.messages[].
+  // Soft-deleted messages (deleted_at set) are skipped. Author resolves through
+  // memberIdByAlterId; a null author (system message) stays null. reply_to_id is
+  // remapped to the exported message id. Whisper metadata + private-channel
+  // members + sort order ride along in extensions so a round-trip restores them.
+  const chatCategories2 = [];
+  const conversationIdByChannelId = {}; // local channel id → exported conversation id
+  const chatCategoryIdByLocalId = {};   // local category id → exported category id
+
+  for (const cat of chatCategories) {
+    if (!cat || !cat.id) continue;
+    const catId = idFor(cat);
+    chatCategoryIdByLocalId[cat.id] = catId;
+    chatCategories2.push({
+      id: catId,
+      system_id: systemId,
+      name: cat.name || "",
+      color: cat.color || null,
+      // parent resolved in a second pass once every category has an exported id.
+      parent_category_id: null,
+      sort_order: typeof cat.sort_order === "number" ? cat.sort_order : 0,
+      source_refs: [],
+      extensions: {
+        collapsed: cat.collapsed === true,
+        _osParent: cat.parent_category_id || null, // scratch — stripped below
+      },
+    });
+  }
+  for (const ec of chatCategories2) {
+    const osParent = ec.extensions._osParent;
+    delete ec.extensions._osParent;
+    ec.parent_category_id = (osParent && chatCategoryIdByLocalId[osParent])
+      ? chatCategoryIdByLocalId[osParent]
+      : null;
+  }
+
+  const conversations = [];
+  chatChannels.forEach((channel, index) => {
+    if (!channel || !channel.id) return;
+    const convId = idFor(channel);
+    conversationIdByChannelId[channel.id] = convId;
+    const exportedCatId = channel.category_id
+      ? (chatCategoryIdByLocalId[channel.category_id] || null)
+      : null;
+    // Private-channel member ids → exported member ids (drop any that didn't export).
+    const memberAlterIds = Array.isArray(channel.member_alter_ids) ? channel.member_alter_ids : [];
+    const exportedMemberIds = memberAlterIds
+      .map((id) => memberIdByAlterId[id])
+      .filter(Boolean);
+    conversations.push({
+      id: convId,
+      system_id: systemId,
+      name: channel.name || "",
+      description: channel.description || null,
+      kind: "channel",
+      source_refs: [],
+      extensions: {
+        category_id: exportedCatId,
+        color: channel.color || null,
+        sort_order: typeof channel.sort_order === "number" ? channel.sort_order : index,
+        is_archived: channel.is_archived === true,
+        is_private: channel.is_private === true,
+        member_member_ids: exportedMemberIds,
+      },
+    });
+  });
+
+  // Message id map (built first so reply_to_id can point at exported ids even
+  // when a reply precedes its parent in iteration order).
+  const liveMessages = chatMessages.filter((m) => m && m.id && !m.deleted_at);
+  const messageIdByLocalId = {}; // local message id → exported message id
+  for (const msg of liveMessages) {
+    messageIdByLocalId[msg.id] = idFor(msg);
+  }
+
+  const chatMessages2 = [];
+  for (const msg of liveMessages) {
+    const convId = conversationIdByChannelId[msg.channel_id];
+    if (!convId) continue; // channel didn't export (deleted / archived-only) — drop the orphan
+    // Author: prefer the single author_alter_id, then the first of author_alter_ids.
+    const osAuthorId = msg.author_alter_id
+      || (Array.isArray(msg.author_alter_ids) ? msg.author_alter_ids[0] : null)
+      || null;
+    const authorMemberId = osAuthorId ? (memberIdByAlterId[osAuthorId] || null) : null;
+    // All co-authors → exported member ids (multi-speaker signposts).
+    const authorMemberIds = (Array.isArray(msg.author_alter_ids) ? msg.author_alter_ids : [])
+      .map((id) => memberIdByAlterId[id])
+      .filter(Boolean);
+    const mentionedMemberIds = (Array.isArray(msg.mentioned_alter_ids) ? msg.mentioned_alter_ids : [])
+      .map((id) => memberIdByAlterId[id])
+      .filter(Boolean);
+    const whisperMemberIds = (Array.isArray(msg.whisper_to_ids) ? msg.whisper_to_ids : [])
+      .map((id) => memberIdByAlterId[id])
+      .filter(Boolean);
+    chatMessages2.push({
+      id: messageIdByLocalId[msg.id],
+      conversation_id: convId,
+      author_member_id: authorMemberId,
+      body: msg.content || "",
+      created_at: toIso(msg.timestamp) || exportedAt,
+      edited_at: toIso(msg.edited_at),
+      reply_to_id: msg.reply_to_id ? (messageIdByLocalId[msg.reply_to_id] || null) : null,
+      source_refs: [],
+      extensions: {
+        is_whisper: msg.is_whisper === true,
+        whisper_to_member_ids: whisperMemberIds,
+        author_member_ids: authorMemberIds,
+        mentioned_member_ids: mentionedMemberIds,
+      },
+    });
+  }
+
   // ── assets[] (built from referenced images; bytes resolved by caller) ──
   const assets = pendingAssets.map((a) => ({
     id: a.assetId,
@@ -554,7 +674,7 @@ export function buildOpenPluralDocument({
       exporter_version: EXPORTER_VERSION,
       app_id: PRODUCER_APP_ID,
     },
-    capabilities: { modules: ["relationships", "taxonomy", "notes"] },
+    capabilities: { modules: ["relationships", "taxonomy", "notes", "chat"] },
     systems,
     members,
     groups: exportedGroups,
@@ -568,7 +688,13 @@ export function buildOpenPluralDocument({
     front_periods: frontPeriods,
     front_events: [],
     front_comments: [],
-    chat: { conversations: [], messages: [], attachments: [], reactions: [] },
+    chat: {
+      conversations,
+      messages: chatMessages2,
+      categories: chatCategories2,
+      attachments: [],
+      reactions: [],
+    },
     relationships: { types: relationshipTypes, edges: relationshipEdges },
     polls: { polls: [] },
     boards: { posts: [] },
@@ -702,6 +828,8 @@ export async function exportOpenPluralZip(entities = {}) {
       fronts: doc.front_periods.length,
       notes: doc.notes.length,
       relationships: doc.relationships.edges.length,
+      chatChannels: doc.chat.conversations.length,
+      chatMessages: doc.chat.messages.length,
     },
   };
 }
