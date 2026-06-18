@@ -7,6 +7,7 @@ import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown,
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
+import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -27,6 +28,12 @@ function FirstRunSetup({ onComplete }) {
   const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
   const [importPassword, setImportPassword] = useState("");
   const [importStatus, setImportStatus] = useState(null); // {type, text}
+  // "Import from another app" path: set up an empty local DB first
+  // (so the connectors have somewhere to write), then open the same
+  // SP / PK / OpenPlural import modal the Alters page uses. Closing
+  // the modal completes onboarding and lands the user in the app with
+  // their imported data already in place.
+  const [showImportModal, setShowImportModal] = useState(false);
   const fileInputRef = useRef(null);
 
   // TWA-to-native migration modal: native users who just got auto-
@@ -125,9 +132,14 @@ function FirstRunSetup({ onComplete }) {
     }
   };
 
-  const handleLocalConfirm = async () => {
-    if (useEncryption && password !== confirmPassword) { setError("Passwords do not match."); return; }
-    if (useEncryption && password.length < 6) { setError("Password must be at least 6 characters."); return; }
+  // Shared setup for both "Start fresh" and "Import from another app":
+  // validate the (optional) password, refuse to overwrite existing data,
+  // then create the local DB honouring the encryption toggle. Returns
+  // true on success so callers can decide what to do next (complete vs
+  // open the import modal). Manages the `loading` flag and `error`.
+  const setupLocalStorage = async () => {
+    if (useEncryption && password !== confirmPassword) { setError("Passwords do not match."); return false; }
+    if (useEncryption && password.length < 6) { setError("Password must be at least 6 characters."); return false; }
     setLoading(true);
     try {
       // Last-ditch safety: if existing data is on disk, refuse to set up
@@ -140,8 +152,7 @@ function FirstRunSetup({ onComplete }) {
         setError(
           "Existing data was found on this device. To protect it from being overwritten, the app cannot run setup again. Please reload — you should be prompted to unlock or recover your data."
         );
-        setLoading(false);
-        return;
+        return false;
       }
       setMode("local");
       if (useEncryption) {
@@ -151,12 +162,24 @@ function FirstRunSetup({ onComplete }) {
         setEncryptionEnabled(false);
         await initLocalDb(null);
       }
-      onComplete();
+      return true;
     } catch (e) {
       setError(e.message);
+      return false;
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLocalConfirm = async () => {
+    if (await setupLocalStorage()) onComplete();
+  };
+
+  // Set up local storage (empty), then open the SP / PK / OpenPlural
+  // import modal so the user can pull their data in straight from
+  // onboarding. onComplete fires when they close the modal.
+  const handleStartAndImport = async () => {
+    if (await setupLocalStorage()) setShowImportModal(true);
   };
 
   // Auto-start local setup for APK (skip mode selection)
@@ -235,14 +258,17 @@ function FirstRunSetup({ onComplete }) {
       <div className="pt-2">
         <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
-          {useEncryption ? "Set Up Encrypted Local" : "Use Local Storage"}
+          {useEncryption ? "Start fresh (encrypted)" : "Start fresh"}
         </Button>
+        <p className="text-xs text-muted-foreground text-center mt-1.5">
+          Begin with an empty space. You can import data anytime later.
+        </p>
       </div>
 
       <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
-        <p className="text-xs text-muted-foreground">
-          Moved from another device, or installing the native app after using
-          the web version? Import an existing backup instead of starting empty.
+        <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
+        <p className="text-xs text-muted-foreground -mt-1">
+          Bring it in now instead of starting empty — your encryption choice above still applies.
         </p>
         <input
           ref={fileInputRef}
@@ -261,7 +287,19 @@ function FirstRunSetup({ onComplete }) {
           {importing
             ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
             : <Upload className="w-4 h-4 mr-2" />}
-          Import a backup file
+          Import from a backup file
+        </Button>
+        <Button
+          type="button"
+          variant="outline"
+          onClick={handleStartAndImport}
+          disabled={loading || importing}
+          className="w-full justify-start"
+        >
+          {loading
+            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+            : <Cloud className="w-4 h-4 mr-2" />}
+          Import from another app (Simply Plural, PluralKit…)
         </Button>
         {importStatus && (
           <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
@@ -311,6 +349,15 @@ function FirstRunSetup({ onComplete }) {
           </div>
         </div>
       )}
+
+      {/* SP / PK / OpenPlural import, opened after "Import from another
+          app" sets up the empty local DB. Closing it (after importing or
+          not) completes onboarding and drops the user into the app. */}
+      <ImportAltersModal
+        open={showImportModal}
+        onClose={() => { setShowImportModal(false); onComplete(); }}
+        contentClassName="z-[130]"
+      />
     </div>
   );
 }

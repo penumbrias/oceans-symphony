@@ -90,6 +90,17 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
   const [includeChat, setIncludeChat] = useState(true);
 
+  // Import mode for records that ALREADY exist locally (matched by op_id /
+  // name):
+  //   "add"     — fill-if-empty merge: adds new records, fills blanks, and
+  //               keeps any value you've already set (tags are unioned).
+  //   "replace" — this file wins: alias/role/age/birthday/tags on a matched
+  //               record are overwritten with the file's values.
+  // Neither mode ever DELETES a local record that isn't in the file — OS's
+  // promise is to never silently lose data. (Front history / journals / chat
+  // are immutable logs and always dedup-skip regardless of mode.)
+  const [importMode, setImportMode] = useState("add");
+
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState("");
 
@@ -177,8 +188,12 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
             };
             if (existing) {
               fieldIdMap[opId] = existing.id;
-              // Backfill op_id on a name-matched field so future imports are exact.
-              if (!existing.op_id) await localEntities.CustomField.update(existing.id, { op_id: opId });
+              // Backfill op_id on a name-matched field so future imports are
+              // exact. In replace mode the file also re-asserts name + type.
+              const patch = {};
+              if (!existing.op_id) patch.op_id = opId;
+              if (importMode === "replace") { patch.name = fieldData.name; patch.field_type = fieldData.field_type; }
+              if (Object.keys(patch).length) await localEntities.CustomField.update(existing.id, patch);
             } else {
               const created = await localEntities.CustomField.create({ ...fieldData, order: order++ });
               fieldIdMap[opId] = created.id;
@@ -274,12 +289,25 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
                 color: mapped.color,
                 groups: includeGroups ? mapped.groups : (existing.groups || []),
                 custom_fields: { ...localOnly, ...incomingFields },
-                tags: mergedTags,
               };
-              if (isBlank(existing.alias) && mapped.alias) updatePayload.alias = mapped.alias;
-              if (isBlank(existing.role) && mapped.role) updatePayload.role = mapped.role;
-              if (isBlank(existing.age) && mapped.age) updatePayload.age = mapped.age;
-              if (isBlank(existing.birthday) && mapped.birthday) updatePayload.birthday = mapped.birthday;
+              if (importMode === "replace") {
+                // This file wins: overwrite alias/role/age/birthday/tags when
+                // the file carries a value, but DON'T clear a local value the
+                // file simply doesn't include (so re-import never wipes data
+                // the source format can't represent).
+                if (mapped.alias) updatePayload.alias = mapped.alias;
+                if (mapped.role) updatePayload.role = mapped.role;
+                if (mapped.age) updatePayload.age = mapped.age;
+                if (mapped.birthday) updatePayload.birthday = mapped.birthday;
+                updatePayload.tags = (mapped.tags && mapped.tags.length) ? mapped.tags : existingTags;
+              } else {
+                // Add & update: fill-if-empty (never clobber your edits); union tags.
+                if (isBlank(existing.alias) && mapped.alias) updatePayload.alias = mapped.alias;
+                if (isBlank(existing.role) && mapped.role) updatePayload.role = mapped.role;
+                if (isBlank(existing.age) && mapped.age) updatePayload.age = mapped.age;
+                if (isBlank(existing.birthday) && mapped.birthday) updatePayload.birthday = mapped.birthday;
+                updatePayload.tags = mergedTags;
+              }
               if (includeAvatars && avatarUrl) updatePayload.avatar_url = avatarUrl;
               if (includeAvatars && bannerUrl) updatePayload.banner_url = bannerUrl;
               await localEntities.Alter.update(existing.id, updatePayload);
@@ -730,7 +758,34 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
           {/* Options */}
           {counts && (
             <div className="border-t pt-4 space-y-3">
-              <p className="text-xs text-muted-foreground font-medium">Include:</p>
+              {/* Import mode — how to treat records that already exist locally. */}
+              <div className="space-y-1.5">
+                <p className="text-xs text-muted-foreground font-medium">When a record already exists:</p>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("add")}
+                    className={`text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "add" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
+                  >
+                    <span className="font-medium block">Add &amp; update</span>
+                    <span className="text-[11px] opacity-80">Fill in blanks, keep your edits</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("replace")}
+                    className={`text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "replace" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
+                  >
+                    <span className="font-medium block">Replace from file</span>
+                    <span className="text-[11px] opacity-80">This file wins on conflicts</span>
+                  </button>
+                </div>
+                <p className="text-[11px] text-muted-foreground">
+                  {importMode === "add"
+                    ? `Adds new records and fills in empty fields — anything you've already set in OS is kept.`
+                    : `Matching ${t.alters} are overwritten with this file's values. New records are still added, and ${t.alters} not in the file are never deleted.`}
+                </p>
+              </div>
+              <p className="text-xs text-muted-foreground font-medium pt-1">Include:</p>
               <div className="space-y-1.5">
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeAlters} onChange={(e) => setIncludeAlters(e.target.checked)} className="rounded" />

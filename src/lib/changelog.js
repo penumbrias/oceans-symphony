@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 18, 2026",
     changes: [
       {
+        type: "improve",
+        text: "First-run setup now lets you Start fresh or bring data in right away — from a backup file, or by syncing from Simply Plural / PluralKit / PluralSpace. The optional password encryption toggle is still there.",
+      },
+      {
+        type: "improve",
+        text: "The OpenPlural / PluralSpace importer now lets you pick \"Add & update\" or \"Replace from file\" for records that already exist. Either way, nothing is ever deleted.",
+      },
+      {
         type: "feature",
         text: "Import a Simply Plural export file (Settings → Import) — brings members, groups, fields, front history, system profile, and chat (which the SP API can't provide because it's encrypted) into the app.",
       },

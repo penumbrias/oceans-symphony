@@ -13,7 +13,10 @@ import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 // page (and the empty-state) so new users can bring their members in without
 // hunting through Settings. Same self-contained connector components Settings →
 // Import uses — no logic forked.
-export default function ImportAltersModal({ open, onClose }) {
+// `contentClassName` lets callers stacked above the default dialog layer
+// (e.g. the onboarding overlay, which sits at z-[100]) bump this modal's
+// z-index so it renders on top instead of behind their backdrop.
+export default function ImportAltersModal({ open, onClose, contentClassName = "" }) {
   const terms = useTerms();
   const qc = useQueryClient();
   const { data: settingsList = [] } = useQuery({
@@ -26,7 +29,7 @@ export default function ImportAltersModal({ open, onClose }) {
 
   return (
     <Dialog open={open} onOpenChange={(o) => { if (!o) onClose?.(); }}>
-      <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+      <DialogContent className={`max-w-lg max-h-[90vh] overflow-y-auto ${contentClassName}`}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Download className="w-4 h-4" /> Import {terms.alters}
