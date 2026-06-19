@@ -498,6 +498,9 @@ export default function SystemCheckInPage() {
             <p className="text-muted-foreground text-sm mt-1">
               A 5-minute guided ritual to connect with your {terms.system}
             </p>
+            <p className="text-muted-foreground/70 text-xs mt-2 italic">
+              Adapted from the 5 Minute System Check-In by Monika Ostroff, LICSW, CEDS-S / Healing My Parts
+            </p>
           </div>
           <Button data-tour="meetings-new" onClick={handleNewCheckIn} className="gap-2 mb-6">
             <Plus className="w-4 h-4" />

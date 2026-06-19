@@ -17,6 +17,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "System Meetings now credits its source — Monika Ostroff's 5 Minute System Check-In — and Healing My Parts is linked under Quick Support → Learn → Resources.",
+      },
+      {
+        type: "improve",
         text: "First-run setup now lets you Start fresh or bring data in right away — from a backup file, or by syncing from Simply Plural / PluralKit / PluralSpace. The optional password encryption toggle is still there.",
       },
       {

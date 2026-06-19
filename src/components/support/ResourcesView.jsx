@@ -49,6 +49,11 @@ const RESOURCES = {
     icon: Globe,
     items: [
       {
+        title: "Healing My Parts (Monika Ostroff, LICSW, CEDS-S)",
+        url: "https://www.healingmyparts.org/",
+        blurb: "Site and podcast by Monika Ostroff — a DID system, therapist, and speaker — with stories, tools, and conversations for DID/OSDD systems and the people who support them. This app's check-in meeting ritual is adapted from her 5 Minute System Check-In.",
+      },
+      {
         title: "did-research.org",
         url: "https://did-research.org/",
         blurb: "Plain-language explanations of DID and OSDD aimed at both systems and the people who love them. Sourced primarily from clinical research.",
