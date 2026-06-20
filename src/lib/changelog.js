@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Reopening the app now refreshes to the current time and state, so a plan that became active while it was closed (and the date) no longer show stale until you navigate.",
+      },
+      {
+        type: "feature",
+        text: "Archive several alters at once — a new bulk-archive button on the alters page.",
+      },
+      {
         type: "feature",
         text: "You can now set an alter to front straight from their profile — a Start/Stop fronting button in the header.",
       },

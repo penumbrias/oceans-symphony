@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List } from "lucide-react";
+import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
 import SubsystemAlterList from "./SubsystemAlterList";
 import AlterFilterPopup from "./AlterFilterPopup";
+import MassArchiveModal from "./MassArchiveModal";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 export default function AlterGrid({ alters }) {
@@ -50,6 +51,7 @@ export default function AlterGrid({ alters }) {
   // through the AlterFilterPopup.
   const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], mode: "any" });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [massArchiveOpen, setMassArchiveOpen] = useState(false);
 
   const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
   const cycleDisplayMode = () => {
@@ -363,6 +365,13 @@ export default function AlterGrid({ alters }) {
                 }`}>
                 {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
+              {/* Bulk archive — select several alters at once. */}
+              <button
+                onClick={() => setMassArchiveOpen(true)}
+                title={`Archive several ${terms.alters} at once`}
+                className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+                <Archive className="w-4 h-4" />
+              </button>
             </div>
           </div>
           {visibleAlters.length > 0 ?
@@ -408,6 +417,11 @@ export default function AlterGrid({ alters }) {
       <CreateGroupModal
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
+      />
+
+      <MassArchiveModal
+        open={massArchiveOpen}
+        onClose={() => setMassArchiveOpen(false)}
       />
 
       {filterOpen && (
