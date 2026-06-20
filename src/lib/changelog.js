@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "OpenPlural / PluralSpace import now has a \"Replace everything\" option that wipes the categories you tick and imports fresh — it always saves a full backup to your device first.",
+      },
+      {
         type: "fix",
         text: "Emoji aliases now work in @mentions and /w whispers — e.g. @😀 highlights and resolves to the right person.",
       },

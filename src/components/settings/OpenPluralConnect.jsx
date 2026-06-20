@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Loader2, CheckCircle2, FileArchive, ArrowDownLeft, Clock, FileText,
-  Users, Layers, ImageOff, Link2, Upload, UserCircle, MessageSquare,
+  Users, Layers, ImageOff, Link2, Upload, UserCircle, MessageSquare, AlertTriangle, Trash2,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
 import {
@@ -34,6 +34,7 @@ import {
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { runAutoBackupNow } from "@/lib/autoBackup";
 
 // ── Front-history range presets (mirror SimplyPluralConnect) ──────────────────
 // Each period is bounded by its started_at; we filter assignments whose period
@@ -66,6 +67,19 @@ async function storeAssetAsLocalImage(assetId, assetsById, media, localIdPrefix)
     console.warn("[OpenPlural import] avatar store failed", assetId, e);
     return "";
   }
+}
+
+// Delete every row of a local entity — used ONLY by the destructive "Replace
+// everything" import mode, and ONLY after a full backup has been saved to the
+// device. There's no bulk-delete API, so list-then-delete per id. Returns the
+// count removed.
+async function deleteAllOf(entityName) {
+  const rows = await localEntities[entityName].list();
+  let n = 0;
+  for (const r of rows) {
+    if (r?.id) { await localEntities[entityName].delete(r.id); n++; }
+  }
+  return n;
 }
 
 export default function OpenPluralConnect({ settings, onSettingsChange }) {
@@ -146,9 +160,61 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
   // ── Import ───────────────────────────────────────────────────────────────
   const handleImport = async () => {
     if (!parsed?.data) return;
+
+    // ── Destructive "Replace everything" gate ──────────────────────────────
+    // Confirm + force a full backup BEFORE deleting anything. Only the ticked
+    // categories are wiped; SystemSettings (terms / themes / privacy levels)
+    // is NEVER deleted.
+    if (importMode === "wipe") {
+      const cats = [
+        includeAlters && t.alters,
+        includeGroups && "groups",
+        includeCustomFields && "custom fields",
+        includeFrontHistory && `${t.fronting} history`,
+        includeJournals && `journals & ${t.alter} notes`,
+        includeRelationships && "relationships",
+        includeChat && "chat",
+      ].filter(Boolean);
+      if (cats.length === 0) { toast.error("Tick at least one category to replace."); return; }
+      const ok = typeof window !== "undefined" && window.confirm(
+        `REPLACE EVERYTHING\n\n` +
+        `This permanently DELETES all of your existing ${cats.join(", ")} and replaces them with this file.\n\n` +
+        `A full backup of ALL your data is saved to your device first. Your ${t.system} settings, terminology and themes are kept.\n\n` +
+        `Proceed?`
+      );
+      if (!ok) return;
+    }
+
     setImporting(true);
     setProgress("");
     try {
+      // "Replace everything": force a backup, then clear the ticked categories
+      // before the normal import re-creates them from the file. If the backup
+      // can't be saved (failed or canceled), abort WITHOUT deleting anything.
+      if (importMode === "wipe") {
+        setProgress("Saving a safety backup to your device first…");
+        try {
+          const backupResult = await runAutoBackupNow();
+          if (backupResult === "cancelled") {
+            toast.error("Backup was canceled — nothing was deleted.");
+            setProgress("");
+            return;
+          }
+        } catch (e) {
+          toast.error(`Backup failed — nothing was deleted.${e?.message ? ` (${e.message})` : ""}`);
+          setProgress("");
+          return;
+        }
+        setProgress("Clearing the selected existing data…");
+        if (includeCustomFields) await deleteAllOf("CustomField");
+        if (includeAlters) await deleteAllOf("Alter");
+        if (includeGroups) await deleteAllOf("Group");
+        if (includeFrontHistory) await deleteAllOf("FrontingSession");
+        if (includeJournals) { await deleteAllOf("JournalEntry"); await deleteAllOf("AlterNote"); }
+        if (includeRelationships) await deleteAllOf("AlterRelationship");
+        if (includeChat) { await deleteAllOf("SystemChatMessage"); await deleteAllOf("SystemChatCategory"); await deleteAllOf("SystemChatChannel"); }
+      }
+
       const { data: d, media } = parsed;
 
       const assetsById = {};
@@ -758,31 +824,41 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
           {/* Options */}
           {counts && (
             <div className="border-t pt-4 space-y-3">
-              {/* Import mode — how to treat records that already exist locally. */}
+              {/* Import mode — how to treat your existing local data. */}
               <div className="space-y-1.5">
-                <p className="text-xs text-muted-foreground font-medium">When a record already exists:</p>
-                <div className="grid grid-cols-2 gap-2">
+                <p className="text-xs text-muted-foreground font-medium">How should this import treat your existing data?</p>
+                <div className="space-y-1.5">
                   <button
                     type="button"
                     onClick={() => setImportMode("add")}
-                    className={`text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "add" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
+                    className={`w-full text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "add" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
                   >
                     <span className="font-medium block">Add &amp; update</span>
-                    <span className="text-[11px] opacity-80">Fill in blanks, keep your edits</span>
+                    <span className="text-[11px] opacity-80">Adds new records, fills blanks, keeps your edits.</span>
                   </button>
                   <button
                     type="button"
                     onClick={() => setImportMode("replace")}
-                    className={`text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "replace" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
+                    className={`w-full text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "replace" ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}
                   >
                     <span className="font-medium block">Replace from file</span>
-                    <span className="text-[11px] opacity-80">This file wins on conflicts</span>
+                    <span className="text-[11px] opacity-80">This file wins on conflicts. Nothing is deleted.</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImportMode("wipe")}
+                    className={`w-full text-xs rounded-lg border px-3 py-2 text-left transition-colors ${importMode === "wipe" ? "border-destructive bg-destructive/10 text-foreground" : "border-destructive/40 text-muted-foreground hover:bg-destructive/5"}`}
+                  >
+                    <span className="font-medium flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-destructive flex-shrink-0" /> Replace everything</span>
+                    <span className="text-[11px] opacity-80">Deletes the ticked categories, then imports. Backs up first.</span>
                   </button>
                 </div>
-                <p className="text-[11px] text-muted-foreground">
+                <p className={`text-[11px] ${importMode === "wipe" ? "text-destructive" : "text-muted-foreground"}`}>
                   {importMode === "add"
                     ? `Adds new records and fills in empty fields — anything you've already set in OS is kept.`
-                    : `Matching ${t.alters} are overwritten with this file's values. New records are still added, and ${t.alters} not in the file are never deleted.`}
+                    : importMode === "replace"
+                    ? `Matching ${t.alters} are overwritten with this file's values. New records are still added, and ${t.alters} not in the file are never deleted.`
+                    : `⚠️ Permanently deletes your existing data in the categories ticked below, then imports this file fresh. A full backup is saved to your device first, and your ${t.system} settings, terminology and themes are always kept.`}
                 </p>
               </div>
               <p className="text-xs text-muted-foreground font-medium pt-1">Include:</p>
@@ -861,13 +937,17 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
                 onClick={handleImport}
                 disabled={importing}
                 size="sm"
-                className="bg-blue-600 hover:bg-blue-700 w-full"
+                className={importMode === "wipe" ? "bg-destructive hover:bg-destructive/90 w-full" : "bg-blue-600 hover:bg-blue-700 w-full"}
               >
-                {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowDownLeft className="w-4 h-4 mr-2" />}
-                {importing ? "Importing…" : "Import Now"}
+                {importing
+                  ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  : importMode === "wipe" ? <Trash2 className="w-4 h-4 mr-2" /> : <ArrowDownLeft className="w-4 h-4 mr-2" />}
+                {importing ? "Importing…" : importMode === "wipe" ? "Back up, then replace everything" : "Import Now"}
               </Button>
               <p className="text-[11px] text-muted-foreground">
-                Re-importing the same export updates existing records instead of duplicating them. Nothing is ever deleted.
+                {importMode === "wipe"
+                  ? `Only "Replace everything" deletes data — and it saves a full backup to your device first.`
+                  : `Re-importing the same export updates existing records instead of duplicating them. Nothing is ever deleted.`}
               </p>
             </div>
           )}
