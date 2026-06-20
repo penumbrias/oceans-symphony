@@ -40,6 +40,14 @@ export const BACKUP_LS_KEYS = [
   "symphony_grounding_step_mode",
   "symphony_autobackup_interval_days",
   "grocery_lock_on_close_v1",
+  // View / mode preferences — small but user-set, so they should ride
+  // along to a new device with the rest of the backup.
+  "alter_show_folders",
+  "alter_show_subsystems",
+  "getknow_hide_custom_fields_v1",
+  "symphony_bulletin_rich_mode",
+  "symphony_bulletin_comment_rich_mode",
+  "symphony_pk_use_display_name",
 ];
 
 export function readBackupLocalSettings() {

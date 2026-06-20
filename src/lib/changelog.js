@@ -13,6 +13,27 @@
 
 export const CHANGELOG = [
   {
+    date: "June 19, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "New \"Back up now\" button at the top of Settings saves a full backup to your device in one tap.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the alter-picker Groups tab — it no longer lists subsystems, now shows groups that contain subgroups, and each row shows the alter's avatar.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar buttons (bold, italic, lists…) now light up while they're active.",
+      },
+      {
+        type: "improve",
+        text: "A few more view preferences now travel along with your backup to a new device.",
+      },
+    ],
+  },
+  {
     date: "June 18, 2026",
     changes: [
       {

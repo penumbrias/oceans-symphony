@@ -25,6 +25,7 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
+import { runAutoBackupNow } from "@/lib/autoBackup";
 // AdvancedAppearance now renders the ENTIRE Appearance section body
 // (UI size, fonts, theme, presets, corner style, dashboard layout,
 // navigation, upcoming-plans surfaces) so all the shared theme/font/
@@ -144,6 +145,19 @@ export default function Settings() {
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
   const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
   const [inferWindow, setInferWindow] = useState(getInferPresenceWindowMinutes);
+  const [backingUp, setBackingUp] = useState(false);
+
+  // One-tap "Back up now" in the header — runs the same full-DB export the
+  // auto-backup uses (saves to the device's Downloads on native, share /
+  // download on web) and toasts the result. A quick safety net without
+  // scrolling all the way to Data & Privacy.
+  const handleBackupNow = async () => {
+    if (backingUp) return;
+    setBackingUp(true);
+    try { await runAutoBackupNow(); }
+    catch (e) { toast.error(e?.message || "Backup failed"); }
+    finally { setBackingUp(false); }
+  };
 
   // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
   // Profile is anchored at the top because the user said so, then the
@@ -337,6 +351,11 @@ export default function Settings() {
               via src/lib/appVersion.js. Stays visible so testers can
               reference the exact build when reporting issues. */}
           <div className="flex items-center gap-1.5 mt-1 flex-shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={handleBackupNow} disabled={backingUp}
+              title="Save a full backup to your device now" className="h-7 gap-1.5 text-xs">
+              {backingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+              Back up now
+            </Button>
             {APP_RELEASE_STAGE && (
               <span className="text-[0.625rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
                 {APP_RELEASE_STAGE}

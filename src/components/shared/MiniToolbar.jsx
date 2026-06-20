@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
@@ -236,10 +236,30 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const [showLinkPicker, setShowLinkPicker] = useState(false);
   const [showLinkPrompt, setShowLinkPrompt] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // Which toggle commands are active for the current selection, so the
+  // matching toolbar buttons light up (bold on → Bold button highlighted).
+  // Only meaningful on a live contentEditable host (onCommand present); the
+  // textarea fallback can't report state. Updated on every selectionchange.
+  const [activeCmds, setActiveCmds] = useState({});
   const savedSelection = useRef(null);
   const fontBtnRef = useRef(null);
 
   const toggleMore = () => setShowMore((v) => !v);
+
+  useEffect(() => {
+    if (!onCommand) return;
+    const STATE_CMDS = ["bold", "italic", "underline", "strikeThrough", "insertUnorderedList", "insertOrderedList"];
+    const update = () => {
+      const next = {};
+      for (const c of STATE_CMDS) {
+        try { next[c] = document.queryCommandState(c); } catch { /* unsupported */ }
+      }
+      setActiveCmds(next);
+    };
+    document.addEventListener("selectionchange", update);
+    update();
+    return () => document.removeEventListener("selectionchange", update);
+  }, [onCommand]);
 
   // Remember the current selection before opening a modal/popover (colour,
   // font, internal link) that steals focus, so the inserted markup wraps the
@@ -368,14 +388,17 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // and falls back to wrapping the selection in tags on a textarea host
   // (which can't toggle). `onCommand` is only passed by rich (contentEditable)
   // hosts like the system chat composer.
-  const fmtIconBtn = (Icon, cmd, val, before, after, title) => (
-    <button key={title} type="button" title={title} aria-label={title}
-      onMouseDown={e => e.preventDefault()}
-      onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
-      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  const fmtIconBtn = (Icon, cmd, val, before, after, title) => {
+    const active = !!(onCommand && activeCmds[cmd]);
+    return (
+      <button key={title} type="button" title={title} aria-label={title} aria-pressed={active}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
+        className={`h-7 w-7 flex items-center justify-center rounded transition-colors flex-shrink-0 ${active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+        <Icon className="w-3.5 h-3.5" />
+      </button>
+    );
+  };
   const txtBtn = (label, before, after, title) => (
     <button key={title} type="button" title={title}
       onMouseDown={e => e.preventDefault()}

@@ -4,7 +4,26 @@ import { base44 } from "@/api/base44Client";
 import { Search, Check, FolderTree, Loader2, ChevronRight, ChevronDown, Users, UserRound, Folder } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, getSubsystemsOwnedBy, isSubsystem, getAltersInsideSubsystems, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
+
+// Small round alter avatar for tree rows — same vibe as the alters list, just
+// minimal. Resolves local-image:// URLs; falls back to a colour disc with the
+// alter's initial. A component (not inline) so the avatar hook is legal.
+function TreeAlterAvatar({ alter, size = 18 }) {
+  const resolved = useResolvedAvatarUrl(alter?.avatar_url || alter?.image_url);
+  const color = alter?.color || "#6366f1";
+  const ring = "flex-shrink-0 border border-black/10 dark:border-white/15";
+  if (resolved) {
+    return <img src={resolved} alt="" className={`rounded-full object-cover ${ring}`} style={{ width: size, height: size }} />;
+  }
+  return (
+    <span className={`rounded-full flex items-center justify-center text-white/95 font-semibold ${ring}`}
+      style={{ width: size, height: size, backgroundColor: color, fontSize: size * 0.5 }}>
+      {(alter?.name || "?").charAt(0).toUpperCase()}
+    </span>
+  );
+}
 
 // ── ONE standard alter-selection surface, reused everywhere alters are picked
 // or listed (export, privacy-level assignment, per-alter sharing, per-friend
@@ -47,31 +66,32 @@ function buildSubsystemItems(alters, groups, expanded) {
   return items;
 }
 
-// Folder tree: non-subsystem groups nested by `parent`; expand a group to see
-// its member alters + child groups, mirroring the alters-page folder nesting
-// (GroupFolderView uses the same `g.parent === parentKey` rule, parentKey =
-// sp_id||id). Subsystems ARE included and nested in place (marked with the
-// subsystem icon) so a folder parented under a subsystem still nests correctly
-// — excluding them used to orphan their children to the root.
+// Folder tree: FOLDER groups only (never subsystems). Subsystems live in the
+// Members tab nested under their owner, so listing them here too was wrong and
+// confusing — the Groups tab is for organisational folders. A folder nested
+// under a subsystem surfaces at the root here (its parent isn't a folder).
+// Expand a folder to see its member alters + child folders, mirroring the
+// alters-page nesting (parentKey = sp_id||id).
 //
 // A group's `parent` references its target by EITHER id or sp_id, so resolve
-// through a combined lookup. Reachability is computed by a FULL traversal that
-// ignores expand state — otherwise collapsed children (only emitted when their
-// parent is expanded) looked "unreached" and the survivor pass hoisted every
-// one of them to the root, which is exactly why the tree rendered flat.
+// through a combined lookup built from folders only. Reachability is computed
+// by a FULL traversal that ignores expand state — otherwise collapsed children
+// (only emitted when their parent is expanded) looked "unreached" and the
+// survivor pass hoisted every one of them to the root (the old flat-tree bug).
 function buildFolderItems(alters, groups, expanded) {
-  const all = groups || [];
+  // Folders = non-subsystem groups. Subsystems are excluded entirely.
+  const folders = (groups || []).filter((g) => !isSubsystem(g));
   const byRef = {};
-  for (const g of all) { byRef[g.id] = g; if (g.sp_id) byRef[g.sp_id] = g; }
+  for (const g of folders) { byRef[g.id] = g; if (g.sp_id) byRef[g.sp_id] = g; }
   const resolveParentKey = (p) => {
     if (!p || p === "root") return null;
-    const pg = byRef[p];
-    return pg ? groupKeyOf(pg) : null; // dangling parent → treat as root
+    const pg = byRef[p];               // only folders are resolvable
+    return pg ? groupKeyOf(pg) : null; // parent is a subsystem / dangling → root
   };
-  const childrenOf = (key) => all.filter((g) => resolveParentKey(g.parent) === key);
+  const childrenOf = (key) => folders.filter((g) => resolveParentKey(g.parent) === key);
 
   // Structural reachability from the roots, independent of expand state, so we
-  // can tell a genuinely-orphaned / cycle-trapped group from a merely-collapsed
+  // can tell a genuinely-orphaned / cycle-trapped folder from a merely-collapsed
   // child.
   const reachable = new Set();
   const markReach = (g, depth, vis) => {
@@ -89,16 +109,16 @@ function buildFolderItems(alters, groups, expanded) {
     if (visited.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return;
     const nv = new Set(visited).add(key);
     const members = getMemberAlters(group, alters);
-    items.push({ type: "group", depth, group, members, subsystem: isSubsystem(group) });
+    items.push({ type: "group", depth, group, members, subsystem: false });
     if (!expanded.has(key)) return;
     for (const m of members) items.push({ type: "alter", depth: depth + 1, alter: m });
     for (const c of childrenOf(key)) emit(c, depth + 1, nv);
   };
   for (const r of childrenOf(null)) emit(r, 0, new Set());
-  // Orphans / cycle-trapped groups that no root can reach — surface them at the
+  // Orphans / cycle-trapped folders that no root can reach — surface them at the
   // root so they stay selectable. Collapsed children are reachable, so they are
   // NOT hoisted here (that was the flat-tree bug).
-  for (const g of all) if (!reachable.has(groupKeyOf(g))) emit(g, 0, new Set());
+  for (const g of folders) if (!reachable.has(groupKeyOf(g))) emit(g, 0, new Set());
   return items;
 }
 
@@ -180,7 +200,7 @@ export default function AlterTreeSelect({
       if (controlPosition === "right") {
         return (
           <div key={key} className="flex items-center gap-2 px-2 py-1.5 rounded-lg hover:bg-muted/20" style={{ marginLeft: depth * 14 }}>
-            <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+            <TreeAlterAvatar alter={a} />
             <span className="text-xs truncate flex-1">{formatAlter(a)}</span>
             {renderControl(a)}
           </div>
@@ -189,7 +209,7 @@ export default function AlterTreeSelect({
       return (
         <div key={key} className="rounded-lg border border-border/40 bg-muted/10 px-2 py-1.5" style={{ marginLeft: depth * 14 }}>
           <div className="flex items-center gap-2 mb-1">
-            <span className="w-3 h-3 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+            <TreeAlterAvatar alter={a} />
             <span className="text-xs font-medium truncate">{formatAlter(a)}</span>
           </div>
           {renderControl(a)}
@@ -203,7 +223,7 @@ export default function AlterTreeSelect({
         className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left transition-colors ${dis ? "opacity-40 cursor-not-allowed border-transparent" : on ? "border-primary/50 bg-primary/10" : "border-transparent hover:bg-muted/30"}`}
         style={{ marginLeft: depth * 14, width: `calc(100% - ${depth * 14}px)` }}>
         <span className={`w-4 h-4 ${single ? "rounded-full" : "rounded-md"} border flex items-center justify-center flex-shrink-0 ${on ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{on && (single ? <span className="w-1.5 h-1.5 rounded-full bg-current" /> : <Check className="w-3 h-3" />)}</span>
-        <span className="w-3.5 h-3.5 rounded-full flex-shrink-0 border border-black/10 dark:border-white/15" style={{ backgroundColor: a.color || "#6366f1" }} />
+        <TreeAlterAvatar alter={a} />
         <span className={`text-xs truncate ${on ? "font-medium text-foreground" : "text-foreground/90"}`}>{formatAlter(a)}</span>
         {dis && <span className="ml-auto text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0">✓</span>}
       </button>
