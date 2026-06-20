@@ -246,20 +246,31 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   const toggleMore = () => setShowMore((v) => !v);
 
-  useEffect(() => {
+  // Re-read which toggle commands are active for the current caret/selection.
+  // Called on selectionchange (caret moves), keyup (typing — some WebViews
+  // don't fire selectionchange mid-type), and right AFTER a toolbar command
+  // runs (a button toggle doesn't move the selection, so nothing else would
+  // refresh the highlight — this is what made the state lag/invert).
+  const syncActiveCmds = useCallback(() => {
     if (!onCommand) return;
     const STATE_CMDS = ["bold", "italic", "underline", "strikeThrough", "insertUnorderedList", "insertOrderedList"];
-    const update = () => {
-      const next = {};
-      for (const c of STATE_CMDS) {
-        try { next[c] = document.queryCommandState(c); } catch { /* unsupported */ }
-      }
-      setActiveCmds(next);
-    };
-    document.addEventListener("selectionchange", update);
-    update();
-    return () => document.removeEventListener("selectionchange", update);
+    const next = {};
+    for (const c of STATE_CMDS) {
+      try { next[c] = document.queryCommandState(c); } catch { /* unsupported */ }
+    }
+    setActiveCmds(next);
   }, [onCommand]);
+
+  useEffect(() => {
+    if (!onCommand) return;
+    document.addEventListener("selectionchange", syncActiveCmds);
+    document.addEventListener("keyup", syncActiveCmds);
+    syncActiveCmds();
+    return () => {
+      document.removeEventListener("selectionchange", syncActiveCmds);
+      document.removeEventListener("keyup", syncActiveCmds);
+    };
+  }, [onCommand, syncActiveCmds]);
 
   // Remember the current selection before opening a modal/popover (colour,
   // font, internal link) that steals focus, so the inserted markup wraps the
@@ -393,7 +404,10 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     return (
       <button key={title} type="button" title={title} aria-label={title} aria-pressed={active}
         onMouseDown={e => e.preventDefault()}
-        onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
+        onClick={() => {
+          if (onCommand) { onCommand(cmd, val); requestAnimationFrame(syncActiveCmds); }
+          else onInsert(before, after);
+        }}
         className={`h-7 w-7 flex items-center justify-center rounded transition-colors flex-shrink-0 ${active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
         <Icon className="w-3.5 h-3.5" />
       </button>

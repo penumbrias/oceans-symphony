@@ -137,6 +137,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
 
   // Safety number for this friend — computed whenever the card is expanded.
   const [safetyNum, setSafetyNum] = useState(null);
+  const [revealSafety, setRevealSafety] = useState(false); // hidden until tapped (it's a long sensitive value)
   useEffect(() => {
     if (!expanded || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
     let cancelled = false;
@@ -343,15 +344,24 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                   )}
                 </div>
                 {safetyNum ? (
-                  <>
-                    <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
-                    <p className="text-[0.625rem] text-muted-foreground">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
-                    {verifiedNumber === safetyNum ? (
-                      <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
-                    ) : (
-                      <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
-                    )}
-                  </>
+                  revealSafety ? (
+                    <>
+                      <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[0.625rem] text-muted-foreground flex-1">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
+                        <button type="button" onClick={() => setRevealSafety(false)} className="text-[0.6875rem] text-muted-foreground hover:underline inline-flex items-center gap-1 flex-shrink-0"><EyeOff className="w-3 h-3" /> Hide</button>
+                      </div>
+                      {verifiedNumber === safetyNum ? (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                      ) : (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setRevealSafety(true)} className="w-full font-mono text-xs tracking-widest text-muted-foreground/70 bg-background rounded-lg px-2 py-1.5 inline-flex items-center justify-center gap-1.5 hover:text-foreground transition-colors">
+                      <Eye className="w-3 h-3" /> Tap to reveal safety number
+                    </button>
+                  )
                 ) : (
                   <p className="text-[0.625rem] text-muted-foreground">
                     {friend.publicKey
@@ -1058,7 +1068,7 @@ export default function FriendsPage() {
   // No profile yet
   if (!identity) {
     return (
-      <div className="max-w-md mx-auto p-6 space-y-5">
+      <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Users className="w-8 h-8 text-primary" />
@@ -1072,6 +1082,20 @@ export default function FriendsPage() {
         <div className="flex justify-center">
           <Button onClick={() => setShowSetup(true)}>Set Up Profile</Button>
         </div>
+
+        {/* Sharing can be set up BEFORE creating a profile — privacy levels and
+            per-member assignment live on your own data, so they're ready the
+            moment you connect with someone. No friends needed to configure. */}
+        <div className="pt-3 border-t border-border/40 space-y-3">
+          <div className="text-center space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Set up sharing first (optional)</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Define privacy levels and choose what each {terms.alter} shares now — no friends needed yet. It'll be ready when you connect with someone.
+            </p>
+          </div>
+          <MemberSharingPanel />
+        </div>
+
         <ProfileSetupModal
           open={showSetup}
           onClose={() => setShowSetup(false)}

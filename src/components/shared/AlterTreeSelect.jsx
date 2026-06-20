@@ -42,36 +42,42 @@ function TreeAlterAvatar({ alter, size = 18 }) {
 function groupKeyOf(g) { return g?.sp_id || g?.id; }
 const PAGE = 60;
 
-// Subsystem tree: top-level alters (NOT inside any subsystem), each with their
-// owned subsystems nested + collapsible. A subsystem is expanded once (dedup).
+// Emit an alter row, then nest the subsystems it OWNS beneath it (their members
+// recurse), matching the alters list. `subExpanded` controls whether a
+// subsystem's members are shown; `renderedSubs` dedups a subsystem rendered once
+// across the whole tree. Cycle-guarded + depth-clamped. Shared by both tabs so
+// a subsystem-owning alter shows the same nested structure wherever it appears.
+function emitAlterWithSubsystems(items, alter, depth, alters, groups, subExpanded, renderedSubs, visited) {
+  items.push({ type: "alter", depth, alter });
+  if (depth > MAX_SUBSYSTEM_DEPTH || visited.has(alter.id)) return;
+  const nv = new Set(visited).add(alter.id);
+  for (const sub of getSubsystemsOwnedBy(groups, alter.id)) {
+    const members = getMemberAlters(sub, alters);
+    if (!members.length) continue;
+    if (renderedSubs.has(sub.id)) { items.push({ type: "ref", depth: depth + 1, name: sub.name }); continue; }
+    renderedSubs.add(sub.id);
+    items.push({ type: "group", depth: depth + 1, group: sub, members, subsystem: true });
+    if (subExpanded.has(sub.id)) for (const m of members) emitAlterWithSubsystems(items, m, depth + 2, alters, groups, subExpanded, renderedSubs, nv);
+  }
+}
+
+// Subsystem tree (Members tab): top-level alters (NOT inside any subsystem),
+// each with their owned subsystems nested + collapsible.
 function buildSubsystemItems(alters, groups, expanded) {
   const inside = getAltersInsideSubsystems(groups, alters);
   const top = alters.filter((a) => !inside.has(a.id));
   const renderedSubs = new Set();
   const items = [];
-  const emit = (a, depth, visited) => {
-    items.push({ type: "alter", depth, alter: a });
-    if (depth > MAX_SUBSYSTEM_DEPTH || visited.has(a.id)) return;
-    const nv = new Set(visited).add(a.id);
-    for (const sub of getSubsystemsOwnedBy(groups, a.id)) {
-      const members = getMemberAlters(sub, alters);
-      if (!members.length) continue;
-      if (renderedSubs.has(sub.id)) { items.push({ type: "ref", depth: depth + 1, name: sub.name }); continue; }
-      renderedSubs.add(sub.id);
-      items.push({ type: "group", depth: depth + 1, group: sub, members, subsystem: true });
-      if (expanded.has(sub.id)) for (const m of members) emit(m, depth + 2, nv);
-    }
-  };
-  for (const a of top) emit(a, 0, new Set());
+  for (const a of top) emitAlterWithSubsystems(items, a, 0, alters, groups, expanded, renderedSubs, new Set());
   return items;
 }
 
-// Folder tree: FOLDER groups only (never subsystems). Subsystems live in the
-// Members tab nested under their owner, so listing them here too was wrong and
-// confusing — the Groups tab is for organisational folders. A folder nested
-// under a subsystem surfaces at the root here (its parent isn't a folder).
-// Expand a folder to see its member alters + child folders, mirroring the
-// alters-page nesting (parentKey = sp_id||id).
+// Folder tree (Groups tab): FOLDER groups are the roots (never subsystems —
+// listing subsystems at the root was the bug). But a folder's member alters
+// still show the subsystems they OWN nested beneath them, exactly like the
+// alters list, so the structure is consistent. A folder nested under a
+// subsystem surfaces at the root here (its parent isn't a folder). Expand a
+// folder to see its member alters + child folders (parentKey = sp_id||id).
 //
 // A group's `parent` references its target by EITHER id or sp_id, so resolve
 // through a combined lookup built from folders only. Reachability is computed
@@ -104,6 +110,9 @@ function buildFolderItems(alters, groups, expanded) {
   for (const r of childrenOf(null)) markReach(r, 0, new Set());
 
   const items = [];
+  // Dedups subsystems nested under member alters (a subsystem-owning alter can
+  // appear in more than one folder; render the subsystem expansion only once).
+  const renderedSubs = new Set();
   const emit = (group, depth, visited) => {
     const key = groupKeyOf(group);
     if (visited.has(key) || depth > MAX_SUBSYSTEM_DEPTH) return;
@@ -111,7 +120,9 @@ function buildFolderItems(alters, groups, expanded) {
     const members = getMemberAlters(group, alters);
     items.push({ type: "group", depth, group, members, subsystem: false });
     if (!expanded.has(key)) return;
-    for (const m of members) items.push({ type: "alter", depth: depth + 1, alter: m });
+    // Member alters nest their owned subsystems beneath them, like the alters
+    // list (the subsystem expand state shares the same `expanded` set).
+    for (const m of members) emitAlterWithSubsystems(items, m, depth + 1, alters, groups, expanded, renderedSubs, new Set());
     for (const c of childrenOf(key)) emit(c, depth + 1, nv);
   };
   for (const r of childrenOf(null)) emit(r, 0, new Set());

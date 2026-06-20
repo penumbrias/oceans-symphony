@@ -17,6 +17,22 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Alter picker, Groups tab: a member's subsystems now nest beneath them like in the alters list (subsystems are no longer missing from the Groups view).",
+      },
+      {
+        type: "fix",
+        text: "Formatting toolbar buttons now correctly stay lit while a style (bold, italic…) is active as you type, and clear when you turn it off.",
+      },
+      {
+        type: "improve",
+        text: "You can now set up your sharing privacy levels before creating a Friends profile — no friend needed first.",
+      },
+      {
+        type: "improve",
+        text: "A friend's safety number is now hidden until you tap to reveal it.",
+      },
+      {
+        type: "fix",
         text: "Exporting to OpenPlural now uses stable IDs, so importing the same export more than once no longer creates duplicate alters or fronting sessions.",
       },
       {
