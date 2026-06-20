@@ -38,8 +38,17 @@ function genId() {
   });
 }
 
-function idFor(record) {
-  return (record && record.op_id) ? record.op_id : genId();
+// Stable export id for a local record. Prefer an op_id it already carries from
+// a prior OpenPlural round-trip (so re-import dedups onto the same record);
+// otherwise derive a DETERMINISTIC id from the local record id, type-prefixed
+// to avoid collisions across entity stores. Critically this is NOT a fresh
+// UUID per export — two separate exports of the same native record now share
+// an id, so importing both no longer creates duplicate members / fronts / etc.
+// genId() is only the last resort for a record with no local id at all.
+function idFor(record, kind = "rec") {
+  if (record && record.op_id) return record.op_id;
+  if (record && record.id) return `os-${kind}-${record.id}`;
+  return genId();
 }
 
 function toIso(value) {
@@ -164,7 +173,7 @@ export function buildOpenPluralDocument({
     (r.system_avatar_url && String(r.system_avatar_url).trim())
   )) || systemSettings[0] || {};
 
-  const systemId = settings.op_id || genId();
+  const systemId = settings.op_id || (settings.id ? `os-system-${settings.id}` : genId());
   const systemName = (settings.system_name && settings.system_name.trim()) || "My System";
   const systemDescription = settings.system_bio || settings.system_description || "";
   const systemColor = settings.system_color || settings.theme_color || null;
@@ -251,7 +260,7 @@ export function buildOpenPluralDocument({
   const members = [];
   alters.forEach((alter, index) => {
     if (!alter || !alter.id) return;
-    const memberId = idFor(alter);
+    const memberId = idFor(alter, "member");
     memberIdByAlterId[alter.id] = memberId;
 
     const avatarAssetId = referenceAsset(alter.avatar_url || "", "avatar");
@@ -313,7 +322,7 @@ export function buildOpenPluralDocument({
   const exportedGroups = [];
   groups.forEach((group, index) => {
     if (!group || !group.id) return;
-    const gId = idFor(group);
+    const gId = idFor(group, "group");
     groupIdByOsId[group.id] = gId;
     exportedGroups.push({
       id: gId,
@@ -375,7 +384,7 @@ export function buildOpenPluralDocument({
   const exportedCustomFields = [];
   customFields.forEach((cf, index) => {
     if (!cf || !cf.id) return;
-    const fId = idFor(cf);
+    const fId = idFor(cf, "field");
     fieldIdByOsId[cf.id] = fId;
     exportedCustomFields.push({
       id: fId,
@@ -432,7 +441,10 @@ export function buildOpenPluralDocument({
     const startedAt = toIso(session.start_time);
     if (!startedAt) continue;
     frontPeriods.push({
-      id: genId(),
+      // Stable id: reuse op_front_id from a prior round-trip, else derive
+      // deterministically from the local session id so re-exports reproduce
+      // the same front and don't duplicate on import.
+      id: session.op_front_id || (session.id ? `os-front-${session.id}` : genId()),
       system_id: systemId,
       source_kind: "interval",
       started_at: startedAt,
@@ -457,7 +469,7 @@ export function buildOpenPluralDocument({
   const notes = [];
   for (const je of journalEntries) {
     if (!je || !je.id) continue;
-    const noteId = idFor(je);
+    const noteId = idFor(je, "journal");
     const authorMemberId = memberIdByAlterId[je.author_alter_id] || null;
     const createdAt = toIso(je.created_date) || exportedAt;
     const updatedAt = toIso(je.updated_date) || createdAt;
@@ -484,7 +496,7 @@ export function buildOpenPluralDocument({
     if (!an || !an.id) continue;
     const memberId = memberIdByAlterId[an.alter_id] || null;
     if (!memberId) continue; // alter didn't export — drop the orphan note
-    const noteId = idFor(an);
+    const noteId = idFor(an, "note");
     const createdAt = toIso(an.created_date) || exportedAt;
     const updatedAt = toIso(an.updated_date) || createdAt;
     const entryDate = createdAt.slice(0, 10);
@@ -527,7 +539,7 @@ export function buildOpenPluralDocument({
       relationshipTypes.push({ id: typeId, system_id: systemId, name: label });
     }
     relationshipEdges.push({
-      id: idFor(rel),
+      id: idFor(rel, "rel"),
       system_id: systemId,
       from_member_id: aId,
       to_member_id: bId,
@@ -551,7 +563,7 @@ export function buildOpenPluralDocument({
 
   for (const cat of chatCategories) {
     if (!cat || !cat.id) continue;
-    const catId = idFor(cat);
+    const catId = idFor(cat, "chatcat");
     chatCategoryIdByLocalId[cat.id] = catId;
     chatCategories2.push({
       id: catId,
@@ -579,7 +591,7 @@ export function buildOpenPluralDocument({
   const conversations = [];
   chatChannels.forEach((channel, index) => {
     if (!channel || !channel.id) return;
-    const convId = idFor(channel);
+    const convId = idFor(channel, "chatchan");
     conversationIdByChannelId[channel.id] = convId;
     const exportedCatId = channel.category_id
       ? (chatCategoryIdByLocalId[channel.category_id] || null)
@@ -612,7 +624,7 @@ export function buildOpenPluralDocument({
   const liveMessages = chatMessages.filter((m) => m && m.id && !m.deleted_at);
   const messageIdByLocalId = {}; // local message id → exported message id
   for (const msg of liveMessages) {
-    messageIdByLocalId[msg.id] = idFor(msg);
+    messageIdByLocalId[msg.id] = idFor(msg, "chatmsg");
   }
 
   const chatMessages2 = [];

@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Exporting to OpenPlural now uses stable IDs, so importing the same export more than once no longer creates duplicate alters or fronting sessions.",
+      },
+      {
         type: "feature",
         text: "OpenPlural / PluralSpace import now has a \"Replace everything\" option that wipes the categories you tick and imports fresh — it always saves a full backup to your device first.",
       },
