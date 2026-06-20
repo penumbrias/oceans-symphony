@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Emoji aliases now work in @mentions and /w whispers — e.g. @😀 highlights and resolves to the right person.",
+      },
+      {
         type: "feature",
         text: "Groups can now hide their archived members from the group's own member list (a toggle in the group's config).",
       },

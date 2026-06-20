@@ -1,5 +1,6 @@
 import React from "react";
 import { Link } from "react-router-dom";
+import { effectiveAlias } from "@/lib/alterLabel";
 
 // Tags allowed in bulletin/comment content. The base set keeps simple
 // posts minimal; the rich set (used when a post was written in the
@@ -7,11 +8,13 @@ import { Link } from "react-router-dom";
 // contains these tags) adds headings, styled spans/divs, quotes, code,
 // and images so the styling toolbar + image/GIF upload show up.
 //
-// SECURITY: this renderer also displays bulletins received from FRIENDS,
-// so every tag/attribute is sanitised — inline `style` values are scrubbed
-// of url()/javascript:/expression(), and <img src> is restricted to local
-// images and http(s)/data:image. Tags outside the allowlist are stripped
-// (their inner text is kept).
+// SECURITY: this renderer sanitises every tag/attribute — inline `style`
+// values are scrubbed of url()/javascript:/expression(), and <img src> is
+// restricted to local images and http(s)/data:image. Tags outside the
+// allowlist are stripped (their inner text is kept). It renders the user's
+// OWN rich / imported HTML (bulletins, chat, comments) — content is not
+// shared between systems today, so this is stored-content hygiene rather
+// than untrusted-remote-content defence.
 const ALLOWED_TAGS = new Set([
   "b", "strong", "i", "em", "u", "s", "strike", "br", "p", "ul", "ol", "li", "a",
   // rich additions
@@ -75,12 +78,29 @@ function applyTerms(content, terms) {
 // NODES only (the HTML parser has already decoded entities + separated real
 // tags), so the regexes are safe. This is why typing `[label](https://…)` or a
 // bare URL into a post just works, in addition to the toolbar's link button.
-const TOKEN_RE = /(\[[^\]\n]+\]\(https?:\/\/[^\s)]+\))|(\bhttps?:\/\/[^\s<]+)|(@\w+)/g;
+// The mention alternative is built per-call from the alters list so non-word
+// @-tokens (emoji aliases like "@😀", symbol/multi-word aliases) highlight too
+// — \w+ alone can't match them.
+function escapeRegExp(s) { return String(s).replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
 
 function renderTextWithMentions(text, alters, baseKey) {
   if (!text) return null;
   const altersByName = Object.fromEntries(alters.map((a) => [a.name, a]));
   const altersByAlias = Object.fromEntries(alters.filter((a) => a.alias).map((a) => [a.alias, a]));
+  // Non-word @-tokens (emoji aliases, symbol/multi-word aliases) — \w+ can't
+  // match these, so collect the in-use ones and add them as explicit, escaped
+  // regex alternatives. Mirrors the @-tokens mentionUtils.extractMentionedIds
+  // counts, so the highlight matches what actually registers as a mention.
+  const altersByExtra = {};
+  for (const a of alters) {
+    for (const tok of [a.name, a.alias, effectiveAlias(a)]) {
+      const v = (tok || "").trim();
+      if (v && /[^\p{L}\p{N}_]/u.test(v) && !(v in altersByExtra)) altersByExtra[v] = a;
+    }
+  }
+  const extraAlt = Object.keys(altersByExtra).sort((x, y) => y.length - x.length).map(escapeRegExp).join("|");
+  const mentionPart = extraAlt ? `@(?:${extraAlt}|\\w+)` : "@\\w+";
+  const TOKEN_RE = new RegExp(`(\\[[^\\]\\n]+\\]\\(https?:\\/\\/[^\\s)]+\\))|(\\bhttps?:\\/\\/[^\\s<]+)|(${mentionPart})`, "g");
 
   const out = [];
   let last = 0;
@@ -102,7 +122,7 @@ function renderTextWithMentions(text, alters, baseKey) {
       if (trail) out.push(<React.Fragment key={`${baseKey}-tp${i}`}>{trail[0]}</React.Fragment>);
     } else if (mention) {
       const name = mention.slice(1).trim();
-      const alter = altersByName[name] || altersByAlias[name];
+      const alter = altersByName[name] || altersByAlias[name] || altersByExtra[name];
       if (alter) {
         out.push(
           <Link key={`${baseKey}-m${i}`} to={`/alter/${alter.id}`}>
