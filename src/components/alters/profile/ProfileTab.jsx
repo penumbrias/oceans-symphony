@@ -163,6 +163,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const [form, setForm, formHistory] = useUndoRedo({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
     description: "", color: "", avatar_url: "", emoji: "", use_emoji_as_alias: false, subsystems_icon: "",
+    is_pinned: false,
     custom_fields: {},
   });
   const [saving, setSaving] = useState(false);
@@ -227,6 +228,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       avatar_url: alter.avatar_url || "",
       emoji: alter.emoji || "",
       use_emoji_as_alias: !!alter.use_emoji_as_alias,
+      is_pinned: !!alter.is_pinned,
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
     });
@@ -925,6 +927,18 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">
               The alias (or emoji) is a shorthand for @ mentions and - signposts.
             </p>
+          </div>
+          {/* Pin to top — parity with the press-and-hold action on the
+              alters list. Rides through the save via {...form}. */}
+          <div className="space-y-1">
+            <button
+              type="button"
+              onClick={() => set("is_pinned", !form.is_pinned)}
+              className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground cursor-pointer"
+            >
+              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[0.625rem] leading-none ${form.is_pinned ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{form.is_pinned ? "✓" : ""}</span>
+              Pin to the top of {t.alters} lists
+            </button>
           </div>
         </div>
         <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">

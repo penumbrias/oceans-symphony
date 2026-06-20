@@ -16,6 +16,10 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Editing an alter's profile now has a \"Pin to the top\" toggle — same as the press-and-hold option on the alters list.",
+      },
+      {
         type: "feature",
         text: "New \"Back up now\" button at the top of Settings saves a full backup to your device in one tap.",
       },
