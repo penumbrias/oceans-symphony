@@ -16,6 +16,14 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Groups can now hide their archived members from the group's own member list (a toggle in the group's config).",
+      },
+      {
+        type: "improve",
+        text: "On the day view, the \"Quick plans\" strip now stays pinned at the top while you scroll the timeline.",
+      },
+      {
         type: "improve",
         text: "Editing an alter's profile now has a \"Pin to the top\" toggle — same as the press-and-hold option on the alters list.",
       },

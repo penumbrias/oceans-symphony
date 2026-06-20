@@ -396,11 +396,11 @@ export default function ActivityDayView({
           {/* Quick plans — date-only, "no set time". Their own section at the
               top of the day instead of being buried in the 11pm slot. */}
           {quickPlans.length > 0 && (
-            <div className="border-b border-border/30 bg-muted/10 px-3 py-3">
+            <div className="sticky top-0 z-[5] border-b border-border/40 bg-background/95 backdrop-blur px-3 py-3">
               <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-2 flex items-center gap-1.5">
                 <span aria-hidden>✨</span> Quick plans · no set time
               </p>
-              <div className="space-y-2">
+              <div className="space-y-2 max-h-[35vh] overflow-y-auto overscroll-contain">
                 {quickPlans.map(a => (
                   <div
                     key={a.id}

@@ -1,7 +1,7 @@
 import React from "react";
 import { Switch } from "@/components/ui/switch";
 import { useTerms } from "@/lib/useTerms";
-import { UserSquare, Users, AtSign, PenLine, Map, BarChart3, List } from "lucide-react";
+import { UserSquare, Users, AtSign, PenLine, Map, BarChart3, List, Archive } from "lucide-react";
 
 // The "Group config" toggle list — shared by the create-group modal and the
 // in-profile group editor so both stay in sync. Each row maps to a boolean
@@ -54,6 +54,12 @@ export default function GroupConfigToggles({ values, onChange }) {
       icon: List,
       label: `Hide members from the ${t.alters} list`,
       hint: `They won't show in the main ${t.alters} directory — still reachable through this group.`,
+    },
+    {
+      key: "hide_archived_members",
+      icon: Archive,
+      label: "Hide archived members from this group",
+      hint: `Archived ${t.alters} stay in the group but won't show in its member list.`,
     },
   ];
 

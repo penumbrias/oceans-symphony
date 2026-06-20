@@ -14,6 +14,9 @@ export const GROUP_CONFIG_FLAG_KEYS = [
   "hide_from_system_maps",
   "hide_from_analytics",
   "hide_from_lists",
+  // Hides ARCHIVED members from this group's own member list (not a
+  // system-wide surface flag — enforced locally in GroupProfile).
+  "hide_archived_members",
 ];
 
 // Extract just the group-config booleans from a form/group object, coerced to

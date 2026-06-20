@@ -275,7 +275,7 @@ function GroupProfileInner() {
 
   const ownerAlter = group.owner_alter_id ? alters.find((a) => a.id === group.owner_alter_id) : null;
   const parentGroup = group.parent ? allGroups.find((g) => g.id === group.parent || g.sp_id === group.parent) : null;
-  const members = getMemberAlters(group, alters);
+  const members = getMemberAlters(group, alters).filter((m) => !(group.hide_archived_members && m.is_archived));
   const childGroups = allGroups.filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id));
   const subsystem = isSubsystem(group);
 
