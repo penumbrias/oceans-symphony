@@ -16,6 +16,18 @@ export const CHANGELOG = [
     date: "June 19, 2026",
     changes: [
       {
+        type: "feature",
+        text: "You can now set an alter to front straight from their profile — a Start/Stop fronting button in the header.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: tap Good / Neutral / Bad as a base mood if you don't want to pick a specific emotion.",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In now shows when your last check-in was.",
+      },
+      {
         type: "fix",
         text: "Alter picker, Groups tab: a member's subsystems now nest beneath them like in the alters list (subsystems are no longer missing from the Groups view).",
       },

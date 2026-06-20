@@ -13,6 +13,8 @@ import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profile
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import { migrateAlterCustomFieldsObject, needsAlterCustomFieldsMigration } from "@/lib/alterCustomFieldsMigration";
+import { useTerms } from "@/lib/useTerms";
+import { toggleFrontFor } from "@/hooks/useSwipeActions";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
 import InfoTab from "@/components/alters/profile/InfoTab";
@@ -109,6 +111,7 @@ function AlterProfileInner() {
   const saveRef = useRef(null);
 
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const { data: alter, isLoading } = useQuery({
     queryKey: ["alter", alterId],
     queryFn: async () => {
@@ -118,6 +121,18 @@ function AlterProfileInner() {
     enabled: !!alterId,
     staleTime: 0,
   });
+
+  // Whether this alter is currently fronting, + a one-tap toggle from the
+  // profile header. Reuses the canonical refetch-before-write toggleFrontFor
+  // so it stays consistent with the alters list / Set Front modal.
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const isFronting = !!alter && activeSessions.some((s) => s.alter_id === alter.id);
+  const handleToggleFront = () => {
+    if (alter) toggleFrontFor(alter, null, base44, queryClient, toast, terms);
+  };
 
   // Recolour the APP-HEADER wave to this profile's wave colour while it's open.
   // _theme_wave is either a concrete colour (custom hex) or a var(--color-…)
@@ -328,6 +343,17 @@ function AlterProfileInner() {
                 </Button>
               </Link>
             )}
+            {/* One-tap front toggle for this alter (visible on every tab). */}
+            <Button
+              variant={isFronting ? "default" : "outline"}
+              size="sm"
+              onClick={handleToggleFront}
+              className="gap-1.5"
+              title={isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
+            >
+              <User className="w-3.5 h-3.5" />
+              {isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
+            </Button>
             {tab !== "profile" && (
               <Button
                 variant="outline"

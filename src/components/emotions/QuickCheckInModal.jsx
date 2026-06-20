@@ -13,7 +13,7 @@ import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, 
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
@@ -241,6 +241,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // "Who's fronting" list view: flat search list vs the standard
   // by-subsystem/group tree (AlterTreeSelect).
   const [frontTreeView, setFrontTreeView] = useState(false);
+
+  // Most-recent PRIOR check-in, for the "last check-in" hint in the header.
+  const { data: allCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    enabled: isOpen,
+  });
+  const lastCheckInAt = useMemo(() => {
+    let latest = 0;
+    for (const c of allCheckIns) {
+      if (isEditing && c.id === editingEntry?.id) continue; // ignore the one being edited
+      const t = c.timestamp ? new Date(c.timestamp).getTime() : 0;
+      if (t > latest) latest = t;
+    }
+    return latest || null;
+  }, [allCheckIns, isEditing, editingEntry]);
 
 
 
@@ -943,7 +959,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <Heart className="w-5 h-5 text-destructive" />
               {isEditing ? "Edit Check-In" : "Quick Check-In"}
             </DialogTitle>
-            <DialogDescription className="flex items-center gap-2 pt-1">
+            <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
               <input
                 type="datetime-local"
                 aria-label="Check-in date and time"
@@ -951,6 +967,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 onChange={e => setEntryTime(e.target.value)}
                 className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
               />
+              {!isEditing && lastCheckInAt && (
+                <span className="text-[0.6875rem] text-muted-foreground">
+                  Last check-in {formatDistanceToNow(new Date(lastCheckInAt), { addSuffix: true })}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">
@@ -988,6 +1009,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           {openSections.has("feeling") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">How are you feeling?</p>
+              {/* Base moods — tap one of these alone if you don't want to be
+                  specific. They save just like any other emotion. */}
+              <div className="flex gap-1.5">
+                {[["Good", "🙂"], ["Neutral", "😐"], ["Bad", "😞"]].map(([label, emoji]) => {
+                  const on = selectedEmotions.includes(label);
+                  return (
+                    <button key={label} type="button"
+                      onClick={() => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${on ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
+                      <span aria-hidden>{emoji}</span> {label}
+                    </button>
+                  );
+                })}
+              </div>
               <EmotionWheelPicker
               selectedEmotions={selectedEmotions}
               onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
