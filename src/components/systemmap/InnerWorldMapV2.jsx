@@ -25,11 +25,12 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
   ZoomIn, ZoomOut, RotateCcw, Plus, Grid, Eye, EyeOff, Users, X, Image as ImageIcon,
-  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, Search, MapPin, ExternalLink,
+  Layers as LayersIcon, ChevronUp, ChevronDown, Trash2, Pencil, PencilOff, Lock, Unlock, MapPin, ExternalLink,
   Maximize2, Minimize2,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SearchableSelect from "@/components/shared/SearchableSelect";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import ColorPicker from "@/components/shared/ColorPicker";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocationNode from "./LocationNode";
@@ -661,25 +662,21 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             </div>
             {!viewOnly && (
               <>
-                <div className="px-2 py-1.5 space-y-1.5 border-b border-border/40">
-                  <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer</p>
-                  <div className="relative">
-                    <Search className="w-3 h-3 absolute left-2 top-1/2 -translate-y-1/2 text-muted-foreground" />
-                    <input value={unplacedSearch} onChange={(e) => setUnplacedSearch(e.target.value)} placeholder="Search…"
-                      className="w-full h-7 pl-6 pr-2 text-xs border border-border/50 rounded bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
-                  </div>
-                  <SearchableSelect value={groupFilter} onChange={(v) => setGroupFilter(v || "all")} options={groupFilterOptions}
-                    placeholder="Filter by group…" searchPlaceholder="Search groups…" renderOption={renderNestedOpt} className="w-full" />
+                <div className="px-2 py-1.5 border-b border-border/40">
+                  <p className="text-[0.625rem] font-semibold text-muted-foreground uppercase tracking-wide">Not on this layer · tap to place</p>
                 </div>
-                <div className="flex-1 overflow-y-auto p-2 space-y-1.5">
-                  {filteredUnplaced.map((alter) => (
-                    <div key={alter.id} draggable onDragStart={(e) => e.dataTransfer.setData("alterId", alter.id)} onClick={() => setPlacingAlter(alter)}
-                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border transition-colors cursor-pointer ${placingAlter?.id === alter.id ? "border-primary/60 bg-primary/15 animate-pulse" : "border-border/50 bg-muted/20 hover:bg-muted/40 active:cursor-grabbing"}`}>
-                      <UnplacedAlterAvatar alter={alter} />
-                      <span className="text-xs text-foreground truncate">{alter.name}</span>
-                    </div>
-                  ))}
-                  {filteredUnplaced.length === 0 && <p className="text-xs text-muted-foreground/60 italic px-1">{unplacedAlters.length === 0 ? "Everyone's on this layer." : "No matches."}</p>}
+                <div className="flex-1 overflow-y-auto p-2">
+                  {/* Tap an alter to ARM it (single-select highlight), then tap a
+                      spot on the canvas to drop it. Already-placed alters are
+                      DIMMED (not removed) so a subsystem's members stay reachable
+                      even after its owner is placed. */}
+                  <AlterTreeSelect
+                    selectionMode="single"
+                    disabledIds={[...alterIdsOnActiveLayer]}
+                    isSelected={(id) => placingAlter?.id === id}
+                    onToggle={(a) => setPlacingAlter(a)}
+                    maxHeight="46vh"
+                  />
                 </div>
               </>
             )}

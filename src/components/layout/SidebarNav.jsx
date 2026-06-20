@@ -66,6 +66,7 @@ export default function SidebarNav({ open, onClose }) {
   const terms = useTerms();
   const { data: pendingInstances = [] } = usePendingReminderInstances();
   const pendingCount = pendingInstances.filter(i => i.status === "fired").length;
+
   const groups = useMemo(() => buildSidebarGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
 
   // Close on navigation

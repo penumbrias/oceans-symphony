@@ -2,13 +2,14 @@ import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { motion } from "framer-motion";
-import { Sparkles, Plus, Share2 } from "lucide-react";
-import { Link, useSearchParams } from "react-router-dom";
+import { Sparkles, Plus, Share2, Download } from "lucide-react";
+import { useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import AlterGrid from "@/components/alters/AlterGrid";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import AlterExportModal from "@/components/alters/AlterExportModal";
+import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import SystemHeaderCard from "@/components/system/SystemHeaderCard";
 import { useTerms } from "@/lib/useTerms";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
@@ -18,6 +19,7 @@ export default function Home() {
   const [searchParams] = useSearchParams();
   const [showAddAlter, setShowAddAlter] = useState(false);
   const [showExport, setShowExport] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const terms = useTerms();
 
   // Handle bulletin deep-link
@@ -65,20 +67,20 @@ export default function Home() {
           Welcome to Oceans Symphony
         </h1>
         <p className="text-muted-foreground max-w-md leading-relaxed mb-8">
-          Connect your Simply Plural account to import {terms.alters}, or add them manually.
+          Import your {terms.alters} from another plural app, or add them manually.
         </p>
         <div className="flex gap-3">
-          <Link to="/settings">
-            <Button variant="outline" className="rounded-xl px-6">
-              Connect Simply Plural
-            </Button>
-          </Link>
+          <Button variant="outline" onClick={() => setShowImport(true)} className="rounded-xl px-6 gap-2">
+            <Download className="w-4 h-4" />
+            Import {terms.alters}
+          </Button>
           <Button onClick={() => setShowAddAlter(true)} className="bg-primary hover:bg-primary/90 rounded-xl px-6">
             <Plus className="w-4 h-4 mr-2" />
             Add {terms.Alter}
           </Button>
         </div>
         <AlterEditModal open={showAddAlter} onClose={() => setShowAddAlter(false)} mode="create" />
+        <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
       </motion.div>);
 
   }
@@ -93,6 +95,16 @@ export default function Home() {
           settings={systemSettings}
           action={
             <div className="flex items-center gap-1.5">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => setShowImport(true)}
+                aria-label={`Import ${terms.alters}`}
+                title={`Import ${terms.alters} from another plural app`}
+                className="gap-1.5">
+                <Download className="w-4 h-4" />
+                <span className="hidden sm:inline">Import</span>
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -136,6 +148,8 @@ export default function Home() {
         isOpen={showExport}
         onClose={() => setShowExport(false)}
         alters={alters} />
+
+      <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
 
     </div>);
 

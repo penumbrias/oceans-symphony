@@ -12,7 +12,9 @@ import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
+import useRefreshOnResume from "@/hooks/useRefreshOnResume";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
+import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
@@ -42,6 +44,10 @@ export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Refetch stale data + re-derive "now" whenever the app returns to the
+  // foreground (fixes the "opened the app but it shows yesterday / a plan
+  // that should be active isn't" staleness).
+  useRefreshOnResume();
   // Header auto-hide on scroll was a recurring source of confusion —
   // even with a landscape-only gate, edge cases let it fire in
   // portrait. Reverted to a permanently-pinned header. If we want
@@ -76,6 +82,10 @@ export default function AppLayout() {
   // Credit the daily "App opened" check-in on launch, not only when the Daily
   // Tasks page is first visited.
   useDailyCheckInOnOpen();
+  // Keep the opt-in persistent (ongoing) status notifications — current
+  // fronters, active symptoms, the activity timer — in sync with live state.
+  // No-op on web; gated per-toggle on native.
+  usePersistentNotifications();
 
   // Censor/spoiler + whisper reveal — tapping a `||text||` redaction bar
   // (`.spoiler`) or a "/w @name [secret]" whisper bar (`.whisper`, rendered

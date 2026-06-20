@@ -25,6 +25,7 @@ const getSavedFolders = () => {
 import { parseSignpostAuthors, isSystemSignpost } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 
 export default function JournalEditorModal({
@@ -70,7 +71,6 @@ export default function JournalEditorModal({
   const [removedAuthorIds, setRemovedAuthorIds] = useState(() => new Set());
   const [coAuthorIds, setCoAuthorIds] = useState([]);
   const [showAuthorPicker, setShowAuthorPicker] = useState(false);
-  const [authorSearch, setAuthorSearch] = useState("");
   const [signpostText, setSignpostText] = useState("");
   // Tracks whether the user has manually typed in the signpost field this
   // open. When false, picking an author from the dropdown auto-populates the
@@ -160,7 +160,6 @@ useEffect(() => {
     setDecryptionPassword("");
     setDecryptionError("");
     setShowAuthorPicker(false);
-    setAuthorSearch("");
     setSignpostText("");
     setSignpostMenuOpen(false);
     setSignpostQuery("");
@@ -259,10 +258,6 @@ useEffect(() => {
   };
 
   const authorAlter = altersById[authorAlterId] || null;
-  const filteredAltersForAuthor = useMemo(
-    () => (alters || []).filter(a => !authorSearch || a.name.toLowerCase().includes(authorSearch.toLowerCase())),
-    [alters, authorSearch]
-  );
 
   // Alters that match the current signpost autocomplete query, filtered to
   // active ones — archived alters shouldn't show up as suggestions even if
@@ -357,7 +352,7 @@ useEffect(() => {
               <div className="relative">
                 <button
                   type="button"
-                  onClick={() => { setShowAuthorPicker(v => !v); setAuthorSearch(""); }}
+                  onClick={() => setShowAuthorPicker(v => !v)}
                   className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg border border-border/60 hover:border-border bg-background transition-colors"
                 >
                   {(() => {
@@ -382,26 +377,28 @@ useEffect(() => {
                 {showAuthorPicker && (
                   <>
                     <div className="fixed inset-0 z-40" onClick={() => setShowAuthorPicker(false)} />
-                    <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-60 overflow-hidden">
-                      <div className="px-3 py-2 border-b border-border/50">
-                        <input autoFocus value={authorSearch} onChange={e => setAuthorSearch(e.target.value)}
-                          placeholder={`Search ${terms.alters}...`}
-                          className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground" />
-                      </div>
-                      <div className="max-h-52 overflow-y-auto">
-                        <button type="button" onClick={() => { setAuthorAlterId(null); setShowAuthorPicker(false); }}
-                          className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors ${!authorAlterId ? "text-primary font-medium" : "text-muted-foreground"}`}>
-                          No attribution
-                        </button>
-                        {filteredAltersForAuthor.map(a => (
-                          <button key={a.id} type="button" onClick={() => { setAuthorAlterId(a.id); setShowAuthorPicker(false); }}
-                            className={`w-full text-left px-3 py-2 text-xs hover:bg-muted/50 transition-colors flex items-center gap-2 ${authorAlterId === a.id ? "bg-primary/5 text-primary" : ""}`}>
-                            <div className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
-                            <span className="flex-1 truncate">{a.name}</span>
-                            {a.id === currentAlterId && <span className="text-[0.625rem] text-primary/70 flex-shrink-0">{terms.fronting}</span>}
-                          </button>
-                        ))}
-                      </div>
+                    <div className="absolute top-full left-0 mt-1 z-50 bg-popover border border-border rounded-xl shadow-xl w-80 max-w-[90vw] p-2">
+                      <p className="text-[0.625rem] text-muted-foreground px-1 pb-1">Pick one or more — the first is the primary author.</p>
+                      <button type="button" onClick={() => { setAuthorAlterId(null); setCoAuthorIds([]); }}
+                        className={`w-full text-left px-2 py-1.5 rounded-lg text-xs hover:bg-muted/50 mb-1 ${!authorAlterId && coAuthorIds.length === 0 ? "text-primary font-medium" : "text-muted-foreground"}`}>
+                        No attribution
+                      </button>
+                      <AlterTreeSelect
+                        isSelected={(id) => authorAlterId === id || coAuthorIds.includes(id)}
+                        onToggle={(a, on) => {
+                          let list = [authorAlterId, ...coAuthorIds].filter(Boolean);
+                          if (on) { if (!list.includes(a.id)) list = [...list, a.id]; } else list = list.filter((x) => x !== a.id);
+                          setAuthorAlterId(list[0] || null);
+                          setCoAuthorIds(list.slice(1));
+                        }}
+                        onSetMany={(arr, on) => {
+                          let list = [authorAlterId, ...coAuthorIds].filter(Boolean);
+                          for (const a of arr) { if (on) { if (!list.includes(a.id)) list = [...list, a.id]; } else list = list.filter((x) => x !== a.id); }
+                          setAuthorAlterId(list[0] || null);
+                          setCoAuthorIds(list.slice(1));
+                        }}
+                        maxHeight="40vh"
+                      />
                     </div>
                   </>
                 )}

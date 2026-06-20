@@ -7,10 +7,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
+import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, FolderTree, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import useSwipeActions from "@/hooks/useSwipeActions";
@@ -513,6 +514,24 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     setPrimaryId(id);
   };
 
+  // Bulk add/remove, used by the by-subsystem/group tree view's "+ all / − all"
+  // and "Select all / Clear all". Mirrors toggleAlter's invariant: primary is
+  // kept separate from coFronterIds, and adding seeds a primary when none yet.
+  const setManyFronters = (arr, on) => {
+    const ids = arr.map((a) => a.id);
+    if (!ids.length) return;
+    setIsUnsure(false);
+    setCoFronterIds((prev) => {
+      const s = new Set(prev);
+      for (const id of ids) { if (on) s.add(id); else s.delete(id); }
+      return [...s];
+    });
+    if (!selectionMode) {
+      if (on) setPrimaryId((p) => p || ids[0] || "");
+      else setPrimaryId((p) => (ids.includes(p) ? "" : p));
+    }
+  };
+
   const handleSave = async () => {
     // Selection mode: hand the chosen alter ids back to the caller and close.
     // No FrontingSession is read or written. An empty selection is allowed —
@@ -729,27 +748,36 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             )}
           </div>
 
-          {/* Search and View Toggle */}
+          {/* Search and View Toggle — the tree view brings its own search +
+              by-subsystem/group organisation, so the modal's search + sort are
+              hidden there to avoid two competing search boxes. */}
           <div className="flex gap-2">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder={`Search ${terms.alters}...`}
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="pl-9" />
-            </div>
-            <button
-              data-tour="setfront-sort"
-              onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
-              title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
-              className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
-              {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
-              {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
-              {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
-              {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
-            </button>
-            <div className="flex gap-1 bg-muted/50 rounded-md p-1" role="group" aria-label="View mode">
+            {viewMode !== "tree" && (
+              <>
+                <div className="relative flex-1">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+                  <Input
+                    placeholder={`Search ${terms.alters}...`}
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    className="pl-9" />
+                </div>
+                <button
+                  data-tour="setfront-sort"
+                  onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
+                  title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
+                  className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
+                  {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
+                  {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
+                  {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
+                  {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
+                </button>
+              </>
+            )}
+            {viewMode === "tree" && (
+              <p className="flex-1 self-center text-xs text-muted-foreground">Browse by subsystem or group. Tap to select; set the primary using the chips above.</p>
+            )}
+            <div className="flex gap-1 bg-muted/50 rounded-md p-1 flex-shrink-0" role="group" aria-label="View mode">
               <button
                 onClick={() => setViewMode("list")}
                 className={`p-2 rounded transition-colors ${viewMode === "list" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
@@ -764,6 +792,14 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 aria-pressed={viewMode === "grid"}>
                 <Grid3x3 className="w-4 h-4" />
               </button>
+              <button
+                onClick={() => setViewMode("tree")}
+                title={`Organise by subsystem / group`}
+                className={`p-2 rounded transition-colors ${viewMode === "tree" ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                aria-label="By subsystem or group"
+                aria-pressed={viewMode === "tree"}>
+                <FolderTree className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
@@ -776,7 +812,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               max-height and overflow-hidden clipped the Save button off
               the bottom of the screen, leaving no way to save. */}
           <div className="flex-1 overflow-y-auto min-h-0">
-            {viewMode === "list" ?
+            {viewMode === "tree" ? (
+              <AlterTreeSelect
+                alters={activeAlters}
+                groups={groups}
+                isSelected={(id) => selectedIds.has(id)}
+                onToggle={(a) => toggleAlter(a.id)}
+                onSetMany={setManyFronters}
+                maxHeight="46vh"
+              />
+            ) : viewMode === "list" ?
             <div className="space-y-1.5">
                 {filtered.map((a) =>
               <AlterPill

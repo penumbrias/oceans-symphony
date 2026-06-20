@@ -34,6 +34,8 @@ import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration
 import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
 import E2EInfoCard from "@/components/friends/E2EInfoCard";
+import MemberSharingPanel from "@/components/friends/MemberSharingPanel";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -120,6 +122,8 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
   }, [friend.userId, onVisibilityChange]);
 
   // Members this friend shares with me — fetched + decrypted on card expand.
+  const [showVisibleList, setShowVisibleList] = useState(false);
+  const [visShown, setVisShown] = useState(60);
   const [sharedMembers, setSharedMembers] = useState(null); // null = not loaded
   const [loadingShare, setLoadingShare] = useState(false);
   useEffect(() => {
@@ -131,17 +135,18 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
       .finally(() => setLoadingShare(false));
   }, [expanded]);
 
-  // Safety number for this friend — computed when the visibility panel opens.
+  // Safety number for this friend — computed whenever the card is expanded.
   const [safetyNum, setSafetyNum] = useState(null);
+  const [revealSafety, setRevealSafety] = useState(false); // hidden until tapped (it's a long sensitive value)
   useEffect(() => {
-    if (!showVisibility || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
+    if (!expanded || !myPublicKeyJwk || !friend.publicKey) { setSafetyNum(null); return; }
     let cancelled = false;
     try {
       const theirs = JSON.parse(friend.publicKey);
       safetyNumber(myPublicKeyJwk, theirs).then((n) => { if (!cancelled) setSafetyNum(n); }).catch(() => {});
     } catch { setSafetyNum(null); }
     return () => { cancelled = true; };
-  }, [showVisibility, myPublicKeyJwk, friend.publicKey]);
+  }, [expanded, myPublicKeyJwk, friend.publicKey]);
 
   const saveVisibility = useCallback(async (newHiddenIds, newPrivacyOverride) => {
     setSavingVis(true);
@@ -330,6 +335,42 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                 </div>
               )}
 
+              {/* ── Safety number (E2E key verification) — always shown when expanded ── */}
+              <div className="rounded-lg border border-border/40 bg-muted/10 p-2.5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-medium text-foreground flex items-center gap-1.5"><Lock className="w-3 h-3" /> Safety number</span>
+                  {safetyNum && verifiedNumber === safetyNum && (
+                    <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
+                  )}
+                </div>
+                {safetyNum ? (
+                  revealSafety ? (
+                    <>
+                      <p className="font-mono text-xs tracking-wide text-foreground bg-background rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-[0.625rem] text-muted-foreground flex-1">Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.</p>
+                        <button type="button" onClick={() => setRevealSafety(false)} className="text-[0.6875rem] text-muted-foreground hover:underline inline-flex items-center gap-1 flex-shrink-0"><EyeOff className="w-3 h-3" /> Hide</button>
+                      </div>
+                      {verifiedNumber === safetyNum ? (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
+                      ) : (
+                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
+                      )}
+                    </>
+                  ) : (
+                    <button type="button" onClick={() => setRevealSafety(true)} className="w-full font-mono text-xs tracking-widest text-muted-foreground/70 bg-background rounded-lg px-2 py-1.5 inline-flex items-center justify-center gap-1.5 hover:text-foreground transition-colors">
+                      <Eye className="w-3 h-3" /> Tap to reveal safety number
+                    </button>
+                  )
+                ) : (
+                  <p className="text-[0.625rem] text-muted-foreground">
+                    {friend.publicKey
+                      ? "Preparing…"
+                      : "This friend hasn't set up encrypted sharing yet — the number appears once they've opened the Friends page on a version that supports it."}
+                  </p>
+                )}
+              </div>
+
               {/* Controls */}
               <div className="flex items-center justify-between gap-4 flex-wrap">
                 <div className="space-y-1">
@@ -443,81 +484,65 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           </button>
                           <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} shared</span>
                         </div>
-                        <p className="text-[0.625rem] text-muted-foreground">Live, encrypted sharing is coming soon — this sets who'd be included.</p>
+                        {/* Live preview — exactly who this friend can see right now,
+                            recomputed from the granted levels + per-alter hides. */}
+                        {(() => {
+                          const visible = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } });
+                          if (visible.length === 0) {
+                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "members"} visible with the current levels.</p>;
+                          }
+                          // Collapsed by default so large systems don't flood the
+                          // card — tap to reveal the (capped) list.
+                          return (
+                            <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
+                              <button type="button" onClick={() => { setShowVisibleList((v) => !v); setVisShown(60); }} className="text-[0.625rem] text-primary hover:underline">
+                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} they can see
+                              </button>
+                              {showVisibleList && (
+                                <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 mt-1 pr-1"
+                                  onScroll={(e) => { const el = e.currentTarget; if (el.scrollHeight - el.scrollTop - el.clientHeight < 120) setVisShown((s) => s + 60); }}>
+                                  {[...visible].sort((a, b) => (a.alter.name || "").localeCompare(b.alter.name || "")).slice(0, visShown).map(({ alter }) => (
+                                    <div key={alter.id} className="flex items-center gap-2 px-1.5 py-1 rounded hover:bg-muted/20">
+                                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: alter.color || "#6b7280" }} />
+                                      <span className="text-[0.6875rem] text-foreground/90 truncate">{alter.name}</span>
+                                    </div>
+                                  ))}
+                                  {visible.length > visShown && <p className="text-[0.625rem] text-muted-foreground italic py-1 text-center">Loading more… ({visShown}/{visible.length})</p>}
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
+                        <p className="text-[0.625rem] text-muted-foreground">Shared end-to-end encrypted — changes reach this friend right away.</p>
                       </>
                     )}
                   </div>
 
-                  {/* ── Safety number (E2E key verification) ── */}
-                  {safetyNum && (
-                    <div className="pt-3 border-t border-border/40 space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-medium text-foreground">Safety number</span>
-                        {verifiedNumber === safetyNum && (
-                          <span className="text-[0.6875rem] text-green-500 inline-flex items-center gap-1"><ShieldCheck className="w-3 h-3" /> Verified</span>
-                        )}
-                      </div>
-                      <p className="font-mono text-xs tracking-wide text-foreground bg-muted/30 rounded-lg px-2 py-1.5 break-all select-all">{safetyNum}</p>
-                      <p className="text-[0.625rem] text-muted-foreground">
-                        Compare this with your friend another way (in person or a call). If it matches on both devices, no one is tampering with your connection.
-                      </p>
-                      {verifiedNumber === safetyNum ? (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, null)} className="text-[0.6875rem] text-muted-foreground hover:underline">Unmark verified</button>
-                      ) : (
-                        <button type="button" onClick={() => onVerify?.(friend.userId, safetyNum)} className="text-[0.6875rem] text-primary hover:underline">Mark as verified</button>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Per-alter toggles — only when effective privacy shows names */}
+                  {/* Per-alter hide toggles — only when effective privacy shows names.
+                      Uses the standard tree picker (by subsystem / group, searchable,
+                      lazy) with an eye toggle as the per-row control. */}
                   {(privacyOverride === 'names' || (!privacyOverride && globalPrivacyLevel === 'names')) && alters.length > 0 && (
                     <div className="space-y-1">
-                      <span className="text-xs text-muted-foreground">
-                        Which {terms?.alters || 'alters'} can they see?
-                      </span>
-                      <div className="space-y-0.5 max-h-44 overflow-y-auto">
-                        {alters.map(alter => {
+                      <span className="text-xs text-muted-foreground">Hide specific {terms?.alters || 'alters'} from this friend:</span>
+                      <AlterTreeSelect
+                        controlPosition="right"
+                        renderControl={(alter) => {
                           const globallyHidden = alter.friends_visible === false;
                           const locallyHidden = hiddenAlterIds.includes(alter.id);
                           const isVisible = !globallyHidden && !locallyHidden;
                           return (
-                            <div
-                              key={alter.id}
-                              className={`flex items-center justify-between px-2 py-1.5 rounded-lg transition-colors ${
-                                globallyHidden ? 'opacity-40' : 'hover:bg-muted/30'
-                              }`}
+                            <button
+                              disabled={globallyHidden}
+                              onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
+                              className={`flex-shrink-0 p-1 rounded transition-colors ${globallyHidden ? 'cursor-not-allowed opacity-40' : isVisible ? 'text-primary hover:text-primary/70' : 'text-muted-foreground hover:text-foreground'}`}
+                              title={globallyHidden ? 'Hidden from all friends' : isVisible ? 'Visible — tap to hide' : 'Hidden — tap to show'}
                             >
-                              <div className="flex items-center gap-2 min-w-0">
-                                <div
-                                  className="w-2 h-2 rounded-full flex-shrink-0"
-                                  style={{ background: alter.color || '#6b7280' }}
-                                />
-                                <span className="text-xs text-foreground truncate">{alter.name}</span>
-                                {globallyHidden && (
-                                  <span className="text-xs text-muted-foreground flex-shrink-0">(hidden from all friends)</span>
-                                )}
-                              </div>
-                              <button
-                                disabled={globallyHidden}
-                                onClick={() => !globallyHidden && toggleAlterHidden(alter.id)}
-                                className={`flex-shrink-0 p-1 rounded transition-colors ${
-                                  globallyHidden
-                                    ? 'cursor-not-allowed'
-                                    : isVisible
-                                      ? 'text-primary hover:text-primary/70'
-                                      : 'text-muted-foreground hover:text-foreground'
-                                }`}
-                                title={isVisible ? 'Visible — click to hide' : 'Hidden — click to show'}
-                              >
-                                {isVisible
-                                  ? <Eye className="w-3.5 h-3.5" />
-                                  : <EyeOff className="w-3.5 h-3.5" />
-                                }
-                              </button>
-                            </div>
+                              {isVisible ? <Eye className="w-3.5 h-3.5" /> : <EyeOff className="w-3.5 h-3.5" />}
+                            </button>
                           );
-                        })}
-                      </div>
+                        }}
+                        maxHeight="44vh"
+                      />
                     </div>
                   )}
                 </div>
@@ -1043,7 +1068,7 @@ export default function FriendsPage() {
   // No profile yet
   if (!identity) {
     return (
-      <div className="max-w-md mx-auto p-6 space-y-5">
+      <div className="max-w-2xl mx-auto p-6 space-y-5">
         <div className="flex flex-col items-center text-center space-y-3">
           <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center">
             <Users className="w-8 h-8 text-primary" />
@@ -1057,6 +1082,20 @@ export default function FriendsPage() {
         <div className="flex justify-center">
           <Button onClick={() => setShowSetup(true)}>Set Up Profile</Button>
         </div>
+
+        {/* Sharing can be set up BEFORE creating a profile — privacy levels and
+            per-member assignment live on your own data, so they're ready the
+            moment you connect with someone. No friends needed to configure. */}
+        <div className="pt-3 border-t border-border/40 space-y-3">
+          <div className="text-center space-y-1">
+            <h2 className="text-sm font-semibold text-foreground">Set up sharing first (optional)</h2>
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              Define privacy levels and choose what each {terms.alter} shares now — no friends needed yet. It'll be ready when you connect with someone.
+            </p>
+          </div>
+          <MemberSharingPanel />
+        </div>
+
         <ProfileSetupModal
           open={showSetup}
           onClose={() => setShowSetup(false)}
@@ -1210,6 +1249,7 @@ export default function FriendsPage() {
         ) : (
           <div className="space-y-3">
             {isCryptoAvailable() && <E2EInfoCard />}
+            <MemberSharingPanel />
             <div className="flex items-baseline justify-between">
               <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
                 Friends ({friends.length})

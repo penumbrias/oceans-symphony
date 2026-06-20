@@ -6,6 +6,7 @@ import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-reac
 import { useTerms } from "@/lib/useTerms";
 import { base44 } from "@/api/base44Client";
 import { markTourCompletedToday } from "@/lib/dailyTaskSystem";
+import AccessibilityFab from "@/components/accessibility/AccessibilityFab";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
@@ -19,6 +20,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: "Welcome to the Interactive Tour!",
       body: `This tour walks through every page and feature of Oceans Symphony, step by step. The app navigates automatically and highlights each element as it's described. Use "Skip section →" to jump ahead, or Back to revisit. Let's go!`,
       route: "/", target: null, look: null, action: null,
+    },
+    {
+      section: "welcome", sectionLabel: "Welcome",
+      emoji: "♿",
+      title: "Accessibility, anytime",
+      body: `See the "Accessibility" button in the corner? It's here through setup and this whole tour. Tap it any time to turn on accessibility (low-vision) mode, bump up the text size, or switch on high contrast — handy if the text is hard to read right now. Everything's also in Settings → Accessibility later.`,
+      route: "/", target: null,
+      look: `the floating "Accessibility" button in the corner of the screen`, action: null,
     },
 
     // ─── DASHBOARD ──────────────────────────────────────────────────────────
@@ -203,7 +212,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "➕",
       title: `Add a New ${t.Alter}`,
-      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, alias (or set an emoji and use it as the alias — mention with @ that emoji), pronouns, role, color, avatar, first appearance, bio, and profile style. Groups are added from the profile after you save. The "Export" button next to it makes a shareable document of your ${t.alters} (choose who to include, how much detail, and whether to anonymize names) to send to a friend — and each profile's Options tab can export just that one.`,
+      body: `Tap the highlighted "Add ${t.Alter}" button to create a new profile. Fill in name, alias (or set an emoji and use it as the alias — mention with @ that emoji), pronouns, role, color, avatar, first appearance, bio, and profile style. Groups are added from the profile after you save. The "Import" button brings your ${t.alters} in from another plural app — Simply Plural, PluralKit, or an OpenPlural/PluralSpace export — right here. The "Export" button makes a shareable document of your ${t.alters} (choose who to include, how much detail, and whether to anonymize names) to send to a friend — and each profile's Options tab can export just that one.`,
       route: "/Home", target: "alter-add-btn",
       look: `the highlighted "+ Add ${t.Alter}" button in the top-right`, action: null,
     },
@@ -496,7 +505,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "activities", sectionLabel: "Activities",
       emoji: "🏃",
       title: "Activity Tracker",
-      body: `The Activity Tracker shows a weekly grid view — each day is a column, each activity block spans its time range. Tap any empty time slot to log a new activity there. Tap an existing block to edit it. Navigate weeks with the ← → arrows in the header.`,
+      body: `The Activity Tracker shows a weekly grid view — each day is a column, each activity block spans its time range. Tap any empty time slot to log a new activity there. Tap an existing block to edit it. Navigate weeks with the ← → arrows in the header. The "Start activity" button (top of this tab) times an activity in real time, like start/end sleep — pick what you're doing, and when you tap End it's logged automatically with the elapsed time.`,
       route: "/activities", target: "activities-log",
       look: `the highlighted weekly activity grid — each column is a day, each row a time slot`, action: null,
     },
@@ -520,7 +529,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "activities", sectionLabel: "Activities",
       emoji: "⏱️",
       title: "Logging vs Planning",
-      body: `Past-time slots open the lean Log form: category, start/end time (with quick 15m / 30m / 1hr presets and a "from end/start" toggle), who was ${t.fronting} — a matching ${t.fronting} session is created for them, kept open if they're still ${t.fronting} now — and notes. Future-time slots open the richer Plan form: title, location, critical flag with lead-step reminders, optional to-do link, recurrence settings, and an optional reminder lead-time (15 min / 30 min / 1 hour / 1 day before — set the default in Settings → Reminders). Use the "Plan Activity" button to schedule from anywhere — it always opens the planning form.`,
+      body: `Past-time slots open the lean Log form: category, start/end time (with quick 15m / 30m / 1hr presets and a "from end/start" toggle), who was ${t.fronting} — a matching ${t.fronting} session is created for them, kept open if they're still ${t.fronting} now — and notes. Flip the "Active" toggle at the top to start something now and end & log it later — you can run several at once, and they show up under "Active activities" on your dashboard (tap one to end & log it, adjust the start, or discard). Future-time slots open the richer Plan form: title, location, critical flag with lead-step reminders, optional to-do link, recurrence settings, and an optional reminder lead-time (15 min / 30 min / 1 hour / 1 day before — set the default in Settings → Reminders). Use the "Plan Activity" button to schedule from anywhere — it always opens the planning form.`,
       route: "/activities", target: "activities-log",
       look: `tap a past-time slot for the log form, or a future-time slot (or the Plan Activity button) for the planning form`, action: null,
     },
@@ -575,6 +584,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       body: `The Inbox tab collects all fired reminders waiting for action. Tap the action button to do what the reminder suggests (open check-in, set ${t.front}, etc.), or snooze to see it again later. Dismissed items disappear. Reminders that were acted on from a notification don't appear here.`,
       route: "/reminders", target: "reminders-inbox-tab",
       look: `the highlighted "Inbox" tab button`, action: null,
+    },
+    {
+      section: "reminders", sectionLabel: "Reminders",
+      emoji: "📌",
+      title: "Persistent status notifications",
+      body: `On the Android app you can pin always-on notifications in Settings → Notifications: one showing who's ${t.fronting} right now (updates the instant a ${t.switch} happens), one listing your active symptoms, and an activity timer you can end & log straight from the tray. They're silent and stay put until you turn them off.`,
+      route: "/reminders", target: null,
+      look: `Settings → Notifications → "Persistent status notifications" (Android app only)`, action: null,
     },
 
     // ─── ANALYTICS ──────────────────────────────────────────────────────────
@@ -1208,6 +1225,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
           <div className="h-1" />
         </div>
       </div>
+
+      {/* Accessibility quick-access during the tour — sits on the opposite edge
+          from the tour card so it never overlaps it. */}
+      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} />
     </>,
     document.body
   );

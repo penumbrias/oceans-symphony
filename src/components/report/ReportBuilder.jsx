@@ -1,11 +1,14 @@
 import { useState, useMemo } from "react";
 import { addDays, format } from "date-fns";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ChevronDown, ChevronUp, Trash2 } from "lucide-react";
 import NoteworthySettings from "./NoteworthySettings";
 import { DEFAULT_THRESHOLDS } from "@/lib/reportSections";
+import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
 import { useTerms } from "@/lib/useTerms";
 
 function ExclusionPicker({ items, excluded, onChange, nounSingular = "item" }) {
@@ -245,6 +248,11 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
   const alterItems = useMemo(() =>
     alters.filter(a => !a.is_archived).map(a => ({ id: a.id, label: a.name || "Unnamed" })),
     [alters]);
+
+  // Privacy-level shortcuts for the alter-appendix exclusion list: "Only this
+  // level" excludes everyone NOT tagged with the chosen level.
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const privacyLevels = useMemo(() => sortedLevels(getPrivacyLevels(settingsList[0])), [settingsList]);
 
   const today = format(new Date(), "yyyy-MM-dd");
   const weekAgo = format(addDays(new Date(), -7), "yyyy-MM-dd");
@@ -489,12 +497,30 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
                       />
                     )}
                     {sec.id === "alterAppendix" && sectionOptions.alterNames && alterItems.length > 0 && (
-                      <ExclusionPicker
-                        items={alterItems}
-                        excluded={sectionOptions.excludedAlterIds}
-                        onChange={v => setOpt("excludedAlterIds", v)}
-                        nounSingular={t.alter}
-                      />
+                      <>
+                        {privacyLevels.length > 0 && (
+                          <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                            <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide">Limit by privacy level:</span>
+                            {privacyLevels.map((l) => (
+                              <button key={l.id} type="button"
+                                onClick={() => setOpt("excludedAlterIds", alters.filter((a) => !a.is_archived && !(Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id))).map((a) => a.id))}
+                                className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
+                                {l.number}. {l.name}
+                              </button>
+                            ))}
+                            <button type="button" onClick={() => setOpt("excludedAlterIds", [])}
+                              className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/60 text-muted-foreground hover:bg-muted/40 hover:text-foreground">
+                              Reset
+                            </button>
+                          </div>
+                        )}
+                        <ExclusionPicker
+                          items={alterItems}
+                          excluded={sectionOptions.excludedAlterIds}
+                          onChange={v => setOpt("excludedAlterIds", v)}
+                          nounSingular={t.alter}
+                        />
+                      </>
                     )}
                   </div>
                 )}

@@ -20,6 +20,8 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useTerms } from "@/lib/useTerms";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 
 export default function ActivityEntryModal({
   isOpen,
@@ -30,6 +32,7 @@ export default function ActivityEntryModal({
   alters,
 }) {
   const queryClient = useQueryClient();
+  const terms = useTerms();
   const [activityName, setActivityName] = useState("");
   const [durationMinutes, setDurationMinutes] = useState("");
   const [selectedAlters, setSelectedAlters] = useState([]);
@@ -180,31 +183,13 @@ export default function ActivityEntryModal({
           {/* Alters (optional) */}
           {alters.length > 0 && (
             <div className="space-y-2">
-              <Label>Fronting Alters (optional)</Label>
-              <div className="space-y-2 max-h-32 overflow-y-auto">
-                {alters.map((alter) => (
-                  <label
-                    key={alter.id}
-                    className="flex items-center gap-2 cursor-pointer"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={selectedAlters.includes(alter.id)}
-                      onChange={(e) => {
-                        if (e.target.checked) {
-                          setSelectedAlters([...selectedAlters, alter.id]);
-                        } else {
-                          setSelectedAlters(
-                            selectedAlters.filter((id) => id !== alter.id)
-                          );
-                        }
-                      }}
-                      className="rounded border-input"
-                    />
-                    <span className="text-sm">{alter.alias || alter.name}</span>
-                  </label>
-                ))}
-              </div>
+              <Label>{terms.Fronters} (optional)</Label>
+              <AlterTreeSelect
+                isSelected={(id) => selectedAlters.includes(id)}
+                onToggle={(a, on) => setSelectedAlters((s) => on ? [...s, a.id] : s.filter((id) => id !== a.id))}
+                onSetMany={(arr, on) => setSelectedAlters((s) => { const set = new Set(s); for (const a of arr) { if (on) set.add(a.id); else set.delete(a.id); } return [...set]; })}
+                maxHeight="40vh"
+              />
             </div>
           )}
 

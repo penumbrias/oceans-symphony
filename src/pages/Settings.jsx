@@ -16,11 +16,16 @@ import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
 import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
+import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
+import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
+import OpenPluralExport from "@/components/settings/OpenPluralExport";
+import SimplyPluralExport from "@/components/settings/SimplyPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
+import { runAutoBackupNow } from "@/lib/autoBackup";
 // AdvancedAppearance now renders the ENTIRE Appearance section body
 // (UI size, fonts, theme, presets, corner style, dashboard layout,
 // navigation, upcoming-plans surfaces) so all the shared theme/font/
@@ -140,6 +145,19 @@ export default function Settings() {
   const { mode: analyticsGrouping, setMode: setAnalyticsGrouping } = useAnalyticsGrouping();
   const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
   const [inferWindow, setInferWindow] = useState(getInferPresenceWindowMinutes);
+  const [backingUp, setBackingUp] = useState(false);
+
+  // One-tap "Back up now" in the header — runs the same full-DB export the
+  // auto-backup uses (saves to the device's Downloads on native, share /
+  // download on web) and toasts the result. A quick safety net without
+  // scrolling all the way to Data & Privacy.
+  const handleBackupNow = async () => {
+    if (backingUp) return;
+    setBackingUp(true);
+    try { await runAutoBackupNow(); }
+    catch (e) { toast.error(e?.message || "Backup failed"); }
+    finally { setBackingUp(false); }
+  };
 
   // Top-of-page TOC. Order follows the "commonly-tweaked first" rule —
   // Profile is anchored at the top because the user said so, then the
@@ -333,6 +351,11 @@ export default function Settings() {
               via src/lib/appVersion.js. Stays visible so testers can
               reference the exact build when reporting issues. */}
           <div className="flex items-center gap-1.5 mt-1 flex-shrink-0">
+            <Button type="button" variant="outline" size="sm" onClick={handleBackupNow} disabled={backingUp}
+              title="Save a full backup to your device now" className="h-7 gap-1.5 text-xs">
+              {backingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+              Back up now
+            </Button>
             {APP_RELEASE_STAGE && (
               <span className="text-[0.625rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
                 {APP_RELEASE_STAGE}
@@ -693,6 +716,14 @@ export default function Settings() {
           {/* Backup + Export first — what people open this section to do most
               often: export options, format, and the copy/paste fallback. */}
           <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore section="export" /></SubSection>
+          {/* Portable cross-app export. Sits next to Backup & export since it's
+              the other "get my data out" surface; the matching importer lives
+              in the Import → OpenPlural / PluralSpace SubSection below. */}
+          <SubSection title="Export (OpenPlural)" defaultOpen={false}><OpenPluralExport /></SubSection>
+          {/* Simply Plural export-file format — importable into PluralSpace /
+              Simply Plural / any app that reads SP exports. JSON-only (no media);
+              avatars travel via the OpenPlural export above. */}
+          <SubSection title="Export (Simply Plural)" defaultOpen={false}><SimplyPluralExport /></SubSection>
           {/* Import groups the file/text restore together with the
               service connectors (Simply Plural, PluralKit) nested inside. */}
           <SubSection title="Import" defaultOpen={false}>
@@ -703,8 +734,23 @@ export default function Settings() {
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />
             </SubSection>
+            {/* Simply Plural EXPORT-FILE importer — the only path that brings
+                chat across (the API can't return SP's end-to-end-encrypted
+                chat; the export file has it in plaintext). */}
+            <SubSection title="Simply Plural (export file — incl. chat)" defaultOpen={false}>
+              <SimplyPluralFileImport settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
             <SubSection title="PluralKit" defaultOpen={false}>
               <PluralKitConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            <SubSection title="OpenPlural / PluralSpace" defaultOpen={false}>
+              <OpenPluralConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />

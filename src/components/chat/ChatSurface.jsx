@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { adjustForContrast, getPageBackground } from "@/lib/contrast";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
 import RichMentionInput from "@/components/shared/RichMentionInput";
@@ -341,17 +342,9 @@ function SpeakerRow({ alter, selected, onToggle, labelPrefix = "" }) {
 
 // Multi-select speaker picker — searchable, scrollable, top-anchored modal,
 // "-system" pseudo-option on top.
-export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, search, onSearchChange, terms }) {
+export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, selectedSet, onToggle, terms }) {
   const formatAlter = useAlterLabel();
   const chipColor = useReadableColor(selectedAuthors[0]?.color);
-
-  const sortedAlters = useMemo(
-    () => [...alters]
-      .filter((a) => !a.is_archived)
-      .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase()) || (a.alias && a.alias.toLowerCase().includes(search.toLowerCase())))
-      .sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [alters, search]
-  );
 
   return (
     <>
@@ -380,30 +373,21 @@ export function SpeakerPicker({ selectedAuthors, open, onOpenChange, alters, sel
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="px-4 py-2.5 border-b border-border/50">
-              <input
-                autoFocus
-                value={search}
-                onChange={(e) => onSearchChange(e.target.value)}
-                placeholder={`Search ${terms.alters || "alters"}…`}
-                className="w-full text-sm bg-transparent outline-none placeholder:text-muted-foreground"
-              />
-            </div>
-            <div className="flex-1 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 py-2" style={{ WebkitOverflowScrolling: "touch" }}>
+              {/* The System speaker stays a fixed special row above the standard
+                  alter tree. */}
               <SpeakerRow
                 alter={{ ...SYSTEM_AUTHOR, name: terms.System || "System" }}
                 selected={selectedSet.has(SYSTEM_AUTHOR.id)}
                 onToggle={() => onToggle(SYSTEM_AUTHOR.id)}
                 labelPrefix="—"
               />
-              {sortedAlters.map((a) => (
-                <SpeakerRow
-                  key={a.id}
-                  alter={a}
-                  selected={selectedSet.has(a.id)}
-                  onToggle={() => onToggle(a.id)}
-                />
-              ))}
+              <AlterTreeSelect
+                alters={alters}
+                isSelected={(id) => selectedSet.has(id)}
+                onToggle={(a) => onToggle(a.id)}
+                maxHeight="48vh"
+              />
             </div>
             <div className="px-4 py-2.5 border-t border-border/50 flex justify-end">
               <button
@@ -433,7 +417,6 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
 
   const [text, setText] = useState("");
   const [pickerOpen, setPickerOpen] = useState(false);
-  const [pickerSearch, setPickerSearch] = useState("");
 
   const [notifyOnReply, setNotifyOnReply] = useState(true);
   useEffect(() => {
@@ -551,8 +534,6 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
           alters={speakerAlters}
           selectedSet={selectedSet}
           onToggle={toggleSpeaker}
-          search={pickerSearch}
-          onSearchChange={setPickerSearch}
           terms={terms}
         />
         <div className="flex-1">

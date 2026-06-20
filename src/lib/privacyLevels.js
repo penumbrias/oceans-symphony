@@ -38,6 +38,15 @@ export function getPrivacyLevels(settings) {
   return Array.isArray(raw) ? raw : [];
 }
 
+// Shared styling for the selectable level / field pills. A faint tint
+// (bg-primary/10) wasn't obviously "on" — selected is now a solid fill so
+// on vs off is unmistakable. Callers add a leading ✓ to the label when on.
+export function selectablePillClass(on) {
+  return on
+    ? "border-primary bg-primary text-primary-foreground font-semibold shadow-sm"
+    : "border-border/50 text-muted-foreground/80 bg-transparent hover:bg-muted/40";
+}
+
 // Sensible starting exposure for a brand-new level: identity basics, no avatar
 // or long-form fields. The user tunes it per level.
 export function defaultFieldProfile() {

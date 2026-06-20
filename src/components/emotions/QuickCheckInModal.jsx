@@ -9,9 +9,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal } from "lucide-react";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { toast } from "sonner";
-import { format } from "date-fns";
+import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
@@ -148,6 +150,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
   const [activityNote, setActivityNote] = useState("");
+  // Per-activity optional details (duration / note) the user can log inline
+  // without opening the Activity Tracker. Keyed by category id.
+  const [activityDetails, setActivityDetails] = useState({});
+  const [expandedActId, setExpandedActId] = useState(null);
+  // Live active-activity sessions (so a "+ active" toggle mirrors the symptom
+  // active affordance — start an open-ended session that logs on end).
+  const [activeActs, setActiveActs] = useState(() => getActiveActivities());
+  useEffect(() => {
+    const refresh = () => setActiveActs(getActiveActivities());
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+    return () => window.removeEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+  }, []);
   const [newActivityName, setNewActivityName] = useState("");
   const [showNewActivity, setShowNewActivity] = useState(false);
   // Diary
@@ -217,8 +231,32 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     enabled: !altersProp,
   });
   const alters = altersProp ?? fetchedAlters;
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    enabled: isOpen,
+  });
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // "Who's fronting" list view: flat search list vs the standard
+  // by-subsystem/group tree (AlterTreeSelect).
+  const [frontTreeView, setFrontTreeView] = useState(false);
+
+  // Most-recent PRIOR check-in, for the "last check-in" hint in the header.
+  const { data: allCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns"],
+    queryFn: () => base44.entities.EmotionCheckIn.list(),
+    enabled: isOpen,
+  });
+  const lastCheckInAt = useMemo(() => {
+    let latest = 0;
+    for (const c of allCheckIns) {
+      if (isEditing && c.id === editingEntry?.id) continue; // ignore the one being edited
+      const t = c.timestamp ? new Date(c.timestamp).getTime() : 0;
+      if (t > latest) latest = t;
+    }
+    return latest || null;
+  }, [allCheckIns, isEditing, editingEntry]);
 
 
 
@@ -425,6 +463,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setPrimaryId(id);
   };
 
+  // Bulk add/remove for the by-subsystem/group tree view's "+ all / − all"
+  // and "Select all / Clear all". Keeps primary separate; seeds one when none.
+  const setManyFronters = (arr, on) => {
+    const ids = arr.map((a) => a.id);
+    if (!ids.length) return;
+    setCoFronterIds((prev) => {
+      const s = new Set(prev);
+      for (const id of ids) { if (on) s.add(id); else s.delete(id); }
+      return [...s];
+    });
+    if (on) setPrimaryId((p) => p || ids[0] || "");
+    else setPrimaryId((p) => (ids.includes(p) ? "" : p));
+  };
+
   const addCustomEmotionMutation = useMutation({
     mutationFn: async ({ label, category = "custom" }) => {
       const existing = customEmotions.find((e) => e.label.toLowerCase() === label.toLowerCase());
@@ -445,23 +497,53 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setNewActivityName("");setShowNewActivity(false);
   };
 
+  // Start/stop an activity as an ACTIVE session (mirrors the symptom "+"
+  // affordance). Starting opens an open-ended session that logs an Activity
+  // when ended; ending logs it now. Active activities are skipped by the
+  // stamp-on-save path below so they're never double-logged.
+  const toggleActiveActivity = async (cat) => {
+    const existing = getActiveActivities().find((a) => a.categoryId === cat.id);
+    if (existing) {
+      await endAndLogActiveActivity(existing.id);
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
+      toast.success(`${cat.name} ended & logged`);
+    } else {
+      addActiveActivity({
+        categoryId: cat.id,
+        name: cat.name,
+        color: cat.color || null,
+        startTime: new Date().toISOString(),
+        alterIds: selectedAlters,
+        notes: activityDetails[cat.id]?.note?.trim() || "",
+      });
+      toast.success(`${cat.name} set to active`);
+    }
+  };
+
   const handleSaveActivities = async (timestamp) => {
     if (selectedActivityCategories.length === 0) return;
     const catById = Object.fromEntries(activityCategories.map((c) => [c.id, c]));
+    // Skip any activity that's currently running as an active session — that
+    // session logs its own Activity on end, so stamping here would double-log.
+    const activeCatIds = new Set(getActiveActivities().map((a) => a.categoryId));
     for (const catId of selectedActivityCategories) {
+      if (activeCatIds.has(catId)) continue;
       const cat = catById[catId];
+      const d = activityDetails[catId] || {};
+      const dur = d.duration || activityDuration;
+      const noteVal = (d.note || activityNote || "").trim();
       await base44.entities.Activity.create({
         timestamp,
         activity_name: cat?.name || catId,
         activity_category_ids: [catId],
-        duration_minutes: activityDuration ? parseInt(activityDuration) : null,
+        duration_minutes: dur ? parseInt(dur) : null,
         fronting_alter_ids: selectedAlters,
         // Emotions are NOT copied onto the activity — they live on the
         // EmotionCheckIn this same save creates (the source of truth). Stamping
         // them here duplicated them onto every activity and made them appear to
         // "extend" when an activity was lengthened. The day view reads emotions
         // from the check-in, not the activity.
-        notes: activityNote.trim() || null,
+        notes: noteVal || null,
       });
     }
   };
@@ -877,7 +959,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <Heart className="w-5 h-5 text-destructive" />
               {isEditing ? "Edit Check-In" : "Quick Check-In"}
             </DialogTitle>
-            <DialogDescription className="flex items-center gap-2 pt-1">
+            <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
               <input
                 type="datetime-local"
                 aria-label="Check-in date and time"
@@ -885,6 +967,11 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 onChange={e => setEntryTime(e.target.value)}
                 className="h-7 px-2 rounded-md border border-input bg-background text-xs text-foreground"
               />
+              {!isEditing && lastCheckInAt && (
+                <span className="text-[0.6875rem] text-muted-foreground">
+                  Last check-in {formatDistanceToNow(new Date(lastCheckInAt), { addSuffix: true })}
+                </span>
+              )}
             </DialogDescription>
           </DialogHeader>
           <div className="flex gap-2">
@@ -922,6 +1009,20 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           {openSections.has("feeling") &&
           <div className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">How are you feeling?</p>
+              {/* Base moods — tap one of these alone if you don't want to be
+                  specific. They save just like any other emotion. */}
+              <div className="flex gap-1.5">
+                {[["Good", "🙂"], ["Neutral", "😐"], ["Bad", "😞"]].map(([label, emoji]) => {
+                  const on = selectedEmotions.includes(label);
+                  return (
+                    <button key={label} type="button"
+                      onClick={() => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
+                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${on ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
+                      <span aria-hidden>{emoji}</span> {label}
+                    </button>
+                  );
+                })}
+              </div>
               <EmotionWheelPicker
               selectedEmotions={selectedEmotions}
               onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
@@ -953,24 +1054,53 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   })}
                 </div>
               )}
-              <p className="text-xs text-muted-foreground">Tap to toggle · swipe left (or hold) for <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary · swipe left+up to solo</p>
-              <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
-                onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
-              <div className="max-h-40 overflow-y-auto space-y-1">
-                {activeAlters
-                  .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
-                  .map(a => (
-                    <FrontPickRow
-                      key={a.id}
-                      alter={a}
-                      isSelected={selectedAlterIds.has(a.id)}
-                      isPrimary={primaryId === a.id}
-                      onToggle={() => toggleAlter(a.id)}
-                      onSetPrimary={() => setAsPrimary(a.id)}
-                      onSolo={() => soloAlter(a.id)}
-                    />
-                  ))}
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs text-muted-foreground flex-1">
+                  {frontTreeView
+                    ? <>Browse by subsystem / group. Tap to toggle; set <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary using the chips above.</>
+                    : <>Tap to toggle · swipe left (or hold) for <Star className="inline w-3 h-3 text-amber-500 fill-amber-500" /> Primary · swipe left+up to solo</>}
+                </p>
+                <div className="flex gap-1 bg-muted/50 rounded-md p-0.5 flex-shrink-0" role="group" aria-label="View mode">
+                  <button type="button" onClick={() => setFrontTreeView(false)} aria-label="Flat list" aria-pressed={!frontTreeView}
+                    className={`p-1.5 rounded transition-colors ${!frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                    <List className="w-4 h-4" />
+                  </button>
+                  <button type="button" onClick={() => setFrontTreeView(true)} aria-label="By subsystem or group" aria-pressed={frontTreeView}
+                    className={`p-1.5 rounded transition-colors ${frontTreeView ? "bg-primary/20 text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                    <FolderTree className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
+              {frontTreeView ? (
+                <AlterTreeSelect
+                  alters={activeAlters}
+                  groups={groups}
+                  isSelected={(id) => selectedAlterIds.has(id)}
+                  onToggle={(a) => toggleAlter(a.id)}
+                  onSetMany={setManyFronters}
+                  maxHeight="40vh"
+                />
+              ) : (
+                <>
+                  <Input placeholder={`Search ${terms.alters}...`} value={alterSearch}
+                    onChange={(e) => setAlterSearch(e.target.value)} className="text-sm" />
+                  <div className="max-h-40 overflow-y-auto space-y-1">
+                    {activeAlters
+                      .filter(a => !alterSearch || a.name.toLowerCase().includes(alterSearch.toLowerCase()) || a.alias?.toLowerCase().includes(alterSearch.toLowerCase()))
+                      .map(a => (
+                        <FrontPickRow
+                          key={a.id}
+                          alter={a}
+                          isSelected={selectedAlterIds.has(a.id)}
+                          isPrimary={primaryId === a.id}
+                          onToggle={() => toggleAlter(a.id)}
+                          onSetPrimary={() => setAsPrimary(a.id)}
+                          onSolo={() => soloAlter(a.id)}
+                        />
+                      ))}
+                  </div>
+                </>
+              )}
               {frontingActuallyChanged && (
                 <div className="border-t border-border/40 pt-2 space-y-2">
                   <label className="flex items-center gap-2 cursor-pointer">
@@ -1013,8 +1143,69 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             onActivityChange={setSelectedActivityCategories}
             allowCreate={false}
             duration={activityDuration} onDurationChange={setActivityDuration} />
+
+              {/* Selected activities — each can be set ACTIVE now (+ / − like a
+                  symptom) and gets minimal inline detail pills (duration + note)
+                  so you can log details without opening the Activity Tracker. */}
+              {selectedActivityCategories.length > 0 && (
+                <div className="space-y-1.5">
+                  {selectedActivityCategories.map((catId) => {
+                    const cat = activityCategories.find((c) => c.id === catId);
+                    if (!cat) return null;
+                    const isActive = activeActs.some((a) => a.categoryId === catId);
+                    const d = activityDetails[catId] || {};
+                    const open = expandedActId === catId;
+                    const color = cat.color || "#8b5cf6";
+                    const setDetail = (patch) => setActivityDetails((s) => ({ ...s, [catId]: { ...s[catId], ...patch } }));
+                    return (
+                      <div key={catId} className="rounded-lg border border-border/50 bg-muted/10">
+                        <div className="flex items-center gap-2 px-2.5 py-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+                          <button type="button" onClick={() => setExpandedActId(open ? null : catId)}
+                            className="flex-1 min-w-0 text-left text-sm font-medium truncate flex items-center gap-1.5">
+                            {cat.name}
+                            {(d.duration || d.note) && <SlidersHorizontal className="w-3 h-3 text-muted-foreground flex-shrink-0" />}
+                          </button>
+                          {isActive && <span className="text-[0.5625rem] uppercase tracking-wide font-semibold text-emerald-500 flex-shrink-0">Active</span>}
+                          <button
+                            type="button"
+                            onClick={() => toggleActiveActivity(cat)}
+                            title={isActive ? "End & log this activity" : "Set active now"}
+                            aria-label={isActive ? `End ${cat.name}` : `Set ${cat.name} active`}
+                            className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 border transition-all"
+                            style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? color : "transparent", color: isActive ? "#fff" : color }}
+                          >
+                            {isActive ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+                          </button>
+                        </div>
+                        {open && (
+                          <div className="px-2.5 pb-2 pt-1 space-y-1.5 border-t border-border/40">
+                            <div className="flex flex-wrap items-center gap-1">
+                              <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide mr-0.5">Duration</span>
+                              {["5", "15", "30", "60", "90"].map((m) => (
+                                <button key={m} type="button"
+                                  onClick={() => setDetail({ duration: d.duration === m ? "" : m })}
+                                  className={`text-[0.6875rem] px-2 py-0.5 rounded-full border transition-colors ${d.duration === m ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
+                                  {m}m
+                                </button>
+                              ))}
+                              <input type="number" min="0" inputMode="numeric" placeholder="min" value={d.duration || ""}
+                                onChange={(e) => setDetail({ duration: e.target.value })}
+                                className="w-14 h-6 px-1.5 text-[0.6875rem] rounded border border-border/60 bg-background" />
+                            </div>
+                            <input type="text" placeholder="Note for this activity (optional)" value={d.note || ""}
+                              onChange={(e) => setDetail({ note: e.target.value })}
+                              className="w-full h-7 px-2 text-xs rounded border border-border/60 bg-background" />
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
               <Textarea
-                placeholder="Add a note about this activity... (optional)"
+                placeholder="General note for these activities... (optional)"
                 value={activityNote}
                 onChange={e => setActivityNote(e.target.value)}
                 className="text-sm min-h-[60px] resize-none"

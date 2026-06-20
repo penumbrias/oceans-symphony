@@ -20,6 +20,8 @@
 // A whisper must name at least one recipient; "/w" with no @mention is left
 // as literal text.
 
+import { effectiveAlias } from "@/lib/alterLabel";
+
 // "/w" or "/whisper" at a word boundary, anywhere in the text.
 export const WHISPER_RE = /\/(?:w|whisper)\b/i;
 const CMD_RE = /\/(?:w|whisper)\b[ \t]*/gi;
@@ -45,6 +47,10 @@ export function peelLeadingMentions(text, alters) {
   for (const a of alters || []) {
     if (a.name) tokens.push({ token: `@${a.name}`, id: a.id });
     if (a.alias) tokens.push({ token: `@${a.alias}`, id: a.id });
+    // Emoji-as-alias: `/w @😀 …` resolves to the alter just like an alias
+    // would (matches mentionUtils / the composer's @-token resolution).
+    const ea = effectiveAlias(a);
+    if (ea && ea !== a.alias) tokens.push({ token: `@${ea}`, id: a.id });
   }
   tokens.sort((x, y) => y.token.length - x.token.length);
   let rest = (text || "").replace(/^\s+/, "");

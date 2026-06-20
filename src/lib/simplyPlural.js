@@ -122,7 +122,7 @@ export async function getCustomFronts(token, systemId) {
   }
 }
 
-function normalizeColor(raw) {
+export function normalizeColor(raw) {
   if (!raw) return "";
   const s = raw.toString().trim();
   return s.startsWith("#") ? s : `#${s}`;
@@ -393,5 +393,131 @@ export function mapSPMemberNote(spNote, localAlterId) {
     sp_id: spId,
     alter_id: localAlterId,
     content,
+  };
+}
+
+// ── Simply Plural EXPORT-FILE import ──────────────────────────────────────────
+//
+// The SP *export file* (Settings → Export your data → JSON) is a single JSON
+// object whose top-level keys are the raw Mongo collections as flat arrays:
+//   members[], groups[], customFields[], frontHistory[], users[],
+//   channels[], channelCategories[], chatMessages[], …
+//
+// Unlike the SP *API* (end-to-end-encrypted — chat is never returned), the
+// export file carries everything in PLAINTEXT, including chat messages. That's
+// the whole reason this importer exists alongside the API connector.
+//
+// The flat docs match what the existing pure mappers already expect (they read
+// `member.content || member`, so a flat record passes straight through). So the
+// file importer REUSES mapMemberToAlter / mapGroupToLocalGroup /
+// mapFrontHistoryEntry / spFieldType / normalizeColor / readSpArchived verbatim
+// and only adds the few helpers below (file parse + chat mappers).
+
+// Parse a user-picked Simply Plural export file (.json). Returns the parsed
+// object, or throws if it doesn't look like an SP export. We sniff on the
+// presence of a `members` array — the one collection every SP system has.
+export async function parseSimplyPluralFile(file) {
+  const text = await file.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error("That file isn't valid JSON.");
+  }
+  if (!data || typeof data !== "object" || !Array.isArray(data.members)) {
+    throw new Error("This file doesn't look like a Simply Plural export.");
+  }
+  return data;
+}
+
+// SP export-file custom-field definitions live in `customFields[]` as flat docs
+// `{_id, name, type (int), order, supportMarkdown}`. The member.info map is
+// keyed by these `_id`s, so the local CustomField id map must be keyed by `_id`
+// too. `type` is an integer in the export (0 text, 1 colour, 5 date, …) — the
+// existing string-keyed spFieldType() falls through to "text" for ints, which
+// matches the SP API connector's behaviour (it imports everything as text).
+export function spFileFieldId(spField) {
+  return spField?._id || spField?.id || "";
+}
+
+// ── Chat mappers (the point of the file importer) ────────────────────────────
+// SP chat shape:
+//   channels[]:          {_id, name, desc}
+//   channelCategories[]: {_id, name, desc, channels: [channelId…]}
+//   chatMessages[]:      {_id, message, channel (channelId), writer (memberId),
+//                         writtenAt (epoch ms), iv (encrypted-payload IV — IGNORE)}
+//
+// OS chat entities (verified against src/pages/Chat.jsx):
+//   SystemChatCategory  {name, color, sort_order, parent_category_id, collapsed}
+//   SystemChatChannel   {name, description, color, sort_order, is_archived,
+//                        is_private, category_id, member_alter_ids}
+//   SystemChatMessage   {channel_id, author_alter_id, author_alter_ids, content,
+//                        timestamp, reply_to_id, mentioned_alter_ids, …}
+
+export function mapSPChatCategory(spCat, order = 0) {
+  const spId = spCat._id || spCat.id || "";
+  return {
+    sp_chat_id: spId,
+    name: spCat.name || "Category",
+    description: spCat.desc || spCat.description || "",
+    // SP categories carry no colour — leave null so OS uses its default.
+    color: null,
+    sort_order: order,
+    // SP has no category nesting — categories are a flat list of channel ids.
+    sp_channel_ids: Array.isArray(spCat.channels) ? spCat.channels : [],
+  };
+}
+
+export function mapSPChatChannel(spChannel, order = 0) {
+  const spId = spChannel._id || spChannel.id || "";
+  return {
+    sp_chat_id: spId,
+    name: spChannel.name || "channel",
+    description: spChannel.desc || spChannel.description || "",
+    color: null,
+    sort_order: order,
+    is_archived: false,
+    // SP export channels have no private-membership concept here.
+    is_private: false,
+  };
+}
+
+// Maps one SP chat message to a SystemChatMessage. `writer` (an SP member id)
+// resolves to a local alter via alterIdBySpId; a null author is allowed (the
+// message renders as a system/unknown speaker rather than being dropped). SP
+// chat has no reply concept, so reply_to_id is always null. The `iv` field is
+// an encryption artefact of SP's storage and is intentionally ignored — the
+// export already gives us the plaintext `message`.
+export function mapSPChatMessage(spMsg, channelIdBySpId, alterIdBySpId) {
+  const spId = spMsg._id || spMsg.id || "";
+  const spChannelId = spMsg.channel || "";
+  const localChannelId = channelIdBySpId[spChannelId];
+  if (!localChannelId) return null; // channel didn't import — skip
+
+  const content = (spMsg.message ?? "").toString();
+
+  const writtenAt = spMsg.writtenAt;
+  const timestamp = (writtenAt && Number.isFinite(Number(writtenAt)))
+    ? new Date(Number(writtenAt)).toISOString()
+    : new Date().toISOString();
+
+  const authorAlterId = spMsg.writer ? (alterIdBySpId[spMsg.writer] || null) : null;
+
+  return {
+    sp_chat_id: spId,
+    channel_id: localChannelId,
+    author_alter_id: authorAlterId,
+    author_alter_ids: authorAlterId ? [authorAlterId] : [],
+    content,
+    timestamp,
+    edited_at: null,
+    deleted_at: null,
+    reply_to_id: null,
+    mentioned_alter_ids: [],
+    is_whisper: false,
+    whisper_to_ids: [],
+    reactions: {},
+    thread_parent_id: null,
+    is_pinned: false,
   };
 }

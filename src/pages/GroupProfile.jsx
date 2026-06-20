@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import {
   ArrowLeft, Folder, FolderTree, User, Crown, Users, Pencil, Eye, EyeOff, Save,
   Loader2, Upload, X, Image as ImageIcon, Trash2, Smile, MessageSquare, FileText, Send, Archive,
-  Undo2, Redo2,
+  Undo2, Redo2, ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -26,6 +26,8 @@ import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import GroupSelect from "@/components/groups/GroupSelect";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection } from "@/components/settings/SettingsUI";
+import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
+import { pushAlterShares } from "@/lib/friendsShare";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -122,6 +124,9 @@ function MemberAvatar({ alter, size = "w-9 h-9", rounded = "rounded-lg" }) {
 function GroupProfileInner() {
   const { id: groupId } = useParams();
   const navigate = useNavigate();
+  // When a member owns MORE THAN ONE subsystem, tapping their subsystem icon
+  // opens this chooser instead of jumping to an arbitrary one.
+  const [subPicker, setSubPicker] = useState(null);
   const queryClient = useQueryClient();
   const t = useTerms();
   const [editMode, setEditMode] = useState(false);
@@ -270,7 +275,7 @@ function GroupProfileInner() {
 
   const ownerAlter = group.owner_alter_id ? alters.find((a) => a.id === group.owner_alter_id) : null;
   const parentGroup = group.parent ? allGroups.find((g) => g.id === group.parent || g.sp_id === group.parent) : null;
-  const members = getMemberAlters(group, alters);
+  const members = getMemberAlters(group, alters).filter((m) => !(group.hide_archived_members && m.is_archived));
   const childGroups = allGroups.filter((g) => g.parent && (g.parent === group.id || g.parent === group.sp_id));
   const subsystem = isSubsystem(group);
 
@@ -408,7 +413,7 @@ function GroupProfileInner() {
           ) : (
             <div className="space-y-2">
               {members.map((m, i) => {
-                const ownedSub = getSubsystemsOwnedBy(allGroups, m.id)[0] || null;
+                const ownedSubs = getSubsystemsOwnedBy(allGroups, m.id);
                 return (
                   <AlterCard
                     key={m.id}
@@ -416,7 +421,7 @@ function GroupProfileInner() {
                     index={i}
                     activeSessions={activeSessions}
                     hideFront
-                    rightAccessory={(m.is_archived || ownedSub) ? (
+                    rightAccessory={(m.is_archived || ownedSubs.length > 0) ? (
                       <div className="flex items-center gap-1 flex-shrink-0">
                         {/* Archived members are hidden from Manage members and the
                             Alters folder, so without this tag the group looked like
@@ -427,10 +432,22 @@ function GroupProfileInner() {
                             <Archive className="w-2.5 h-2.5" /> Archived
                           </span>
                         )}
-                        {ownedSub && (
-                          <button type="button" onClick={() => navigate(`/group/${ownedSub.id}`)} title={`Open ${ownedSub.name}`}
-                            className="w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60">
-                            <FolderTree className="w-4 h-4" style={{ color: ownedSub.color || undefined }} />
+                        {ownedSubs.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              // One subsystem → jump straight in; several →
+                              // chooser (matches the alters-page behaviour).
+                              if (ownedSubs.length === 1) navigate(`/group/${ownedSubs[0].id}`);
+                              else setSubPicker({ alter: m, subs: ownedSubs });
+                            }}
+                            title={ownedSubs.length === 1 ? `Open ${ownedSubs[0].name}` : `${ownedSubs.length} subsystems`}
+                            className="relative w-8 h-8 rounded-full flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/60"
+                          >
+                            <FolderTree className="w-4 h-4" style={{ color: ownedSubs.length === 1 ? (ownedSubs[0].color || undefined) : undefined }} />
+                            {ownedSubs.length > 1 && (
+                              <span className="absolute -top-0.5 -right-0.5 min-w-[14px] h-[14px] px-0.5 rounded-full bg-primary text-primary-foreground text-[0.5625rem] font-semibold flex items-center justify-center">{ownedSubs.length}</span>
+                            )}
                           </button>
                         )}
                       </div>
@@ -594,6 +611,8 @@ function GroupProfileInner() {
         />
       </SubSection>
 
+      <GroupFriendsVisibility group={group} members={members} allGroups={allGroups} alters={alters} />
+
       <button type="button" onClick={() => setShowMembers(true)} className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border border-border bg-muted/20 hover:bg-muted/40 text-sm font-medium transition-colors">
         <Users className="w-4 h-4" /> Manage members{members.length ? ` (${members.length})` : ""}
       </button>
@@ -612,6 +631,35 @@ function GroupProfileInner() {
       {showPageTextPicker && <ColorPickerModal color={form.custom_fields[PAGE_TEXT_KEY] || "#ffffff"} label="Page Text Color" onSave={(hex) => setCf(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
       {showHeaderTextPicker && <ColorPickerModal color={form.custom_fields[HEADER_TEXT_KEY] || "#ffffff"} label="Header Text Color" onSave={(hex) => setCf(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showMembers && <GroupMembersModal group={group} allGroups={allGroups} isOpen={showMembers} onClose={() => setShowMembers(false)} />}
+
+      {/* Multi-subsystem chooser — when a member owns more than one subsystem. */}
+      {subPicker && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" onClick={() => setSubPicker(null)}>
+          <div className="bg-card border border-border rounded-2xl w-full sm:max-w-xs p-4 space-y-3 max-h-[85vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between">
+              <p className="font-semibold text-sm">{subPicker.alter.name}'s subsystems</p>
+              <button type="button" onClick={() => setSubPicker(null)} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+            </div>
+            <div className="space-y-1.5">
+              {subPicker.subs.map((sub) => {
+                const count = getMemberAlters(sub, alters).length;
+                return (
+                  <button
+                    key={sub.id}
+                    type="button"
+                    onClick={() => { setSubPicker(null); navigate(`/group/${sub.id}`); }}
+                    className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-border/60 hover:bg-muted/40 text-left transition-colors"
+                  >
+                    <GroupIcon group={sub} className="w-4 h-4 flex-shrink-0" />
+                    <span className="text-sm flex-1 truncate" style={{ color: groupNameColor(sub.color) }}>{sub.emoji ? `${sub.emoji} ` : ""}{sub.name}</span>
+                    <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">{count}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
       </div>
     </motion.div>
   );
@@ -757,6 +805,81 @@ function ViewHeader({ group, headerImage, headerTextColor, headerBgColor, header
         </div>
       </div>
     </div>
+  );
+}
+
+// Set friends-sharing privacy levels for this group/subsystem's members in one
+// place — the same assignment available in Friends → Member sharing, but scoped
+// to this group (optionally including nested subsystems). Hidden when no levels
+// exist yet.
+function GroupFriendsVisibility({ group, members, allGroups, alters }) {
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
+  const qc = useQueryClient();
+  const [includeSubs, setIncludeSubs] = useState(true);
+  const [busy, setBusy] = useState(false);
+
+  const targets = useMemo(() => {
+    const seen = new Map();
+    members.forEach((a) => seen.set(a.id, a));
+    if (includeSubs) {
+      const walk = (list, depth, visited) => {
+        if (depth > 12) return;
+        for (const a of list) {
+          for (const sub of getSubsystemsOwnedBy(allGroups, a.id)) {
+            if (visited.has(sub.id)) continue;
+            const nv = new Set(visited).add(sub.id);
+            const sm = getMemberAlters(sub, alters);
+            sm.forEach((m) => seen.set(m.id, m));
+            walk(sm, depth + 1, nv);
+          }
+        }
+      };
+      walk(members, 0, new Set());
+    }
+    return [...seen.values()].filter((a) => !a.is_archived);
+  }, [members, includeSubs, allGroups, alters]);
+
+  const setLevelOn = async (levelId, on) => {
+    setBusy(true);
+    try {
+      for (const a of targets) {
+        const cur = Array.isArray(a.privacy_levels) ? a.privacy_levels : [];
+        const has = cur.includes(levelId);
+        if (on && !has) await base44.entities.Alter.update(a.id, { privacy_levels: [...cur, levelId] });
+        else if (!on && has) await base44.entities.Alter.update(a.id, { privacy_levels: cur.filter((id) => id !== levelId) });
+      }
+      qc.invalidateQueries({ queryKey: ["alters"] });
+      pushAlterShares().catch(() => {});
+    } catch (e) { toast.error(e?.message || "Couldn't update"); }
+    finally { setBusy(false); }
+  };
+
+  if (levels.length === 0) return null;
+
+  return (
+    <SubSection title="Friends sharing" icon={ShieldCheck} defaultOpen={false}>
+      <p className="text-xs text-muted-foreground">Add or remove this group's members from your privacy levels in one go. Friends see a level only if you grant it to them on the Friends page.</p>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
+        <input type="checkbox" checked={includeSubs} onChange={(e) => setIncludeSubs(e.target.checked)} className="accent-primary" /> Include members of nested subsystems
+      </label>
+      <div className="space-y-1.5">
+        {levels.map((l) => {
+          const on = targets.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.includes(l.id)).length;
+          return (
+            <div key={l.id} className="flex items-center gap-2 px-2.5 py-1.5 rounded-lg border border-border/40 bg-muted/10">
+              <span className="text-xs font-medium flex-1 truncate">{l.number}. {l.name}</span>
+              <span className="text-[0.625rem] text-muted-foreground">{on}/{targets.length}</span>
+              <div className="flex gap-1">
+                <button type="button" disabled={busy || targets.length === 0 || on === targets.length} onClick={() => setLevelOn(l.id, true)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-primary/40 text-primary hover:bg-primary/10 disabled:opacity-40">+ all</button>
+                <button type="button" disabled={busy || on === 0} onClick={() => setLevelOn(l.id, false)} className="text-[0.625rem] px-1.5 py-0.5 rounded border border-border/50 text-muted-foreground hover:bg-muted/40 disabled:opacity-40">− all</button>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {busy && <p className="text-[0.625rem] text-muted-foreground"><Loader2 className="w-3 h-3 inline animate-spin mr-1" /> Saving…</p>}
+    </SubSection>
   );
 }
 

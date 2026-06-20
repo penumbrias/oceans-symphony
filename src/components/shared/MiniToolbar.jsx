@@ -1,4 +1,4 @@
-import React, { useState, useRef, useCallback } from "react";
+import React, { useState, useRef, useCallback, useEffect } from "react";
 import { HexColorPicker } from "react-colorful";
 import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
@@ -177,6 +177,53 @@ function HelpPopup({ onClose }) {
   );
 }
 
+// Normalise whatever the user types into a usable href: keep an existing
+// scheme, turn a bare "example.com" into "https://example.com", and treat a
+// bare email as a mailto:. The display renderer sanitises hrefs again, so
+// this only needs to make the common cases work.
+function normalizeUrl(raw) {
+  let u = (raw || "").trim();
+  if (!u) return "";
+  if (/^(https?:|mailto:|tel:)/i.test(u)) return u;
+  if (/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(u)) return `mailto:${u}`;
+  return `https://${u.replace(/^\/+/, "")}`;
+}
+function escapeHtmlText(s) {
+  return String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+// Small URL prompt for the "Web link" button. A plain <a href="https://">
+// placeholder (the old behaviour) rendered a dead link to "https://" — there
+// was no way to type the actual address in the textarea composer, so rich-text
+// links never worked (only markdown [text](url) did). This collects the real
+// URL and the caller inserts a proper anchor.
+function LinkPromptModal({ onApply, onClose }) {
+  const [url, setUrl] = useState("");
+  const submit = () => { if (url.trim()) onApply(url); };
+  return (
+    <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
+      <div className="bg-background border-2 border-border rounded-xl p-5 space-y-3 max-w-xs w-full shadow-2xl" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h3 className="font-semibold text-sm">Add a web link</h3>
+          <button type="button" onClick={onClose} className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <input
+          type="url" inputMode="url" autoFocus value={url}
+          onChange={e => setUrl(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="example.com or https://…"
+          className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">Tip: select text first to use it as the link label — otherwise the address itself is shown.</p>
+        <div className="flex gap-2">
+          <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
+          <button type="button" onClick={submit} disabled={!url.trim()} className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Add link</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
@@ -187,11 +234,43 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [fontPickerPos, setFontPickerPos] = useState(null);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
+  const [showLinkPrompt, setShowLinkPrompt] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
+  // Which toggle commands are active for the current selection, so the
+  // matching toolbar buttons light up (bold on → Bold button highlighted).
+  // Only meaningful on a live contentEditable host (onCommand present); the
+  // textarea fallback can't report state. Updated on every selectionchange.
+  const [activeCmds, setActiveCmds] = useState({});
   const savedSelection = useRef(null);
   const fontBtnRef = useRef(null);
 
   const toggleMore = () => setShowMore((v) => !v);
+
+  // Re-read which toggle commands are active for the current caret/selection.
+  // Called on selectionchange (caret moves), keyup (typing — some WebViews
+  // don't fire selectionchange mid-type), and right AFTER a toolbar command
+  // runs (a button toggle doesn't move the selection, so nothing else would
+  // refresh the highlight — this is what made the state lag/invert).
+  const syncActiveCmds = useCallback(() => {
+    if (!onCommand) return;
+    const STATE_CMDS = ["bold", "italic", "underline", "strikeThrough", "insertUnorderedList", "insertOrderedList"];
+    const next = {};
+    for (const c of STATE_CMDS) {
+      try { next[c] = document.queryCommandState(c); } catch { /* unsupported */ }
+    }
+    setActiveCmds(next);
+  }, [onCommand]);
+
+  useEffect(() => {
+    if (!onCommand) return;
+    document.addEventListener("selectionchange", syncActiveCmds);
+    document.addEventListener("keyup", syncActiveCmds);
+    syncActiveCmds();
+    return () => {
+      document.removeEventListener("selectionchange", syncActiveCmds);
+      document.removeEventListener("keyup", syncActiveCmds);
+    };
+  }, [onCommand, syncActiveCmds]);
 
   // Remember the current selection before opening a modal/popover (colour,
   // font, internal link) that steals focus, so the inserted markup wraps the
@@ -278,6 +357,34 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPicker(true);
   };
 
+  const openWebLink = () => {
+    saveSel();
+    setShowLinkPrompt(true);
+  };
+
+  // Insert a real anchor for the typed URL. Wraps the selection as the link
+  // label when there is one; otherwise the address itself becomes the label.
+  // Works on both hosts: execCommand on a contentEditable editor (preserves the
+  // selection), tag-wrapping on a textarea.
+  const applyLink = (rawUrl) => {
+    const url = normalizeUrl(rawUrl);
+    if (!url) { setShowLinkPrompt(false); savedSelection.current = null; return; }
+    const safeUrl = url.replace(/"/g, "%22");
+    restoreSel();
+    const s = savedSelection.current;
+    const hasSel = !!s && ((s.kind === "input" && s.start !== s.end) || (s.kind === "range" && s.range && !s.range.collapsed));
+    if (onCommand) {
+      if (hasSel) onCommand("createLink", url);
+      else onCommand("insertHTML", `<a href="${safeUrl}">${escapeHtmlText(url)}</a>`);
+    } else if (hasSel) {
+      onInsert(`<a href="${safeUrl}">`, `</a>`);
+    } else {
+      onInsert(`<a href="${safeUrl}">${escapeHtmlText(url)}`, `</a>`);
+    }
+    savedSelection.current = null;
+    setShowLinkPrompt(false);
+  };
+
   // Icon button (intuitive lucide glyph) and small text button (xs/sm/…).
   const iconBtn = (Icon, before, after, title) => (
     <button key={title} type="button" title={title} aria-label={title}
@@ -292,14 +399,20 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   // and falls back to wrapping the selection in tags on a textarea host
   // (which can't toggle). `onCommand` is only passed by rich (contentEditable)
   // hosts like the system chat composer.
-  const fmtIconBtn = (Icon, cmd, val, before, after, title) => (
-    <button key={title} type="button" title={title} aria-label={title}
-      onMouseDown={e => e.preventDefault()}
-      onClick={() => { if (onCommand) onCommand(cmd, val); else onInsert(before, after); }}
-      className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-      <Icon className="w-3.5 h-3.5" />
-    </button>
-  );
+  const fmtIconBtn = (Icon, cmd, val, before, after, title) => {
+    const active = !!(onCommand && activeCmds[cmd]);
+    return (
+      <button key={title} type="button" title={title} aria-label={title} aria-pressed={active}
+        onMouseDown={e => e.preventDefault()}
+        onClick={() => {
+          if (onCommand) { onCommand(cmd, val); requestAnimationFrame(syncActiveCmds); }
+          else onInsert(before, after);
+        }}
+        className={`h-7 w-7 flex items-center justify-center rounded transition-colors flex-shrink-0 ${active ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+        <Icon className="w-3.5 h-3.5" />
+      </button>
+    );
+  };
   const txtBtn = (label, before, after, title) => (
     <button key={title} type="button" title={title}
       onMouseDown={e => e.preventDefault()}
@@ -328,7 +441,13 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
         {fmtIconBtn(Underline, "underline", null, "<u>", "</u>", "Underline")}
         {fmtIconBtn(Strikethrough, "strikeThrough", null, "<s>", "</s>", "Strikethrough")}
         {sep}
-        {iconBtn(Link2, '<a href="https://">', "</a>", "Web link")}
+        {/* Web link — opens a prompt for the real URL (the old button inserted
+            a dead "https://" placeholder that couldn't be filled in). */}
+        <button type="button" title="Web link" aria-label="Web link"
+          onMouseDown={e => e.preventDefault()} onClick={openWebLink}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+          <Link2 className="w-3.5 h-3.5" />
+        </button>
         {/* Text color */}
         <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
           className="w-7 h-7 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0 flex-shrink-0">
@@ -466,6 +585,12 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
         </>
       )}
       {showHelp && <HelpPopup onClose={() => setShowHelp(false)} />}
+      {showLinkPrompt && (
+        <LinkPromptModal
+          onApply={applyLink}
+          onClose={() => { savedSelection.current = null; setShowLinkPrompt(false); }}
+        />
+      )}
       {colorModal && <ColorPickerModal mode={colorModal} onApply={applyColor} onClose={() => setColorModal(null)} />}
       {showLinkPicker && (
         <InternalLinkPicker

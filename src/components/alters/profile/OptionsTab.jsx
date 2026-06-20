@@ -8,7 +8,7 @@ import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, 
 import { useTerms } from "@/lib/useTerms";
 import AlterExportModal from "@/components/alters/AlterExportModal";
 import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
-import { getPrivacyLevels, sortedLevels } from "@/lib/privacyLevels";
+import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { Settings2 } from "lucide-react";
 
 export default function OptionsTab({ alter }) {
@@ -93,17 +93,24 @@ export default function OptionsTab({ alter }) {
         {levels.length === 0 ? (
           <p className="text-xs text-muted-foreground/70 italic">No privacy levels yet — tap “Manage levels” to create some.</p>
         ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {levels.map((l) => {
-              const on = levelIds.includes(l.id);
-              return (
-                <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(l.id)}
-                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${on ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/40"}`}>
-                  {l.number}. {l.name}
-                </button>
-              );
-            })}
-          </div>
+          <>
+            <div className="flex flex-wrap gap-1.5">
+              {levels.map((l) => {
+                const on = levelIds.includes(l.id);
+                return (
+                  <button key={l.id} type="button" aria-pressed={on} onClick={() => toggleLevel(l.id)}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${selectablePillClass(on)}`}>
+                    {on ? "✓ " : ""}{l.number}. {l.name}
+                  </button>
+                );
+              })}
+            </div>
+            <p className="text-[0.6875rem] mt-1.5">
+              {levelIds.length === 0
+                ? <span className="text-muted-foreground">🔒 Private — in no levels, so no friend can see this {terms.alter}.</span>
+                : <span className="text-primary">Shared in {levelIds.length} level{levelIds.length === 1 ? "" : "s"} — filled pills are on.</span>}
+            </p>
+          </>
         )}
       </div>
 

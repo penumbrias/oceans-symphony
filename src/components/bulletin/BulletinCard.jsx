@@ -299,21 +299,33 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
       {/* Content */}
       <div
         className="text-sm text-foreground leading-relaxed mb-3 bulletin-prose"
-        onClick={(e) => {
-          // Don't let a content tap trigger the card's open/expand handler…
-          e.stopPropagation();
-          // …but DO reveal a tapped whisper / spoiler bar. The card's
-          // stopPropagation otherwise prevents the bubble from reaching
-          // AppLayout's global reveal handler, which is why whispers wouldn't
-          // open from the dashboard / board list (only on the full bulletin
-          // page, which renders content without this wrapper).
+        onClickCapture={(e) => {
+          // First tap on a STILL-HIDDEN whisper / spoiler reveals it — and
+          // this runs in the CAPTURE phase so it beats any @mention <Link>
+          // inside the hidden text. Otherwise tapping a whisper that mentions
+          // someone fired the inner link's bubble-phase navigate first and
+          // sent the user to that alter's page instead of revealing (the
+          // "reveal whisper just opens the author's page" bug).
           const wh = e.target?.closest?.(".whisper");
-          if (wh) { wh.classList.toggle("revealed"); return; }
+          if (wh && !wh.classList.contains("revealed")) {
+            e.preventDefault(); e.stopPropagation();
+            wh.classList.add("revealed");
+            return;
+          }
           const sp = e.target?.closest?.(".spoiler");
-          if (sp) sp.classList.toggle("revealed");
+          if (sp && !sp.classList.contains("revealed")) {
+            e.preventDefault(); e.stopPropagation();
+            sp.classList.add("revealed");
+          }
+        }}
+        onClick={(e) => {
+          // Plain content tap shouldn't trigger the card's open/expand. Once a
+          // whisper is revealed, taps fall through here so real @mention links
+          // inside it navigate normally.
+          e.stopPropagation();
         }}
       >
-        {renderBulletinContent(bulletin.content, alters, terms)}
+        {renderBulletinContent(bulletin.content, alters, terms, { isRich: !!bulletin.is_rich })}
       </div>
 
       {/* Poll */}

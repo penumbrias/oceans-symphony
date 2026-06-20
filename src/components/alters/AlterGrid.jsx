@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List } from "lucide-react";
+import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -15,6 +15,7 @@ import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
 import SubsystemAlterList from "./SubsystemAlterList";
 import AlterFilterPopup from "./AlterFilterPopup";
+import MassArchiveModal from "./MassArchiveModal";
 import { getAltersInsideSubsystems, getMemberAlters, getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 export default function AlterGrid({ alters }) {
@@ -50,6 +51,7 @@ export default function AlterGrid({ alters }) {
   // through the AlterFilterPopup.
   const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], mode: "any" });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [massArchiveOpen, setMassArchiveOpen] = useState(false);
 
   const DISPLAY_CYCLE = ["list", "2", "3", "4", "5"];
   const cycleDisplayMode = () => {
@@ -64,9 +66,15 @@ export default function AlterGrid({ alters }) {
     queryFn: () => base44.entities.Group.list()
   });
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
+  // Canonical active-front query (server-filters is_active:true, no row cap, and
+  // every set-front/switch invalidates it). Filtering the 50-row ["frontHistory"]
+  // list instead meant a long-running fronter whose session had dropped below the
+  // newest 50 by start_time wouldn't get a fronting rank — so they showed as a
+  // fronter elsewhere but didn't float to the top of this list ("only this one
+  // alter"). Same root cause as the dashboard CurrentFronters fix.
+  const { data: activeSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true })
   });
 
   const { data: allSessions = [] } = useQuery({
@@ -93,8 +101,6 @@ export default function AlterGrid({ alters }) {
     }
     return totals;
   }, [allSessions, sortMode]);
-
-  const activeSessions = sessions.filter((s) => s.is_active);
 
   // Build a fronting rank map: 0 = primary, 1 = co-fronter, absent = not fronting
   const frontingRank = useMemo(() => {
@@ -359,6 +365,13 @@ export default function AlterGrid({ alters }) {
                 }`}>
                 {anonymize === "off" ? <Camera className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
               </button>
+              {/* Bulk archive — select several alters at once. */}
+              <button
+                onClick={() => setMassArchiveOpen(true)}
+                title={`Archive several ${terms.alters} at once`}
+                className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors">
+                <Archive className="w-4 h-4" />
+              </button>
             </div>
           </div>
           {visibleAlters.length > 0 ?
@@ -404,6 +417,11 @@ export default function AlterGrid({ alters }) {
       <CreateGroupModal
         open={createGroupOpen}
         onClose={() => setCreateGroupOpen(false)}
+      />
+
+      <MassArchiveModal
+        open={massArchiveOpen}
+        onClose={() => setMassArchiveOpen(false)}
       />
 
       {filterOpen && (

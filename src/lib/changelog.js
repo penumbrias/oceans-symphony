@@ -13,6 +13,377 @@
 
 export const CHANGELOG = [
   {
+    date: "June 19, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Reopening the app now refreshes to the current time and state, so a plan that became active while it was closed (and the date) no longer show stale until you navigate.",
+      },
+      {
+        type: "feature",
+        text: "Archive several alters at once — a new bulk-archive button on the alters page.",
+      },
+      {
+        type: "feature",
+        text: "You can now set an alter to front straight from their profile — a Start/Stop fronting button in the header.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: tap Good / Neutral / Bad as a base mood if you don't want to pick a specific emotion.",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In now shows when your last check-in was.",
+      },
+      {
+        type: "fix",
+        text: "Alter picker, Groups tab: a member's subsystems now nest beneath them like in the alters list (subsystems are no longer missing from the Groups view).",
+      },
+      {
+        type: "fix",
+        text: "Formatting toolbar buttons now correctly stay lit while a style (bold, italic…) is active as you type, and clear when you turn it off.",
+      },
+      {
+        type: "improve",
+        text: "You can now set up your sharing privacy levels before creating a Friends profile — no friend needed first.",
+      },
+      {
+        type: "improve",
+        text: "A friend's safety number is now hidden until you tap to reveal it.",
+      },
+      {
+        type: "fix",
+        text: "Exporting to OpenPlural now uses stable IDs, so importing the same export more than once no longer creates duplicate alters or fronting sessions.",
+      },
+      {
+        type: "feature",
+        text: "OpenPlural / PluralSpace import now has a \"Replace everything\" option that wipes the categories you tick and imports fresh — it always saves a full backup to your device first.",
+      },
+      {
+        type: "fix",
+        text: "Emoji aliases now work in @mentions and /w whispers — e.g. @😀 highlights and resolves to the right person.",
+      },
+      {
+        type: "feature",
+        text: "Groups can now hide their archived members from the group's own member list (a toggle in the group's config).",
+      },
+      {
+        type: "improve",
+        text: "On the day view, the \"Quick plans\" strip now stays pinned at the top while you scroll the timeline.",
+      },
+      {
+        type: "improve",
+        text: "Editing an alter's profile now has a \"Pin to the top\" toggle — same as the press-and-hold option on the alters list.",
+      },
+      {
+        type: "feature",
+        text: "New \"Back up now\" button at the top of Settings saves a full backup to your device in one tap.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the alter-picker Groups tab — it no longer lists subsystems, now shows groups that contain subgroups, and each row shows the alter's avatar.",
+      },
+      {
+        type: "improve",
+        text: "Formatting toolbar buttons (bold, italic, lists…) now light up while they're active.",
+      },
+      {
+        type: "improve",
+        text: "A few more view preferences now travel along with your backup to a new device.",
+      },
+    ],
+  },
+  {
+    date: "June 18, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "System Meetings now credits its source — Monika Ostroff's 5 Minute System Check-In — and Healing My Parts is linked under Quick Support → Learn → Resources.",
+      },
+      {
+        type: "improve",
+        text: "First-run setup now lets you Start fresh or bring data in right away — from a backup file, or by syncing from Simply Plural / PluralKit / PluralSpace. The optional password encryption toggle is still there.",
+      },
+      {
+        type: "improve",
+        text: "The OpenPlural / PluralSpace importer now lets you pick \"Add & update\" or \"Replace from file\" for records that already exist. Either way, nothing is ever deleted.",
+      },
+      {
+        type: "feature",
+        text: "Import a Simply Plural export file (Settings → Import) — brings members, groups, fields, front history, system profile, and chat (which the SP API can't provide because it's encrypted) into the app.",
+      },
+    ],
+  },
+  {
+    date: "June 17, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "System chat (channels, categories, messages) now transfers too — via OpenPlural import/export and Simply Plural exports.",
+      },
+      {
+        type: "improve",
+        text: "OpenPlural import/export is now far more complete — roles & tags, system profile (name/bio/avatar/banner), message prefix↔alias, birthdays, and per-member notes, on top of alters/groups/fields/fronts/journals/relationships.",
+      },
+      {
+        type: "feature",
+        text: "Export to a Simply Plural file (Settings → Data & Privacy → Export) — import it into PluralSpace, Simply Plural, or any app that reads SP exports.",
+      },
+      {
+        type: "fix",
+        text: "An alter who's been fronting a long time now reliably floats to the top of the Alters list (long-running fronters were sometimes missed).",
+      },
+    ],
+  },
+  {
+    date: "June 16, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Export your whole system to the portable OpenPlural format (Settings → Data & Privacy → Export) — a .zip you can import into PluralSpace or any OpenPlural app.",
+      },
+      {
+        type: "feature",
+        text: "Import from OpenPlural exports (e.g. PluralSpace): members, groups, custom fields, front history, journals, and relationships — from a .zip or .json in the Import screen.",
+      },
+    ],
+  },
+  {
+    date: "June 13, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Import your members from another plural app (Simply Plural or PluralKit) right from the Alters page — no need to dig into Settings.",
+      },
+      {
+        type: "fix",
+        text: "Recording a system change event (e.g. an Emergence) no longer crashes to a white screen.",
+      },
+      {
+        type: "fix",
+        text: "Dashboard now reliably shows who's fronting — it reads the same live front data the rest of the app uses, so it no longer occasionally showed “no one fronting” after you'd set a front.",
+      },
+      {
+        type: "fix",
+        text: "Rich-text “web link” button now asks for the address and inserts a working link (it used to add a dead placeholder).",
+      },
+      {
+        type: "fix",
+        text: "Headings (H1–H3) added from the formatting toolbar now show at heading sizes in posts.",
+      },
+      {
+        type: "improve",
+        text: "The “What's new” bar shows on the dashboard automatically again whenever a new version ships.",
+      },
+    ],
+  },
+  {
+    date: "June 12, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Currently-fronting notification now shows just each fronter's name, not the alias too.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker loads faster and paging between weeks/months is now instant (no longer reloads everything each time).",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In: each chosen activity can be set active (+) right there, and given a quick duration or note inline.",
+      },
+      {
+        type: "improve",
+        text: "Log Activity and New Plan: a “Now” button next to start/end fills in the current date & time.",
+      },
+      {
+        type: "fix",
+        text: "Revealing a whisper on a Dashboard bulletin no longer opens the author's page by mistake.",
+      },
+      {
+        type: "fix",
+        text: "Bulletin signposting keeps every author again (not just the last one); “Signed by” now has a Clear all.",
+      },
+      {
+        type: "fix",
+        text: "The currently-fronting notification no longer lists the primary fronter twice.",
+      },
+      {
+        type: "fix",
+        text: "Group pickers now show your group folders properly nested instead of flattened to one level.",
+      },
+      {
+        type: "improve",
+        text: "Set Fronters and the Quick Check-In “Who's fronting” picker now have a by-subsystem/group view for finding members in large systems.",
+      },
+      {
+        type: "improve",
+        text: "Export members and therapy reports can now narrow who's included to a chosen privacy level in one tap.",
+      },
+    ],
+  },
+  {
+    date: "June 11, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "When ending an active activity you can now set the end time, in case you forgot to end it at the actual moment.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a persistent notification now opens the right place — current fronters opens the switch screen; the activity timer opens Activities (symptoms already opened their menu).",
+      },
+      {
+        type: "fix",
+        text: "Member pickers no longer jump back to the top when you expand a group or change an alter's level.",
+      },
+      {
+        type: "fix",
+        text: "Inner-world map: after placing a subsystem's root you can now still place its members (they used to disappear) — already-placed alters now show dimmed instead of vanishing.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a crash that made the Journals page fail to open.",
+      },
+      {
+        type: "improve",
+        text: "Inner-world map: the “not on this layer” list is now the standard searchable, by-subsystem/group list — tap an alter to arm it, then tap the canvas to drop it. Recording a fusion/split/dormancy uses the same list too.",
+      },
+      {
+        type: "improve",
+        text: "Journal “Written by” now lets you pick one or more authors from the standard searchable, by-subsystem/group list (the first is the primary author). The create-relationship pickers use the same list (single-select).",
+      },
+      {
+        type: "improve",
+        text: "More member pickers now use the one standard list (searchable, by subsystem/group, lazy): the journal author filter, the chat speaker picker, and the activity fronter picker.",
+      },
+      {
+        type: "improve",
+        text: "The Groups tab (export + privacy levels) now expands so you can see and pick the alters inside each group; subsystems stay under the Members tab.",
+      },
+      {
+        type: "improve",
+        text: "Friends: the “set levels per member” list and the per-friend hide list now use the same searchable, subsystem/group-organized, lazy-loading picker as everywhere else — one consistent pattern across the app.",
+      },
+      {
+        type: "improve",
+        text: "Picking members (export, privacy levels) now uses one consistent picker everywhere — Members (by subsystem or flat) + Groups tabs, search, Select all / Clear all — and long lists load as you scroll instead of capping. The Export “who to include” list can now be organized by subsystem too.",
+      },
+      {
+        type: "fix",
+        text: "Friends Groups tab now lists only folder groups (subsystems live under the Members tab), and the “members they can see” list is scrollable + loads on scroll.",
+      },
+      {
+        type: "improve",
+        text: "Privacy-level member picker now scales to large systems: a Members tab (by-subsystem or flat, with Select all / Clear all) and a Groups tab to assign a whole group/subsystem at once. Groups stay collapsed until you open them.",
+      },
+      {
+        type: "feature",
+        text: "Set a group's or subsystem's friends-sharing levels right from its profile page — “Friends sharing”, optionally including nested subsystems.",
+      },
+      {
+        type: "improve",
+        text: "Posts, comments and bulletins now turn web links — both [text](https://…) and pasted https:// URLs — into clickable links.",
+      },
+      {
+        type: "improve",
+        text: "Alters page: you can now expand several of an alter's subsystems at once, instead of only one at a time.",
+      },
+      {
+        type: "fix",
+        text: "Export members organized by group: a subsystem is now written out in full only once (repeats just say “listed above”) instead of repeating the whole thing wherever its owner appears.",
+      },
+      {
+        type: "feature",
+        text: "Friends: you can now manage a privacy level's members directly — add a whole group or subsystem (nesting respected) or individual members — from Friends → Member sharing → Manage by level.",
+      },
+      {
+        type: "improve",
+        text: "Friends privacy levels: selected pills are now clearly filled with a ✓ (vs outlined when off), and each friend's card lists exactly which members they can see right now.",
+      },
+      {
+        type: "fix",
+        text: "Recurring plan occurrences (including ones in the past) can now be marked done/partial/skipped/cancelled or rescheduled, and show up in your plan lists — they were wrongly treated as already logged.",
+      },
+      {
+        type: "fix",
+        text: "On a group/subsystem page, tapping a member who owns several subsystems now lets you choose which one to open (it used to jump to just one).",
+      },
+      {
+        type: "feature",
+        text: "Run several activities at once — active activities now show as their own “Active activities” row on the dashboard (tap one to end & log, adjust its start, or discard). Toggle/reorder it in Settings → Appearance → Dashboard layout.",
+      },
+      {
+        type: "feature",
+        text: "Accessibility mode, text size, and high contrast are now reachable from a button on the very first setup screens and all through the guided tour — no need to finish onboarding first.",
+      },
+      {
+        type: "improve",
+        text: "New “Active” toggle in Log Activity — start something now and end & log it later (keeps who's fronting + notes). Replaces the separate Start activity button.",
+      },
+      {
+        type: "improve",
+        text: "Tap an active symptom — on the dashboard or its notification — to jump straight to its severity and end-session controls.",
+      },
+      {
+        type: "improve",
+        text: "Persistent activity & symptom notifications now have an “End” button so you can stop and log right from the notification.",
+      },
+      {
+        type: "fix",
+        text: "Persistent “active symptoms” notification now detects your symptoms and habits (it was showing none), and the persistent notifications only appear when something's actually active.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a crash when turning on the “Current fronters” persistent notification.",
+      },
+      {
+        type: "fix",
+        text: "Export members: “Organize by group” now nests your groups, subgroups, and subsystems properly instead of listing everyone in one flat pile.",
+      },
+      {
+        type: "feature",
+        text: "Android app: optional always-on notifications you can pin from Settings → Notifications — current fronters, active symptoms, and an activity timer you can end & log from the tray.",
+      },
+      {
+        type: "fix",
+        text: "Friends: the “safety number” for verifying an encrypted connection now shows whenever you expand a friend's card (it was buried under Visibility), with a note when a friend hasn't set up encryption yet.",
+      },
+      {
+        type: "fix",
+        text: "Recurring plans: you can now manage each occurrence — including past ones — by opening it and tapping “Manage this occurrence” to mark it done/partial/skipped/cancelled or reschedule.",
+      },
+      {
+        type: "improve",
+        text: "“Start activity” now uses the same activity picker as logging an activity.",
+      },
+      {
+        type: "feature",
+        text: "Activity Tracker: a new “Start activity” button times an activity in real time, like start/end sleep — pick what you're doing and tap End to log it automatically with the elapsed time. It keeps running even if you close the app.",
+      },
+      {
+        type: "improve",
+        text: "Export members: selected members are now clearly highlighted (the checkmark used to vanish on white-coloured members), you can export as a PDF as well as HTML, and there's an option to organize the export by group/subsystem.",
+      },
+      {
+        type: "improve",
+        text: "Friends page: a new “Member sharing & privacy levels” section lets you create levels and assign members right there, instead of only from each profile.",
+      },
+      {
+        type: "fix",
+        text: "Bulletins: line breaks and paragraphs in a post now show the way you typed them — they were getting squashed into one block.",
+      },
+      {
+        type: "improve",
+        text: "Editing a bulletin now has the same Simple/Fancy formatting, image/GIF, and @mention tools as writing one — and editing no longer strips a post's formatting.",
+      },
+      {
+        type: "improve",
+        text: "Current Fronters always lists the primary fronter first.",
+      },
+    ],
+  },
+  {
     date: "June 10, 2026",
     changes: [
       {

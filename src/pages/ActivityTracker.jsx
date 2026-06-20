@@ -10,6 +10,7 @@ import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityLogModal from "@/components/activities/ActivityLogModal";
+import CurrentActivities from "@/components/activities/CurrentActivities";
 import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
@@ -85,8 +86,14 @@ export default function ActivityTracker() {
   const weekStart = startOfWeek(currentDate, { weekStartsOn });
   const weekDays = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
 
+  // Stable keys — the queryFn loads the full set regardless of week, so keying
+  // by weekStart used to refetch (full in-memory scan + sort) AND store a
+  // duplicate copy in the cache on EVERY week navigation. A stable key fetches
+  // once and shares the result across all weeks/months/years, so paging is
+  // instant. Existing ["activities"] / ["frontingHistory"] invalidations still
+  // match (react-query does prefix matching).
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities", format(weekStart, "yyyy-MM-dd")],
+    queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list(),
   });
   const { data: alters = [] } = useQuery({
@@ -94,7 +101,7 @@ export default function ActivityTracker() {
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: frontingHistory = [] } = useQuery({
-    queryKey: ["frontingHistory", format(weekStart, "yyyy-MM-dd")],
+    queryKey: ["frontingHistory"],
     queryFn: () => base44.entities.FrontingSession.list(),
   });
   const { data: tasks = [] } = useQuery({
@@ -293,6 +300,10 @@ export default function ActivityTracker() {
             </div>
           )}
         </div>
+
+        {/* In-progress activity timers (started via the Log modal's "Active"
+            toggle) — same pills/menu as the dashboard "Active activities". */}
+        {tab === "logged" && <CurrentActivities />}
 
         {/* Date range nav — kept on its own row so the chevrons stay
             big enough to tap comfortably on a phone. */}

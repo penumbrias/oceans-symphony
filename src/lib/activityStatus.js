@@ -54,9 +54,21 @@ const RESOLVED_STATUSES = new Set([
 // when the user explicitly acts on it.
 export function statusFor(activity) {
   if (!activity) return null;
+  // A recurring occurrence is a PLAN instance, not a past log — even when its
+  // time has passed. Treat it as "scheduled" (i.e. an unresolved plan the user
+  // can still mark done/partial/skipped/cancelled or reschedule) UNLESS it
+  // carries an explicit resolution. This covers occurrences that were
+  // auto-"logged" at creation (past-dated) or predate the lifecycle feature —
+  // without those, a past therapy occurrence shows as "Logged", refuses
+  // lifecycle actions, and never appears in the plan lists.
+  const isRecurringOccurrence = !!activity.recurrence_group_id;
   if (activity.status && ALL_STATUSES.includes(activity.status)) {
+    if (isRecurringOccurrence && activity.status === ACTIVITY_STATUSES.LOGGED) {
+      return ACTIVITY_STATUSES.SCHEDULED;
+    }
     return activity.status;
   }
+  if (isRecurringOccurrence) return ACTIVITY_STATUSES.SCHEDULED;
   const ts = activity.timestamp ? new Date(activity.timestamp).getTime() : 0;
   return ts > Date.now() ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED;
 }
