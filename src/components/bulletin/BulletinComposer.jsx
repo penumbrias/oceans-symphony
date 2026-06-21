@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, parseSignpostAuthors, parseSignpostDirectives, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -19,6 +19,16 @@ import { isLocalMode } from "@/lib/storageMode";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 
 const QUICK_EMOJIS = ["😊", "❤️", "⚠️", "📌", "🔔", "👍", "💜", "🌙"];
+
+// Authors retained from the last post — the default for the next bulletin when
+// no one is fronting and nothing's been signposted yet.
+const LAST_AUTHORS_KEY = "symphony_last_bulletin_authors_v1";
+// First-load expanded state for the signpost help note (dismissible).
+const SIGNPOST_HELP_KEY = "symphony_signpost_help_dismissed_v1";
+function readLastAuthorIds() {
+  try { const v = JSON.parse(localStorage.getItem(LAST_AUTHORS_KEY) || "[]"); return Array.isArray(v) ? v : []; }
+  catch { return []; }
+}
 
 // `-system` (or the user's custom term, or the first word of their
 // system name) resolves to the system-level sentinel — bulletin gets
@@ -132,51 +142,56 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // boundary-aware matcher from mentionUtils (so "@Sam" no longer matches
   // inside "@Samantha").
 
-  // Accumulated signpost authors. Every signpost detected in the text ADDS to
-  // this set (add-only) so a multi-author post like "-kyo … -hex …" keeps BOTH
-  // — previously the live preview re-derived purely from the latest parse, so
-  // edits could leave only one author surviving. The user drops individuals via
-  // the chip × or "Clear all"; removedAuthorIds is the permanent subtract so a
-  // removed author can't re-appear even while their -marker is still in the body.
-  const [signpostAuthors, setSignpostAuthors] = useState([]); // [{id,color,…} | system sentinel]
-  React.useEffect(() => {
-    const { authors } = parseAndStripSignposts(content, alters, systemKeywords);
-    if (!authors.length) return;
-    setSignpostAuthors((prev) => {
-      const ids = new Set(prev.map((a) => a.id));
-      const additions = authors.filter((a) => !ids.has(a.id));
-      return additions.length ? [...prev, ...additions] : prev;
-    });
-  }, [content, alters, systemKeywords]);
+  // Authors retained from the last post — the default base when no one is
+  // fronting and nothing has been signposted yet.
+  const [lastAuthorIds, setLastAuthorIds] = useState(readLastAuthorIds);
+  // Dismissible "how signposts work" note — expanded on first ever load.
+  const [showSignpostHelp, setShowSignpostHelp] = useState(() => {
+    try { return !localStorage.getItem(SIGNPOST_HELP_KEY); } catch { return true; }
+  });
+  const dismissSignpostHelp = () => {
+    setShowSignpostHelp(false);
+    try { localStorage.setItem(SIGNPOST_HELP_KEY, "1"); } catch { /* quota/disabled */ }
+  };
 
-  const liveSignpost = signpostAuthors.filter((a) => !removedAuthorIds.has(a.id));
-  const liveSignpostAlters = liveSignpost
-    .filter((a) => !isSystemSignpost(a))
-    .map((a) => alters.find((x) => x.id === a.id))
-    .filter(Boolean);
-  const liveHasSystem = liveSignpost.some(isSystemSignpost);
-  // Preview: live signposted alters win; else an explicit -system chip; else the
-  // current fronters (minus removed). Always falls back to a System chip so the
-  // attribution is visible.
-  let displayAuthors;
-  if (liveSignpostAlters.length) {
-    displayAuthors = liveSignpostAlters;
-  } else if (liveHasSystem) {
-    displayAuthors = [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
-  } else {
-    const fronters = frontingAlterIds
-      .filter((id) => !removedAuthorIds.has(id))
-      .map((id) => alters.find((a) => a.id === id))
-      .filter(Boolean);
-    displayAuthors = fronters.length ? fronters : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
-  }
-  // Dedup by id — a stale/duplicate fronting session (or any double-add) must
-  // never render the same author twice (the "Kane, Kane" glitch). Belt-and-
-  // braces on top of the source dedup.
-  {
+  // Live authorship from the text's signpost DIRECTIVES, folded over a base:
+  //   • base = current fronters; else the authors retained from the last post;
+  //     else the system as a whole (-[system]).
+  //   • "-name" REPLACES (clears others, sets that name as the sole author).
+  //   • "+name" ADDS to the current authors.
+  //   • A bare emoji-alias in the text ADDS its alter (no +/- needed).
+  // removedAuthorIds (chip × / Clear all) is the final subtract.
+  const directives = React.useMemo(
+    () => parseSignpostDirectives(content, alters, systemKeywords),
+    [content, alters, systemKeywords]
+  );
+  // Emoji-alias authors (no dash) — always additive. The full parse minus the
+  // ids already named by a +/- directive (and minus the system sentinel).
+  const emojiAuthorIds = React.useMemo(() => {
+    const named = new Set(directives.flatMap((d) => d.alters.map((a) => a.id)));
+    return parseSignpostAuthors(content, alters, systemKeywords)
+      .filter((a) => !isSystemSignpost(a) && !named.has(a.id))
+      .map((a) => a.id);
+  }, [content, directives, alters, systemKeywords]);
+
+  const displayAuthors = React.useMemo(() => {
+    const byId = (id) => alters.find((a) => a.id === id);
+    const fronters = frontingAlterIds.map(byId).filter(Boolean);
+    const retained = lastAuthorIds.map(byId).filter(Boolean);
+    const base = fronters.length ? fronters : retained;
+    let working = base.length ? [...base] : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+    for (const d of directives) {
+      if (d.mode === "replace") working = [...d.alters];
+      else for (const a of d.alters) if (!working.find((x) => x.id === a.id)) working.push(a);
+    }
+    for (const id of emojiAuthorIds) {
+      const a = byId(id);
+      if (a && !working.find((x) => x.id === a.id)) working.push(a);
+    }
     const seen = new Set();
-    displayAuthors = displayAuthors.filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
-  }
+    const out = working.filter((a) => !removedAuthorIds.has(a.id) && (seen.has(a.id) ? false : (seen.add(a.id), true)));
+    return out.length ? out : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
+  }, [directives, emojiAuthorIds, frontingAlterIds, lastAuthorIds, alters, removedAuthorIds]);
   const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
   const clearAllAuthors = () => {
     // Hide every currently-shown author. removedAuthorIds wins over both the
@@ -184,7 +199,6 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     // even though the -markers may still be in the text.
     const ids = displayAuthors.map((a) => a.id);
     setRemovedAuthorIds((s) => { const n = new Set(s); ids.forEach((id) => n.add(id)); return n; });
-    setSignpostAuthors([]);
   };
 
   const handlePost = async () => {
@@ -193,11 +207,9 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     // Parse signpost authorship from the ORIGINAL text FIRST, so the whisper
     // wrapping below can't be mangled by signpost stripping (the dash matcher
     // would otherwise chew on the whisper span's data-whisper-for attribute).
-    const { authors: parsedNow, cleanContent: signpostClean } = parseSignposts(content, alters, systemKeywords);
-    // Union the accumulated signpost set with a fresh parse so a just-typed
-    // signpost the accumulation effect hasn't flushed yet still counts.
-    const allSignpost = [...signpostAuthors];
-    for (const a of parsedNow) if (!allSignpost.find((x) => x.id === a.id)) allSignpost.push(a);
+    // Strip signposts from the body for the saved content. Authorship comes
+    // from the folded displayAuthors below — exactly what the preview shows.
+    const { cleanContent: signpostClean } = parseSignposts(content, alters, systemKeywords);
 
     // Whisper. The explicit toggle is the reliable path — it produces a
     // guaranteed-correct whisper span addressed to the chosen recipients,
@@ -220,35 +232,24 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       whisperRecipientIds = w.recipientIds || [];
       isWhisper = !!w.isWhisper;
     }
-    // Authorship from the accumulated signpost set (minus removed): every real
-    // alter signposted across the post is kept. An explicit `-system` with no
-    // live alters attributes to the system as a whole; otherwise fall back to
-    // the current fronters.
-    const liveSignpostNow = allSignpost.filter((a) => !removedAuthorIds.has(a.id));
-    const signpostedIds = liveSignpostNow.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
-    const attributeToSystem = signpostedIds.length === 0 && liveSignpostNow.some(isSystemSignpost);
-    let finalAuthorIds;
-    if (signpostedIds.length > 0) {
-      finalAuthorIds = signpostedIds;
-    } else if (attributeToSystem) {
-      finalAuthorIds = [];
-    } else {
-      finalAuthorIds = frontingAlterIds.filter((id) => !removedAuthorIds.has(id));
-      // Defensive live-fetch when the prop-passed front is empty —
-      // covers first-render hydration windows where the parent query
-      // hasn't returned yet, so a post made right after page load
-      // doesn't fall through to a "System"-attributed bulletin while
-      // someone is clearly fronting.
-      if (finalAuthorIds.length === 0) {
-        try {
-          const active = await base44.entities.FrontingSession.filter({ is_active: true });
-          const liveIds = active
-            .map(s => s.alter_id || s.primary_alter_id)
-            .filter(Boolean)
-            .filter((id) => !removedAuthorIds.has(id));
-          if (liveIds.length > 0) finalAuthorIds = liveIds;
-        } catch { /* fall through */ }
-      }
+    // Authorship = exactly what the preview chips show (folded directives over
+    // fronters / retained / system, minus removed). The system sentinel alone
+    // means "attributed to the system as a whole" (no specific alter).
+    let finalAuthorIds = [...new Set(displayAuthors.filter((a) => !isSystemSignpost(a)).map((a) => a.id))];
+    let attributeToSystem = finalAuthorIds.length === 0;
+    // Defensive live-fetch: if we'd fall back to System ONLY because the
+    // fronting prop hadn't hydrated yet (no signpost / emoji author in the
+    // text), pull the active fronters so a post right after load isn't
+    // mis-attributed to the system.
+    if (attributeToSystem && directives.length === 0 && emojiAuthorIds.length === 0) {
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = [...new Set(active
+          .map((s) => s.alter_id || s.primary_alter_id)
+          .filter(Boolean)
+          .filter((id) => !removedAuthorIds.has(id)))];
+        if (liveIds.length > 0) { finalAuthorIds = liveIds; attributeToSystem = false; }
+      } catch { /* fall through */ }
     }
     // Dedup author ids — a stale/duplicate fronting session must not store the
     // same author twice (the "Kane, Kane" glitch carrying into saved posts).
@@ -331,6 +332,9 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       qc.invalidateQueries({ queryKey: ["polls"] });
     }
     qc.invalidateQueries({ queryKey: ["bulletins"] });
+    // Retain these authors as the default for the NEXT post (used when no one
+    // is fronting and nothing's been signposted yet). Empty = the system.
+    try { localStorage.setItem(LAST_AUTHORS_KEY, JSON.stringify(finalAuthorIds)); } catch { /* quota/disabled */ }
     // Public @mention notifications — skipped for whispers (the body is hidden;
     // only the chosen recipients are notified, via the loop below).
     if (!isWhisper) {
@@ -429,6 +433,24 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       )}
 
       <AuthorChipsEditable authors={displayAuthors} onRemove={removeAuthor} onClearAll={clearAllAuthors} label="Signed by" />
+
+      {showSignpostHelp ? (
+        <div className="mt-1.5 rounded-lg border border-primary/25 bg-primary/5 px-2.5 py-2 text-[0.6875rem] text-muted-foreground leading-relaxed relative">
+          <button type="button" onClick={dismissSignpostHelp} aria-label="Dismiss" className="absolute top-1.5 right-1.5 text-muted-foreground/60 hover:text-foreground">
+            <X className="w-3.5 h-3.5" />
+          </button>
+          <p className="text-foreground font-medium mb-0.5">Signing your posts</p>
+          <p>
+            Whoever's {terms.fronting} is the author by default (or the last author / the whole {terms.system} if no one is).
+            Type <span className="font-mono text-foreground">-{terms.alter}</span> to make someone the <span className="font-medium">sole</span> author,
+            or <span className="font-mono text-foreground">+{terms.alter}</span> to <span className="font-medium">add</span> one. Remove anyone with their ✕ chip.
+          </p>
+        </div>
+      ) : (
+        <button type="button" onClick={() => setShowSignpostHelp(true)} className="mt-1 text-[0.625rem] text-muted-foreground/70 hover:text-foreground">
+          How signing works
+        </button>
+      )}
 
       <div className="flex gap-1 mt-2 flex-wrap">
         {QUICK_EMOJIS.map(e => (

@@ -69,7 +69,12 @@ function makeSystemSentinel() {
   return { id: SYSTEM_SENTINEL_ID, isSystem: true, name: "System" };
 }
 
-const PATTERN = /-(\w+(?:\/\w+)*)/g;
+// Signpost trigger: `-name` (or `-a/b`) and now also `+name`. The sign is
+// captured so callers that care can tell ADD (`+`) from REPLACE (`-`) — see
+// parseSignpostDirectives. The author-collecting parsers below treat both the
+// same (every signposted alter is an author); only the live composer uses the
+// add/replace distinction.
+const PATTERN = /([+-])(\w+(?:\/\w+)*)/g;
 
 // Opt-in: callers that want `-system` to resolve to the system-level
 // sentinel must pass `systemKeywords` (e.g. `[terms.system]`). Callers
@@ -117,7 +122,7 @@ export function parseSignpostAuthors(text, alters, systemKeywords) {
   const keywords = normalizeKeywords(systemKeywords);
   const found = [];
   for (const match of [...String(text).matchAll(PATTERN)]) {
-    for (const term of match[1].toLowerCase().split("/").filter(Boolean)) {
+    for (const term of match[2].toLowerCase().split("/").filter(Boolean)) {
       const alter = resolveTerm(term, safeAlters, keywords);
       if (alter && !found.find((f) => f.id === alter.id)) found.push(alter);
     }
@@ -125,6 +130,29 @@ export function parseSignpostAuthors(text, alters, systemKeywords) {
   // Bare-emoji signposts (no dash) — attribute, but don't need to strip here.
   applyEmojiSignposts(text, safeAlters, found, false);
   return found;
+}
+
+// Ordered signpost directives WITH their mode, for the live composer's
+// add/replace authorship. Each match is one directive:
+//   "-name"   → { mode: "replace", … }  (clear others, set as the author)
+//   "+name"   → { mode: "add", … }       (add to the current authors)
+// A slash group ("-a/b") shares the directive's mode. Returned in order of
+// appearance so the composer can fold them left-to-right.
+export function parseSignpostDirectives(text, alters, systemKeywords) {
+  if (!text) return [];
+  const safeAlters = Array.isArray(alters) ? alters : [];
+  const keywords = normalizeKeywords(systemKeywords);
+  const out = [];
+  for (const match of [...String(text).matchAll(PATTERN)]) {
+    const mode = match[1] === "+" ? "add" : "replace";
+    const group = [];
+    for (const term of match[2].toLowerCase().split("/").filter(Boolean)) {
+      const alter = resolveTerm(term, safeAlters, keywords);
+      if (alter && !group.find((g) => g.id === alter.id)) group.push(alter);
+    }
+    if (group.length) out.push({ mode, alters: group });
+  }
+  return out;
 }
 
 export function parseAndStripSignposts(text, alters, systemKeywords) {
@@ -135,7 +163,7 @@ export function parseAndStripSignposts(text, alters, systemKeywords) {
   let cleanText = String(text);
   for (const match of [...String(text).matchAll(PATTERN)]) {
     const resolvedHere = [];
-    for (const term of match[1].toLowerCase().split("/").filter(Boolean)) {
+    for (const term of match[2].toLowerCase().split("/").filter(Boolean)) {
       const alter = resolveTerm(term, safeAlters, keywords);
       if (alter) resolvedHere.push(alter);
     }

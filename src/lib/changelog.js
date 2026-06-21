@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 20, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Bulletins: sign with -name to make someone the sole author, or +name to add another. With no one fronting, a post now defaults to your last author (or the whole system). A short how-to shows in the composer.",
+      },
+      {
         type: "fix",
         text: "Adjusting a symptom session's end time now properly ends it — so the \"Active symptoms & habits\" notification no longer lingers when nothing is actually active.",
       },
