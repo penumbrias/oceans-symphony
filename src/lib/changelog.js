@@ -2,7 +2,12 @@
  * App changelog — update this file whenever a feature or fix ships.
  *
  * Format per release:
- *   { date: "Month D, YYYY", changes: [{ type, text }] }
+ *   { date: "Month D, YYYY", version?: "X.Y.Z", changes: [{ type, text }] }
+ *
+ * `version` is the LAST version published on that date. Leave it OFF the
+ * current (top) block — Recent Updates shows the live APP_VERSION there, so
+ * same-day releases don't each need a re-stamp. When a NEW date block is
+ * added on top, stamp the previous top block with the version it ended on.
  *
  * types:
  *   "feature"  — new capability worth describing
@@ -16,6 +21,10 @@ export const CHANGELOG = [
     date: "June 20, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Recent Updates (Settings) now shows which app version each day's changes shipped in.",
+      },
+      {
         type: "feature",
         text: "Filter the alters list by role — pick one or more roles in the filter popup.",
       },
@@ -27,6 +36,7 @@ export const CHANGELOG = [
   },
   {
     date: "June 19, 2026",
+    version: "0.65.13",
     changes: [
       {
         type: "fix",
