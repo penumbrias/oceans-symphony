@@ -169,7 +169,9 @@ export default function Dashboard() {
   if (activeSessions.length > 0) {
     // New individual model: each session is one alter
     if (activeSessions.some(s => s.alter_id)) {
-      frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
+      // Dedup — a stale/duplicate active session per alter must not list the
+      // same fronter twice (drives the "Kane, Kane" authorship glitch).
+      frontingAlterIds = [...new Set(activeSessions.map((s) => s.alter_id).filter(Boolean))];
       const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
       currentAlterId = primarySess?.alter_id || frontingAlterIds[0] || null;
     } else {

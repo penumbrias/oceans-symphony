@@ -115,6 +115,10 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     onChange(before + insertText + after);
     setMenu(null);
     const newCaret = before.length + insertText.length;
+    // Re-assert focus synchronously (within the tap gesture) so the mobile
+    // keyboard doesn't drop when a suggestion is picked, then fix the caret
+    // once React has applied the new value.
+    ta?.focus();
     requestAnimationFrame(() => {
       ta?.focus();
       try { ta?.setSelectionRange(newCaret, newCaret); } catch { /* detached */ }

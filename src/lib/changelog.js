@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 20, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The \"Signed by\" authors on a bulletin no longer list the same person twice (could happen after changing fronters).",
+      },
+      {
         type: "improve",
         text: "Recent Updates (Settings) now shows which app version each day's changes shipped in.",
       },

@@ -32,9 +32,11 @@ export default function BulletinsPage() {
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
-  const frontingAlterIds = (activeFront || [])
-    .map((s) => s.alter_id || s.primary_alter_id)
-    .filter(Boolean);
+  const frontingAlterIds = [...new Set(
+    (activeFront || [])
+      .map((s) => s.alter_id || s.primary_alter_id)
+      .filter(Boolean)
+  )];
   const primaryFronter = (activeFront || []).find(
     (s) => (s.alter_id || s.primary_alter_id) && s.is_primary
   );

@@ -170,6 +170,13 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       .filter(Boolean);
     displayAuthors = fronters.length ? fronters : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
   }
+  // Dedup by id — a stale/duplicate fronting session (or any double-add) must
+  // never render the same author twice (the "Kane, Kane" glitch). Belt-and-
+  // braces on top of the source dedup.
+  {
+    const seen = new Set();
+    displayAuthors = displayAuthors.filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
+  }
   const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
   const clearAllAuthors = () => {
     // Hide every currently-shown author. removedAuthorIds wins over both the
@@ -243,6 +250,9 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
         } catch { /* fall through */ }
       }
     }
+    // Dedup author ids — a stale/duplicate fronting session must not store the
+    // same author twice (the "Kane, Kane" glitch carrying into saved posts).
+    finalAuthorIds = [...new Set(finalAuthorIds)];
     // For a whisper, notify ONLY the chosen recipients — any @mentions inside
     // the hidden body must not leak the secret to non-recipients.
     const mentionedIds = isWhisper
