@@ -180,7 +180,10 @@ export default function usePersistentNotifications() {
     // category "habit" / is_positive — they ride the same SymptomSession.
     const activeDefs = activeSymptomSessions
       .map((sess) => ({ sess, def: symptomsById[sess.symptom_id] }))
-      .filter((x) => x.def && !x.def.is_archived);
+      // A session with an end_time set is ENDED even if is_active was left
+      // true (ghost-active) — don't count it, or the notification lingers
+      // "active" after the user ended/edited the session.
+      .filter((x) => x.def && !x.def.is_archived && !x.sess.end_time);
     const labels = [...new Set(activeDefs.map((x) => x.def.label).filter(Boolean))];
     const hasHabit = activeDefs.some((x) => x.def.category === "habit" || x.def.is_positive);
     const hasSymptom = activeDefs.some((x) => x.def.category !== "habit" && !x.def.is_positive);

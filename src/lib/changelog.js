@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Adjusting a symptom session's end time now properly ends it — so the \"Active symptoms & habits\" notification no longer lingers when nothing is actually active.",
+      },
+      {
+        type: "fix",
         text: "The \"Signed by\" authors on a bulletin no longer list the same person twice (could happen after changing fronters).",
       },
       {

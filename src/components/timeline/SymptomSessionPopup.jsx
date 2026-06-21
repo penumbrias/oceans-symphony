@@ -46,7 +46,10 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
     if (saving) return;
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(session.id, { end_time: timeToDate(adjustedEndTime) });
+      // A session with an end time is ENDED — flip is_active off too, or it
+      // lingers as a ghost-active session (kept reading as active in the
+      // "active symptoms" notification + current-symptoms list).
+      await base44.entities.SymptomSession.update(session.id, { end_time: timeToDate(adjustedEndTime), is_active: false });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       toast.success("End time updated");
       onClose();
