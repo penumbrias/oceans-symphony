@@ -1,9 +1,10 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toast } from "sonner";
 import { CheckCircle2, CircleSlash2, XCircle, Ban, Calendar, Undo2 } from "lucide-react";
@@ -61,6 +62,11 @@ export default function ActivityLifecyclePopover({
   // (and success message) we'll apply once the user picks a branch.
   // Shape: { patch, successMsg, actionLabel }
   const [pendingBranchAction, setPendingBranchAction] = useState(null);
+  // Inline notes editor (saved on its own, no status change). Resets to the
+  // activity's saved notes whenever a different one opens.
+  const [noteDraft, setNoteDraft] = useState("");
+  const [savingNote, setSavingNote] = useState(false);
+  useEffect(() => { setNoteDraft(activity?.notes || ""); }, [activity?.id, isOpen]);
 
   // Pull the full activity list so we can resolve series members when
   // the user picks "this and future" / "all". Cheap — already cached.
@@ -92,6 +98,20 @@ export default function ActivityLifecyclePopover({
   const closeAll = () => {
     reset();
     onClose?.();
+  };
+
+  // Save the notes on their own — no status change, single instance.
+  const saveNote = async () => {
+    setSavingNote(true);
+    try {
+      await base44.entities.Activity.update(activity.id, { notes: noteDraft.trim() || null });
+      toast.success("Note saved");
+      onChanged?.();
+    } catch (err) {
+      toast.error(err?.message || "Couldn't save note");
+    } finally {
+      setSavingNote(false);
+    }
   };
 
   // Single-instance write. Used directly when the plan isn't part of a
@@ -381,6 +401,21 @@ export default function ActivityLifecyclePopover({
         {/* Default view — action buttons */}
         {submode === null && (
           <div className="space-y-2">
+            {/* Notes — editable for any plan/activity, saved on its own. */}
+            <div className="space-y-1.5">
+              <label className="text-xs font-medium text-muted-foreground">Notes</label>
+              <Textarea
+                value={noteDraft}
+                onChange={(e) => setNoteDraft(e.target.value)}
+                placeholder="Add a note for this plan…"
+                className="text-sm min-h-[56px] resize-none"
+              />
+              {noteDraft.trim() !== (activity.notes || "").trim() && (
+                <Button size="sm" variant="outline" onClick={saveNote} disabled={savingNote} className="w-full">
+                  {savingNote ? "Saving…" : "Save note"}
+                </Button>
+              )}
+            </div>
             {status === ACTIVITY_STATUSES.SCHEDULED && (
               <>
                 <Button variant="outline" className="w-full justify-start gap-2" disabled={saving} onClick={markDone}>

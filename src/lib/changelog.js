@@ -13,6 +13,19 @@
 
 export const CHANGELOG = [
   {
+    date: "June 20, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Filter the alters list by role — pick one or more roles in the filter popup.",
+      },
+      {
+        type: "improve",
+        text: "\"Manage plan\" now has a notes box, so you can add or edit a plan's note right there.",
+      },
+    ],
+  },
+  {
     date: "June 19, 2026",
     changes: [
       {

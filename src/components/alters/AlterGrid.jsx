@@ -49,7 +49,7 @@ export default function AlterGrid({ alters }) {
   // Listing filter: nested vs flat, plus multi-select group/subsystem
   // membership with Any (union) / All (intersection) matching. Edited
   // through the AlterFilterPopup.
-  const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], mode: "any" });
+  const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], roles: [], mode: "any" });
   const [filterOpen, setFilterOpen] = useState(false);
   const [massArchiveOpen, setMassArchiveOpen] = useState(false);
 
@@ -140,6 +140,7 @@ export default function AlterGrid({ alters }) {
   filter(
     (a) =>
     !a.is_archived &&
+    (filters.roles.length === 0 || filters.roles.includes((a.role || "").trim())) &&
     (!hideGrouped || !groupedAlterIds.has(a.id)) && (
     a.name?.toLowerCase().includes(search.toLowerCase()) ||
     a.role?.toLowerCase().includes(search.toLowerCase()) ||
@@ -175,6 +176,11 @@ export default function AlterGrid({ alters }) {
 
   const regularGroups = allGroups.filter((g) => !g.owner_alter_id);
   const subsystemGroups = allGroups.filter((g) => g.owner_alter_id);
+  // Distinct, non-empty roles across the system — drives the role filter pills.
+  const allRoles = useMemo(
+    () => [...new Set(effectiveAlters.map((a) => (a.role || "").trim()).filter(Boolean))].sort((x, y) => x.localeCompare(y)),
+    [effectiveAlters]
+  );
 
   // Selected group/subsystem ids → the set of alter ids that match, using
   // Any (union) or All (intersection) of the selected memberships.
@@ -194,12 +200,12 @@ export default function AlterGrid({ alters }) {
     return union;
   }, [allGroups, effectiveAlters, selectedFilterIds.join(","), filters.mode]);
 
-  const isExplicitFilter = hasMembershipFilter;
-  const activeFilterCount = selectedFilterIds.length;
+  const isExplicitFilter = hasMembershipFilter || filters.roles.length > 0;
+  const activeFilterCount = selectedFilterIds.length + filters.roles.length;
   const filterActive = activeFilterCount > 0 || !filters.nested;
-  // Flat (unnested) list when searching, when a membership filter is on,
+  // Flat (unnested) list when searching, when a membership/role filter is on,
   // or when the user chose the flat list style.
-  const showFlat = !!search || hasMembershipFilter || !filters.nested;
+  const showFlat = !!search || hasMembershipFilter || filters.roles.length > 0 || !filters.nested;
 
   // Top-level list = filtered alters that aren't inside a subsystem and
   // aren't hidden by a group flag (nested view only).
@@ -308,8 +314,8 @@ export default function AlterGrid({ alters }) {
             <FolderMinus className="w-4 h-4" />
           </button>
 
-          {/* Filter — opens a popup for nested/flat + group/subsystem multi-select */}
-          {(regularGroups.length > 0 || subsystemGroups.length > 0) && (
+          {/* Filter — opens a popup for nested/flat + group/subsystem/role multi-select */}
+          {(regularGroups.length > 0 || subsystemGroups.length > 0 || allRoles.length > 0) && (
             <button
               onClick={() => setFilterOpen(true)}
               title="Filter the list"
@@ -430,6 +436,7 @@ export default function AlterGrid({ alters }) {
           onChange={setFilters}
           regularGroups={regularGroups}
           subsystemGroups={subsystemGroups}
+          roles={allRoles}
           terms={terms}
           onClose={() => setFilterOpen(false)}
         />
