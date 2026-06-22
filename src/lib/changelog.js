@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "On an alter's profile, the Edit button no longer gets cut off the right edge in portrait — the action buttons now wrap, and Save is a compact icon.",
+      },
+      {
+        type: "fix",
         text: "Editing a plan from the weekly view now opens the full plan editor — before, both \"Edit plan\" and \"Manage\" led to the same Manage screen.",
       },
       {

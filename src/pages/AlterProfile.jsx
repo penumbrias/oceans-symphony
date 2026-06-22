@@ -301,7 +301,7 @@ function AlterProfileInner() {
             + message button on the right. data-pf-chrome backs this row with
             the profile bg colour when a background image is set, so the
             ghost/outline buttons stay legible over the image. */}
-        <div data-pf-chrome className="flex items-center justify-between mb-4 px-2 py-1.5">
+        <div data-pf-chrome className="flex flex-wrap items-center justify-between gap-y-2 mb-4 px-2 py-1.5">
           <button
             type="button"
             onClick={async () => {
@@ -326,7 +326,7 @@ function AlterProfileInner() {
             <Pin className={cn("w-4 h-4", alter.is_pinned && "fill-primary")} />
             {alter.is_pinned ? "Pinned" : "Pin"}
           </button>
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center justify-end gap-2">
             {prevAlter && (
               <Link to={`/alter/${prevAlter.id}`}>
                 <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
@@ -377,11 +377,13 @@ function AlterProfileInner() {
                 {editMode && (
                   <Button
                     variant="default"
-                    size="sm"
+                    size="icon"
                     onClick={() => saveRef.current?.()}
-                    className="gap-1.5 bg-primary hover:bg-primary/90"
+                    className="h-8 w-8 bg-primary hover:bg-primary/90"
+                    title="Save"
+                    aria-label="Save"
                   >
-                    <Save className="w-3.5 h-3.5" /> Save
+                    <Save className="w-4 h-4" />
                   </Button>
                 )}
                 <Button
