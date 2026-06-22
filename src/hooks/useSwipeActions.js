@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 
 const SWIPE_THRESHOLD = 40;
 const TAP_THRESHOLD = 10;
@@ -17,21 +17,33 @@ const CORNER_UP_THRESHOLD = 35;
 // any touch elsewhere on the page.
 let globalRecentTouchUntil = 0;
 
+// Timestamp of the most recent REAL touch event (set only by the touch path).
+// Used to ignore the synthetic mouse events mobile browsers fire after a
+// touch. Kept separate from `globalRecentTouchUntil` (which the mouse path
+// also sets) so that on desktop — where no touch ever happens — rapid real
+// mouse clicks are never mistaken for post-touch synthetics.
+let globalLastTouchAt = 0;
+
 /**
- * Touch-driven swipe-tap-and-pan handler used by alter cards / chips.
+ * Pointer-driven swipe-tap-and-pan handler used by alter cards / chips.
+ * Works with BOTH touch (mobile) and a mouse (desktop) — the same gesture
+ * pipeline is fed by touch events on mobile and by mouse events on desktop,
+ * so press-hold, swipe, and the corner gesture all work with a mouse.
  *
- *   tap   = finger down and up within ~10px → onTap()
+ *   tap   = pointer down and up within ~10px → onTap()
  *   right = ≥40px horizontal-dominant swipe → onSwipeRight()
  *   left  = ≥40px horizontal-dominant swipe → onSwipeLeft()
+ *   hold  = pointer held ~500ms without moving → onLongPress()
  *
  * Returns:
- *   - bind:        spread onto the touchable wrapper (onTouchStart/Move/End/onClick)
+ *   - bind:        spread onto the wrapper (touch + onMouseDown + onClick)
  *   - dragX:       current pan offset (clamp ±60px) — apply via translateX
- *   - swipeHint:   "front" | "primary" | null — for inline action labels
+ *   - swipeHint:   "front" | "primary" | "solo" | null — for inline labels
  *
- * Keeps a 500ms `recentTouch` flag after touchend that suppresses the
- * synthetic onClick that mobile browsers fire. Mouse onClick still hits
- * onTap() on desktop.
+ * Keeps a 500ms `recentTouch` flag after a gesture ends that suppresses the
+ * synthetic onClick that follows (mobile WebViews + desktop both emit one),
+ * so a tap fires onTap exactly once. On desktop the mouse path drives a drag
+ * via document-level move/up listeners so it continues off the element.
  */
 export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, onLongPress, longPressMs = 500 } = {}) {
   const startX = useRef(0);
@@ -55,6 +67,15 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
   const [corner, setCorner] = useState(false);
   const [dragX, setDragX] = useState(0);
 
+  // Desktop mouse-drag bookkeeping. Desktop has no touch events, so we replay
+  // the SAME gesture pipeline (below) from mouse events. Document-level
+  // move/up listeners let a drag continue — and end — even when the cursor
+  // leaves the element, exactly what touch gives us for free. The touch path
+  // is byte-for-byte unchanged; this is purely additive.
+  const mouseActive = useRef(false);
+  const mouseMoveRef = useRef(null);
+  const mouseUpRef = useRef(null);
+
   const cancelLongPress = () => {
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
@@ -62,10 +83,11 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     }
   };
 
-  const onTouchStart = (e) => {
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
+  // ── Coordinate-based gesture core, shared by the touch and mouse paths.
+  //    Touch handlers feed it e.touches[0]; mouse handlers feed it e.clientX/Y.
+  const beginGesture = (clientX, clientY) => {
+    startX.current = clientX;
+    startY.current = clientY;
     longPressFired.current = false;
     leftReached.current = false;
     cornerFired.current = false;
@@ -82,10 +104,9 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     }
   };
 
-  const onTouchMove = (e) => {
-    const t = e.touches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
+  const moveGesture = (clientX, clientY) => {
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
     if (Math.abs(dx) > Math.abs(dy)) {
       setDragX(Math.max(-60, Math.min(60, dx)));
       if (Math.abs(dx) > Math.abs(peakDx.current)) peakDx.current = dx;
@@ -93,18 +114,16 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     // Any meaningful movement cancels the long-press timer.
     if (Math.abs(dx) > 10 || Math.abs(dy) > 10) cancelLongPress();
 
-    // "Left then up" corner gesture. Once the finger has gone left past
-    // the swipe threshold, an upward leg of CORNER_UP_THRESHOLD arms it.
-    // Tracked via touch deltas so it still works even if the list scrolls
-    // during the upward leg (we can't preventDefault from a passive
-    // React listener).
+    // "Left then up" corner gesture. Once travel has gone left past the swipe
+    // threshold, an upward leg of CORNER_UP_THRESHOLD arms it. Tracked via
+    // deltas so it still works even if the list scrolls during the upward leg.
     if (onSwipeLeftUp) {
       if (!leftReached.current && dx <= -SWIPE_THRESHOLD) {
         leftReached.current = true;
-        leftAnchorY.current = t.clientY;
+        leftAnchorY.current = clientY;
       }
       if (leftReached.current && !cornerFired.current) {
-        if (leftAnchorY.current - t.clientY >= CORNER_UP_THRESHOLD) {
+        if (leftAnchorY.current - clientY >= CORNER_UP_THRESHOLD) {
           cornerFired.current = true;
           setCorner(true);
         }
@@ -112,11 +131,12 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     }
   };
 
-  const onTouchEnd = (e) => {
+  // `e` is the source event (touchend / mouseup) so we can preventDefault the
+  // synthetic click. Pass null/undefined when there's no event to cancel.
+  const endGesture = (clientX, clientY, e) => {
     cancelLongPress();
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
     setDragX(0);
@@ -130,34 +150,32 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     // Corner gesture wins over the plain swipes — it implies both a left
     // leg and an upward leg, so check it before the directional fallbacks.
     if (cornerFired.current) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
+      if (e && typeof e.preventDefault === "function") e.preventDefault();
       onSwipeLeftUp?.();
       return;
     }
 
     // Classify on the PEAK horizontal travel (recorded only while the move was
     // horizontally dominant), falling back to the end-point delta. This catches
-    // swipes where the finger drifted vertically or eased back on release —
+    // swipes where the pointer drifted vertically or eased back on release —
     // previously those showed the slide animation but fired no action.
     const peak = peakDx.current;
     const apx = Math.abs(peak);
     const isSwipe = apx > SWIPE_THRESHOLD || (adx > SWIPE_THRESHOLD && adx > ady);
     const dir = apx > SWIPE_THRESHOLD ? peak : dx;
     if (isSwipe) {
-      // Suppress the synthetic click that mobile WebViews emit next —
-      // otherwise the click could land on a different element and fire
-      // a tap there. preventDefault on touchend cancels it across the
-      // whole document for this gesture.
-      if (typeof e.preventDefault === "function") e.preventDefault();
+      // Suppress the synthetic click that follows — otherwise the click could
+      // land on a different element and fire a tap there.
+      if (e && typeof e.preventDefault === "function") e.preventDefault();
       if (dir > 0) onSwipeRight?.();
       else onSwipeLeft?.();
     } else if (adx < TAP_THRESHOLD && ady < TAP_THRESHOLD) {
-      if (typeof e.preventDefault === "function") e.preventDefault();
+      if (e && typeof e.preventDefault === "function") e.preventDefault();
       onTap?.();
     }
   };
 
-  const onTouchCancel = () => {
+  const resetGesture = () => {
     cancelLongPress();
     leftReached.current = false;
     cornerFired.current = false;
@@ -165,6 +183,54 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     setCorner(false);
     setDragX(0);
   };
+
+  // ── Touch path (mobile) — unchanged behaviour. Each touch event stamps
+  //    globalLastTouchAt so the mouse path can ignore the synthetic mouse
+  //    events that follow. ──
+  const onTouchStart = (e) => { globalLastTouchAt = Date.now(); const t = e.touches[0]; beginGesture(t.clientX, t.clientY); };
+  const onTouchMove = (e) => { globalLastTouchAt = Date.now(); const t = e.touches[0]; moveGesture(t.clientX, t.clientY); };
+  const onTouchEnd = (e) => { globalLastTouchAt = Date.now(); const t = e.changedTouches[0]; endGesture(t.clientX, t.clientY, e); };
+  const onTouchCancel = () => { globalLastTouchAt = Date.now(); resetGesture(); };
+
+  // ── Mouse path (desktop) — additive. Mirrors the touch path so press-hold
+  //    (long-press), swipe, and the corner gesture all work with a mouse. ──
+  const detachMouse = () => {
+    if (mouseMoveRef.current) { document.removeEventListener("mousemove", mouseMoveRef.current); mouseMoveRef.current = null; }
+    if (mouseUpRef.current) { document.removeEventListener("mouseup", mouseUpRef.current); mouseUpRef.current = null; }
+    mouseActive.current = false;
+  };
+
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return; // left button only — leave right-click for menus
+    // CRITICAL: mobile browsers fire SYNTHETIC mouse events (mousedown/up/click)
+    // right after a real touch. The touch path already handled the gesture, so
+    // ignore any mouse event that lands within the post-touch window — otherwise
+    // every tap would fire twice on mobile. We check globalLastTouchAt (set only
+    // by the touch path), NOT the shared recentTouch flag, so rapid real mouse
+    // clicks on desktop are never suppressed.
+    if (Date.now() - globalLastTouchAt < 700) return;
+    detachMouse(); // clear any stuck listeners from a prior drag
+    mouseActive.current = true;
+    beginGesture(e.clientX, e.clientY);
+    const move = (ev) => {
+      if (!mouseActive.current) return;
+      // Stop the browser from text-selecting the card while dragging.
+      if (typeof ev.preventDefault === "function") ev.preventDefault();
+      moveGesture(ev.clientX, ev.clientY);
+    };
+    const up = (ev) => {
+      detachMouse();
+      endGesture(ev.clientX, ev.clientY, ev);
+    };
+    mouseMoveRef.current = move;
+    mouseUpRef.current = up;
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  };
+
+  // Tear down any in-flight document listeners if the component unmounts
+  // mid-drag.
+  useEffect(() => () => detachMouse(), []);
 
   const onClick = () => {
     // Suppress the click if either this hook saw a recent touch OR any
@@ -180,7 +246,7 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
   const swipeHint = corner ? "solo" : dragX > 12 ? "front" : dragX < -12 ? "primary" : null;
 
   return {
-    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onClick },
+    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onMouseDown, onClick },
     dragX,
     swipeHint,
   };

@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 21, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Web app on a computer: you can now press-and-hold and click-drag alter cards with a mouse (to change front, set primary, etc.) — not just by touch. First step of a desktop polish pass.",
+      },
+      {
         type: "fix",
         text: "The daily \"Check in\" task now clears the moment you open the app, not only after you visit the Daily Tasks page.",
       },
