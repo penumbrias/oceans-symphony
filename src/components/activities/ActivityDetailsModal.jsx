@@ -576,9 +576,15 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                           // Plans get the full Plan Activity modal so all
                           // their fields (location, critical lead steps,
                           // assigned alters, …) are editable in one place.
-                          // Logged activities keep the lightweight inline
-                          // edit.
-                          if (act.is_planned && onEditPlan) {
+                          // Logged activities keep the lightweight inline edit.
+                          // Detect a plan by STATUS, not the legacy is_planned
+                          // flag — new-model plans use status:"scheduled" and
+                          // leave is_planned falsy, which is why Edit used to
+                          // dead-end into the inline editor for them.
+                          const isPlan = act.is_planned
+                            || statusFor(act) !== ACTIVITY_STATUSES.LOGGED
+                            || !!act.recurrence_group_id;
+                          if (isPlan && onEditPlan) {
                             onEditPlan(act);
                             return;
                           }

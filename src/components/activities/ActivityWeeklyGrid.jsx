@@ -148,6 +148,7 @@ export default function ActivityWeeklyGrid({
   highlightActivityId = null,
   onWeekStartChange,
   onDayClick,
+  onEditPlan,
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
   const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
@@ -1546,6 +1547,10 @@ if (isSameCell) {
         alters={alters}
         onEditPlan={(act) => {
           setDetailsActivity(null);
+          // Open the real plan editor (handed down from ActivityTracker)
+          // so "Edit" reaches the full edit form. Fall back to the
+          // Manage/lifecycle popover only if no editor was provided.
+          if (onEditPlan) { onEditPlan(act); return; }
           setLifecycleActivity(act);
         }}
       />

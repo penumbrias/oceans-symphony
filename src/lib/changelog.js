@@ -18,7 +18,21 @@
 
 export const CHANGELOG = [
   {
+    date: "June 21, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Editing a plan from the weekly view now opens the full plan editor — before, both \"Edit plan\" and \"Manage\" led to the same Manage screen.",
+      },
+      {
+        type: "improve",
+        text: "The \"no front update for N minutes\" reminder now fires while the app is closed and resets whenever the front changes (turn on Push for the reminder).",
+      },
+    ],
+  },
+  {
     date: "June 20, 2026",
+    version: "0.65.18",
     changes: [
       {
         type: "feature",

@@ -146,7 +146,9 @@ function violatesQuietHours(fireDate, reminder, settings) {
 
 // Compute upcoming fire times for a single reminder. Returns an array of
 // ISO strings, soonest first. Pure — no side effects, no plugin calls.
-export function computePrescheduledFires(reminder, settings, now = new Date()) {
+// `context` carries live data some triggers need (currently the last
+// fronting-change timestamp for "no front update for N minutes").
+export function computePrescheduledFires(reminder, settings, now = new Date(), context = {}) {
   const out = [];
   const cfg = reminder.trigger_config || {};
   const tz = settings?.timezone || "UTC";
@@ -229,7 +231,35 @@ export function computePrescheduledFires(reminder, settings, now = new Date()) {
     return out;
   }
 
-  // contextual or unknown — never pre-schedulable.
+  // "No front update for N minutes" IS deterministically pre-schedulable:
+  // the fire time is (last front change) + N. We pre-schedule a SERIES at
+  // baseline + k·N so the closed app keeps nudging every N minutes, matching
+  // what the in-app scheduler does while the app is open. Each front change
+  // bumps the baseline; useNativeReminderSync re-reconciles on front change,
+  // cancelling this whole series and rescheduling from the new baseline —
+  // i.e. the N-minute timer "resets" exactly as the user described.
+  if (reminder.trigger_type === "contextual" && cfg.on === "no_front_update") {
+    const lastFront = context?.lastFrontActivityMs;
+    if (!lastFront) return []; // no fronting data → nothing to anchor to
+    const everyMs = (cfg.threshold_minutes || 120) * 60 * 1000;
+    if (everyMs < 60 * 1000) return []; // sub-minute thresholds are nonsense
+    // Jump straight to the first slot at or after `now` instead of scanning
+    // every past slot.
+    let k = Math.max(1, Math.floor((now.getTime() - lastFront) / everyMs) + 1);
+    while (out.length < MAX_FIRES_PER_REMINDER) {
+      const fireMs = lastFront + k * everyMs;
+      k++;
+      if (fireMs > horizonEnd) break;
+      if (fireMs > endDateMs) break;
+      if (fireMs <= now.getTime()) continue; // overdue slot — in-app/backfill owns it
+      const fireDate = new Date(fireMs);
+      if (violatesQuietHours(fireDate, reminder, settings)) continue;
+      out.push(fireDate.toISOString());
+    }
+    return out;
+  }
+
+  // other contextual / unknown — never pre-schedulable.
   return [];
 }
 
@@ -237,13 +267,29 @@ export function isPrescheduleableType(reminder) {
   const t = reminder?.trigger_type;
   if (t === "scheduled" || t === "event") return true;
   if (t === "interval" && reminder?.trigger_config?.after_last !== "check_in") return true;
+  // "No front update for N minutes" anchors off the latest front change, so
+  // its fire times are computable ahead of time (see computePrescheduledFires).
+  if (isRollingFrontReminder(reminder)) return true;
   return false;
+}
+
+// The "no front update for N minutes" reminder is special: it RESETS every
+// time the front changes, so it can't be expressed as a static server-side
+// schedule (the relay only learns about it at sync time, not on each front
+// change). It therefore stays on the local OS pre-schedule — which DOES
+// re-reconcile on front change — even when server push otherwise owns
+// closed-app delivery.
+export function isRollingFrontReminder(reminder) {
+  return (
+    reminder?.trigger_type === "contextual" &&
+    reminder?.trigger_config?.on === "no_front_update"
+  );
 }
 
 // Top-level: re-sync the OS schedule against the current set of active
 // reminders. Idempotent. Caller passes the already-fetched reminders
 // and settings (avoids a second API round-trip).
-export async function reconcileNativeSchedule(reminders, settings) {
+export async function reconcileNativeSchedule(reminders, settings, context = {}) {
   if (!isNative()) return { scheduled: 0, cancelled: 0, skipped: "not_native" };
 
   const granted = await isNativeNotificationsEnabled();
@@ -280,12 +326,11 @@ export async function reconcileNativeSchedule(reminders, settings) {
   // relay fires reminders via FCM regardless of force-stop). Suppress the OS
   // pre-schedule so reminders aren't delivered twice. Self-correcting: if
   // push isn't ready, serverReminderSync clears the flag and we resume.
+  // EXCEPTION: the rolling "no front update for N minutes" reminder can't be
+  // expressed as a static server schedule, so it stays on the OS pre-schedule
+  // even while server push owns everything else (no overlap → no double-buzz).
   let serverPushActive = false;
   try { serverPushActive = localStorage.getItem(SERVER_PUSH_ACTIVE_KEY) === "1"; } catch { /* ignore */ }
-  if (serverPushActive) {
-    writeLog([]);
-    return { scheduled: 0, cancelled: oldLog.length, skipped: "server_push_active" };
-  }
 
   const now = new Date();
   const active = (reminders || []).filter(r => {
@@ -298,13 +343,16 @@ export async function reconcileNativeSchedule(reminders, settings) {
     // who deliberately picked in-app delivery.
     const channels = r.delivery_channels?.length ? r.delivery_channels : ["in_app"];
     if (!channels.includes("push")) return false;
+    // When server push owns delivery, the relay covers every static schedule
+    // type. Only the rolling front reminder stays local.
+    if (serverPushActive && !isRollingFrontReminder(r)) return false;
     return true;
   });
 
   // Compute candidate fires per reminder, then merge + cap globally.
   const candidates = [];
   for (const reminder of active) {
-    const fires = computePrescheduledFires(reminder, settings, now);
+    const fires = computePrescheduledFires(reminder, settings, now, context);
     for (const fireISO of fires) {
       candidates.push({ reminder, fireISO, fireMs: new Date(fireISO).getTime() });
     }
@@ -529,8 +577,40 @@ export function useNativeReminderSync() {
   });
   const settings = settingsList[0] || null;
 
+  // "No front update for N minutes" reminders anchor their fire times off
+  // the most recent fronting change, so we watch the front history and
+  // re-reconcile whenever it moves (which resets the N-minute timer).
+  const { data: frontSessions = [] } = useQuery({
+    queryKey: ["frontHistory"],
+    queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
+  });
+
   useEffect(() => {
     if (!isNative()) return;
+
+    // Only follow front changes if a no_front_update reminder is actually
+    // armed for closed-app (push) delivery — otherwise every switch would
+    // needlessly churn the whole OS schedule.
+    const hasNoFrontUpdate = (reminders || []).some(r => {
+      if (!r.is_active) return false;
+      if (r.trigger_type !== "contextual" || r.trigger_config?.on !== "no_front_update") return false;
+      const channels = r.delivery_channels?.length ? r.delivery_channels : ["in_app"];
+      return channels.includes("push");
+    });
+
+    // Last fronting "update" = the most recent of start/end/created on the
+    // latest session, mirroring the in-app no_front_update evaluator so the
+    // two delivery paths agree on the baseline.
+    let lastFrontActivityMs = 0;
+    if (hasNoFrontUpdate && frontSessions.length) {
+      const s = frontSessions[0];
+      lastFrontActivityMs = Math.max(
+        new Date(s.start_time || 0).getTime(),
+        new Date(s.end_time || 0).getTime(),
+        new Date(s.created_date || 0).getTime()
+      );
+    }
+
     // Cheap signature so we only re-schedule on meaningful change.
     // Includes fields that affect fire times: title/body don't change
     // schedule, but trigger config + last_fired_at + active flag do.
@@ -550,11 +630,14 @@ export function useNativeReminderSync() {
         quiet: settings.quiet_hours,
         tz: settings.timezone,
       } : null,
+      // Only let the front baseline into the signature when something
+      // actually depends on it, so unrelated switches don't trigger churn.
+      f: hasNoFrontUpdate ? lastFrontActivityMs : null,
     });
     if (sig === lastSigRef.current) return;
     lastSigRef.current = sig;
-    reconcileNativeSchedule(reminders, settings).catch(() => {});
-  }, [reminders, settings]);
+    reconcileNativeSchedule(reminders, settings, { lastFrontActivityMs }).catch(() => {});
+  }, [reminders, settings, frontSessions]);
 }
 
 // Tap handler — called from nativeBootstrap.js when the user taps a
