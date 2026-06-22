@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "June 21, 2026",
     changes: [
       {
+        type: "fix",
+        text: "The daily \"Check in\" task now clears the moment you open the app, not only after you visit the Daily Tasks page.",
+      },
+      {
+        type: "improve",
+        text: "Typing +name while posting now opens the same author picker as -name does (+ adds an author, - makes them the sole author).",
+      },
+      {
         type: "feature",
         text: "The settings ⚙️ in the top bar now opens a quick menu with shortcuts for the page you're on (like customizing the dashboard) plus All settings — so a stray tap doesn't dump you into the full settings page.",
       },

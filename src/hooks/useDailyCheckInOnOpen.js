@@ -28,7 +28,7 @@ export function useDailyCheckInOnOpen() {
             t.is_active &&
             (t.frequency || "daily") === "daily" &&
             t.mode === "AUTO" &&
-            resolveAutoTriggers(t).includes("check_in"),
+            resolveAutoTriggers(t).ids.includes("check_in"),
         );
         if (cancelled || !checkInTemplates.length) return;
         const ids = checkInTemplates.map((t) => t.id);
