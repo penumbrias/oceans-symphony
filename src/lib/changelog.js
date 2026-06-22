@@ -22,6 +22,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Editing an active symptom that runs past midnight no longer makes its bar disappear — you can now set the end on the correct day, and an end before the start is rejected.",
+      },
+      {
+        type: "improve",
+        text: "Press and hold a symptom bar on the Timeline to edit its start/end times (tap still opens details) — same as fronting sessions.",
+      },
+      {
+        type: "fix",
         text: "On an alter's profile, the Edit button no longer gets cut off the right edge in portrait — the action buttons now wrap, and Save is a compact icon.",
       },
       {
