@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 21, 2026",
     changes: [
       {
+        type: "feature",
+        text: "The settings ⚙️ in the top bar now opens a quick menu with shortcuts for the page you're on (like customizing the dashboard) plus All settings — so a stray tap doesn't dump you into the full settings page.",
+      },
+      {
         type: "fix",
         text: "Editing an active symptom that runs past midnight no longer makes its bar disappear — you can now set the end on the correct day, and an end before the start is rejected.",
       },

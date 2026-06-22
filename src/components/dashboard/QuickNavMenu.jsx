@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images } from "lucide-react";
@@ -280,6 +280,20 @@ export default function QuickNavMenu() {
     setLocalOrder(configuredGridItems.map(i => i.id));
     setEditMode(true);
   }, [configuredGridItems]);
+
+  // The header cog's "Customize dashboard" entry fires this event so the
+  // dashboard layout editor can be opened from the top bar, not just the
+  // inline pencil. Scroll the grid into view so edit mode is visible.
+  useEffect(() => {
+    const handler = () => {
+      handleEnterEdit();
+      requestAnimationFrame(() => {
+        document.querySelector('[data-tour="quick-nav"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    window.addEventListener("symphony-open-dashboard-edit", handler);
+    return () => window.removeEventListener("symphony-open-dashboard-edit", handler);
+  }, [handleEnterEdit]);
 
   const handleDragEnd = useCallback(({ active, over }) => {
     if (!over || active.id === over.id) return;

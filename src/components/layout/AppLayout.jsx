@@ -9,6 +9,7 @@ import NotificationPopups from "@/components/dashboard/NotificationPopups";
 import FloatingGroundingButton from "@/components/grounding/FloatingGroundingButton";
 import GroceryListPanel from "@/components/grocery/GroceryListPanel";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
+import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
@@ -566,15 +567,7 @@ const handleNotifClick = (mentionLog) => {
                 </span>
               )}
             </Link>
-            <Link
-              to="/settings"
-              aria-label="Settings"
-              className={cn(
-                "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
-                location.pathname.startsWith("/settings") ? "text-primary bg-primary/10" : "text-muted-foreground hover:bg-muted/50"
-              )}>
-              <Settings className="w-5 h-5" />
-            </Link>
+            <HeaderPageMenu />
           </div>
         </div>
       </header>
