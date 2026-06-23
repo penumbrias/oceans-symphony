@@ -246,6 +246,19 @@ select option {
   color: var(--color-text-primary, #e5e7eb);
 }
 
+/* ── Quick Check-In vertical rating slider ──
+   The Feeling section's side slider. writing-mode + rtl gives a true vertical
+   range (max at the top) in modern Chromium / Safari / Firefox. accent-color
+   is set inline to the tracked symptom's colour. */
+.qci-vertical-slider {
+  writing-mode: vertical-lr;
+  direction: rtl;
+  width: 1.5rem;
+  height: 120px;
+  cursor: pointer;
+  touch-action: none;
+}
+
 /* ── Dashboard desktop columns ──
    Phones: a single vertical stack (default block flow). Desktop: the
    dashboard sections flow into two balanced columns so the screen isn't one

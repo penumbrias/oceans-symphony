@@ -59,7 +59,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "💜",
       title: "Quick Check-In",
-      body: `The Quick Check-In button opens a multi-section flow for logging emotions, symptoms, activities, and notes in one go. Any ${t.alter} can use it at any time. It's the fastest way to capture what's happening right now.`,
+      body: `The Quick Check-In button opens a multi-section flow for logging emotions, symptoms, activities, and notes in one go. Tap the section pills, or use the ‹ Prev / Next › arrows at the bottom to step through them one at a time. The Feeling section has a side slider that quick-logs a 0–5 rating — Energy level by default; tap its label to track any other rating symptom/habit. Any ${t.alter} can use it at any time.`,
       // No target while the modal opens — the trigger button hides behind
       // the modal so highlighting it would just place an invisible spotlight
       // on a hidden element and flip the tour card to the top of the screen.

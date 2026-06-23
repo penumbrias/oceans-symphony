@@ -22,6 +22,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Quick Check-In: a side slider on the Feeling section quick-logs a 0–5 rating — Energy level by default; tap its label to track any other rating symptom/habit.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: ‹ Prev / Next › arrows at the bottom step through the sections one at a time.",
+      },
+      {
+        type: "fix",
+        text: "Quick Check-In's Good / Neutral / Bad buttons now show in their category colour and count as positive/neutral/negative in emotion analytics.",
+      },
+      {
+        type: "feature",
         text: "You can now start a plan live: open a plan, tap \"Start now\" to time it, and tap End to complete it — it shows under Active Activities meanwhile.",
       },
       {

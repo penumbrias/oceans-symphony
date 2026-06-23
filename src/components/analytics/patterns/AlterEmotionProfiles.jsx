@@ -13,6 +13,8 @@ function AlterChipAvatar({ alter }) {
 
 // Rough emotion → valence mapping for coloring
 const VALENCE = {
+  // Base moods from the Quick Check-In "Good / Neutral / Bad" buttons.
+  good: 1, bad: -1, neutral: 0,
   happy: 1, joy: 1, excited: 1, content: 1, grateful: 1, calm: 1, peaceful: 1,
   hopeful: 1, proud: 1, loved: 1, safe: 1, playful: 1, curious: 1,
   sad: -1, angry: -1, anxious: -1, fearful: -1, overwhelmed: -1, ashamed: -1,
