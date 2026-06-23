@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Date custom field: you can now save just a month and day with no year (pick them from dropdowns) — the year is genuinely optional now, instead of being required to save.",
+      },
+      {
         type: "improve",
         text: "Web app on a computer: swipe and press-and-hold now work with a mouse on every alter surface (dashboard fronters, set-front picker, profiles…), not just the alters grid.",
       },

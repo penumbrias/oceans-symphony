@@ -14,36 +14,76 @@ import { parseDateFieldValue, formatDateField } from "@/lib/importantDates";
 
 const FIELD_ORDER_KEY = "_field_order";
 
-// Input for a "date" custom field. A native date picker plus an "include year"
-// toggle: off = annual (stores "MM-DD", e.g. a birthday); on = a specific date
-// (stores "YYYY-MM-DD"). The picker always needs a year to operate, so annual
-// values borrow the current year just for display.
+const DATE_MONTH_NAMES = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+
+// Input for a "date" custom field. Month + Day are SEPARATE selects so a date
+// can be saved WITHOUT a year at all (the native <input type=date> always
+// demands a year). The year is a genuinely optional field, shown only when
+// "include the year" is ticked. Stores "MM-DD" (annual, e.g. a birthday) or
+// "YYYY-MM-DD" (specific).
 function DateFieldInput({ value, onChange, autoFocus = false }) {
   const parsed = parseDateFieldValue(value);
+  const [month, setMonth] = useState(parsed ? String(parsed.month) : "");
+  const [day, setDay] = useState(parsed ? String(parsed.day) : "");
   const [includeYear, setIncludeYear] = useState(!!(parsed && parsed.year != null));
+  const [year, setYear] = useState(parsed && parsed.year != null ? String(parsed.year) : "");
+
   const pad = (n) => String(n).padStart(2, "0");
-  const dateStr = parsed
-    ? `${pad(parsed.year ?? new Date().getFullYear())}-${pad(parsed.month)}-${pad(parsed.day)}`
-    : "";
-  const emit = (ds, withYear) => {
-    if (!ds) { onChange(""); return; }
-    const [y, m, d] = ds.split("-");
-    onChange(withYear ? `${y}-${m}-${d}` : `${m}-${d}`);
+  // Leap-year reference so Feb 29 birthdays are selectable for annual dates.
+  const daysInMonth = month ? new Date(2000, Number(month), 0).getDate() : 31;
+
+  const emit = (mo, d, withYear, yr) => {
+    if (!mo || !d) { onChange(""); return; }
+    if (withYear && yr) onChange(`${String(yr).padStart(4, "0")}-${pad(mo)}-${pad(d)}`);
+    else onChange(`${pad(mo)}-${pad(d)}`);
   };
+
+  const selectCls = "rounded-md border border-input bg-transparent px-2 py-1.5 text-sm";
+
   return (
     <div className="flex-1 flex flex-col gap-1.5">
-      <input
-        type="date"
-        value={dateStr}
-        autoFocus={autoFocus}
-        onChange={(e) => emit(e.target.value, includeYear)}
-        className="rounded-md border border-input bg-transparent px-3 py-1.5 text-sm"
-      />
+      <div className="flex gap-2 flex-wrap">
+        <select
+          value={month}
+          autoFocus={autoFocus}
+          onChange={(e) => {
+            const mo = e.target.value;
+            // Clamp the day if the new month has fewer days.
+            const maxD = mo ? new Date(2000, Number(mo), 0).getDate() : 31;
+            const d = day && Number(day) > maxD ? "" : day;
+            setMonth(mo); setDay(d); emit(mo, d, includeYear, year);
+          }}
+          className={`${selectCls} flex-1 min-w-[7rem]`}
+          aria-label="Month"
+        >
+          <option value="">Month</option>
+          {DATE_MONTH_NAMES.map((nm, i) => <option key={i} value={i + 1}>{nm}</option>)}
+        </select>
+        <select
+          value={day}
+          onChange={(e) => { const d = e.target.value; setDay(d); emit(month, d, includeYear, year); }}
+          className={`${selectCls} w-20`}
+          aria-label="Day"
+        >
+          <option value="">Day</option>
+          {Array.from({ length: daysInMonth }, (_, i) => <option key={i} value={i + 1}>{i + 1}</option>)}
+        </select>
+        {includeYear && (
+          <input
+            type="number"
+            value={year}
+            placeholder="Year"
+            onChange={(e) => { const y = e.target.value; setYear(y); emit(month, day, true, y); }}
+            className={`${selectCls} w-24`}
+            aria-label="Year"
+          />
+        )}
+      </div>
       <label className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground cursor-pointer select-none">
         <input
           type="checkbox"
           checked={includeYear}
-          onChange={(e) => { setIncludeYear(e.target.checked); emit(dateStr, e.target.checked); }}
+          onChange={(e) => { setIncludeYear(e.target.checked); emit(month, day, e.target.checked, year); }}
           className="w-3.5 h-3.5 accent-primary"
         />
         Include the year (leave off for annual dates like a birthday)
