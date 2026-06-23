@@ -6,7 +6,7 @@ import { isValidHexColor } from "@/lib/colorUtils";
 // and subsystem pills (searchable, scrollable), Any/All match mode, and
 // Clear all. Edits the `filters` object live via onChange.
 //   filters = { nested: bool, groupIds: string[], subsystemIds: string[], mode: "any" | "all" }
-export default function AlterFilterPopup({ filters, onChange, regularGroups, subsystemGroups, terms, onClose }) {
+export default function AlterFilterPopup({ filters, onChange, regularGroups, subsystemGroups, roles = [], terms, onClose }) {
   const [search, setSearch] = useState("");
   const openedAt = useRef(Date.now());
   const subTerm = terms.system === "system" ? "subsystem" : `sub${terms.system}`;
@@ -15,8 +15,10 @@ export default function AlterFilterPopup({ filters, onChange, regularGroups, sub
   const q = search.trim().toLowerCase();
   const groupsShown = regularGroups.filter((g) => (g.name || "").toLowerCase().includes(q));
   const subsShown = subsystemGroups.filter((g) => (g.name || "").toLowerCase().includes(q));
+  const rolesShown = roles.filter((r) => r.toLowerCase().includes(q));
+  const selectedRoles = filters.roles || [];
 
-  const activeCount = filters.groupIds.length + filters.subsystemIds.length;
+  const activeCount = filters.groupIds.length + filters.subsystemIds.length + selectedRoles.length;
   const dirty = activeCount > 0 || !filters.nested || filters.mode !== "any";
 
   const toggleId = (key, id) => {
@@ -24,7 +26,11 @@ export default function AlterFilterPopup({ filters, onChange, regularGroups, sub
     const next = arr.includes(id) ? arr.filter((x) => x !== id) : [...arr, id];
     onChange({ ...filters, [key]: next });
   };
-  const clearAll = () => onChange({ nested: true, groupIds: [], subsystemIds: [], mode: "any" });
+  const toggleRole = (role) => {
+    const next = selectedRoles.includes(role) ? selectedRoles.filter((x) => x !== role) : [...selectedRoles, role];
+    onChange({ ...filters, roles: next });
+  };
+  const clearAll = () => onChange({ nested: true, groupIds: [], subsystemIds: [], roles: [], mode: "any" });
   const backdropClick = () => { if (Date.now() - openedAt.current > 250) onClose(); };
 
   const Pill = ({ g, selected, onClick }) => {
@@ -95,7 +101,7 @@ export default function AlterFilterPopup({ filters, onChange, regularGroups, sub
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search groups…"
+            placeholder="Search groups & roles…"
             className="w-full h-8 px-3 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring"
           />
 
@@ -126,6 +132,36 @@ export default function AlterFilterPopup({ filters, onChange, regularGroups, sub
                   {subsShown.map((g) => (
                     <Pill key={g.id} g={g} selected={filters.subsystemIds.includes(g.id)} onClick={() => toggleId("subsystemIds", g.id)} />
                   ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {roles.length > 0 && (
+            <div>
+              <p className="text-[0.625rem] uppercase tracking-wider text-muted-foreground mb-1.5">
+                Roles{selectedRoles.length ? ` (${selectedRoles.length})` : ""}
+              </p>
+              {rolesShown.length === 0 ? (
+                <p className="text-xs text-muted-foreground">No roles{q ? " match" : ""}.</p>
+              ) : (
+                <div className="flex flex-wrap gap-1.5 max-h-28 overflow-y-auto p-0.5">
+                  {rolesShown.map((role) => {
+                    const selected = selectedRoles.includes(role);
+                    return (
+                      <button
+                        key={role}
+                        type="button"
+                        onClick={() => toggleRole(role)}
+                        className="px-2.5 py-1 rounded-full text-xs font-medium border transition-colors max-w-[12rem] truncate flex-shrink-0"
+                        style={selected
+                          ? { backgroundColor: "hsl(var(--primary) / 0.15)", borderColor: "hsl(var(--primary))", color: "hsl(var(--foreground))" }
+                          : { borderColor: "hsl(var(--border))", color: "hsl(var(--muted-foreground))" }}
+                      >
+                        {role}
+                      </button>
+                    );
+                  })}
                 </div>
               )}
             </div>

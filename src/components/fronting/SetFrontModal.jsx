@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import PresencePicker from "@/components/presences/PresencePicker";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import useSwipeActions from "@/hooks/useSwipeActions";
@@ -298,6 +299,10 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const [newSessionId, setNewSessionId] = useState(null);
   const [isUnsure, setIsUnsure] = useState(false);
   const [viewMode, setViewMode] = useState("list");
+  // "fronters" (the existing flow) | "presence" (record a sensed-but-not-yet-
+  // identified fragment). The presence tab renders a self-contained form and
+  // touches NO FrontingSession logic.
+  const [tab, setTab] = useState("fronters");
   const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
@@ -352,6 +357,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   // never shows ghost selections that the user didn't tap.
   useEffect(() => {
     if (!open) return;
+    setTab("fronters");
     setIsUnsure(false);
     setJournalSwitch(false);
     setTriggeredSwitch(false);
@@ -710,6 +716,35 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             </div>
           </DialogHeader>
 
+          {/* Fronters vs. New-presence tabs. Hidden in selection mode (the
+              meeting "notice who's near" flow has no presence concept). */}
+          {!selectionMode && (
+            <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-1" role="tablist">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "fronters"}
+                onClick={() => setTab("fronters")}
+                className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "fronters" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                Set {terms.Front}ers
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={tab === "presence"}
+                onClick={() => setTab("presence")}
+                className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "presence" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
+              >
+                New presence
+              </button>
+            </div>
+          )}
+
+          {tab === "presence" && !selectionMode ? (
+            <PresencePicker onClose={onClose} />
+          ) : (
+          <>
           {/* Selected chips */}
           {(selectedIds.size > 0 || isUnsure) &&
           <div className="bg-muted/30 rounded-lg p-3 mb-2 border border-border/50">
@@ -937,6 +972,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               {selectionMode ? (confirmLabel || "Add to meeting") : `Set ${terms.Front}ers`}
             </Button>
           </div>
+          </>
+          )}
         </DialogContent>
       </Dialog>
 

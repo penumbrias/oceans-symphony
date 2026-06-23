@@ -219,7 +219,7 @@ export default function LocationHistory() {
   const topCatMeta = topCat ? getCategoryMeta(topCat[0]) : null;
 
   return (
-    <div className="py-6 max-w-2xl mx-auto">
+    <div className="py-6 os-page-shell">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="font-display text-3xl font-semibold text-foreground">Location History</h1>

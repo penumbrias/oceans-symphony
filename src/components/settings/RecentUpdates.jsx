@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
+import { APP_VERSION } from "@/lib/appVersion";
 
 const TYPE_STYLES = {
   feature: { dot: "bg-primary", label: "New", labelCls: "text-primary bg-primary/10" },
@@ -18,10 +19,19 @@ export default function RecentUpdates() {
 
   return (
     <div className="space-y-4">
-      {visible.map((release, ri) => (
+      {visible.map((release, ri) => {
+        // The last version published on this date. The current (top) block
+        // isn't stamped — it shows the live APP_VERSION so today's releases
+        // don't each need a manual bump; older blocks carry the frozen
+        // version they ended the day on (stamped when a new date rolls over).
+        const ver = release.version || (ri === 0 ? APP_VERSION : null);
+        return (
         <div key={ri}>
-          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2">
-            {release.date}
+          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-2 flex items-center gap-2">
+            <span>{release.date}</span>
+            {ver && (
+              <span className="font-mono normal-case tracking-normal text-[0.625rem] text-muted-foreground/70 px-1.5 py-0.5 rounded bg-muted/60">v{ver}</span>
+            )}
           </p>
           <div className="space-y-2">
             {release.changes.map((c, ci) => {
@@ -42,7 +52,8 @@ export default function RecentUpdates() {
             })}
           </div>
         </div>
-      ))}
+        );
+      })}
 
       {CHANGELOG.length > INITIAL_SHOW && (
         <button

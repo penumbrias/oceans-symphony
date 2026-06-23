@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useCallback } from "react";
+import React, { useState, useMemo, useCallback, useEffect } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Link } from "react-router-dom";
 import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, ClipboardList, Sparkles, Activity, Zap, GitBranch, GitMerge, LayoutGrid, FileText, Heart, Bell, Vote, Shield, MapPin, UserRound, Pin, X as XIcon, Plus as PlusIcon, Pencil, Check, MessageSquare, Images } from "lucide-react";
@@ -16,6 +16,7 @@ function buildNavGroups(altersLabel, systemLabel) {
   return {
     [systemLabel]: [
       { id: "alters",   label: altersLabel,            icon: Users,         path: "/Home" },
+      { id: "presences",label: "New Presences",        icon: Sparkles,      path: "/presences" },
       { id: "chat",     label: `${systemLabel} Chat`,  icon: MessageSquare, path: "/chat" },
       { id: "friends",  label: "Friends",              icon: UserRound,     path: "/friends" },
       { id: "groups",   label: "Groups",               icon: Users,         path: "/groups" },
@@ -78,6 +79,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "bulletins",       label: "Bulletin Board",         icon: Pin,           path: "/bulletins",        color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
     { id: "unblend",         label: "Help me unblend",        icon: Heart,         path: "/unblend",          color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "get-to-know-me",  label: "Get to know me",         icon: Sparkles,      path: "/get-to-know-me",   color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
+    { id: "presences",       label: "New Presences",          icon: Sparkles,      path: "/presences",        color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
     { id: "chat",            label: `${systemLabel} Chat`,    icon: MessageSquare, path: "/chat",             color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
   ];
 }
@@ -280,6 +282,20 @@ export default function QuickNavMenu() {
     setLocalOrder(configuredGridItems.map(i => i.id));
     setEditMode(true);
   }, [configuredGridItems]);
+
+  // The header cog's "Customize dashboard" entry fires this event so the
+  // dashboard layout editor can be opened from the top bar, not just the
+  // inline pencil. Scroll the grid into view so edit mode is visible.
+  useEffect(() => {
+    const handler = () => {
+      handleEnterEdit();
+      requestAnimationFrame(() => {
+        document.querySelector('[data-tour="quick-nav"]')?.scrollIntoView({ behavior: "smooth", block: "start" });
+      });
+    };
+    window.addEventListener("symphony-open-dashboard-edit", handler);
+    return () => window.removeEventListener("symphony-open-dashboard-edit", handler);
+  }, [handleEnterEdit]);
 
   const handleDragEnd = useCallback(({ active, over }) => {
     if (!over || active.id === over.id) return;

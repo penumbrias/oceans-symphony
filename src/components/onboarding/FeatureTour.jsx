@@ -186,6 +186,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "alters", sectionLabel: t.Alters,
+      emoji: "🌫️",
+      title: "New presences",
+      body: `Sensed someone you can't quite place? Record a "presence" — even just a colour or a vibe — here or via the "New presence" tab when you set ${t.fronters}. This page flags when a presence reoccurs or might already be a known ${t.alter}.`,
+      route: "/presences", target: "new-presences",
+      look: `the New Presences page`, action: null,
+    },
+    {
+      section: "alters", sectionLabel: t.Alters,
       emoji: "🔃",
       title: `Sort ${t.Alters}`,
       body: `The sort button (↕ arrow icon) cycles through A→Z, Z→A, Most ${t.fronting} time first, and Least ${t.fronting} time first. Active ${t.alters} always pin to the top regardless of which sort mode is active.`,

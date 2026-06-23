@@ -602,6 +602,24 @@ export function buildGroceryRecords({ items = [] }) {
  * Pass each `items` list nullably — missing arrays just contribute zero
  * records, which lets the consumer enable queries lazily.
  */
+export function buildPresenceRecords({ items = [], alters = [] }) {
+  return items.map((p) => {
+    const linkedNames = (p.associated_alter_ids || [])
+      .map((id) => alters.find((a) => a.id === id)?.name)
+      .filter(Boolean);
+    const title = p.label || p.vibe || "Presence";
+    return {
+      type: "presence",
+      id: p.id,
+      title,
+      subtitle: joinNonEmpty([p.vibe && p.vibe !== title ? p.vibe : "", formatDateLabel(p.timestamp)]).trim() || "New presence",
+      path: `/presences?highlight=${p.id}`,
+      searchableText: joinNonEmpty([p.label, p.vibe, p.notes, p.relationship_type, linkedNames.join(" "), dateSearchBlob(p.timestamp)]).toLowerCase(),
+      sortDate: p.timestamp,
+    };
+  });
+}
+
 export function buildSearchIndex(sources = {}) {
   const {
     alters, customFieldDefs,
@@ -621,6 +639,7 @@ export function buildSearchIndex(sources = {}) {
     groceries,
     chatMessages, chatChannels,
     groundingTechniques, innerWorldLocations,
+    presences,
   } = sources;
 
   const records = [];
@@ -650,6 +669,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildChatMessageRecords({ items: chatMessages || [], channels: chatChannels || [] }));
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
+  records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
   return records;
 }
 

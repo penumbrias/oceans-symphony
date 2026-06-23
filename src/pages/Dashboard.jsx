@@ -169,7 +169,9 @@ export default function Dashboard() {
   if (activeSessions.length > 0) {
     // New individual model: each session is one alter
     if (activeSessions.some(s => s.alter_id)) {
-      frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
+      // Dedup — a stale/duplicate active session per alter must not list the
+      // same fronter twice (drives the "Kane, Kane" authorship glitch).
+      frontingAlterIds = [...new Set(activeSessions.map((s) => s.alter_id).filter(Boolean))];
       const primarySess = activeSessions.find(s => s.alter_id && s.is_primary);
       currentAlterId = primarySess?.alter_id || frontingAlterIds[0] || null;
     } else {
@@ -587,6 +589,7 @@ export default function Dashboard() {
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
+      <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;
         switch (entry.id) {
@@ -676,6 +679,7 @@ export default function Dashboard() {
             return null;
         }
       })}
+      </div>
 
       {/* Legal/scope disclaimer — gates everything else on first run.
           TermsSetup waits until the disclaimer is acknowledged. */}

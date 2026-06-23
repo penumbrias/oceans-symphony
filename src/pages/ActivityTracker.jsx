@@ -232,6 +232,22 @@ export default function ActivityTracker() {
     setIsDetailsOpen(false);
     setSelectedActivity(null);
   };
+  // Open the full Plan editor (ActivityPlanModal) for a plan. Used by the
+  // Details modal's "Edit" button AND handed down to the week grid (which
+  // mounts its own Details modal) so its Edit-plan button opens the real
+  // editor instead of dead-ending into the Manage/lifecycle popover.
+  // For recurring plans, route through the recurrence-branch chooser first.
+  const openPlanEditor = (act) => {
+    setIsDetailsOpen(false);
+    setSelectedActivity(null);
+    if (act?.recurrence_group_id) {
+      setPendingEditPivot(act);
+      return;
+    }
+    setEditingPlan(act);
+    setEditBranch(null);
+    setPlanModalOpen(true);
+  };
   const handleActivitySave = () => {
     qc.invalidateQueries({ queryKey: ["activities"] });
   };
@@ -405,6 +421,7 @@ export default function ActivityTracker() {
                 highlightActivityId={highlightId}
                 onWeekStartChange={setWeekStartsOn}
                 onDayClick={setZoomedDate}
+                onEditPlan={openPlanEditor}
               />
             )}
             {viewMode === "month" && (
@@ -532,22 +549,7 @@ export default function ActivityTracker() {
         activity={selectedActivity}
         alters={alters}
         onSave={handleActivitySave}
-        onEditPlan={(act) => {
-          // Close Details, hand the plan off to the Plan modal. For
-          // recurring plans, route through the recurrence-branch
-          // chooser first so the user picks which slice of the series
-          // their edit applies to. Non-recurring plans skip straight
-          // to the editor.
-          setIsDetailsOpen(false);
-          setSelectedActivity(null);
-          if (act?.recurrence_group_id) {
-            setPendingEditPivot(act);
-            return;
-          }
-          setEditingPlan(act);
-          setEditBranch(null);
-          setPlanModalOpen(true);
-        }}
+        onEditPlan={openPlanEditor}
       />
       </ErrorBoundary>
     </div>

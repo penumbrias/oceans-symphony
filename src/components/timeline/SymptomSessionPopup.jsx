@@ -7,31 +7,42 @@ import { toast } from "sonner";
 export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
   const queryClient = useQueryClient();
   const [adjustedStartTime, setAdjustedStartTime] = useState(
-    formatTimeValue(new Date(session.start_time))
+    formatDateTimeValue(new Date(session.start_time))
   );
   const [adjustedEndTime, setAdjustedEndTime] = useState(
-    session.end_time ? formatTimeValue(new Date(session.end_time)) : ""
+    session.end_time ? formatDateTimeValue(new Date(session.end_time)) : ""
   );
   const [saving, setSaving] = useState(false);
 
-  function formatTimeValue(date) {
-    const h = String(date.getHours()).padStart(2, "0");
-    const m = String(date.getMinutes()).padStart(2, "0");
-    return `${h}:${m}`;
+  // Local "YYYY-MM-DDTHH:mm" for a <input type="datetime-local">. We capture
+  // the full DATE as well as the time so a symptom that crosses midnight (or
+  // spans multiple days — a migraine from 8pm to 2am the next day) ends on
+  // the right day. The old time-only input pinned the end to the START date,
+  // so "2am" became 2am the morning the session began — BEFORE the start —
+  // which collapsed the bar to nothing.
+  function formatDateTimeValue(date) {
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
   }
 
-  function timeToDate(timeStr) {
-    const [h, m] = timeStr.split(":").map(Number);
-    const date = new Date(session.start_time);
-    date.setHours(h, m, 0, 0);
-    return date.toISOString();
+  // datetime-local string (interpreted as local time) → ISO, or null if blank/invalid.
+  function dtToISO(value) {
+    if (!value) return null;
+    const d = new Date(value);
+    return isNaN(d.getTime()) ? null : d.toISOString();
   }
 
   const handleAdjustStartTime = async () => {
     if (saving) return;
+    const iso = dtToISO(adjustedStartTime);
+    if (!iso) { toast.error("Pick a valid start time"); return; }
+    if (session.end_time && new Date(iso) > new Date(session.end_time)) {
+      toast.error("Start can't be after the end time");
+      return;
+    }
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(session.id, { start_time: timeToDate(adjustedStartTime) });
+      await base44.entities.SymptomSession.update(session.id, { start_time: iso });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       toast.success("Start time updated");
       onClose();
@@ -44,9 +55,18 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
 
   const handleAdjustEndTime = async () => {
     if (saving) return;
+    const iso = dtToISO(adjustedEndTime);
+    if (!iso) { toast.error("Pick a valid end time"); return; }
+    if (new Date(iso) < new Date(session.start_time)) {
+      toast.error("End can't be before the start time");
+      return;
+    }
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(session.id, { end_time: timeToDate(adjustedEndTime) });
+      // A session with an end time is ENDED — flip is_active off too, or it
+      // lingers as a ghost-active session (kept reading as active in the
+      // "active symptoms" notification + current-symptoms list).
+      await base44.entities.SymptomSession.update(session.id, { end_time: iso, is_active: false });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       toast.success("End time updated");
       onClose();
@@ -100,10 +120,17 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
 
   const handleEndSession = async () => {
     if (saving) return;
+    // Default to "now" when no explicit end was picked.
+    const iso = adjustedEndTime ? dtToISO(adjustedEndTime) : new Date().toISOString();
+    if (!iso) { toast.error("Pick a valid end time"); return; }
+    if (new Date(iso) < new Date(session.start_time)) {
+      toast.error("End can't be before the start time");
+      return;
+    }
     setSaving(true);
     try {
       await base44.entities.SymptomSession.update(session.id, {
-        end_time: timeToDate(adjustedEndTime || formatTimeValue(new Date())),
+        end_time: iso,
         is_active: false,
       });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
@@ -134,7 +161,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground font-medium">Adjust start time</p>
           <input
-            type="time"
+            type="datetime-local"
             value={adjustedStartTime}
             onChange={(e) => setAdjustedStartTime(e.target.value)}
             className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm"
@@ -152,7 +179,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
         <div className="space-y-1">
           <p className="text-xs text-muted-foreground font-medium">Adjust end time</p>
           <input
-            type="time"
+            type="datetime-local"
             value={adjustedEndTime}
             onChange={(e) => setAdjustedEndTime(e.target.value)}
             className="w-full h-8 px-2 rounded-md border border-input bg-background text-sm"

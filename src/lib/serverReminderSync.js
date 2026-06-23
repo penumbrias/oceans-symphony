@@ -27,7 +27,7 @@ import { isNative } from "@/lib/platform";
 import { base44 } from "@/api/base44Client";
 import { getLocalIdentity } from "@/lib/friendsApi";
 import { isPushEnabled } from "@/lib/pushRegistration";
-import { computePrescheduledFires, isPrescheduleableType } from "@/lib/nativeReminderScheduler";
+import { computePrescheduledFires, isPrescheduleableType, isRollingFrontReminder } from "@/lib/nativeReminderScheduler";
 
 // Same host rule as friendsApi: native WebView can't use a relative /api
 // path (private hostname → 404), so point at the production deploy.
@@ -92,6 +92,10 @@ export async function syncRemindersToServer() {
     if (!r.is_active) continue;
     if (r.end_date && new Date(r.end_date) <= now) continue;
     if (!isPrescheduleableType(r)) continue; // contextual reminders need live data → stay local
+    // The rolling "no front update for N minutes" reminder resets on every
+    // front change, which a static server schedule can't follow — the local
+    // OS pre-schedule owns it instead (it re-reconciles on front change).
+    if (isRollingFrontReminder(r)) continue;
     const channels = r.delivery_channels?.length ? r.delivery_channels : ["in_app"];
     if (!channels.includes("push")) continue; // in-app-only reminders never leave the device
     const fires = computePrescheduledFires(r, settings, now);

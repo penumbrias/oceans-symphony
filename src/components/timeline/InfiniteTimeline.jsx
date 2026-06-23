@@ -1590,7 +1590,7 @@ export default function InfiniteTimeline({
                            expanded={false}
                            tiedAlters={altersAtTime(session?.start_time)}
                            onTap={() => setSymptomDetailModal({ session, symptom, tiedAlters: altersAtTime(session?.start_time) })}
-                           onLongPress={() => setSymptomDetailModal({ session, symptom, tiedAlters: altersAtTime(session?.start_time) })}
+                           onLongPress={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
                            onDoubleTap={() => setSymptomSessionPopover({ session, symptom, splitMins: entry.startMins })}
                          />
                        );

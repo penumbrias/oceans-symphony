@@ -19,17 +19,25 @@ import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 const WS = /\s/;
 
-// The @/- token the caret currently sits inside. A token starts with @ or -
-// at a word boundary (start, or after whitespace) and can't contain
-// whitespace. Hyphens mid-word (well-being, 2024-01) are NOT signpost starts.
+// The @/-/+ token the caret currently sits inside. A token starts with @, -,
+// or + at a word boundary (start, or after whitespace) and can't contain
+// whitespace. Both - (set sole author) and + (add an author) open the same
+// signpost picker; we remember which prefix was typed so the inserted token
+// keeps the user's intent. Hyphens mid-word (well-being, 2024-01) are NOT
+// signpost starts.
 function detectToken(value, caret) {
   let i = caret - 1;
   while (i >= 0) {
     const ch = value[i];
     if (WS.test(ch)) return null;
     const prev = i > 0 ? value[i - 1] : "";
-    if ((ch === "@" || ch === "-") && (i === 0 || WS.test(prev))) {
-      return { type: ch === "@" ? "mention" : "signpost", start: i, query: value.slice(i + 1, caret) };
+    if ((ch === "@" || ch === "-" || ch === "+") && (i === 0 || WS.test(prev))) {
+      return {
+        type: ch === "@" ? "mention" : "signpost",
+        prefix: ch,
+        start: i,
+        query: value.slice(i + 1, caret),
+      };
     }
     i -= 1;
   }
@@ -108,13 +116,18 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     const caret = ta ? (ta.selectionStart ?? value.length) : value.length;
     const tok = detectToken(value, caret);
     if (!tok) { setMenu(null); return; }
-    const prefix = tok.type === "mention" ? "@" : "-";
+    // Keep the prefix the user actually typed (- = sole author, + = add).
+    const prefix = tok.prefix || (tok.type === "mention" ? "@" : "-");
     const before = value.slice(0, tok.start);
     const after = value.slice(caret);
     const insertText = `${prefix}${token} `;
     onChange(before + insertText + after);
     setMenu(null);
     const newCaret = before.length + insertText.length;
+    // Re-assert focus synchronously (within the tap gesture) so the mobile
+    // keyboard doesn't drop when a suggestion is picked, then fix the caret
+    // once React has applied the new value.
+    ta?.focus();
     requestAnimationFrame(() => {
       ta?.focus();
       try { ta?.setSelectionRange(newCaret, newCaret); } catch { /* detached */ }
@@ -172,7 +185,9 @@ const MentionTextarea = forwardRef(function MentionTextarea(
         <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
           style={{ bottom: "calc(100% + 4px)" }}>
           {menu.type === "signpost" && (
-            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
+            <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">
+              {menu.prefix === "+" ? "Add an author…" : "Sign as author…"}
+            </div>
           )}
           {menu.type === "signpost" && showSystemRow && (
             <button

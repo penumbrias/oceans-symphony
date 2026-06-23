@@ -2,7 +2,12 @@
  * App changelog — update this file whenever a feature or fix ships.
  *
  * Format per release:
- *   { date: "Month D, YYYY", changes: [{ type, text }] }
+ *   { date: "Month D, YYYY", version?: "X.Y.Z", changes: [{ type, text }] }
+ *
+ * `version` is the LAST version published on that date. Leave it OFF the
+ * current (top) block — Recent Updates shows the live APP_VERSION there, so
+ * same-day releases don't each need a re-stamp. When a NEW date block is
+ * added on top, stamp the previous top block with the version it ended on.
  *
  * types:
  *   "feature"  — new capability worth describing
@@ -13,7 +18,109 @@
 
 export const CHANGELOG = [
   {
+    date: "June 22, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "New Presences: record someone you sense but can't pin down yet — a name, colour, vibe or note — from its own page or the new \"New presence\" tab when you set fronters. It flags when a presence reoccurs or might be a known alter.",
+      },
+      {
+        type: "feature",
+        text: "New Presences: turn a recorded presence into a full alter in one tap — its name, colour, emoji and notes carry over — and choose to keep the linked alters as relationships or add the new alter into a subsystem of one of them.",
+      },
+      {
+        type: "improve",
+        text: "New Presences: after you create an alter from a presence, that presence leaves the list, and the new alter's \"first appearance\" defaults to when you first recorded the presence.",
+      },
+      {
+        type: "improve",
+        text: "New Presences: in Set Front you can now pick a presence you've recorded before (it logs that it's around again) instead of only making new ones; the page lets you edit and merge presences; and the colour picker now matches the alter editor.",
+      },
+      {
+        type: "improve",
+        text: "Web app on a computer: many pages (Settings, Tasks, Friends, Polls, Locations and more) now use the wider screen instead of sitting in a narrow centre strip. More desktop polish to come.",
+      },
+      {
+        type: "improve",
+        text: "Web app on a computer: the dashboard now flows into two columns on a wide screen instead of one tall strip. (Phones are unchanged.)",
+      },
+    ],
+  },
+  {
+    date: "June 21, 2026",
+    version: "0.65.24",
+    changes: [
+      {
+        type: "improve",
+        text: "Web app on a computer: you can now press-and-hold and click-drag alter cards with a mouse (to change front, set primary, etc.) — not just by touch. First step of a desktop polish pass.",
+      },
+      {
+        type: "fix",
+        text: "The daily \"Check in\" task now clears the moment you open the app, not only after you visit the Daily Tasks page.",
+      },
+      {
+        type: "improve",
+        text: "Typing +name while posting now opens the same author picker as -name does (+ adds an author, - makes them the sole author).",
+      },
+      {
+        type: "feature",
+        text: "The settings ⚙️ in the top bar now opens a quick menu with shortcuts for the page you're on (like customizing the dashboard) plus All settings — so a stray tap doesn't dump you into the full settings page.",
+      },
+      {
+        type: "fix",
+        text: "Editing an active symptom that runs past midnight no longer makes its bar disappear — you can now set the end on the correct day, and an end before the start is rejected.",
+      },
+      {
+        type: "improve",
+        text: "Press and hold a symptom bar on the Timeline to edit its start/end times (tap still opens details) — same as fronting sessions.",
+      },
+      {
+        type: "fix",
+        text: "On an alter's profile, the Edit button no longer gets cut off the right edge in portrait — the action buttons now wrap, and Save is a compact icon.",
+      },
+      {
+        type: "fix",
+        text: "Editing a plan from the weekly view now opens the full plan editor — before, both \"Edit plan\" and \"Manage\" led to the same Manage screen.",
+      },
+      {
+        type: "improve",
+        text: "The \"no front update for N minutes\" reminder now fires while the app is closed and resets whenever the front changes (turn on Push for the reminder).",
+      },
+    ],
+  },
+  {
+    date: "June 20, 2026",
+    version: "0.65.18",
+    changes: [
+      {
+        type: "feature",
+        text: "Bulletins: sign with -name to make someone the sole author, or +name to add another. With no one fronting, a post now defaults to your last author (or the whole system). A short how-to shows in the composer.",
+      },
+      {
+        type: "fix",
+        text: "Adjusting a symptom session's end time now properly ends it — so the \"Active symptoms & habits\" notification no longer lingers when nothing is actually active.",
+      },
+      {
+        type: "fix",
+        text: "The \"Signed by\" authors on a bulletin no longer list the same person twice (could happen after changing fronters).",
+      },
+      {
+        type: "improve",
+        text: "Recent Updates (Settings) now shows which app version each day's changes shipped in.",
+      },
+      {
+        type: "feature",
+        text: "Filter the alters list by role — pick one or more roles in the filter popup.",
+      },
+      {
+        type: "improve",
+        text: "\"Manage plan\" now has a notes box, so you can add or edit a plan's note right there.",
+      },
+    ],
+  },
+  {
     date: "June 19, 2026",
+    version: "0.65.13",
     changes: [
       {
         type: "fix",

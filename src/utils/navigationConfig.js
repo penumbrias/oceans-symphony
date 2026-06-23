@@ -28,6 +28,7 @@ export const ALL_PAGES = [
   { id: "get-to-know-me", label: "Get to know me", path: "/get-to-know-me", icon: Sparkles },
   { id: "chat", label: "System Chat", path: "/chat", icon: MessageSquare },
   { id: "assets", label: "Image Assets", path: "/assets", icon: Images },
+  { id: "presences", label: "New Presences", path: "/presences", icon: Sparkles },
 ];
 
 export const DEFAULT_CONFIG = {
@@ -51,6 +52,7 @@ export const DEFAULT_CONFIG = {
     "checkin-log",
     "unblend",
     "get-to-know-me",
+    "presences",
     "chat",
     "activities",
     "sleep",
