@@ -21,6 +21,18 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Web app on a computer: swipe and press-and-hold now work with a mouse on every alter surface (dashboard fronters, set-front picker, profiles…), not just the alters grid.",
+      },
+      {
+        type: "improve",
+        text: "Settings: the header backup button is now a small menu — export a backup now, or jump straight to import.",
+      },
+      {
+        type: "improve",
+        text: "Sidebar tidy-up: Timeline moved to Tracking, System Meeting and Friends to Journal & Content, and System History to the System group.",
+      },
+      {
         type: "feature",
         text: "Custom fields can now be a \"Date\" type, with the year optional. A date field like a birthday shows as a marker on that day in the Activity Tracker month calendar — so any annual event can surface there.",
       },
