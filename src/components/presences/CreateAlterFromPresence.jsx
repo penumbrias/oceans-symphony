@@ -6,7 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
+import { format } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
+import { sightingsOf } from "./PresencePicker";
 
 // Promote a recorded presence into a real alter, carrying over its data
 // (name from the label/vibe, colour, emoji, vibe+notes → bio). The user then
@@ -55,11 +57,19 @@ export default function CreateAlterFromPresence({ open, onClose, presence }) {
     }
     setSaving(true);
     try {
+      // First appearance defaults to when the presence was FIRST recorded
+      // (its earliest sighting). `birthday` is the free-form display text and
+      // `origin_year` the integer the lineage/timeline reads — same pairing
+      // the alter editor keeps in sync.
+      const seen = [...sightingsOf(presence)].sort();
+      const firstSeen = seen[0] ? new Date(seen[0]) : new Date();
       const newAlter = await base44.entities.Alter.create({
         name: name.trim(),
         color: presence.color || "",
         emoji: presence.emoji || "",
         description: [presence.vibe, presence.notes].filter(Boolean).join("\n\n"),
+        birthday: format(firstSeen, "MMM d, yyyy"),
+        origin_year: firstSeen.getFullYear(),
         is_archived: false,
       });
 

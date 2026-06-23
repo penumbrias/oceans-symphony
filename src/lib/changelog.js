@@ -30,6 +30,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "New Presences: after you create an alter from a presence, that presence leaves the list, and the new alter's \"first appearance\" defaults to when you first recorded the presence.",
+      },
+      {
+        type: "improve",
         text: "New Presences: in Set Front you can now pick a presence you've recorded before (it logs that it's around again) instead of only making new ones; the page lets you edit and merge presences; and the colour picker now matches the alter editor.",
       },
       {

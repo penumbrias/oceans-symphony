@@ -48,9 +48,13 @@ export default function NewPresences() {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
 
   const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
-  const recurrence = useMemo(() => computeRecurrence(presences), [presences]);
+  // Once a presence has become an alter (resolved_alter_id set) it's no longer
+  // a "new" presence — drop it from the list. The record itself is kept (and
+  // backed up); it just stops cluttering the unidentified list.
+  const visible = useMemo(() => presences.filter((p) => !p.resolved_alter_id), [presences]);
+  const recurrence = useMemo(() => computeRecurrence(visible), [visible]);
 
-  useHighlightScroll([presences.length]);
+  useHighlightScroll([visible.length]);
 
   const linkAlter = async (presence, alterId) => {
     try {
@@ -142,7 +146,7 @@ export default function NewPresences() {
           <Button onClick={() => setFormFor(null)} className="gap-1.5">
             <Plus className="w-4 h-4" /> Record
           </Button>
-          {presences.length > 1 && (
+          {visible.length > 1 && (
             <button
               onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
               className={`text-xs px-2 py-1 rounded-lg transition-colors ${selectMode ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}
@@ -162,7 +166,7 @@ export default function NewPresences() {
         </div>
       )}
 
-      {presences.length === 0 ? (
+      {visible.length === 0 ? (
         <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-border/60">
           <Sparkles className="w-10 h-10 text-muted-foreground/40 mx-auto mb-3" />
           <p className="text-sm text-muted-foreground max-w-sm mx-auto">
@@ -171,7 +175,7 @@ export default function NewPresences() {
         </div>
       ) : (
         <div className="space-y-3">
-          {presences.map((p) => {
+          {visible.map((p) => {
             const linked = (p.associated_alter_ids || []).map((id) => alterById[id]).filter(Boolean);
             const suggestions = suggestAlters(p, alters, 3);
             const recurCount = recurrence.get(p.id) || 0;
