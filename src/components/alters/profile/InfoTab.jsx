@@ -10,8 +10,47 @@ import { useTerms } from "@/lib/useTerms";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
+import { parseDateFieldValue, formatDateField } from "@/lib/importantDates";
 
 const FIELD_ORDER_KEY = "_field_order";
+
+// Input for a "date" custom field. A native date picker plus an "include year"
+// toggle: off = annual (stores "MM-DD", e.g. a birthday); on = a specific date
+// (stores "YYYY-MM-DD"). The picker always needs a year to operate, so annual
+// values borrow the current year just for display.
+function DateFieldInput({ value, onChange, autoFocus = false }) {
+  const parsed = parseDateFieldValue(value);
+  const [includeYear, setIncludeYear] = useState(!!(parsed && parsed.year != null));
+  const pad = (n) => String(n).padStart(2, "0");
+  const dateStr = parsed
+    ? `${pad(parsed.year ?? new Date().getFullYear())}-${pad(parsed.month)}-${pad(parsed.day)}`
+    : "";
+  const emit = (ds, withYear) => {
+    if (!ds) { onChange(""); return; }
+    const [y, m, d] = ds.split("-");
+    onChange(withYear ? `${y}-${m}-${d}` : `${m}-${d}`);
+  };
+  return (
+    <div className="flex-1 flex flex-col gap-1.5">
+      <input
+        type="date"
+        value={dateStr}
+        autoFocus={autoFocus}
+        onChange={(e) => emit(e.target.value, includeYear)}
+        className="rounded-md border border-input bg-transparent px-3 py-1.5 text-sm"
+      />
+      <label className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground cursor-pointer select-none">
+        <input
+          type="checkbox"
+          checked={includeYear}
+          onChange={(e) => { setIncludeYear(e.target.checked); emit(dateStr, e.target.checked); }}
+          className="w-3.5 h-3.5 accent-primary"
+        />
+        Include the year (leave off for annual dates like a birthday)
+      </label>
+    </div>
+  );
+}
 
 // Field types offered for alter-specific fields — the SAME set the system-wide
 // Custom Fields manager offers (CustomFieldsManager: text / number / boolean /
@@ -22,6 +61,7 @@ const ALTER_FIELD_TYPES = [
   { id: "number", label: "Number" },
   { id: "boolean", label: "Yes / No" },
   { id: "list", label: "List" },
+  { id: "date", label: "Date" },
 ];
 
 // Shared, type-aware VALUE DISPLAY — used for both system fields and
@@ -47,6 +87,11 @@ function FieldValue({ type, value }) {
         ))}
       </div>
     );
+  }
+  if (type === "date") {
+    const label = formatDateField(value);
+    if (!label) return <span className="text-muted-foreground/50 italic">Not filled</span>;
+    return <span className="inline-flex items-center gap-1">📅 {label}</span>;
   }
   if (type === "text" || type === "richtext") {
     return <MarkdownText>{String(value)}</MarkdownText>;
@@ -84,6 +129,9 @@ function FieldEditor({ type, value, onChange, autoFocus = false }) {
   }
   if (type === "number") {
     return <Input type="number" value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm" autoFocus={autoFocus} />;
+  }
+  if (type === "date") {
+    return <DateFieldInput value={value} onChange={onChange} autoFocus={autoFocus} />;
   }
   // text (default)
   return <Textarea value={value} onChange={(e) => onChange(e.target.value)} className="flex-1 text-sm min-h-[60px]" autoFocus={autoFocus} />;
@@ -347,33 +395,7 @@ export default function InfoTab({ alter, systemFields }) {
                   </div>
                 ) : editingFieldId === field.id ? (
                   <div className="flex gap-2 mt-1">
-                    {field.field_type === "text" ? (
-                      <Textarea value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 text-sm min-h-[60px]" autoFocus />
-                    ) : field.field_type === "list" ? (
-                      <div className="flex-1 flex flex-col gap-1">
-                        <Textarea
-                          value={editValue}
-                          onChange={(e) => setEditValue(e.target.value)}
-                          placeholder="item, item, item"
-                          className="text-sm min-h-[44px]"
-                          autoFocus
-                        />
-                        <p className="text-[0.625rem] text-muted-foreground leading-snug">
-                          Separate items with commas — each one's stored and matched individually.
-                        </p>
-                      </div>
-                    ) : field.field_type === "boolean" ? (
-                      <select value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 rounded-md border border-input bg-transparent px-3 py-1 text-sm" autoFocus>
-                        <option value="">Select...</option>
-                        <option value="true">Yes</option>
-                        <option value="false">No</option>
-                      </select>
-                    ) : (
-                      <Input type="number" value={editValue} onChange={(e) => setEditValue(e.target.value)}
-                        className="flex-1 text-sm" autoFocus />
-                    )}
+                    <FieldEditor type={field.field_type || "text"} value={editValue} onChange={setEditValue} autoFocus />
                     <div className="flex flex-col gap-1">
                       <Button size="icon" className="h-7 w-7 bg-primary hover:bg-primary/90"
                         onClick={() => saveSystemField(field.id)} disabled={saving}>

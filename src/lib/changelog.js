@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Custom fields can now be a \"Date\" type, with the year optional. A date field like a birthday shows as a marker on that day in the Activity Tracker month calendar — so any annual event can surface there.",
+      },
+      {
         type: "fix",
         text: "Rich text: \"Heading 1\" now shows at heading size, and block quotes render with a proper quote bar (coloured left border + italic) instead of just slightly-indented text — in bios and everywhere rich text appears.",
       },
