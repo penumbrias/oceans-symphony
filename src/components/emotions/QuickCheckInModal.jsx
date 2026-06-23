@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { toast } from "sonner";
@@ -111,7 +111,21 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const navigate = useNavigate();
   const terms = useTerms();
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
+  // The section the bottom prev/next arrows currently step from. Tracks the
+  // most-recently-opened section; arrows close it and open the adjacent one.
+  const [currentSectionId, setCurrentSectionId] = useState("feeling");
+  const sectionRefs = useRef({});
   const [hadFrontingOpen, setHadFrontingOpen] = useState(false);
+  // Feeling-section rating slider: a quick way to log ONE rating-type
+  // symptom/habit (default "Energy level"). The tracked symptom is
+  // remembered in localStorage; the value (0–5, null = untouched) resets
+  // each open and is merged into the symptom check-ins on save.
+  const SLIDER_KEY = "symphony_quickcheckin_slider_symptom_v1";
+  const [sliderSymptomId, setSliderSymptomId] = useState(() => {
+    try { return localStorage.getItem(SLIDER_KEY) || ""; } catch { return ""; }
+  });
+  const [sliderValue, setSliderValue] = useState(null);
+  const [showSliderPicker, setShowSliderPicker] = useState(false);
   // Touch-block on open. The original 200ms (PR #87) wasn't always
   // enough on Android — testers reported the modal would mount and the
   // touchend from the finger that opened it would land on whatever
@@ -237,6 +251,36 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     enabled: isOpen,
   });
 
+  // Rating-type symptoms/habits feed the Feeling-section slider's picker.
+  const { data: allSymptoms = [] } = useQuery({
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+    enabled: isOpen,
+  });
+  const ratingSymptoms = useMemo(
+    () => allSymptoms.filter((s) => s.type === "rating" && !s.is_archived),
+    [allSymptoms]
+  );
+  // Default the slider to "Energy level"; fall back to any rating symptom.
+  const energySymptomId = useMemo(
+    () => ratingSymptoms.find((s) => /energy/i.test(s.label))?.id || ratingSymptoms[0]?.id || "",
+    [ratingSymptoms]
+  );
+  // The stored choice wins, but only if it still exists; else Energy level.
+  const effectiveSliderSymptomId =
+    sliderSymptomId && ratingSymptoms.some((s) => s.id === sliderSymptomId)
+      ? sliderSymptomId
+      : energySymptomId;
+  const sliderSymptom = useMemo(
+    () => ratingSymptoms.find((s) => s.id === effectiveSliderSymptomId) || null,
+    [ratingSymptoms, effectiveSliderSymptomId]
+  );
+  const chooseSliderSymptom = (id) => {
+    setSliderSymptomId(id);
+    try { localStorage.setItem(SLIDER_KEY, id); } catch { /* storage off */ }
+    setShowSliderPicker(false);
+  };
+
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   // "Who's fronting" list view: flat search list vs the standard
   // by-subsystem/group tree (AlterTreeSelect).
@@ -266,7 +310,29 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       next.has(id) ? next.delete(id) : next.add(id);
       return next;
     });
+    setCurrentSectionId(id);
     if (id === "fronting") setHadFrontingOpen(true);
+  };
+
+  // Bottom prev/next arrows: close the current section, open the adjacent one
+  // in PILLS order, and scroll it into view. Other manually-opened sections
+  // are left as-is (step-one-at-a-time, not a strict wizard).
+  const goToSection = (dir) => {
+    const idx = PILLS.findIndex((p) => p.id === currentSectionId);
+    const base = idx < 0 ? 0 : idx;
+    const nextIdx = base + dir;
+    if (nextIdx < 0 || nextIdx >= PILLS.length) return;
+    const curId = PILLS[base].id;
+    const nextId = PILLS[nextIdx].id;
+    setOpenSections((prev) => {
+      const next = new Set(prev);
+      next.delete(curId);
+      next.add(nextId);
+      return next;
+    });
+    if (nextId === "fronting") setHadFrontingOpen(true);
+    setCurrentSectionId(nextId);
+    setTimeout(() => sectionRefs.current[nextId]?.scrollIntoView({ behavior: "smooth", block: "start" }), 60);
   };
 
   useEffect(() => {
@@ -322,13 +388,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             if (initial.size === 0) initial.add("feeling");
             setOpenSections(initial);
           });
-        seedSymptomDefaults();
+        seedSymptomDefaults().then(() => queryClient.invalidateQueries({ queryKey: ["symptoms"] })).catch(() => {});
         return;
       }
       setEntryTime(toDatetimeLocal(retroTimestamp));
       const initial = new Set(["feeling"]);
       if (initialSection) initial.add(initialSection);
       setOpenSections(initial);
+      setCurrentSectionId(initialSection || "feeling");
       if (initialSection === "fronting") setHadFrontingOpen(true);
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
@@ -359,7 +426,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           setCoFronterIds(currentFronterIds.slice(1));
         }
       });
-      seedSymptomDefaults();
+      seedSymptomDefaults().then(() => queryClient.invalidateQueries({ queryKey: ["symptoms"] })).catch(() => {});
     } else {
       resetForm();
     }
@@ -393,6 +460,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setLocationLat(null);
     setLocationLng(null);
     setGpsLoading(false);
+    setSliderValue(null);
+    setShowSliderPicker(false);
+    setCurrentSectionId("feeling");
   };
 
   const handleGPS = async () => {
@@ -550,6 +620,12 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
   const handleSubmit = async () => {
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
+    // Fold in the Feeling-section slider, unless the user already logged that
+    // same symptom in the Symptoms / Habits section (avoid double-logging).
+    if (sliderValue != null && effectiveSliderSymptomId &&
+        !symptomCheckIns.some((s) => s.symptom_id === effectiveSliderSymptomId)) {
+      symptomCheckIns.push({ symptom_id: effectiveSliderSymptomId, severity: sliderValue });
+    }
     // In edit mode the only fields we persist are the EmotionCheckIn's
     // own — so validate against those rather than the broader form.
     const hasData =
@@ -1007,33 +1083,63 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Feeling */}
           {openSections.has("feeling") &&
-          <div className="border border-border/50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-medium">How are you feeling?</p>
-              {/* Base moods — tap one of these alone if you don't want to be
-                  specific. They save just like any other emotion. */}
-              <div className="flex gap-1.5">
-                {[["Good", "🙂"], ["Neutral", "😐"], ["Bad", "😞"]].map(([label, emoji]) => {
-                  const on = selectedEmotions.includes(label);
-                  return (
-                    <button key={label} type="button"
-                      onClick={() => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
-                      className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${on ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
-                      <span aria-hidden>{emoji}</span> {label}
-                    </button>
-                  );
-                })}
+          <div ref={(el) => (sectionRefs.current.feeling = el)} className="border border-border/50 rounded-xl p-3">
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0 space-y-2">
+                  <p className="text-sm font-medium">How are you feeling?</p>
+                  {/* Base moods — tap one of these alone if you don't want to be
+                      specific. They save just like any other emotion (and read as
+                      Good / Neutral / Bad valence in colours + analytics). */}
+                  <div className="flex gap-1.5">
+                    {[["Good", "🙂"], ["Neutral", "😐"], ["Bad", "😞"]].map(([label, emoji]) => {
+                      const on = selectedEmotions.includes(label);
+                      return (
+                        <button key={label} type="button"
+                          onClick={() => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
+                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${on ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
+                          <span aria-hidden>{emoji}</span> {label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                  <EmotionWheelPicker
+                  selectedEmotions={selectedEmotions}
+                  onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
+                  customEmotions={customEmotions}
+                  onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
+                </div>
+
+                {/* Side rating slider — defaults to Energy level; tap the label
+                    to track any other rating-type symptom/habit. 0–5, untouched
+                    logs nothing. Merged into the symptom check-ins on save. */}
+                <div className="flex flex-col items-center gap-1.5 pl-2.5 border-l border-border/40 flex-shrink-0">
+                  <button type="button" onClick={() => setShowSliderPicker(true)}
+                    title={sliderSymptom ? `Tracking ${sliderSymptom.label} — tap to change` : "Choose what to track"}
+                    className="text-[0.625rem] font-medium text-muted-foreground hover:text-foreground max-w-[3.75rem] truncate leading-tight text-center flex items-center gap-0.5">
+                    {sliderSymptom?.label || "Energy"}<ChevronRight className="w-2.5 h-2.5 rotate-90 flex-shrink-0" />
+                  </button>
+                  <input
+                    type="range" min="0" max="5" step="1"
+                    value={sliderValue ?? 0}
+                    onChange={(e) => setSliderValue(Number(e.target.value))}
+                    className="qci-vertical-slider"
+                    style={{ accentColor: sliderSymptom?.color || "#F59E0B" }}
+                    aria-label={`${sliderSymptom?.label || "Energy"} rating, 0 to 5`}
+                  />
+                  <span className="text-sm font-bold leading-none" style={{ color: sliderSymptom?.color || "#F59E0B" }}>
+                    {sliderValue ?? "—"}
+                  </span>
+                  {sliderValue != null
+                    ? <button type="button" onClick={() => setSliderValue(null)} className="text-[0.5625rem] text-muted-foreground hover:text-foreground underline">clear</button>
+                    : <span className="text-[0.5625rem] text-muted-foreground/50">drag</span>}
+                </div>
               </div>
-              <EmotionWheelPicker
-              selectedEmotions={selectedEmotions}
-              onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
-              customEmotions={customEmotions}
-              onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
             </div>
           }
 
           {/* Fronting */}
           {openSections.has("fronting") &&
-          <div className="border border-border/50 rounded-xl p-3 space-y-2">
+          <div ref={(el) => (sectionRefs.current.fronting = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Who's {terms.fronting}?</p>
               {selectedAlterIds.size > 0 && (
                 <div className="flex flex-wrap gap-1.5">
@@ -1138,7 +1244,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Activity */}
           {openSections.has("activity") &&
-          <div className="border border-border/50 rounded-xl p-3 space-y-2">
+          <div ref={(el) => (sectionRefs.current.activity = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <ActivityPillSelector selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
             allowCreate={false}
@@ -1230,7 +1336,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Symptoms / Habits */}
           {openSections.has("symptoms") &&
-          <div className="border border-border/50 rounded-xl p-3">
+          <div ref={(el) => (sectionRefs.current.symptoms = el)} className="border border-border/50 rounded-xl p-3">
               <SymptomsSection
                 onCheckInsReady={(getter) => {symptomGetterRef.current = getter;}}
                 initialChecked={initialSymptomChecks}
@@ -1240,7 +1346,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Diary */}
           {openSections.has("diary") &&
-          <div className="border border-border/50 rounded-xl p-3 space-y-2">
+          <div ref={(el) => (sectionRefs.current.diary = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Check-In Log</p>
               <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
             </div>
@@ -1248,7 +1354,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Note */}
           {openSections.has("note") &&
-          <div className="border border-border/50 rounded-xl p-3 space-y-2">
+          <div ref={(el) => (sectionRefs.current.note = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
               <p className="text-sm font-medium">Quick note <span className="text-muted-foreground font-normal">(over 50 words → journal)</span></p>
               <Textarea placeholder="Optional note..." value={note} onChange={(e) => setNote(e.target.value)} className="h-20 text-xs" />
               {note &&
@@ -1262,7 +1368,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
           {/* Location */}
           {openSections.has("location") && (
-            <div className="border border-border/50 rounded-xl p-3 space-y-3">
+            <div ref={(el) => (sectionRefs.current.location = el)} className="border border-border/50 rounded-xl p-3 space-y-3">
               <p className="text-sm font-medium">Where are you?</p>
               <div className="flex flex-wrap gap-1.5">
                 {LOCATION_CATEGORIES.map(cat => (
@@ -1317,6 +1423,50 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             </div>
           )}
         </div>
+
+        {/* Bottom section nav — close the current section, open the previous /
+            next one in order. Other manually-opened sections stay put. */}
+        {(() => {
+          const cIdx = PILLS.findIndex((p) => p.id === currentSectionId);
+          const labelFor = (p) => (p?.id === "fronting" ? terms.Fronting : p?.label);
+          const prevP = cIdx > 0 ? PILLS[cIdx - 1] : null;
+          const nextP = cIdx >= 0 && cIdx < PILLS.length - 1 ? PILLS[cIdx + 1] : null;
+          return (
+            <div className="flex-shrink-0 flex items-center justify-between gap-2 px-3 py-2 border-t border-border/50 bg-card">
+              <Button variant="ghost" size="sm" disabled={!prevP} onClick={() => goToSection(-1)} className="gap-1 text-xs min-w-0 flex-1 justify-start">
+                <ChevronLeft className="w-4 h-4 flex-shrink-0" /> <span className="truncate">{prevP ? labelFor(prevP) : "Prev"}</span>
+              </Button>
+              <span className="text-[0.6875rem] font-medium text-muted-foreground truncate px-1 flex-shrink-0">{cIdx >= 0 ? labelFor(PILLS[cIdx]) : ""}</span>
+              <Button variant="ghost" size="sm" disabled={!nextP} onClick={() => goToSection(1)} className="gap-1 text-xs min-w-0 flex-1 justify-end">
+                <span className="truncate">{nextP ? labelFor(nextP) : "Next"}</span> <ChevronRight className="w-4 h-4 flex-shrink-0" />
+              </Button>
+            </div>
+          );
+        })()}
+
+        {/* Slider symptom picker — pick which rating symptom/habit the
+            Feeling-section side slider tracks. */}
+        {showSliderPicker && (
+          <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/40 p-4" onClick={() => setShowSliderPicker(false)}>
+            <div className="bg-card border border-border rounded-xl w-full max-w-xs max-h-[70vh] overflow-y-auto p-3 space-y-1" onClick={(e) => e.stopPropagation()}>
+              <p className="text-sm font-medium px-1 pb-1">Side slider tracks…</p>
+              {ratingSymptoms.length === 0 ? (
+                <p className="text-xs text-muted-foreground px-1 py-2">
+                  No rating-type symptoms or habits yet. Add one with type “Rating” in the Symptoms / Habits section and it'll show up here.
+                </p>
+              ) : (
+                ratingSymptoms.map((s) => (
+                  <button key={s.id} type="button" onClick={() => chooseSliderSymptom(s.id)}
+                    className={`w-full text-left px-2.5 py-2 rounded-lg text-sm flex items-center gap-2 transition-colors ${s.id === effectiveSliderSymptomId ? "bg-primary/10 text-foreground" : "hover:bg-muted/50 text-muted-foreground"}`}>
+                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: s.color || "#8b5cf6" }} />
+                    <span className="flex-1 truncate">{s.label}</span>
+                    {s.category === "habit" && <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0">Habit</span>}
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        )}
 
       </DialogContent>
     </Dialog>

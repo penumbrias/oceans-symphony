@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useRef, useCallback, useEffect } from "react";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
+import { datesForDay } from "@/lib/importantDates";
 import { Plus, Eye, EyeOff, Settings, X } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -149,6 +150,7 @@ export default function ActivityWeeklyGrid({
   onWeekStartChange,
   onDayClick,
   onEditPlan,
+  importantDates = [],
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
   const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
@@ -1024,15 +1026,27 @@ if (isSameCell) {
               {weekDays.map(date => {
                 const stats = getDayStats(date);
                 const isToday = format(date, "yyyy-MM-dd") === format(new Date(), "yyyy-MM-dd");
+                const dayDates = datesForDay(importantDates, date);
                 return (
                   <button
                     key={format(date, "yyyy-MM-dd")}
                     onClick={() => onDayClick?.(date)}
-                    className={`p-1.5 text-center border-r border-border w-full h-full transition-colors
+                    className={`relative p-1.5 text-center border-r border-border w-full h-full transition-colors
                       ${isToday ? "bg-primary/5" : ""}
                       ${onDayClick ? "hover:bg-primary/10 cursor-pointer" : "cursor-default"}
                     `}
                   >
+                    {dayDates.length > 0 && (
+                      <span
+                        className="absolute top-0.5 right-0.5 inline-flex items-center gap-0.5"
+                        title={dayDates.map((x) => `${x.alterName} — ${x.fieldName}`).join("\n")}
+                      >
+                        <span style={{ fontSize: 9 }} className="leading-none">📅</span>
+                        {dayDates.slice(0, 3).map((x, i) => (
+                          <span key={i} className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: x.color || "var(--color-primary, #6366f1)" }} />
+                        ))}
+                      </span>
+                    )}
                     <div className="text-xs font-medium text-muted-foreground">{format(date, "EEE")}</div>
                     <div className={`text-base font-bold ${isToday ? "text-primary" : "text-foreground"}`}>
                       {format(date, "d")}

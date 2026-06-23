@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
@@ -430,6 +430,7 @@ export default function ActivityTracker() {
                 onWeekStartChange={setWeekStartsOn}
                 onDayClick={setZoomedDate}
                 onEditPlan={openPlanEditor}
+                importantDates={importantDates}
               />
             )}
             {viewMode === "month" && (
@@ -544,6 +545,7 @@ export default function ActivityTracker() {
           activities={activities}
           alters={alters}
           frontingHistory={frontingHistory}
+          importantDates={importantDates}
           onClose={() => setZoomedDate(null)}
           onActivityClick={handleActivityClick}
           onTimeRangeSelect={(date, startHour, endHour, startMinute, endMinute) => {

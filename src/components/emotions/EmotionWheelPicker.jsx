@@ -172,6 +172,11 @@ export default function EmotionWheelPicker({
   }, [customEmotions]);
 
   const colorFor = (label) => {
+    // Base moods (the Good / Neutral / Bad quick buttons) are saved as plain
+    // "Good" / "Neutral" / "Bad" labels — map them to their valence colour so
+    // they read as members of those categories everywhere they're shown.
+    const base = { good: WHEEL.good.color, neutral: WHEEL.neutral.color, bad: WHEEL.bad.color };
+    if (base[label?.toLowerCase()]) return base[label.toLowerCase()];
     for (const v of Object.values(WHEEL)) {
       if (v.flat?.includes(label)) return v.color;
       if (v.cores) {

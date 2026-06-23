@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format } from "date-fns";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -6,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { parseDate } from "@/lib/dateUtils";
+import { datesForDay } from "@/lib/importantDates";
 import { getCategoryMeta } from "@/lib/locationCategories";
 import {
   emotionColor,
@@ -226,10 +228,12 @@ export default function ActivityDayView({
   activities,
   alters = [],
   frontingHistory = [],
+  importantDates = [],
   onClose,
   onActivityClick,
   onTimeRangeSelect,
 }) {
+  const dayImportantDates = datesForDay(importantDates, date);
   const { data: emotionCheckIns = [] } = useQuery({
     queryKey: ["emotionCheckIns"],
     queryFn: () => base44.entities.EmotionCheckIn.list(),
@@ -361,7 +365,7 @@ export default function ActivityDayView({
 
   let firstActivitySet = false;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-background z-50 flex flex-col"
       onTouchStart={handleTouchStart}
@@ -383,6 +387,22 @@ export default function ActivityDayView({
               : `${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}${totalDuration > 0 ? ` · ${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ""}` : ""}`
             }
           </p>
+          {dayImportantDates.length > 0 && (
+            <div className="flex flex-wrap gap-1 mt-1">
+              {dayImportantDates.map((x, i) => (
+                <span
+                  key={i}
+                  className="inline-flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full border"
+                  style={{ borderColor: (x.color || "var(--color-primary, #6366f1)") + "66", color: x.color || "var(--color-text-primary, #e5e7eb)" }}
+                  title={`${x.alterName} — ${x.fieldName}`}
+                >
+                  <span>📅</span>
+                  <span className="font-medium">{x.alterName}</span>
+                  <span className="opacity-70">· {x.fieldName}</span>
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         <Button size="sm" onClick={handleAddNow} className="gap-1.5 flex-shrink-0">
           <Plus className="w-4 h-4" /> Add
@@ -541,6 +561,7 @@ export default function ActivityDayView({
       >
         <Plus className="w-6 h-6" />
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }

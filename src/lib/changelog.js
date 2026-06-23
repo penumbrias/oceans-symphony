@@ -18,8 +18,50 @@
 
 export const CHANGELOG = [
   {
-    date: "June 22, 2026",
+    date: "June 23, 2026",
     changes: [
+      {
+        type: "fix",
+        text: "Fixed the top-bar buttons (Settings, Reminders, the menu) sometimes not responding to taps near their top edge — an invisible layer was covering the top of the screen.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: a side slider on the Feeling section quick-logs a 0–5 rating — Energy level by default; tap its label to track any other rating symptom/habit.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: ‹ Prev / Next › arrows at the bottom step through the sections one at a time.",
+      },
+      {
+        type: "fix",
+        text: "Quick Check-In's Good / Neutral / Bad buttons now show in their category colour and count as positive/neutral/negative in emotion analytics.",
+      },
+      {
+        type: "feature",
+        text: "You can now start a plan live: open a plan, tap \"Start now\" to time it, and tap End to complete it — it shows under Active Activities meanwhile.",
+      },
+      {
+        type: "feature",
+        text: "Add a note when you start or finish an activity — it's saved onto the activity and shows in its details everywhere.",
+      },
+    ],
+  },
+  {
+    date: "June 22, 2026",
+    version: "0.66.11",
+    changes: [
+      {
+        type: "fix",
+        text: "Activity Tracker day view no longer opens with its header (the date and any birthdays) cut off behind the top bar.",
+      },
+      {
+        type: "improve",
+        text: "Date custom fields (like birthdays) now show on the Activity Tracker's week and day views and on the Timeline — not just the month calendar.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the Activities page crashing when you opened it.",
+      },
       {
         type: "fix",
         text: "Dropdown menus are readable again on dark themes — the list options were rendering near-invisible (light text on a light popup). Affects the date field's Month/Day pickers and every other dropdown.",

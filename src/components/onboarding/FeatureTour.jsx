@@ -59,7 +59,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "💜",
       title: "Quick Check-In",
-      body: `The Quick Check-In button opens a multi-section flow for logging emotions, symptoms, activities, and notes in one go. Any ${t.alter} can use it at any time. It's the fastest way to capture what's happening right now.`,
+      body: `The Quick Check-In button opens a multi-section flow for logging emotions, symptoms, activities, and notes in one go. Tap the section pills, or use the ‹ Prev / Next › arrows at the bottom to step through them one at a time. The Feeling section has a side slider that quick-logs a 0–5 rating — Energy level by default; tap its label to track any other rating symptom/habit. Any ${t.alter} can use it at any time.`,
       // No target while the modal opens — the trigger button hides behind
       // the modal so highlighting it would just place an invisible spotlight
       // on a hidden element and flip the tour card to the top of the screen.
@@ -521,7 +521,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "activities", sectionLabel: "Activities",
       emoji: "🗓️",
       title: "Plans Have a Lifecycle",
-      body: `Future activities are plans — they render with a dashed outline so you can tell them apart from solid, logged activity blocks. Long-press any scheduled plan to mark it Done, Partial (with optional actual time), Skipped, Cancelled, or to reschedule it. Past-time plans you haven't reviewed surface on the Dashboard as "Plans needing review" with one-tap resolution (you can turn that reminder off in Settings → Reminders). Done/partial count toward your activity tally; skipped and cancelled never do.`,
+      body: `Future activities are plans — they render with a dashed outline so you can tell them apart from solid, logged activity blocks. Long-press any scheduled plan to mark it Done, Partial (with optional actual time), Skipped, Cancelled, or to reschedule it — or tap "Start now" to time it live and have it complete itself when you tap End (it shows under Active Activities on the Dashboard meanwhile). You can add a note when you start or finish — it's saved onto the activity and shows in its details everywhere. Past-time plans you haven't reviewed surface on the Dashboard as "Plans needing review" with one-tap resolution (you can turn that reminder off in Settings → Reminders). Done/partial count toward your activity tally; skipped and cancelled never do.`,
       route: "/activities", target: "activities-log",
       look: `the highlighted weekly grid — long-press any plan chip to open its lifecycle menu`, action: null,
     },
