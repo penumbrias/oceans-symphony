@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed the top-bar buttons (Settings, Reminders, the menu) sometimes not responding to taps near their top edge — an invisible layer was covering the top of the screen.",
+      },
+      {
         type: "feature",
         text: "Quick Check-In: a side slider on the Feeling section quick-logs a 0–5 rating — Energy level by default; tap its label to track any other rating symptom/habit.",
       },

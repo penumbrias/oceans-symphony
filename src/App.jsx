@@ -1,4 +1,3 @@
-import { Toaster } from "@/components/ui/toaster"
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -391,7 +390,6 @@ function App() {
           <Router>
             <AuthenticatedApp />
           </Router>
-          <Toaster />
           <SonnerToaster richColors closeButton />
         </AuthProvider>
       </QueryClientProvider>
