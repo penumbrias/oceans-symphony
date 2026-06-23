@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed the Activities page crashing when you opened it.",
+      },
+      {
+        type: "fix",
         text: "Dropdown menus are readable again on dark themes — the list options were rendering near-invisible (light text on a light popup). Affects the date field's Month/Day pickers and every other dropdown.",
       },
       {
