@@ -35,7 +35,8 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
+import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, Download, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { isLocalMode } from "@/lib/storageMode";
@@ -351,11 +352,24 @@ export default function Settings() {
               via src/lib/appVersion.js. Stays visible so testers can
               reference the exact build when reporting issues. */}
           <div className="flex items-center gap-1.5 mt-1 flex-shrink-0">
-            <Button type="button" variant="outline" size="sm" onClick={handleBackupNow} disabled={backingUp}
-              title="Save a full backup to your device now" className="h-7 gap-1.5 text-xs">
-              {backingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
-              Back up now
-            </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button type="button" variant="outline" size="sm" disabled={backingUp}
+                  title="Back up or import your data" className="h-7 gap-1.5 text-xs">
+                  {backingUp ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Database className="w-3.5 h-3.5" />}
+                  Backup
+                  <ChevronDown className="w-3 h-3 opacity-60" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onSelect={handleBackupNow} className="gap-2 cursor-pointer">
+                  <Download className="w-4 h-4" /> Export a backup now
+                </DropdownMenuItem>
+                <DropdownMenuItem onSelect={() => scrollTo("data")} className="gap-2 cursor-pointer">
+                  <Upload className="w-4 h-4" /> Import a backup…
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             {APP_RELEASE_STAGE && (
               <span className="text-[0.625rem] font-semibold uppercase tracking-wider px-1.5 py-0.5 rounded-md bg-amber-500/15 text-amber-500 border border-amber-500/30">
                 {APP_RELEASE_STAGE}

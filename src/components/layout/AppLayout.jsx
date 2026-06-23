@@ -592,21 +592,21 @@ const handleNotifClick = (mentionLog) => {
                 items: [
                   { id: "alters",   label: terms.Alters,           icon: Users,       path: "/Home" },
                   { id: "presences",label: "New Presences",        icon: Sparkles,    path: "/presences" },
-                  { id: "friends",  label: "Friends",              icon: UserRound,   path: "/friends" },
                   { id: "groups",   label: "Groups",               icon: Users,       path: "/groups" },
+                  { id: "system-history", label: `${terms.System} History`, icon: GitMerge, path: "/system-history" },
                   { id: "settings", label: "Settings",             icon: Settings,    path: "/settings" },
                 ],
               },
               {
                 label: "Tracking",
                 items: [
-                  { id: "checkin",         label: `${terms.System} Meeting`, icon: Sparkles,    path: "/system-checkin" },
                   { id: "checkin-log",     label: "Check-In Log",           icon: Heart,       path: "/checkin-log" },
                   { id: "activities",      label: "Activities",             icon: Zap,         path: "/activities" },
                   { id: "tasks",           label: "Daily Tasks",            icon: CheckSquare, path: "/tasks" },
                   { id: "todo",            label: "To-Do List",             icon: ClipboardList,path: "/todo" },
                   { id: "sleep",           label: "Sleep",                  icon: Activity,    path: "/sleep" },
                   { id: "location-history",label: "Locations",              icon: MapPin,      path: "/location-history" },
+                  { id: "timeline",        label: "Timeline",               icon: Clock,       path: "/timeline" },
                 ],
               },
               {
@@ -614,6 +614,8 @@ const handleNotifClick = (mentionLog) => {
                 items: [
                   { id: "journals", label: "Journals", icon: BookOpen, path: "/journals" },
                   { id: "polls",    label: "Polls",    icon: Vote,     path: "/polls" },
+                  { id: "checkin",  label: `${terms.System} Meeting`, icon: Sparkles, path: "/system-checkin" },
+                  { id: "friends",  label: "Friends",  icon: UserRound, path: "/friends" },
                 ],
               },
               {
@@ -630,8 +632,6 @@ const handleNotifClick = (mentionLog) => {
                 items: [
                   { id: "analytics",      label: "Analytics",              icon: BarChart2, path: "/analytics" },
                   { id: "system-map",     label: `${terms.System} Map`,    icon: GitBranch, path: "/system-map" },
-                  { id: "timeline",       label: "Timeline",               icon: Clock,     path: "/timeline" },
-                  { id: "system-history", label: `${terms.System} History`,icon: GitMerge,  path: "/system-history" },
                 ],
               },
             ].map(({ label, items }) => (

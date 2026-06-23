@@ -160,7 +160,7 @@ function HTMLPreviewModal({ html, onClose }) {
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {tab === "preview"
-            ? <div className="text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
+            ? <div className="wysiwyg-content text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
             : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>

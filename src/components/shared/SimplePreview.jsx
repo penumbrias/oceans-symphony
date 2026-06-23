@@ -116,7 +116,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
           .sp-editable [data-edit]:hover { background: rgba(99,102,241,0.12); }
         `}</style>
       )}
-      <div className={readOnly ? "space-y-2" : "sp-editable space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]"}>
+      <div className={readOnly ? "wysiwyg-content space-y-2" : "wysiwyg-content sp-editable space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]"}>
         {blocks.map(block => {
           if (block.type === "text") {
             return (

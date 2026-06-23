@@ -209,6 +209,13 @@ export default function useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSw
     // by the touch path), NOT the shared recentTouch flag, so rapid real mouse
     // clicks on desktop are never suppressed.
     if (Date.now() - globalLastTouchAt < 700) return;
+    // Suppress the browser's native mousedown defaults — chiefly image/text
+    // DRAG. Most gesture surfaces render an avatar <img>, which is draggable by
+    // default, so a click-drag started a native image drag and the swipe never
+    // registered (the alters grid only worked because it sets draggable={false}
+    // on its imgs). preventDefault here fixes every surface centrally; it stops
+    // drag + text-selection but does NOT cancel the click, so taps still fire.
+    e.preventDefault();
     detachMouse(); // clear any stuck listeners from a prior drag
     mouseActive.current = true;
     beginGesture(e.clientX, e.clientY);

@@ -8,6 +8,7 @@ import { format, startOfWeek, addDays, addMonths, addYears } from "date-fns";
 import { useDeepLinkHighlight } from "@/lib/useDeepLinkHighlight";
 import ActivityWeeklyGrid from "@/components/activities/ActivityWeeklyGrid";
 import ActivityMonthView from "@/components/activities/ActivityMonthView";
+import { collectAlterDates } from "@/lib/importantDates";
 import ActivityYearView from "@/components/activities/ActivityYearView";
 import ActivityLogModal from "@/components/activities/ActivityLogModal";
 import CurrentActivities from "@/components/activities/CurrentActivities";
@@ -100,6 +101,13 @@ export default function ActivityTracker() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["customFields"],
+    queryFn: () => base44.entities.CustomField.list(),
+  });
+  // Annual important dates from alters' "date" custom fields (birthdays etc.),
+  // surfaced as markers on the month calendar.
+  const importantDates = useMemo(() => collectAlterDates(alters, customFields), [alters, customFields]);
   const { data: frontingHistory = [] } = useQuery({
     queryKey: ["frontingHistory"],
     queryFn: () => base44.entities.FrontingSession.list(),
@@ -432,6 +440,7 @@ export default function ActivityTracker() {
                 weekStartsOn={weekStartsOn}
                 onDayClick={setZoomedDate}
                 onActivityClick={handleActivityClick}
+                importantDates={importantDates}
               />
             )}
             {viewMode === "year" && (

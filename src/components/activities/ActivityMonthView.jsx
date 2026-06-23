@@ -4,6 +4,7 @@ import {
   format, isSameMonth, isToday, isSameDay,
 } from "date-fns";
 import { countableMinutes, statusFor, visualForStatus, ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { datesForDay } from "@/lib/importantDates";
 
 /**
  * Calendar-grid view of a single month. Each day cell shows colored bars or
@@ -19,6 +20,7 @@ export default function ActivityMonthView({
   weekStartsOn = 0,
   onDayClick,
   onActivityClick,
+  importantDates = [],
 }) {
   const monthStart = startOfMonth(monthDate);
   const monthEnd = endOfMonth(monthDate);
@@ -107,6 +109,21 @@ export default function ActivityMonthView({
                   <span className="text-[0.5rem] text-muted-foreground leading-none">+{list.length - 6}</span>
                 )}
               </div>
+              {(() => {
+                const dayDates = datesForDay(importantDates, d);
+                if (!dayDates.length) return null;
+                return (
+                  <div
+                    className="flex items-center gap-0.5 mt-0.5 flex-wrap"
+                    title={dayDates.map((x) => `${x.alterName} — ${x.fieldName}`).join("\n")}
+                  >
+                    <span className="text-[0.5625rem] leading-none">📅</span>
+                    {dayDates.slice(0, 4).map((x, i) => (
+                      <span key={i} className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: x.color || "hsl(var(--primary))" }} />
+                    ))}
+                  </div>
+                );
+              })()}
             </button>
           );
         })}

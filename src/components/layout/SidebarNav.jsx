@@ -13,22 +13,22 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "alters",   label: altersLabel,    icon: Users,         path: "/Home" },
         { id: "presences",label: "New Presences",icon: Sparkles,      path: "/presences" },
         { id: "chat",     label: `${systemLabel} Chat`, icon: MessageSquare, path: "/chat" },
-        { id: "friends",  label: "Friends",      icon: UserRound,     path: "/friends" },
         { id: "groups",   label: "Groups",       icon: Users,         path: "/groups" },
         { id: "assets",   label: "Image Assets", icon: Images,        path: "/assets" },
+        { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
         { id: "settings", label: "Settings",     icon: Settings,      path: "/settings" },
       ],
     },
     {
       label: "Tracking",
       items: [
-        { id: "checkin",     label: `${systemLabel} Meeting`,   icon: Sparkles,    path: "/system-checkin" },
         { id: "checkin-log", label: "Check-In Log",            icon: Heart,       path: "/checkin-log" },
         { id: "activities",  label: "Activities",              icon: Zap,         path: "/activities" },
         { id: "tasks",       label: "Daily Tasks",             icon: CheckSquare, path: "/tasks" },
         { id: "todo",        label: "To-Do List",              icon: ClipboardList, path: "/todo" },
         { id: "sleep",             label: "Sleep",            icon: Activity, path: "/sleep" },
         { id: "location-history", label: "Locations",         icon: MapPin,   path: "/location-history" },
+        { id: "timeline",    label: "Timeline",                icon: Clock,    path: "/timeline" },
       ],
     },
     {
@@ -37,6 +37,8 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "journals",  label: "Journals",       icon: BookOpen,   path: "/journals" },
         { id: "bulletins", label: "Bulletin Board", icon: Megaphone,  path: "/bulletins" },
         { id: "polls",     label: "Polls",          icon: Vote,       path: "/polls" },
+        { id: "checkin",   label: `${systemLabel} Meeting`, icon: Sparkles, path: "/system-checkin" },
+        { id: "friends",   label: "Friends",        icon: UserRound,  path: "/friends" },
       ],
     },
     {
@@ -55,8 +57,6 @@ function buildSidebarGroups(altersLabel, systemLabel) {
       items: [
         { id: "analytics",       label: "Analytics",          icon: BarChart2,  path: "/analytics" },
         { id: "system-map",     label: `${systemLabel} Map`, icon: GitBranch,  path: "/system-map" },
-        { id: "timeline",       label: "Timeline",           icon: Clock,      path: "/timeline" },
-        { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
       ],
     },
   ];
