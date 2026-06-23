@@ -237,6 +237,15 @@ button, [role="button"] {
 @media (min-width: 1280px) { .os-page-shell { max-width: 64rem; } }
 @media (min-width: 1536px) { .os-page-shell { max-width: 72rem; } }
 
+/* Native <select> option popups inherit no background, so on a dark theme the
+ * OS popup rendered light while the option text kept the theme's light colour
+ * — near-invisible. Pin options to the theme's surface + text colours (vars are
+ * theme-aware hex, so this stays readable in light themes too). */
+select option {
+  background-color: var(--color-surface, #121a2a);
+  color: var(--color-text-primary, #e5e7eb);
+}
+
 /* ── Dashboard desktop columns ──
    Phones: a single vertical stack (default block flow). Desktop: the
    dashboard sections flow into two balanced columns so the screen isn't one
