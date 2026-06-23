@@ -25,6 +25,10 @@ export const CHANGELOG = [
         text: "New Presences: record someone you sense but can't pin down yet — a name, colour, vibe or note — from its own page or the new \"New presence\" tab when you set fronters. It flags when a presence reoccurs or might be a known alter.",
       },
       {
+        type: "feature",
+        text: "New Presences: turn a recorded presence into a full alter in one tap — its name, colour, emoji and notes carry over — and choose to keep the linked alters as relationships or add the new alter into a subsystem of one of them.",
+      },
+      {
         type: "improve",
         text: "New Presences: in Set Front you can now pick a presence you've recorded before (it logs that it's around again) instead of only making new ones; the page lets you edit and merge presences; and the colour picker now matches the alter editor.",
       },

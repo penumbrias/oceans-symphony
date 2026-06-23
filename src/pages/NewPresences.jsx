@@ -3,13 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
-import { Sparkles, Plus, Trash2, Link2, RefreshCw, X, Pencil, GitMerge, Check } from "lucide-react";
+import { Sparkles, Plus, Trash2, Link2, RefreshCw, X, Pencil, GitMerge, Check, UserPlus } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import PresenceFormModal from "@/components/presences/PresenceFormModal";
+import CreateAlterFromPresence from "@/components/presences/CreateAlterFromPresence";
 import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 
@@ -38,6 +39,7 @@ export default function NewPresences() {
   const [formFor, setFormFor] = useState(undefined); // undefined=closed, null=new, object=edit
   const [selectMode, setSelectMode] = useState(false);
   const [selected, setSelected] = useState(() => new Set());
+  const [createAlterFor, setCreateAlterFor] = useState(null);
 
   const { data: presences = [] } = useQuery({
     queryKey: ["presences"],
@@ -210,6 +212,11 @@ export default function NewPresences() {
                   </div>
                   {!selectMode && (
                     <div className="flex items-center gap-1 flex-shrink-0">
+                      {!resolved && (
+                        <button onClick={() => setCreateAlterFor(p)} aria-label={`Create ${terms.alter} from this presence`} title={`Create ${terms.alter} from this`} className="text-muted-foreground hover:text-primary p-1">
+                          <UserPlus className="w-4 h-4" />
+                        </button>
+                      )}
                       <button onClick={() => setFormFor(p)} aria-label="Edit presence" className="text-muted-foreground hover:text-foreground p-1">
                         <Pencil className="w-4 h-4" />
                       </button>
@@ -257,6 +264,7 @@ export default function NewPresences() {
       )}
 
       <PresenceFormModal open={formFor !== undefined} presence={formFor || null} onClose={() => setFormFor(undefined)} />
+      <CreateAlterFromPresence open={!!createAlterFor} presence={createAlterFor} onClose={() => setCreateAlterFor(null)} />
     </motion.div>
   );
 }
