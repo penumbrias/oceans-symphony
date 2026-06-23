@@ -12,7 +12,7 @@ import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
-import PresenceForm from "@/components/presences/PresenceForm";
+import PresencePicker from "@/components/presences/PresencePicker";
 import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import useSwipeActions from "@/hooks/useSwipeActions";
@@ -742,9 +742,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           )}
 
           {tab === "presence" && !selectionMode ? (
-            <div className="flex-1 overflow-y-auto min-h-0 pr-1">
-              <PresenceForm onSaved={onClose} onCancel={() => setTab("fronters")} />
-            </div>
+            <PresencePicker onClose={onClose} />
           ) : (
           <>
           {/* Selected chips */}

@@ -591,6 +591,7 @@ const handleNotifClick = (mentionLog) => {
                 label: terms.System,
                 items: [
                   { id: "alters",   label: terms.Alters,           icon: Users,       path: "/Home" },
+                  { id: "presences",label: "New Presences",        icon: Sparkles,    path: "/presences" },
                   { id: "friends",  label: "Friends",              icon: UserRound,   path: "/friends" },
                   { id: "groups",   label: "Groups",               icon: Users,       path: "/groups" },
                   { id: "settings", label: "Settings",             icon: Settings,    path: "/settings" },

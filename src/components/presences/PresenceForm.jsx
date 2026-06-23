@@ -4,36 +4,32 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
-import { Link2 } from "lucide-react";
+import { Link2, Palette } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import ColorPickerModal from "@/components/shared/ColorPickerModal";
 
-// A few friendly preset swatches — a presence often registers as "just a
-// colour" before anything else, so make picking one a single tap.
-const PRESET_COLORS = [
-  "#ef4444", "#f97316", "#eab308", "#22c55e", "#06b6d4",
-  "#3b82f6", "#8b5cf6", "#ec4899", "#64748b", "#a3a3a3",
-];
-
-// Self-contained form for recording a "new presence" — a sensed-but-not-yet-
-// identified fragment/alter. Used both as a tab inside SetFrontModal and as a
-// standalone modal on the New Presences page, so it owns NO front-session
-// logic. At least ONE descriptive detail is required; everything is optional
-// beyond that. Linking to existing alters + a relationship type is optional.
-export default function PresenceForm({ onSaved, onCancel }) {
+// Self-contained create/edit form for a "presence" — a sensed-but-not-yet-
+// identified fragment/alter. Reuses the SAME colour picker (ColorPickerModal)
+// and emoji-text-field pattern the alter editor uses, rather than rolling its
+// own. Owns NO front-session logic, so it can live inside SetFrontModal or
+// standalone. Pass `presence` to edit an existing record. At least ONE
+// descriptive detail is required.
+export default function PresenceForm({ presence = null, onSaved, onCancel }) {
   const terms = useTerms();
   const qc = useQueryClient();
+  const editing = !!presence?.id;
 
-  const [label, setLabel] = useState("");
-  const [vibe, setVibe] = useState("");
-  const [color, setColor] = useState("");
-  const [emoji, setEmoji] = useState("");
-  const [notes, setNotes] = useState("");
-  const [recurs, setRecurs] = useState(false);
-  const [linkedIds, setLinkedIds] = useState([]);
-  const [relType, setRelType] = useState("");
-  const [showLink, setShowLink] = useState(false);
+  const [label, setLabel] = useState(presence?.label || "");
+  const [vibe, setVibe] = useState(presence?.vibe || "");
+  const [color, setColor] = useState(presence?.color || "");
+  const [emoji, setEmoji] = useState(presence?.emoji || "");
+  const [notes, setNotes] = useState(presence?.notes || "");
+  const [linkedIds, setLinkedIds] = useState(presence?.associated_alter_ids || []);
+  const [relType, setRelType] = useState(presence?.relationship_type || "");
+  const [showLink, setShowLink] = useState((presence?.associated_alter_ids || []).length > 0);
+  const [colorOpen, setColorOpen] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -59,20 +55,27 @@ export default function PresenceForm({ onSaved, onCancel }) {
     }
     setSaving(true);
     try {
-      await base44.entities.Presence.create({
-        timestamp: new Date().toISOString(),
+      const fields = {
         label: label.trim(),
         vibe: vibe.trim(),
         color: color || "",
         emoji: emoji.trim(),
         notes: notes.trim(),
-        recurs,
         associated_alter_ids: linkedIds,
         relationship_type: relType || "",
-        resolved_alter_id: "",
-      });
+      };
+      if (editing) {
+        await base44.entities.Presence.update(presence.id, fields);
+        toast.success("Presence updated");
+      } else {
+        const now = new Date().toISOString();
+        // `sightings` accrues every time the presence is sensed — that's how
+        // reoccurrence is sourced (recording it again, here or from Set Front),
+        // so there's no manual "happened before" flag.
+        await base44.entities.Presence.create({ ...fields, timestamp: now, sightings: [now], resolved_alter_id: "" });
+        toast.success("Presence recorded 🌫️");
+      }
       qc.invalidateQueries({ queryKey: ["presences"] });
-      toast.success("Presence recorded 🌫️");
       onSaved?.();
     } catch (e) {
       toast.error(e.message || "Couldn't save the presence");
@@ -85,32 +88,28 @@ export default function PresenceForm({ onSaved, onCancel }) {
     <div className="space-y-3">
       <p className="text-xs text-muted-foreground leading-snug">
         Sensed someone you can't quite place? Jot down whatever you can — even
-        just a colour or a feeling. You can link it to {terms.an_alter || `an ${terms.alter}`} now or later.
+        just a colour or a feeling. You can link it to an {terms.alter} now or later.
       </p>
 
       <Input value={label} onChange={(e) => setLabel(e.target.value)} placeholder="A name or word for them (optional)" />
       <Input value={vibe} onChange={(e) => setVibe(e.target.value)} placeholder="A vibe — e.g. quiet, watchful, young (optional)" />
 
-      <div className="flex items-start gap-2">
-        <span className="text-xs text-muted-foreground w-12 pt-1.5">Colour</span>
-        <div className="flex flex-wrap gap-1.5 items-center">
-          {PRESET_COLORS.map((c) => (
-            <button
-              key={c}
-              type="button"
-              onClick={() => setColor(color === c ? "" : c)}
-              className={`w-6 h-6 rounded-full border-2 transition-transform ${color === c ? "border-foreground scale-110" : "border-transparent"}`}
-              style={{ backgroundColor: c }}
-              aria-label={`Colour ${c}`}
-              aria-pressed={color === c}
-            />
-          ))}
-          {color && (
-            <button type="button" onClick={() => setColor("")} className="text-xs text-muted-foreground hover:text-foreground">
-              clear
-            </button>
-          )}
-        </div>
+      {/* Colour — same picker the alter editor uses. */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs text-muted-foreground w-12">Colour</span>
+        <button
+          type="button"
+          onClick={() => setColorOpen(true)}
+          className="w-8 h-8 rounded-lg border-2 border-border hover:border-primary/50 transition-colors flex-shrink-0 flex items-center justify-center"
+          style={{ backgroundColor: color || "transparent" }}
+          aria-label="Pick colour"
+        >
+          {!color && <Palette className="w-3.5 h-3.5 text-muted-foreground" />}
+        </button>
+        <span className="flex-1 text-xs font-mono text-muted-foreground truncate">{color || "Not set"}</span>
+        {color && (
+          <button type="button" onClick={() => setColor("")} className="text-xs text-muted-foreground hover:text-destructive">clear</button>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
@@ -119,11 +118,6 @@ export default function PresenceForm({ onSaved, onCancel }) {
       </div>
 
       <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything else you noticed… (optional)" rows={2} />
-
-      <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-        <input type="checkbox" checked={recurs} onChange={(e) => setRecurs(e.target.checked)} className="w-4 h-4 accent-primary" />
-        This feels like it's happened before
-      </label>
 
       <div>
         <button type="button" onClick={() => setShowLink((v) => !v)} className="flex items-center gap-1.5 text-sm text-primary hover:text-primary/80">
@@ -161,9 +155,18 @@ export default function PresenceForm({ onSaved, onCancel }) {
           <Button variant="outline" onClick={onCancel} disabled={saving} className="flex-1">Cancel</Button>
         )}
         <Button onClick={save} loading={saving} disabled={saving || !hasAnything} className="flex-1 bg-primary hover:bg-primary/90">
-          Record presence
+          {editing ? "Save changes" : "Record presence"}
         </Button>
       </div>
+
+      {colorOpen && (
+        <ColorPickerModal
+          color={color || "#8b5cf6"}
+          label="Pick colour"
+          onSave={(hex) => { setColor(hex); setColorOpen(false); }}
+          onClose={() => setColorOpen(false)}
+        />
+      )}
     </div>
   );
 }

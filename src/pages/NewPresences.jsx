@@ -3,13 +3,14 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
 import { formatDistanceToNow } from "date-fns";
-import { Sparkles, Plus, Trash2, Link2, RefreshCw, X } from "lucide-react";
+import { Sparkles, Plus, Trash2, Link2, RefreshCw, X, Pencil, GitMerge, Check } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useHighlightScroll } from "@/lib/useHighlightScroll";
 import PresenceFormModal from "@/components/presences/PresenceFormModal";
+import { sightingsOf } from "@/components/presences/PresencePicker";
 import { computeRecurrence, suggestAlters } from "@/lib/presenceSimilarity";
 
 function AlterChip({ alter, onRemove }) {
@@ -34,7 +35,9 @@ function AlterChip({ alter, onRemove }) {
 export default function NewPresences() {
   const terms = useTerms();
   const qc = useQueryClient();
-  const [showForm, setShowForm] = useState(false);
+  const [formFor, setFormFor] = useState(undefined); // undefined=closed, null=new, object=edit
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState(() => new Set());
 
   const { data: presences = [] } = useQuery({
     queryKey: ["presences"],
@@ -79,6 +82,49 @@ export default function NewPresences() {
     }
   };
 
+  const toggleSelect = (id) =>
+    setSelected((prev) => {
+      const s = new Set(prev);
+      s.has(id) ? s.delete(id) : s.add(id);
+      return s;
+    });
+
+  // Merge the selected presences into one: union their sightings + linked
+  // alters + notes, fill any blank attributes from the others, then delete the
+  // now-absorbed records. No data is lost — everything is folded into the one
+  // that persists (the one with the most sightings).
+  const mergeSelected = async () => {
+    const items = presences.filter((p) => selected.has(p.id));
+    if (items.length < 2) return;
+    if (!window.confirm(`Merge ${items.length} presences into one? Their sightings, links and notes are combined.`)) return;
+    const primary = [...items].sort((a, b) => sightingsOf(b).length - sightingsOf(a).length)[0];
+    const others = items.filter((p) => p.id !== primary.id);
+    const allSightings = [...new Set(items.flatMap(sightingsOf))].sort();
+    const linked = [...new Set(items.flatMap((p) => p.associated_alter_ids || []))];
+    const notes = items.map((p) => p.notes).filter(Boolean).join("\n");
+    const firstNonEmpty = (key) => primary[key] || others.find((o) => o[key])?.[key] || "";
+    try {
+      await base44.entities.Presence.update(primary.id, {
+        sightings: allSightings,
+        timestamp: allSightings[allSightings.length - 1] || primary.timestamp,
+        associated_alter_ids: linked,
+        notes,
+        label: firstNonEmpty("label"),
+        color: firstNonEmpty("color"),
+        emoji: firstNonEmpty("emoji"),
+        vibe: firstNonEmpty("vibe"),
+        relationship_type: firstNonEmpty("relationship_type"),
+      });
+      for (const o of others) await base44.entities.Presence.delete(o.id);
+      qc.invalidateQueries({ queryKey: ["presences"] });
+      toast.success(`Merged ${items.length} into one`);
+      setSelected(new Set());
+      setSelectMode(false);
+    } catch (e) {
+      toast.error(e.message || "Couldn't merge");
+    }
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4 os-page-shell" data-tour="new-presences">
       <div className="flex items-start justify-between gap-3">
@@ -90,10 +136,29 @@ export default function NewPresences() {
             Sensed someone you can't pin down yet? Record the fragment — a name, a colour, a vibe — and spot when it reoccurs or might be a known {terms.alter}.
           </p>
         </div>
-        <Button onClick={() => setShowForm(true)} className="flex-shrink-0 gap-1.5">
-          <Plus className="w-4 h-4" /> Record
-        </Button>
+        <div className="flex flex-col items-end gap-1.5 flex-shrink-0">
+          <Button onClick={() => setFormFor(null)} className="gap-1.5">
+            <Plus className="w-4 h-4" /> Record
+          </Button>
+          {presences.length > 1 && (
+            <button
+              onClick={() => { setSelectMode((v) => !v); setSelected(new Set()); }}
+              className={`text-xs px-2 py-1 rounded-lg transition-colors ${selectMode ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground"}`}
+            >
+              {selectMode ? "Cancel" : "Select to merge"}
+            </button>
+          )}
+        </div>
       </div>
+
+      {selectMode && (
+        <div className="flex items-center justify-between gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+          <span className="text-sm text-muted-foreground">{selected.size} selected</span>
+          <Button size="sm" onClick={mergeSelected} disabled={selected.size < 2} className="gap-1.5">
+            <GitMerge className="w-4 h-4" /> Merge
+          </Button>
+        </div>
+      )}
 
       {presences.length === 0 ? (
         <div className="text-center py-16 px-4 rounded-2xl border border-dashed border-border/60">
@@ -108,14 +173,22 @@ export default function NewPresences() {
             const linked = (p.associated_alter_ids || []).map((id) => alterById[id]).filter(Boolean);
             const suggestions = suggestAlters(p, alters, 3);
             const recurCount = recurrence.get(p.id) || 0;
+            const seen = sightingsOf(p).length;
             const resolved = p.resolved_alter_id ? alterById[p.resolved_alter_id] : null;
+            const isSel = selected.has(p.id);
             return (
               <div
                 key={p.id}
                 data-highlight-id={p.id}
-                className="rounded-2xl border border-border/60 bg-card p-4 space-y-2.5"
+                onClick={selectMode ? () => toggleSelect(p.id) : undefined}
+                className={`rounded-2xl border bg-card p-4 space-y-2.5 ${selectMode ? "cursor-pointer" : ""} ${isSel ? "border-primary ring-1 ring-primary" : "border-border/60"}`}
               >
                 <div className="flex items-start gap-3">
+                  {selectMode && (
+                    <span className={`w-5 h-5 mt-0.5 rounded-md border flex items-center justify-center flex-shrink-0 ${isSel ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>
+                      {isSel && <Check className="w-3.5 h-3.5" />}
+                    </span>
+                  )}
                   <div
                     className="w-10 h-10 rounded-xl flex-shrink-0 flex items-center justify-center text-lg"
                     style={{ backgroundColor: p.color ? `${p.color}30` : "hsl(var(--muted))", boxShadow: p.color ? `inset 0 0 0 2px ${p.color}` : undefined }}
@@ -123,41 +196,44 @@ export default function NewPresences() {
                     {p.emoji || "🌫️"}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium leading-tight">
-                      {p.label || p.vibe || "Unnamed presence"}
-                    </p>
+                    <p className="font-medium leading-tight">{p.label || p.vibe || "Unnamed presence"}</p>
                     {p.label && p.vibe && <p className="text-xs text-muted-foreground">{p.vibe}</p>}
                     <p className="text-xs text-muted-foreground">
-                      {p.timestamp ? formatDistanceToNow(new Date(p.timestamp), { addSuffix: true }) : ""}
+                      {seen > 1 ? `seen ${seen}×` : "seen once"}
+                      {p.timestamp && <span> · last {formatDistanceToNow(new Date(p.timestamp), { addSuffix: true })}</span>}
                       {recurCount > 0 && (
                         <span className="ml-2 inline-flex items-center gap-1 text-primary">
                           <RefreshCw className="w-3 h-3" /> resembles {recurCount} other{recurCount > 1 ? "s" : ""}
                         </span>
                       )}
-                      {p.recurs && <span className="ml-2 text-muted-foreground/80">· felt familiar</span>}
                     </p>
                   </div>
-                  <button onClick={() => remove(p)} aria-label="Delete presence" className="text-muted-foreground hover:text-destructive p-1 flex-shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  {!selectMode && (
+                    <div className="flex items-center gap-1 flex-shrink-0">
+                      <button onClick={() => setFormFor(p)} aria-label="Edit presence" className="text-muted-foreground hover:text-foreground p-1">
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button onClick={() => remove(p)} aria-label="Delete presence" className="text-muted-foreground hover:text-destructive p-1">
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {p.notes && <p className="text-sm text-foreground/90 whitespace-pre-wrap">{p.notes}</p>}
 
-                {resolved && (
-                  <p className="text-xs text-emerald-500">Identified as <strong>{resolved.name}</strong></p>
-                )}
+                {resolved && <p className="text-xs text-emerald-500">Identified as <strong>{resolved.name}</strong></p>}
 
                 {linked.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5">
                     <span className="text-xs text-muted-foreground">{p.relationship_type || "Associated with"}:</span>
                     {linked.map((a) => (
-                      <AlterChip key={a.id} alter={a} onRemove={() => unlinkAlter(p, a.id)} />
+                      <AlterChip key={a.id} alter={a} onRemove={selectMode ? undefined : () => unlinkAlter(p, a.id)} />
                     ))}
                   </div>
                 )}
 
-                {suggestions.length > 0 && (
+                {!selectMode && suggestions.length > 0 && (
                   <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-border/40">
                     <span className="text-xs text-muted-foreground">Might be:</span>
                     {suggestions.map((a) => (
@@ -180,7 +256,7 @@ export default function NewPresences() {
         </div>
       )}
 
-      <PresenceFormModal open={showForm} onClose={() => setShowForm(false)} />
+      <PresenceFormModal open={formFor !== undefined} presence={formFor || null} onClose={() => setFormFor(undefined)} />
     </motion.div>
   );
 }

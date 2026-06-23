@@ -26,6 +26,10 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
+        text: "New Presences: in Set Front you can now pick a presence you've recorded before (it logs that it's around again) instead of only making new ones; the page lets you edit and merge presences; and the colour picker now matches the alter editor.",
+      },
+      {
+        type: "improve",
         text: "Web app on a computer: many pages (Settings, Tasks, Friends, Polls, Locations and more) now use the wider screen instead of sitting in a narrow centre strip. More desktop polish to come.",
       },
       {
