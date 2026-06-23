@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { CheckCircle2, CircleSlash2, XCircle, Ban, Calendar, Undo2 } from "lucide-react";
+import { CheckCircle2, CircleSlash2, XCircle, Ban, Calendar, Undo2, Play } from "lucide-react";
+import { addActiveActivity, getActiveActivities } from "@/lib/activitySession";
 import {
   ACTIVITY_STATUSES,
   STATUS_LABELS,
@@ -75,6 +76,25 @@ export default function ActivityLifecyclePopover({
     queryFn: () => base44.entities.Activity.list(),
   });
 
+  // Categories — only used to colour the active pill when a plan is started.
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+  const planColor = useMemo(() => {
+    const ids = activity?.activity_category_ids || [];
+    for (const id of ids) {
+      const c = categories.find((c) => c.id === id);
+      if (c?.color) return c.color;
+    }
+    return activity?.color || null;
+  }, [activity, categories]);
+  // Is this plan already running as an active session? (re-read on open)
+  const alreadyActive = useMemo(
+    () => getActiveActivities().some((a) => a.planActivityId === activity?.id),
+    [activity?.id, isOpen]
+  );
+
   const status = useMemo(() => statusFor(activity), [activity]);
   const isResolvedState = useMemo(() => {
     return [
@@ -112,6 +132,28 @@ export default function ActivityLifecyclePopover({
     } finally {
       setSavingNote(false);
     }
+  };
+
+  // Start this plan as an in-progress "active" session (reuses the same
+  // mechanism as the Log modal's Active toggle / the dashboard's Active
+  // Activities). The session is linked back to the plan via planActivityId,
+  // so ending it RESOLVES this plan to "done" instead of logging a duplicate.
+  // The current notes-box text rides along as the session's note.
+  const startActive = () => {
+    addActiveActivity({
+      planActivityId: activity.id,
+      categoryId: (activity.activity_category_ids || [])[0] || null,
+      name: activity.activity_name || "Activity",
+      color: planColor,
+      startTime: new Date().toISOString(),
+      alterIds: activity.fronting_alter_ids || [],
+      notes: (noteDraft || "").trim(),
+    });
+    // It's happening now — clear the pending pre-start reminder for it.
+    try { cancelPlanReminder(activity.id).catch(() => {}); } catch { /* non-fatal */ }
+    toast.success("Started — it's now in your Active Activities");
+    onChanged?.();
+    closeAll();
   };
 
   // Single-instance write. Used directly when the plan isn't part of a
@@ -418,6 +460,15 @@ export default function ActivityLifecyclePopover({
             </div>
             {status === ACTIVITY_STATUSES.SCHEDULED && (
               <>
+                {alreadyActive ? (
+                  <div className="text-[11px] text-primary bg-primary/10 border border-primary/30 rounded-md px-2 py-1.5 flex items-center gap-1.5">
+                    <Play className="w-3.5 h-3.5 flex-shrink-0" /> In progress — finish it from Active Activities on the dashboard.
+                  </div>
+                ) : (
+                  <Button variant="outline" className="w-full justify-start gap-2" disabled={saving} onClick={startActive}>
+                    <Play className="w-4 h-4 text-primary" /> Start now (set active)
+                  </Button>
+                )}
                 <Button variant="outline" className="w-full justify-start gap-2" disabled={saving} onClick={markDone}>
                   <CheckCircle2 className="w-4 h-4 text-emerald-500" /> Mark as Done
                 </Button>

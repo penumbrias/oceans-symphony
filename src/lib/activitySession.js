@@ -7,6 +7,11 @@
 // MULTIPLE concurrent sessions are supported: the store is an ARRAY of
 //   { id, categoryId, name, color, startTime (ISO), alterIds: [], notes }
 // (legacy sessions may carry a single `alterId` instead of `alterIds`).
+//
+// A session can optionally carry `planActivityId` — the id of an existing
+// scheduled plan it was started from. When such a session ends, the plan is
+// RESOLVED in place (status → "done") rather than logging a new record, so
+// "starting" a plan and finishing it completes that very plan.
 
 import { base44 } from "@/api/base44Client";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -82,17 +87,39 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
   const end = endTimeIso ? new Date(endTimeIso) : new Date();
   const minutes = Math.max(1, Math.round((end - start) / 60000));
   const alterIds = active.alterIds || (active.alterId ? [active.alterId] : []);
-  const record = await base44.entities.Activity.create({
-    timestamp: start.toISOString(),
-    activity_name: active.name || "Activity",
-    activity_category_ids: active.categoryId ? [active.categoryId] : [],
-    ...(active.color ? { color: active.color } : {}),
-    duration_minutes: minutes,
-    fronting_alter_ids: alterIds,
-    notes: active.notes || null,
-    is_planned: false,
-    status: ACTIVITY_STATUSES.LOGGED,
-  });
+  const noteVal = (typeof active.notes === "string" && active.notes.trim()) ? active.notes.trim() : null;
+  let record;
+  if (active.planActivityId) {
+    // Started from an existing PLAN — resolve that plan to "done" rather than
+    // creating a duplicate record. Keep its categories/name; stamp the real
+    // elapsed time + when it actually happened, and carry over the note +
+    // fronting alters captured during the session.
+    record = await base44.entities.Activity.update(active.planActivityId, {
+      status: ACTIVITY_STATUSES.DONE,
+      timestamp: start.toISOString(),
+      duration_minutes: minutes,
+      actual_duration_minutes: minutes,
+      fronting_alter_ids: alterIds,
+      notes: noteVal,
+    });
+    // The plan happened — clear any pending pre-start OS reminder for it.
+    try {
+      const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
+      await cancelPlanReminder(active.planActivityId);
+    } catch { /* non-fatal */ }
+  } else {
+    record = await base44.entities.Activity.create({
+      timestamp: start.toISOString(),
+      activity_name: active.name || "Activity",
+      activity_category_ids: active.categoryId ? [active.categoryId] : [],
+      ...(active.color ? { color: active.color } : {}),
+      duration_minutes: minutes,
+      fronting_alter_ids: alterIds,
+      notes: noteVal,
+      is_planned: false,
+      status: ACTIVITY_STATUSES.LOGGED,
+    });
+  }
   removeActiveActivity(active.id);
-  return { record, minutes, name: active.name || "Activity" };
+  return { record, minutes, name: active.name || "Activity", resolvedPlan: !!active.planActivityId };
 }

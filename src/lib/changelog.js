@@ -18,7 +18,21 @@
 
 export const CHANGELOG = [
   {
+    date: "June 23, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "You can now start a plan live: open a plan, tap \"Start now\" to time it, and tap End to complete it — it shows under Active Activities meanwhile.",
+      },
+      {
+        type: "feature",
+        text: "Add a note when you start or finish an activity — it's saved onto the activity and shows in its details everywhere.",
+      },
+    ],
+  },
+  {
     date: "June 22, 2026",
+    version: "0.66.11",
     changes: [
       {
         type: "fix",
