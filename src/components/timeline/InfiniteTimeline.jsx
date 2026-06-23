@@ -702,6 +702,7 @@ export default function InfiniteTimeline({
   categories = [],
   locations = [], showLocations = true,
   statusNotes = [],
+  importantDates = [],
   // Set when a dashboard fronter chip double-tap → "Jump to session"
   // brought the user here. The matching AlterBar pulses a 3s halo on
   // first render. If focusOpenEditor is also true, the session-edit
@@ -1407,7 +1408,7 @@ export default function InfiniteTimeline({
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-muted/30 transition-colors"
         style={{ userSelect: "none" }}
       >
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 flex-wrap">
           <span className={`font-semibold text-sm ${isToday ? "text-primary" : "text-foreground"}`}>{dateLabel}</span>
           {!hasData && <span className="text-xs text-muted-foreground">No data</span>}
           {hasData && (
@@ -1418,6 +1419,17 @@ export default function InfiniteTimeline({
               {journals.length > 0 && <span>{journals.length} journal{journals.length !== 1 ? "s" : ""}</span>}
             </div>
           )}
+          {importantDates.length > 0 && importantDates.map((x, i) => (
+            <span
+              key={i}
+              className="inline-flex items-center gap-1 text-[0.6875rem] px-1.5 py-0.5 rounded-full border"
+              style={{ borderColor: (x.color || "var(--color-primary, #6366f1)") + "66", color: x.color || "var(--color-text-primary, #e5e7eb)" }}
+              title={`${x.alterName} — ${x.fieldName}`}
+            >
+              📅 <span className="font-medium">{x.alterName}</span>
+              <span className="opacity-70">· {x.fieldName}</span>
+            </span>
+          ))}
         </div>
         <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {!collapsed && (

@@ -119,7 +119,7 @@ export default function ActivityMonthView({
                   >
                     <span className="text-[0.5625rem] leading-none">📅</span>
                     {dayDates.slice(0, 4).map((x, i) => (
-                      <span key={i} className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: x.color || "hsl(var(--primary))" }} />
+                      <span key={i} className="inline-block w-1.5 h-1.5 rounded-full" style={{ backgroundColor: x.color || "var(--color-primary, #6366f1)" }} />
                     ))}
                   </div>
                 );

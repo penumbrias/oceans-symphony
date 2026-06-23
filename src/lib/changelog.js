@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Date custom fields (like birthdays) now show on the Activity Tracker's week and day views and on the Timeline — not just the month calendar.",
+      },
+      {
         type: "fix",
         text: "Fixed the Activities page crashing when you opened it.",
       },

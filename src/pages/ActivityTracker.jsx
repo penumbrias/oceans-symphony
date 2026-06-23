@@ -430,6 +430,7 @@ export default function ActivityTracker() {
                 onWeekStartChange={setWeekStartsOn}
                 onDayClick={setZoomedDate}
                 onEditPlan={openPlanEditor}
+                importantDates={importantDates}
               />
             )}
             {viewMode === "month" && (
@@ -544,6 +545,7 @@ export default function ActivityTracker() {
           activities={activities}
           alters={alters}
           frontingHistory={frontingHistory}
+          importantDates={importantDates}
           onClose={() => setZoomedDate(null)}
           onActivityClick={handleActivityClick}
           onTimeRangeSelect={(date, startHour, endHour, startMinute, endMinute) => {

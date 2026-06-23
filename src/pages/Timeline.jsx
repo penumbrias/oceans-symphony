@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
+import { collectAlterDates, datesForDay } from "@/lib/importantDates";
 import { useQuery } from "@tanstack/react-query";
 import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
@@ -51,6 +52,14 @@ export default function Timeline() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+
+  const { data: customFields = [] } = useQuery({
+    queryKey: ["customFields"],
+    queryFn: () => base44.entities.CustomField.list(),
+  });
+
+  // Annual important dates (birthdays etc.) from date-typed custom fields.
+  const importantDates = collectAlterDates(alters, customFields);
 
   const { data: journals = [] } = useQuery({
     queryKey: ["journalEntries"],
@@ -355,7 +364,9 @@ export default function Timeline() {
             return t >= dayStart && t <= dayEnd;
           });
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0;
+          const dayImportantDates = datesForDay(importantDates, day);
+
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0 || dayImportantDates.length > 0;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -382,6 +393,7 @@ export default function Timeline() {
                 locations={dayLocations}
                 showLocations={showLocations}
                 statusNotes={dayStatusNotes}
+                importantDates={dayImportantDates}
                 dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
                 focusSessionId={daySessions.some((s) => s.id === focusSessionId) ? focusSessionId : null}
                 focusOpenEditor={focusEdit}
