@@ -102,7 +102,7 @@ const ENTITY_NAMES = [
   "StatusNote", "Location", "SystemChangeEvent", "GroceryItem", "GroceryFavorite", "GroceryList", "QuickAction",
   "UnblendQuestion", "HiddenUnblendQuestion",
   "SystemChatChannel", "SystemChatMessage", "SystemChatCategory",
-  "ImageAsset", "GroupNote",
+  "ImageAsset", "GroupNote", "Presence",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -119,7 +119,7 @@ function resolveCatDesc(cat, terms) {
 }
 
 const EXPORT_CATEGORIES = [
-  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers & placements" },
+  { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement", "Presence"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers, placements & new presences" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
   { id: "checkins",      label: "Check-ins & Emotions",     entities: ["EmotionCheckIn", "SystemCheckIn"],                                  desc: "Emotion & system check-ins" },

@@ -44,6 +44,7 @@ const TYPE_ICONS = {
   chat:      "💬",
   grounding: "🌱",
   innerworld:"🗺️",
+  presence:  "🌫️",
 };
 
 function getTypeLabels(t) {
@@ -67,6 +68,7 @@ function getTypeLabels(t) {
     chat:      "Chat Messages",
     grounding: "Grounding",
     innerworld: `${t.System} Map`,
+    presence:  "New Presences",
   };
 }
 
@@ -246,6 +248,11 @@ export default function GlobalSearch() {
     queryFn: () => safeList(localEntities.InnerWorldLocation),
     staleTime: stale, enabled,
   });
+  const { data: presences = [] } = useQuery({
+    queryKey: ["presences"],
+    queryFn: () => safeList(localEntities.Presence),
+    staleTime: stale, enabled,
+  });
 
   const index = useMemo(() => buildSearchIndex({
     alters, customFieldDefs,
@@ -265,7 +272,8 @@ export default function GlobalSearch() {
     groceries,
     chatMessages, chatChannels,
     groundingTechniques, innerWorldLocations,
-  }), [
+    presences,
+}), [
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
@@ -283,7 +291,8 @@ export default function GlobalSearch() {
     groceries,
     chatMessages, chatChannels,
     groundingTechniques, innerWorldLocations,
-  ]);
+    presences,
+]);
 
   const searchResults = useMemo(() => searchIndex(index, query, 80), [index, query]);
   const groupedResults = useMemo(() => groupResults(searchResults), [searchResults]);
@@ -315,7 +324,7 @@ export default function GlobalSearch() {
   const TYPE_ORDER = [
     "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "chat", "grounding", "innerworld", "grocery",
+    "location", "syschange", "symptom", "group", "chat", "grounding", "innerworld", "grocery", "presence",
   ];
 
   return (

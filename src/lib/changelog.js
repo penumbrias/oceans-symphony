@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Presences: record someone you sense but can't pin down yet — a name, colour, vibe or note — from its own page or the new \"New presence\" tab when you set fronters. It flags when a presence reoccurs or might be a known alter.",
+      },
+      {
         type: "improve",
         text: "Web app on a computer: many pages (Settings, Tasks, Friends, Polls, Locations and more) now use the wider screen instead of sitting in a narrow centre strip. More desktop polish to come.",
       },

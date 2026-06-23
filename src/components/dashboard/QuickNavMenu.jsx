@@ -16,6 +16,7 @@ function buildNavGroups(altersLabel, systemLabel) {
   return {
     [systemLabel]: [
       { id: "alters",   label: altersLabel,            icon: Users,         path: "/Home" },
+      { id: "presences",label: "New Presences",        icon: Sparkles,      path: "/presences" },
       { id: "chat",     label: `${systemLabel} Chat`,  icon: MessageSquare, path: "/chat" },
       { id: "friends",  label: "Friends",              icon: UserRound,     path: "/friends" },
       { id: "groups",   label: "Groups",               icon: Users,         path: "/groups" },
@@ -78,6 +79,7 @@ function buildGridItems(altersLabel, systemLabel) {
     { id: "bulletins",       label: "Bulletin Board",         icon: Pin,           path: "/bulletins",        color: "bg-amber-500/15 text-amber-600 dark:text-amber-400" },
     { id: "unblend",         label: "Help me unblend",        icon: Heart,         path: "/unblend",          color: "bg-fuchsia-500/15 text-fuchsia-600 dark:text-fuchsia-400" },
     { id: "get-to-know-me",  label: "Get to know me",         icon: Sparkles,      path: "/get-to-know-me",   color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },
+    { id: "presences",       label: "New Presences",          icon: Sparkles,      path: "/presences",        color: "bg-indigo-500/15 text-indigo-600 dark:text-indigo-400" },
     { id: "chat",            label: `${systemLabel} Chat`,    icon: MessageSquare, path: "/chat",             color: "bg-teal-500/15 text-teal-600 dark:text-teal-400" },
   ];
 }

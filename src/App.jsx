@@ -30,6 +30,7 @@ import ToDoList from '@/pages/ToDoList';
 import Timeline from '@/pages/Timeline.jsx';
 
 import SystemMapPage from '@/pages/SystemMap';
+import NewPresencesPage from '@/pages/NewPresences';
 import Grounding from '@/pages/Grounding';
 import SafetyPlan from '@/pages/SafetyPlan';
 import BulletinPage from '@/pages/BulletinPage';
@@ -178,6 +179,7 @@ const AuthenticatedApp = () => {
         <Route path="/sleep" element={<SleepTracker />} />
         <Route path="/timeline" element={<Timeline />} />
         <Route path="/system-map" element={<SystemMapPage />} />
+        <Route path="/presences" element={<NewPresencesPage />} />
         <Route path="/bulletin/:id" element={<BulletinPage />} />
         <Route path="/bulletins" element={<BulletinsPage />} />
         <Route path="/unblend" element={<HelpMeUnblend />} />
