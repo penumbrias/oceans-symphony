@@ -24,6 +24,10 @@ export const CHANGELOG = [
         type: "improve",
         text: "Web app on a computer: many pages (Settings, Tasks, Friends, Polls, Locations and more) now use the wider screen instead of sitting in a narrow centre strip. More desktop polish to come.",
       },
+      {
+        type: "improve",
+        text: "Web app on a computer: the dashboard now flows into two columns on a wide screen instead of one tall strip. (Phones are unchanged.)",
+      },
     ],
   },
   {

@@ -237,6 +237,17 @@ button, [role="button"] {
 @media (min-width: 1280px) { .os-page-shell { max-width: 64rem; } }
 @media (min-width: 1536px) { .os-page-shell { max-width: 72rem; } }
 
+/* ── Dashboard desktop columns ──
+   Phones: a single vertical stack (default block flow). Desktop: the
+   dashboard sections flow into two balanced columns so the screen isn't one
+   tall ribbon. Each section avoids splitting across the column break. The
+   user's configured section ORDER is preserved (read top-to-bottom down the
+   left column, then the right). Only ≥1024px so mobile is unaffected. */
+@media (min-width: 1024px) {
+  .os-dash-cols { column-count: 2; column-gap: 1.25rem; }
+  .os-dash-cols > * { break-inside: avoid; }
+}
+
 /* ── Accessibility ── */
 html.a11y-text-xs3 { font-size: 50%; }
 html.a11y-text-xs2 { font-size: 62.5%; }

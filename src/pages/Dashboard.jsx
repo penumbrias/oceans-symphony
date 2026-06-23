@@ -589,6 +589,7 @@ export default function Dashboard() {
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
+      <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;
         switch (entry.id) {
@@ -678,6 +679,7 @@ export default function Dashboard() {
             return null;
         }
       })}
+      </div>
 
       {/* Legal/scope disclaimer — gates everything else on first run.
           TermsSetup waits until the disclaimer is acknowledged. */}
