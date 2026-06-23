@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity Tracker day view no longer opens with its header (the date and any birthdays) cut off behind the top bar.",
+      },
+      {
         type: "improve",
         text: "Date custom fields (like birthdays) now show on the Activity Tracker's week and day views and on the Timeline — not just the month calendar.",
       },

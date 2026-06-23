@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format } from "date-fns";
 import { ArrowLeft, Plus } from "lucide-react";
@@ -364,7 +365,7 @@ export default function ActivityDayView({
 
   let firstActivitySet = false;
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 bg-background z-50 flex flex-col"
       onTouchStart={handleTouchStart}
@@ -560,6 +561,7 @@ export default function ActivityDayView({
       >
         <Plus className="w-6 h-6" />
       </button>
-    </div>
+    </div>,
+    document.body
   );
 }
