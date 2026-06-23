@@ -420,7 +420,7 @@ export default function Settings() {
       </div>
 
       <SectionsAccordion>
-      <div data-tour="settings-content" className="space-y-3 max-w-2xl">
+      <div data-tour="settings-content" className="space-y-3 os-page-shell">
 
         {/* ── PROFILE ── */}
         <Section id="system" icon={IdCard} label="Profile" headerRight={

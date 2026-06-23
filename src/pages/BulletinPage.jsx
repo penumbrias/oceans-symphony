@@ -64,7 +64,7 @@ export default function BulletinPage() {
 
   if (!bulletin) {
     return (
-      <div className="max-w-2xl mx-auto px-4 py-8">
+      <div className="os-page-shell px-4 py-8">
         <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
           <ArrowLeft className="w-4 h-4" /> Back
         </button>
@@ -82,7 +82,7 @@ export default function BulletinPage() {
   const timeAgo = formatDistanceToNow(new Date(bulletin.created_date), { addSuffix: true });
 
   return (
-    <div className="max-w-2xl mx-auto px-4 py-6">
+    <div className="os-page-shell px-4 py-6">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6 transition-colors">
         <ArrowLeft className="w-4 h-4" /> Back to board
       </button>

@@ -48,7 +48,7 @@ export default function SafetyPlan() {
       <motion.div
         initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        className="max-w-2xl mx-auto p-6 space-y-8"
+        className="os-page-shell p-6 space-y-8"
       >
         <div className="text-center space-y-4 py-12">
           <Shield className="w-12 h-12 text-muted-foreground/40 mx-auto" />
@@ -75,7 +75,7 @@ export default function SafetyPlan() {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="max-w-2xl mx-auto p-6 space-y-6"
+      className="os-page-shell p-6 space-y-6"
     >
       {/* Header */}
       <div className="space-y-2">

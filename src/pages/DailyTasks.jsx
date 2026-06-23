@@ -733,7 +733,7 @@ export default function DailyTasks() {
   }, [templates]);
 
   return (
-    <motion.div data-tour="tasks-daily" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 max-w-2xl mx-auto">
+    <motion.div data-tour="tasks-daily" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-5 os-page-shell">
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>

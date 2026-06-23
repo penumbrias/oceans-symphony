@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "June 22, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Web app on a computer: many pages (Settings, Tasks, Friends, Polls, Locations and more) now use the wider screen instead of sitting in a narrow centre strip. More desktop polish to come.",
+      },
+    ],
+  },
+  {
     date: "June 21, 2026",
+    version: "0.65.24",
     changes: [
       {
         type: "improve",

@@ -996,7 +996,7 @@ export default function Polls() {
   }
 
   return (
-    <div data-tour="polls-list" className="max-w-2xl mx-auto p-4">
+    <div data-tour="polls-list" className="os-page-shell p-4">
       <div className="flex items-center justify-between mb-6 gap-2">
         <h1 className="text-2xl font-display font-semibold text-foreground">Polls</h1>
         <div className="flex items-center gap-2">

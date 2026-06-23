@@ -194,7 +194,7 @@ export default function GroupsManager() {
 
   return (
     <div className="min-h-screen p-6">
-      <div className="max-w-2xl mx-auto">
+      <div className="os-page-shell">
         <div className="mb-6 flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-3xl font-bold text-foreground mb-2">Manage Groups</h1>
