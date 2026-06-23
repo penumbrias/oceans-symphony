@@ -471,11 +471,19 @@ html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 
   pointer-events: none;
 }
 .wysiwyg-content blockquote {
-  border-left: 3px solid hsl(var(--primary));
+  /* Use the theme's actual primary var (a hex). The old hsl(var(--primary))
+   * referenced an undefined var, so the whole border shorthand was dropped and
+   * a blockquote just looked like slightly-indented text. */
+  border-left: 3px solid var(--color-primary, #6366f1);
   margin: 4px 0;
   padding: 4px 12px;
-  color: hsl(var(--muted-foreground));
+  font-style: italic;
+  opacity: 0.9;
 }
+/* h1 was missing here, so the rich toolbar's "Heading 1" rendered at body size
+ * ("headline formatting doesn't appear"). Tailwind preflight resets it, so
+ * restore a heading scale like h2/h3 below. */
+.wysiwyg-content h1 { font-size: 1.5rem; font-weight: 700; line-height: 1.2; margin: 8px 0 4px; }
 .wysiwyg-content h2 { font-size: 1.25rem; font-weight: 700; margin: 8px 0 4px; }
 .wysiwyg-content h3 { font-size: 1.05rem; font-weight: 600; margin: 6px 0 3px; }
 .wysiwyg-content ul, .wysiwyg-content ol { padding-left: 1.5em; margin: 4px 0; }
@@ -496,7 +504,7 @@ html.a11y-mode .a11y-bottom-nav span { font-size: 11px !important; line-height: 
 .bulletin-prose h1 { font-size: 1.5em; font-weight: 700; line-height: 1.2; margin: .5em 0 .3em; }
 .bulletin-prose h2 { font-size: 1.25em; font-weight: 700; line-height: 1.25; margin: .5em 0 .3em; }
 .bulletin-prose h3 { font-size: 1.1em; font-weight: 600; line-height: 1.3; margin: .4em 0 .25em; }
-.bulletin-prose blockquote { border-left: 3px solid hsl(var(--primary)); margin: .4em 0; padding: .25em .75em; color: hsl(var(--muted-foreground)); }
+.bulletin-prose blockquote { border-left: 3px solid var(--color-primary, #6366f1); margin: .4em 0; padding: .25em .75em; font-style: italic; opacity: 0.9; }
 
 /* Corner-mode toggle (Settings → Appearance → Corner style). When the
  * user picks "Sharp" we zero out every Tailwind rounded-* class via a

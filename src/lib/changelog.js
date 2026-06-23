@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 22, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Rich text: \"Heading 1\" now shows at heading size, and block quotes render with a proper quote bar (coloured left border + italic) instead of just slightly-indented text — in bios and everywhere rich text appears.",
+      },
+      {
         type: "feature",
         text: "New Presences: record someone you sense but can't pin down yet — a name, colour, vibe or note — from its own page or the new \"New presence\" tab when you set fronters. It flags when a presence reoccurs or might be a known alter.",
       },
