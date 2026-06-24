@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 23, 2026",
     changes: [
       {
+        type: "improve",
+        text: "You can now start a plan live straight from the dashboard's \"Plans needing review\" card — tap Start to time it (it moves to Active Activities).",
+      },
+      {
         type: "fix",
         text: "Fixed the top-bar buttons (Settings, Reminders, the menu) sometimes not responding to taps near their top edge — an invisible layer was covering the top of the screen.",
       },
