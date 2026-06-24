@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Pages now remember where you were — returning to the alters list (or any page) after viewing an alter keeps your scroll position and view instead of jumping back to the top.",
+      },
+      {
+        type: "improve",
         text: "You can now start a plan live straight from the dashboard's \"Plans needing review\" card — tap Start to time it (it moves to Active Activities).",
       },
       {

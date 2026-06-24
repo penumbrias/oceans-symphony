@@ -24,7 +24,16 @@ export default function AlterGrid({ alters }) {
   const isDemo = alters.length === 0 && !!window.__tourActive;
   const effectiveAlters = isDemo ? TOUR_DEMO_ALTERS : alters;
   const [search, setSearch] = useState("");
-  const [sortMode, setSortMode] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
+  // Sort + filter arrangement persist for the session so returning to the alters
+  // page (after viewing an alter, a subsystem, etc.) keeps the view you set up
+  // rather than snapping back to the default. sessionStorage = per-session, so a
+  // fresh app launch still starts clean.
+  const [sortMode, setSortMode] = useState(() => {
+    try { return sessionStorage.getItem("alterGrid_sortMode") || "alpha-asc"; } catch { return "alpha-asc"; }
+  }); // "alpha-asc" | "alpha-desc" | "most" | "least"
+  useEffect(() => {
+    try { sessionStorage.setItem("alterGrid_sortMode", sortMode); } catch { /* storage off */ }
+  }, [sortMode]);
   const [showFolders, setShowFolders] = useState(() => {
     const saved = localStorage.getItem("alter_show_folders");
     return saved == null ? true : saved === "true";
@@ -49,7 +58,16 @@ export default function AlterGrid({ alters }) {
   // Listing filter: nested vs flat, plus multi-select group/subsystem
   // membership with Any (union) / All (intersection) matching. Edited
   // through the AlterFilterPopup.
-  const [filters, setFilters] = useState({ nested: true, groupIds: [], subsystemIds: [], roles: [], mode: "any" });
+  const [filters, setFilters] = useState(() => {
+    try {
+      const raw = sessionStorage.getItem("alterGrid_filters");
+      if (raw) return JSON.parse(raw);
+    } catch { /* storage off / bad JSON */ }
+    return { nested: true, groupIds: [], subsystemIds: [], roles: [], mode: "any" };
+  });
+  useEffect(() => {
+    try { sessionStorage.setItem("alterGrid_filters", JSON.stringify(filters)); } catch { /* storage off */ }
+  }, [filters]);
   const [filterOpen, setFilterOpen] = useState(false);
   const [massArchiveOpen, setMassArchiveOpen] = useState(false);
 
