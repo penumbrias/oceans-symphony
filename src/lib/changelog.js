@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Subsystems you've expanded on the alters page now stay expanded when you come back from viewing an alter, instead of collapsing to default.",
+      },
+      {
+        type: "improve",
         text: "Pages now remember where you were — returning to the alters list (or any page) after viewing an alter keeps your scroll position and view instead of jumping back to the top.",
       },
       {
