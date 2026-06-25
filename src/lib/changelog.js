@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Reliable reminders: a new \"force-stop-proof\" option (Settings → Notifications) gets reminders to you even when your phone has fully closed the app — no Friends setup needed. Off by default; the app stays fully offline until you switch it on.",
+      },
+      {
         type: "fix",
         text: "Octocon import: a custom-field value whose field was deleted in Octocon is now kept (as an \"Imported field\") instead of being dropped.",
       },
