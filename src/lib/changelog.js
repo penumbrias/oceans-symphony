@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "June 24, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Octocon import: a custom-field value whose field was deleted in Octocon is now kept (as an \"Imported field\") instead of being dropped.",
+      },
+    ],
+  },
+  {
     date: "June 23, 2026",
+    version: "0.67.8",
     changes: [
       {
         type: "feature",

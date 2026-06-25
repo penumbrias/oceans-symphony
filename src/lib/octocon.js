@@ -58,10 +58,41 @@ export function buildMemberGroupsFromTags(tags = []) {
   return byAlter;
 }
 
+// Octocon's `user.fields` is the field-DEFINITION list — but a real export can
+// carry a VALUE on an alter whose definition was dropped from that list (a field
+// the user deleted in Octocon, leaving the value stranded on the alter). Those
+// ids never appear in fieldIdMap, so buildMemberCustomFields would silently skip
+// them — losing user data, which the app must never do. This surfaces every
+// orphan field id that has at least one non-empty value across the export as its
+// own synthetic field def, so the connector can create a real CustomField for it
+// and preserve the value. Named generically since the export gives no label.
+// Returns [{ id, name, type }] (type always "text" — we have no type info).
+export function collectOrphanFieldDefs(data) {
+  const defIds = new Set((data?.user?.fields || []).map((f) => f && f.id).filter(Boolean));
+  const seen = new Set();
+  const orphanIds = [];
+  for (const a of data?.alters || []) {
+    for (const f of a?.fields || []) {
+      if (!f || !f.id || defIds.has(f.id) || seen.has(f.id)) continue;
+      const v = f.value;
+      if (v == null || String(v).trim() === "") continue;
+      seen.add(f.id);
+      orphanIds.push(f.id);
+    }
+  }
+  return orphanIds.map((id, i) => ({
+    id,
+    name: orphanIds.length > 1 ? `Imported field ${i + 1}` : "Imported field",
+    type: "text",
+  }));
+}
+
 // alter.fields ([{id, value}]) → { localFieldId: value }, remapping the Octocon
 // field-definition id to the LOCAL CustomField id via fieldIdMap. Empty values
 // are skipped so an alter doesn't gain a wall of blank fields. alter.custom_fields
 // is keyed by local CustomField id (see InfoTab.jsx — customFieldValues[field.id]).
+// Orphan fields (see collectOrphanFieldDefs) are included automatically once the
+// connector has added their ids to fieldIdMap.
 export function buildMemberCustomFields(alter, fieldIdMap = {}) {
   const out = {};
   for (const f of (alter?.fields || [])) {

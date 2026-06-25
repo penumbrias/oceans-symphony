@@ -12,6 +12,7 @@ import {
   looksLikeOctocon,
   buildMemberGroupsFromTags,
   buildMemberCustomFields,
+  collectOrphanFieldDefs,
   buildSystemIdentityPatch,
   octoFieldType,
   mapAlterToLocal,
@@ -93,7 +94,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
   const counts = data ? {
     alters: (data.alters || []).length,
     groups: (data.tags || []).length,
-    customFields: (data.user?.fields || []).length,
+    customFields: (data.user?.fields || []).length + collectOrphanFieldDefs(data).length,
     fronts: (data.fronts || []).length,
     system: data.user?.username || data.user?.id || "",
   } : null;
@@ -160,7 +161,10 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
         if (includeCustomFields) {
           setProgress("Importing custom fields…");
           let order = existingFields.length;
-          for (const def of d.user?.fields || []) {
+          // Orphan field values (a value on an alter whose def Octocon dropped
+          // from user.fields) get a synthetic def so we never lose the value.
+          const allFieldDefs = [...(d.user?.fields || []), ...collectOrphanFieldDefs(d)];
+          for (const def of allFieldDefs) {
             const octoId = def.id || "";
             if (!octoId) continue;
             const existing = existingByOctoId[octoId] || existingByName[(def.name || "").toLowerCase().trim()];
