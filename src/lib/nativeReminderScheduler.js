@@ -375,6 +375,7 @@ export async function reconcileNativeSchedule(reminders, settings, context = {})
       body: c.reminder.body || "",
       channelId: channelForReminder(c.reminder),
       actionTypeId: REMINDER_ACTION_TYPE_ID,
+      largeIcon: "ic_notif_large", // colour app art inside the notification (small icon stays the glyph)
       // allowWhileIdle pierces Doze so the exact alarm fires AT the
       // scheduled minute even when the phone has been idle — without it
       // Android batches the alarm to the next maintenance window, which
@@ -546,6 +547,7 @@ export async function snoozePrescheduledFire({ reminderId, scheduledFor, opt }) 
           body: reminder.body || "",
           channelId: channelForReminder(reminder),
           actionTypeId: REMINDER_ACTION_TYPE_ID,
+          largeIcon: "ic_notif_large",
           schedule: { at: new Date(untilMs), allowWhileIdle: true },
           extra: { reminderId, scheduledFor: untilISO },
         },

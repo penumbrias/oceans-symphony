@@ -52,7 +52,7 @@
              available as a monochrome fallback if a flat glyph is preferred. -->
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_icon"
-            android:resource="@drawable/ic_notif_large" />
+            android:resource="@drawable/ic_stat_symphony" />
     </application>
 
     <!-- Permissions -->

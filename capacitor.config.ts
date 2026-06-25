@@ -59,8 +59,14 @@ const config: CapacitorConfig = {
     // glyph lives at res/drawable/ic_stat_symphony.xml if we ever want the
     // universally-clean look instead. Cloud (FCM) pushes use the matching
     // default_notification_icon meta-data in AndroidManifest.xml.
+    // NOTE: smallIcon is the monochrome glyph (ic_stat_symphony), NOT the
+    // colour art — Android's status-bar small-icon slot masks colour images
+    // to an ugly white blob on stock Android. The colour app art shows
+    // instead as the per-notification largeIcon (ic_notif_large) inside the
+    // expanded notification, so it appears on every device without blobbing.
+    // (Kane chose this universal-clean look, June 2026.)
     LocalNotifications: {
-      smallIcon: 'ic_notif_large',
+      smallIcon: 'ic_stat_symphony',
       iconColor: '#2563EB',
     },
     // overlaysWebView: true lets the WebView render edge-to-edge,

@@ -30,7 +30,7 @@ export const CHANGELOG = [
       },
       {
         type: "improve",
-        text: "The ongoing status notifications now show the app's artwork (a large icon in the notification, and the app icon in the status bar on phones that show colour notification icons) instead of a plain placeholder.",
+        text: "Notifications now show the app's artwork as the large icon inside the notification, with a clean app glyph in the status bar — tidy on every phone, no more generic placeholder.",
       },
       {
         type: "improve",

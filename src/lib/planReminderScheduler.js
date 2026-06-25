@@ -252,6 +252,7 @@ export async function schedulePlanReminder(plan, { defaultOffsetMinutes = null }
           title: plan.activity_name || "Upcoming plan",
           body: bodyFor(plan),
           channelId: REMINDERS_CHANNEL_ID,
+          largeIcon: "ic_notif_large", // colour app art inside; small icon is the glyph
           // allowWhileIdle: fire exactly at the scheduled minute even in Doze.
           schedule: { at: new Date(fireMs), allowWhileIdle: true },
           extra: {
