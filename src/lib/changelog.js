@@ -18,7 +18,21 @@
 
 export const CHANGELOG = [
   {
+    date: "June 25, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Reminders now fire right on the minute — even after your phone's been sitting idle — instead of a little late.",
+      },
+      {
+        type: "improve",
+        text: "The ongoing status notifications (fronters, symptoms, activity timer) now show a proper app icon instead of a generic placeholder.",
+      },
+    ],
+  },
+  {
     date: "June 24, 2026",
+    version: "0.69.4",
     changes: [
       {
         type: "fix",

@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Notification status-bar icon for Oceans Symphony.
+
+  Android forces small (status-bar) notification icons to a flat
+  silhouette — only the alpha channel is used, everything opaque is
+  painted the system tint (white). The colourful ocean-sunrise launcher
+  icon therefore can't be used here (it would mask to a solid blob), so
+  this is a white sun-over-waves glyph that reads cleanly at 24dp and
+  echoes the launcher's motif.
+
+  Wired in two places so cloud (FCM) pushes AND on-device local
+  notifications show the SAME branded glyph instead of the generic
+  "i-in-a-circle" placeholder:
+    - capacitor.config.ts → plugins.LocalNotifications.smallIcon
+    - AndroidManifest.xml → com.google.firebase.messaging.default_notification_icon
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="24"
+    android:viewportHeight="24">
+  <!-- sun -->
+  <path
+      android:fillColor="#FFFFFFFF"
+      android:pathData="M12,4.3 a3.2,3.2 0 1,0 0,6.4 a3.2,3.2 0 1,0 0,-6.4 Z" />
+  <!-- water (two gentle waves) -->
+  <path
+      android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="1.6"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000"
+      android:pathData="M3,15 q1.5,-2 3,0 t3,0 t3,0 t3,0 t3,0 t3,0" />
+  <path
+      android:strokeColor="#FFFFFFFF"
+      android:strokeWidth="1.6"
+      android:strokeLineCap="round"
+      android:fillColor="#00000000"
+      android:pathData="M3,19.5 q1.5,-2 3,0 t3,0 t3,0 t3,0 t3,0 t3,0" />
+</vector>

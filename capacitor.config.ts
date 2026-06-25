@@ -48,6 +48,18 @@ const config: CapacitorConfig = {
     hostname: 'app.local.oceans-symphony',
   },
   plugins: {
+    // Branded status-bar icon + tint for every LOCAL notification
+    // (scheduled reminders, plan reminders, the ongoing/persistent
+    // status notifications). Without this the plugin falls back to a
+    // generic "i-in-a-circle" placeholder. smallIcon must name a
+    // drawable that exists (res/drawable/ic_stat_symphony.xml) — a
+    // missing name throws a native Resources.NotFoundException. Cloud
+    // (FCM) pushes use the matching default_notification_icon meta-data
+    // in AndroidManifest.xml so both surfaces show the same glyph.
+    LocalNotifications: {
+      smallIcon: 'ic_stat_symphony',
+      iconColor: '#2563EB',
+    },
     // overlaysWebView: true lets the WebView render edge-to-edge,
     // including up into the status bar area and down behind the
     // navigation-gesture pill. The app chrome (sticky header, bottom

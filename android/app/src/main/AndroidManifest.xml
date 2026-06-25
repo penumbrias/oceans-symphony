@@ -44,6 +44,15 @@
         <meta-data
             android:name="com.google.firebase.messaging.default_notification_channel_id"
             android:value="reminders-default-v2" />
+
+        <!-- Status-bar icon for FCM "notification" messages so cloud
+             reminders show the same branded glyph as on-device local
+             notifications (capacitor.config LocalNotifications.smallIcon),
+             instead of the masked-to-white launcher icon. Must be a flat
+             silhouette drawable (res/drawable/ic_stat_symphony.xml). -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_icon"
+            android:resource="@drawable/ic_stat_symphony" />
     </application>
 
     <!-- Permissions -->

@@ -252,7 +252,8 @@ export async function schedulePlanReminder(plan, { defaultOffsetMinutes = null }
           title: plan.activity_name || "Upcoming plan",
           body: bodyFor(plan),
           channelId: REMINDERS_CHANNEL_ID,
-          schedule: { at: new Date(fireMs) },
+          // allowWhileIdle: fire exactly at the scheduled minute even in Doze.
+          schedule: { at: new Date(fireMs), allowWhileIdle: true },
           extra: {
             kind: "plan_reminder",
             activityId: plan.id,
