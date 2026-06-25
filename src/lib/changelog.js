@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Colours that use the app's accent (uncategorised activities like a completed plan, plus various highlights across the app) were coming out invisible — they now render their colour again.",
+      },
+      {
+        type: "fix",
         text: "Activities without a category (like a completed plan) now show their full coloured bar on the timeline — they were rendering as just a dot with an invisible bar.",
       },
       {
