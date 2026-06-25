@@ -19,6 +19,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
+import OctoconConnect from "@/components/settings/OctoconConnect";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
 import SimplyPluralExport from "@/components/settings/SimplyPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
@@ -765,6 +766,12 @@ export default function Settings() {
             </SubSection>
             <SubSection title="OpenPlural / PluralSpace" defaultOpen={false}>
               <OpenPluralConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            <SubSection title="Octocon" defaultOpen={false}>
+              <OctoconConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />

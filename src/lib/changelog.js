@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 23, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Import from Octocon — bring your alters, groups, custom fields and fronting history over from an Octocon .json export (Settings → Data, or the Import button on the Alters page).",
+      },
+      {
         type: "fix",
         text: "Journal authors whose name uses brackets (like \"[Name]\") are no longer dropped when a second author is added — every author is kept.",
       },
