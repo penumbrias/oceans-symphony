@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "\"Customize dashboard\" (top-corner menu) now opens the drag-and-drop layout editor — reorder and toggle your dashboard sections — instead of the quick-nav tile edit.",
+      },
+      {
+        type: "fix",
         text: "Fixed a crash that could blank the screen after opening the new Contacts page and returning to a screen with your system banner.",
       },
       {

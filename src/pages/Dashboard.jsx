@@ -24,6 +24,8 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
 import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
@@ -61,15 +63,19 @@ export default function Dashboard() {
   };
   const location = useLocation();
   const navigate = useNavigate();
+  const [showDashLayout, setShowDashLayout] = useState(false);
 
   useEffect(() => {
     const open = () => setShowEmotionModal(true);
     const close = () => setShowEmotionModal(false);
+    const openLayout = () => setShowDashLayout(true);
     window.addEventListener("open-quick-checkin", open);
     window.addEventListener("open-quick-checkin-close", close);
+    window.addEventListener("symphony-open-dashboard-layout", openLayout);
     return () => {
       window.removeEventListener("open-quick-checkin", open);
       window.removeEventListener("open-quick-checkin-close", close);
+      window.removeEventListener("symphony-open-dashboard-layout", openLayout);
     };
   }, []);
 
@@ -707,6 +713,18 @@ export default function Dashboard() {
         alters={alters}
         currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
+
+      {/* "Customize dashboard" (header cog) → the section drag/drop layout
+          editor in a popup. Reuses the exact component from Settings →
+          Appearance → Layout → Dashboard. */}
+      <Dialog open={showDashLayout} onOpenChange={setShowDashLayout}>
+        <DialogContent className="max-w-md max-h-[88vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Customize dashboard</DialogTitle>
+          </DialogHeader>
+          <DashboardLayoutSettings />
+        </DialogContent>
+      </Dialog>
 
     </motion.div>);
 
