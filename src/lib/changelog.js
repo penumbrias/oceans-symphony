@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "June 23, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Reminders now send real push notifications by default (they were quietly in-app-only) — your existing reminders were switched on too. Turn off \"Push notification\" on any you want to keep silent.",
+      },
+      {
+        type: "fix",
+        text: "Scheduled reminders now fire reliably when the app is closed — including on Samsung, which was dropping them. (Requires this update's app install.)",
+      },
+      {
         type: "improve",
         text: "Subsystems you've expanded on the alters page now stay expanded when you come back from viewing an alter, instead of collapsing to default.",
       },

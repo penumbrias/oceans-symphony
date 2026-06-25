@@ -57,7 +57,11 @@ const DEFAULT_FORM = {
   category: "custom",
   trigger_type: "scheduled",
   trigger_config: { times: ["09:00"], days: [0,1,2,3,4,5,6] },
-  delivery_channels: ["in_app"],
+  // Push ON by default — closed-app OS notifications are the whole point of
+  // a reminder. Both delivery paths (OS pre-schedule + FCM relay) skip any
+  // reminder without "push", so an in-app-only default meant reminders never
+  // reached the tray. Users can untick Push per-reminder to keep it quiet.
+  delivery_channels: ["in_app", "push"],
   alter_id: null,
   alter_scope: null,
   alter_scope_catchup: false,

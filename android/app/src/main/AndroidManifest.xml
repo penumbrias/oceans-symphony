@@ -56,12 +56,22 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
 
-    <!-- @capacitor/background-runner declares a couple of permissions
-         defensively for API surfaces we don't use. Strip them from
-         the merged manifest so Play Console doesn't flag the build
-         as requesting sensitive permissions we can't justify. If we
-         ever wire up exact alarms or background-location inside the
-         runner script, drop the matching tools:node="remove" line. -->
-    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" tools:node="remove" />
+    <!-- Exact alarms — @capacitor/local-notifications hands scheduled
+         reminders to AlarmManager. WITHOUT exact-alarm permission Android
+         uses INEXACT alarms, which Samsung One UI defers or drops outright
+         when the app is closed — that's the root of the "reminders never
+         reach the tray" reports. Timed reminders are a core app feature, so
+         exact alarms are justified (the Play Console "Alarms & reminders" /
+         "Use exact alarm" declaration).
+           • SCHEDULE_EXACT_ALARM is auto-granted through API 32. Capped at 32
+             (tools:replace overrides background-runner's unbounded copy) so it
+             doesn't trip the user-grant flow on newer Android.
+           • USE_EXACT_ALARM covers API 33+ — auto-granted, no prompt.
+         background-runner only declared SCHEDULE_EXACT_ALARM defensively; the
+         app now actually uses exact alarms, so it's no longer stripped. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" android:maxSdkVersion="32" tools:replace="android:maxSdkVersion" />
+    <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
+    <!-- Background location stays stripped — background-runner declares it
+         defensively but the app never uses it. -->
     <uses-permission android:name="android.permission.ACCESS_BACKGROUND_LOCATION" tools:node="remove" />
 </manifest>
