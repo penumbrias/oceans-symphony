@@ -338,6 +338,7 @@ export default function QuickPlanComposer({ onSaved }) {
             exit={{ opacity: 0, height: 0 }}
             className="overflow-hidden"
           >
+            <p className="text-[0.6875rem] text-muted-foreground mt-2">A scheduled activity on your Activity Tracker — something to do at a time, that you log as done.</p>
             {/* Quick-plan toggle */}
             <button
               type="button"

@@ -22,6 +22,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "A sleep that's in progress now shows up as an Active Activity (on the dashboard and in the ongoing notification), so it's easy to spot and end.",
+      },
+      {
+        type: "improve",
+        text: "Quick task vs. Plan: tapping into each now explains what it makes — a to-do for your To-Do List, vs. a scheduled activity on your Activity Tracker.",
+      },
+      {
+        type: "improve",
         text: "You can now edit a bulletin comment after posting it (tap the pencil), and edit a lineage event's date/cause/notes in System History.",
       },
       {

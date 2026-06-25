@@ -188,6 +188,7 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved }) {
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
+            <p className="text-[0.6875rem] text-muted-foreground mt-2">A to-do for your To-Do List — something to tick off when it's done.</p>
             {/* Optional detail pills (Pin + Urgent now live inside Priority) */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {pills.map((p) => {
