@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Activity edit popup (e.g. editing a sleep) no longer gets cut off on the right — the Start/End date fields now fit the box.",
+      },
+      {
         type: "feature",
         text: "The Timeline now surfaces even more of your day — sleep, lineage events, diary cards, polls, reminders that fired, reflections, alter notes and daily-task completions all show up alongside everything else. Tap any of them to open it.",
       },
