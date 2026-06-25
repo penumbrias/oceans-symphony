@@ -525,7 +525,9 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
           transform: "translateX(-50%)",
           width: 3,
           height: Math.max(heightPx - sz / 2, 4),
-          background: `linear-gradient(to bottom, ${color}, ${color}40)`,
+          // Mostly solid (only a faint taper) so the bottom — the activity's end
+          // time — stays clearly visible rather than fading out early.
+          background: `linear-gradient(to bottom, ${color}, ${color} 80%, ${color}cc)`,
         }} />
       )}
       <div className="relative flex flex-col items-center">
@@ -1636,10 +1638,15 @@ export default function InfiniteTimeline({
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
+                      {/* The gridline sits at the TRUE hour position (no offset) so
+                          it lines up with content placed by getTopPx — previously
+                          an 8px (mt-2) push made the line sit below its hour, so an
+                          activity looked ~15min short of its real end. The label is
+                          centred on that line. */}
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pl-1 text-left" style={{ width: LABEL_WIDTH, transform: "translateY(-50%)" }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
-                      <div className="flex-1 border-t border-border/30 mt-2" />
+                      <div className="flex-1 border-t border-border/30" />
                     </div>
                   );
                 })}

@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Timeline: the hour gridlines were drawn a touch low, so activities looked like they ended ~15 min early — lines now sit at their true hour and the activity bar's end is clearer.",
+      },
+      {
+        type: "fix",
         text: "Timeline: an activity's bar now spans its full duration accurately — it was ending a bit short of the real end time.",
       },
       {
