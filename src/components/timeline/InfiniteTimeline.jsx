@@ -552,6 +552,7 @@ const TYPE_META = {
   reflection:      { icon: "🪷" },
   alter_note:      { icon: "📝" },
   daily_tasks:     { icon: "🗓️" },
+  daily_task:      { icon: "✅" },
 };
 
 function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth, tiedAlters = [] }) {
@@ -1143,13 +1144,31 @@ export default function InfiniteTimeline({
       entries.push({ mins, type: "alter_note", id: n.id, label: txt || "Note", data: n });
     });
 
-    // Daily-task completions — no per-task time-of-day, so anchor the day's
-    // tally to when the progress record was first created.
-    if (dailyProgress && Array.isArray(dailyProgress.completed_task_ids) && dailyProgress.completed_task_ids.length && dailyProgress.created_date) {
-      const mins = minutesInDay(parseDate(dailyProgress.created_date), dayStart);
-      if (inDay(mins)) {
-        const n = dailyProgress.completed_task_ids.length;
-        entries.push({ mins, type: "daily_tasks", id: `dp-${dailyProgress.id}`, label: `${n} daily task${n !== 1 ? "s" : ""} done`, data: dailyProgress });
+    // Daily-task completions. Each task that has a checkoff time renders at that
+    // time as its own event; tasks without one (AUTO triggers, or records from
+    // before per-task times were captured) collapse into a single marker
+    // anchored at the record's created_date.
+    if (dailyProgress && Array.isArray(dailyProgress.completed_task_ids) && dailyProgress.completed_task_ids.length) {
+      const times = dailyProgress.completion_times || {};
+      const dtTitleById = {};
+      for (const tpl of dailyTaskTemplates) { if (tpl?.id) dtTitleById[tpl.id] = tpl.title || "Task"; }
+      const untimed = [];
+      for (const taskId of dailyProgress.completed_task_ids) {
+        const when = times[taskId];
+        if (when) {
+          const mins = minutesInDay(parseDate(when), dayStart);
+          if (inDay(mins)) {
+            entries.push({ mins, type: "daily_task", id: `dt-${dailyProgress.id}-${taskId}`, label: dtTitleById[taskId] || "Daily task", data: { title: dtTitleById[taskId] || "Daily task" } });
+          }
+        } else {
+          untimed.push(taskId);
+        }
+      }
+      if (untimed.length && dailyProgress.created_date) {
+        const mins = minutesInDay(parseDate(dailyProgress.created_date), dayStart);
+        if (inDay(mins)) {
+          entries.push({ mins, type: "daily_tasks", id: `dp-${dailyProgress.id}`, label: `${untimed.length} daily task${untimed.length !== 1 ? "s" : ""} done`, data: { ...dailyProgress, completed_task_ids: untimed } });
+        }
       }
     }
 
@@ -1736,6 +1755,7 @@ export default function InfiniteTimeline({
                           else if (entry.type === "reflection") navigate(`/grounding`);
                           else if (entry.type === "alter_note") navigate(`/alter/${entry.data?.alter_id || ""}`);
                           else if (entry.type === "daily_tasks") navigate(`/tasks`);
+                          else if (entry.type === "daily_task") navigate(`/tasks`);
                         }}
                       />
                     ))}
@@ -2030,7 +2050,7 @@ export default function InfiniteTimeline({
                 ))}
               </div>
             )}
-            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note"].includes(entry.type) && (
+            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note", "daily_task"].includes(entry.type) && (
               <p className="text-sm font-semibold whitespace-pre-wrap">{entry.label}</p>
             )}
             {entry.type === "daily_tasks" && (() => {

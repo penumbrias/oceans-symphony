@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Daily tasks now appear on the timeline at the time you actually ticked each one off, instead of all bunched into one marker. (Tasks that complete automatically still group together.)",
+      },
+      {
         type: "fix",
         text: "Colours that use the app's accent (uncategorised activities like a completed plan, plus various highlights across the app) were coming out invisible — they now render their colour again.",
       },

@@ -642,12 +642,19 @@ export default function DailyTasks() {
     // Merge manual + auto IDs so the review grid can see both
     const allCompleted = [...new Set([...newCompleted, ...autoCompletedIds])];
 
+    // Per-task checkoff timestamps so the Timeline can place each completed task
+    // at the moment it was actually ticked, rather than all at one marker.
+    const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
+    if (nowCompleted) completion_times[templateId] = new Date().toISOString();
+    else delete completion_times[templateId];
+
     // Optimistic update
     const optimistic = {
       date: TODAY,
       period_key: currentPeriodKey,
       frequency: activeFreq,
       completed_task_ids: allCompleted,
+      completion_times,
       xp_earned: newXP,
     };
     queryClient.setQueryData(["dailyProgress"], (old) => {
@@ -684,6 +691,7 @@ export default function DailyTasks() {
     if (currentRecord) {
       await base44.entities.DailyProgress.update(currentRecord.id, {
         completed_task_ids: allCompleted,
+        completion_times,
         xp_earned: newXP,
       });
     } else {
@@ -692,6 +700,7 @@ export default function DailyTasks() {
         period_key: currentPeriodKey,
         frequency: activeFreq,
         completed_task_ids: allCompleted,
+        completion_times,
         xp_earned: newXP,
       });
     }
