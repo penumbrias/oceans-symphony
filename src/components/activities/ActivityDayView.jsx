@@ -461,8 +461,8 @@ export default function ActivityDayView({
                   >
                     {/* Hour label column — aligned to the TOP of the cell,
                         i.e. the demarcation line where this hour begins. */}
-                    <div className="w-14 flex-shrink-0 text-right pr-3 pt-1 select-none"
-                      style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", opacity: 0.45 }}>
+                    <div className="w-14 flex-shrink-0 text-right pr-3 select-none self-start"
+                      style={{ fontSize: 11, color: "hsl(var(--muted-foreground))", opacity: 0.45, transform: "translateY(-50%)" }}>
                       {formatHour(seg.startHour)}
                     </div>
                     {/* Band text */}
@@ -508,11 +508,12 @@ export default function ActivityDayView({
                       content. Aligned to the TOP of the cell (the border-t
                       demarcation line) since that's where this hour begins. */}
                   <div
-                    className="w-14 flex-shrink-0 text-right pr-3 pt-1 select-none"
+                    className="w-14 flex-shrink-0 text-right pr-3 select-none self-start"
                     style={{
                       fontSize: 13,
                       fontWeight: isCurrentHour ? 700 : 500,
                       color: isCurrentHour ? "hsl(var(--primary))" : "hsl(var(--muted-foreground))",
+                      transform: "translateY(-50%)",
                     }}
                   >
                     {formatHour(seg.hour)}

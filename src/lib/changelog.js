@@ -21,6 +21,18 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Timeline: an activity's bar now spans its full duration accurately — it was ending a bit short of the real end time.",
+      },
+      {
+        type: "improve",
+        text: "Tapping an activity on the timeline now shows its start and end times (and duration), not just the start.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker time labels now line up with the gridlines instead of sitting just below them.",
+      },
+      {
         type: "improve",
         text: "Daily tasks now appear on the timeline at the time you actually ticked each one off, instead of all bunched into one marker. (Tasks that complete automatically still group together.)",
       },

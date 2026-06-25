@@ -505,7 +505,7 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
     onTap?.();
   };
   return (
-    <div className="absolute flex flex-col items-center cursor-pointer"
+    <div className="absolute cursor-pointer"
       role="button"
       tabIndex={0}
       aria-label={`${activityName || "Activity"} — tap to view details`}
@@ -515,23 +515,32 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
       onTouchEnd={handleTouchEnd}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
-      <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
-        style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
-        <span className="text-xs font-bold text-white leading-none">
-          {activityName?.charAt(0)?.toUpperCase() || "A"}
-        </span>
-      </div>
-      <div className="text-center leading-tight mt-0.5 px-0.5"
-        style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word" }}>
-        {activityName}
-        {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
-      </div>
-      {heightPx > sz + 30 && (
-        <div className="w-0.5 rounded-full mt-0.5" style={{
-          height: Math.max(heightPx - sz - 26, 4),
+      {/* Duration line — absolutely positioned so its length tracks the real
+          start→end span (not the variable label height). Its bottom lands
+          exactly at the activity's end; the marker + label paint on top of it. */}
+      {heightPx > sz + 6 && (
+        <div className="absolute rounded-full" aria-hidden="true" style={{
+          top: sz / 2,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 3,
+          height: Math.max(heightPx - sz / 2, 4),
           background: `linear-gradient(to bottom, ${color}, ${color}40)`,
         }} />
       )}
+      <div className="relative flex flex-col items-center">
+        <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
+          style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
+          <span className="text-xs font-bold text-white leading-none">
+            {activityName?.charAt(0)?.toUpperCase() || "A"}
+          </span>
+        </div>
+        <div className="text-center leading-tight mt-0.5 px-1 rounded"
+          style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word", backgroundColor: "var(--color-bg)" }}>
+          {activityName}
+          {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -1951,6 +1960,18 @@ export default function InfiniteTimeline({
         return (
           <DetailPopup icon="🏃" timeStr={formatMins(entry.startMins)} onClose={() => setDetailPopup(null)}>
             <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
+            {(() => {
+              const act = entry.activity;
+              const start = parseDate(act.timestamp);
+              const durMin = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
+              const end = durMin > 0 ? new Date(start.getTime() + durMin * 60000) : null;
+              const durLabel = durMin >= 60 ? `${Math.round((durMin / 60) * 10) / 10}h` : `${durMin}m`;
+              return (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {format(start, "h:mm a")}{end ? ` – ${format(end, "h:mm a")}` : ""}{durMin > 0 ? ` · ${durLabel}` : ""}
+                </p>
+              );
+            })()}
             {entry.mergedCount > 1 && <p className="text-xs text-muted-foreground mt-1">{entry.mergedCount} instances</p>}
             {entry.activity.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.activity.notes}</p>}
             {!entry.activity.notes && entry.mergedCount <= 1 && <p className="text-xs text-muted-foreground mt-1 italic">No notes</p>}

@@ -957,23 +957,27 @@ if (isSameCell) {
                 // (the line at the TOP of the row), so the time reads in line
                 // with that demarcation rather than floating in the middle.
                 className="px-1.5 text-right flex items-start justify-end flex-shrink-0 whitespace-nowrap"
-                style={{ height: rowH, minHeight: rowH, paddingTop: 1, color: "hsl(var(--muted-foreground))", ...slotBottomBorderStyle(minute) }}
+                style={{ height: rowH, minHeight: rowH, color: "hsl(var(--muted-foreground))", ...slotBottomBorderStyle(minute) }}
               >
-                {minute === 0 ? (
-                  <span className="font-semibold" style={{ fontSize: Math.max(8, Math.min(10, rowH * 0.7)) }}>
-                    {formatSlotLabel(hour, 0, timeFmt)}
-                  </span>
-                ) : useTicks ? (
-                  <span style={{ fontSize: rowH <= 10 ? 7 : 9, lineHeight: 1, opacity: 0.6 }}>
-                    {minute % 30 === 0 ? "·" : "−"}
-                  </span>
-                ) : (
-                  gridInterval <= 30 && (
-                    <span className="opacity-50" style={{ fontSize: 8 }}>
-                      {formatSlotLabel(hour, minute, timeFmt)}
+                {/* Lift the label so its centre sits ON the slot's top gridline
+                    (matching the Timeline) rather than floating just below it. */}
+                <div style={{ transform: "translateY(-50%)" }}>
+                  {minute === 0 ? (
+                    <span className="font-semibold" style={{ fontSize: Math.max(8, Math.min(10, rowH * 0.7)) }}>
+                      {formatSlotLabel(hour, 0, timeFmt)}
                     </span>
-                  )
-                )}
+                  ) : useTicks ? (
+                    <span style={{ fontSize: rowH <= 10 ? 7 : 9, lineHeight: 1, opacity: 0.6 }}>
+                      {minute % 30 === 0 ? "·" : "−"}
+                    </span>
+                  ) : (
+                    gridInterval <= 30 && (
+                      <span className="opacity-50" style={{ fontSize: 8 }}>
+                        {formatSlotLabel(hour, minute, timeFmt)}
+                      </span>
+                    )
+                  )}
+                </div>
               </div>
             );
           })}
