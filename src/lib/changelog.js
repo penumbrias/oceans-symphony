@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 25, 2026",
     changes: [
       {
+        type: "fix",
+        text: "If a screen ever hits a display error, you now get a recoverable \"something went wrong\" screen (with Home / Reload buttons and the error details) instead of a blank white screen — your data stays safe.",
+      },
+      {
         type: "improve",
         text: "The ongoing status notifications now show the app's artwork (a large icon in the notification, and the app icon in the status bar on phones that show colour notification icons) instead of a plain placeholder.",
       },

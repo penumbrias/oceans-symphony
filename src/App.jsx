@@ -74,7 +74,8 @@ import { useServerReminderSync } from '@/lib/serverReminderSync';
 import { usePlanReminderSync } from '@/lib/planReminderScheduler';
 import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import ErrorBoundary from '@/components/shared/ErrorBoundary';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -117,6 +118,7 @@ const AuthenticatedApp = () => {
   // reminders inbox; the actual ReminderInstance was already recorded
   // by the bootstrap listener.
   const navigate = useNavigate();
+  const location = useLocation();
   useEffect(() => {
     const consume = () => {
       if (!pendingNativeTap.reminderId) return;
@@ -157,6 +159,42 @@ const AuthenticatedApp = () => {
   return (
     <>
       <CornerModeApplier />
+      <ErrorBoundary
+        resetKeys={[location.pathname]}
+        fallback={(error, reset) => (
+          <div className="fixed inset-0 z-[100] bg-background overflow-y-auto flex items-center justify-center p-5">
+            <div className="max-w-md w-full text-center space-y-4">
+              <div className="text-4xl">🌊</div>
+              <h1 className="text-lg font-semibold">Something went wrong on this screen</h1>
+              <p className="text-sm text-muted-foreground">
+                Your data is safe — it's all stored on your device. This is just a display hiccup. Try going back to the home screen, or reload the app.
+              </p>
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={() => { reset(); navigate("/"); }}
+                  className="w-full py-2.5 rounded-xl bg-primary text-primary-foreground font-medium"
+                >
+                  Go to home screen
+                </button>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="w-full py-2.5 rounded-xl border border-border text-foreground"
+                >
+                  Reload the app
+                </button>
+              </div>
+              <details className="text-left">
+                <summary className="text-xs text-muted-foreground cursor-pointer">Show error details (for a bug report)</summary>
+                <pre className="mt-2 text-[0.625rem] whitespace-pre-wrap break-words bg-muted/40 rounded-lg p-2 max-h-48 overflow-y-auto text-muted-foreground">
+                  {String(error?.stack || error?.message || error)}
+                </pre>
+              </details>
+            </div>
+          </div>
+        )}
+      >
       <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
@@ -202,6 +240,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
+      </ErrorBoundary>
     </>
   );
 };
