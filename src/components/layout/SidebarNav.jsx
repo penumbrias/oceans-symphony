@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -16,6 +16,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
         { id: "groups",   label: "Groups",       icon: Users,         path: "/groups" },
         { id: "assets",   label: "Image Assets", icon: Images,        path: "/assets" },
         { id: "system-history", label: `${systemLabel} History`, icon: GitMerge, path: "/system-history" },
+        { id: "contacts", label: "Contacts",     icon: Contact,       path: "/contacts" },
         { id: "settings", label: "Settings",     icon: Settings,      path: "/settings" },
       ],
     },

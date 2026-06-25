@@ -12,6 +12,8 @@ import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
 import AlterProfile from '@/pages/AlterProfile';
+import Contacts from '@/pages/Contacts';
+import ContactProfile from '@/pages/ContactProfile';
 import Settings from '@/pages/Settings';
 
 import Analytics from '@/pages/Analytics';
@@ -161,6 +163,8 @@ const AuthenticatedApp = () => {
         <Route path="/Dashboard" element={<Navigate to="/" replace />} />
         <Route path="/Home" element={<Home />} />
         <Route path="/alter/:id" element={<AlterProfile />} />
+        <Route path="/contacts" element={<Contacts />} />
+        <Route path="/contacts/:id" element={<ContactProfile />} />
         <Route path="/settings" element={<Settings />} />
 
         <Route path="/analytics" element={<Analytics />} />

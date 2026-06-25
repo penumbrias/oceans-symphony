@@ -736,6 +736,16 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       look: `the Safety Plan page — scroll down to see Warning Signs, Coping Cards, and Tolerance levels`, action: null,
     },
 
+    // ─── CONTACTS ───────────────────────────────────────────────────────────
+    {
+      section: "contacts", sectionLabel: "Contacts",
+      emoji: "📇",
+      title: "Contacts",
+      body: `Contacts is your directory of people OUTSIDE the system — friends, family, classmates, therapists. Each person gets a profile: mark them Safe / Caution / Unsafe, save phone/email, note whether they know we're a system, and record boundaries, system rules, and what's safe to share. Flag someone as an emergency support contact and they show up in a quick "who can I ask for help?" banner at the top with one-tap call/text. Search finds anyone fast — handy for a "wait, who is this?" moment.`,
+      route: "/contacts", target: null,
+      look: `the Contacts page — tap "Add" to create one; the Emergency support banner appears once a contact is flagged`, action: null,
+    },
+
     // ─── THERAPY REPORT ─────────────────────────────────────────────────────
     {
       section: "therapy", sectionLabel: "Therapy Report",

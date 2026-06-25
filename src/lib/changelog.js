@@ -21,8 +21,16 @@ export const CHANGELOG = [
     date: "June 25, 2026",
     changes: [
       {
+        type: "feature",
+        text: "New Contacts section: a directory of people outside the system — mark who's safe, save their info, note boundaries and what's okay to share, and flag emergency support contacts for quick one-tap help.",
+      },
+      {
         type: "improve",
         text: "Reminders now fire right on the minute — even after your phone's been sitting idle — instead of a little late.",
+      },
+      {
+        type: "improve",
+        text: "The ongoing status notifications (fronters, symptoms, activity timer) now show a proper app icon instead of a generic placeholder.",
       },
       {
         type: "improve",
