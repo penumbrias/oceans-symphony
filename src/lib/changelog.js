@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Activities without a category (like a completed plan) now show their full coloured bar on the timeline — they were rendering as just a dot with an invisible bar.",
+      },
+      {
+        type: "fix",
         text: "Completed plans now show on the timeline as their own activity block — before, a plan that overlapped another activity got hidden inside it.",
       },
       {

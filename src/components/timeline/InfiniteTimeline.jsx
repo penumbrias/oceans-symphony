@@ -956,7 +956,9 @@ export default function InfiniteTimeline({
     activities.forEach((act) => {
       const actStart = parseDate(act.timestamp);
       const actStartMs = actStart.getTime();
-      const duration = Math.max(act.duration_minutes || 0, 0);
+      // Fall back to actual_duration_minutes for resolved plans that never got a
+      // planned duration, so they still draw a bar for the time they ran.
+      const duration = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
       const actEndMs = duration > 0 ? actStartMs + duration * 60 * 1000 : actStartMs + 30 * 60 * 1000;
 
       // Skip if activity doesn't intersect this day at all
@@ -1640,7 +1642,7 @@ export default function InfiniteTimeline({
                        <ActivityBar
                          key={entry.key}
                          activityName={entry.displayName}
-                         color={entry.categoryColor || "hsl(var(--primary))"}
+                         color={entry.categoryColor || "#8b5cf6"}
                          mergedCount={entry.mergedCount}
                          topPx={topPx}
                          heightPx={heightPx}
@@ -1925,7 +1927,7 @@ export default function InfiniteTimeline({
 
       {detailPopup?.type === "activity" && (() => {
         const { entry } = detailPopup;
-        const color = entry.categoryColor || "hsl(var(--primary))";
+        const color = entry.categoryColor || "#8b5cf6";
         return (
           <DetailPopup icon="🏃" timeStr={formatMins(entry.startMins)} onClose={() => setDetailPopup(null)}>
             <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
