@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Octocon import now brings your polls across too — both choice and yes/no/veto polls, with every vote kept against the right alter and any voter comments preserved.",
+      },
+      {
+        type: "feature",
         text: "Reliable reminders: a new \"force-stop-proof\" option (Settings → Notifications) gets reminders to you even when your phone has fully closed the app — no Friends setup needed. Off by default; the app stays fully offline until you switch it on.",
       },
       {

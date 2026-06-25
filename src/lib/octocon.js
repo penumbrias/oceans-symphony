@@ -159,6 +159,84 @@ export function mapFrontToSession(front, alterIdByOctoId) {
   };
 }
 
+// poll → Poll. Octocon has two poll shapes, both flattened onto the app's Poll
+// model (question + string options + index-keyed votes):
+//   - type "choice": data.choices [{id, name}] are the options; each response
+//     { alter_id, choice_id, comment? } is one alter's pick.
+//   - type "vote":   an implicit Yes / No / Abstain (+ Veto when allow_veto)
+//     poll; each response { alter_id, vote, comment? } picks one of those.
+// Votes map to LOCAL alter ids via alterIdByOctoId; a voter whose alter didn't
+// import becomes an anonymous "" vote so the tally is still preserved. The app's
+// Poll has no per-vote comment or separate description field, so — rather than
+// drop them — the Octocon description and any voter comments are folded into the
+// question text (with names resolved via alterNameByOctoId). Closed state comes
+// from time_end. Returns null for an unusable poll.
+const OCTO_VOTE_INDEX = { yes: 0, no: 1, abstain: 2, veto: 3 };
+export function mapPollToLocal(poll, opts = {}) {
+  if (!poll || !poll.id) return null;
+  const { alterIdByOctoId = {}, alterNameByOctoId = {} } = opts;
+  const data = poll.data || {};
+
+  let options = [];
+  const choiceIdToIdx = {};
+  if (poll.type === "choice" && Array.isArray(data.choices) && data.choices.length) {
+    options = data.choices.map((c) => (c && c.name ? String(c.name) : "Option"));
+    data.choices.forEach((c, i) => { if (c && c.id) choiceIdToIdx[c.id] = i; });
+  } else {
+    options = ["Yes", "No", "Abstain"];
+    if (data.allow_veto) options.push("Veto");
+  }
+
+  const votes = {};
+  options.forEach((_, i) => { votes[String(i)] = []; });
+
+  const comments = [];
+  for (const r of (data.responses || [])) {
+    if (!r) continue;
+    let idx;
+    if (poll.type === "choice") idx = choiceIdToIdx[r.choice_id];
+    else idx = OCTO_VOTE_INDEX[(r.vote || "").toString().toLowerCase()];
+    if (idx != null && idx >= 0 && idx < options.length) {
+      const localAlterId = alterIdByOctoId[String(r.alter_id)] || ""; // "" = anonymous (alter not imported)
+      votes[String(idx)].push(localAlterId);
+    }
+    if (r.comment && String(r.comment).trim()) {
+      const name = alterNameByOctoId[String(r.alter_id)] || "Someone";
+      comments.push(`• ${name}: ${String(r.comment).trim()}`);
+    }
+  }
+
+  const title = (poll.title || "").toString().trim();
+  const desc = (poll.description || "").toString().trim();
+  let question = title || desc || "Imported poll";
+  if (title && desc) question = `${title}\n\n${desc}`;
+  if (comments.length) question = `${question}\n\nVoter notes (from Octocon):\n${comments.join("\n")}`;
+
+  const endMs = poll.time_end ? new Date(poll.time_end).getTime() : null;
+  const isClosed = endMs && !Number.isNaN(endMs) ? endMs < Date.now() : false;
+
+  return {
+    octo_id: poll.id,
+    question,
+    options,
+    votes,
+    is_closed: isClosed,
+    tally_mode: false,
+    pinned_to_dashboard: false,
+    created_by_alter_id: null,
+  };
+}
+
+// alterId(String) → display name, for resolving poll voter comments. Built from
+// the export's alters so the connector can pass it into mapPollToLocal.
+export function buildAlterNameByOctoId(alters = []) {
+  const out = {};
+  for (const a of alters) {
+    if (a && a.id != null) out[String(a.id)] = a.name || "Someone";
+  }
+  return out;
+}
+
 // user → a MERGE-SAFE SystemSettings patch. Fills only EMPTY identity fields —
 // never clobbers a user's chosen bio / avatar. `systemAvatarUrl` is the (remote)
 // avatar URL, or "" when avatars are excluded.

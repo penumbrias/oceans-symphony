@@ -4,7 +4,7 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import {
   Loader2, CheckCircle2, FileJson, ArrowDownLeft, Clock, FileText,
-  Users, Layers, ImageOff, Link2, Upload, UserCircle, AlertTriangle, Trash2,
+  Users, Layers, ImageOff, Link2, Upload, UserCircle, AlertTriangle, Trash2, BarChart3,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
 import {
@@ -18,6 +18,8 @@ import {
   mapAlterToLocal,
   mapTagToGroup,
   mapFrontToSession,
+  mapPollToLocal,
+  buildAlterNameByOctoId,
 } from "@/lib/octocon";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
@@ -59,6 +61,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
   const [includeCustomFields, setIncludeCustomFields] = useState(true);
   const [includeFrontHistory, setIncludeFrontHistory] = useState(true);
   const [historyRange, setHistoryRange] = useState("1yr");
+  const [includePolls, setIncludePolls] = useState(true);
   const [includeSystemProfile, setIncludeSystemProfile] = useState(true);
 
   // add — fill-if-empty merge (tags... n/a here). replace — file wins on
@@ -96,6 +99,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
     groups: (data.tags || []).length,
     customFields: (data.user?.fields || []).length + collectOrphanFieldDefs(data).length,
     fronts: (data.fronts || []).length,
+    polls: (data.polls || []).length,
     system: data.user?.username || data.user?.id || "",
   } : null;
 
@@ -108,6 +112,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
         includeGroups && "groups",
         includeCustomFields && "custom fields",
         includeFrontHistory && `${t.fronting} history`,
+        includePolls && "polls",
       ].filter(Boolean);
       if (cats.length === 0) { toast.error("Tick at least one category to replace."); return; }
       const ok = typeof window !== "undefined" && window.confirm(
@@ -141,6 +146,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
         if (includeAlters) await deleteAllOf("Alter");
         if (includeGroups) await deleteAllOf("Group");
         if (includeFrontHistory) await deleteAllOf("FrontingSession");
+        if (includePolls) await deleteAllOf("Poll");
       }
 
       const d = parsed.data;
@@ -342,7 +348,36 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
         frontsCreated = toCreate.length;
       }
 
-      // ── Step 5: System profile (merge-safe) ──
+      // ── Step 5: Polls (choice + yes/no/veto), dedup by octo_id ──
+      let pollsCreated = 0, pollsSkipped = 0;
+      if (includePolls && (d.polls || []).length) {
+        setProgress("Importing polls…");
+        const alterNameByOctoId = buildAlterNameByOctoId(d.alters || []);
+        const existingPolls = await localEntities.Poll.list();
+        const existingByOctoId = {};
+        for (const p of existingPolls) { if (p.octo_id) existingByOctoId[p.octo_id] = p; }
+        for (const poll of d.polls || []) {
+          const mapped = mapPollToLocal(poll, { alterIdByOctoId, alterNameByOctoId });
+          if (!mapped) continue;
+          const existing = existingByOctoId[mapped.octo_id];
+          if (existing) {
+            if (importMode === "replace") {
+              await localEntities.Poll.update(existing.id, {
+                question: mapped.question,
+                options: mapped.options,
+                votes: mapped.votes,
+                is_closed: mapped.is_closed,
+              });
+            }
+            pollsSkipped++;
+          } else {
+            await localEntities.Poll.create(mapped);
+            pollsCreated++;
+          }
+        }
+      }
+
+      // ── Step 6: System profile (merge-safe) ──
       let systemProfileUpdated = false;
       if (includeSystemProfile && d.user) {
         setProgress("Importing system profile…");
@@ -371,6 +406,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
       queryClient.invalidateQueries({ queryKey: ["customFields"] });
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+      queryClient.invalidateQueries({ queryKey: ["polls"] });
       queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
       setProgress("");
 
@@ -380,6 +416,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
         includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
         includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
         includeFrontHistory && `${t.Fronting}: ${frontsCreated} new${frontsSkipped ? `, ${frontsSkipped} existed` : ""}`,
+        includePolls && (pollsCreated || pollsSkipped) && `Polls: ${pollsCreated} new${pollsSkipped ? `, ${pollsSkipped} existed` : ""}`,
         includeSystemProfile && systemProfileUpdated && `${t.System} profile updated`,
       ].filter(Boolean).join(" · ");
 
@@ -410,7 +447,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
           <div>
             <CardTitle className="text-lg">Octocon</CardTitle>
             <CardDescription>
-              Import {t.alters}, groups, custom fields and front history from an Octocon export (.json).
+              Import {t.alters}, groups, custom fields, front history and polls from an Octocon export (.json).
             </CardDescription>
           </div>
         </div>
@@ -455,7 +492,7 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
                 <span className="font-medium">Octocon export{counts.system ? ` · ${counts.system}` : ""}</span>
               </div>
               <p className="text-xs text-muted-foreground leading-relaxed">
-                Found {counts.alters} {counts.alters === 1 ? t.alter : t.alters}, {counts.groups} group{counts.groups === 1 ? "" : "s"}, {counts.customFields} custom field{counts.customFields === 1 ? "" : "s"}, {counts.fronts} front session{counts.fronts === 1 ? "" : "s"}.
+                Found {counts.alters} {counts.alters === 1 ? t.alter : t.alters}, {counts.groups} group{counts.groups === 1 ? "" : "s"}, {counts.customFields} custom field{counts.customFields === 1 ? "" : "s"}, {counts.fronts} front session{counts.fronts === 1 ? "" : "s"}{counts.polls ? `, ${counts.polls} poll${counts.polls === 1 ? "" : "s"}` : ""}.
               </p>
             </div>
           )}
@@ -527,6 +564,13 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
                       {RANGE_PRESETS.map((p) => <option key={p.id} value={p.id}>{p.label}</option>)}
                     </select>
                   </div>
+                )}
+                {counts.polls > 0 && (
+                  <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+                    <input type="checkbox" checked={includePolls} onChange={(e) => setIncludePolls(e.target.checked)} className="rounded" />
+                    <BarChart3 className="w-3.5 h-3.5 text-muted-foreground" />
+                    Polls <span className="text-muted-foreground/60 text-xs">(votes &amp; comments kept)</span>
+                  </label>
                 )}
                 <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
                   <input type="checkbox" checked={includeSystemProfile} onChange={(e) => setIncludeSystemProfile(e.target.checked)} className="rounded" />
