@@ -2,15 +2,17 @@ import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from "@/components/ui/checkbox";
 import { format, differenceInMinutes, addDays, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
-import { Plus, MapPin, Zap, Repeat, Bell } from "lucide-react";
+import { Plus, MapPin, Zap, Repeat, Bell, UserPlus, X } from "lucide-react";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -56,6 +58,22 @@ function parseTimeToDate(baseDate, timeStr) {
   return d;
 }
 
+// Compact selected-alter chip (avatar + label + remove) — same shape as
+// the Log Activity modal so the "who's this for" picker looks identical
+// across the activity modals.
+function SelectedFronterChip({ alter, label, onRemove }) {
+  const avatar = useResolvedAvatarUrl(alter?.avatar_url);
+  return (
+    <span className="inline-flex items-center gap-1.5 pl-1 pr-1.5 py-0.5 rounded-full border border-border bg-muted/30 text-xs">
+      <span className="w-5 h-5 rounded-full overflow-hidden flex items-center justify-center text-[0.5625rem] text-white flex-shrink-0" style={{ backgroundColor: alter?.color || "#8b5cf6" }}>
+        {avatar ? <img src={avatar} alt="" className="w-full h-full object-cover" /> : (alter?.name?.[0]?.toUpperCase() || "?")}
+      </span>
+      <span className="truncate max-w-[140px]">{label}</span>
+      <button type="button" onClick={onRemove} aria-label="Remove" className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+    </span>
+  );
+}
+
 export default function ActivityPlanModal({
   isOpen,
   onClose,
@@ -81,6 +99,12 @@ export default function ActivityPlanModal({
 }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
+  const formatAlter = useAlterLabel();
+  const [fronterPickerOpen, setFronterPickerOpen] = useState(false);
+  const altersById = useMemo(
+    () => Object.fromEntries((alters || []).map((a) => [a.id, a])),
+    [alters]
+  );
 
   // Default to tomorrow noon when there's no explicit start date.
   // Quick plans get a separate today-snap path (see the open useEffect
@@ -251,12 +275,6 @@ export default function ActivityPlanModal({
     const diff = differenceInMinutes(e, s);
     return diff > 0 ? diff : 0;
   }, [startDate, endDate, startTime, endTime]);
-
-  const handleToggleAlter = (alterId) => {
-    setSelectedAlters((prev) =>
-      prev.includes(alterId) ? prev.filter((id) => id !== alterId) : [...prev, alterId]
-    );
-  };
 
   const handleCreateNewActivity = async () => {
     if (!newActivityName.trim()) return;
@@ -907,30 +925,31 @@ export default function ActivityPlanModal({
             </button>
           )}
 
-          {/* Alters */}
+          {/* Who's this plan for — reuses the standard Set Fronters modal in
+              selection mode (same searchable picker as the Log Activity modal
+              and system meetings), with removable chips below. */}
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
-              Who was {terms.fronting}?
+              Who's this for?
               {selectedAlters.length > 0 && (
                 <span className="text-xs font-normal text-muted-foreground ml-2">
                   ({selectedAlters.length} selected)
                 </span>
               )}
             </label>
-            <div className="space-y-2 max-h-40 overflow-y-auto border border-border rounded-lg p-3 bg-muted/20">
-              {alters.map((alter) => (
-                <div key={alter.id} className="flex items-center gap-2">
-                  <Checkbox
-                    checked={selectedAlters.includes(alter.id)}
-                    onCheckedChange={() => handleToggleAlter(alter.id)}
-                    id={`plan-alter-${alter.id}`}
-                  />
-                  <label htmlFor={`plan-alter-${alter.id}`} className="text-sm cursor-pointer flex-1">
-                    {alter.alias || alter.name}
-                  </label>
-                </div>
-              ))}
-            </div>
+            <Button type="button" variant="outline" onClick={() => setFronterPickerOpen(true)} className="w-full gap-2">
+              <UserPlus className="w-4 h-4" />
+              {selectedAlters.length > 0 ? `Add or remove ${terms.alters}` : `Choose ${terms.alters}…`}
+            </Button>
+            {selectedAlters.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {selectedAlters.map((id) => {
+                  const a = altersById[id];
+                  if (!a) return null;
+                  return <SelectedFronterChip key={id} alter={a} label={formatAlter(a)} onRemove={() => setSelectedAlters((prev) => prev.filter((x) => x !== id))} />;
+                })}
+              </div>
+            )}
           </div>
 
           {/* Notes */}
@@ -951,6 +970,16 @@ export default function ActivityPlanModal({
               {isLoading ? "Saving..." : "Save Plan"}
             </Button>
           </div>
+
+          <SetFrontModal
+            open={fronterPickerOpen}
+            onClose={() => setFronterPickerOpen(false)}
+            alters={alters || []}
+            selectionMode
+            preselectedIds={selectedAlters}
+            onConfirm={(ids) => setSelectedAlters(ids)}
+            confirmLabel="Add to plan"
+          />
         </div>
       </DialogContent>
     </Dialog>

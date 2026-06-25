@@ -22,6 +22,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "\"Plan something\" now has every plan option in its pills — set it as a to-do, add a location, repeat, reminder, or mark it critical — and picking who it's for uses the same searchable list as everywhere else.",
+      },
+      {
+        type: "fix",
+        text: "Checking off a daily task from the dashboard now puts it on the Timeline at the moment you ticked it, instead of grouping it with the rest.",
+      },
+      {
+        type: "fix",
+        text: "Desktop: the dashboard no longer shifts sideways when you open the \"Plan something\" box.",
+      },
+      {
+        type: "improve",
         text: "A sleep that's in progress now shows up as an Active Activity (on the dashboard and in the ongoing notification), so it's easy to spot and end.",
       },
       {
