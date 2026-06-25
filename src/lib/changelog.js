@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 25, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings: added a link to the official Oceans Symphony website, and turned the GitHub and Discord links into tappable icons.",
+      },
+      {
         type: "feature",
         text: "New Contacts section: a directory of people outside the system — mark who's safe, save their info, note boundaries and what's okay to share, and flag emergency support contacts for quick one-tap help.",
       },
