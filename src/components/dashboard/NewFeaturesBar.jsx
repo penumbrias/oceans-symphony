@@ -132,8 +132,13 @@ export default function NewFeaturesBar() {
 
       {expanded && (
         <div className="px-4 pb-4 pt-1 space-y-3 border-t border-primary/20">
-          <div className="flex items-baseline justify-end pt-2">
+          <div className="flex items-baseline justify-end gap-1.5 pt-2">
             <p className="text-[0.625rem] text-muted-foreground">{block.date}</p>
+            {/* Most recent version released that day — the top block shows the
+                live APP_VERSION (today's releases aren't individually stamped). */}
+            <span className="font-mono text-[0.5625rem] text-muted-foreground/70 px-1 py-px rounded bg-muted/50">
+              v{block.version || APP_VERSION}
+            </span>
           </div>
           <ul className="space-y-1.5">
             {block.changes.map((c, i) => (
@@ -150,7 +155,12 @@ export default function NewFeaturesBar() {
             <div className="space-y-3 pt-2 border-t border-primary/20">
               {olderBlocks.map((older, idx) => (
                 <div key={`${older.date}-${idx}`} className="space-y-1.5">
-                  <p className="text-[0.6875rem] font-semibold text-muted-foreground">{older.date}</p>
+                  <p className="text-[0.6875rem] font-semibold text-muted-foreground flex items-center gap-1.5">
+                    <span>{older.date}</span>
+                    {older.version && (
+                      <span className="font-mono font-normal text-[0.5625rem] text-muted-foreground/70 px-1 py-px rounded bg-muted/50">v{older.version}</span>
+                    )}
+                  </p>
                   <ul className="space-y-1.5">
                     {older.changes.map((c, i) => (
                       <li key={i} className="flex items-start gap-2 text-xs text-foreground/90 leading-relaxed">

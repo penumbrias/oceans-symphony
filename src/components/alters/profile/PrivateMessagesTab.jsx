@@ -1,20 +1,29 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Mail, Pin, Trash2, X } from "lucide-react";
+import { Mail, Pin, Trash2, X, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { format, formatDistanceToNow } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 
-function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
+function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onEdit, onTogglePinned, onMarkRead, isHighlighted, cardRef }) {
   const isSent = message.from_alter_id === currentAlterId;
   const alterColor = fromAlter?.color;
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(message.content || "");
 
   const handleMarkRead = async () => {
     if (!message.is_read) {
       await onMarkRead(message.id);
     }
+  };
+
+  const saveEdit = async () => {
+    const v = draft.trim();
+    if (!v) return;
+    await onEdit(message.id, v);
+    setEditing(false);
   };
 
   return (
@@ -58,14 +67,43 @@ function MessageCard({ message, fromAlter, currentAlterId, alters, onDelete, onT
               <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alterColor || "#3b82f6" }} />
             )}
           </div>
-          <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          {editing ? (
+            <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
+              <Textarea
+                value={draft}
+                onChange={(e) => setDraft(e.target.value)}
+                className="text-sm min-h-[60px]"
+                autoFocus
+              />
+              <div className="flex gap-1.5">
+                <Button size="sm" onClick={saveEdit} disabled={!draft.trim()}>Save</Button>
+                <Button size="sm" variant="outline" onClick={() => { setDraft(message.content || ""); setEditing(false); }}>Cancel</Button>
+              </div>
+            </div>
+          ) : (
+            <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap">{message.content}</p>
+          )}
           <p className="text-xs text-muted-foreground mt-2">
             {formatDistanceToNow(new Date(message.created_date), { addSuffix: true })}
+            {message.edited_date && <span className="ml-1 italic">· edited</span>}
           </p>
         </div>
 
         {/* Actions */}
         <div className="flex items-center gap-1 flex-shrink-0">
+          {!editing && (
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                setDraft(message.content || "");
+                setEditing(true);
+              }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors"
+              title="Edit"
+            >
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
           <button
             onClick={(e) => {
               e.stopPropagation();
@@ -194,6 +232,12 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
     queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
   };
 
+  const handleEdit = async (messageId, content) => {
+    await base44.entities.AlterMessage.update(messageId, { content, edited_date: new Date().toISOString() });
+    queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
+    queryClient.invalidateQueries({ queryKey: ["allPrivateMessages"] });
+  };
+
   const handleTogglePinned = async (messageId, pinned) => {
     await base44.entities.AlterMessage.update(messageId, { pinned });
     queryClient.invalidateQueries({ queryKey: ["privateMessages", alterId] });
@@ -237,6 +281,7 @@ export default function PrivateMessagesTab({ alterId, alters, highlightMessageId
                 currentAlterId={alterId}
                 alters={alters}
                 onDelete={handleDelete}
+                onEdit={handleEdit}
                 onTogglePinned={handleTogglePinned}
                 onMarkRead={handleMarkRead}
                 isHighlighted={isHighlighted}

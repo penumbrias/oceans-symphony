@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "improve",
+        text: "You can now edit a private message after sending it (on an alter's board), and edit or delete your saved Learn reflections.",
+      },
+      {
+        type: "improve",
+        text: "The \"What's new\" bar now shows the version number next to each update's date.",
+      },
+      {
         type: "fix",
         text: "Timeline: the hour gridlines were drawn a touch low, so activities looked like they ended ~15 min early — lines now sit at their true hour and the activity bar's end is clearer.",
       },

@@ -1,8 +1,103 @@
-import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { CURRICULUM } from "./TopicView";
 import { format } from "date-fns";
-import { ChevronLeft, FileText } from "lucide-react";
+import { ChevronLeft, FileText, Pencil, Trash2 } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
+import { toast } from "sonner";
+
+// One saved reflection — read-only by default, with inline edit (each response
+// becomes an editable field) and delete. SupportJournalEntry.responses is a
+// { fieldId: value } map; we edit the values in place.
+function ReflectionCard({ entry }) {
+  const qc = useQueryClient();
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(entry.responses || {});
+  const [saving, setSaving] = useState(false);
+
+  const invalidate = () => {
+    qc.invalidateQueries({ queryKey: ["supportJournalAll"] });
+    qc.invalidateQueries({ queryKey: ["supportJournal", entry.exercise_id] });
+  };
+
+  const filled = Object.entries(entry.responses || {}).filter(([, v]) => v != null && String(v).trim().length > 0);
+
+  const save = async () => {
+    setSaving(true);
+    try {
+      await base44.entities.SupportJournalEntry.update(entry.id, { responses: draft, updated_date: new Date().toISOString() });
+      invalidate();
+      setEditing(false);
+      toast.success("Reflection updated");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const del = async () => {
+    if (!window.confirm("Delete this reflection? This can't be undone.")) return;
+    try {
+      await base44.entities.SupportJournalEntry.delete(entry.id);
+      invalidate();
+      toast.success("Reflection deleted");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't delete");
+    }
+  };
+
+  return (
+    <div className="bg-card border border-border/60 rounded-xl overflow-hidden">
+      <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between gap-2">
+        <div className="min-w-0">
+          <p className="text-xs font-semibold text-foreground">{entry.meta.topicTitle}</p>
+          <p className="text-xs text-muted-foreground">{entry.meta.exerciseTitle}</p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0">
+          <p className="text-xs text-muted-foreground mr-1">
+            {format(new Date(entry.updated_date || entry.created_date), "MMM d, yyyy")}
+          </p>
+          {!editing && (
+            <button onClick={() => { setDraft(entry.responses || {}); setEditing(true); }}
+              className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-colors" title="Edit">
+              <Pencil className="w-3.5 h-3.5" />
+            </button>
+          )}
+          <button onClick={del}
+            className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors" title="Delete">
+            <Trash2 className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+      <div className="px-4 py-3 space-y-2">
+        {editing ? (
+          <div className="space-y-2">
+            {Object.keys(entry.responses || {}).map((fieldId) => (
+              <Textarea key={fieldId} value={draft[fieldId] ?? ""}
+                onChange={(e) => setDraft((d) => ({ ...d, [fieldId]: e.target.value }))}
+                className="text-sm min-h-[56px]" />
+            ))}
+            <div className="flex gap-1.5">
+              <Button size="sm" onClick={save} disabled={saving}>{saving ? "Saving…" : "Save"}</Button>
+              <Button size="sm" variant="outline" onClick={() => { setDraft(entry.responses || {}); setEditing(false); }}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          filled.length > 0
+            ? filled.map(([fieldId, value]) => (
+                <div key={fieldId}>
+                  <p className="text-xs text-foreground/70 italic leading-relaxed">"{String(value)}"</p>
+                </div>
+              ))
+            : <p className="text-xs text-muted-foreground italic">No content.</p>
+        )}
+      </div>
+    </div>
+  );
+}
 
 // Build a lookup: exerciseId → { exerciseTitle, moduleTitle, topicTitle }
 const EXERCISE_META = {};
@@ -80,29 +175,7 @@ export default function MyReflections({ onBack }) {
           </div>
 
           {mod.entries.map(entry => (
-            <div key={entry.id} className="bg-card border border-border/60 rounded-xl overflow-hidden">
-              <div className="px-4 py-3 border-b border-border/40 flex items-center justify-between">
-                <div>
-                  <p className="text-xs font-semibold text-foreground">{entry.meta.topicTitle}</p>
-                  <p className="text-xs text-muted-foreground">{entry.meta.exerciseTitle}</p>
-                </div>
-                <p className="text-xs text-muted-foreground flex-shrink-0">
-                  {format(new Date(entry.updated_date || entry.created_date), "MMM d, yyyy")}
-                </p>
-              </div>
-              <div className="px-4 py-3 space-y-2">
-                {entry.responses && Object.entries(entry.responses).map(([fieldId, value]) => {
-                  if (!value || String(value).trim().length === 0) return null;
-                  return (
-                    <div key={fieldId}>
-                      <p className="text-xs text-foreground/70 italic leading-relaxed">
-                        "{String(value)}"
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
+            <ReflectionCard key={entry.id} entry={entry} />
           ))}
         </div>
       ))}
