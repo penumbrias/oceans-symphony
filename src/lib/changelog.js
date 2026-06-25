@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 24, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Reminders delivered while the app is closed now vibrate and pop up like they should (they were arriving silently).",
+      },
+      {
         type: "improve",
         text: "\"Plan something\" now has every plan option in its pills — set it as a to-do, add a location, repeat, reminder, or mark it critical — and picking who it's for uses the same searchable list as everywhere else.",
       },

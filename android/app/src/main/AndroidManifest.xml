@@ -32,6 +32,18 @@
             android:grantUriPermissions="true">
             <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/file_paths" />
         </provider>
+
+        <!-- Default channel for FCM "notification" messages. When a cloud
+             push arrives while the app is backgrounded, the system posts it;
+             if the payload's channel isn't found (or none is set) FCM falls
+             back to THIS channel instead of a generic, silent "Miscellaneous"
+             one. Must match REMINDERS_CHANNEL_ID in
+             src/lib/nativeNotifications.js (the high-importance, vibrating
+             "Reminders" channel the app creates on launch) so reminder pushes
+             actually buzz. -->
+        <meta-data
+            android:name="com.google.firebase.messaging.default_notification_channel_id"
+            android:value="reminders-default-v2" />
     </application>
 
     <!-- Permissions -->

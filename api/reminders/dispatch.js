@@ -92,10 +92,14 @@ export default async function handler(req, res) {
             android: {
               priority: 'high',
               notification: {
-                // reminders-default = the high-importance channel the native
+                // reminders-default-v2 = the high-importance channel the native
                 // app creates (sound + vibration + heads-up). reminders-switch
                 // is the quiet channel used for ambient friend-front pings.
-                channelId: vibrate ? 'reminders-default' : 'reminders-switch',
+                // Keep this id in lockstep with REMINDERS_CHANNEL_ID in
+                // src/lib/nativeNotifications.js and the manifest's
+                // default_notification_channel_id meta-data — a mismatch makes
+                // FCM fall back to a generic, non-vibrating channel.
+                channelId: vibrate ? 'reminders-default-v2' : 'reminders-switch',
                 tag,
               },
             },
