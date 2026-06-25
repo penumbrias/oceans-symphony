@@ -107,12 +107,16 @@ export async function syncPersistentNotification(type, { enabled, title, body, a
           channelId: CHANNEL_ID,
           ongoing: true, // sticky/persistent (best-effort — see note below)
           autoCancel: false, // tapping doesn't clear it
+          // largeIcon = the full-colour app art (the ocean-sunrise launcher
+          // icon, copied to res/drawable/ic_notif_large.png) shown big on the
+          // right of the expanded notification. The status-bar SMALL icon is
+          // set globally via capacitor.config to the same art — Samsung/One UI
+          // renders it in colour; stock Android (Pixel) force-tints small icons
+          // to a flat shape. The large icon here guarantees the colour art
+          // shows in the shade on every device regardless.
+          largeIcon: "ic_notif_large",
           ...(actionTypeId ? { actionTypeId } : {}),
           ...(extra ? { extra } : {}),
-          // No custom smallIcon — referencing a drawable that isn't bundled
-          // throws a native Resources.NotFoundException that crashes past the
-          // JS try/catch. Match the working reminder scheduler: let the plugin
-          // fall back to the app's default notification icon.
           //
           // NOTE on "ongoing": on Android 13- this makes the notification
           // non-dismissible; on Android 14+ the user can still swipe it away

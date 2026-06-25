@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "The ongoing status notifications now show the app's artwork (a large icon in the notification, and the app icon in the status bar on phones that show colour notification icons) instead of a plain placeholder.",
+      },
+      {
+        type: "improve",
         text: "Settings: added a link to the official Oceans Symphony website, and turned the GitHub and Discord links into tappable icons.",
       },
       {
@@ -31,10 +35,6 @@ export const CHANGELOG = [
       {
         type: "improve",
         text: "Reminders now fire right on the minute — even after your phone's been sitting idle — instead of a little late.",
-      },
-      {
-        type: "improve",
-        text: "The ongoing status notifications (fronters, symptoms, activity timer) now show a proper app icon instead of a generic placeholder.",
       },
       {
         type: "improve",

@@ -48,16 +48,19 @@ const config: CapacitorConfig = {
     hostname: 'app.local.oceans-symphony',
   },
   plugins: {
-    // Branded status-bar icon + tint for every LOCAL notification
-    // (scheduled reminders, plan reminders, the ongoing/persistent
-    // status notifications). Without this the plugin falls back to a
-    // generic "i-in-a-circle" placeholder. smallIcon must name a
-    // drawable that exists (res/drawable/ic_stat_symphony.xml) — a
-    // missing name throws a native Resources.NotFoundException. Cloud
-    // (FCM) pushes use the matching default_notification_icon meta-data
-    // in AndroidManifest.xml so both surfaces show the same glyph.
+    // Status-bar icon for every LOCAL notification (scheduled reminders,
+    // plan reminders, the ongoing/persistent status notifications). Points
+    // at the full-colour app art (res/drawable/ic_notif_large.png, copied
+    // from the launcher icon) so Samsung/One UI — which renders notification
+    // icons in colour — shows the actual drawing in the status bar, matching
+    // how FCM reminders already appear. Stock Android (Pixel) force-tints
+    // small icons to a flat shape; the large icon (set per-notification)
+    // still shows the colour art in the shade there. A monochrome fallback
+    // glyph lives at res/drawable/ic_stat_symphony.xml if we ever want the
+    // universally-clean look instead. Cloud (FCM) pushes use the matching
+    // default_notification_icon meta-data in AndroidManifest.xml.
     LocalNotifications: {
-      smallIcon: 'ic_stat_symphony',
+      smallIcon: 'ic_notif_large',
       iconColor: '#2563EB',
     },
     // overlaysWebView: true lets the WebView render edge-to-edge,
