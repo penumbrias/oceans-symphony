@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Fixed a crash that could blank the screen after opening the new Contacts page and returning to a screen with your system banner.",
+      },
+      {
+        type: "fix",
         text: "If a screen ever hits a display error, you now get a recoverable \"something went wrong\" screen (with Home / Reload buttons and the error details) instead of a blank white screen — your data stays safe.",
       },
       {

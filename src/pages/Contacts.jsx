@@ -25,7 +25,13 @@ export default function Contacts() {
   const [safetyFilter, setSafetyFilter] = useState("all");
   const [sortMode, setSortMode] = useState("name"); // "name" | "safety" | "recent"
 
-  const { data: settings } = useQuery({ queryKey: ["systemSettings"], queryFn: async () => (await base44.entities.SystemSettings.list())[0] || null });
+  // IMPORTANT: keep the ["systemSettings"] cache an ARRAY — many other
+  // components share this exact query key and call .find()/[0] on it. A
+  // queryFn that returns a single object here pollutes the shared cache and
+  // crashes those components ("t.find is not a function"). Fetch the list and
+  // derive [0] locally instead.
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settings = settingsList[0] || null;
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ["contacts"],
     queryFn: () => base44.entities.Contact.list(),

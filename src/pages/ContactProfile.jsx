@@ -32,7 +32,11 @@ export default function ContactProfile() {
   const [editOpen, setEditOpen] = useState(false);
   const [newNote, setNewNote] = useState("");
 
-  const { data: settings } = useQuery({ queryKey: ["systemSettings"], queryFn: async () => (await base44.entities.SystemSettings.list())[0] || null });
+  // Keep the shared ["systemSettings"] cache an ARRAY — see the note in
+  // Contacts.jsx. Returning a single object here pollutes the cache and
+  // crashes other components that .find()/[0] on it.
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settings = settingsList[0] || null;
   const { data: contacts = [], isLoading } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   const contact = contacts.find((c) => c.id === id) || null;
 
