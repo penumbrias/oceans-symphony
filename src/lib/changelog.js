@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "You can now edit a bulletin comment after posting it (tap the pencil), and edit a lineage event's date/cause/notes in System History.",
+      },
+      {
+        type: "improve",
         text: "You can now edit a private message after sending it (on an alter's board), and edit or delete your saved Learn reflections.",
       },
       {
