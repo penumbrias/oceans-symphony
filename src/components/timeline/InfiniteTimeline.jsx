@@ -706,6 +706,7 @@ export default function InfiniteTimeline({
   journals = [], checkIns = [], bulletins = [], tasks = [],
   sleeps = [], lineageEvents = [], diaryCards = [], polls = [],
   reminderInstances = [], reflections = [], alterNotes = [], dailyProgress = null,
+  dailyTaskTemplates = [],
   showActivities = true, showCheckIns = true, showEmotions = true,
   showSymptoms = true,
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
@@ -980,10 +981,18 @@ export default function InfiniteTimeline({
       });
     });
     raw.sort((a, b) => a.startMins - b.startMins);
+    // Collapse ONLY a tight cluster logged at essentially the same instant (a
+    // batch of quick-tasks) into a single "×N" bar. Previously ANY overlap of
+    // the same category merged — which silently hid a distinct activity (e.g. a
+    // completed plan) that happened to fall inside a longer overlapping session.
+    // Genuinely-overlapping distinct activities must stay separate so
+    // activityColumns can lay them out side-by-side.
+    const SAME_INSTANT_MERGE_MINS = 3;
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
-      if (last && last.categoryId === entry.categoryId && entry.startMins <= last.endMins) {
+      const sameInstant = last && Math.abs(entry.startMins - last.startMins) <= SAME_INSTANT_MERGE_MINS;
+      if (last && last.categoryId === entry.categoryId && sameInstant) {
         last.endMins = Math.max(last.endMins, entry.endMins);
         last.mergedCount += 1;
       } else {
@@ -2019,9 +2028,32 @@ export default function InfiniteTimeline({
                 ))}
               </div>
             )}
-            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note", "daily_tasks"].includes(entry.type) && (
+            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note"].includes(entry.type) && (
               <p className="text-sm font-semibold whitespace-pre-wrap">{entry.label}</p>
             )}
+            {entry.type === "daily_tasks" && (() => {
+              const ids = entry.data?.completed_task_ids || [];
+              const titleById = {};
+              for (const tpl of dailyTaskTemplates) { if (tpl?.id) titleById[tpl.id] = tpl.title || "Task"; }
+              const names = ids.map((id) => titleById[id]).filter(Boolean);
+              return (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold">{ids.length} daily task{ids.length !== 1 ? "s" : ""} done</p>
+                  {names.length > 0 ? (
+                    <ul className="text-sm space-y-0.5">
+                      {names.map((n, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="text-emerald-500">✓</span>
+                          <span className="text-foreground">{n}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Task names unavailable.</p>
+                  )}
+                </div>
+              );
+            })()}
           </DetailPopup>
         );
       })()}

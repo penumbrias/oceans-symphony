@@ -22,6 +22,18 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Completed plans now show on the timeline as their own activity block — before, a plan that overlapped another activity got hidden inside it.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a daily-tasks marker on the timeline now lists which tasks you finished, not just the count.",
+      },
+      {
+        type: "fix",
+        text: "Journal Edit/Delete moved to the bottom of the entry — Delete is no longer right next to the close button where it was easy to hit by mistake.",
+      },
+      {
+        type: "fix",
         text: "Activity edit popup (e.g. editing a sleep) no longer gets cut off on the right — the Start/End date fields now fit the box.",
       },
       {

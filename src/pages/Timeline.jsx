@@ -152,6 +152,11 @@ export default function Timeline() {
     queryFn: () => base44.entities.AlterNote.list("-created_date", 2000),
   });
 
+  const { data: dailyTaskTemplates = [] } = useQuery({
+    queryKey: ["dailyTaskTemplates"],
+    queryFn: () => base44.entities.DailyTaskTemplate.list(),
+  });
+
   // Jump to date from URL param on mount
   useEffect(() => {
     const dateParam = searchParams.get("date");
@@ -453,6 +458,7 @@ export default function Timeline() {
                 reflections={dayReflections}
                 alterNotes={dayAlterNotes}
                 dailyProgress={dayProgress}
+                dailyTaskTemplates={dailyTaskTemplates}
                 focusSessionId={daySessions.some((s) => s.id === focusSessionId) ? focusSessionId : null}
                 focusOpenEditor={focusEdit}
               />

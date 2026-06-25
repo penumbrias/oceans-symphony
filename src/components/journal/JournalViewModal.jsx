@@ -118,70 +118,39 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
     <Dialog open={open} onOpenChange={handleClose}>
       <DialogContent className="max-w-2xl max-h-[85vh] flex flex-col">
         <DialogHeader>
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
-              <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
-                <span className="text-xs text-muted-foreground">
-                  {format(parseDate(entry.created_date), "MMMM d, yyyy · h:mm a")}
+          {/* pr-8 keeps the title clear of the Dialog's top-right X close. The
+              Edit/Delete actions live in a footer at the bottom so Delete is
+              never adjacent to the close button (a mis-tap hazard). */}
+          <div className="min-w-0 pr-8">
+            <DialogTitle className="text-xl font-semibold leading-tight">{entry.title}</DialogTitle>
+            <div className="flex items-center flex-wrap gap-x-1.5 gap-y-0.5 mt-1">
+              <span className="text-xs text-muted-foreground">
+                {format(parseDate(entry.created_date), "MMMM d, yyyy · h:mm a")}
+              </span>
+              {author && (
+                <span className="flex items-center gap-1 text-xs text-muted-foreground">
+                  ·
+                  <span
+                    className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: author.color || "#94a3b8" }}
+                  />
+                  {author.name}
                 </span>
-                {author && (
-                  <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                    ·
+              )}
+              {entry.co_author_alter_ids?.map(id => {
+                const a = altersById?.[id];
+                if (!a) return null;
+                return (
+                  <span key={id} className="flex items-center gap-1 text-xs text-muted-foreground">
+                    &
                     <span
                       className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: author.color || "#94a3b8" }}
+                      style={{ backgroundColor: a.color || "#94a3b8" }}
                     />
-                    {author.name}
+                    {a.name}
                   </span>
-                )}
-                {entry.co_author_alter_ids?.map(id => {
-                  const a = altersById?.[id];
-                  if (!a) return null;
-                  return (
-                    <span key={id} className="flex items-center gap-1 text-xs text-muted-foreground">
-                      &
-                      <span
-                        className="w-2.5 h-2.5 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: a.color || "#94a3b8" }}
-                      />
-                      {a.name}
-                    </span>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 flex-shrink-0">
-              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
-                // Close this view modal first, then open the editor on the
-                // next paint. Without the defer, Radix Dialog batches the
-                // close-animation of this modal against the mount-with-open
-                // of the editor and swallows the editor's open transition,
-                // leaving the user with both modals closed.
-                const target = entry;
-                handleClose();
-                requestAnimationFrame(() => onEdit(target));
-              }}>
-                <Edit2 className="w-3.5 h-3.5" />
-                Edit
-              </Button>
-              {onDelete && (
-                <Button
-                  variant="outline"
-                  size="icon"
-                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                  aria-label="Delete entry"
-                  title="Delete this entry"
-                  onClick={() => {
-                    if (!window.confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`)) return;
-                    const target = entry;
-                    handleClose();
-                    onDelete(target);
-                  }}
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </Button>
-              )}
+                );
+              })}
             </div>
           </div>
         </DialogHeader>
@@ -233,6 +202,39 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
             ))}
           </div>
         )}
+
+        {/* Actions live here — bottom of the modal, deliberately far from the
+            top-right close (X) so Delete can't be hit by mistake. */}
+        <div className="flex items-center justify-end gap-2 pt-3 border-t border-border/50">
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+            // Close this view modal first, then open the editor on the next
+            // paint. Without the defer, Radix batches the close-animation of
+            // this modal against the editor's mount-with-open and swallows the
+            // editor's open transition, leaving both modals closed.
+            const target = entry;
+            handleClose();
+            requestAnimationFrame(() => onEdit(target));
+          }}>
+            <Edit2 className="w-3.5 h-3.5" />
+            Edit
+          </Button>
+          {onDelete && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40"
+              onClick={() => {
+                if (!window.confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`)) return;
+                const target = entry;
+                handleClose();
+                onDelete(target);
+              }}
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Delete
+            </Button>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
