@@ -116,6 +116,42 @@ export default function Timeline() {
     queryFn: () => base44.entities.Symptom.list(),
   });
 
+  // Additional timestamped sources surfaced in the timeline's events column.
+  const { data: sleeps = [] } = useQuery({
+    queryKey: ["sleep"],
+    queryFn: () => base44.entities.Sleep.list("-bedtime", 2000),
+  });
+
+  const { data: lineageEvents = [] } = useQuery({
+    queryKey: ["systemChangeEvents"],
+    queryFn: () => localEntities.SystemChangeEvent.list(),
+  });
+
+  const { data: diaryCards = [] } = useQuery({
+    queryKey: ["diaryCards"],
+    queryFn: () => base44.entities.DiaryCard.list("-created_date", 2000),
+  });
+
+  const { data: polls = [] } = useQuery({
+    queryKey: ["polls"],
+    queryFn: () => base44.entities.Poll.list("-created_date", 2000),
+  });
+
+  const { data: reminderInstances = [] } = useQuery({
+    queryKey: ["reminderInstances"],
+    queryFn: () => base44.entities.ReminderInstance.list("-scheduled_for", 2000),
+  });
+
+  const { data: reflections = [] } = useQuery({
+    queryKey: ["supportJournalAll"],
+    queryFn: () => base44.entities.SupportJournalEntry.list("-created_date", 2000),
+  });
+
+  const { data: alterNotes = [] } = useQuery({
+    queryKey: ["alterNotes"],
+    queryFn: () => base44.entities.AlterNote.list("-created_date", 2000),
+  });
+
   // Jump to date from URL param on mount
   useEffect(() => {
     const dateParam = searchParams.get("date");
@@ -364,9 +400,24 @@ export default function Timeline() {
             return t >= dayStart && t <= dayEnd;
           });
 
+          const inDay = (val) => {
+            if (!val) return false;
+            const t = parseDate(val);
+            return t >= dayStart && t <= dayEnd;
+          };
+          const daySleeps = sleeps.filter((s) => inDay(s.bedtime || (s.date ? `${s.date}T12:00:00` : null)));
+          const dayLineage = lineageEvents.filter((ev) => inDay(ev.date));
+          const dayDiaryCards = diaryCards.filter((d) => inDay(d.created_date || (d.date ? `${d.date}T12:00:00` : null)));
+          const dayPolls = polls.filter((p) => inDay(p.created_date));
+          const dayReminderInstances = reminderInstances.filter((ri) => inDay(ri.fired_at || ri.scheduled_for));
+          const dayReflections = reflections.filter((r) => inDay(r.created_date));
+          const dayAlterNotes = alterNotes.filter((n) => inDay(n.created_date));
+          const dayProgress = dailyProgress.find((p) => p.date === dateStr) || null;
+          const dayHasDailyTasks = !!(dayProgress && Array.isArray(dayProgress.completed_task_ids) && dayProgress.completed_task_ids.length && dayProgress.created_date);
+
           const dayImportantDates = datesForDay(importantDates, day);
 
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0 || dayImportantDates.length > 0;
+          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0 || dayImportantDates.length > 0 || daySleeps.length > 0 || dayLineage.length > 0 || dayDiaryCards.length > 0 || dayPolls.length > 0 || dayReminderInstances.length > 0 || dayReflections.length > 0 || dayAlterNotes.length > 0 || dayHasDailyTasks;
 
           return (
             <div key={dateStr} id={`day-${dateStr}`}>
@@ -394,7 +445,14 @@ export default function Timeline() {
                 showLocations={showLocations}
                 statusNotes={dayStatusNotes}
                 importantDates={dayImportantDates}
-                dailyProgress={dailyProgress.find((p) => p.date === format(day, "yyyy-MM-dd"))}
+                sleeps={daySleeps}
+                lineageEvents={dayLineage}
+                diaryCards={dayDiaryCards}
+                polls={dayPolls}
+                reminderInstances={dayReminderInstances}
+                reflections={dayReflections}
+                alterNotes={dayAlterNotes}
+                dailyProgress={dayProgress}
                 focusSessionId={daySessions.some((s) => s.id === focusSessionId) ? focusSessionId : null}
                 focusOpenEditor={focusEdit}
               />

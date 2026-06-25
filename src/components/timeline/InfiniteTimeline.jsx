@@ -544,6 +544,14 @@ const TYPE_META = {
   task_done:       { icon: "✅" },
   mention:         { icon: "@" },
   symptom_checkin: { icon: "💊" },
+  sleep:           { icon: "😴" },
+  lineage:         { icon: "🧬" },
+  diary:           { icon: "📔" },
+  poll:            { icon: "🗳️" },
+  reminder:        { icon: "🔔" },
+  reflection:      { icon: "🪷" },
+  alter_note:      { icon: "📝" },
+  daily_tasks:     { icon: "🗓️" },
 };
 
 function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth, tiedAlters = [] }) {
@@ -696,6 +704,8 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, lane
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
+  sleeps = [], lineageEvents = [], diaryCards = [], polls = [],
+  reminderInstances = [], reflections = [], alterNotes = [], dailyProgress = null,
   showActivities = true, showCheckIns = true, showEmotions = true,
   showSymptoms = true,
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
@@ -1055,6 +1065,83 @@ export default function InfiniteTimeline({
       }
     });
 
+    // Sleep — positioned at bedtime; label shows the slept duration if ended.
+    sleeps.forEach((s) => {
+      const when = s.bedtime || (s.date ? `${s.date}T12:00:00` : null);
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      let label = "Sleep";
+      if (s.bedtime && s.wake_time) {
+        const dur = Math.max(0, Math.round((parseDate(s.wake_time) - parseDate(s.bedtime)) / 60000));
+        label = `Slept ${Math.floor(dur / 60)}h ${dur % 60}m`;
+      }
+      entries.push({ mins, type: "sleep", id: s.id, label, data: s });
+    });
+
+    // System change / lineage events (fusion, split, dormancy, …).
+    lineageEvents.forEach((ev) => {
+      if (!ev.date) return;
+      const mins = minutesInDay(parseDate(ev.date), dayStart);
+      if (!inDay(mins)) return;
+      const label = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : "System change";
+      entries.push({ mins, type: "lineage", id: ev.id, label, data: ev });
+    });
+
+    // Diary cards — `date` is a day string, so fall back to noon when there's
+    // no created_date time-of-day.
+    diaryCards.forEach((d) => {
+      const when = d.created_date || (d.date ? `${d.date}T12:00:00` : null);
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "diary", id: d.id, label: d.name || "Diary card", data: d });
+    });
+
+    // Polls (creation).
+    polls.forEach((p) => {
+      if (!p.created_date) return;
+      const mins = minutesInDay(parseDate(p.created_date), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "poll", id: p.id, label: p.question || "Poll", data: p });
+    });
+
+    // Reminders that fired — positioned at when they actually fired/were due.
+    reminderInstances.forEach((ri) => {
+      const when = ri.fired_at || ri.scheduled_for;
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "reminder", id: ri.id, label: ri.title || ri.body || "Reminder", data: ri });
+    });
+
+    // Support / Learn reflections.
+    reflections.forEach((r) => {
+      if (!r.created_date) return;
+      const mins = minutesInDay(parseDate(r.created_date), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "reflection", id: r.id, label: r.exercise_title || "Reflection", data: r });
+    });
+
+    // Per-alter notes.
+    alterNotes.forEach((n) => {
+      if (!n.created_date) return;
+      const mins = minutesInDay(parseDate(n.created_date), dayStart);
+      if (!inDay(mins)) return;
+      const txt = (n.content || "").replace(/<[^>]+>/g, "").trim().slice(0, 40);
+      entries.push({ mins, type: "alter_note", id: n.id, label: txt || "Note", data: n });
+    });
+
+    // Daily-task completions — no per-task time-of-day, so anchor the day's
+    // tally to when the progress record was first created.
+    if (dailyProgress && Array.isArray(dailyProgress.completed_task_ids) && dailyProgress.completed_task_ids.length && dailyProgress.created_date) {
+      const mins = minutesInDay(parseDate(dailyProgress.created_date), dayStart);
+      if (inDay(mins)) {
+        const n = dailyProgress.completed_task_ids.length;
+        entries.push({ mins, type: "daily_tasks", id: `dp-${dailyProgress.id}`, label: `${n} daily task${n !== 1 ? "s" : ""} done`, data: dailyProgress });
+      }
+    }
+
     // Group symptom check-ins by minute into single event entries
     const scByMinute = {};
     symptomCheckIns.forEach(sc => {
@@ -1069,7 +1156,7 @@ export default function InfiniteTimeline({
     });
 
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
-  }, [journals, checkIns, bulletins, tasks, symptomCheckIns, symptomMap, dayStart]);
+  }, [journals, checkIns, bulletins, tasks, sleeps, lineageEvents, diaryCards, polls, reminderInstances, reflections, alterNotes, dailyProgress, symptomCheckIns, symptomMap, dayStart]);
 
   const getTopPx = useCallback((mins) => {
     return (mins / 60) * rowH;
@@ -1628,7 +1715,16 @@ export default function InfiniteTimeline({
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
                           else if (entry.type === "bulletin") navigate(`/`);
                           else if (entry.type === "task") navigate(`/todo`);
+                          else if (entry.type === "task_done") navigate(`/todo`);
                           else if (entry.type === "symptom_checkin") navigate(`/checkin-log`);
+                          else if (entry.type === "sleep") navigate(`/sleep`);
+                          else if (entry.type === "lineage") navigate(`/system-history`);
+                          else if (entry.type === "diary") navigate(`/diary`);
+                          else if (entry.type === "poll") navigate(`/polls?id=${entry.id}`);
+                          else if (entry.type === "reminder") navigate(`/reminders`);
+                          else if (entry.type === "reflection") navigate(`/grounding`);
+                          else if (entry.type === "alter_note") navigate(`/alter/${entry.data?.alter_id || ""}`);
+                          else if (entry.type === "daily_tasks") navigate(`/tasks`);
                         }}
                       />
                     ))}
@@ -1922,6 +2018,9 @@ export default function InfiniteTimeline({
                   </p>
                 ))}
               </div>
+            )}
+            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note", "daily_tasks"].includes(entry.type) && (
+              <p className="text-sm font-semibold whitespace-pre-wrap">{entry.label}</p>
             )}
           </DetailPopup>
         );

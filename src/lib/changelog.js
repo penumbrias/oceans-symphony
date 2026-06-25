@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "The Timeline now surfaces even more of your day — sleep, lineage events, diary cards, polls, reminders that fired, reflections, alter notes and daily-task completions all show up alongside everything else. Tap any of them to open it.",
+      },
+      {
+        type: "feature",
         text: "Octocon import now brings your polls across too — both choice and yes/no/veto polls, with every vote kept against the right alter and any voter comments preserved.",
       },
       {
