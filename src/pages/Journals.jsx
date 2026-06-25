@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { useSearchParams } from "react-router-dom";
 import { Plus, Search, BookOpen, Shuffle, Eye, FolderPlus, ChevronLeft, UserRound, ChevronDown, X } from "lucide-react";
@@ -248,6 +249,21 @@ export default function Journals() {
       setViewingFolder(parent);
     }
     queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+  };
+
+  // Delete a single journal entry (confirmed in the view modal). The entry is
+  // gone for good — journals are the user's own content, so deleting is a
+  // deliberate, confirmed action, not a recoverable archive.
+  const handleDeleteEntry = async (entry) => {
+    if (!entry?.id) return;
+    try {
+      await base44.entities.JournalEntry.delete(entry.id);
+      queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
+      queryClient.invalidateQueries({ queryKey: ["journals"] });
+      toast.success("Entry deleted");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't delete the entry");
+    }
   };
 
   const handleRenameFolder = async (oldPath, newName) => {
@@ -754,6 +770,7 @@ export default function Journals() {
         entry={viewingEntry}
         altersById={altersById}
         onEdit={(entry) => openEdit(entry)}
+        onDelete={handleDeleteEntry}
       />
 
       <JournalEditorModal

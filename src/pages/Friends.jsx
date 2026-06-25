@@ -816,12 +816,18 @@ export default function FriendsPage() {
   const [showAddFriend, setShowAddFriend] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const { data: identity, isLoading: identityLoading, refetch: refetchIdentity } = useQuery({
+  const { data: rawIdentity, isLoading: identityLoading, refetch: refetchIdentity } = useQuery({
     queryKey: ['friendIdentity'],
     queryFn: getLocalIdentity,
     staleTime: 0,
     refetchOnMount: 'always',
   });
+  // A push_only identity is one auto-provisioned solely for cloud reminder /
+  // FCM delivery — the user hasn't set up the social Friends feature. Treat it
+  // as "no profile" everywhere on this page so we still show setup and never run
+  // front-sharing / key publishing for it. Setting up Friends upgrades the same
+  // record (push_only → false) via registerIdentity.
+  const identity = rawIdentity && !rawIdentity.push_only ? rawIdentity : null;
 
   const { data: altersRaw = [] } = useQuery({
     queryKey: ['alters'],

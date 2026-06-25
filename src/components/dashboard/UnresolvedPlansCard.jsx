@@ -6,11 +6,13 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { ClipboardList } from "lucide-react";
+import { ClipboardList, Play } from "lucide-react";
 import {
   ACTIVITY_STATUSES,
   isPastTimeScheduled,
 } from "@/lib/activityStatus";
+import { addActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { cancelPlanReminder } from "@/lib/planReminderScheduler";
 
 // Dashboard surface that lists past-time scheduled plans the user hasn't
 // resolved yet. One-tap buttons send the lifecycle update directly so
@@ -50,6 +52,29 @@ export default function UnresolvedPlansCard() {
     queryFn: () => base44.entities.Activity.list(),
   });
 
+  // Categories only used to colour the active pill when a plan is started.
+  const { data: categories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
+
+  // Live active-activity sessions — a plan that's been started drops out of
+  // the nag list (it's now handled, shown under Active Activities).
+  const [activeActs, setActiveActs] = useState(() => getActiveActivities());
+  useEffect(() => {
+    const refresh = () => setActiveActs(getActiveActivities());
+    window.addEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+    window.addEventListener("focus", refresh);
+    return () => {
+      window.removeEventListener(ACTIVE_ACTIVITY_EVENT, refresh);
+      window.removeEventListener("focus", refresh);
+    };
+  }, []);
+  const activePlanIds = useMemo(
+    () => new Set(activeActs.map((a) => a.planActivityId).filter(Boolean)),
+    [activeActs]
+  );
+
   // Refresh when the toggle changes elsewhere in the app. We re-read on
   // every render — cheap, and the Settings toggle dispatches a custom
   // event so this card hides immediately when toggled off.
@@ -67,8 +92,9 @@ export default function UnresolvedPlansCard() {
   const unresolved = useMemo(
     () => activities
       .filter(isPastTimeScheduled)
+      .filter((a) => !activePlanIds.has(a.id))
       .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)),
-    [activities]
+    [activities, activePlanIds]
   );
 
   const [busyId, setBusyId] = useState(null);
@@ -90,6 +116,30 @@ export default function UnresolvedPlansCard() {
     } finally {
       setBusyId(null);
     }
+  };
+
+  // Start a plan as an in-progress active session (same mechanism as the
+  // lifecycle popover's "Start now"). Linked back via planActivityId, so
+  // ending it resolves THIS plan to done. The plan drops out of the nag.
+  const colorForPlan = (act) => {
+    for (const id of (act.activity_category_ids || [])) {
+      const c = categories.find((c) => c.id === id);
+      if (c?.color) return c.color;
+    }
+    return act.color || null;
+  };
+  const startActive = (act) => {
+    addActiveActivity({
+      planActivityId: act.id,
+      categoryId: (act.activity_category_ids || [])[0] || null,
+      name: act.activity_name || "Activity",
+      color: colorForPlan(act),
+      startTime: new Date().toISOString(),
+      alterIds: act.fronting_alter_ids || [],
+      notes: (act.notes || "").trim(),
+    });
+    cancelPlanReminder(act.id).catch(() => {});
+    toast.success("Started — it's now in your Active Activities");
   };
 
   // Decide what to render: full inline list up to 5; otherwise 3 + a
@@ -118,6 +168,7 @@ export default function UnresolvedPlansCard() {
             act={act}
             busy={busyId === act.id}
             onResolve={resolve}
+            onStart={() => startActive(act)}
             onOpen={() => navigate(`/activities?activityId=${act.id}`)}
           />
         ))}
@@ -141,7 +192,7 @@ export default function UnresolvedPlansCard() {
 // CriticalPlanCard). Single tap is a no-op so the lifecycle buttons
 // stay the primary one-shot affordance — accidentally tapping the row
 // shouldn't yank the user off the dashboard.
-function UnresolvedPlanRow({ act, busy, onResolve, onOpen }) {
+function UnresolvedPlanRow({ act, busy, onResolve, onStart, onOpen }) {
   const lastTapRef = useRef(0);
   const handleRowTap = () => {
     const now = Date.now();
@@ -172,6 +223,15 @@ function UnresolvedPlanRow({ act, busy, onResolve, onOpen }) {
         </div>
       </div>
       <div className="flex flex-wrap gap-1.5">
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onStart(); }}
+          className="h-7 text-xs px-2 gap-1 border-primary/50 text-primary hover:bg-primary/10"
+        >
+          <Play className="w-3 h-3" /> Start
+        </Button>
         <Button
           size="sm"
           variant="outline"

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { ChevronDown, ChevronRight, Folder, FolderTree, Plus, ArrowLeft, Settings2 } from "lucide-react";
 import AlterCard from "./AlterCard";
 import SubsystemActionMenu from "./SubsystemActionMenu";
@@ -95,6 +95,26 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
   });
   const [rootMenuGroup, setRootMenuGroup] = useState(null);
 
+  // Which owner-rows / subsystems are expanded inline. One flat Set of ids
+  // (alter ids and group ids never collide) persisted to sessionStorage, so
+  // leaving for an alter profile and coming back keeps every subsystem you'd
+  // opened expanded instead of collapsing back to default.
+  const expandKey = persistKey ? `subsysExpanded_${persistKey}` : null;
+  const [expandedIds, setExpandedIds] = useState(() => {
+    if (!expandKey) return new Set();
+    try { const raw = sessionStorage.getItem(expandKey); return new Set(raw ? JSON.parse(raw) : []); } catch { return new Set(); }
+  });
+  useEffect(() => {
+    if (!expandKey) return;
+    try { sessionStorage.setItem(expandKey, JSON.stringify([...expandedIds])); } catch { /* storage off */ }
+  }, [expandedIds, expandKey]);
+  const toggleExpanded = useCallback((id) => {
+    setExpandedIds((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  }, []);
+  const expandOn = useCallback((id) => {
+    setExpandedIds((s) => (s.has(id) ? s : new Set(s).add(id)));
+  }, []);
+
   useEffect(() => {
     if (!storeKey) return;
     try { sessionStorage.setItem(storeKey, JSON.stringify(navStack)); } catch { /* storage off */ }
@@ -164,6 +184,9 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
           activeSessions={activeSessions}
           anonymize={anonymize}
           onDrillInto={drillInto}
+          expandedIds={expandedIds}
+          toggleExpanded={toggleExpanded}
+          expandOn={expandOn}
         />
       ))}
 
@@ -185,11 +208,10 @@ export default function SubsystemAlterList({ topAlters, allAlters, allGroups, ac
   );
 }
 
-function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize, onDrillInto }) {
-  const [expanded, setExpanded] = useState(false);
-  // A SET of expanded subsystem ids — so an alter who owns several subsystems
-  // can have more than one open at once (the icons/rows all stay visible).
-  const [expandedSubIds, setExpandedSubIds] = useState(() => new Set());
+function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, activeSessions, anonymize, onDrillInto, expandedIds, toggleExpanded, expandOn }) {
+  // Expand state is lifted to SubsystemAlterList (persisted across remounts) —
+  // keyed by alter id (this owner's section) and subsystem group id.
+  const expanded = expandedIds.has(alter.id);
   const [menuGroup, setMenuGroup] = useState(null);
 
   const ownedSubs = getSubsystemsOwnedBy(allGroups, alter.id);
@@ -199,7 +221,6 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
   // Inline = members nest here; otherwise drilling in resets the view.
   const inlineExpandable = hasSub && depth < MAX_INLINE_DEPTH;
   const nextVisited = hasSub ? new Set(visited).add(alter.id) : visited;
-  const toggleSub = (id) => setExpandedSubIds((s) => { const n = new Set(s); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const indentStyle = { marginLeft: INDENT_PX, paddingLeft: INDENT_PX / 2 };
 
   return (
@@ -217,11 +238,11 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
             iconUrl={alter.subsystems_icon || undefined}
             expanded={expanded}
             inlineExpandable={inlineExpandable}
-            onToggle={() => setExpanded((v) => !v)}
+            onToggle={() => toggleExpanded(alter.id)}
             // Single, too deep to nest → drill in (breadcrumb). Multi → just
             // toggle the chooser (it's shallow, fine at any depth).
-            onOpen={() => (multi ? setExpanded((v) => !v) : onDrillInto?.(ownedSubs[0]))}
-            onMenu={() => (multi ? setExpanded(true) : setMenuGroup(ownedSubs[0]))}
+            onOpen={() => (multi ? toggleExpanded(alter.id) : onDrillInto?.(ownedSubs[0]))}
+            onMenu={() => (multi ? expandOn(alter.id) : setMenuGroup(ownedSubs[0]))}
           />
         ) : null}
       />
@@ -232,7 +253,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
             // All subsystems stay listed — each opens/closes independently, so
             // several can be expanded at once.
             ownedSubs.map((sub) => {
-              const subExpanded = expandedSubIds.has(sub.id);
+              const subExpanded = expandedIds.has(sub.id);
               const subMembers = (subExpanded && inlineExpandable) ? getMemberAlters(sub, allAlters) : [];
               return (
                 <div key={sub.id} className="flex flex-col gap-2">
@@ -241,7 +262,7 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                       type="button"
                       // At the depth cap, picking a subsystem drills in
                       // (breadcrumb); otherwise it toggles members inline.
-                      onClick={() => (inlineExpandable ? toggleSub(sub.id) : onDrillInto?.(sub))}
+                      onClick={() => (inlineExpandable ? toggleExpanded(sub.id) : onDrillInto?.(sub))}
                       className="flex-1 flex items-center gap-2 px-3 py-2 rounded-xl border border-border/50 bg-card hover:bg-muted/30 transition-colors text-left min-w-0"
                       style={{ borderLeftColor: sub.color || "transparent", borderLeftWidth: sub.color ? 3 : 1 }}
                     >
@@ -262,7 +283,8 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
                       {subMembers.length > 0 ? (
                         subMembers.map((m, j) => (
                           <SubsystemNode key={m.id} alter={m} index={j} depth={depth + 1} visited={nextVisited}
-                            allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto} />
+                            allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto}
+                            expandedIds={expandedIds} toggleExpanded={toggleExpanded} expandOn={expandOn} />
                         ))
                       ) : (
                         <button type="button" onClick={() => setMenuGroup(sub)}
@@ -283,7 +305,8 @@ function SubsystemNode({ alter, index, depth, visited, allAlters, allGroups, act
               return subMembers.length > 0 ? (
                 subMembers.map((m, j) => (
                   <SubsystemNode key={m.id} alter={m} index={j} depth={depth + 1} visited={nextVisited}
-                    allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto} />
+                    allAlters={allAlters} allGroups={allGroups} activeSessions={activeSessions} anonymize={anonymize} onDrillInto={onDrillInto}
+                    expandedIds={expandedIds} toggleExpanded={toggleExpanded} expandOn={expandOn} />
                 ))
               ) : (
                 <button type="button" onClick={() => setMenuGroup(sub)}

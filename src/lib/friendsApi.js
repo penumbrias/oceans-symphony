@@ -55,9 +55,12 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
   const { userId, secret, friendCode } = await res.json();
 
   if (existing) {
-    await localEntities.FriendIdentity.update(existing.id, { displayName, systemName, terms, privacyLevel, friendCode });
+    // push_only: false — setting up the social profile UPGRADES a push-only
+    // identity (one auto-provisioned just for reminder/FCM delivery) into a
+    // real Friends identity, under the same stable userId.
+    await localEntities.FriendIdentity.update(existing.id, { displayName, systemName, terms, privacyLevel, friendCode, push_only: false });
   } else {
-    await localEntities.FriendIdentity.create({ userId, secret, friendCode, displayName, systemName, terms, privacyLevel });
+    await localEntities.FriendIdentity.create({ userId, secret, friendCode, displayName, systemName, terms, privacyLevel, push_only: false });
   }
 
   // Native-only: seed the background poll runner with the freshly-
@@ -71,6 +74,39 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
   } catch { /* non-fatal on web */ }
 
   return { userId, secret, friendCode };
+}
+
+// Returns this device's server identity (userId + secret), provisioning a
+// neutral PUSH-ONLY one if none exists yet. The durable reminder/FCM relay needs
+// a valid identity to key pushes to, but it must NOT require the user to set up
+// the social Friends feature. So when the user opts into cloud-backed reminder
+// delivery and has no identity, we register a bare profile and mark it
+// push_only. Having one exposes nothing — friends are added only by sharing a
+// code, and the Friends page treats a push_only identity as "no profile yet" (it
+// still shows setup and never runs front-sharing). If the user later sets up
+// Friends, registerIdentity upgrades the SAME record (push_only → false), so the
+// FCM token / reminder schedule keep working under one stable userId.
+//
+// Callers must ONLY invoke this once the user has explicitly opted into cloud
+// delivery — never silently, so a fully-local user never touches the server.
+export async function ensurePushIdentity() {
+  const existing = await getLocalIdentity();
+  if (existing?.userId && existing?.secret) return existing;
+
+  const res = await fetch(`${BASE}/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ displayName: '', systemName: '', terms: {}, privacyLevel: 'names' }),
+  });
+  if (!res.ok) return null;
+  const { userId, secret, friendCode } = await res.json();
+  if (!userId || !secret) return null;
+
+  return localEntities.FriendIdentity.create({
+    userId, secret, friendCode,
+    displayName: '', systemName: '', terms: {}, privacyLevel: 'names',
+    push_only: true,
+  });
 }
 
 // Deletes the user's profile on the server AND clears the local identity.
@@ -232,7 +268,11 @@ export async function toggleNotify(friendUserId, notifyOnChange) {
 // it is stripped before being sent to the server.
 export async function pushFrontStatus({ fronters, terms, systemName, displayName, privacyLevel }) {
   const identity = await getLocalIdentity();
-  if (!identity) return;
+  // Never share fronting from a push-only identity (one auto-provisioned solely
+  // for cloud reminder / FCM delivery). This is the single chokepoint for all
+  // outgoing front data, so it protects every caller (Friends page + the
+  // always-mounted useFriendsFrontSync hook).
+  if (!identity || identity.push_only) return;
 
   // Compute per-friend fronter overrides from local visibility settings
   const perFriendVisibility = identity.perFriendVisibility || {};

@@ -17,7 +17,11 @@ export function getActivityColor(act, catById = {}) {
     const cat = catById[id];
     if (cat?.color) return cat.color;
   }
-  return act.color || "hsl(var(--primary))";
+  // Concrete hex fallback — NOT "hsl(var(--primary))": --primary is empty in this
+  // theme (the app uses --color-primary), so hsl() is invalid CSS and renders
+  // transparent. An uncategorised activity (e.g. a completed plan with no
+  // category) would otherwise show no fill/bar at all.
+  return act.color || "#8b5cf6";
 }
 
 export function getActivitiesForSlot(date, hour, minute, intervalMinutes, activities) {

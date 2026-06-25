@@ -114,16 +114,25 @@ export async function initNativeShell() {
     await pushIdentityToBackgroundRunner();
   } catch { /* non-fatal */ }
 
-  // Re-register with Firebase Cloud Messaging so friend-front changes push
-  // INSTANTLY even when the app is fully closed. FCM rotates tokens, so we
-  // refresh + re-save on every boot. prompt:false → never raises a
-  // permission dialog here (only the explicit "turn on a friend's bell"
-  // path prompts); if permission isn't already granted, or
-  // google-services.json isn't in the build, this no-ops and the 15-minute
-  // background poll stays the fallback. Gated on having a Friends profile.
+  // Re-register with Firebase Cloud Messaging so friend-front changes AND
+  // closed-app reminders push INSTANTLY even when the app is fully closed. FCM
+  // rotates tokens, so we refresh + re-save on every boot. prompt:false → never
+  // raises a permission dialog here (only the explicit opt-in paths prompt); if
+  // permission isn't already granted, or google-services.json isn't in the
+  // build, this no-ops and the local OS alarms / 15-minute poll stay the
+  // fallback. Registers when EITHER a Friends profile exists OR the user opted
+  // into cloud-backed reminder delivery (which provisions a push-only identity).
   try {
-    const { getLocalIdentity } = await import("@/lib/friendsApi");
-    const identity = await getLocalIdentity().catch(() => null);
+    const { getLocalIdentity, ensurePushIdentity } = await import("@/lib/friendsApi");
+    const { cloudReminderDeliveryEnabled } = await import("@/lib/serverReminderSync");
+    const { localEntities } = await import("@/api/base44Client");
+    const settings = (await localEntities.SystemSettings.list().catch(() => []))?.[0] || null;
+    let identity = await getLocalIdentity().catch(() => null);
+    if (!identity && cloudReminderDeliveryEnabled(settings, false)) {
+      // Cloud delivery explicitly on but no identity yet (e.g. after reinstall) —
+      // re-provision so the FCM token can be re-saved server-side.
+      identity = await ensurePushIdentity().catch(() => null);
+    }
     if (identity?.userId) {
       const { registerFcmPush } = await import("@/lib/fcmPush");
       await registerFcmPush({ prompt: false });

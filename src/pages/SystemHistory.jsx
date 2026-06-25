@@ -32,9 +32,40 @@ function AlterPill({ alter }) {
   );
 }
 
-const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onDelete, onToggleHidden, isLast }) {
+const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onDelete, onEdit, onToggleHidden, isLast }) {
   const meta = TYPE_META[event.type] || TYPE_META.fusion;
   const Icon = meta.icon;
+
+  // Edit covers the SAFE metadata only — date, year-only flag, cause, notes.
+  // The type and the alters involved aren't editable here because changing them
+  // would have to unwind side-effects (a split created relationships / alters);
+  // to restructure, delete and re-record.
+  const [editing, setEditing] = useState(false);
+  const [dYearOnly, setDYearOnly] = useState(!!event.year_only);
+  const [dDate, setDDate] = useState(() => { try { return format(new Date(event.date), "yyyy-MM-dd"); } catch { return ""; } });
+  const [dYear, setDYear] = useState(() => { try { return String(new Date(event.date).getFullYear()); } catch { return ""; } });
+  const [dCause, setDCause] = useState(event.cause || "");
+  const [dNotes, setDNotes] = useState(event.notes || "");
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const saveEdit = async () => {
+    let iso;
+    if (dYearOnly) {
+      const y = parseInt(dYear, 10);
+      if (!y) return;
+      iso = new Date(y, 0, 1).toISOString();
+    } else {
+      if (!dDate) return;
+      iso = new Date(`${dDate}T12:00:00`).toISOString();
+    }
+    setSavingEdit(true);
+    try {
+      await onEdit(event.id, { date: iso, year_only: dYearOnly, cause: dCause.trim() || null, notes: dNotes.trim() || null });
+      setEditing(false);
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   const sourceAlters = (event.source_alter_ids || []).map(id => altersById[id]).filter(Boolean);
   const resultAlters = (event.result_alter_ids || []).map(id => altersById[id]).filter(Boolean);
@@ -64,6 +95,14 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onD
             <span className="text-xs text-muted-foreground">
               {event.year_only ? format(new Date(event.date), "yyyy") : format(new Date(event.date), "MMM d, yyyy")}
             </span>
+            <button
+              type="button"
+              onClick={() => setEditing((v) => !v)}
+              title="Edit date / notes"
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Pencil className="w-3 h-3" />
+            </button>
             <button
               type="button"
               onClick={() => onToggleHidden?.(event)}
@@ -97,11 +136,39 @@ const TimelineEvent = React.memo(function TimelineEvent({ event, altersById, onD
           )}
         </div>
 
-        {event.cause && (
-          <p className="text-xs text-muted-foreground"><span className="font-medium">Cause:</span> {event.cause}</p>
-        )}
-        {event.notes && (
-          <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{event.notes}</p>
+        {editing ? (
+          <div className="space-y-2 mt-1.5 p-2.5 rounded-lg border border-border/50 bg-muted/20">
+            <div className="flex items-center gap-2 flex-wrap">
+              {dYearOnly ? (
+                <input type="number" value={dYear} onChange={(e) => setDYear(e.target.value)} placeholder="Year"
+                  className="w-24 h-8 px-2 rounded-md border border-input bg-background text-xs" />
+              ) : (
+                <input type="date" value={dDate} onChange={(e) => setDDate(e.target.value)}
+                  className="h-8 px-2 rounded-md border border-input bg-background text-xs" />
+              )}
+              <label className="flex items-center gap-1 text-xs text-muted-foreground select-none">
+                <input type="checkbox" checked={dYearOnly} onChange={(e) => setDYearOnly(e.target.checked)} /> Year only
+              </label>
+            </div>
+            <input value={dCause} onChange={(e) => setDCause(e.target.value)} placeholder="Cause (optional)"
+              className="w-full h-8 px-2 rounded-md border border-input bg-background text-xs" />
+            <textarea value={dNotes} onChange={(e) => setDNotes(e.target.value)} placeholder="Notes (optional)" rows={2}
+              className="w-full px-2 py-1.5 rounded-md border border-input bg-background text-xs resize-y" />
+            <p className="text-[0.625rem] text-muted-foreground">Editing the date &amp; notes. To change the type or who's involved, delete and re-record the event.</p>
+            <div className="flex gap-1.5">
+              <Button size="sm" onClick={saveEdit} disabled={savingEdit}>{savingEdit ? "Saving…" : "Save"}</Button>
+              <Button size="sm" variant="outline" onClick={() => setEditing(false)}>Cancel</Button>
+            </div>
+          </div>
+        ) : (
+          <>
+            {event.cause && (
+              <p className="text-xs text-muted-foreground"><span className="font-medium">Cause:</span> {event.cause}</p>
+            )}
+            {event.notes && (
+              <p className="text-xs text-muted-foreground mt-0.5 whitespace-pre-wrap">{event.notes}</p>
+            )}
+          </>
         )}
       </div>
     </div>
@@ -277,6 +344,11 @@ export default function SystemHistory() {
     queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
   }, [queryClient]);
 
+  const handleEditEvent = useCallback(async (eventId, patch) => {
+    await localEntities.SystemChangeEvent.update(eventId, patch);
+    queryClient.invalidateQueries({ queryKey: ["systemChangeEvents"] });
+  }, [queryClient]);
+
   return (
     <div className="max-w-xl mx-auto px-4 py-6 pb-24">
       {/* Header */}
@@ -345,6 +417,7 @@ export default function SystemHistory() {
                 event={event}
                 altersById={altersById}
                 onDelete={handleDelete}
+                onEdit={handleEditEvent}
                 onToggleHidden={handleToggleHidden}
                 isLast={i === filteredEvents.length - 1 && !systemBirthDate && !editingBirth}
               />

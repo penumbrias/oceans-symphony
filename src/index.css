@@ -106,6 +106,15 @@ body {
   }
 }
 
+/* Always reserve the scrollbar gutter on the main scroll container so the
+   centered page content doesn't jump sideways when a vertical scrollbar
+   appears/disappears (e.g. when a composer expands and pushes the page
+   past the viewport). On desktop main is itself the scroller; on overlay-
+   scrollbar platforms this is a no-op. */
+.app-content-main {
+  scrollbar-gutter: stable;
+}
+
 /* The bottom nav is rendered at every viewport below the lg: breakpoint
    (1024px) — phone portrait, phone landscape, tablet portrait — so the
    content must reserve space for it across that whole range, not just

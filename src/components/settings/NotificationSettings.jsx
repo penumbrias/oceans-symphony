@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Users, HeartPulse, Timer, Pin } from "lucide-react";
+import { Bell, CheckCircle2, Info, AlertTriangle, XCircle, Users, HeartPulse, Timer, Pin, Cloud, Loader2, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Switch } from "@/components/ui/switch";
@@ -9,6 +9,90 @@ import { isNative } from "@/lib/platform";
 import { useTerms } from "@/lib/useTerms";
 import { SubSection } from "@/components/settings/SettingsUI";
 import { getAllPersistNotifPrefs, setPersistNotifPref } from "@/lib/persistentNotifPrefs";
+import { getLocalIdentity } from "@/lib/friendsApi";
+import {
+  cloudReminderDeliveryEnabled,
+  enableCloudReminderDelivery,
+  disableCloudReminderDelivery,
+} from "@/lib/serverReminderSync";
+
+// Opt-in cloud-backed reminder delivery. On-device OS alarms can't survive a
+// force-stop (Samsung et al. cancel them); the relay can, by holding the clock
+// and pushing via FCM / Web Push. But that means sending reminder times to the
+// server, so it's strictly opt-in: OFF by default → the app contacts no server
+// and reminders stay fully local. Visible on all platforms (web can't fire
+// closed-tab reminders at all without it).
+function CloudReminderDeliverySection() {
+  const qc = useQueryClient();
+  const { data: list = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const settings = list?.[0] || null;
+  const { data: identity } = useQuery({ queryKey: ["friendIdentity"], queryFn: getLocalIdentity });
+  const [busy, setBusy] = useState(false);
+
+  const on = cloudReminderDeliveryEnabled(settings, !!identity);
+
+  const toggle = async (v) => {
+    setBusy(true);
+    try {
+      if (settings?.id) {
+        await base44.entities.SystemSettings.update(settings.id, { reminders_cloud_delivery: v });
+      } else {
+        await base44.entities.SystemSettings.create({ reminders_cloud_delivery: v });
+      }
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      qc.invalidateQueries({ queryKey: ["friendIdentity"] });
+      if (v) {
+        const ok = await enableCloudReminderDelivery();
+        if (ok) {
+          toast.success("Cloud-backed reminders are on — they'll reach you even if the app is force-stopped.");
+        } else {
+          toast.info("Turned on, but push delivery isn't confirmed yet. Make sure notifications are allowed, then send a test from the reminder settings.");
+        }
+      } else {
+        await disableCloudReminderDelivery();
+        toast.success("Off — reminders are delivered fully on-device and nothing is sent to the server.");
+      }
+    } catch (e) {
+      toast.error(e?.message || "Couldn't change reminder delivery");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <SubSection title="Reliable reminders (force-stop-proof)" icon={Cloud} defaultOpen={false}>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Reminders are always handed to your device first, which works fully offline. But if your phone <strong className="text-foreground">force-stops</strong> the app (swiped away, or aggressive battery saving), those on-device alarms can be cancelled and the reminder never fires.
+      </p>
+      <p className="text-xs text-muted-foreground leading-relaxed">
+        Turning this on lets a small relay hold your reminder times and <strong className="text-foreground">push them to you even when the app is fully closed</strong>{isNative() ? "" : " — the only way the web app can remind you with the tab closed"}. It's the durable path several testers were missing.
+      </p>
+      <div className="flex items-start gap-3 rounded-xl border border-border/60 bg-card px-3 py-2.5">
+        <Cloud className="w-4 h-4 mt-0.5 flex-shrink-0 text-sky-500" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-medium">Cloud-backed delivery</p>
+          <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
+            When on, your <strong className="text-foreground">reminder times</strong> (and their text, unless you turn that off below the reminders list) are sent to the relay so a push can reach you after a force-stop. When off, the app <strong className="text-foreground">contacts no server</strong> and reminders stay entirely on your device.
+          </p>
+        </div>
+        {busy ? (
+          <Loader2 className="w-4 h-4 mt-1 animate-spin text-muted-foreground flex-shrink-0" />
+        ) : (
+          <Switch checked={on} onCheckedChange={toggle} aria-label={`Cloud-backed reminder delivery: ${on ? "on" : "off"}`} />
+        )}
+      </div>
+      <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/15 p-2.5">
+        <ShieldCheck className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-emerald-500" />
+        <p className="text-[0.7rem] text-muted-foreground leading-relaxed">
+          This is independent of the Friends feature — turning it on doesn't add you to anyone's friends or share anything but your reminders. The app stays fully local-first; this is the one optional piece that needs the relay.
+        </p>
+      </div>
+    </SubSection>
+  );
+}
 
 // User-facing settings for the in-app toast surface. Persists to
 // SystemSettings.notification_prefs which Sonner's Toaster wrapper
@@ -157,6 +241,7 @@ export default function NotificationSettings() {
 
   return (
     <div className="space-y-5">
+      <CloudReminderDeliverySection />
       {isNative() && (
         <SubSection title="Notifications when the app is closed" icon={Info} defaultOpen={false}>
           <p className="text-xs text-muted-foreground leading-relaxed">

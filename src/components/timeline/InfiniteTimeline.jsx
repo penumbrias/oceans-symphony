@@ -505,7 +505,7 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
     onTap?.();
   };
   return (
-    <div className="absolute flex flex-col items-center cursor-pointer"
+    <div className="absolute cursor-pointer"
       role="button"
       tabIndex={0}
       aria-label={`${activityName || "Activity"} — tap to view details`}
@@ -515,23 +515,34 @@ function ActivityBar({ activityName, color, mergedCount, topPx, heightPx, notes,
       onTouchEnd={handleTouchEnd}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onTap?.() : undefined}
       onClick={(e) => { if (touchFiredRef.current) { touchFiredRef.current = false; return; } tap(e); }}>
-      <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
-        style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
-        <span className="text-xs font-bold text-white leading-none">
-          {activityName?.charAt(0)?.toUpperCase() || "A"}
-        </span>
-      </div>
-      <div className="text-center leading-tight mt-0.5 px-0.5"
-        style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word" }}>
-        {activityName}
-        {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
-      </div>
-      {heightPx > sz + 30 && (
-        <div className="w-0.5 rounded-full mt-0.5" style={{
-          height: Math.max(heightPx - sz - 26, 4),
-          background: `linear-gradient(to bottom, ${color}, ${color}40)`,
+      {/* Duration line — absolutely positioned so its length tracks the real
+          start→end span (not the variable label height). Its bottom lands
+          exactly at the activity's end; the marker + label paint on top of it. */}
+      {heightPx > sz + 6 && (
+        <div className="absolute rounded-full" aria-hidden="true" style={{
+          top: sz / 2,
+          left: "50%",
+          transform: "translateX(-50%)",
+          width: 3,
+          height: Math.max(heightPx - sz / 2, 4),
+          // Mostly solid (only a faint taper) so the bottom — the activity's end
+          // time — stays clearly visible rather than fading out early.
+          background: `linear-gradient(to bottom, ${color}, ${color} 80%, ${color}cc)`,
         }} />
       )}
+      <div className="relative flex flex-col items-center">
+        <div className="rounded-full flex-shrink-0 border-2 border-background flex items-center justify-center"
+          style={{ width: sz, height: sz, backgroundColor: color }} aria-hidden="true">
+          <span className="text-xs font-bold text-white leading-none">
+            {activityName?.charAt(0)?.toUpperCase() || "A"}
+          </span>
+        </div>
+        <div className="text-center leading-tight mt-0.5 px-1 rounded"
+          style={{ fontSize: 8, color, maxWidth: 54, wordBreak: "break-word", backgroundColor: "var(--color-bg)" }}>
+          {activityName}
+          {mergedCount > 1 && <span className="opacity-60"> ×{mergedCount}</span>}
+        </div>
+      </div>
     </div>
   );
 }
@@ -544,6 +555,15 @@ const TYPE_META = {
   task_done:       { icon: "✅" },
   mention:         { icon: "@" },
   symptom_checkin: { icon: "💊" },
+  sleep:           { icon: "😴" },
+  lineage:         { icon: "🧬" },
+  diary:           { icon: "📔" },
+  poll:            { icon: "🗳️" },
+  reminder:        { icon: "🔔" },
+  reflection:      { icon: "🪷" },
+  alter_note:      { icon: "📝" },
+  daily_tasks:     { icon: "🗓️" },
+  daily_task:      { icon: "✅" },
 };
 
 function EmotionBubble({ entry, topPx, onTap, onDoubleTap, colWidth, tiedAlters = [] }) {
@@ -696,6 +716,9 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, lane
 export default function InfiniteTimeline({
   day, sessions, activities, emotions, alters, hasData, isToday,
   journals = [], checkIns = [], bulletins = [], tasks = [],
+  sleeps = [], lineageEvents = [], diaryCards = [], polls = [],
+  reminderInstances = [], reflections = [], alterNotes = [], dailyProgress = null,
+  dailyTaskTemplates = [],
   showActivities = true, showCheckIns = true, showEmotions = true,
   showSymptoms = true,
   symptomSessions = [], symptomCheckIns = [], symptoms = [],
@@ -945,7 +968,9 @@ export default function InfiniteTimeline({
     activities.forEach((act) => {
       const actStart = parseDate(act.timestamp);
       const actStartMs = actStart.getTime();
-      const duration = Math.max(act.duration_minutes || 0, 0);
+      // Fall back to actual_duration_minutes for resolved plans that never got a
+      // planned duration, so they still draw a bar for the time they ran.
+      const duration = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
       const actEndMs = duration > 0 ? actStartMs + duration * 60 * 1000 : actStartMs + 30 * 60 * 1000;
 
       // Skip if activity doesn't intersect this day at all
@@ -970,10 +995,18 @@ export default function InfiniteTimeline({
       });
     });
     raw.sort((a, b) => a.startMins - b.startMins);
+    // Collapse ONLY a tight cluster logged at essentially the same instant (a
+    // batch of quick-tasks) into a single "×N" bar. Previously ANY overlap of
+    // the same category merged — which silently hid a distinct activity (e.g. a
+    // completed plan) that happened to fall inside a longer overlapping session.
+    // Genuinely-overlapping distinct activities must stay separate so
+    // activityColumns can lay them out side-by-side.
+    const SAME_INSTANT_MERGE_MINS = 3;
     const merged = [];
     raw.forEach((entry) => {
       const last = merged[merged.length - 1];
-      if (last && last.categoryId === entry.categoryId && entry.startMins <= last.endMins) {
+      const sameInstant = last && Math.abs(entry.startMins - last.startMins) <= SAME_INSTANT_MERGE_MINS;
+      if (last && last.categoryId === entry.categoryId && sameInstant) {
         last.endMins = Math.max(last.endMins, entry.endMins);
         last.mergedCount += 1;
       } else {
@@ -1055,6 +1088,101 @@ export default function InfiniteTimeline({
       }
     });
 
+    // Sleep — positioned at bedtime; label shows the slept duration if ended.
+    sleeps.forEach((s) => {
+      const when = s.bedtime || (s.date ? `${s.date}T12:00:00` : null);
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      let label = "Sleep";
+      if (s.bedtime && s.wake_time) {
+        const dur = Math.max(0, Math.round((parseDate(s.wake_time) - parseDate(s.bedtime)) / 60000));
+        label = `Slept ${Math.floor(dur / 60)}h ${dur % 60}m`;
+      }
+      entries.push({ mins, type: "sleep", id: s.id, label, data: s });
+    });
+
+    // System change / lineage events (fusion, split, dormancy, …).
+    lineageEvents.forEach((ev) => {
+      if (!ev.date) return;
+      const mins = minutesInDay(parseDate(ev.date), dayStart);
+      if (!inDay(mins)) return;
+      const label = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : "System change";
+      entries.push({ mins, type: "lineage", id: ev.id, label, data: ev });
+    });
+
+    // Diary cards — `date` is a day string, so fall back to noon when there's
+    // no created_date time-of-day.
+    diaryCards.forEach((d) => {
+      const when = d.created_date || (d.date ? `${d.date}T12:00:00` : null);
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "diary", id: d.id, label: d.name || "Diary card", data: d });
+    });
+
+    // Polls (creation).
+    polls.forEach((p) => {
+      if (!p.created_date) return;
+      const mins = minutesInDay(parseDate(p.created_date), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "poll", id: p.id, label: p.question || "Poll", data: p });
+    });
+
+    // Reminders that fired — positioned at when they actually fired/were due.
+    reminderInstances.forEach((ri) => {
+      const when = ri.fired_at || ri.scheduled_for;
+      if (!when) return;
+      const mins = minutesInDay(parseDate(when), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "reminder", id: ri.id, label: ri.title || ri.body || "Reminder", data: ri });
+    });
+
+    // Support / Learn reflections.
+    reflections.forEach((r) => {
+      if (!r.created_date) return;
+      const mins = minutesInDay(parseDate(r.created_date), dayStart);
+      if (!inDay(mins)) return;
+      entries.push({ mins, type: "reflection", id: r.id, label: r.exercise_title || "Reflection", data: r });
+    });
+
+    // Per-alter notes.
+    alterNotes.forEach((n) => {
+      if (!n.created_date) return;
+      const mins = minutesInDay(parseDate(n.created_date), dayStart);
+      if (!inDay(mins)) return;
+      const txt = (n.content || "").replace(/<[^>]+>/g, "").trim().slice(0, 40);
+      entries.push({ mins, type: "alter_note", id: n.id, label: txt || "Note", data: n });
+    });
+
+    // Daily-task completions. Each task that has a checkoff time renders at that
+    // time as its own event; tasks without one (AUTO triggers, or records from
+    // before per-task times were captured) collapse into a single marker
+    // anchored at the record's created_date.
+    if (dailyProgress && Array.isArray(dailyProgress.completed_task_ids) && dailyProgress.completed_task_ids.length) {
+      const times = dailyProgress.completion_times || {};
+      const dtTitleById = {};
+      for (const tpl of dailyTaskTemplates) { if (tpl?.id) dtTitleById[tpl.id] = tpl.title || "Task"; }
+      const untimed = [];
+      for (const taskId of dailyProgress.completed_task_ids) {
+        const when = times[taskId];
+        if (when) {
+          const mins = minutesInDay(parseDate(when), dayStart);
+          if (inDay(mins)) {
+            entries.push({ mins, type: "daily_task", id: `dt-${dailyProgress.id}-${taskId}`, label: dtTitleById[taskId] || "Daily task", data: { title: dtTitleById[taskId] || "Daily task" } });
+          }
+        } else {
+          untimed.push(taskId);
+        }
+      }
+      if (untimed.length && dailyProgress.created_date) {
+        const mins = minutesInDay(parseDate(dailyProgress.created_date), dayStart);
+        if (inDay(mins)) {
+          entries.push({ mins, type: "daily_tasks", id: `dp-${dailyProgress.id}`, label: `${untimed.length} daily task${untimed.length !== 1 ? "s" : ""} done`, data: { ...dailyProgress, completed_task_ids: untimed } });
+        }
+      }
+    }
+
     // Group symptom check-ins by minute into single event entries
     const scByMinute = {};
     symptomCheckIns.forEach(sc => {
@@ -1069,7 +1197,7 @@ export default function InfiniteTimeline({
     });
 
     return entries.sort((a, b) => a.mins - b.mins).map((e, i) => ({ ...e, key: `ev-${i}-${e.id}` }));
-  }, [journals, checkIns, bulletins, tasks, symptomCheckIns, symptomMap, dayStart]);
+  }, [journals, checkIns, bulletins, tasks, sleeps, lineageEvents, diaryCards, polls, reminderInstances, reflections, alterNotes, dailyProgress, symptomCheckIns, symptomMap, dayStart]);
 
   const getTopPx = useCallback((mins) => {
     return (mins / 60) * rowH;
@@ -1510,10 +1638,15 @@ export default function InfiniteTimeline({
                       {isCurrentHour && (
                         <div className="absolute inset-0 bg-primary/5 pointer-events-none" />
                       )}
-                      <div className="flex-shrink-0 text-xs text-muted-foreground pt-1 pl-1 text-left" style={{ width: LABEL_WIDTH }}>
+                      {/* The gridline sits at the TRUE hour position (no offset) so
+                          it lines up with content placed by getTopPx — previously
+                          an 8px (mt-2) push made the line sit below its hour, so an
+                          activity looked ~15min short of its real end. The label is
+                          centred on that line. */}
+                      <div className="flex-shrink-0 text-xs text-muted-foreground pl-1 text-left" style={{ width: LABEL_WIDTH, transform: "translateY(-50%)" }}>
                         {format(new Date(dayStart.getTime() + h * 3600000), "h a")}
                       </div>
-                      <div className="flex-1 border-t border-border/30 mt-2" />
+                      <div className="flex-1 border-t border-border/30" />
                     </div>
                   );
                 })}
@@ -1544,7 +1677,7 @@ export default function InfiniteTimeline({
                        <ActivityBar
                          key={entry.key}
                          activityName={entry.displayName}
-                         color={entry.categoryColor || "hsl(var(--primary))"}
+                         color={entry.categoryColor || "#8b5cf6"}
                          mergedCount={entry.mergedCount}
                          topPx={topPx}
                          heightPx={heightPx}
@@ -1628,7 +1761,17 @@ export default function InfiniteTimeline({
                           else if (entry.type === "checkin") navigate(`/system-checkin?id=${entry.id}`);
                           else if (entry.type === "bulletin") navigate(`/`);
                           else if (entry.type === "task") navigate(`/todo`);
+                          else if (entry.type === "task_done") navigate(`/todo`);
                           else if (entry.type === "symptom_checkin") navigate(`/checkin-log`);
+                          else if (entry.type === "sleep") navigate(`/sleep`);
+                          else if (entry.type === "lineage") navigate(`/system-history`);
+                          else if (entry.type === "diary") navigate(`/diary`);
+                          else if (entry.type === "poll") navigate(`/polls?id=${entry.id}`);
+                          else if (entry.type === "reminder") navigate(`/reminders`);
+                          else if (entry.type === "reflection") navigate(`/grounding`);
+                          else if (entry.type === "alter_note") navigate(`/alter/${entry.data?.alter_id || ""}`);
+                          else if (entry.type === "daily_tasks") navigate(`/tasks`);
+                          else if (entry.type === "daily_task") navigate(`/tasks`);
                         }}
                       />
                     ))}
@@ -1820,10 +1963,22 @@ export default function InfiniteTimeline({
 
       {detailPopup?.type === "activity" && (() => {
         const { entry } = detailPopup;
-        const color = entry.categoryColor || "hsl(var(--primary))";
+        const color = entry.categoryColor || "#8b5cf6";
         return (
           <DetailPopup icon="🏃" timeStr={formatMins(entry.startMins)} onClose={() => setDetailPopup(null)}>
             <p className="text-sm font-semibold" style={{ color }}>{entry.displayName}</p>
+            {(() => {
+              const act = entry.activity;
+              const start = parseDate(act.timestamp);
+              const durMin = Math.max(act.duration_minutes || act.actual_duration_minutes || 0, 0);
+              const end = durMin > 0 ? new Date(start.getTime() + durMin * 60000) : null;
+              const durLabel = durMin >= 60 ? `${Math.round((durMin / 60) * 10) / 10}h` : `${durMin}m`;
+              return (
+                <p className="text-xs text-muted-foreground mt-1">
+                  {format(start, "h:mm a")}{end ? ` – ${format(end, "h:mm a")}` : ""}{durMin > 0 ? ` · ${durLabel}` : ""}
+                </p>
+              );
+            })()}
             {entry.mergedCount > 1 && <p className="text-xs text-muted-foreground mt-1">{entry.mergedCount} instances</p>}
             {entry.activity.notes && <p className="text-sm text-foreground mt-2 whitespace-pre-wrap">{entry.activity.notes}</p>}
             {!entry.activity.notes && entry.mergedCount <= 1 && <p className="text-xs text-muted-foreground mt-1 italic">No notes</p>}
@@ -1923,6 +2078,32 @@ export default function InfiniteTimeline({
                 ))}
               </div>
             )}
+            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note", "daily_task"].includes(entry.type) && (
+              <p className="text-sm font-semibold whitespace-pre-wrap">{entry.label}</p>
+            )}
+            {entry.type === "daily_tasks" && (() => {
+              const ids = entry.data?.completed_task_ids || [];
+              const titleById = {};
+              for (const tpl of dailyTaskTemplates) { if (tpl?.id) titleById[tpl.id] = tpl.title || "Task"; }
+              const names = ids.map((id) => titleById[id]).filter(Boolean);
+              return (
+                <div className="space-y-1.5">
+                  <p className="text-sm font-semibold">{ids.length} daily task{ids.length !== 1 ? "s" : ""} done</p>
+                  {names.length > 0 ? (
+                    <ul className="text-sm space-y-0.5">
+                      {names.map((n, i) => (
+                        <li key={i} className="flex items-start gap-1.5">
+                          <span className="text-emerald-500">✓</span>
+                          <span className="text-foreground">{n}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-xs text-muted-foreground">Task names unavailable.</p>
+                  )}
+                </div>
+              );
+            })()}
           </DetailPopup>
         );
       })()}

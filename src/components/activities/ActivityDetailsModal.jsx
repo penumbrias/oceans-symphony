@@ -413,17 +413,17 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                   ✏️ Editing: {act.activity_name}
                 </div>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <label className="text-sm font-medium block mb-1">Start</label>
                     <input type="datetime-local" value={(editDataMap[act.id] || {}).startTimeStr || ""}
                       onChange={e => setEditDataForAct(act.id, d => ({ ...d, startTimeStr: e.target.value }))}
-                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                      className="w-full min-w-0 h-9 px-3 rounded-md border border-input bg-background text-sm" />
                   </div>
-                  <div className="flex-1">
+                  <div className="flex-1 min-w-0">
                     <label className="text-sm font-medium block mb-1">End</label>
                     <input type="datetime-local" value={(editDataMap[act.id] || {}).endTimeStr || ""}
                       onChange={e => setEditDataForAct(act.id, d => ({ ...d, endTimeStr: e.target.value }))}
-                      className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm" />
+                      className="w-full min-w-0 h-9 px-3 rounded-md border border-input bg-background text-sm" />
                   </div>
                 </div>
                 <ActivityPillSelector

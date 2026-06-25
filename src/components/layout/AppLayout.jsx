@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useMemo } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -378,16 +378,52 @@ const handleNotifClick = (mentionLog) => {
     setHistoryIdx(window.history.state?.idx ?? 0);
   }, [location.pathname]);
 
-  // Scroll the content area back to the top on each navigation. <main> is the
-  // only scroll context, and it's the SAME DOM element across route changes, so
-  // it otherwise keeps the previous page's scroll position — which is why a new
-  // page sometimes opened part-way down. Skip when a ?highlight=… deep-link is
-  // present, since useHighlightScroll will scroll to the target row itself.
+  // Per-route scroll memory. <main> is the only scroll context and the SAME
+  // DOM element across route changes, so it otherwise keeps the previous page's
+  // scroll. Forward navigations should open at the top, but RETURNING to a page
+  // (e.g. the alters list after viewing/editing an alter, or any "back") should
+  // land you back where you were — losing your place is hostile, doubly so in an
+  // amnesia-aid app. So we remember each route's scroll by pathname and restore
+  // it; an unseen route defaults to the top. Skipped when a ?highlight=… deep
+  // link is present — useHighlightScroll positions the page itself.
   const mainScrollRef = useRef(null);
-  useEffect(() => {
-    if (new URLSearchParams(location.search).has("highlight")) return;
+  const scrollMemory = useRef(new Map()).current;
+  useLayoutEffect(() => {
     const el = mainScrollRef.current;
-    if (el) el.scrollTop = 0;
+    if (!el) return;
+    if (new URLSearchParams(location.search).has("highlight")) return;
+    const key = location.pathname;
+    const target = scrollMemory.get(key) ?? 0;
+
+    // Content can keep growing after mount as cached/async data hydrates, so a
+    // single scrollTop assignment may clamp short. Re-apply across a few frames
+    // until the container can actually reach the target. `restoring` suppresses
+    // the listener so these programmatic scrolls don't overwrite the saved value.
+    let restoring = true;
+    let raf = null;
+    let tries = 0;
+    const apply = () => {
+      const node = mainScrollRef.current;
+      if (!node) return;
+      node.scrollTop = target;
+      tries += 1;
+      if (target > 0 && node.scrollTop < target - 2 && tries < 30) {
+        raf = requestAnimationFrame(apply);
+      } else {
+        restoring = false;
+      }
+    };
+    apply();
+    const guard = setTimeout(() => { restoring = false; }, 700);
+
+    const onScroll = () => { if (!restoring) scrollMemory.set(key, el.scrollTop); };
+    el.addEventListener("scroll", onScroll, { passive: true });
+
+    return () => {
+      el.removeEventListener("scroll", onScroll);
+      if (raf) cancelAnimationFrame(raf);
+      clearTimeout(guard);
+    };
   }, [location.pathname, location.search]);
 
   const canGoBack = historyIdx > 0 && !isTabRoot(location.pathname);

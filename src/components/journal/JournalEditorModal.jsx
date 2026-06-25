@@ -117,18 +117,47 @@ export default function JournalEditorModal({
     () => signpostAuthors.filter(a => !removedAuthorIds.has(a.id)),
     [signpostAuthors, removedAuthorIds]
   );
-  const signpostHeadIsSystem = isSystemSignpost(visibleSignpostAuthors[0]);
-  // If the user removed every signposted author, treat the entry as unattributed
-  // rather than silently falling back to the dropdown selection.
-  const allSignpostAuthorsRemoved = signpostAuthors.length > 0 && visibleSignpostAuthors.length === 0;
+  // The parsed -name/+name text is authoritative ONLY when the user actually
+  // TYPED in the signpost field. Otherwise the dropdown selection (id-based,
+  // below) wins — it's lossless for ANY name, including ones the \w-only
+  // signpost pattern can't represent. An alter literally named "[Name]"
+  // auto-fills the marker "-[Name]", which re-parses to nothing, so the old
+  // "parse always overrides" logic silently dropped it the moment a second,
+  // normally-named author was added. The auto-filled markers are now just a
+  // display mirror unless the user edits them.
+  const useSignpostParse = signpostTouchedByUser && signpostAuthors.length > 0;
+  // Id-based authors from the "Written by" dropdown — first id is primary.
+  const dropdownAuthors = useMemo(
+    () => [authorAlterId, ...(coAuthorIds || [])]
+      .filter(Boolean)
+      .map(id => altersById[id])
+      .filter(Boolean),
+    [authorAlterId, coAuthorIds, altersById]
+  );
+  // The authors actually shown as chips and saved.
+  const displayAuthors = useSignpostParse ? visibleSignpostAuthors : dropdownAuthors;
+  const signpostHeadIsSystem = isSystemSignpost(displayAuthors[0]);
+  // Typed-signpost mode only: user removed every signposted author → leave the
+  // entry unattributed rather than falling back to the dropdown.
+  const allSignpostAuthorsRemoved = useSignpostParse && visibleSignpostAuthors.length === 0;
   const effectiveAuthorId = (signpostHeadIsSystem || allSignpostAuthorsRemoved)
     ? null
-    : (visibleSignpostAuthors[0]?.id ?? authorAlterId);
+    : (displayAuthors[0]?.id ?? null);
   const effectiveCoAuthorIds = (signpostHeadIsSystem || allSignpostAuthorsRemoved)
     ? []
-    : (visibleSignpostAuthors.length > 0
-        ? visibleSignpostAuthors.slice(1).filter(a => !isSystemSignpost(a)).map(a => a.id)
-        : coAuthorIds);
+    : displayAuthors.slice(1).filter(a => !isSystemSignpost(a)).map(a => a.id);
+
+  // Remove an author chip. Typed-signpost mode masks it (can't rewrite the
+  // user's text); dropdown mode drops it straight from the id selection.
+  const removeAuthor = (a) => {
+    if (useSignpostParse) {
+      setRemovedAuthorIds((s) => new Set(s).add(a.id));
+      return;
+    }
+    const list = [authorAlterId, ...(coAuthorIds || [])].filter(Boolean).filter((id) => id !== a.id);
+    setAuthorAlterId(list[0] || null);
+    setCoAuthorIds(list.slice(1));
+  };
 
 useEffect(() => {
     setRemovedAuthorIds(new Set());
@@ -442,10 +471,10 @@ useEffect(() => {
               </div>
             </div>
 
-            {visibleSignpostAuthors.length > 0 && (
+            {displayAuthors.length > 0 && (
               <div className="flex items-center gap-1.5 flex-wrap pl-5 text-xs text-muted-foreground">
                 <span>Signing as:</span>
-                {visibleSignpostAuthors.map((a, i) => (
+                {displayAuthors.map((a, i) => (
                   <span key={a.id} className="inline-flex items-center gap-1 pl-1 pr-0.5 py-0.5 rounded-full border border-border/50 bg-card">
                     {isSystemSignpost(a) ? (
                       <SystemAvatar size="sm" />
@@ -453,11 +482,11 @@ useEffect(() => {
                       <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: a.color || "#94a3b8" }} />
                     )}
                     <span className="truncate max-w-[7rem]">{isSystemSignpost(a) ? systemIdentity.name : a.name}</span>
-                    {i === 0 && visibleSignpostAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
+                    {i === 0 && displayAuthors.length > 1 && <span className="opacity-50">(primary)</span>}
                     <button
                       type="button"
                       aria-label={`Remove ${isSystemSignpost(a) ? systemIdentity.name : a.name} as author`}
-                      onClick={() => setRemovedAuthorIds((s) => new Set(s).add(a.id))}
+                      onClick={() => removeAuthor(a)}
                       className="text-muted-foreground hover:text-destructive flex-shrink-0"
                     >
                       <X className="w-3 h-3" />

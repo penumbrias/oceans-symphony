@@ -466,6 +466,12 @@ export default function Dashboard() {
       const nowCompleted = !completedIds.has(taskId);
       if (nowCompleted) completedIds.add(taskId);
       else completedIds.delete(taskId);
+      // Per-task checkoff time so the Timeline places it at the moment it was
+      // ticked (mirrors DailyTasks.toggleManual) — without this, a task checked
+      // from the dashboard shortcut stays in the grouped "N done" marker.
+      const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
+      if (nowCompleted) completion_times[taskId] = new Date().toISOString();
+      else delete completion_times[taskId];
       const currentXP = currentRecord?.xp_earned || 0;
       const newXP = nowCompleted
         ? currentXP + (tpl.points || 0)
@@ -473,6 +479,7 @@ export default function Dashboard() {
       if (currentRecord) {
         await base44.entities.DailyProgress.update(currentRecord.id, {
           completed_task_ids: [...completedIds],
+          completion_times,
           xp_earned: newXP,
         });
       } else {
@@ -481,6 +488,7 @@ export default function Dashboard() {
           period_key: today,
           frequency: "daily",
           completed_task_ids: [...completedIds],
+          completion_times,
           xp_earned: newXP,
         });
       }

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow, format } from "date-fns";
-import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2, Lock, Check, Search, X } from "lucide-react";
+import { Trash2, Reply, Link as LinkIcon, ChevronDown, ChevronRight, ArrowUpDown, Undo2, Sparkles, ImagePlus, Loader2, Lock, Check, Search, X, Pencil } from "lucide-react";
 import { Link } from "react-router-dom";
 import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
@@ -451,6 +451,17 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const [showReplyInput, setShowReplyInput] = useState(false);
   const [showReactPicker, setShowReactPicker] = useState(false);
   const [childrenCollapsed, setChildrenCollapsed] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(comment.content || "");
+
+  const saveEdit = async () => {
+    const v = draft.trim();
+    if (!v) return;
+    await base44.entities.BulletinComment.update(comment.id, { content: v, edited_date: new Date().toISOString() });
+    qc.invalidateQueries({ queryKey: ["bulletinComments", bulletinId] });
+    qc.invalidateQueries({ queryKey: ["bulletinCommentsAll"] });
+    setEditing(false);
+  };
 
   const children = allComments.filter(c => c.parent_comment_id === comment.id);
   const hasChildren = children.length > 0;
@@ -512,14 +523,43 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
             <AuthorsRow authorIds={authorIds} alters={alters} timestamp={timeAgo} showNames={depth === 0} />
           </div>
           {canDelete && (
-            <button onClick={() => onDeleteTap(comment)} className="text-muted-foreground hover:text-destructive p-0.5 flex-shrink-0">
-              <Trash2 className="w-3 h-3" />
-            </button>
+            <div className="flex items-center gap-0.5 flex-shrink-0">
+              {!editing && (
+                <button onClick={() => { setDraft(comment.content || ""); setEditing(true); }} className="text-muted-foreground hover:text-foreground p-0.5" title="Edit">
+                  <Pencil className="w-3 h-3" />
+                </button>
+              )}
+              <button onClick={() => onDeleteTap(comment)} className="text-muted-foreground hover:text-destructive p-0.5" title="Delete">
+                <Trash2 className="w-3 h-3" />
+              </button>
+            </div>
           )}
         </div>
-        <div className="text-xs text-foreground leading-relaxed mt-1 break-words wysiwyg-content">
-          {renderBulletinContent(comment.content, alters, terms, { isRich: !!comment.is_rich })}
-        </div>
+        {editing ? (
+          <div className="mt-1 space-y-1.5">
+            <textarea
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              rows={3}
+              autoFocus
+              className="w-full text-xs p-2 rounded-lg border border-input bg-background resize-y"
+            />
+            <div className="flex items-center gap-1.5">
+              <button onClick={saveEdit} disabled={!draft.trim()}
+                className="px-2.5 py-1 rounded-md bg-primary text-primary-foreground text-xs font-medium disabled:opacity-50">Save</button>
+              <button onClick={() => { setDraft(comment.content || ""); setEditing(false); }}
+                className="px-2.5 py-1 rounded-md border border-border text-xs">Cancel</button>
+            </div>
+            {comment.is_rich && (
+              <p className="text-[0.625rem] text-muted-foreground">This is a formatted comment — you're editing its underlying text/markup.</p>
+            )}
+          </div>
+        ) : (
+          <div className="text-xs text-foreground leading-relaxed mt-1 break-words wysiwyg-content">
+            {renderBulletinContent(comment.content, alters, terms, { isRich: !!comment.is_rich })}
+            {comment.edited_date && <span className="text-[0.625rem] text-muted-foreground/70 italic ml-1">· edited</span>}
+          </div>
+        )}
 
         <div className="flex flex-wrap gap-1 mt-1.5 items-center">
           {Object.entries(reactions).filter(([, ids]) => ids.length > 0).map(([emoji, ids]) => (

@@ -575,6 +575,30 @@ export async function runSnoozeOptionsMigration(defaultSnoozeOptions) {
   }
 }
 
+// One-time: existing reminders were created with the in-app-only default, so
+// they never produced closed-app (OS / push) notifications — they only fired
+// in-app on next open. Add the "push" channel to every reminder that lacks it
+// so they start reaching the notification tray. Non-destructive (only adds;
+// keeps in_app), idempotent, reversible per-reminder by the user.
+export async function runReminderPushChannelMigration() {
+  const FLAG = "reminders_push_channel_migration_v1_done";
+  if (localStorage.getItem(FLAG)) return;
+  try {
+    const reminders = await base44.entities.Reminder.list();
+    for (const r of reminders || []) {
+      const channels = Array.isArray(r.delivery_channels) && r.delivery_channels.length
+        ? r.delivery_channels
+        : ["in_app"];
+      if (!channels.includes("push")) {
+        await base44.entities.Reminder.update(r.id, { delivery_channels: [...channels, "push"] });
+      }
+    }
+    localStorage.setItem(FLAG, "1");
+  } catch (e) {
+    console.warn("[remindersScheduler] push-channel migration error:", e.message);
+  }
+}
+
 export async function runReminderMigration() {
   const FLAG = "reminders_migration_v2_done";
   if (localStorage.getItem(FLAG)) return;
@@ -645,6 +669,7 @@ export function useRemindersScheduler() {
   useEffect(() => {
     // Run migrations once
     runReminderMigration();
+    runReminderPushChannelMigration();
     base44.entities.SystemSettings.list().then(list => {
       runSnoozeOptionsMigration(list?.[0]?.default_snooze_options);
     }).catch(() => {});

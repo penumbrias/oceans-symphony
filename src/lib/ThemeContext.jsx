@@ -418,8 +418,36 @@ export function ThemeProvider({ children }) {
     }
 
     if (colors) {
+      // Convert a hex to an "H S% L%" triplet so legacy inline styles written as
+      // `hsl(var(--key))` actually render. The theme only ever set
+      // --color-${key} (a hex) and left --${key} empty, so the many
+      // `hsl(var(--primary))` / `hsl(var(--muted-foreground))` usages across the
+      // app resolved to an invalid hsl() → transparent. Exposing both (themed)
+      // fixes every one of those at once.
+      const hexToHslTriplet = (hex) => {
+        if (typeof hex !== "string") return null;
+        let h = hex.trim().replace(/^#/, "");
+        if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+        if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return null;
+        const r = parseInt(h.slice(0, 2), 16) / 255;
+        const g = parseInt(h.slice(2, 4), 16) / 255;
+        const b = parseInt(h.slice(4, 6), 16) / 255;
+        const max = Math.max(r, g, b), min = Math.min(r, g, b);
+        let hue = 0, sat = 0; const lum = (max + min) / 2;
+        if (max !== min) {
+          const d = max - min;
+          sat = lum > 0.5 ? d / (2 - max - min) : d / (max + min);
+          if (max === r) hue = (g - b) / d + (g < b ? 6 : 0);
+          else if (max === g) hue = (b - r) / d + 2;
+          else hue = (r - g) / d + 4;
+          hue /= 6;
+        }
+        return `${Math.round(hue * 360)} ${Math.round(sat * 100)}% ${Math.round(lum * 100)}%`;
+      };
       for (const [key, value] of Object.entries(colors)) {
         document.documentElement.style.setProperty(`--color-${key}`, value);
+        const triplet = hexToHslTriplet(value);
+        if (triplet) document.documentElement.style.setProperty(`--${key}`, triplet);
       }
     }
 

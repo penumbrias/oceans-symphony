@@ -113,12 +113,44 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
   const queryClient = useQueryClient();
   const t = useTerms();
   const compact = cols >= 4;
-  const [expandedOwners, setExpandedOwners] = useState(new Set());
   const [subsystemMenuGroup, setSubsystemMenuGroup] = useState(null);
+  // Inline expand state persists to sessionStorage (when persistKey is set) so
+  // leaving for an alter profile and coming back keeps every subsystem you'd
+  // opened expanded, rather than collapsing to default. Keyed by node PATH
+  // (ancestor ids joined) — stable across remounts — so the same alter in two
+  // branches expands independently.
+  const expandStoreKey = persistKey ? `gridExpanded_${persistKey}` : null;
+  const [expandedOwners, setExpandedOwners] = useState(() => {
+    if (!expandStoreKey) return new Set();
+    try { const raw = sessionStorage.getItem(expandStoreKey); return new Set(raw ? JSON.parse(raw) : []); } catch { return new Set(); }
+  });
+  useEffect(() => {
+    if (!expandStoreKey) return;
+    try { sessionStorage.setItem(expandStoreKey, JSON.stringify([...expandedOwners])); } catch { /* storage off */ }
+  }, [expandedOwners, expandStoreKey]);
+
   // For owners with multiple subsystems: a SET of expanded subsystem ids per
-  // node PATH (not alter id — the same alter can appear in more than one branch
-  // and each instance expands independently). Several can be open at once.
-  const [gridExpandedSubs, setGridExpandedSubs] = useState({});
+  // node PATH. Serialised as { path: [subId,…] } for sessionStorage.
+  const subStoreKey = persistKey ? `gridExpandedSubs_${persistKey}` : null;
+  const [gridExpandedSubs, setGridExpandedSubs] = useState(() => {
+    if (!subStoreKey) return {};
+    try {
+      const raw = sessionStorage.getItem(subStoreKey);
+      if (!raw) return {};
+      const obj = JSON.parse(raw);
+      const out = {};
+      for (const k of Object.keys(obj)) out[k] = new Set(obj[k]);
+      return out;
+    } catch { return {}; }
+  });
+  useEffect(() => {
+    if (!subStoreKey) return;
+    try {
+      const obj = {};
+      for (const k of Object.keys(gridExpandedSubs)) obj[k] = [...(gridExpandedSubs[k] || [])];
+      sessionStorage.setItem(subStoreKey, JSON.stringify(obj));
+    } catch { /* storage off */ }
+  }, [gridExpandedSubs, subStoreKey]);
   const toggleSubFor = (path, subId) => setGridExpandedSubs((m) => {
     const cur = new Set(m[path] || []);
     if (cur.has(subId)) cur.delete(subId); else cur.add(subId);
@@ -157,7 +189,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     setNavStack((s) => [...s, group]);
     // Collapse inline expansion state so the new top level starts clean.
     setExpandedOwners(new Set());
-    setGridActiveSub({});
+    setGridExpandedSubs({});
   };
   // Seed the visited set with the breadcrumb owners so a member can't
   // re-expand an ancestor and loop.

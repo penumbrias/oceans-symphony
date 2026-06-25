@@ -8,6 +8,7 @@ import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
+import OctoconConnect from "@/components/settings/OctoconConnect";
 
 // Surfaces the existing Simply Plural + PluralKit importers right on the Alters
 // page (and the empty-state) so new users can bring their members in without
@@ -45,6 +46,7 @@ export default function ImportAltersModal({ open, onClose, contentClassName = ""
           <SimplyPluralFileImport settings={settings} onSettingsChange={onSettingsChange} />
           <PluralKitConnect settings={settings} onSettingsChange={onSettingsChange} />
           <OpenPluralConnect settings={settings} onSettingsChange={onSettingsChange} />
+          <OctoconConnect settings={settings} onSettingsChange={onSettingsChange} />
         </div>
       </DialogContent>
     </Dialog>

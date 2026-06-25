@@ -115,6 +115,7 @@ export default function usePersistentNotifications() {
 
   const wantFronters = native && prefs.fronters;
   const wantSymptoms = native && prefs.symptoms;
+  const wantActivity = native && prefs.activity;
 
   const { data: sessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -138,6 +139,14 @@ export default function usePersistentNotifications() {
     queryFn: () => base44.entities.Symptom.list(),
     enabled: wantSymptoms,
   });
+  // In-progress sleep counts as a running activity in the notification too.
+  const { data: sleeps = [] } = useQuery({
+    queryKey: ["sleep"],
+    queryFn: () => base44.entities.Sleep.list(),
+    enabled: wantActivity,
+    refetchInterval: wantActivity ? 60000 : false,
+  });
+  const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time) || null;
 
   // --- Current fronters notification (only when someone is fronting) ---
   useEffect(() => {
@@ -206,24 +215,30 @@ export default function usePersistentNotifications() {
   // only when exactly one is running (otherwise which to end is ambiguous).
   useEffect(() => {
     if (!native) return;
-    if (!prefs.activity || activeActivities.length === 0) { syncPersistentNotification("activity", { enabled: false }); return; }
-    const sinceOf = (a) => {
-      try { return new Date(a.startTime).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
+    if (!prefs.activity || (activeActivities.length === 0 && !activeSleep)) { syncPersistentNotification("activity", { enabled: false }); return; }
+    const sinceOf = (iso) => {
+      try { return new Date(iso).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }); }
       catch { return ""; }
     };
-    const single = activeActivities.length === 1 ? activeActivities[0] : null;
-    const title = single ? "Activity in progress" : `${activeActivities.length} activities in progress`;
-    const body = activeActivities
-      .map((a) => { const s = sinceOf(a); return `${a.name}${s ? ` · since ${s}` : ""}`; })
-      .join("\n");
+    const lines = activeActivities.map((a) => { const s = sinceOf(a.startTime); return `${a.name}${s ? ` · since ${s}` : ""}`; });
+    if (activeSleep) {
+      const s = sinceOf(activeSleep.bedtime);
+      lines.push(`Sleep${s ? ` · since ${s}` : ""}`);
+    }
+    const total = activeActivities.length + (activeSleep ? 1 : 0);
+    const onlySleep = activeActivities.length === 0 && !!activeSleep;
+    const title = total === 1 ? (onlySleep ? "Sleep in progress" : "Activity in progress") : `${total} activities in progress`;
+    // "End & log" only makes sense for exactly one running ACTIVITY — sleep ends
+    // via its own richer flow on the Sleep page, so don't offer it for sleep.
+    const single = (activeActivities.length === 1 && !activeSleep) ? activeActivities[0] : null;
     syncPersistentNotification("activity", {
       enabled: true,
       title,
-      body,
+      body: lines.join("\n"),
       ...(single ? { actionTypeId: "ACTIVITY_ACTIONS" } : {}),
       extra: { kind: "activity", ...(single ? { id: single.id } : {}) },
     });
-  }, [prefs.activity, activeActivities, resyncTick]);
+  }, [prefs.activity, activeActivities, activeSleep, resyncTick]);
 
   return null;
 }

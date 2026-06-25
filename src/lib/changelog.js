@@ -18,8 +18,138 @@
 
 export const CHANGELOG = [
   {
-    date: "June 23, 2026",
+    date: "June 24, 2026",
     changes: [
+      {
+        type: "improve",
+        text: "\"Plan something\" now has every plan option in its pills — set it as a to-do, add a location, repeat, reminder, or mark it critical — and picking who it's for uses the same searchable list as everywhere else.",
+      },
+      {
+        type: "fix",
+        text: "Checking off a daily task from the dashboard now puts it on the Timeline at the moment you ticked it, instead of grouping it with the rest.",
+      },
+      {
+        type: "fix",
+        text: "Desktop: the dashboard no longer shifts sideways when you open the \"Plan something\" box.",
+      },
+      {
+        type: "improve",
+        text: "A sleep that's in progress now shows up as an Active Activity (on the dashboard and in the ongoing notification), so it's easy to spot and end.",
+      },
+      {
+        type: "improve",
+        text: "Quick task vs. Plan: tapping into each now explains what it makes — a to-do for your To-Do List, vs. a scheduled activity on your Activity Tracker.",
+      },
+      {
+        type: "improve",
+        text: "You can now edit a bulletin comment after posting it (tap the pencil), and edit a lineage event's date/cause/notes in System History.",
+      },
+      {
+        type: "improve",
+        text: "You can now edit a private message after sending it (on an alter's board), and edit or delete your saved Learn reflections.",
+      },
+      {
+        type: "improve",
+        text: "The \"What's new\" bar now shows the version number next to each update's date.",
+      },
+      {
+        type: "fix",
+        text: "Timeline: the hour gridlines were drawn a touch low, so activities looked like they ended ~15 min early — lines now sit at their true hour and the activity bar's end is clearer.",
+      },
+      {
+        type: "fix",
+        text: "Timeline: an activity's bar now spans its full duration accurately — it was ending a bit short of the real end time.",
+      },
+      {
+        type: "improve",
+        text: "Tapping an activity on the timeline now shows its start and end times (and duration), not just the start.",
+      },
+      {
+        type: "improve",
+        text: "Activity Tracker time labels now line up with the gridlines instead of sitting just below them.",
+      },
+      {
+        type: "improve",
+        text: "Daily tasks now appear on the timeline at the time you actually ticked each one off, instead of all bunched into one marker. (Tasks that complete automatically still group together.)",
+      },
+      {
+        type: "fix",
+        text: "Colours that use the app's accent (uncategorised activities like a completed plan, plus various highlights across the app) were coming out invisible — they now render their colour again.",
+      },
+      {
+        type: "fix",
+        text: "Activities without a category (like a completed plan) now show their full coloured bar on the timeline — they were rendering as just a dot with an invisible bar.",
+      },
+      {
+        type: "fix",
+        text: "Completed plans now show on the timeline as their own activity block — before, a plan that overlapped another activity got hidden inside it.",
+      },
+      {
+        type: "improve",
+        text: "Tapping a daily-tasks marker on the timeline now lists which tasks you finished, not just the count.",
+      },
+      {
+        type: "fix",
+        text: "Journal Edit/Delete moved to the bottom of the entry — Delete is no longer right next to the close button where it was easy to hit by mistake.",
+      },
+      {
+        type: "fix",
+        text: "Activity edit popup (e.g. editing a sleep) no longer gets cut off on the right — the Start/End date fields now fit the box.",
+      },
+      {
+        type: "feature",
+        text: "The Timeline now surfaces even more of your day — sleep, lineage events, diary cards, polls, reminders that fired, reflections, alter notes and daily-task completions all show up alongside everything else. Tap any of them to open it.",
+      },
+      {
+        type: "feature",
+        text: "Octocon import now brings your polls across too — both choice and yes/no/veto polls, with every vote kept against the right alter and any voter comments preserved.",
+      },
+      {
+        type: "feature",
+        text: "Reliable reminders: a new \"force-stop-proof\" option (Settings → Notifications) gets reminders to you even when your phone has fully closed the app — no Friends setup needed. Off by default; the app stays fully offline until you switch it on.",
+      },
+      {
+        type: "fix",
+        text: "Octocon import: a custom-field value whose field was deleted in Octocon is now kept (as an \"Imported field\") instead of being dropped.",
+      },
+    ],
+  },
+  {
+    date: "June 23, 2026",
+    version: "0.67.8",
+    changes: [
+      {
+        type: "feature",
+        text: "Import from Octocon — bring your alters, groups, custom fields and fronting history over from an Octocon .json export (Settings → Data, or the Import button on the Alters page).",
+      },
+      {
+        type: "fix",
+        text: "Journal authors whose name uses brackets (like \"[Name]\") are no longer dropped when a second author is added — every author is kept.",
+      },
+      {
+        type: "fix",
+        text: "You can now delete a journal entry — open it and tap the trash icon.",
+      },
+      {
+        type: "fix",
+        text: "Reminders now send real push notifications by default (they were quietly in-app-only) — your existing reminders were switched on too. Turn off \"Push notification\" on any you want to keep silent.",
+      },
+      {
+        type: "fix",
+        text: "Scheduled reminders now fire reliably when the app is closed — including on Samsung, which was dropping them. (Requires this update's app install.)",
+      },
+      {
+        type: "improve",
+        text: "Subsystems you've expanded on the alters page now stay expanded when you come back from viewing an alter, instead of collapsing to default.",
+      },
+      {
+        type: "improve",
+        text: "Pages now remember where you were — returning to the alters list (or any page) after viewing an alter keeps your scroll position and view instead of jumping back to the top.",
+      },
+      {
+        type: "improve",
+        text: "You can now start a plan live straight from the dashboard's \"Plans needing review\" card — tap Start to time it (it moves to Active Activities).",
+      },
       {
         type: "fix",
         text: "Fixed the top-bar buttons (Settings, Reminders, the menu) sometimes not responding to taps near their top edge — an invisible layer was covering the top of the screen.",

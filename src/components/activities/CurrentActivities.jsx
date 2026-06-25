@@ -1,7 +1,9 @@
 import React, { useEffect, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
+import { useNavigate } from "react-router-dom";
+import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow, format } from "date-fns";
-import { X, Clock, Square, Loader2, Timer } from "lucide-react";
+import { X, Clock, Square, Loader2, Timer, Moon } from "lucide-react";
 import { toast } from "sonner";
 import {
   getActiveActivities,
@@ -139,8 +141,19 @@ function ActivityActionMenu({ activity, onClose }) {
 // Tap a pill to adjust its start, end & log it, or discard it. Renders nothing
 // when nothing is running.
 export default function CurrentActivities() {
+  const navigate = useNavigate();
   const [activities, setActivities] = useState(() => getActiveActivities());
   const [activeMenu, setActiveMenu] = useState(null);
+
+  // An in-progress sleep (bedtime set, not yet woken) is treated as an active
+  // activity too — it shows here and in the persistent notification. Tapping it
+  // goes to the Sleep tracker, where its richer end flow (wake time, quality,
+  // dream journal) lives.
+  const { data: sleeps = [] } = useQuery({
+    queryKey: ["sleep"],
+    queryFn: () => base44.entities.Sleep.list(),
+  });
+  const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time) || null;
 
   useEffect(() => {
     const sync = () => setActivities(getActiveActivities());
@@ -155,12 +168,24 @@ export default function CurrentActivities() {
     };
   }, []);
 
-  if (activities.length === 0) return null;
+  if (activities.length === 0 && !activeSleep) return null;
 
   return (
     <div className="space-y-2 mt-3">
       <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide px-1">Active Activities</p>
       <div className="flex flex-wrap gap-2">
+        {activeSleep && (
+          <button
+            onClick={() => navigate("/sleep")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-medium transition-opacity hover:opacity-80 active:scale-95"
+            style={{ borderColor: "#6366f1", backgroundColor: "#6366f115", color: "#6366f1" }}
+            title="Sleeping — tap to end"
+          >
+            <Moon className="w-3 h-3 flex-shrink-0" />
+            Sleep
+            <span className="opacity-60 font-normal">· {formatDistanceToNow(new Date(activeSleep.bedtime))}</span>
+          </button>
+        )}
         {activities.map((a) => {
           const color = a.color || "#6366f1";
           return (
