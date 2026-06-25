@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
 import { decryptContent } from "@/lib/encryption";
-import { Edit2, Lock, AlertCircle, Loader2, BookOpen } from "lucide-react";
+import { Edit2, Lock, AlertCircle, Loader2, BookOpen, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
 
@@ -73,7 +73,7 @@ async function resolveLocalImagesInHtml(html) {
   return result;
 }
 
-export default function JournalViewModal({ open, onClose, entry, altersById, onEdit }) {
+export default function JournalViewModal({ open, onClose, entry, altersById, onEdit, onDelete }) {
   const [decryptPassword, setDecryptPassword] = useState("");
   const [decryptedContent, setDecryptedContent] = useState(null);
   const [decryptError, setDecryptError] = useState("");
@@ -151,19 +151,38 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
                 })}
               </div>
             </div>
-            <Button variant="outline" size="sm" className="gap-1.5 flex-shrink-0" onClick={() => {
-              // Close this view modal first, then open the editor on the
-              // next paint. Without the defer, Radix Dialog batches the
-              // close-animation of this modal against the mount-with-open
-              // of the editor and swallows the editor's open transition,
-              // leaving the user with both modals closed.
-              const target = entry;
-              handleClose();
-              requestAnimationFrame(() => onEdit(target));
-            }}>
-              <Edit2 className="w-3.5 h-3.5" />
-              Edit
-            </Button>
+            <div className="flex items-center gap-1.5 flex-shrink-0">
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => {
+                // Close this view modal first, then open the editor on the
+                // next paint. Without the defer, Radix Dialog batches the
+                // close-animation of this modal against the mount-with-open
+                // of the editor and swallows the editor's open transition,
+                // leaving the user with both modals closed.
+                const target = entry;
+                handleClose();
+                requestAnimationFrame(() => onEdit(target));
+              }}>
+                <Edit2 className="w-3.5 h-3.5" />
+                Edit
+              </Button>
+              {onDelete && (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                  aria-label="Delete entry"
+                  title="Delete this entry"
+                  onClick={() => {
+                    if (!window.confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`)) return;
+                    const target = entry;
+                    handleClose();
+                    onDelete(target);
+                  }}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </Button>
+              )}
+            </div>
           </div>
         </DialogHeader>
 

@@ -22,6 +22,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "fix",
+        text: "Journal authors whose name uses brackets (like \"[Name]\") are no longer dropped when a second author is added — every author is kept.",
+      },
+      {
+        type: "fix",
+        text: "You can now delete a journal entry — open it and tap the trash icon.",
+      },
+      {
+        type: "fix",
         text: "Reminders now send real push notifications by default (they were quietly in-app-only) — your existing reminders were switched on too. Turn off \"Push notification\" on any you want to keep silent.",
       },
       {
