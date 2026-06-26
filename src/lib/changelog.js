@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "June 26, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Quick Check-In: the colourful Good / Neutral / Bad buttons now double as the quick mood — tap one to add it as an emotion (and open its specifics). Removed the redundant separate mood row above them.",
+      },
+    ],
+  },
+  {
     date: "June 25, 2026",
+    version: "0.70.2",
     changes: [
       {
         type: "feature",
