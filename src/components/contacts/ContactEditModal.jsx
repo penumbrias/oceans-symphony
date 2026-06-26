@@ -7,17 +7,17 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Loader2, Save, Upload, X, Palette, User, Plus, LifeBuoy } from "lucide-react";
 import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
-  CONTACT_SAFETY_LEVELS,
   DEFAULT_SAFETY_KEY,
   AWARENESS_OPTIONS,
   DEFAULT_AWARENESS_KEY,
   CONTACT_METHOD_TYPES,
+  getSafetyLevels,
 } from "@/lib/contacts";
 
 // Create / edit an external Contact. Mirrors the AlterEditModal patterns
@@ -38,6 +38,7 @@ const BLANK = {
   safe_to_share: "",
   boundaries: "",
   system_rules: "",
+  custom_fields: {},
 };
 
 export default function ContactEditModal({ open, onClose, contact = null, onSaved }) {
@@ -47,7 +48,17 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [colorOpen, setColorOpen] = useState(false);
+  const [newFieldName, setNewFieldName] = useState("");
   const avatarFileRef = useRef(null);
+
+  // Custom safety labels (Phase 2) — keep the shared cache an ARRAY.
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settings = settingsList[0] || null;
+  const safetyLevels = getSafetyLevels(settings);
+
+  // Separate custom-field definitions for contacts (NOT the alter CustomField set).
+  const { data: fieldDefs = [] } = useQuery({ queryKey: ["contactCustomFields"], queryFn: () => base44.entities.ContactCustomField.list() });
+  const sortedDefs = [...fieldDefs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || "").localeCompare(b.name || ""));
 
   useEffect(() => {
     if (!open) return;
@@ -66,10 +77,12 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         safe_to_share: contact.safe_to_share || "",
         boundaries: contact.boundaries || "",
         system_rules: contact.system_rules || "",
+        custom_fields: contact.custom_fields && typeof contact.custom_fields === "object" ? { ...contact.custom_fields } : {},
       });
     } else {
       setForm(BLANK);
     }
+    setNewFieldName("");
   }, [open, contact]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -105,6 +118,18 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
     set("contact_methods", form.contact_methods.map((m, idx) => (idx === i ? { ...m, ...patch } : m)));
   const removeMethod = (i) => set("contact_methods", form.contact_methods.filter((_, idx) => idx !== i));
 
+  // Custom fields — value map keyed by field-definition id, stored on the Contact.
+  const setFieldValue = (defId, value) => set("custom_fields", { ...form.custom_fields, [defId]: value });
+  const addFieldDef = async () => {
+    const fname = newFieldName.trim();
+    if (!fname) return;
+    try {
+      await base44.entities.ContactCustomField.create({ name: fname, order: fieldDefs.length, created_date: new Date().toISOString() });
+      setNewFieldName("");
+      queryClient.invalidateQueries({ queryKey: ["contactCustomFields"] });
+    } catch (err) { toast.error(err?.message || "Couldn't add field"); }
+  };
+
   const handleSave = async () => {
     const name = form.name.trim();
     if (!name) { toast.error("Give this contact a name"); return; }
@@ -127,6 +152,9 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         safe_to_share: form.safe_to_share.trim() || null,
         boundaries: form.boundaries.trim() || null,
         system_rules: form.system_rules.trim() || null,
+        custom_fields: Object.fromEntries(
+          Object.entries(form.custom_fields || {}).filter(([, v]) => v != null && String(v).trim() !== "")
+        ),
       };
       let saved;
       if (isNew) {
@@ -205,7 +233,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
           <div>
             <Label className="text-xs mb-1.5 block">Safety</Label>
             <div className="flex flex-wrap gap-1.5">
-              {CONTACT_SAFETY_LEVELS.map((lvl) => {
+              {safetyLevels.map((lvl) => {
                 const active = form.safety === lvl.key;
                 return (
                   <button
@@ -279,6 +307,39 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
           <TextBlock label="Safe to share" value={form.safe_to_share} onChange={(v) => set("safe_to_share", v)} placeholder="What's okay to tell / show them…" />
           <TextBlock label="Boundaries" value={form.boundaries} onChange={(v) => set("boundaries", v)} placeholder="Boundaries we keep with them…" />
           <TextBlock label="System rules" value={form.system_rules} onChange={(v) => set("system_rules", v)} placeholder="Rules for the whole system about this person…" />
+
+          {/* Custom fields — a separate set from alter custom fields. */}
+          <div>
+            <Label className="text-xs mb-1.5 block">Custom fields <span className="text-muted-foreground">(optional)</span></Label>
+            <div className="space-y-2">
+              {sortedDefs.map((def) => (
+                <div key={def.id}>
+                  <Label className="text-[0.6875rem] text-muted-foreground">{def.name}</Label>
+                  <Input
+                    value={form.custom_fields[def.id] || ""}
+                    onChange={(e) => setFieldValue(def.id, e.target.value)}
+                    placeholder={`${def.name}…`}
+                    className="h-8 text-sm"
+                  />
+                </div>
+              ))}
+              <div className="flex items-center gap-1.5">
+                <Input
+                  value={newFieldName}
+                  onChange={(e) => setNewFieldName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addFieldDef(); } }}
+                  placeholder="New field name (e.g. Birthday, How we met)"
+                  className="h-8 text-sm flex-1"
+                />
+                <Button type="button" size="sm" variant="outline" onClick={addFieldDef} disabled={!newFieldName.trim()} className="gap-1 flex-shrink-0">
+                  <Plus className="w-3.5 h-3.5" /> Add
+                </Button>
+              </div>
+              {sortedDefs.length === 0 && (
+                <p className="text-[0.6875rem] text-muted-foreground">Add fields like Birthday, Address, or How we met — they'll appear for every contact.</p>
+              )}
+            </div>
+          </div>
 
           <div className="flex gap-2 justify-end pt-1">
             <Button variant="outline" onClick={onClose}>Cancel</Button>

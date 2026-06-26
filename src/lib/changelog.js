@@ -22,6 +22,14 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Contacts: add your own custom fields (Birthday, Address, How we met…) — they appear on every contact and show on their profile.",
+      },
+      {
+        type: "improve",
+        text: "Contacts: rename and recolour the Safe / Caution / Unsafe / Unknown safety labels to fit how you think — tap \"Labels\" on the Contacts page.",
+      },
+      {
+        type: "feature",
         text: "Contacts: record how a contact relates to your system or to individual alters — pick a relationship type, add notes, and see the link on that alter's profile too.",
       },
       {

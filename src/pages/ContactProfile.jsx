@@ -47,6 +47,7 @@ export default function ContactProfile() {
     queryFn: () => base44.entities.ContactNote.filter({ contact_id: id }),
     enabled: !!id,
   });
+  const { data: fieldDefs = [] } = useQuery({ queryKey: ["contactCustomFields"], queryFn: () => base44.entities.ContactCustomField.list() });
 
   const avatar = useResolvedAvatarUrl(contact?.avatar_url);
 
@@ -173,6 +174,12 @@ export default function ContactProfile() {
         <div className="space-y-4">
           <Field label="About" value={contact.about} empty="No description yet." />
           <Field label="Safe to share" value={contact.safe_to_share} empty="Nothing noted about what's safe to share." />
+          {[...fieldDefs]
+            .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || "").localeCompare(b.name || ""))
+            .filter((def) => contact.custom_fields && String(contact.custom_fields[def.id] ?? "").trim() !== "")
+            .map((def) => (
+              <Field key={def.id} label={def.name} value={contact.custom_fields[def.id]} empty="" />
+            ))}
         </div>
       )}
 

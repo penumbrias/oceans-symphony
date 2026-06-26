@@ -3,9 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Plus, Search, LifeBuoy, Phone, Mail, MessageSquare, Users, ArrowUpDown } from "lucide-react";
+import { Plus, Search, LifeBuoy, Phone, Mail, MessageSquare, Users, ArrowUpDown, SlidersHorizontal } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
+import ContactSafetyLabelsModal from "@/components/contacts/ContactSafetyLabelsModal";
 import {
   getSafetyMeta,
   getSafetyLevels,
@@ -21,6 +22,7 @@ import {
 export default function Contacts() {
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
+  const [labelsOpen, setLabelsOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [safetyFilter, setSafetyFilter] = useState("all");
   const [sortMode, setSortMode] = useState("name"); // "name" | "safety" | "recent"
@@ -118,6 +120,14 @@ export default function Contacts() {
             {lvl.label}
           </FilterChip>
         ))}
+        <button
+          type="button"
+          onClick={() => setLabelsOpen(true)}
+          className="text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 inline-flex items-center gap-1 ml-auto"
+          title="Rename / recolour safety labels"
+        >
+          <SlidersHorizontal className="w-3 h-3" /> Labels
+        </button>
       </div>
 
       {/* List */}
@@ -145,6 +155,7 @@ export default function Contacts() {
       )}
 
       <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} />
+      <ContactSafetyLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} settings={settings} />
     </div>
   );
 }
