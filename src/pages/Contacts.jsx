@@ -7,6 +7,8 @@ import { Plus, Search, LifeBuoy, Phone, Mail, MessageSquare, Users, ArrowUpDown,
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import ContactSafetyLabelsModal from "@/components/contacts/ContactSafetyLabelsModal";
+import ContactCategoriesModal from "@/components/contacts/ContactCategoriesModal";
+import { FolderOpen } from "lucide-react";
 import {
   getSafetyMeta,
   getSafetyLevels,
@@ -23,8 +25,10 @@ export default function Contacts() {
   const navigate = useNavigate();
   const [editOpen, setEditOpen] = useState(false);
   const [labelsOpen, setLabelsOpen] = useState(false);
+  const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [safetyFilter, setSafetyFilter] = useState("all");
+  const [categoryFilter, setCategoryFilter] = useState("all");
   const [sortMode, setSortMode] = useState("name"); // "name" | "safety" | "recent"
 
   // IMPORTANT: keep the ["systemSettings"] cache an ARRAY — many other
@@ -38,6 +42,11 @@ export default function Contacts() {
     queryKey: ["contacts"],
     queryFn: () => base44.entities.Contact.list(),
   });
+  const { data: categories = [] } = useQuery({ queryKey: ["contactCategories"], queryFn: () => base44.entities.ContactCategory.list() });
+  const sortedCategories = useMemo(
+    () => [...categories].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || "").localeCompare(b.name || "")),
+    [categories]
+  );
 
   const active = useMemo(() => contacts.filter((c) => !c.is_archived), [contacts]);
   const safetyLevels = getSafetyLevels(settings);
@@ -47,6 +56,7 @@ export default function Contacts() {
     const q = search.trim().toLowerCase();
     let list = active;
     if (safetyFilter !== "all") list = list.filter((c) => (c.safety || "unknown") === safetyFilter);
+    if (categoryFilter !== "all") list = list.filter((c) => Array.isArray(c.category_ids) && c.category_ids.includes(categoryFilter));
     if (q) {
       list = list.filter((c) => {
         const hay = [
@@ -63,7 +73,7 @@ export default function Contacts() {
     // Pinned float to top within the chosen sort.
     sorted.sort((a, b) => (b.is_pinned ? 1 : 0) - (a.is_pinned ? 1 : 0));
     return sorted;
-  }, [active, search, safetyFilter, sortMode]);
+  }, [active, search, safetyFilter, categoryFilter, sortMode]);
 
   return (
     <div className="max-w-3xl mx-auto px-1 pb-10">
@@ -130,6 +140,24 @@ export default function Contacts() {
         </button>
       </div>
 
+      {/* Category filter */}
+      <div className="flex flex-wrap items-center gap-1.5 mb-4">
+        <FilterChip active={categoryFilter === "all"} onClick={() => setCategoryFilter("all")}>All</FilterChip>
+        {sortedCategories.map((cat) => (
+          <FilterChip key={cat.id} active={categoryFilter === cat.id} color={cat.color} onClick={() => setCategoryFilter(cat.id)}>
+            {cat.name}
+          </FilterChip>
+        ))}
+        <button
+          type="button"
+          onClick={() => setCategoriesOpen(true)}
+          className="text-xs px-2 py-1 rounded-full border border-border/40 text-muted-foreground hover:bg-muted/50 inline-flex items-center gap-1 ml-auto"
+          title="Manage categories"
+        >
+          <FolderOpen className="w-3 h-3" /> {sortedCategories.length ? "Categories" : "Add categories"}
+        </button>
+      </div>
+
       {/* List */}
       {isLoading ? (
         <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>
@@ -156,6 +184,7 @@ export default function Contacts() {
 
       <ContactEditModal open={editOpen} onClose={() => setEditOpen(false)} />
       <ContactSafetyLabelsModal open={labelsOpen} onClose={() => setLabelsOpen(false)} settings={settings} />
+      <ContactCategoriesModal open={categoriesOpen} onClose={() => setCategoriesOpen(false)} />
     </div>
   );
 }

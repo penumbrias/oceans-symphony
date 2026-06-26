@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Contacts: organize people into your own categories (Family, Friends, Work, Medical…) — filter the directory by category and see them on each profile.",
+      },
+      {
+        type: "feature",
         text: "Contacts: add your own custom fields (Birthday, Address, How we met…) — they appear on every contact and show on their profile.",
       },
       {

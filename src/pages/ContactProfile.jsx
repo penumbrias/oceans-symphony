@@ -48,6 +48,7 @@ export default function ContactProfile() {
     enabled: !!id,
   });
   const { data: fieldDefs = [] } = useQuery({ queryKey: ["contactCustomFields"], queryFn: () => base44.entities.ContactCustomField.list() });
+  const { data: categories = [] } = useQuery({ queryKey: ["contactCategories"], queryFn: () => base44.entities.ContactCategory.list() });
 
   const avatar = useResolvedAvatarUrl(contact?.avatar_url);
 
@@ -128,6 +129,14 @@ export default function ContactProfile() {
           <div className="flex flex-wrap items-center gap-1.5 mt-1">
             <span className="text-[0.6875rem] px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: safety.color }}>{safety.label}</span>
             <span className="text-[0.6875rem] px-2 py-0.5 rounded-full bg-muted text-muted-foreground">{awareness.label} we're a system</span>
+            {(contact.category_ids || [])
+              .map((cid) => categories.find((c) => c.id === cid))
+              .filter(Boolean)
+              .map((cat) => (
+                <span key={cat.id} className="text-[0.6875rem] px-2 py-0.5 rounded-full text-white" style={{ backgroundColor: cat.color || "#8b5cf6" }}>
+                  {cat.name}
+                </span>
+              ))}
           </div>
         </div>
       </div>

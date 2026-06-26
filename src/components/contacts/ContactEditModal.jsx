@@ -9,6 +9,7 @@ import { Loader2, Save, Upload, X, Palette, User, Plus, LifeBuoy } from "lucide-
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { SearchableMultiSelect } from "@/components/shared/SearchableSelect";
 import { saveLocalImage, createLocalImageUrl, isLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -39,6 +40,7 @@ const BLANK = {
   boundaries: "",
   system_rules: "",
   custom_fields: {},
+  category_ids: [],
 };
 
 export default function ContactEditModal({ open, onClose, contact = null, onSaved }) {
@@ -60,6 +62,12 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
   const { data: fieldDefs = [] } = useQuery({ queryKey: ["contactCustomFields"], queryFn: () => base44.entities.ContactCustomField.list() });
   const sortedDefs = [...fieldDefs].sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || "").localeCompare(b.name || ""));
 
+  const { data: categories = [] } = useQuery({ queryKey: ["contactCategories"], queryFn: () => base44.entities.ContactCategory.list() });
+  const categoryOptions = [...categories]
+    .sort((a, b) => (a.order ?? 0) - (b.order ?? 0) || (a.name || "").localeCompare(b.name || ""))
+    .map((c) => ({ id: c.id, label: c.name || "Untitled", color: c.color }));
+  const [newCategory, setNewCategory] = useState("");
+
   useEffect(() => {
     if (!open) return;
     if (contact) {
@@ -78,11 +86,13 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         boundaries: contact.boundaries || "",
         system_rules: contact.system_rules || "",
         custom_fields: contact.custom_fields && typeof contact.custom_fields === "object" ? { ...contact.custom_fields } : {},
+        category_ids: Array.isArray(contact.category_ids) ? contact.category_ids : [],
       });
     } else {
       setForm(BLANK);
     }
     setNewFieldName("");
+    setNewCategory("");
   }, [open, contact]);
 
   const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
@@ -130,6 +140,18 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
     } catch (err) { toast.error(err?.message || "Couldn't add field"); }
   };
 
+  // Categories — assign existing + inline-create a new one (auto-selected).
+  const addCategory = async () => {
+    const cname = newCategory.trim();
+    if (!cname) return;
+    try {
+      const created = await base44.entities.ContactCategory.create({ name: cname, color: "#8b5cf6", order: categories.length, created_date: new Date().toISOString() });
+      setNewCategory("");
+      queryClient.invalidateQueries({ queryKey: ["contactCategories"] });
+      if (created?.id) set("category_ids", [...(form.category_ids || []), created.id]);
+    } catch (err) { toast.error(err?.message || "Couldn't add category"); }
+  };
+
   const handleSave = async () => {
     const name = form.name.trim();
     if (!name) { toast.error("Give this contact a name"); return; }
@@ -155,6 +177,7 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
         custom_fields: Object.fromEntries(
           Object.entries(form.custom_fields || {}).filter(([, v]) => v != null && String(v).trim() !== "")
         ),
+        category_ids: Array.isArray(form.category_ids) ? form.category_ids : [],
       };
       let saved;
       if (isNew) {
@@ -227,6 +250,31 @@ export default function ContactEditModal({ open, onClose, contact = null, onSave
           <div>
             <Label className="text-xs">Relationship <span className="text-muted-foreground">(optional)</span></Label>
             <Input value={form.relationship_label} onChange={(e) => set("relationship_label", e.target.value)} placeholder="College classmate, therapist, mom…" />
+          </div>
+
+          {/* Categories */}
+          <div>
+            <Label className="text-xs mb-1.5 block">Categories <span className="text-muted-foreground">(optional)</span></Label>
+            <SearchableMultiSelect
+              value={form.category_ids}
+              onChange={(ids) => set("category_ids", ids)}
+              options={categoryOptions}
+              placeholder="File under Family, Friends, Work…"
+              searchPlaceholder="Search categories…"
+              emptyMessage="No categories yet"
+            />
+            <div className="flex items-center gap-1.5 mt-1.5">
+              <Input
+                value={newCategory}
+                onChange={(e) => setNewCategory(e.target.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); addCategory(); } }}
+                placeholder="New category"
+                className="h-8 text-sm flex-1"
+              />
+              <Button type="button" size="sm" variant="outline" onClick={addCategory} disabled={!newCategory.trim()} className="gap-1 flex-shrink-0">
+                <Plus className="w-3.5 h-3.5" /> New
+              </Button>
+            </div>
           </div>
 
           {/* Safety */}
