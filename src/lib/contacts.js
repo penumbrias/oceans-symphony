@@ -110,6 +110,54 @@ export function contactMethodHref(method) {
   return null;
 }
 
+// ── Contact relationship types ───────────────────────────────────────────
+// A SEPARATE catalogue from the internal alter RelationshipType set — the
+// alter dynamics ("Split from", "Protected by", "Created by"…) don't make
+// sense for outside people. These are suggestions for the free-entry picker
+// AND a managed, editable list. Entity: localEntities.ContactRelationshipType
+// { label, color, order, is_default, is_archived }. The relationship row
+// stores the LABEL string, so renaming/deleting a type never rewrites history.
+export const DEFAULT_CONTACT_RELATIONSHIP_TYPES = [
+  { label: "Friend", color: "#3b82f6" },
+  { label: "Close friend", color: "#8b5cf6" },
+  { label: "Best friend", color: "#a855f7" },
+  { label: "Partner", color: "#ec4899" },
+  { label: "Family", color: "#f59e0b" },
+  { label: "Parent", color: "#f97316" },
+  { label: "Sibling", color: "#eab308" },
+  { label: "Relative", color: "#f59e0b" },
+  { label: "Therapist", color: "#10b981" },
+  { label: "Doctor", color: "#10b981" },
+  { label: "Support worker", color: "#06b6d4" },
+  { label: "Coworker", color: "#6366f1" },
+  { label: "Boss", color: "#6366f1" },
+  { label: "Classmate", color: "#3b82f6" },
+  { label: "Teacher", color: "#6366f1" },
+  { label: "Mentor", color: "#14b8a6" },
+  { label: "Neighbor", color: "#64748b" },
+  { label: "Acquaintance", color: "#9ca3af" },
+  { label: "Online friend", color: "#0ea5e9" },
+  { label: "Ex", color: "#ef4444" },
+];
+
+// Hook-free loader: returns the active contact relationship types, seeding the
+// defaults on first call. Always re-lists after seeding so callers get REAL
+// rows (with ids) — never synthesized id:null placeholders — so the same
+// ["contactRelationshipTypes"] cache is safe for both the picker (by label)
+// and the manager (by id).
+export async function fetchActiveContactRelationshipTypes(entities) {
+  let all = await entities.ContactRelationshipType.list();
+  if (all.length === 0) {
+    await Promise.all(
+      DEFAULT_CONTACT_RELATIONSHIP_TYPES.map((t, i) =>
+        entities.ContactRelationshipType.create({ ...t, order: i, is_default: true })
+      )
+    );
+    all = await entities.ContactRelationshipType.list();
+  }
+  return all.filter((t) => !t.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
+}
+
 // ── Misc helpers ─────────────────────────────────────────────────────────
 export function contactDisplayName(c) {
   if (!c) return "";

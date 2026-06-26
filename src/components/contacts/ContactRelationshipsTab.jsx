@@ -2,21 +2,23 @@ import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { Plus, Trash2, Users, User, Network, Check, X } from "lucide-react";
+import { Plus, Trash2, Users, User, Network, Check } from "lucide-react";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
-import { fetchActiveRelationshipTypes, flattenTypeTree } from "@/lib/relationshipTypes";
-import { contactDisplayName } from "@/lib/contacts";
+import { fetchActiveContactRelationshipTypes, contactDisplayName } from "@/lib/contacts";
+import ContactRelationshipTypeField from "@/components/contacts/ContactRelationshipTypeField";
 
 // Phase 3 — relationships between a contact and the system / individual
-// alters / groups. Mirrors how alters relate to each other (reuses the
-// RelationshipType catalogue), but one side is always this external contact.
+// alters / groups. The relationship TYPE comes from a SEPARATE, editable
+// contact catalogue (Friend, Family, Therapist…) and is free-entry — NOT the
+// internal alter RelationshipType set (whose "Split from" / "Protected by"
+// dynamics don't fit outside people).
 //
 // Entity: localEntities.ContactRelationship
 //   { contact_id, target_type: "system"|"alter"|"group", target_id (null for
-//     system), relationship_type (a RelationshipType LABEL string),
+//     system), relationship_type (a free-entry LABEL string),
 //     has_met (bool), notes, created_date }
 //
 // Every "system"/"alter" word routes through useTerms — never hardcoded.
@@ -39,7 +41,7 @@ export default function ContactRelationshipsTab({ contact }) {
   });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
-  const { data: types = [] } = useQuery({ queryKey: ["relationshipTypes"], queryFn: () => fetchActiveRelationshipTypes(base44.entities) });
+  const { data: types = [] } = useQuery({ queryKey: ["contactRelationshipTypes"], queryFn: () => fetchActiveContactRelationshipTypes(base44.entities) });
 
   const [adding, setAdding] = useState(false);
   const [targetType, setTargetType] = useState("system");
@@ -48,18 +50,6 @@ export default function ContactRelationshipsTab({ contact }) {
   const [hasMet, setHasMet] = useState(false);
   const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
-
-  // Relationship-type options for the picker: nested, depth-indented, colored.
-  // The picker's option id IS the label (that's what we persist), so the
-  // selected value comes back as the label string directly.
-  const typeOptions = useMemo(() => {
-    const flat = flattenTypeTree(types.filter((x) => x && x.id != null));
-    const base = flat.length ? flat : types.map((x) => ({ ...x, _depth: 0 }));
-    const seen = new Set();
-    return base
-      .filter((x) => x && x.label && !seen.has(x.label) && seen.add(x.label))
-      .map((x) => ({ id: x.label, label: x.label, color: x.color, _depth: x._depth || 0 }));
-  }, [types]);
 
   const groupOptions = useMemo(
     () => groups
@@ -82,17 +72,26 @@ export default function ContactRelationshipsTab({ contact }) {
 
   const save = async () => {
     if (!canSave || saving) return;
+    const label = relType.trim();
     setSaving(true);
     try {
       await base44.entities.ContactRelationship.create({
         contact_id: contactId,
         target_type: targetType,
         target_id: targetType === "system" ? null : targetId,
-        relationship_type: relType.trim(),
+        relationship_type: label,
         has_met: !!hasMet,
         notes: notes.trim(),
         created_date: new Date().toISOString(),
       });
+      // A typed-in type that isn't in the catalogue gets added, so it becomes a
+      // reusable suggestion next time (and shows up in the manager to edit).
+      if (label && !types.some((x) => (x.label || "").toLowerCase() === label.toLowerCase())) {
+        try {
+          await base44.entities.ContactRelationshipType.create({ label, color: "#94a3b8", order: types.length });
+          queryClient.invalidateQueries({ queryKey: ["contactRelationshipTypes"] });
+        } catch { /* non-fatal — the relationship still saved */ }
+      }
       queryClient.invalidateQueries({ queryKey: ["contactRelationships", contactId] });
       resetForm();
       toast.success("Relationship added");
@@ -186,27 +185,11 @@ export default function ContactRelationshipsTab({ contact }) {
             </div>
           )}
 
-          {/* Relationship type */}
+          {/* Relationship type — free entry + editable contact catalogue */}
           <div>
             <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Relationship type</label>
             <div className="mt-1.5">
-              <SearchableSelect
-                value={relType}
-                onChange={(v) => setRelType(v || "")}
-                options={typeOptions}
-                placeholder="e.g. Friends, Family, Therapist…"
-                searchPlaceholder="Search relationship types…"
-                emptyMessage="No types — add them in Settings → Relationship types"
-                renderOption={(o, sel) => (
-                  <>
-                    <span style={{ width: (o._depth || 0) * 14 }} className="flex-shrink-0" />
-                    {o._depth > 0 && <span className="text-muted-foreground/60 flex-shrink-0">↳</span>}
-                    <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: o.color || "#94a3b8" }} />
-                    <span className="flex-1 truncate text-sm">{o.label}</span>
-                    {sel && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
-                  </>
-                )}
-              />
+              <ContactRelationshipTypeField value={relType} onChange={setRelType} />
             </div>
           </div>
 

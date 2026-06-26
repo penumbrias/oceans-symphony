@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Contacts: relationship types are now their own editable set (Friend, Family, Therapist…) and free-entry — type your own — instead of the internal alter relationship types.",
+      },
+      {
         type: "feature",
         text: "Contacts: organize people into your own categories (Family, Friends, Work, Medical…) — filter the directory by category and see them on each profile.",
       },
