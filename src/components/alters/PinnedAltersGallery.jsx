@@ -82,6 +82,8 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
   const sb = (config.scrollBlock && typeof config.scrollBlock === "object") ? config.scrollBlock : {};
   const sbEnabled = !!sb.enabled;
   const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
+  const sbMode = sb.mode === "fixed" ? "fixed" : "inline";
+  const sbSide = sb.side === "right" ? "right" : "left";
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -165,9 +167,12 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
                 />
               ));
               if (!sbEnabled) return chips;
-              // Inline scroll-block: a dead-zone bar inserted among the chips.
-              // No swipe handlers + touchAction:pan-x → grabbing it scrolls the
-              // strip horizontally but never fronts anyone. Scrolls with the row.
+              if (sbMode === "fixed") {
+                // Sticky bar pinned to one edge; chips scroll behind it.
+                const bar = <ScrollBlockBar key="__scrollblock" width={sbWidth} fixed side={sbSide} />;
+                return sbSide === "left" ? [bar, ...chips] : [...chips, bar];
+              }
+              // Inline: a dead-zone bar among the chips, scrolling with the row.
               const pos = Math.max(0, Math.min(chips.length, Number.isFinite(sb.position) ? sb.position : Math.floor(chips.length / 2)));
               return [...chips.slice(0, pos), <ScrollBlockBar key="__scrollblock" width={sbWidth} />, ...chips.slice(pos)];
             })()}
@@ -258,19 +263,37 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
   );
 }
 
-// A "scroll block" — a dead-zone grab bar inside the pinned strip. It has NO
-// swipe handlers and touchAction:pan-x, so a touch that lands here scrolls the
-// row horizontally but can NEVER trigger a front. self-center aligns it with
-// the chips (the strip reserves pt-5 for swipe hint labels above chips).
-function ScrollBlockBar({ width }) {
+// A "scroll block" — a dead-zone grab bar inside the pinned strip.
+//
+// PURPOSE: the chips capture VERTICAL swipes (to front/remove), which hijacks
+// the gesture when you just want to scroll the whole PAGE up/down past the
+// pinned row. This bar is a safe spot for that: it has NO swipe handlers, and
+// touchAction:"auto" lets a touch here scroll the page vertically (and the row
+// horizontally) — but it can never front anyone.
+//
+// Two layouts:
+//   - inline: a normal flex item that scrolls along with the chips.
+//   - fixed:  position:sticky to one edge so it stays put (an always-present
+//     safe zone) while the chips scroll behind it (opaque bg + z-index).
+function ScrollBlockBar({ width, fixed = false, side = "left" }) {
+  const style = { width: `${width}px`, height: 52, touchAction: "auto" };
+  let cls = "flex-shrink-0 self-center rounded-2xl border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none";
+  if (fixed) {
+    style.position = "sticky";
+    style[side] = 0;
+    style.zIndex = 2;
+    cls += " bg-card shadow-sm"; // opaque so chips scroll BEHIND it
+  } else {
+    cls += " bg-muted/50";
+  }
   return (
     <div
       aria-hidden="true"
-      title="Grab here to scroll without changing who's fronting"
-      className="flex-shrink-0 self-center rounded-2xl bg-muted/50 border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none"
-      style={{ width: `${width}px`, height: 52, touchAction: "pan-x" }}
+      title="Grab here to scroll the page without changing who's fronting"
+      className={cls}
+      style={style}
     >
-      <GripHorizontal className="w-5 h-5 text-muted-foreground/70" />
+      <GripVertical className="w-5 h-5 text-muted-foreground/70" />
       <span className="text-[0.5rem] uppercase tracking-wider text-muted-foreground/60">scroll</span>
     </div>
   );
@@ -281,6 +304,8 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
   const sbEnabled = !!sb.enabled;
   const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
   const sbPos = Math.max(0, Math.min(total, Number.isFinite(sb.position) ? sb.position : Math.floor(total / 2)));
+  const sbMode = sb.mode === "fixed" ? "fixed" : "inline";
+  const sbSide = sb.side === "right" ? "right" : "left";
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
@@ -327,17 +352,50 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
               <span className="flex items-center gap-1.5"><GripHorizontal className="w-4 h-4" /> Scroll block</span>
               <Switch checked={sbEnabled} onCheckedChange={(v) => onScrollBlockChange({ ...sb, enabled: v })} />
             </label>
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe bar you can grab to scroll the pinned row without accidentally fronting anyone.</p>
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe bar you can grab to scroll the page up/down past the pinned row without accidentally fronting anyone.</p>
             {sbEnabled && (
               <div className="mt-3 space-y-3">
+                <div>
+                  <label className="text-xs block mb-1">Behaviour</label>
+                  <div className="flex gap-1.5">
+                    {[{ k: "inline", l: "Scrolls with row" }, { k: "fixed", l: "Stays put" }].map((m) => (
+                      <button
+                        key={m.k}
+                        type="button"
+                        onClick={() => onScrollBlockChange({ ...sb, enabled: true, mode: m.k })}
+                        className={`flex-1 text-xs px-2 py-1.5 rounded-lg border transition-colors ${sbMode === m.k ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/50"}`}
+                      >
+                        {m.l}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <div>
                   <label className="text-xs flex items-center justify-between">Bar width <span className="text-muted-foreground">{sbWidth}px</span></label>
                   <input type="range" min={32} max={140} step={4} value={sbWidth} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, width: Number(e.target.value) })} className="w-full accent-primary mt-1" />
                 </div>
-                <div>
-                  <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "start" : sbPos >= total ? "end" : `after #${sbPos}`}</span></label>
-                  <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
-                </div>
+                {sbMode === "inline" ? (
+                  <div>
+                    <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "start" : sbPos >= total ? "end" : `after #${sbPos}`}</span></label>
+                    <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="text-xs block mb-1">Side</label>
+                    <div className="flex gap-1.5">
+                      {["left", "right"].map((s) => (
+                        <button
+                          key={s}
+                          type="button"
+                          onClick={() => onScrollBlockChange({ ...sb, enabled: true, side: s })}
+                          className={`flex-1 text-xs px-2.5 py-1.5 rounded-lg border capitalize transition-colors ${sbSide === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/50"}`}
+                        >
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
           </div>

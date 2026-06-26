@@ -22,7 +22,7 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Pinned alters: new \"scroll block\" — turn it on in the gear to drop a safe grab-bar (your width + position) into the row, so you can scroll past your pinned alters without accidentally fronting anyone.",
+        text: "Pinned alters: new \"scroll block\" — turn it on in the gear to drop a safe grab-bar into the row, so you can scroll the page up/down past your pinned alters without accidentally fronting anyone. Set its width and position, and choose whether it scrolls with the row or stays put.",
       },
       {
         type: "feature",
