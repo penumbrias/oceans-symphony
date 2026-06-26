@@ -180,7 +180,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "📌",
       title: `Pinned ${t.Alters}`,
-      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list.`,
+      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list. Swipe a chip up/down to ${t.front}/remove them; tap the ⚙ gear to drag-rearrange their order, narrow the row to one side for one-handed reach, or drop in a "scroll block" — a safe bar you can grab to scroll the row without accidentally ${t.fronting} anyone.`,
       route: "/Home", target: "pinned-alters",
       look: `the Pinned row at the top of the ${t.alters} page — only shows once you've pinned someone`, action: null,
     },

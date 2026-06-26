@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
+        text: "Pinned alters: new \"scroll block\" — turn it on in the gear to drop a safe grab-bar (your width + position) into the row, so you can scroll past your pinned alters without accidentally fronting anyone.",
+      },
+      {
+        type: "feature",
         text: "Pinned alters now have a settings gear: drag to rearrange their order (no longer stuck alphabetical), and narrow the row + tuck it to one side for easier one-handed reach.",
       },
       {

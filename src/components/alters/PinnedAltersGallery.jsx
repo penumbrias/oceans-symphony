@@ -2,8 +2,9 @@ import React, { useRef, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, Check, Move } from "lucide-react";
+import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, GripHorizontal, Check, Move } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
 } from "@dnd-kit/core";
@@ -78,6 +79,9 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
   const savedOrder = Array.isArray(config.order) ? config.order : [];
   const width = Number.isFinite(config.width) ? config.width : 100;
   const cropSide = config.cropSide === "left" ? "left" : "right";
+  const sb = (config.scrollBlock && typeof config.scrollBlock === "object") ? config.scrollBlock : {};
+  const sbEnabled = !!sb.enabled;
+  const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -149,16 +153,24 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
         ) : (
           /* pt-5 leaves room for the swipe-up hint label above a chip. */
           <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
-            {pinned.map((a) => (
-              <PinnedAlterChip
-                key={a.id}
-                alter={a}
-                activeSessions={activeSessions}
-                anonymize={anonymize}
-                formatAlter={formatAlter}
-                queryClient={queryClient}
-              />
-            ))}
+            {(() => {
+              const chips = pinned.map((a) => (
+                <PinnedAlterChip
+                  key={a.id}
+                  alter={a}
+                  activeSessions={activeSessions}
+                  anonymize={anonymize}
+                  formatAlter={formatAlter}
+                  queryClient={queryClient}
+                />
+              ));
+              if (!sbEnabled) return chips;
+              // Inline scroll-block: a dead-zone bar inserted among the chips.
+              // No swipe handlers + touchAction:pan-x → grabbing it scrolls the
+              // strip horizontally but never fronts anyone. Scrolls with the row.
+              const pos = Math.max(0, Math.min(chips.length, Number.isFinite(sb.position) ? sb.position : Math.floor(chips.length / 2)));
+              return [...chips.slice(0, pos), <ScrollBlockBar key="__scrollblock" width={sbWidth} />, ...chips.slice(pos)];
+            })()}
           </div>
         )}
       </div>
@@ -169,8 +181,11 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
           onClose={() => setGearOpen(false)}
           width={width}
           cropSide={cropSide}
+          total={pinned.length}
+          scrollBlock={sb}
           onWidthChange={(w) => persistConfig({ width: w })}
           onCropSideChange={(s) => persistConfig({ cropSide: s })}
+          onScrollBlockChange={(next) => persistConfig({ scrollBlock: next })}
           onRearrange={() => { setGearOpen(false); setRearrange(true); }}
         />
       )}
@@ -243,7 +258,29 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
   );
 }
 
-function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, onWidthChange, onCropSideChange, onRearrange }) {
+// A "scroll block" — a dead-zone grab bar inside the pinned strip. It has NO
+// swipe handlers and touchAction:pan-x, so a touch that lands here scrolls the
+// row horizontally but can NEVER trigger a front. self-center aligns it with
+// the chips (the strip reserves pt-5 for swipe hint labels above chips).
+function ScrollBlockBar({ width }) {
+  return (
+    <div
+      aria-hidden="true"
+      title="Grab here to scroll without changing who's fronting"
+      className="flex-shrink-0 self-center rounded-2xl bg-muted/50 border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none"
+      style={{ width: `${width}px`, height: 52, touchAction: "pan-x" }}
+    >
+      <GripHorizontal className="w-5 h-5 text-muted-foreground/70" />
+      <span className="text-[0.5rem] uppercase tracking-wider text-muted-foreground/60">scroll</span>
+    </div>
+  );
+}
+
+function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scrollBlock, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
+  const sb = scrollBlock || {};
+  const sbEnabled = !!sb.enabled;
+  const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
+  const sbPos = Math.max(0, Math.min(total, Number.isFinite(sb.position) ? sb.position : Math.floor(total / 2)));
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
@@ -285,7 +322,25 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, onWidthCha
             </div>
           )}
 
-          <p className="text-[0.625rem] text-muted-foreground italic">A "scroll block" (a safe grab-bar to scroll without fronting) is coming in a follow-up.</p>
+          <div className="pt-1 border-t border-border/40">
+            <label className="flex items-center justify-between gap-2 text-sm font-medium pt-3">
+              <span className="flex items-center gap-1.5"><GripHorizontal className="w-4 h-4" /> Scroll block</span>
+              <Switch checked={sbEnabled} onCheckedChange={(v) => onScrollBlockChange({ ...sb, enabled: v })} />
+            </label>
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe bar you can grab to scroll the pinned row without accidentally fronting anyone.</p>
+            {sbEnabled && (
+              <div className="mt-3 space-y-3">
+                <div>
+                  <label className="text-xs flex items-center justify-between">Bar width <span className="text-muted-foreground">{sbWidth}px</span></label>
+                  <input type="range" min={32} max={140} step={4} value={sbWidth} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, width: Number(e.target.value) })} className="w-full accent-primary mt-1" />
+                </div>
+                <div>
+                  <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "start" : sbPos >= total ? "end" : `after #${sbPos}`}</span></label>
+                  <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </DialogContent>
     </Dialog>
