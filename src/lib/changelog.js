@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Contacts: record how a contact relates to your system or to individual alters — pick a relationship type, add notes, and see the link on that alter's profile too.",
+      },
+      {
         type: "improve",
         text: "Quick Check-In: the colourful Good / Neutral / Bad buttons now double as the quick mood — tap one to add it as an emotion (and open its specifics). Removed the redundant separate mood row above them.",
       },

@@ -103,7 +103,7 @@ const ENTITY_NAMES = [
   "UnblendQuestion", "HiddenUnblendQuestion",
   "SystemChatChannel", "SystemChatMessage", "SystemChatCategory",
   "ImageAsset", "GroupNote", "Presence",
-  "Contact", "ContactNote",
+  "Contact", "ContactNote", "ContactRelationship",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
@@ -142,7 +142,7 @@ const EXPORT_CATEGORIES = [
   { id: "groceries",    label: "Grocery Lists",             entities: ["GroceryList", "GroceryItem", "GroceryFavorite"],                       desc: "Grocery / privacy-cover lists, their items, and frequent-purchase favourites. Lists marked \"available when locked\" live in localStorage and are NOT included here — they ride along with browser data instead." },
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
   { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset"],                                                        desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
-  { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote"],                                            desc: "External people: contact info, safety, boundaries, system rules & their notes" },
+  { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship"],                      desc: "External people: contact info, safety, boundaries, system rules, their notes & relationships" },
 ];
 
 async function downloadJson(data, filename, format = "json", mode = "save") {

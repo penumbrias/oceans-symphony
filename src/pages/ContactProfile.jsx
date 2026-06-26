@@ -10,6 +10,7 @@ import {
 import { toast } from "sonner";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
+import ContactRelationshipsTab from "@/components/contacts/ContactRelationshipsTab";
 import {
   getSafetyMeta, getAwarenessMeta, contactDisplayName,
   contactMethodHref, getContactMethodMeta,
@@ -17,6 +18,7 @@ import {
 
 const TABS = [
   { id: "about", label: "About" },
+  { id: "relationships", label: "Relationships" },
   { id: "boundaries", label: "Boundaries & Rules" },
   { id: "notes", label: "Notes" },
   { id: "options", label: "Options" },
@@ -173,6 +175,8 @@ export default function ContactProfile() {
           <Field label="Safe to share" value={contact.safe_to_share} empty="Nothing noted about what's safe to share." />
         </div>
       )}
+
+      {tab === "relationships" && <ContactRelationshipsTab contact={contact} />}
 
       {tab === "boundaries" && (
         <div className="space-y-4">

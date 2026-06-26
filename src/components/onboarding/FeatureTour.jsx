@@ -745,6 +745,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: "/contacts", target: null,
       look: `the Contacts page — tap "Add" to create one; the Emergency support banner appears once a contact is flagged`, action: null,
     },
+    {
+      section: "contacts", sectionLabel: "Contacts",
+      emoji: "🔗",
+      title: "Contact relationships",
+      body: `Open any contact and tap the Relationships tab to record how they relate to your ${t.system} as a whole or to individual ${t.alters} — the same idea as the relationships you set between ${t.alters}, but with an outside person. Pick the ${t.system}, an ${t.alter}, or a group, choose a relationship type (Friends, Family, Therapist…), and add notes. Each link also shows up on that ${t.alter}'s own Relationships tab under "External contacts".`,
+      route: "/contacts", target: null,
+      look: `a contact's profile → the Relationships tab → "Add relationship"`, action: null,
+    },
 
     // ─── THERAPY REPORT ─────────────────────────────────────────────────────
     {
