@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 25, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Pinned alters now have a settings gear: drag to rearrange their order (no longer stuck alphabetical), and narrow the row + tuck it to one side for easier one-handed reach.",
+      },
+      {
         type: "fix",
         text: "\"Customize dashboard\" (top-corner menu) now opens the drag-and-drop layout editor — reorder and toggle your dashboard sections — instead of the quick-nav tile edit.",
       },
