@@ -31,7 +31,7 @@ const importLocalSettings = writeBackupLocalSettings;
 // to the right app's importer. Returns "octocon" | "simplyplural" |
 // "openplural" | "ask" (look-alike members file we can't disambiguate) | null
 // (null = let the standard Symphony parser handle it).
-function externalKindFromJson(j) {
+export function externalKindFromJson(j) {
   if (!j || typeof j !== "object" || Array.isArray(j)) return null;
   if (j.__format === "symphony_backup" || typeof j.__encrypted === "string") return null;
   if (Array.isArray(j.alters) && ("fronts" in j || "tags" in j || "user" in j)) return "octocon";

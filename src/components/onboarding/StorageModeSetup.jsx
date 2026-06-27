@@ -8,6 +8,10 @@ import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
+import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
+import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
+import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
+import OctoconConnect from "@/components/settings/OctoconConnect";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -34,6 +38,7 @@ function FirstRunSetup({ onComplete }) {
   // the modal completes onboarding and lands the user in the app with
   // their imported data already in place.
   const [showImportModal, setShowImportModal] = useState(false);
+  const [externalImport, setExternalImport] = useState(null); // { file, type }
   const fileInputRef = useRef(null);
 
   // TWA-to-native migration modal: native users who just got auto-
@@ -97,6 +102,20 @@ function FirstRunSetup({ onComplete }) {
         return;
       }
       const text = await file.text();
+      // Detect another app's export (Simply Plural / Octocon / OpenPlural /
+      // PluralSpace .json, or OpenPlural .zip) BEFORE the Symphony parse. If
+      // it's external, set up storage (honouring the encryption toggle) and
+      // mount that app's importer with the file pre-loaded — routing it
+      // through the Symphony restore path would corrupt the DB.
+      const lowerName = (file.name || "").toLowerCase();
+      let probe = null;
+      if (!lowerName.endsWith(".zip")) { try { probe = JSON.parse(text); } catch {} }
+      const externalKind = lowerName.endsWith(".zip") ? "openplural" : externalKindFromJson(probe);
+      if (externalKind) {
+        setImporting(false);
+        if (await setupLocalStorage()) setExternalImport({ file, type: externalKind });
+        return;
+      }
       const parsed = parseImportText(text);
       if (parsed.format === FORMAT_STANDARD) {
         await applyDumpAndComplete({
@@ -273,38 +292,112 @@ function FirstRunSetup({ onComplete }) {
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/json,.json,.txt"
+          accept="application/json,.json,.txt,.zip,application/zip"
           onChange={handleImportFile}
           className="hidden"
         />
-        <Button
-          type="button"
-          variant="outline"
-          onClick={() => fileInputRef.current?.click()}
-          disabled={loading || importing}
-          className="w-full justify-start"
-        >
-          {importing
-            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            : <Upload className="w-4 h-4 mr-2" />}
-          Import from a backup file
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          onClick={handleStartAndImport}
-          disabled={loading || importing}
-          className="w-full justify-start"
-        >
-          {loading
-            ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-            : <Cloud className="w-4 h-4 mr-2" />}
-          Import from another app (Simply Plural, PluralKit…)
-        </Button>
-        {importStatus && (
-          <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
-            {importStatus.text}
-          </p>
+        {!externalImport ? (
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={loading || importing}
+              className="w-full justify-start h-auto py-2.5 whitespace-normal"
+            >
+              {importing
+                ? <Loader2 className="w-4 h-4 mr-2 animate-spin flex-shrink-0" />
+                : <Upload className="w-4 h-4 mr-2 flex-shrink-0" />}
+              <span className="text-left min-w-0">
+                <span className="block">Import from a file</span>
+                <span className="block text-xs text-muted-foreground font-normal whitespace-normal break-words">
+                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected
+                </span>
+              </span>
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={handleStartAndImport}
+              disabled={loading || importing}
+              className="w-full justify-start"
+            >
+              {loading
+                ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                : <Cloud className="w-4 h-4 mr-2" />}
+              Import from another app (Simply Plural, PluralKit…)
+            </Button>
+            {importStatus && (
+              <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
+                {importStatus.text}
+              </p>
+            )}
+          </>
+        ) : (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between gap-2">
+              <p className="text-xs text-muted-foreground">
+                Importing from{" "}
+                {externalImport.type === "simplyplural" ? "Simply Plural"
+                  : externalImport.type === "octocon" ? "Octocon"
+                  : externalImport.type === "openplural" ? "OpenPlural"
+                  : "an external app"}
+                {" — "}
+                <span className="text-foreground">{externalImport.file.name}</span>
+              </p>
+              <button
+                type="button"
+                onClick={() => setExternalImport(null)}
+                className="text-xs text-primary underline whitespace-nowrap flex-shrink-0"
+              >
+                Use a different file
+              </button>
+            </div>
+            {externalImport.type === "ask" ? (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  We can't tell if this is a Simply Plural or OpenPlural file. Which app is it from?
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setExternalImport(p => ({ ...p, type: "simplyplural" }))}
+                  >
+                    Simply Plural
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setExternalImport(p => ({ ...p, type: "openplural" }))}
+                  >
+                    OpenPlural / PluralSpace
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <>
+                {externalImport.type === "simplyplural" && (
+                  <SimplyPluralFileImport presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
+                )}
+                {externalImport.type === "octocon" && (
+                  <OctoconConnect presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
+                )}
+                {externalImport.type === "openplural" && (
+                  <OpenPluralConnect presetFile={externalImport.file} settings={null} onSettingsChange={() => {}} />
+                )}
+                <Button
+                  type="button"
+                  onClick={onComplete}
+                  className="w-full bg-primary hover:bg-primary/90"
+                >
+                  Done — open the app
+                </Button>
+              </>
+            )}
+          </div>
         )}
       </div>
 
@@ -414,8 +507,9 @@ export default function StorageModeSetup({ mode, onComplete }) {
   const [noticeOpen, setNoticeOpen] = useState(false);
 
   return (
-    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-      <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
+    <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-[100] overflow-y-auto overscroll-contain">
+      <div className="min-h-full flex items-start sm:items-center justify-center p-4">
+      <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl my-auto">
 
         {/* Header — unlock is a simple lock prompt; first-run setup doubles as
             the welcome intro (the two used to be separate screens). */}
@@ -514,6 +608,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
           ? <UnlockScreen onUnlock={onComplete} />
           : <FirstRunSetup onComplete={onComplete} />
         }
+      </div>
       </div>
     </div>
   );

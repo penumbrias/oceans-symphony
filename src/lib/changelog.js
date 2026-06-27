@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "First-run setup: one \"Import from a file\" now accepts every format (Symphony backup, Simply Plural, Octocon, PluralSpace, OpenPlural) and auto-detects it — same as the Data & privacy import. An app-export file no longer risks being mis-read as a backup.",
+      },
+      {
+        type: "fix",
+        text: "Web: fixed a scroll glitch on the Welcome / first-run setup screen.",
+      },
+      {
         type: "hotfix",
         text: "Hotfix: the \"Import from file\" button now grows to fit its description instead of the text spilling past the button edge.",
       },
