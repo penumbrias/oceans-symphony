@@ -53,8 +53,20 @@ function nextImmediateId() {
 // no-op for those fields. Users CAN still customise each channel
 // from system Settings → Apps → Oceans Symphony → Notifications →
 // <channel name>. We just want sensible defaults on first run.
-export const REMINDERS_CHANNEL_ID = "reminders-default";
+// NOTE on the "-v2" suffix: Android pins a channel's importance / sound /
+// vibration at CREATION time and silently ignores any later change to an
+// existing channel id. A cloud (FCM) reminder that lands on a device where
+// the original "reminders-default" channel got created without vibration —
+// or where the channel didn't exist yet so FCM fell back to a generic,
+// non-vibrating default — would never buzz, and we couldn't fix it in place.
+// Bumping the id forces a FRESH channel with the correct (vibrating, high-
+// importance) settings on the next launch. The old id is deleted below so
+// users don't see a duplicate "Reminders" entry in system settings. Keep
+// this id in lockstep with api/reminders/dispatch.js and the
+// default_notification_channel_id manifest meta-data.
+export const REMINDERS_CHANNEL_ID = "reminders-default-v2";
 export const SWITCH_CHANNEL_ID = "reminders-switch";
+const LEGACY_REMINDERS_CHANNEL_ID = "reminders-default";
 
 let channelsEnsured = false;
 
@@ -67,6 +79,11 @@ export async function ensureRemindersChannel() {
       // iOS or older plugin — channels are an Android-only concept.
       channelsEnsured = true;
       return;
+    }
+    // Remove the pre-v2 channel so the corrected one below is the only
+    // "Reminders" entry. Best-effort — deleteChannel no-ops if absent.
+    if (LocalNotifications.deleteChannel) {
+      try { await LocalNotifications.deleteChannel({ id: LEGACY_REMINDERS_CHANNEL_ID }); } catch { /* ignore */ }
     }
     await LocalNotifications.createChannel({
       id: REMINDERS_CHANNEL_ID,

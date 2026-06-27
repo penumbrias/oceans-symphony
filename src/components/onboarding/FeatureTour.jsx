@@ -180,7 +180,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "📌",
       title: `Pinned ${t.Alters}`,
-      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list.`,
+      body: `Tap the Pin button at the top-left of any ${t.alter}'s profile and they'll appear in this quick-access gallery (and on the dashboard). Pinning is just a shortcut — it doesn't move them out of their group or the main list. Swipe a chip up/down to ${t.front}/remove them; tap the ⚙ gear to drag-rearrange their order, narrow the row to one side for one-handed reach, or drop in a "scroll block" — a safe bar you can grab to scroll the row without accidentally ${t.fronting} anyone.`,
       route: "/Home", target: "pinned-alters",
       look: `the Pinned row at the top of the ${t.alters} page — only shows once you've pinned someone`, action: null,
     },
@@ -734,6 +734,24 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       body: `Your Safety Plan lives at /safety-plan (linked from the Support tab footer). It stores Warning Signs (earliest/escalating/emergency), Coping Cards, and Window of Tolerance levels. Build it gradually over time, or fill it in during a calmer moment. Access it instantly from the nav or the Support tab.`,
       route: "/safety-plan", target: null,
       look: `the Safety Plan page — scroll down to see Warning Signs, Coping Cards, and Tolerance levels`, action: null,
+    },
+
+    // ─── CONTACTS ───────────────────────────────────────────────────────────
+    {
+      section: "contacts", sectionLabel: "Contacts",
+      emoji: "📇",
+      title: "Contacts",
+      body: `Contacts is your directory of people OUTSIDE the system — friends, family, classmates, therapists. Each person gets a profile: mark them Safe / Caution / Unsafe, save phone/email, note whether they know we're a system, and record boundaries, system rules, and what's safe to share. Flag someone as an emergency support contact and they show up in a quick "who can I ask for help?" banner at the top with one-tap call/text. Search finds anyone fast — handy for a "wait, who is this?" moment. You can also add your own custom fields (Birthday, Address, How we met…) to every contact, group people into categories (Family, Work, Medical…) and filter by them, and rename the Safe / Caution / Unsafe labels via "Labels" to fit how you think. On a contact's profile, tap "I'm with them" to track time together — whoever you're with shows under "Currently with" on your dashboard until you end it.`,
+      route: "/contacts", target: null,
+      look: `the Contacts page — tap "Add" to create one; the Emergency support banner appears once a contact is flagged`, action: null,
+    },
+    {
+      section: "contacts", sectionLabel: "Contacts",
+      emoji: "🔗",
+      title: "Contact relationships",
+      body: `Open any contact and tap the Relationships tab to record how they relate to your ${t.system} as a whole or to individual ${t.alters} — the same idea as the relationships you set between ${t.alters}, but with an outside person. Pick the ${t.system}, an ${t.alter}, or a group, choose a relationship type (Friends, Family, Therapist…), and add notes. Each link also shows up on that ${t.alter}'s own Relationships tab under "External contacts".`,
+      route: "/contacts", target: null,
+      look: `a contact's profile → the Relationships tab → "Add relationship"`, action: null,
     },
 
     // ─── THERAPY REPORT ─────────────────────────────────────────────────────

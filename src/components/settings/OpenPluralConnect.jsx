@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -82,7 +82,7 @@ async function deleteAllOf(entityName) {
   return n;
 }
 
-export default function OpenPluralConnect({ settings, onSettingsChange }) {
+export default function OpenPluralConnect({ settings, onSettingsChange, presetFile = null }) {
   const queryClient = useQueryClient();
   const t = useTerms();
   const fileInputRef = useRef(null);
@@ -140,6 +140,11 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  useEffect(() => {
+    if (presetFile) handleFile({ target: { files: [presetFile] } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetFile]);
 
   // Counts for the preview card. is_custom_front members are NOT real alters.
   const data = parsed?.data;
@@ -775,36 +780,38 @@ export default function OpenPluralConnect({ settings, onSettingsChange }) {
       <CardContent>
         <div className="space-y-5">
           {/* File picker */}
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Export file</Label>
-            <p className="text-xs text-muted-foreground">
-              Choose your OpenPlural export. A <code className="font-mono bg-muted px-1 rounded">.zip</code> keeps avatars; a raw <code className="font-mono bg-muted px-1 rounded">.json</code> works too (without images).
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".zip,.json,application/zip,application/json"
-              onChange={handleFile}
-              className="hidden"
-              id="op-file-input"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={parsing || importing}
-              className="w-full"
-            >
-              {parsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-              {parsing ? "Reading…" : (fileName ? "Choose a different file" : "Choose export file")}
-            </Button>
-            {fileName && !parsing && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Link2 className="w-3 h-3" /> {fileName}
+          {!presetFile && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Export file</Label>
+              <p className="text-xs text-muted-foreground">
+                Choose your OpenPlural export. A <code className="font-mono bg-muted px-1 rounded">.zip</code> keeps avatars; a raw <code className="font-mono bg-muted px-1 rounded">.json</code> works too (without images).
               </p>
-            )}
-          </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".zip,.json,application/zip,application/json"
+                onChange={handleFile}
+                className="hidden"
+                id="op-file-input"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsing || importing}
+                className="w-full"
+              >
+                {parsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                {parsing ? "Reading…" : (fileName ? "Choose a different file" : "Choose export file")}
+              </Button>
+              {fileName && !parsing && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Link2 className="w-3 h-3" /> {fileName}
+                </p>
+              )}
+            </div>
+          )}
 
           {/* Preview */}
           {counts && (

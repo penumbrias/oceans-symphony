@@ -105,7 +105,6 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Double-tap to jump to the session on the Timeline or edit it. Swipe right to remove from front, swipe left to toggle primary.`}
       aria-expanded={!!isExpanded}
       {...bind}
-      onMouseDown={(e) => { /* desktop: long-press via mouse not wired; rely on click */ }}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggleExpand?.(alter.id) : undefined}
       style={{
         transform: `translateX(${dragX}px)`,

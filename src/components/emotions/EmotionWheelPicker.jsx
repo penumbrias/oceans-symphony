@@ -149,6 +149,22 @@ export default function EmotionWheelPicker({
   };
 
   const handleValence = (key) => {
+    // Good / Bad / Neutral double as the quick "base mood": tapping one adds
+    // (or removes) it as a selected emotion — exactly like tapping a specific
+    // emotion such as "Bored" — AND expands it so you can optionally get more
+    // specific. This replaced the old separate "Good / Neutral / Bad" row.
+    // "Body & Nervous System" is a category, not a loggable mood, so it only
+    // expands (no pill).
+    if (key !== "body") {
+      const wasSelected = selectedEmotions.includes(WHEEL[key].label);
+      onToggle?.(WHEEL[key].label);
+      if (wasSelected) {
+        if (activeValence === key) { setActiveValence(null); setActiveCore(null); }
+      } else {
+        setActiveValence(key); setActiveCore(null);
+      }
+      return;
+    }
     if (activeValence === key) { setActiveValence(null); setActiveCore(null); }
     else { setActiveValence(key); setActiveCore(null); }
   };
@@ -279,16 +295,21 @@ export default function EmotionWheelPicker({
       {pickerMode === "wheel" && !search && (
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-2">
-            {Object.entries(WHEEL).map(([key, v]) => (
-              <button key={key}
-                onClick={() => handleValence(key)}
-                className={`py-2 px-3 rounded-xl border text-sm font-semibold transition-all text-left ${
-                  activeValence === key ? v.activeClass : v.bgClass
-                }`}
-                style={activeValence === key ? {} : { color: v.color }}>
-                {v.label}
-              </button>
-            ))}
+            {Object.entries(WHEEL).map(([key, v]) => {
+              // Good/Bad/Neutral light up when selected (they're loggable moods);
+              // any valence lights up while expanded.
+              const lit = activeValence === key || (key !== "body" && selectedEmotions.includes(v.label));
+              return (
+                <button key={key}
+                  onClick={() => handleValence(key)}
+                  className={`py-2 px-3 rounded-xl border text-sm font-semibold transition-all text-left ${
+                    lit ? v.activeClass : v.bgClass
+                  }`}
+                  style={lit ? {} : { color: v.color }}>
+                  {v.label}
+                </button>
+              );
+            })}
           </div>
 
           {activeValence && valenceData && (

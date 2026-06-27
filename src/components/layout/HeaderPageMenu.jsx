@@ -36,7 +36,10 @@ export default function HeaderPageMenu({ className }) {
       key: "dash-edit",
       label: "Customize dashboard",
       icon: LayoutGrid,
-      onSelect: () => window.dispatchEvent(new CustomEvent("symphony-open-dashboard-edit")),
+      // Opens the section drag/drop layout editor (same one in
+      // Settings → Appearance → Layout → Dashboard) in a popup — NOT the
+      // nav-tile grid edit (that's the separate symphony-open-dashboard-edit).
+      onSelect: () => window.dispatchEvent(new CustomEvent("symphony-open-dashboard-layout")),
     });
     pageActions.push({
       key: "dash-appearance",

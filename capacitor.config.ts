@@ -48,6 +48,27 @@ const config: CapacitorConfig = {
     hostname: 'app.local.oceans-symphony',
   },
   plugins: {
+    // Status-bar icon for every LOCAL notification (scheduled reminders,
+    // plan reminders, the ongoing/persistent status notifications). Points
+    // at the full-colour app art (res/drawable/ic_notif_large.png, copied
+    // from the launcher icon) so Samsung/One UI — which renders notification
+    // icons in colour — shows the actual drawing in the status bar, matching
+    // how FCM reminders already appear. Stock Android (Pixel) force-tints
+    // small icons to a flat shape; the large icon (set per-notification)
+    // still shows the colour art in the shade there. A monochrome fallback
+    // glyph lives at res/drawable/ic_stat_symphony.xml if we ever want the
+    // universally-clean look instead. Cloud (FCM) pushes use the matching
+    // default_notification_icon meta-data in AndroidManifest.xml.
+    // NOTE: smallIcon is the monochrome glyph (ic_stat_symphony), NOT the
+    // colour art — Android's status-bar small-icon slot masks colour images
+    // to an ugly white blob on stock Android. The colour app art shows
+    // instead as the per-notification largeIcon (ic_notif_large) inside the
+    // expanded notification, so it appears on every device without blobbing.
+    // (Kane chose this universal-clean look, June 2026.)
+    LocalNotifications: {
+      smallIcon: 'ic_stat_symphony',
+      iconColor: '#2563EB',
+    },
     // overlaysWebView: true lets the WebView render edge-to-edge,
     // including up into the status bar area and down behind the
     // navigation-gesture pill. The app chrome (sticky header, bottom

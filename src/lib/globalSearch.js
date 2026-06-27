@@ -405,6 +405,25 @@ export function buildGroupRecords({ items = [], alters = [] }) {
   });
 }
 
+export function buildContactRecords({ items = [] }) {
+  return (items || [])
+    .filter((c) => !c.is_archived)
+    .map((c) => ({
+      type: "contact",
+      id: c.id,
+      title: c.nickname || c.name || "Contact",
+      subtitle: c.relationship_label || "Contact",
+      path: `/contacts/${c.id}`,
+      searchableText: joinNonEmpty([
+        c.name, c.nickname, c.relationship_label,
+        c.about, c.safe_to_share, c.boundaries, c.system_rules,
+        ...(c.contact_methods || []).map((m) => m.value),
+        dateSearchBlob(c.created_date),
+      ]).toLowerCase(),
+      sortDate: c.created_date,
+    }));
+}
+
 export function buildGroundingTechniqueRecords({ items = [] }) {
   return items.map((g) => ({
     type: "grounding",
@@ -640,6 +659,7 @@ export function buildSearchIndex(sources = {}) {
     chatMessages, chatChannels,
     groundingTechniques, innerWorldLocations,
     presences,
+    contacts,
   } = sources;
 
   const records = [];
@@ -670,6 +690,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildGroundingTechniqueRecords({ items: groundingTechniques || [] }));
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
+  records.push(...buildContactRecords({ items: contacts || [] }));
   return records;
 }
 

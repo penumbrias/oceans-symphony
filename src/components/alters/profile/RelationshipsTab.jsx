@@ -164,6 +164,20 @@ export default function RelationshipsTab({ alter, alters }) {
 
   const alterMap = useMemo(() => Object.fromEntries(allAlters.map(a => [a.id, a])), [allAlters]);
 
+  // External contacts (Phase 3) — relationships this alter has with people
+  // OUTSIDE the system. Read-only here; created/edited from the contact's
+  // own profile so there's one source of truth.
+  const { data: contactRels = [] } = useQuery({
+    queryKey: ["contactRelationshipsForAlter", alter.id],
+    queryFn: () => base44.entities.ContactRelationship.filter({ target_type: "alter", target_id: alter.id }),
+  });
+  const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
+  const contactsById = useMemo(() => Object.fromEntries(contacts.map(c => [c.id, c])), [contacts]);
+  const myContactRels = useMemo(
+    () => (contactRels || []).filter(r => contactsById[r.contact_id]),
+    [contactRels, contactsById]
+  );
+
   // Every relationship involving this alter, normalised so the "other" alter
   // and a this-alter-relative direction are easy to render. Mirrors
   // LineageTab.jsx's myRelationships derivation.
@@ -260,6 +274,33 @@ export default function RelationshipsTab({ alter, alters }) {
               </div>
             );
           })}
+        </div>
+      )}
+
+      {/* External contacts — read-only mirror of ContactRelationship rows. */}
+      {myContactRels.length > 0 && (
+        <div className="space-y-2 pt-2">
+          <div>
+            <h3 className="text-sm font-semibold text-foreground">External contacts</h3>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              People outside the {t.system.toLowerCase()} connected to this {t.alter} — manage these from the contact's profile.
+            </p>
+          </div>
+          <div className="rounded-xl border border-border/60 bg-card overflow-hidden divide-y divide-border/50">
+            {myContactRels.map(r => {
+              const c = contactsById[r.contact_id];
+              const cName = (c.nickname && c.nickname.trim()) || (c.name && c.name.trim()) || "Unnamed";
+              return (
+                <Link key={r.id} to={`/contacts/${c.id}`} className="px-3 py-2.5 flex items-center gap-2.5 hover:bg-muted/20 transition-colors">
+                  <span className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs flex-shrink-0" style={{ backgroundColor: c.color || "#8b5cf6" }}>
+                    {cName[0]?.toUpperCase() || "?"}
+                  </span>
+                  <span className="text-sm text-foreground font-medium truncate">{cName}</span>
+                  <span className="text-xs text-muted-foreground ml-auto truncate max-w-[45%] flex-shrink-0">{r.relationship_type}</span>
+                </Link>
+              );
+            })}
+          </div>
         </div>
       )}
 

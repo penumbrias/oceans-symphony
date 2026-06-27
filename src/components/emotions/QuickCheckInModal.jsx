@@ -1087,21 +1087,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <div className="flex gap-3">
                 <div className="flex-1 min-w-0 space-y-2">
                   <p className="text-sm font-medium">How are you feeling?</p>
-                  {/* Base moods — tap one of these alone if you don't want to be
-                      specific. They save just like any other emotion (and read as
-                      Good / Neutral / Bad valence in colours + analytics). */}
-                  <div className="flex gap-1.5">
-                    {[["Good", "🙂"], ["Neutral", "😐"], ["Bad", "😞"]].map(([label, emoji]) => {
-                      const on = selectedEmotions.includes(label);
-                      return (
-                        <button key={label} type="button"
-                          onClick={() => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
-                          className={`flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg border text-sm font-medium transition-colors ${on ? "border-primary bg-primary/10 text-foreground" : "border-border/60 text-muted-foreground hover:bg-muted/40"}`}>
-                          <span aria-hidden>{emoji}</span> {label}
-                        </button>
-                      );
-                    })}
-                  </div>
+                  {/* The quick base moods (Good / Neutral / Bad) are the colourful
+                      valence buttons inside EmotionWheelPicker now — tapping one
+                      adds it as a selected emotion AND opens it for specifics, so
+                      a separate mood row would be redundant. */}
                   <EmotionWheelPicker
                   selectedEmotions={selectedEmotions}
                   onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}

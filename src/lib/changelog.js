@@ -18,8 +18,124 @@
 
 export const CHANGELOG = [
   {
-    date: "June 24, 2026",
+    date: "June 26, 2026",
     changes: [
+      {
+        type: "improve",
+        text: "First-run setup: the live-sync button is now labelled \"Import with API token (Simply Plural, PluralKit…)\" to set it apart from \"Import from a file\".",
+      },
+      {
+        type: "improve",
+        text: "First-run setup: one \"Import from a file\" now accepts every format (Symphony backup, Simply Plural, Octocon, PluralSpace, OpenPlural) and auto-detects it — same as the Data & privacy import. An app-export file no longer risks being mis-read as a backup.",
+      },
+      {
+        type: "fix",
+        text: "Web: fixed a scroll glitch on the Welcome / first-run setup screen.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: the \"Import from file\" button now grows to fit its description instead of the text spilling past the button edge.",
+      },
+      {
+        type: "improve",
+        text: "Data & privacy: OpenPlural and Simply Plural are now export-format buttons next to Plain .json / Compact (.txt) — pick one to export that way. Import now sits above Export, and the \"Import from file\" description no longer gets cut off.",
+      },
+      {
+        type: "improve",
+        text: "Import: one \"Import from file\" now auto-detects every format — Symphony backups, Simply Plural, Octocon, PluralSpace (.json) and OpenPlural (.zip). The separate per-app file importers are gone; only PluralKit and Simply Plural live-token sync stay as their own options.",
+      },
+      {
+        type: "improve",
+        text: "Settings → Data & privacy is condensed into four clear sections — Export, Import, Storage & encryption, and Privacy cover — with the cross-app export formats and automatic backups grouped under Export. Nothing removed, just easier to find.",
+      },
+      {
+        type: "fix",
+        text: "Desktop: swipe-to-set-front gestures now work on the dashboard's Currently Fronting chips and Pinned alters too — previously only the Alters page responded to mouse swipes.",
+      },
+      {
+        type: "feature",
+        text: "Contacts: tap \"I'm with them\" on a contact to track time together — whoever you're with shows under \"Currently with\" on your dashboard until you end it.",
+      },
+      {
+        type: "improve",
+        text: "Contacts: relationship types are now their own editable set (Friend, Family, Therapist…) and free-entry — type your own — instead of the internal alter relationship types.",
+      },
+      {
+        type: "feature",
+        text: "Contacts: organize people into your own categories (Family, Friends, Work, Medical…) — filter the directory by category and see them on each profile.",
+      },
+      {
+        type: "feature",
+        text: "Contacts: add your own custom fields (Birthday, Address, How we met…) — they appear on every contact and show on their profile.",
+      },
+      {
+        type: "improve",
+        text: "Contacts: rename and recolour the Safe / Caution / Unsafe / Unknown safety labels to fit how you think — tap \"Labels\" on the Contacts page.",
+      },
+      {
+        type: "feature",
+        text: "Contacts: record how a contact relates to your system or to individual alters — pick a relationship type, add notes, and see the link on that alter's profile too.",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In: the colourful Good / Neutral / Bad buttons now double as the quick mood — tap one to add it as an emotion (and open its specifics). Removed the redundant separate mood row above them.",
+      },
+    ],
+  },
+  {
+    date: "June 25, 2026",
+    version: "0.70.2",
+    changes: [
+      {
+        type: "feature",
+        text: "Pinned alters: new \"scroll block\" — turn it on in the gear to drop a safe grab-bar into the row, so you can scroll the page up/down past your pinned alters without accidentally fronting anyone. Set its width and position, and choose whether it scrolls with the row or stays put.",
+      },
+      {
+        type: "feature",
+        text: "Pinned alters now have a settings gear: drag to rearrange their order (no longer stuck alphabetical), and narrow the row + tuck it to one side for easier one-handed reach.",
+      },
+      {
+        type: "fix",
+        text: "\"Customize dashboard\" (top-corner menu) now opens the drag-and-drop layout editor — reorder and toggle your dashboard sections — instead of the quick-nav tile edit.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a crash that could blank the screen after opening the new Contacts page and returning to a screen with your system banner.",
+      },
+      {
+        type: "fix",
+        text: "If a screen ever hits a display error, you now get a recoverable \"something went wrong\" screen (with Home / Reload buttons and the error details) instead of a blank white screen — your data stays safe.",
+      },
+      {
+        type: "improve",
+        text: "Notifications now show the app's artwork as the large icon inside the notification, with a clean app glyph in the status bar — tidy on every phone, no more generic placeholder.",
+      },
+      {
+        type: "improve",
+        text: "Settings: added a link to the official Oceans Symphony website, and turned the GitHub and Discord links into tappable icons.",
+      },
+      {
+        type: "feature",
+        text: "New Contacts section: a directory of people outside the system — mark who's safe, save their info, note boundaries and what's okay to share, and flag emergency support contacts for quick one-tap help.",
+      },
+      {
+        type: "improve",
+        text: "Reminders now fire right on the minute — even after your phone's been sitting idle — instead of a little late.",
+      },
+      {
+        type: "improve",
+        text: "The ongoing status notifications (fronters, symptoms, activity timer) now show a proper app icon instead of a generic placeholder.",
+      },
+    ],
+  },
+  {
+    date: "June 24, 2026",
+    version: "0.69.4",
+    changes: [
+      {
+        type: "fix",
+        text: "Reminders delivered while the app is closed now vibrate and pop up like they should (they were arriving silently).",
+      },
       {
         type: "improve",
         text: "\"Plan something\" now has every plan option in its pills — set it as a to-do, add a location, repeat, reminder, or mark it critical — and picking who it's for uses the same searchable list as everywhere else.",
