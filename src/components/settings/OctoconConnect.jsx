@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -46,7 +46,7 @@ async function deleteAllOf(entityName) {
   return n;
 }
 
-export default function OctoconConnect({ settings, onSettingsChange }) {
+export default function OctoconConnect({ settings, onSettingsChange, presetFile = null }) {
   const queryClient = useQueryClient();
   const t = useTerms();
   const fileInputRef = useRef(null);
@@ -92,6 +92,11 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
+  useEffect(() => {
+    if (presetFile) handleFile({ target: { files: [presetFile] } });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [presetFile]);
 
   const data = parsed?.data;
   const counts = data ? {
@@ -454,36 +459,38 @@ export default function OctoconConnect({ settings, onSettingsChange }) {
       </CardHeader>
       <CardContent>
         <div className="space-y-5">
-          <div className="space-y-2">
-            <Label className="text-sm font-medium">Export file</Label>
-            <p className="text-xs text-muted-foreground">
-              In Octocon, export your data, then choose the <code className="font-mono bg-muted px-1 rounded">.json</code> file here. Avatars are linked from Octocon (they load while you're online).
-            </p>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".json,application/json"
-              onChange={handleFile}
-              className="hidden"
-              id="octo-file-input"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => fileInputRef.current?.click()}
-              disabled={parsing || importing}
-              className="w-full"
-            >
-              {parsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
-              {parsing ? "Reading…" : (fileName ? "Choose a different file" : "Choose export file")}
-            </Button>
-            {fileName && !parsing && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                <Link2 className="w-3 h-3" /> {fileName}
+          {!presetFile && (
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Export file</Label>
+              <p className="text-xs text-muted-foreground">
+                In Octocon, export your data, then choose the <code className="font-mono bg-muted px-1 rounded">.json</code> file here. Avatars are linked from Octocon (they load while you're online).
               </p>
-            )}
-          </div>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".json,application/json"
+                onChange={handleFile}
+                className="hidden"
+                id="octo-file-input"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={parsing || importing}
+                className="w-full"
+              >
+                {parsing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <Upload className="w-4 h-4 mr-2" />}
+                {parsing ? "Reading…" : (fileName ? "Choose a different file" : "Choose export file")}
+              </Button>
+              {fileName && !parsing && (
+                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                  <Link2 className="w-3 h-3" /> {fileName}
+                </p>
+              )}
+            </div>
+          )}
 
           {counts && (
             <div className="rounded-lg border border-border/50 bg-muted/20 p-3 space-y-1.5">

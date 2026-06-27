@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Import: one \"Import from file\" now auto-detects every format — Symphony backups, Simply Plural, Octocon, PluralSpace (.json) and OpenPlural (.zip). The separate per-app file importers are gone; only PluralKit and Simply Plural live-token sync stay as their own options.",
+      },
+      {
+        type: "improve",
         text: "Settings → Data & privacy is condensed into four clear sections — Export, Import, Storage & encryption, and Privacy cover — with the cross-app export formats and automatic backups grouped under Export. Nothing removed, just easier to find.",
       },
       {

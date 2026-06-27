@@ -232,6 +232,10 @@ export default function Settings() {
   const [showAlterCount, setShowAlterCount] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // Unified "Import from file" dispatch: DataBackupRestore detects a non-Symphony
+  // export and hands the file up here, which routes it to the right app's importer.
+  const [externalImport, setExternalImport] = useState(null); // { file, type }
+
   React.useEffect(() => {
     if (settings?.system_name) setSystemName(settings.system_name);
     if (settings?.system_avatar_url !== undefined) setSystemAvatarUrl(settings.system_avatar_url || "");
@@ -785,7 +789,99 @@ export default function Settings() {
               .json and OpenPlural .zip) up top, then each live-sync token / extra
               importer nested. */}
           <SubSection title="Import" defaultOpen={false}>
-            <DataBackupRestore section="import" />
+            <DataBackupRestore
+              section="import"
+              onExternalFile={(file, type) => setExternalImport(type ? { file, type } : null)}
+            />
+
+            {/* Unified file-import dispatcher. "Import from file" above
+                auto-detects the export type; for a non-Symphony export it
+                hands the file up here, which routes it to the matching app's
+                importer (or asks when a members-style file is ambiguous). */}
+            {externalImport?.type === "ask" && (
+              <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3">
+                <p className="text-sm text-foreground">
+                  We can't tell whether this file is from Simply Plural or OpenPlural. Which app is it from?
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExternalImport((p) => ({ ...p, type: "simplyplural" }))}
+                  >
+                    Simply Plural
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => setExternalImport((p) => ({ ...p, type: "openplural" }))}
+                  >
+                    OpenPlural / PluralSpace
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setExternalImport(null)}
+                  >
+                    Cancel
+                  </Button>
+                </div>
+              </div>
+            )}
+
+            {externalImport && externalImport.type !== "ask" && (
+              <div className="mt-3 space-y-2">
+                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                  <span>
+                    Detected {externalImport.file.name} — importing as{" "}
+                    {externalImport.type === "simplyplural"
+                      ? "Simply Plural"
+                      : externalImport.type === "octocon"
+                      ? "Octocon"
+                      : "OpenPlural / PluralSpace"}
+                    .
+                  </span>
+                  <button
+                    type="button"
+                    className="underline shrink-0 hover:text-foreground"
+                    onClick={() => setExternalImport(null)}
+                  >
+                    Use a different file
+                  </button>
+                </div>
+                {externalImport.type === "simplyplural" && (
+                  <SimplyPluralFileImport
+                    presetFile={externalImport.file}
+                    settings={settings}
+                    onSettingsChange={() => {
+                      refetch();
+                      queryClient.invalidateQueries({ queryKey: ["alters"] });
+                    }}
+                  />
+                )}
+                {externalImport.type === "octocon" && (
+                  <OctoconConnect
+                    presetFile={externalImport.file}
+                    settings={settings}
+                    onSettingsChange={() => {
+                      refetch();
+                      queryClient.invalidateQueries({ queryKey: ["alters"] });
+                    }}
+                  />
+                )}
+                {externalImport.type === "openplural" && (
+                  <OpenPluralConnect
+                    presetFile={externalImport.file}
+                    settings={settings}
+                    onSettingsChange={() => {
+                      refetch();
+                      queryClient.invalidateQueries({ queryKey: ["alters"] });
+                    }}
+                  />
+                )}
+              </div>
+            )}
+
             <SubSection title="PluralKit (live token)" defaultOpen={false}>
               <PluralKitConnect settings={settings} onSettingsChange={() => {
                 refetch();
@@ -794,27 +890,6 @@ export default function Settings() {
             </SubSection>
             <SubSection title="Simply Plural (live token)" defaultOpen={false}>
               <SimplyPluralConnect settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
-            {/* Simply Plural EXPORT-FILE importer — the only path that brings
-                chat across (the API can't return SP's end-to-end-encrypted
-                chat; the export file has it in plaintext). */}
-            <SubSection title="Simply Plural (export file — incl. chat)" defaultOpen={false}>
-              <SimplyPluralFileImport settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
-            <SubSection title="OpenPlural / PluralSpace" defaultOpen={false}>
-              <OpenPluralConnect settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
-            <SubSection title="Octocon" defaultOpen={false}>
-              <OctoconConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />

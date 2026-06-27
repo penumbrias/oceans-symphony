@@ -27,6 +27,22 @@ import pako from "pako";
 const exportLocalSettings = readBackupLocalSettings;
 const importLocalSettings = writeBackupLocalSettings;
 
+// Detect a non-Symphony external export so the unified importer can hand it
+// to the right app's importer. Returns "octocon" | "simplyplural" |
+// "openplural" | "ask" (look-alike members file we can't disambiguate) | null
+// (null = let the standard Symphony parser handle it).
+function externalKindFromJson(j) {
+  if (!j || typeof j !== "object" || Array.isArray(j)) return null;
+  if (j.__format === "symphony_backup" || typeof j.__encrypted === "string") return null;
+  if (Array.isArray(j.alters) && ("fronts" in j || "tags" in j || "user" in j)) return "octocon";
+  if (Array.isArray(j.members)) {
+    if (j.frontHistory !== undefined || j.channelCategories !== undefined || j.customFields !== undefined || j.chatMessages !== undefined) return "simplyplural";
+    if (j.front_periods !== undefined || j.custom_fields !== undefined || j.relationships !== undefined || j.conversations !== undefined) return "openplural";
+    return "ask";
+  }
+  return null;
+}
+
 function compressBackup(data) {
   const json = JSON.stringify(data);
   const compressed = pako.deflate(json);
@@ -224,7 +240,7 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   });
 }
 
-export default function DataBackupRestore({ section = "all" }) {
+export default function DataBackupRestore({ section = "all", onExternalFile }) {
   const terms = useTerms();
   // Which slice to render — lets Settings split this into separate accordion
   // sections (export / import / storage tools) without forking the logic.
@@ -543,6 +559,13 @@ export default function DataBackupRestore({ section = "all" }) {
   const handleImportFromFile = async (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
+    // A .zip can only be an OpenPlural export (binary — can't be read as text
+    // and probed). Hand it straight to the OpenPlural importer.
+    if (onExternalFile && (file.name || "").toLowerCase().endsWith(".zip")) {
+      onExternalFile(file, "openplural");
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
     setImportLoading(true);
     try {
       // Two-stage decode: try the compact (gzip) wrapper first to get
@@ -558,6 +581,16 @@ export default function DataBackupRestore({ section = "all" }) {
         innerJsonText = pako.inflate(bytes, { to: "string" });
       } else {
         innerJsonText = trimmed;
+      }
+      // Probe for a non-Symphony external export and hand it off to the right
+      // app's importer before running the Symphony parser. (The `finally`
+      // already clears loading + the input.)
+      if (onExternalFile) {
+        let probe = null;
+        try { probe = JSON.parse(innerJsonText); } catch {}
+        const kind = externalKindFromJson(probe);
+        if (kind) { onExternalFile(file, kind); return; }
+        onExternalFile(null, null); // not external → clear any leftover dispatcher panel
       }
       await processImport(innerJsonText);
     } catch (e) {
@@ -1092,7 +1125,7 @@ export default function DataBackupRestore({ section = "all" }) {
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup .json or .txt file</p>
+              <p className="text-xs text-muted-foreground font-normal">Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">
