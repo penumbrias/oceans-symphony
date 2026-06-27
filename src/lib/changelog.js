@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "First-run setup: the live-sync button is now labelled \"Import with API token (Simply Plural, PluralKit…)\" to set it apart from \"Import from a file\".",
+      },
+      {
+        type: "improve",
         text: "First-run setup: one \"Import from a file\" now accepts every format (Symphony backup, Simply Plural, Octocon, PluralSpace, OpenPlural) and auto-detects it — same as the Data & privacy import. An app-export file no longer risks being mis-read as a backup.",
       },
       {

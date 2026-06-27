@@ -325,7 +325,7 @@ function FirstRunSetup({ onComplete }) {
               {loading
                 ? <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 : <Cloud className="w-4 h-4 mr-2" />}
-              Import from another app (Simply Plural, PluralKit…)
+              Import with API token (Simply Plural, PluralKit…)
             </Button>
             {importStatus && (
               <p className={`text-xs ${importStatus.type === "error" ? "text-destructive" : "text-emerald-600 dark:text-emerald-400"}`}>
