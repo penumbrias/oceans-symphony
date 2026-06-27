@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Settings → Data & privacy is condensed into four clear sections — Export, Import, Storage & encryption, and Privacy cover — with the cross-app export formats and automatic backups grouped under Export. Nothing removed, just easier to find.",
+      },
+      {
         type: "fix",
         text: "Desktop: swipe-to-set-front gestures now work on the dashboard's Currently Fronting chips and Pinned alters too — previously only the Alters page responded to mouse swipes.",
       },

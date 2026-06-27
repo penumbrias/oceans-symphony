@@ -758,22 +758,41 @@ export default function Settings() {
           <p className="text-xs text-muted-foreground">
             Privacy & Data Notice has moved to the top of this page — tap the banner above to expand it.
           </p>
-          {/* Backup + Export first — what people open this section to do most
-              often: export options, format, and the copy/paste fallback. */}
-          <SubSection title="Backup & export" defaultOpen={false}><DataBackupRestore section="export" /></SubSection>
-          {/* Portable cross-app export. Sits next to Backup & export since it's
-              the other "get my data out" surface; the matching importer lives
-              in the Import → OpenPlural / PluralSpace SubSection below. */}
-          <SubSection title="Export (OpenPlural)" defaultOpen={false}><OpenPluralExport /></SubSection>
-          {/* Simply Plural export-file format — importable into PluralSpace /
-              Simply Plural / any app that reads SP exports. JSON-only (no media);
-              avatars travel via the OpenPlural export above. */}
-          <SubSection title="Export (Simply Plural)" defaultOpen={false}><SimplyPluralExport /></SubSection>
-          {/* Import groups the file/text restore together with the
-              service connectors (Simply Plural, PluralKit) nested inside. */}
+          {/* Condensed Data & Privacy (Kane's wireframe): four boxes — Export,
+              Import, Storage & encryption, Privacy cover. Everything for getting
+              data OUT is grouped under Export; everything for bringing it IN is
+              under Import. No features removed — just gathered where they belong. */}
+
+          {/* ── EXPORT ──────────────────────────────────────────────────────
+              The main backup already carries the Advanced "choose what to
+              export" picker, the Plain .json / Compact .txt format toggle, the
+              Save-to-device / Share buttons, AND the copy/paste fallback. The
+              cross-app export formats and automatic backups nest beneath it. */}
+          <SubSection title="Export" defaultOpen={false}>
+            <DataBackupRestore section="export" />
+            {/* Portable cross-app export (incl. avatars). Importable into
+                PluralSpace and apps that read OpenPlural. */}
+            <SubSection title="Other format — OpenPlural (cross-app, incl. avatars)" defaultOpen={false}><OpenPluralExport /></SubSection>
+            {/* Simply Plural export-file format — JSON only (no media; avatars
+                travel via the OpenPlural export above). */}
+            <SubSection title="Other format — Simply Plural (JSON)" defaultOpen={false}><SimplyPluralExport /></SubSection>
+            <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
+          </SubSection>
+
+          {/* ── IMPORT ──────────────────────────────────────────────────────
+              The file/text restore (Add new / Replace all + "Import from file",
+              which reads Symphony .json/.txt, Simply Plural, Octocon, PluralSpace
+              .json and OpenPlural .zip) up top, then each live-sync token / extra
+              importer nested. */}
           <SubSection title="Import" defaultOpen={false}>
             <DataBackupRestore section="import" />
-            <SubSection title="Simply Plural" defaultOpen={false}>
+            <SubSection title="PluralKit (live token)" defaultOpen={false}>
+              <PluralKitConnect settings={settings} onSettingsChange={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }} />
+            </SubSection>
+            <SubSection title="Simply Plural (live token)" defaultOpen={false}>
               <SimplyPluralConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -784,12 +803,6 @@ export default function Settings() {
                 chat; the export file has it in plaintext). */}
             <SubSection title="Simply Plural (export file — incl. chat)" defaultOpen={false}>
               <SimplyPluralFileImport settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
-            <SubSection title="PluralKit" defaultOpen={false}>
-              <PluralKitConnect settings={settings} onSettingsChange={() => {
                 refetch();
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />
@@ -807,13 +820,14 @@ export default function Settings() {
               }} />
             </SubSection>
           </SubSection>
-          <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
-          {/* Storage & encryption — the image cache / recompress tools moved
-              down here (they used to sit at the top of Backup & export). */}
+
+          {/* ── STORAGE & ENCRYPTION ── */}
           <SubSection title="Storage & encryption" defaultOpen={false}>
             <StorageModeSettings />
             <DataBackupRestore section="storage" />
           </SubSection>
+
+          {/* ── PRIVACY COVER ── */}
           <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
         </Section>
 
