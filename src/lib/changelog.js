@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: the \"Import from file\" button now grows to fit its description instead of the text spilling past the button edge.",
+      },
+      {
         type: "improve",
         text: "Data & privacy: OpenPlural and Simply Plural are now export-format buttons next to Plain .json / Compact (.txt) — pick one to export that way. Import now sits above Export, and the \"Import from file\" description no longer gets cut off.",
       },

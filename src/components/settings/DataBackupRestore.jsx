@@ -803,7 +803,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                 {cacheUrlResult.message}
               </div>
             )}
-            <Button variant="outline" onClick={handleCacheUrlImages} disabled={cachingUrls} className="w-full gap-2 justify-start">
+            <Button variant="outline" onClick={handleCacheUrlImages} disabled={cachingUrls} className="w-full gap-2 justify-start h-auto py-2.5">
               {cachingUrls ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
               <div className="text-left">
                 <p className="font-medium">Cache Images for Offline</p>
@@ -827,7 +827,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               {recompressResult.message}
             </div>
           )}
-          <Button variant="outline" onClick={handleRecompressImages} disabled={recompressing} className="w-full gap-2 justify-start">
+          <Button variant="outline" onClick={handleRecompressImages} disabled={recompressing} className="w-full gap-2 justify-start h-auto py-2.5">
             {recompressing ? <Loader2 className="w-4 h-4 animate-spin" /> : <ImageIcon className="w-4 h-4" />}
             <div className="text-left">
               <p className="font-medium">Recompress Images</p>
@@ -926,7 +926,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           )}
 
           {isStdFormat && (
-            <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
+            <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
               {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
               <div className="text-left min-w-0">
                 <p className="font-medium">Save to device</p>
@@ -942,7 +942,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           )}
 
           {isStdFormat && (
-            <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start">
+            <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start h-auto py-2.5">
               {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
               <div className="text-left min-w-0">
                 <p className="font-medium">Share or send elsewhere</p>
@@ -1153,7 +1153,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               the parse step rejects anything that isn't a valid
               backup envelope with a clear error toast. */}
           <input ref={fileInputRef} type="file" onChange={handleImportFromFile} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
+          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start h-auto py-2.5">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
@@ -1185,7 +1185,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               }
             }}
             disabled={debugLoading}
-            className="w-full gap-2 justify-start"
+            className="w-full gap-2 justify-start h-auto py-2.5"
           >
             {debugLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Bug className="w-4 h-4" />}
             <div className="text-left">
