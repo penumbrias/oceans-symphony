@@ -928,8 +928,10 @@ export default function SimplyPluralConnect({ settings, onSettingsChange }) {
               )}
               <Input
                 id="sp-token"
-                type="password"
+                type="text"
                 placeholder="Paste your Simply Plural token…"
+                autoComplete="off"
+                spellCheck={false}
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
               />

@@ -451,7 +451,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
               <Label htmlFor="pk-token" className="text-xs">PluralKit token</Label>
               <Input
                 id="pk-token"
-                type="password"
+                type="text"
                 placeholder="Paste your pk;token output here"
                 value={token}
                 onChange={(e) => setToken(e.target.value)}
