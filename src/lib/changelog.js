@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "First-run setup no longer shows a password box on the Welcome screen (it could look like a required login). Password encryption is now opt-in from Settings — a \"Set up encryption\" link in onboarding takes you straight there. \"No account or sign-in needed\" is stated up front.",
+      },
+      {
+        type: "improve",
         text: "First-run setup: the live-sync button is now labelled \"Import with API token (Simply Plural, PluralKit…)\" to set it apart from \"Import from a file\".",
       },
       {

@@ -57,6 +57,19 @@ export default function AppLayout() {
   // Push front-status snapshots to the Friends server whenever the active
   // front changes — covers all paths (modal, dashboard hold, alters swipe).
   useFriendsFrontSync();
+
+  // One-time post-onboarding redirect. The first-run "Set up encryption" link
+  // lives outside the Router, so instead of navigating it drops a localStorage
+  // flag; we honour it here once and land the user on Settings → Data & privacy
+  // (where Storage & encryption lives). Hash opens the section via Settings'
+  // SectionsAccordion.
+  useEffect(() => {
+    if (localStorage.getItem("symphony_onboard_goto_encryption") === "1") {
+      localStorage.removeItem("symphony_onboard_goto_encryption");
+      navigate("/settings#data");
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
   // Whether the in-app Back button should be shown (vs the menu icon).
   // Was previously a manual increment-on-each-pathname-change counter,
   // which mis-incremented on backward navigation and didn't reset on
