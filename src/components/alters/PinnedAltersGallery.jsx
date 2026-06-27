@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -54,6 +54,11 @@ const CORNER_LEFT_THRESHOLD = 35;  // px LEFT after the up leg to arm sole-front
 // Module-level recent-touch deadline so the synthetic click after a
 // touch gesture doesn't double-fire onTap. Scoped to this gallery.
 let galleryRecentTouchUntil = 0;
+// Timestamp of the most recent REAL touch — lets the mouse path ignore the
+// synthetic mouse events mobile browsers fire after a touch (mirrors
+// globalLastTouchAt in useSwipeActions). On desktop no touch ever happens, so
+// real mouse drags are never suppressed.
+let galleryLastTouchAt = 0;
 
 export default function PinnedAltersGallery({ showHeader = true, className = "" }) {
   const queryClient = useQueryClient();
@@ -434,10 +439,13 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
   };
   const reset = () => { cancelLongPress(); upReached.current = false; cornerFired.current = false; setDragY(0); setHint(null); };
 
-  const onTouchStart = (e) => {
-    const t = e.touches[0];
-    startX.current = t.clientX;
-    startY.current = t.clientY;
+  // ── Coordinate-based gesture core, shared by the touch and mouse paths
+  //    (mirrors useSwipeActions). Touch handlers feed it e.touches[0], mouse
+  //    handlers feed it e.clientX/Y, so the vertical swipe / corner / tap /
+  //    long-press all work with a mouse on desktop.
+  const beginGesture = (clientX, clientY) => {
+    startX.current = clientX;
+    startY.current = clientY;
     upReached.current = false;
     cornerFired.current = false;
     moved.current = false;
@@ -454,10 +462,9 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
       }, LONG_PRESS_MS);
     }
   };
-  const onTouchMove = (e) => {
-    const t = e.touches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
+  const moveGesture = (clientX, clientY) => {
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
     if (Math.abs(dx) > V_TAP_THRESHOLD || Math.abs(dy) > V_TAP_THRESHOLD) {
       moved.current = true;
       cancelLongPress();
@@ -467,21 +474,20 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
     }
     if (!upReached.current && dy <= -V_SWIPE_THRESHOLD) {
       upReached.current = true;
-      upAnchorX.current = t.clientX;
+      upAnchorX.current = clientX;
     }
     if (upReached.current && !cornerFired.current) {
-      if (upAnchorX.current - t.clientX >= CORNER_LEFT_THRESHOLD) cornerFired.current = true;
+      if (upAnchorX.current - clientX >= CORNER_LEFT_THRESHOLD) cornerFired.current = true;
     }
     if (cornerFired.current) setHint("solo");
     else if (dy <= -V_SWIPE_THRESHOLD) setHint("up");
     else if (dy >= V_SWIPE_THRESHOLD) setHint("down");
     else setHint(null);
   };
-  const onTouchEnd = (e) => {
+  const endGesture = (clientX, clientY, e) => {
     cancelLongPress();
-    const t = e.changedTouches[0];
-    const dx = t.clientX - startX.current;
-    const dy = t.clientY - startY.current;
+    const dx = clientX - startX.current;
+    const dy = clientY - startY.current;
     const adx = Math.abs(dx);
     const ady = Math.abs(dy);
     setDragY(0);
@@ -490,21 +496,53 @@ function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
     if (longPressFired.current) { suppressClick(); return; }
 
     let fired = false;
-    const pd = () => { if (typeof e.preventDefault === "function") e.preventDefault(); };
+    const pd = () => { if (e && typeof e.preventDefault === "function") e.preventDefault(); };
     if (cornerFired.current) { pd(); onSolo?.(); fired = true; }
     else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) { pd(); onUp?.(); fired = true; }
     else if (dy >= V_SWIPE_THRESHOLD && ady > adx) { pd(); onDown?.(); fired = true; }
     else if (!moved.current && adx < V_TAP_THRESHOLD && ady < V_TAP_THRESHOLD) { pd(); onTap?.(); fired = true; }
     if (fired) suppressClick();
   };
-  const onTouchCancel = () => { reset(); };
+
+  // ── Touch path (mobile) — stamps galleryLastTouchAt so the mouse path can
+  //    ignore the synthetic mouse events that follow. ──
+  const onTouchStart = (e) => { galleryLastTouchAt = Date.now(); const t = e.touches[0]; beginGesture(t.clientX, t.clientY); };
+  const onTouchMove = (e) => { galleryLastTouchAt = Date.now(); const t = e.touches[0]; moveGesture(t.clientX, t.clientY); };
+  const onTouchEnd = (e) => { galleryLastTouchAt = Date.now(); const t = e.changedTouches[0]; endGesture(t.clientX, t.clientY, e); };
+  const onTouchCancel = () => { galleryLastTouchAt = Date.now(); reset(); };
+
+  // ── Mouse path (desktop) — additive. Document-level move/up listeners let
+  //    the drag continue and end even when the cursor leaves the chip. ──
+  const mouseMoveRef = useRef(null);
+  const mouseUpRef = useRef(null);
+  const detachMouse = () => {
+    if (mouseMoveRef.current) { document.removeEventListener("mousemove", mouseMoveRef.current); mouseMoveRef.current = null; }
+    if (mouseUpRef.current) { document.removeEventListener("mouseup", mouseUpRef.current); mouseUpRef.current = null; }
+  };
+  const onMouseDown = (e) => {
+    if (e.button !== 0) return; // left button only
+    // Ignore the synthetic mousedown mobile browsers fire right after a touch.
+    if (Date.now() - galleryLastTouchAt < 700) return;
+    // Stop the native image/text drag so a click-drag becomes a swipe.
+    e.preventDefault();
+    detachMouse();
+    beginGesture(e.clientX, e.clientY);
+    const move = (ev) => { if (typeof ev.preventDefault === "function") ev.preventDefault(); moveGesture(ev.clientX, ev.clientY); };
+    const up = (ev) => { detachMouse(); endGesture(ev.clientX, ev.clientY, ev); };
+    mouseMoveRef.current = move;
+    mouseUpRef.current = up;
+    document.addEventListener("mousemove", move);
+    document.addEventListener("mouseup", up);
+  };
+  useEffect(() => () => detachMouse(), []);
+
   const onClick = () => {
     if (recentTouch.current || Date.now() < galleryRecentTouchUntil) return;
     onTap?.();
   };
 
   return {
-    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onClick },
+    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onMouseDown, onClick },
     dragY,
     hint,
   };
