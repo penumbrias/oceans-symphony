@@ -767,27 +767,12 @@ export default function Settings() {
               data OUT is grouped under Export; everything for bringing it IN is
               under Import. No features removed — just gathered where they belong. */}
 
-          {/* ── EXPORT ──────────────────────────────────────────────────────
-              The main backup already carries the Advanced "choose what to
-              export" picker, the Plain .json / Compact .txt format toggle, the
-              Save-to-device / Share buttons, AND the copy/paste fallback. The
-              cross-app export formats and automatic backups nest beneath it. */}
-          <SubSection title="Export" defaultOpen={false}>
-            <DataBackupRestore section="export" />
-            {/* Portable cross-app export (incl. avatars). Importable into
-                PluralSpace and apps that read OpenPlural. */}
-            <SubSection title="Other format — OpenPlural (cross-app, incl. avatars)" defaultOpen={false}><OpenPluralExport /></SubSection>
-            {/* Simply Plural export-file format — JSON only (no media; avatars
-                travel via the OpenPlural export above). */}
-            <SubSection title="Other format — Simply Plural (JSON)" defaultOpen={false}><SimplyPluralExport /></SubSection>
-            <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
-          </SubSection>
-
           {/* ── IMPORT ──────────────────────────────────────────────────────
               The file/text restore (Add new / Replace all + "Import from file",
               which reads Symphony .json/.txt, Simply Plural, Octocon, PluralSpace
               .json and OpenPlural .zip) up top, then each live-sync token / extra
-              importer nested. */}
+              importer nested. Import sits above Export so bringing data IN is the
+              first thing users see. */}
           <SubSection title="Import" defaultOpen={false}>
             <DataBackupRestore
               section="import"
@@ -894,6 +879,27 @@ export default function Settings() {
                 queryClient.invalidateQueries({ queryKey: ["alters"] });
               }} />
             </SubSection>
+          </SubSection>
+
+          {/* ── EXPORT ──────────────────────────────────────────────────────
+              The main backup already carries the Advanced "choose what to
+              export" picker, the Plain .json / Compact .txt format toggle, the
+              Save-to-device / Share buttons, AND the copy/paste fallback. The
+              cross-app export formats are inline format chips and automatic
+              backups nest beneath it. */}
+          <SubSection title="Export" defaultOpen={false}>
+            {/* OpenPlural + Simply Plural are inline FORMAT chips alongside
+                Plain .json / Compact (.txt); selecting one shows that
+                exporter inline. (Portable OpenPlural carries avatars and
+                imports into PluralSpace; Simply Plural is JSON only.) */}
+            <DataBackupRestore
+              section="export"
+              exportExtras={[
+                { key: "openplural", label: "OpenPlural", node: <OpenPluralExport /> },
+                { key: "simplyplural", label: "Simply Plural", node: <SimplyPluralExport /> },
+              ]}
+            />
+            <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
           </SubSection>
 
           {/* ── STORAGE & ENCRYPTION ── */}

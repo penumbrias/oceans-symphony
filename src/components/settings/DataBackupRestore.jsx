@@ -240,7 +240,7 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   });
 }
 
-export default function DataBackupRestore({ section = "all", onExternalFile }) {
+export default function DataBackupRestore({ section = "all", onExternalFile, exportExtras = [] }) {
   const terms = useTerms();
   // Which slice to render — lets Settings split this into separate accordion
   // sections (export / import / storage tools) without forking the logic.
@@ -250,7 +250,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
   const showImport = section === "all" || section === "import";
   const fileInputRef = useRef(null);
   const [exportLoading, setExportLoading] = useState(false);
-  const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact"
+  const [exportFormat, setExportFormat] = useState("json"); // "json" | "compact" | <extra key>
+  // Standard (Symphony-native) formats show the full export UI; non-standard
+  // extras (OpenPlural / Simply Plural) render their own exporter inline.
+  const isStdFormat = exportFormat === "json" || exportFormat === "compact";
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState("add");
@@ -844,7 +847,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
 
-          {/* Selective export collapsible */}
+          {/* Selective export collapsible — Symphony-native formats only. */}
+          {isStdFormat && (
           <div className="rounded-xl border border-border/50 overflow-hidden">
             <button type="button" onClick={handleToggleSelectiveOpen}
               className="w-full flex items-center justify-between px-3 py-2.5 text-sm font-medium hover:bg-muted/30 transition-colors">
@@ -881,9 +885,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
               </div>
             )}
           </div>
+          )}
 
-          {/* Export format toggle */}
-          <div className="flex items-center gap-2 text-xs">
+          {/* Export format toggle — standard Symphony formats plus any
+              cross-app exporter chips (OpenPlural / Simply Plural). */}
+          <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="text-muted-foreground">Format:</span>
             <button
               type="button"
@@ -899,40 +905,65 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
             >
               Compact (.txt)
             </button>
+            {exportExtras.map((ex) => (
+              <button
+                key={ex.key}
+                type="button"
+                onClick={() => setExportFormat(ex.key)}
+                className={`px-3 py-1 rounded-lg border transition-colors ${exportFormat === ex.key ? "bg-primary/10 border-primary/40 text-primary" : "border-border/50 text-muted-foreground hover:border-primary/30"}`}
+              >
+                {ex.label}
+              </button>
+            ))}
           </div>
-          <p className="text-xs text-muted-foreground -mt-1">
-            {exportFormat === "json"
-              ? "Human-readable JSON. Larger file, easy to inspect."
-              : "Gzip + base64 envelope. Smaller file, opaque to the eye."}
-          </p>
 
-          <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
-            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Save to device</p>
-              <p className="text-xs text-muted-foreground font-normal">
-                {selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
-                  ? `${selectedCats.size} categories · drops in Downloads/Oceans Symphony`
-                  : isNative()
-                    ? "Drops in Downloads/Oceans Symphony — no share sheet"
-                    : "Browser downloads to your default folder"}
-              </p>
-            </div>
-          </Button>
+          {isStdFormat && (
+            <p className="text-xs text-muted-foreground -mt-1">
+              {exportFormat === "json"
+                ? "Human-readable JSON. Larger file, easy to inspect."
+                : "Gzip + base64 envelope. Smaller file, opaque to the eye."}
+            </p>
+          )}
 
-          <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start">
-            {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-            <div className="text-left">
-              <p className="font-medium">Share or send elsewhere</p>
-              <p className="text-xs text-muted-foreground font-normal">
-                Opens the share sheet — pick Drive, email, Send to PC, etc.
-              </p>
+          {isStdFormat && (
+            <Button variant="outline" onClick={handleExportFull} disabled={exportLoading} className="w-full gap-2 justify-start">
+              {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+              <div className="text-left min-w-0">
+                <p className="font-medium">Save to device</p>
+                <p className="text-xs text-muted-foreground font-normal">
+                  {selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
+                    ? `${selectedCats.size} categories · drops in Downloads/Oceans Symphony`
+                    : isNative()
+                      ? "Drops in Downloads/Oceans Symphony — no share sheet"
+                      : "Browser downloads to your default folder"}
+                </p>
+              </div>
+            </Button>
+          )}
+
+          {isStdFormat && (
+            <Button variant="outline" onClick={handleExportShare} disabled={exportLoading} className="w-full gap-2 justify-start">
+              {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+              <div className="text-left min-w-0">
+                <p className="font-medium">Share or send elsewhere</p>
+                <p className="text-xs text-muted-foreground font-normal">
+                  Opens the share sheet — pick Drive, email, Send to PC, etc.
+                </p>
+              </div>
+            </Button>
+          )}
+
+          {!isStdFormat && (
+            <div className="pt-1">
+              {exportExtras.find((e) => e.key === exportFormat)?.node}
             </div>
-          </Button>
+          )}
         </div>
 
         {/* Alternative: Copy/Paste Backup — workaround for in-app browsers
-            (Facebook, Instagram, etc.) that silently block file downloads. */}
+            (Facebook, Instagram, etc.) that silently block file downloads.
+            Symphony-native formats only. */}
+        {isStdFormat && (
         <div className="space-y-2 pt-1">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Alternative: Copy/Paste Backup</p>
           <p className="text-xs text-muted-foreground">Use this when file downloads aren't available — e.g. when the app is opened inside the Facebook or Instagram in-app browser.</p>
@@ -1097,6 +1128,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
             </div>
           )}
         </div>
+        )}
         </>)}
 
         {showImport && (<>
@@ -1123,9 +1155,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile }) {
           <input ref={fileInputRef} type="file" onChange={handleImportFromFile} className="hidden" />
           <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
-            <div className="text-left">
+            <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal">Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">

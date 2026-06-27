@@ -22,6 +22,10 @@ export const CHANGELOG = [
     changes: [
       {
         type: "improve",
+        text: "Data & privacy: OpenPlural and Simply Plural are now export-format buttons next to Plain .json / Compact (.txt) — pick one to export that way. Import now sits above Export, and the \"Import from file\" description no longer gets cut off.",
+      },
+      {
+        type: "improve",
         text: "Import: one \"Import from file\" now auto-detects every format — Symphony backups, Simply Plural, Octocon, PluralSpace (.json) and OpenPlural (.zip). The separate per-app file importers are gone; only PluralKit and Simply Plural live-token sync stay as their own options.",
       },
       {
