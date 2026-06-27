@@ -5,9 +5,11 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import {
   ArrowLeft, Pencil, LifeBuoy, Phone, Mail, MessageSquare, MapPin, AtSign,
-  Archive, ArchiveRestore, Trash2, Pin, PinOff, ExternalLink, Plus,
+  Archive, ArchiveRestore, Trash2, Pin, PinOff, ExternalLink, Plus, UserCheck, Square,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatDistanceToNow } from "date-fns";
+import { startEncounter, endEncounterForContact, lastSeenEncounter } from "@/lib/contactEncounters";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import ContactEditModal from "@/components/contacts/ContactEditModal";
 import ContactRelationshipsTab from "@/components/contacts/ContactRelationshipsTab";
@@ -49,6 +51,26 @@ export default function ContactProfile() {
   });
   const { data: fieldDefs = [] } = useQuery({ queryKey: ["contactCustomFields"], queryFn: () => base44.entities.ContactCustomField.list() });
   const { data: categories = [] } = useQuery({ queryKey: ["contactCategories"], queryFn: () => base44.entities.ContactCategory.list() });
+  const { data: encounters = [] } = useQuery({ queryKey: ["contactEncounters"], queryFn: () => base44.entities.ContactEncounter.list() });
+  const activeEncounter = encounters.find((e) => e.contact_id === id && e.is_active) || null;
+  const lastSeen = lastSeenEncounter(encounters, id);
+  const [togglingWith, setTogglingWith] = useState(false);
+
+  const toggleWith = async () => {
+    setTogglingWith(true);
+    try {
+      if (activeEncounter) {
+        await endEncounterForContact(id);
+      } else {
+        await startEncounter(id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
+    } catch (err) {
+      toast.error(err?.message || "Couldn't update");
+    } finally {
+      setTogglingWith(false);
+    }
+  };
 
   const avatar = useResolvedAvatarUrl(contact?.avatar_url);
 
@@ -164,6 +186,35 @@ export default function ContactProfile() {
           })}
         </div>
       )}
+
+      {/* I'm with them — active encounter toggle */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={toggleWith}
+          disabled={togglingWith}
+          className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl border text-sm font-medium transition-colors ${
+            activeEncounter
+              ? "border-sky-400/50 bg-sky-500/10 text-sky-600 dark:text-sky-400"
+              : "border-border/60 hover:bg-muted/40"
+          }`}
+        >
+          {activeEncounter ? (
+            <>
+              <Square className="w-4 h-4" /> End — with them since {formatDistanceToNow(new Date(activeEncounter.start_time))}
+            </>
+          ) : (
+            <>
+              <UserCheck className="w-4 h-4" /> I'm with them
+            </>
+          )}
+        </button>
+        {!activeEncounter && lastSeen && (
+          <p className="text-[0.6875rem] text-muted-foreground text-center mt-1.5">
+            Last together {formatDistanceToNow(new Date(lastSeen.end_time))} ago
+          </p>
+        )}
+      </div>
 
       {/* Tabs */}
       <div className="flex gap-1 border-b border-border/50 mb-3 overflow-x-auto">

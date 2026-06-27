@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Contacts: tap \"I'm with them\" on a contact to track time together — whoever you're with shows under \"Currently with\" on your dashboard until you end it.",
+      },
+      {
         type: "improve",
         text: "Contacts: relationship types are now their own editable set (Friend, Family, Therapist…) and free-entry — type your own — instead of the internal alter relationship types.",
       },

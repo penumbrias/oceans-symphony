@@ -18,6 +18,7 @@ import DashboardPins from "@/components/dashboard/DashboardPins";
 import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import CurrentActivities from "@/components/activities/CurrentActivities";
+import CurrentContacts from "@/components/contacts/CurrentContacts";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
@@ -633,6 +634,8 @@ export default function Dashboard() {
             return (
               <CurrentActivities key="current_activities" />
             );
+          case "current_contacts":
+            return <CurrentContacts key="current_contacts" />;
           case "quick_checkin":
             return (
               // mt-3 + mb-3 gives the Quick Check-In button breathing
