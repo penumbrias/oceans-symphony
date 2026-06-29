@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "June 26, 2026",
     changes: [
       {
+        type: "hotfix",
+        text: "Hotfix: PluralKit / Simply Plural import token fields are now plain text (they're pasted API tokens, not passwords).",
+      },
+      {
+        type: "improve",
+        text: "First-run setup no longer shows a password box on the Welcome screen (it could look like a required login). Password encryption is now opt-in from Settings — a \"Set up encryption\" link in onboarding takes you straight there. \"No account or sign-in needed\" is stated up front.",
+      },
+      {
         type: "improve",
         text: "First-run setup: the live-sync button is now labelled \"Import with API token (Simply Plural, PluralKit…)\" to set it apart from \"Import from a file\".",
       },

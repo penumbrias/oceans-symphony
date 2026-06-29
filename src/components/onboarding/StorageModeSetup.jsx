@@ -201,6 +201,17 @@ function FirstRunSetup({ onComplete }) {
     if (await setupLocalStorage()) setShowImportModal(true);
   };
 
+  // Guided "set up encryption": creates the empty (unencrypted) local DB now,
+  // then drops a flag so AppLayout lands the user on Settings → Data & privacy,
+  // where they turn on password encryption (which re-encrypts the DB). Kept off
+  // the welcome screen so first launch can't be mistaken for a login wall.
+  const handleSetupEncryption = async () => {
+    if (await setupLocalStorage()) {
+      try { localStorage.setItem("symphony_onboard_goto_encryption", "1"); } catch { /* storage disabled */ }
+      onComplete();
+    }
+  };
+
   // Auto-start local setup for APK (skip mode selection)
   if (step === "choose") {
     handleChooseLocal();
@@ -230,58 +241,33 @@ function FirstRunSetup({ onComplete }) {
       <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
         <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
         <p className="text-sm text-foreground">
-          <span className="font-semibold">Optional:</span> Protect your data with a password. You'll need to enter it each time you open the app.
+          <span className="font-semibold">No account or sign-in needed.</span> Your data stays on this device — there's nothing to log into.
         </p>
       </div>
-      <div className="flex items-center gap-3">
-        <button
-          onClick={() => setUseEncryption(!useEncryption)}
-          className={`w-10 h-6 rounded-full transition-colors flex items-center ${useEncryption ? 'bg-primary' : 'bg-muted'}`}
-        >
-          <span className={`w-5 h-5 rounded-full bg-white shadow-sm transition-transform mx-0.5 ${useEncryption ? 'translate-x-4' : 'translate-x-0'}`} />
-        </button>
-        <Label className="cursor-pointer" onClick={() => setUseEncryption(!useEncryption)}>
-          Enable password encryption
-        </Label>
-      </div>
-      {useEncryption && (
-        <div className="space-y-3">
-          <div className="space-y-1.5">
-            <Label>Password</Label>
-            <div className="relative">
-              <Input
-                type={showPass ? "text" : "password"}
-                value={password}
-                onChange={e => { setPassword(e.target.value); setError(""); }}
-                placeholder="Enter a strong password..."
-                className="pr-10"
-              />
-              <button onClick={() => setShowPass(!showPass)} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground">
-                {showPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-              </button>
-            </div>
-          </div>
-          <div className="space-y-1.5">
-            <Label>Confirm Password</Label>
-            <Input
-              type="password"
-              value={confirmPassword}
-              onChange={e => { setConfirmPassword(e.target.value); setError(""); }}
-              placeholder="Confirm password..."
-            />
-          </div>
-          {error && <p className="text-sm text-destructive">{error}</p>}
-          <p className="text-xs text-muted-foreground">⚠️ If you forget your password, your data cannot be recovered. There is no reset option.</p>
-        </div>
-      )}
       <div className="pt-2">
         <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
           {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
-          {useEncryption ? "Start fresh (encrypted)" : "Start fresh"}
+          Start fresh
         </Button>
         <p className="text-xs text-muted-foreground text-center mt-1.5">
           Begin with an empty space. You can import data anytime later.
         </p>
+        {/* Encryption is opt-in and lives in Settings now (kept off the
+            welcome screen so the first launch can't be mistaken for a login
+            wall). This sets up an empty space, then drops the user on
+            Settings → Data & privacy → Storage & encryption. */}
+        <p className="text-xs text-muted-foreground text-center mt-2.5">
+          Want to protect your data with a password?{" "}
+          <button
+            type="button"
+            onClick={handleSetupEncryption}
+            disabled={loading || importing}
+            className="text-primary underline font-medium disabled:opacity-50"
+          >
+            Set up encryption
+          </button>
+        </p>
+        {error && <p className="text-xs text-destructive text-center mt-1.5">{error}</p>}
       </div>
 
       <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
