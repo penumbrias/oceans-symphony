@@ -18,7 +18,216 @@
 
 export const CHANGELOG = [
   {
+    date: "July 2, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Exporting now lets you choose where to save the backup (on browsers that support it) instead of silently dropping it into Downloads, and the button says exactly where the file goes.",
+      },
+      {
+        type: "improve",
+        text: "Export formats: removed Simply Plural (SP shut down), and you can now export to OpenPlural from the Backup popup — with a note about what an OpenPlural export leaves out.",
+      },
+      {
+        type: "feature",
+        text: "The “What's new” panel now has a little prompt at the bottom to leave a Play Store review or submit a bug report — it lives inside the panel, so dismissing What's new hides it too.",
+      },
+      {
+        type: "improve",
+        text: "The Backup button at the top of Settings now opens the Export or Import screen directly as a popup, instead of just expanding the Data & Privacy section.",
+      },
+      {
+        type: "improve",
+        text: "Removed the Simply Plural live-token (API) import — Simply Plural shut its servers down, so the token no longer works. Importing from a Simply Plural export file still works, and exports/backups are unaffected.",
+      },
+      {
+        type: "fix",
+        text: "Systems switcher: rows are now a consistent height and the active one lines up with the rest, instead of looking oversized.",
+      },
+      {
+        type: "fix",
+        text: "Systems switcher now shows each system's real name and picture from its profile — a hidden duplicate settings record could previously make them disagree.",
+      },
+      {
+        type: "improve",
+        text: "The “Import” button on the Alters page now opens the full importer — backup files (Symphony, Ampersand .ampar, OpenPlural .zip) with Add-new or Replace-all, plus the live-token connectors — matching Settings → Data & Privacy → Import.",
+      },
+      {
+        type: "improve",
+        text: "“Replace all” imports now reconcile to the backup instead of duplicating or silently keeping systems — whether the backup holds one system or several, any of your systems that aren’t in it prompt you to keep or remove them.",
+      },
+      {
+        type: "fix",
+        text: "Imported systems: the system picture, name, and bio now show in Settings → Profile too (a leftover blank settings record could hide them, so only the systems list showed the picture).",
+      },
+      {
+        type: "fix",
+        text: "To-dos stay in sync everywhere: checking one off (or un-checking it) on the To-Do page or dashboard now updates its card on the Bulletin Board too, and vice-versa.",
+      },
+      {
+        type: "fix",
+        text: "Bulletins: formatted posts (bold, italic, etc.) — including ones imported from Ampersand or shown in preview mode — now display their formatting instead of raw markup tags.",
+      },
+      {
+        type: "fix",
+        text: "Daily-task review: tapping a checked-off task now shows the real time that task was ticked — each keeps its own time, instead of every task showing the same recent timestamp.",
+      },
+      {
+        type: "fix",
+        text: "Timeline: completed daily/recurring tasks now really do land individually at the time each was ticked, instead of still collapsing into one \"N daily tasks done\" entry.",
+      },
+    ],
+  },
+  {
+    date: "July 1, 2026",
+    changes: [
+      {
+        type: "improve",
+        text: "Cleaner buttons: repetitive toolbar labels (Pin, Prev/Next, front toggle, Edit, Back, Message) are now just their icon with a hover tooltip.",
+      },
+      {
+        type: "fix",
+        text: "Timeline: completed daily tasks now show up individually at the time each was done, instead of being piled into one \"N daily tasks done\" entry.",
+      },
+      {
+        type: "fix",
+        text: "Timeline: reminders now show what they were actually about — tap one for its message and a link to Reminders — instead of a bare \"Reminder\".",
+      },
+      {
+        type: "fix",
+        text: "The system switcher now shows each system's real profile picture (it was reading the wrong field).",
+      },
+      {
+        type: "feature",
+        text: "You can now change the signpost trigger symbols (the default - and +) to whatever you like, in Settings → Terminology.",
+      },
+      {
+        type: "fix",
+        text: "The \"New to this page?\" tour prompt now stays until you dismiss it or open the tour, instead of vanishing after one glance.",
+      },
+      {
+        type: "improve",
+        text: "Journals now recognise the + signpost too (with autocomplete), not just - — so signing an entry works the same way as elsewhere.",
+      },
+      {
+        type: "improve",
+        text: "The first-run welcome screen can now import Ampersand (.ampar) too, and on Android it picks files natively so Google Drive files import correctly — same as Settings.",
+      },
+      {
+        type: "improve",
+        text: "Signposting now works the same everywhere: in chat and meetings, +alias adds an author and -alias replaces them, and your last author sticks for the next message — matching the bulletin board.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a crash when opening or switching to an imported system that contained bulletin posts (they were missing a date). Imported posts now show correctly.",
+      },
+      {
+        type: "fix",
+        text: "Android: importing a file picked straight from Google Drive (e.g. an Ampersand .ampar) now reads its real contents instead of seeing it as empty.",
+      },
+      {
+        type: "improve",
+        text: "Pinned alters: the scroll block can now be dropped anywhere along the row, with your pins sliding to either side of it — set the spot in its settings.",
+      },
+      {
+        type: "fix",
+        text: "Importing an empty or incomplete .ampar now says so clearly (e.g. a download that didn't finish), instead of looking like an app error.",
+      },
+    ],
+  },
+  {
+    date: "June 29, 2026",
+    version: "0.72.8",
+    changes: [
+      {
+        type: "fix",
+        text: "System meetings: a meeting in progress is no longer lost if you leave the page — it's saved and resumes right where you left off.",
+      },
+      {
+        type: "fix",
+        text: "The Accessibility button on the welcome screen and the guided tour is no longer cut off or hidden behind other content.",
+      },
+      {
+        type: "improve",
+        text: "Pinned alters settings gained an \"Add or remove pins\" picker, alongside Rearrange order.",
+      },
+      {
+        type: "improve",
+        text: "System chat: after you signpost an author, the next message stays attributed to them instead of snapping back to the system.",
+      },
+      {
+        type: "feature",
+        text: "Move or copy an alter or group to another system — press and hold them on the Alters page and choose \"Move to another system\". Moving a group brings its nested subgroups along too.",
+      },
+      {
+        type: "improve",
+        text: "System meetings: the \"Notice who's near\" picker now has the same \"New presence\" tab as Set Fronters, so you can note a sensed-but-unidentified presence right there.",
+      },
+      {
+        type: "fix",
+        text: "Ampersand (.ampar) import now works even when your file picker hides the file's extension — the file is recognised by its contents.",
+      },
+      {
+        type: "feature",
+        text: "Import from Ampersand: open a .ampar archive in Backup & export and each Ampersand system comes in as its own system, with members, fronting history, journals and pictures.",
+      },
+      {
+        type: "improve",
+        text: "Friends: your Friends profile is now shared across all your systems — friends see one identity no matter which system you're in, and per-alter privacy still controls what shows.",
+      },
+      {
+        type: "feature",
+        text: "Backup & export can now include every system: kept separate in a Symphony backup, or merged into one (each system becomes a group) for other formats. Restore recreates them.",
+      },
+      {
+        type: "improve",
+        text: "Encryption now covers all your systems under one password — unlock once and switching between systems won't ask again. Closing the app re-locks as before.",
+      },
+      {
+        type: "improve",
+        text: "Systems: the switcher now shows each system's picture, lets you reorder them when you have several, and systems turn up in search.",
+      },
+    ],
+  },
+  {
+    date: "June 28, 2026",
+    version: "0.72.1",
+    changes: [
+      {
+        type: "improve",
+        text: "Systems: you can now rename a system, or delete one you no longer need — a backup file is saved automatically before anything is deleted.",
+      },
+      {
+        type: "feature",
+        text: "Multiple systems: you can now keep separate systems in one app and switch between them — tap the home-screen title, or use Settings → Systems. Each keeps its own data; nothing is shared unless you export and re-import.",
+      },
+      {
+        type: "improve",
+        text: "Refreshed the first-run welcome screen — new intro copy, a clearer privacy & data notice (incl. exactly what Friends mode shares), and a website link.",
+      },
+      {
+        type: "improve",
+        text: "Behind-the-scenes groundwork for an upcoming \"multiple systems\" feature (keep separate systems in one app, like Ampersand). Nothing changes yet — your data loads exactly as before. Please report anything that looks off after updating.",
+      },
+    ],
+  },
+  {
+    date: "June 27, 2026",
+    version: "0.71.9",
+    changes: [
+      {
+        type: "fix",
+        text: "Bulletins: you can now sign one post with several authors at once. \"-x -y -z\" credits all three; add a \"+\" (e.g. \"+t -j -l\") to add names on top of whoever's fronting.",
+      },
+      {
+        type: "improve",
+        text: "Pinned alters: the \"stays put\" scroll block can now sit anywhere across the row, not just the left or right edge — slide it to wherever your thumb rests.",
+      },
+    ],
+  },
+  {
     date: "June 26, 2026",
+    version: "0.71.7",
     changes: [
       {
         type: "hotfix",

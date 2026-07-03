@@ -22,9 +22,11 @@ export default function TermsSettings({ embedded = false } = {}) {
   const [vals, setVals] = useState({
     system: "", alter: "", switch: "", front: "",
     fronting: "", fronter: "", switching: "",
+    signpostAdd: "", signpostReplace: "",
   });
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [signpostError, setSignpostError] = useState("");
 
   const applyPreset = (preset) => {
     setVals((p) => ({
@@ -69,10 +71,32 @@ export default function TermsSettings({ embedded = false } = {}) {
       fronting: terms.fronting,
       fronter: terms.fronter,
       switching: terms.switching,
+      signpostAdd: terms.signpostAdd || "+",
+      signpostReplace: terms.signpostReplace || "-",
     });
-  }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching]);
+  }, [terms.system, terms.alter, terms.switch, terms.front, terms.fronting, terms.fronter, terms.switching, terms.signpostAdd, terms.signpostReplace]);
+
+  // A signpost trigger must be a single symbol that can't blend into a name or
+  // clash with the app's other inline syntax (@mention, /whisper, [ ] whisper
+  // brackets, ~section signposts).
+  const RESERVED_SIGNS = new Set(["@", "/", "[", "]", "~"]);
+  const isValidSign = (ch) =>
+    typeof ch === "string" && ch.length === 1 && !/[\w\s]/.test(ch) && !RESERVED_SIGNS.has(ch);
 
   const handleSave = async () => {
+    // Validate the signpost triggers before saving — a bad sign would silently
+    // break signposting everywhere.
+    const addSign = (vals.signpostAdd || "+").trim();
+    const replaceSign = (vals.signpostReplace || "-").trim();
+    if (!isValidSign(addSign) || !isValidSign(replaceSign)) {
+      setSignpostError("Each signpost trigger must be a single symbol (not a letter, number, space, or one of @ / [ ] ~).");
+      return;
+    }
+    if (addSign === replaceSign) {
+      setSignpostError("The add and replace triggers must be different.");
+      return;
+    }
+    setSignpostError("");
     setSaving(true);
     // Only persist override fields when they differ from the auto-derived
     // form — otherwise blank them so future base-term edits propagate
@@ -90,6 +114,8 @@ export default function TermsSettings({ embedded = false } = {}) {
       term_fronting: vals.fronting.trim() && vals.fronting.trim() !== autoFronting ? vals.fronting.trim() : "",
       term_fronter: vals.fronter.trim() && vals.fronter.trim() !== autoFronter ? vals.fronter.trim() : "",
       term_switching: vals.switching.trim() && vals.switching.trim() !== autoSwitching ? vals.switching.trim() : "",
+      signpost_add: addSign,
+      signpost_replace: replaceSign,
     };
     if (terms._settingsId) {
       await base44.entities.SystemSettings.update(terms._settingsId, data);
@@ -153,6 +179,40 @@ export default function TermsSettings({ embedded = false } = {}) {
             <span className="font-medium">Front:</span>{" "}
             <span className="text-foreground font-medium">{vals.front}</span> · <span className="text-foreground font-medium">{pluralize(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronting || gerund(vals.front)}</span> · <span className="text-foreground font-medium">{vals.fronter || agent(vals.front)}</span>
           </p>
+        </div>
+
+        {/* Signpost triggers — the symbols typed before a name to attribute a
+            post/message to an alter. Customisable so a user who prefers, say,
+            "!name" / ".name" gets that everywhere. */}
+        <div className="border-t border-border/40 pt-3">
+          <label className="text-xs font-medium text-foreground block mb-1">Signpost triggers</label>
+          <p className="text-[0.6875rem] text-muted-foreground leading-relaxed mb-2">
+            The symbol you type before a name to sign a message or post as an {vals.alter || "alter"}. One replaces the author with the named {vals.alter || "alter"}s; the other adds them alongside the current {terms.fronters}.
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Sign-as symbol</label>
+              <Input
+                value={vals.signpostReplace}
+                onChange={(e) => setVals((p) => ({ ...p, signpostReplace: Array.from(e.target.value).slice(-1).join("") }))}
+                placeholder="-"
+                className="h-8 text-sm font-mono"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground block mb-1">Add-author symbol</label>
+              <Input
+                value={vals.signpostAdd}
+                onChange={(e) => setVals((p) => ({ ...p, signpostAdd: Array.from(e.target.value).slice(-1).join("") }))}
+                placeholder="+"
+                className="h-8 text-sm font-mono"
+              />
+            </div>
+          </div>
+          <p className="text-[0.6875rem] text-muted-foreground mt-1">
+            e.g. <span className="font-mono text-foreground">{(vals.signpostReplace || "-")}{vals.alter || "name"}</span> signs as them; <span className="font-mono text-foreground">{(vals.signpostAdd || "+")}{vals.alter || "name"}</span> adds them.
+          </p>
+          {signpostError && <p className="text-[0.6875rem] text-destructive mt-1.5">{signpostError}</p>}
         </div>
 
         {/* Advanced word-form overrides. The auto-conjugator assumes the

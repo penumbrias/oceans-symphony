@@ -5,7 +5,6 @@ import { useTerms } from "@/lib/useTerms";
 import { useAuth } from "@/lib/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
 import { ArrowLeft, Save, Plus, Pencil, Eye, CheckCircle2, Users, MessageSquare } from "lucide-react";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
@@ -22,6 +21,16 @@ import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
 
+// In-progress meeting draft. A meeting being created/edited lives in component
+// state, so navigating away (e.g. to Settings) and back used to drop you on the
+// meetings list with the whole meeting lost. We mirror the draft to localStorage
+// while you're in the editor and restore it on return, so the meeting is never
+// lost to a stray navigation. Cleared on save or an explicit Back/Cancel.
+const MEETING_DRAFT_KEY = "symphony_meeting_draft_v1";
+function clearMeetingDraft() {
+  try { localStorage.removeItem(MEETING_DRAFT_KEY); } catch { /* ignore */ }
+}
+
 export default function SystemCheckInPage() {
   const queryClient = useQueryClient();
   const { user } = useAuth();
@@ -29,6 +38,10 @@ export default function SystemCheckInPage() {
   const [view, setView] = useState("list"); // "list" | "create" | "edit"
   const [currentCheckIn, setCurrentCheckIn] = useState(null);
   const [formData, setFormData] = useState({});
+  // Set when a restored draft was mid-edit of an existing meeting, so we can
+  // re-attach `currentCheckIn` once the list loads (mirrors the pendingId path).
+  const [pendingDraftEditId, setPendingDraftEditId] = useState(null);
+  const [draftRestored, setDraftRestored] = useState(false);
 
   const { data: checkIns = [] } = useQuery({
     queryKey: ["systemCheckIns"],
@@ -54,6 +67,45 @@ export default function SystemCheckInPage() {
     }
   }, [pendingId, checkIns.length]);
 
+  // Restore an in-progress meeting draft on mount (unless we're deep-linking to
+  // a specific saved meeting via ?id=). This is what makes a meeting survive
+  // navigating to Settings and back.
+  useEffect(() => {
+    if (draftRestored) return;
+    setDraftRestored(true);
+    if (pendingId) return; // explicit deep-link wins over a stale draft
+    try {
+      const raw = localStorage.getItem(MEETING_DRAFT_KEY);
+      if (!raw) return;
+      const draft = JSON.parse(raw);
+      if (draft && draft.formData && typeof draft.formData === "object") {
+        setFormData(draft.formData);
+        if (draft.currentCheckInId) setPendingDraftEditId(draft.currentCheckInId);
+        setView("create");
+      }
+    } catch { /* corrupt draft — ignore */ }
+  }, [draftRestored, pendingId]);
+
+  // Re-attach the edited meeting record to a restored edit-in-progress draft.
+  useEffect(() => {
+    if (pendingDraftEditId && checkIns.length > 0 && !currentCheckIn) {
+      const ci = checkIns.find((c) => c.id === pendingDraftEditId);
+      if (ci) setCurrentCheckIn(ci);
+      setPendingDraftEditId(null);
+    }
+  }, [pendingDraftEditId, checkIns, currentCheckIn]);
+
+  // Mirror the in-progress draft to localStorage whenever the editor is open.
+  useEffect(() => {
+    if (view !== "create") return;
+    try {
+      localStorage.setItem(MEETING_DRAFT_KEY, JSON.stringify({
+        formData,
+        currentCheckInId: currentCheckIn?.id || null,
+      }));
+    } catch { /* quota/disabled — non-fatal */ }
+  }, [view, formData, currentCheckIn]);
+
   // Highlight check-in on arrival from mention
   useMentionHighlight("id", checkIns.length > 0 && view === "view");
 
@@ -62,6 +114,7 @@ export default function SystemCheckInPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
       toast.success("Check-in saved!");
+      clearMeetingDraft();
       setFormData({});
       setView("list");
     },
@@ -73,6 +126,7 @@ export default function SystemCheckInPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });
       toast.success("Check-in updated!");
+      clearMeetingDraft();
       setFormData({});
       setCurrentCheckIn(null);
       setView("list");
@@ -289,11 +343,11 @@ export default function SystemCheckInPage() {
       {view === "view" && currentCheckIn && (
         <div>
           <div className="flex items-center justify-between mb-6">
-            <Button variant="ghost" size="sm" onClick={() => setView("list")} className="gap-2">
-              <ArrowLeft className="w-4 h-4" /> Back
+            <Button variant="ghost" size="sm" onClick={() => setView("list")} aria-label="Back" title="Back">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setView("create")} className="gap-2">
-              <Pencil className="w-4 h-4" /> Edit
+            <Button variant="outline" size="sm" onClick={() => setView("create")} aria-label="Edit" title="Edit">
+              <Pencil className="w-4 h-4" />
             </Button>
           </div>
           <div className="mb-6">
@@ -560,7 +614,7 @@ export default function SystemCheckInPage() {
           <Button
             variant="ghost"
             size="sm"
-            onClick={() => currentCheckIn ? setView("view") : setView("list")}
+            onClick={() => { clearMeetingDraft(); currentCheckIn ? setView("view") : setView("list"); }}
             className="mb-6 gap-2"
           >
             <ArrowLeft className="w-4 h-4" />

@@ -58,6 +58,13 @@ export default function AppLayout() {
   // front changes — covers all paths (modal, dashboard hold, alters swipe).
   useFriendsFrontSync();
 
+  // One Friends identity shared across all systems: on each load (so it also
+  // runs after switching systems), pull the app-level shared identity into the
+  // active system — or seed it from this system the first time. Best-effort.
+  useEffect(() => {
+    import("@/lib/friendsApi").then((m) => m.syncSharedFriendIdentity?.()).catch(() => {});
+  }, []);
+
   // One-time post-onboarding redirect. The first-run "Set up encryption" link
   // lives outside the Router, so instead of navigating it drops a localStorage
   // flag; we honour it here once and land the user on Settings → Data & privacy
@@ -578,9 +585,9 @@ const handleNotifClick = (mentionLog) => {
             <button
               onClick={handleBack}
               aria-label="Go back"
-              className="flex items-center gap-1 text-primary min-w-[44px] min-h-[44px] px-2 rounded-xl transition-colors hover:bg-muted/50">
+              title="Back"
+              className="flex items-center justify-center min-w-[44px] min-h-[44px] px-2 rounded-xl text-primary transition-colors hover:bg-muted/50">
               <ChevronLeft className="w-5 h-5" />
-              <span className="text-sm font-medium">Back</span>
             </button> :
             <button
               onClick={() => setSidebarOpen(true)}

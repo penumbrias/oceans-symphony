@@ -47,8 +47,8 @@ export default function BulletinsPage() {
   return (
     <div className="max-w-3xl mx-auto p-4 sm:p-6 space-y-4">
       <div className="flex items-center justify-between gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
-          <ChevronLeft className="w-4 h-4" /> Back
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
+          <ChevronLeft className="w-4 h-4" />
         </Button>
         <h1 className="text-xl sm:text-2xl font-semibold">Bulletin Board</h1>
         <div className="w-16" aria-hidden /> {/* spacer to balance header */}

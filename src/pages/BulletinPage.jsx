@@ -65,8 +65,8 @@ export default function BulletinPage() {
   if (!bulletin) {
     return (
       <div className="os-page-shell px-4 py-8">
-        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-          <ArrowLeft className="w-4 h-4" /> Back
+        <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6" aria-label="Back" title="Back">
+          <ArrowLeft className="w-4 h-4" />
         </button>
         <p className="text-muted-foreground text-center py-10">Bulletin not found.</p>
       </div>

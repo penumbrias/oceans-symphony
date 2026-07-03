@@ -4,6 +4,7 @@ import { localEntities } from "@/api/base44Client";
 import { getActivePushSubscription } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
 import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
+import { getSharedFriendIdentity, setSharedFriendIdentity, clearSharedFriendIdentity } from "@/lib/friendIdentityStore";
 
 // On web/TWA the Friends API lives at /api/friends on the same origin
 // the page was served from — relative paths work. On the Capacitor
@@ -30,6 +31,40 @@ const BASE = FRIENDS_API_BASE;
 export async function getLocalIdentity() {
   const records = await localEntities.FriendIdentity.list();
   return records[0] || null;
+}
+
+// One Friends identity shared across ALL systems (P4). The app-level
+// friendIdentityStore is the source of truth. mirrorIdentityToShared() pushes
+// the active system's identity up after any change; syncSharedFriendIdentity()
+// pulls it back into the active system on each app load so every system uses the
+// same identity. (Device-bound — never enters backups.)
+async function mirrorIdentityToShared() {
+  try {
+    const local = await getLocalIdentity();
+    if (local) await setSharedFriendIdentity(local);
+    else await clearSharedFriendIdentity();
+  } catch { /* non-fatal */ }
+}
+
+export async function syncSharedFriendIdentity() {
+  let shared = null;
+  try { shared = await getSharedFriendIdentity(); } catch { shared = null; }
+  const local = await getLocalIdentity();
+  if (shared && shared.userId) {
+    // App-level identity wins — make this system match it. Strip storage-only
+    // fields so the local record keeps its own id/timestamps.
+    const { id, created_date, updated_date, created_by, ...fields } = shared;
+    void id; void created_date; void updated_date; void created_by;
+    try {
+      if (!local) await localEntities.FriendIdentity.create(fields);
+      else if (local.userId !== shared.userId || JSON.stringify({ ...local, id: 0, created_date: 0, updated_date: 0, created_by: 0 }) !== JSON.stringify({ ...shared, id: 0, created_date: 0, updated_date: 0, created_by: 0 })) {
+        await localEntities.FriendIdentity.update(local.id, fields);
+      }
+    } catch { /* non-fatal */ }
+  } else if (local && local.userId) {
+    // First run after this landed — seed the shared store from this system.
+    await setSharedFriendIdentity(local);
+  }
 }
 
 export async function registerIdentity({ displayName, systemName, terms, privacyLevel }) {
@@ -62,6 +97,7 @@ export async function registerIdentity({ displayName, systemName, terms, privacy
   } else {
     await localEntities.FriendIdentity.create({ userId, secret, friendCode, displayName, systemName, terms, privacyLevel, push_only: false });
   }
+  await mirrorIdentityToShared();
 
   // Native-only: seed the background poll runner with the freshly-
   // saved credentials so it can authenticate when WorkManager wakes
@@ -102,11 +138,13 @@ export async function ensurePushIdentity() {
   const { userId, secret, friendCode } = await res.json();
   if (!userId || !secret) return null;
 
-  return localEntities.FriendIdentity.create({
+  const created = await localEntities.FriendIdentity.create({
     userId, secret, friendCode,
     displayName: '', systemName: '', terms: {}, privacyLevel: 'names',
     push_only: true,
   });
+  await mirrorIdentityToShared();
+  return created;
 }
 
 // Deletes the user's profile on the server AND clears the local identity.
@@ -127,6 +165,7 @@ export async function deleteIdentity() {
   } catch {}
 
   await localEntities.FriendIdentity.delete(identity.id);
+  await clearSharedFriendIdentity();
 
   // Native-only: wipe the background runner's stored identity so its
   // periodic poll no-ops instead of hammering the API with the old
@@ -352,6 +391,7 @@ export async function saveFriendVisibility(friendUserId, patch = {}) {
   }
 
   await localEntities.FriendIdentity.update(existing.id, { perFriendVisibility });
+  await mirrorIdentityToShared();
   return perFriendVisibility;
 }
 
@@ -365,5 +405,6 @@ export async function setFriendVerified(friendUserId, safetyNumber) {
   if (safetyNumber) verifiedFriends[friendUserId] = safetyNumber;
   else delete verifiedFriends[friendUserId];
   await localEntities.FriendIdentity.update(existing.id, { verifiedFriends });
+  await mirrorIdentityToShared();
   return verifiedFriends;
 }

@@ -10,7 +10,7 @@ import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
-import { parseAndStripSignposts, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, foldSignpostAuthors, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import SystemAvatar from "@/components/shared/SystemAvatar";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -155,14 +155,13 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     else insertSignpost(alter);
   };
 
-  // Live attribution preview (signpost / emoji wins, else fronters) minus any
-  // the user removed; falls back to a System chip so it's always visible.
+  // Live attribution preview using the shared signpost fold (same rule as the
+  // bulletin composer): "-x -y" → x,y; "+t" over front w,e → w,e,t; no signpost
+  // → fronters. Minus any the user removed; falls back to a System chip.
   const resolvedAuthors = React.useMemo(() => {
-    const { authors } = parseAndStripSignposts(text, alters, systemKeywords);
-    if (isSystemSignpost(authors[0])) return [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
-    const ids = authors.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
-    const useIds = ids.length > 0 ? ids : frontingAlterIds;
-    return useIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    const base = frontingAlterIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    const folded = foldSignpostAuthors(text, alters, { systemKeywords, base });
+    return folded.length ? folded : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
   }, [text, alters, systemKeywords, frontingAlterIds]);
   const liveAuthors = resolvedAuthors.filter((a) => !removedAuthorIds.has(a.id));
   const displayAuthors = liveAuthors.length ? liveAuthors : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
@@ -171,9 +170,10 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const handleSubmit = async () => {
     if (!text.trim()) return;
     setSaving(true);
-    // Parse signpost authorship from the ORIGINAL text first so whisper
-    // wrapping can't be mangled by signpost stripping.
-    const { authors: signpostedAuthors, cleanContent: signpostClean } = parseSignposts(text, alters, systemKeywords);
+    // Strip signposts from the ORIGINAL text first so whisper wrapping can't be
+    // mangled by signpost stripping. Authorship is computed from the shared fold
+    // below (same rule as the preview chips).
+    const { cleanContent: signpostClean } = parseSignposts(text, alters, systemKeywords);
     // Whisper — explicit toggle is the reliable path; inline "/w" is the fallback.
     let cleanContent = signpostClean;
     let whisperRecipientIds = [];
@@ -192,38 +192,31 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
       whisperRecipientIds = w.recipientIds || [];
       isWhisper = !!w.isWhisper;
     }
-    const signpostHeadIsSystem = isSystemSignpost(signpostedAuthors[0]);
-    const authorIds = signpostedAuthors
-      .filter((a) => !isSystemSignpost(a))
-      .map((a) => a.id);
-    let finalAuthorIds;
-    if (signpostHeadIsSystem) {
-      finalAuthorIds = [];
-    } else if (authorIds.length > 0) {
-      finalAuthorIds = authorIds;
-    } else {
-      finalAuthorIds = frontingAlterIds;
-      // Defensive: if no @ signposts and the prop-passed
-      // frontingAlterIds is empty (the parent query might still be
-      // hydrating, or a session was just created and not yet
-      // propagated), refetch live so the comment isn't attributed to
-      // "System" while there's clearly a fronter set.
-      if (finalAuthorIds.length === 0) {
-        try {
-          const active = await base44.entities.FrontingSession.filter({ is_active: true });
-          const liveIds = active
-            .map(s => s.alter_id || s.primary_alter_id)
-            .filter(Boolean);
-          if (liveIds.length > 0) finalAuthorIds = liveIds;
-        } catch { /* fall through with the system-attributed save */ }
-      }
+    // Authorship = the shared signpost fold over the current fronters, exactly
+    // what the preview chips show ("-x -y" → x,y; "+t" over front w,e → w,e,t).
+    const base = frontingAlterIds.map((id) => alters.find((a) => a.id === id)).filter(Boolean);
+    const folded = foldSignpostAuthors(text, alters, { systemKeywords, base });
+    const hasExplicitSystem = folded.some(isSystemSignpost);
+    let finalAuthorIds = folded.filter((a) => !isSystemSignpost(a)).map((a) => a.id);
+    if (finalAuthorIds.length === 0 && !hasExplicitSystem) {
+      // No authors resolved and no explicit "-system": the front prop may not
+      // have hydrated yet (parent query loading, or a session just created).
+      // Refetch live so the comment isn't attributed to "System" when there's
+      // clearly a fronter set.
+      try {
+        const active = await base44.entities.FrontingSession.filter({ is_active: true });
+        const liveIds = active
+          .map(s => s.alter_id || s.primary_alter_id)
+          .filter(Boolean);
+        if (liveIds.length > 0) finalAuthorIds = liveIds;
+      } catch { /* fall through with the system-attributed save */ }
     }
-    // Honour authors removed from the live chip list.
-    finalAuthorIds = finalAuthorIds.filter((id) => !removedAuthorIds.has(id));
+    // Honour authors removed from the live chip list; dedupe.
+    finalAuthorIds = [...new Set(finalAuthorIds.filter((id) => !removedAuthorIds.has(id)))];
     const comment = await base44.entities.BulletinComment.create({
       bulletin_id: bulletinId,
       parent_comment_id: parentCommentId || null,
-      author_alter_id: signpostHeadIsSystem ? null : (finalAuthorIds[0] || null),
+      author_alter_id: finalAuthorIds[0] || null,
       author_alter_ids: finalAuthorIds,
       content: cleanContent,
       // A whisper embeds an HTML span — force rich rendering so it shows the
@@ -468,8 +461,8 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const hasMoreDepth = hasChildren && maxDepth !== null && depth >= maxDepth;
   const shouldRenderChildren = maxDepth === null || depth < maxDepth;
   const reactions = comment.reactions || {};
-  const rawDate = comment.created_date;
-  const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+  const rawDate = comment.created_date || comment.timestamp;
+  const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z") : new Date();
   const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
   // Authors are FIXED to whatever was saved on the comment at post time
   // (current front or signposts). Never fall back to the live

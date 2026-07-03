@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { parseAndStripSignposts, parseSignpostAuthors, parseSignpostDirectives, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, parseSignpostAuthors, parseSignpostDirectives, foldSignpostAuthors, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
 import { useSystemIdentity } from "@/lib/useSystemIdentity";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -154,11 +154,14 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     try { localStorage.setItem(SIGNPOST_HELP_KEY, "1"); } catch { /* quota/disabled */ }
   };
 
-  // Live authorship from the text's signpost DIRECTIVES, folded over a base:
+  // Live authorship from the text's signpost DIRECTIVES, decided at the
+  // MESSAGE level so multiple names in one post all stick:
   //   • base = current fronters; else the authors retained from the last post;
   //     else the system as a whole (-[system]).
-  //   • "-name" REPLACES (clears others, sets that name as the sole author).
-  //   • "+name" ADDS to the current authors.
+  //   • If ANY signpost uses "+", it's ADDITIVE: authors = base (fronters) PLUS
+  //     every signposted name — e.g. fronting w,e + "+t -j -l" → w,e,t,j,l.
+  //   • If NO "+" is present (all "-"), it REPLACES: authors = exactly the
+  //     signposted names, ignoring the front — e.g. "-x -y -z" → x,y,z.
   //   • A bare emoji-alias in the text ADDS its alter (no +/- needed).
   // removedAuthorIds (chip × / Clear all) is the final subtract.
   const directives = React.useMemo(
@@ -179,19 +182,13 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     const fronters = frontingAlterIds.map(byId).filter(Boolean);
     const retained = lastAuthorIds.map(byId).filter(Boolean);
     const base = fronters.length ? fronters : retained;
-    let working = base.length ? [...base] : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
-    for (const d of directives) {
-      if (d.mode === "replace") working = [...d.alters];
-      else for (const a of d.alters) if (!working.find((x) => x.id === a.id)) working.push(a);
-    }
-    for (const id of emojiAuthorIds) {
-      const a = byId(id);
-      if (a && !working.find((x) => x.id === a.id)) working.push(a);
-    }
+    // Shared fold: "-x -y -z" → x,y,z; "+t -j -l" over front w,e → w,e,t,j,l.
+    const folded = foldSignpostAuthors(content, alters, { systemKeywords, base });
+    const withFallback = folded.length ? folded : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
     const seen = new Set();
-    const out = working.filter((a) => !removedAuthorIds.has(a.id) && (seen.has(a.id) ? false : (seen.add(a.id), true)));
+    const out = withFallback.filter((a) => !removedAuthorIds.has(a.id) && (seen.has(a.id) ? false : (seen.add(a.id), true)));
     return out.length ? out : [{ id: SYSTEM_SENTINEL_ID, isSystem: true }];
-  }, [directives, emojiAuthorIds, frontingAlterIds, lastAuthorIds, alters, removedAuthorIds]);
+  }, [content, alters, systemKeywords, frontingAlterIds, lastAuthorIds, removedAuthorIds]);
   const removeAuthor = (id) => setRemovedAuthorIds((s) => new Set(s).add(id));
   const clearAllAuthors = () => {
     // Hide every currently-shown author. removedAuthorIds wins over both the
@@ -441,9 +438,10 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
           </button>
           <p className="text-foreground font-medium mb-0.5">Signing your posts</p>
           <p>
-            Whoever's {terms.fronting} is the author by default (or the last author / the whole {terms.system} if no one is).
-            Type <span className="font-mono text-foreground">-{terms.alter}</span> to make someone the <span className="font-medium">sole</span> author,
-            or <span className="font-mono text-foreground">+{terms.alter}</span> to <span className="font-medium">add</span> one. Remove anyone with their ✕ chip.
+            Whoever's {terms.fronting} is the author by default (if there is no active {terms.front}, your {terms.system} name and avatar from the settings menu is used, unless you have recently signposted, in which case the author will default to them).
+          </p>
+          <p className="mt-1.5">
+            Type <span className="font-mono text-foreground">-{terms.alter}</span> to set the author (anywhere in the bulletin post), overwriting current {terms.front}. List several (<span className="font-mono text-foreground">-x -y -z</span>), or start signposting with <span className="font-mono text-foreground">+{terms.alter}</span>, and that {terms.alter} and any subsequent signposts will be added to the current {terms.front} instead of replacing.
           </p>
         </div>
       ) : (

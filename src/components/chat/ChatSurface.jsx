@@ -15,7 +15,7 @@ import { renderRichContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
-import { parseAndStripSignposts, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
+import { parseAndStripSignposts, foldSignpostAuthors, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 
@@ -467,34 +467,38 @@ export function Composer({ channelLabel, alters, speakerAlters = alters, default
     });
   };
 
-  // The chip reflects what the message will ACTUALLY be attributed to —
-  // inline signposts override the picker.
+  // The chip reflects what the message will ACTUALLY be attributed to — the
+  // picker selection folded with inline +/- signposts (same rule as the bulletin
+  // composer, so "+x" adds and "-x" replaces consistently across the app).
   const selectedAuthors = useMemo(() => {
-    const { authors: signposted } = parseAndStripSignposts(text, alters, [terms.system]);
-    if (signposted.length > 0) {
-      const sysOnly = signposted.every((a) => a.id === SYSTEM_AUTHOR.id);
-      if (sysOnly) return [SYSTEM_AUTHOR];
-      return signposted.filter((a) => a.id !== SYSTEM_AUTHOR.id).map((a) => authorFor(a.id, alters));
-    }
-    if (speakerIds.length === 0 || (speakerIds.length === 1 && speakerIds[0] === SYSTEM_AUTHOR.id)) {
-      return [SYSTEM_AUTHOR];
-    }
-    return speakerIds
-      .filter((id) => id !== SYSTEM_AUTHOR.id)
-      .map((id) => authorFor(id, alters));
+    const base = speakerIds.filter((id) => id !== SYSTEM_AUTHOR.id).map((id) => ({ id }));
+    const folded = foldSignpostAuthors(text, alters, { systemKeywords: [terms.system], base });
+    const real = folded.filter((a) => a.id !== SYSTEM_AUTHOR.id);
+    return real.length ? real.map((a) => authorFor(a.id, alters)) : [SYSTEM_AUTHOR];
   }, [speakerIds, alters, text, terms.system]);
 
   const handleSubmit = async () => {
     if (!text.trim()) return;
+    // Compute the folded authors BEFORE clearing the text so the picker STICKS to
+    // whoever the message was attributed to (whether set by the picker or by an
+    // inline +/- signpost) — the next message stays with them instead of
+    // snapping back to the System.
+    const base = speakerIds.filter((id) => id !== SYSTEM_AUTHOR.id).map((id) => ({ id }));
+    const foldedIds = foldSignpostAuthors(text, alters, { systemKeywords: [terms.system], base })
+      .filter((a) => a.id !== SYSTEM_AUTHOR.id)
+      .map((a) => a.id);
     const ok = await onSubmit({ content: text, speakerIds, notifyOnReply });
-    if (ok !== false) setText("");
+    if (ok !== false) {
+      setText("");
+      setSpeakerIds(foldedIds.length ? foldedIds : [SYSTEM_AUTHOR.id]);
+    }
   };
 
   const replyAuthors = replyTo ? authorsFor(replyTo, alters) : [];
   const replyColor = useReadableColor(replyAuthors[0]?.color);
 
   const placeholder = placeholderText
-    || `Message ${channelLabel || ""}…  (@ mention · - signpost · /w @name [secret] to whisper)`;
+    || `Message ${channelLabel || ""}…  (@ mention · ${terms.signpostReplace || "-"} signpost · /w @name [secret] to whisper)`;
 
   return (
     <div className="border-t border-border/50 p-2 flex-shrink-0 bg-background">
@@ -676,14 +680,16 @@ export default function ChatSurface({
     return [...groups.values()];
   }, [sorted]);
 
-  // Resolve signposts vs picker selection — signposts override the picker.
+  // Resolve authorship by folding the picker selection (base) with any inline
+  // +/- signposts — the SAME rule as the bulletin composer: "+x" ADDS x to the
+  // current speakers, "-x -y" REPLACES them with x,y, no signpost keeps the
+  // picker selection. Keeps the app's signposting consistent everywhere.
   const resolveAuthors = (content, pickerIds) => {
-    const { authors: signposted, cleanText } = parseAndStripSignposts(content, alters, [terms.system]);
-    if (signposted.length === 0) {
-      return { cleanText: (content || "").trim(), authorAlterIds: (pickerIds || []).filter((id) => id && id !== SYSTEM_AUTHOR.id) };
-    }
-    const ids = signposted.filter((a) => a.id !== SYSTEM_AUTHOR.id).map((a) => a.id);
-    return { cleanText: cleanText.trim(), authorAlterIds: ids };
+    const { cleanText } = parseAndStripSignposts(content, alters, [terms.system]);
+    const base = (pickerIds || []).filter((id) => id && id !== SYSTEM_AUTHOR.id).map((id) => ({ id }));
+    const folded = foldSignpostAuthors(content, alters, { systemKeywords: [terms.system], base });
+    const authorAlterIds = folded.filter((a) => a.id !== SYSTEM_AUTHOR.id).map((a) => a.id);
+    return { cleanText: (cleanText || "").trim(), authorAlterIds };
   };
 
   // Build a fully-resolved send payload and hand it to the host.

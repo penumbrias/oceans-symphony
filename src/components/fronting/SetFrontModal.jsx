@@ -243,7 +243,7 @@ function SelectedChip({ alter, isPrimary, onSetPrimary, onRemove, onSolePrimary 
 // participants rather than starting a front. All the switch-meta extras
 // (journal / triggered / unsure) are hidden in this mode since there's no
 // session to attach them to. When the prop is absent, behaviour is unchanged.
-export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel }) {
+export default function SetFrontModal({ open, onClose, alters: altersProp, currentSession, selectionMode = false, onConfirm, preselectedIds, confirmLabel, allowPresenceTab = false }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
@@ -716,9 +716,12 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             </div>
           </DialogHeader>
 
-          {/* Fronters vs. New-presence tabs. Hidden in selection mode (the
-              meeting "notice who's near" flow has no presence concept). */}
-          {!selectionMode && (
+          {/* Fronters vs. New-presence tabs. Shown in the normal flow and, when
+              the caller opts in via `allowPresenceTab` (the meeting "notice
+              who's near" picker), in selection mode too — so a sensed-but-
+              unidentified presence can be recorded right there, exactly like the
+              dashboard's Set Fronters modal. */}
+          {(!selectionMode || allowPresenceTab) && (
             <div className="flex gap-1 bg-muted/50 rounded-lg p-1 mb-1" role="tablist">
               <button
                 type="button"
@@ -727,7 +730,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                 onClick={() => setTab("fronters")}
                 className={`flex-1 text-sm py-1.5 rounded-md transition-colors ${tab === "fronters" ? "bg-background shadow-sm font-medium" : "text-muted-foreground hover:text-foreground"}`}
               >
-                Set {terms.Front}ers
+                {selectionMode ? terms.Alters : `Set ${terms.Front}ers`}
               </button>
               <button
                 type="button"
@@ -741,7 +744,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             </div>
           )}
 
-          {tab === "presence" && !selectionMode ? (
+          {tab === "presence" && (!selectionMode || allowPresenceTab) ? (
             <PresencePicker onClose={onClose} />
           ) : (
           <>

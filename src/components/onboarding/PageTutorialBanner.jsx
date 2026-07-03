@@ -25,15 +25,10 @@ export default function PageTutorialBanner({ onLaunch }) {
   // Re-render when pageTutorials state changes (Settings reset, etc.).
   useEffect(() => subscribePageTutorials(() => forceTick(n => n + 1)), []);
 
-  // Implicit-seen on navigate-away: a banner that the user ignored once
-  // counts as seen so they don't keep getting nudged on every back-trip.
-  useEffect(() => {
-    // Skip if we wouldn't have shown the banner here in the first place —
-    // otherwise just visiting a tutorial-less route would do nothing
-    // anyway, no need to write to storage.
-    if (!shouldShow(pathname)) return;
-    return () => markRouteSeen(pathname);
-  }, [pathname]);
+  // The banner PERSISTS on the page across visits until the user acts on it —
+  // it's only marked "seen" when they explicitly tap "Show me around" or the X
+  // (handleShow / handleDismiss). Previously, navigating away marked it seen,
+  // so it vanished after a single glance without being dismissed.
 
   if (!shouldShow(pathname)) return null;
 

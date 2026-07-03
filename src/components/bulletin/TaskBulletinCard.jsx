@@ -24,6 +24,14 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
     enabled: showComments,
   });
 
+  // The live Task record is the source of truth for completion — read it from
+  // the shared ["tasks"] cache so this card stays in sync when the same to-do
+  // is checked off anywhere else (To-Do page, dashboard pins, etc.).
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list(),
+  });
+
   const parsed = parseTaskBulletin(bulletin.content);
   if (!parsed) return null;
 
@@ -34,10 +42,14 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
     ? bulletin.author_alter_ids
     : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
-const rawDate = bulletin.created_date;
-const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+const rawDate = bulletin.created_date || bulletin.timestamp;
+const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z") : new Date();
 const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNow(dateObj, { addSuffix: true })}`;
-  const isCompleted = parsed.completed;
+  // Prefer the live Task's completion; the `:done` marker baked into the
+  // bulletin content is only a fallback for an orphaned bulletin whose Task
+  // was deleted.
+  const liveTask = tasks.find((t) => t.id === parsed.taskId);
+  const isCompleted = liveTask ? !!liveTask.completed : parsed.completed;
 
   const handleToggle = async (e) => {
     e.stopPropagation();

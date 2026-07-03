@@ -322,11 +322,11 @@ function LocationProfileInner() {
         {surfaceCss && <style>{surfaceCss}</style>}
         <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
           <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5">
-            <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)}>
-              <ArrowLeft className="w-4 h-4 mr-1.5" /> Back
+            <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)} aria-label="Back" title="Back">
+              <ArrowLeft className="w-4 h-4" />
             </Button>
-            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} className="gap-1.5">
-              <Pencil className="w-3.5 h-3.5" /> Edit
+            <Button variant="outline" size="sm" onClick={() => setEditMode(true)} aria-label="Edit" title="Edit">
+              <Pencil className="w-3.5 h-3.5" />
             </Button>
           </div>
 

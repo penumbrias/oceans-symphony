@@ -69,12 +69,33 @@ function makeSystemSentinel() {
   return { id: SYSTEM_SENTINEL_ID, isSystem: true, name: "System" };
 }
 
-// Signpost trigger: `-name` (or `-a/b`) and now also `+name`. The sign is
-// captured so callers that care can tell ADD (`+`) from REPLACE (`-`) — see
-// parseSignpostDirectives. The author-collecting parsers below treat both the
-// same (every signposted alter is an author); only the live composer uses the
-// add/replace distinction.
-const PATTERN = /([+-])(\w+(?:\/\w+)*)/g;
+// Signpost triggers: the REPLACE sign (default `-`) and the ADD sign (default
+// `+`). The sign is captured so callers can tell ADD from REPLACE — see
+// parseSignpostDirectives. Both are USER-CUSTOMISABLE (Settings → Terms):
+// `configureSignpostSigns({ add, replace })` (called from useTerms whenever
+// SystemSettings loads/changes) rebuilds the pattern, so a user who prefers,
+// say, `!name` / `.name` gets that everywhere the shared parser runs.
+let ADD_SIGN = "+";
+let REPLACE_SIGN = "-";
+function buildSignpostPattern() {
+  // Longer sign first so a multi-char sign can't be pre-empted by a 1-char one.
+  const signs = [ADD_SIGN, REPLACE_SIGN].sort((a, b) => b.length - a.length).map(escapeRegex);
+  return new RegExp(`(${signs.join("|")})(\\w+(?:\\/\\w+)*)`, "g");
+}
+let PATTERN = buildSignpostPattern();
+
+export function configureSignpostSigns({ add, replace } = {}) {
+  const a = typeof add === "string" && add.trim() ? add.trim() : ADD_SIGN;
+  const r = typeof replace === "string" && replace.trim() ? replace.trim() : REPLACE_SIGN;
+  if (a === ADD_SIGN && r === REPLACE_SIGN) return;
+  ADD_SIGN = a;
+  REPLACE_SIGN = r;
+  PATTERN = buildSignpostPattern();
+}
+
+export function getSignpostSigns() {
+  return { add: ADD_SIGN, replace: REPLACE_SIGN };
+}
 
 // Opt-in: callers that want `-system` to resolve to the system-level
 // sentinel must pass `systemKeywords` (e.g. `[terms.system]`). Callers
@@ -144,7 +165,7 @@ export function parseSignpostDirectives(text, alters, systemKeywords) {
   const keywords = normalizeKeywords(systemKeywords);
   const out = [];
   for (const match of [...String(text).matchAll(PATTERN)]) {
-    const mode = match[1] === "+" ? "add" : "replace";
+    const mode = match[1] === ADD_SIGN ? "add" : "replace";
     const group = [];
     for (const term of match[2].toLowerCase().split("/").filter(Boolean)) {
       const alter = resolveTerm(term, safeAlters, keywords);
@@ -153,6 +174,49 @@ export function parseSignpostDirectives(text, alters, systemKeywords) {
     if (group.length) out.push({ mode, alters: group });
   }
   return out;
+}
+
+// Fold a post's signpost directives into a final ordered author list, applying
+// the whole-message +/- rule shared by the bulletin composer and comment
+// thread (so multiple names in one entry all stick):
+//   • no signposts        → the provided `base` (current fronters / retained
+//                           authors — caller's choice).
+//   • ANY "+" in the text → ADDITIVE: base PLUS every signposted name, e.g.
+//                           fronting w,e + "+t -j -l" → w,e,t,j,l.
+//   • only "-" signposts  → REPLACE: exactly the signposted names, ignoring the
+//                           front, e.g. "-x -y -z" → x,y,z.
+//   • bare emoji-alias signposts (no dash) are always added on top.
+// Returns alter objects (may include the system sentinel for an explicit
+// `-system`), deduped by id, in order of appearance. The caller applies any
+// per-chip removals and the "empty → whole system" fallback.
+export function foldSignpostAuthors(text, alters, { systemKeywords, base = [] } = {}) {
+  const safeAlters = Array.isArray(alters) ? alters : [];
+  const safeBase = Array.isArray(base) ? base.filter(Boolean) : [];
+  const directives = parseSignpostDirectives(text, safeAlters, systemKeywords);
+  const signposted = [];
+  let anyAdd = false;
+  for (const d of directives) {
+    if (d.mode === "add") anyAdd = true;
+    for (const a of d.alters) if (!signposted.find((x) => x.id === a.id)) signposted.push(a);
+  }
+  let working;
+  if (signposted.length === 0) working = [...safeBase];
+  else if (anyAdd) {
+    working = [...safeBase];
+    for (const a of signposted) if (!working.find((x) => x.id === a.id)) working.push(a);
+  } else {
+    working = [...signposted];
+  }
+  // Emoji-alias authors (no dash) — always additive, minus the system sentinel
+  // and anyone already collected.
+  const have = new Set(working.map((a) => a.id));
+  for (const a of parseSignpostAuthors(text, safeAlters, systemKeywords)) {
+    if (isSystemSignpost(a) || have.has(a.id)) continue;
+    working.push(a);
+    have.add(a.id);
+  }
+  const seen = new Set();
+  return working.filter((a) => (seen.has(a.id) ? false : (seen.add(a.id), true)));
 }
 
 export function parseAndStripSignposts(text, alters, systemKeywords) {

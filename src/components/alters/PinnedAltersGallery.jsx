@@ -2,7 +2,7 @@ import React, { useRef, useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, GripHorizontal, Check, Move } from "lucide-react";
+import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, GripHorizontal, Check, Move, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -84,11 +84,15 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
   const savedOrder = Array.isArray(config.order) ? config.order : [];
   const width = Number.isFinite(config.width) ? config.width : 100;
   const cropSide = config.cropSide === "left" ? "left" : "right";
+  // The "scroll block" is a safe, no-swipe zone the user drops INTO the pinned
+  // strip at a spot they naturally scroll — so a page-scroll gesture there
+  // scrolls the page instead of accidentally fronting an alter. It's an inline
+  // item: pins flow to BOTH sides of it, none are hidden. `position` is the
+  // insertion index across the strip (0 = far left … chip-count = far right),
+  // so it can sit anywhere, not just on one side.
   const sb = (config.scrollBlock && typeof config.scrollBlock === "object") ? config.scrollBlock : {};
   const sbEnabled = !!sb.enabled;
   const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
-  const sbMode = sb.mode === "fixed" ? "fixed" : "inline";
-  const sbSide = sb.side === "right" ? "right" : "left";
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -116,6 +120,18 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
     }
   };
 
+  const setPinnedAlter = async (id, val) => {
+    try {
+      await base44.entities.Alter.update(id, { is_pinned: val });
+      queryClient.invalidateQueries({ queryKey: ["alters"] });
+    } catch {
+      toast.error("Couldn't update pin");
+    }
+  };
+
+  // Nothing pinned yet → the strip stays hidden. First pins come from an
+  // alter's press-and-hold menu ("Pin to top"); once at least one is pinned,
+  // the gear's "Add or remove pins" manages the rest.
   if (pinned.length === 0) return null;
 
   const stripWrapStyle = width < 100
@@ -157,32 +173,32 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
             />
             <p className="text-[0.625rem] text-muted-foreground text-center mt-1">Hold &amp; drag to reorder · tap Done when finished</p>
           </>
-        ) : (
-          /* pt-5 leaves room for the swipe-up hint label above a chip. */
-          <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
-            {(() => {
-              const chips = pinned.map((a) => (
-                <PinnedAlterChip
-                  key={a.id}
-                  alter={a}
-                  activeSessions={activeSessions}
-                  anonymize={anonymize}
-                  formatAlter={formatAlter}
-                  queryClient={queryClient}
-                />
-              ));
-              if (!sbEnabled) return chips;
-              if (sbMode === "fixed") {
-                // Sticky bar pinned to one edge; chips scroll behind it.
-                const bar = <ScrollBlockBar key="__scrollblock" width={sbWidth} fixed side={sbSide} />;
-                return sbSide === "left" ? [bar, ...chips] : [...chips, bar];
-              }
-              // Inline: a dead-zone bar among the chips, scrolling with the row.
-              const pos = Math.max(0, Math.min(chips.length, Number.isFinite(sb.position) ? sb.position : Math.floor(chips.length / 2)));
-              return [...chips.slice(0, pos), <ScrollBlockBar key="__scrollblock" width={sbWidth} />, ...chips.slice(pos)];
-            })()}
-          </div>
-        )}
+        ) : (() => {
+          const chips = pinned.map((a) => (
+            <PinnedAlterChip
+              key={a.id}
+              alter={a}
+              activeSessions={activeSessions}
+              anonymize={anonymize}
+              formatAlter={formatAlter}
+              queryClient={queryClient}
+            />
+          ));
+          // Drop the scroll block INTO the row at the chosen index — pins slide
+          // to either side of it, none hidden. It sits wherever the user placed
+          // it in the strip.
+          let rowChildren = chips;
+          if (sbEnabled) {
+            const pos = Math.max(0, Math.min(chips.length, Number.isFinite(sb.position) ? sb.position : Math.floor(chips.length / 2)));
+            rowChildren = [...chips.slice(0, pos), <ScrollBlockBar key="__scrollblock" width={sbWidth} />, ...chips.slice(pos)];
+          }
+          // pt-5 leaves room for the swipe-up hint label above a chip.
+          return (
+            <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
+              {rowChildren}
+            </div>
+          );
+        })()}
       </div>
 
       {gearOpen && (
@@ -193,6 +209,9 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
           cropSide={cropSide}
           total={pinned.length}
           scrollBlock={sb}
+          alters={alters.filter((a) => !a.is_archived)}
+          pinnedIds={new Set(pinned.map((a) => a.id))}
+          onSetPinned={setPinnedAlter}
           onWidthChange={(w) => persistConfig({ width: w })}
           onCropSideChange={(s) => persistConfig({ cropSide: s })}
           onScrollBlockChange={(next) => persistConfig({ scrollBlock: next })}
@@ -276,27 +295,17 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
 // touchAction:"auto" lets a touch here scroll the page vertically (and the row
 // horizontally) — but it can never front anyone.
 //
-// Two layouts:
-//   - inline: a normal flex item that scrolls along with the chips.
-//   - fixed:  position:sticky to one edge so it stays put (an always-present
-//     safe zone) while the chips scroll behind it (opaque bg + z-index).
-function ScrollBlockBar({ width, fixed = false, side = "left" }) {
-  const style = { width: `${width}px`, height: 52, touchAction: "auto" };
-  let cls = "flex-shrink-0 self-center rounded-2xl border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none";
-  if (fixed) {
-    style.position = "sticky";
-    style[side] = 0;
-    style.zIndex = 2;
-    cls += " bg-card shadow-sm"; // opaque so chips scroll BEHIND it
-  } else {
-    cls += " bg-muted/50";
-  }
+// It renders the same either way (a flex item). In "inline" mode it sits among
+// the chips and scrolls with them; in "fixed" mode the gallery places it in a
+// reserved side gutter (a flex sibling of the scroll area), so chips scroll
+// BESIDE it rather than behind it.
+function ScrollBlockBar({ width }) {
   return (
     <div
       aria-hidden="true"
       title="Grab here to scroll the page without changing who's fronting"
-      className={cls}
-      style={style}
+      className="flex-shrink-0 self-center rounded-2xl border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none bg-muted/50"
+      style={{ width: `${width}px`, height: 52, touchAction: "auto" }}
     >
       <GripVertical className="w-5 h-5 text-muted-foreground/70" />
       <span className="text-[0.5rem] uppercase tracking-wider text-muted-foreground/60">scroll</span>
@@ -304,13 +313,48 @@ function ScrollBlockBar({ width, fixed = false, side = "left" }) {
   );
 }
 
-function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scrollBlock, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
+// One searchable row in the "Add alters" picker — its own component so the
+// avatar can resolve via the hook (can't call hooks in a map).
+function PinPickerRow({ alter, pinned, onToggle }) {
+  const avatar = useResolvedAvatarUrl(alter.avatar_url);
+  return (
+    <button
+      type="button"
+      onClick={() => onToggle(alter.id, !pinned)}
+      className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border text-left transition-colors ${pinned ? "border-primary/50 bg-primary/5" : "border-border/50 hover:bg-muted/30"}`}
+    >
+      <div
+        className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+        style={{ border: `2px solid ${alter.color || "hsl(var(--border))"}`, backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))" }}
+      >
+        {avatar ? (
+          <img src={avatar} alt="" className="w-full h-full object-cover" />
+        ) : (
+          <span className="text-xs font-semibold text-foreground">{(alter.name || "?").charAt(0).toUpperCase()}</span>
+        )}
+      </div>
+      <span className="flex-1 min-w-0 text-sm truncate">{alter.name}</span>
+      <Pin className={`w-4 h-4 flex-shrink-0 ${pinned ? "fill-primary text-primary" : "text-muted-foreground"}`} />
+    </button>
+  );
+}
+
+function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scrollBlock, alters = [], pinnedIds, onSetPinned, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
+  const [showAdd, setShowAdd] = useState(false);
+  const [search, setSearch] = useState("");
+  const pinnedSet = pinnedIds instanceof Set ? pinnedIds : new Set();
+  const candidates = alters
+    .filter((a) => (a.name || "").toLowerCase().includes(search.toLowerCase()))
+    .sort((a, b) => {
+      const pa = pinnedSet.has(a.id) ? 0 : 1;
+      const pb = pinnedSet.has(b.id) ? 0 : 1;
+      if (pa !== pb) return pa - pb;
+      return (a.name || "").localeCompare(b.name || "");
+    });
   const sb = scrollBlock || {};
   const sbEnabled = !!sb.enabled;
   const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
   const sbPos = Math.max(0, Math.min(total, Number.isFinite(sb.position) ? sb.position : Math.floor(total / 2)));
-  const sbMode = sb.mode === "fixed" ? "fixed" : "inline";
-  const sbSide = sb.side === "right" ? "right" : "left";
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
@@ -321,6 +365,35 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
           <Button variant="outline" onClick={onRearrange} className="w-full gap-2">
             <Move className="w-4 h-4" /> Rearrange order
           </Button>
+
+          <div>
+            <Button variant="outline" onClick={() => setShowAdd((v) => !v)} className="w-full gap-2">
+              <Plus className="w-4 h-4" /> Add or remove pins
+            </Button>
+            {showAdd && (
+              <div className="mt-2 space-y-2">
+                <div className="relative">
+                  <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                  <input
+                    value={search}
+                    onChange={(e) => setSearch(e.target.value)}
+                    placeholder="Search…"
+                    className="w-full pl-8 pr-2 py-1.5 text-sm rounded-lg border border-border bg-background"
+                  />
+                </div>
+                <div className="max-h-56 overflow-y-auto space-y-1 overscroll-contain">
+                  {candidates.length === 0 ? (
+                    <p className="text-xs text-muted-foreground text-center py-3">No matches.</p>
+                  ) : (
+                    candidates.map((a) => (
+                      <PinPickerRow key={a.id} alter={a} pinned={pinnedSet.has(a.id)} onToggle={onSetPinned} />
+                    ))
+                  )}
+                </div>
+                <p className="text-[0.6875rem] text-muted-foreground">Tap to pin or unpin. Pinned ones show at the top.</p>
+              </div>
+            )}
+          </div>
 
           <div>
             <label className="text-sm font-medium flex items-center justify-between">
@@ -357,50 +430,18 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
               <span className="flex items-center gap-1.5"><GripHorizontal className="w-4 h-4" /> Scroll block</span>
               <Switch checked={sbEnabled} onCheckedChange={(v) => onScrollBlockChange({ ...sb, enabled: v })} />
             </label>
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe bar you can grab to scroll the page up/down past the pinned row without accidentally fronting anyone.</p>
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe zone you can grab to scroll the page up/down past the pinned row without accidentally fronting anyone. Drop it wherever you usually scroll.</p>
             {sbEnabled && (
               <div className="mt-3 space-y-3">
                 <div>
-                  <label className="text-xs block mb-1">Behaviour</label>
-                  <div className="flex gap-1.5">
-                    {[{ k: "inline", l: "Scrolls with row" }, { k: "fixed", l: "Stays put" }].map((m) => (
-                      <button
-                        key={m.k}
-                        type="button"
-                        onClick={() => onScrollBlockChange({ ...sb, enabled: true, mode: m.k })}
-                        className={`flex-1 text-xs px-2 py-1.5 rounded-lg border transition-colors ${sbMode === m.k ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/50"}`}
-                      >
-                        {m.l}
-                      </button>
-                    ))}
-                  </div>
+                  <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "far left" : sbPos >= total ? "far right" : `after pin #${sbPos}`}</span></label>
+                  <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
+                  <p className="text-[0.6875rem] text-muted-foreground mt-1">Slide it anywhere across the row — your pins move to either side of it, never hidden.</p>
                 </div>
                 <div>
                   <label className="text-xs flex items-center justify-between">Bar width <span className="text-muted-foreground">{sbWidth}px</span></label>
                   <input type="range" min={32} max={140} step={4} value={sbWidth} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, width: Number(e.target.value) })} className="w-full accent-primary mt-1" />
                 </div>
-                {sbMode === "inline" ? (
-                  <div>
-                    <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "start" : sbPos >= total ? "end" : `after #${sbPos}`}</span></label>
-                    <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
-                  </div>
-                ) : (
-                  <div>
-                    <label className="text-xs block mb-1">Side</label>
-                    <div className="flex gap-1.5">
-                      {["left", "right"].map((s) => (
-                        <button
-                          key={s}
-                          type="button"
-                          onClick={() => onScrollBlockChange({ ...sb, enabled: true, side: s })}
-                          className={`flex-1 text-xs px-2.5 py-1.5 rounded-lg border capitalize transition-colors ${sbSide === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/50"}`}
-                        >
-                          {s}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

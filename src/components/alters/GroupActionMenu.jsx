@@ -3,8 +3,10 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Users, Crown, FolderTree, Folder, X, ArrowLeft } from "lucide-react";
+import { Users, Crown, FolderTree, X, ArrowLeft, ArrowRightLeft } from "lucide-react";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
+import TransferToSystemModal from "@/components/systems/TransferToSystemModal";
+import { hasMultipleSystems } from "@/lib/systems";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { useTerms } from "@/lib/useTerms";
@@ -20,6 +22,7 @@ export default function GroupActionMenu({ group, onClose }) {
   const t = useTerms();
   const openedAt = useRef(Date.now());
   const [showMembers, setShowMembers] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [assigning, setAssigning] = useState(false);
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
@@ -31,6 +34,10 @@ export default function GroupActionMenu({ group, onClose }) {
 
   if (showMembers) {
     return <GroupMembersModal group={group} allGroups={allGroups} isOpen onClose={() => { setShowMembers(false); close(); }} />;
+  }
+
+  if (showTransfer) {
+    return <TransferToSystemModal group={group} onClose={() => { setShowTransfer(false); close(); }} />;
   }
 
   const candidates = alters.filter((a) => !a.is_archived);
@@ -70,8 +77,8 @@ export default function GroupActionMenu({ group, onClose }) {
         {assigning ? (
           <div className="p-3 space-y-2">
             <button type="button" onClick={() => setAssigning(false)}
-              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground">
-              <ArrowLeft className="w-3.5 h-3.5" /> Back
+              className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground" aria-label="Back" title="Back">
+              <ArrowLeft className="w-3.5 h-3.5" />
             </button>
             <p className="text-[0.6875rem] text-muted-foreground leading-snug">
               Pick an {t.alter} to be this group's root — that turns it into their {subTerm}.
@@ -92,6 +99,9 @@ export default function GroupActionMenu({ group, onClose }) {
           <div className="py-1">
             <Item icon={Users} label="Manage members" onClick={() => setShowMembers(true)} />
             <Item icon={Crown} label={group.owner_alter_id ? "Change root" : "Assign root"} onClick={() => setAssigning(true)} />
+            {hasMultipleSystems() && (
+              <Item icon={ArrowRightLeft} label={`Move to another ${t.system}`} onClick={() => setShowTransfer(true)} />
+            )}
             <Item icon={FolderTree} label="Go to profile" onClick={() => { navigate(`/group/${group.id}`); close(); }} />
           </div>
         )}

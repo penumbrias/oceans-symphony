@@ -1,6 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
+import { configureSignpostSigns } from "@/lib/signpostAuthors";
+
+export const DEFAULT_SIGNPOST_ADD = "+";
+export const DEFAULT_SIGNPOST_REPLACE = "-";
 
 export const DEFAULT_TERMS = {
   system: "system",
@@ -93,6 +97,14 @@ export function useTerms() {
   const fronterOverride = (s.term_fronter || "").trim();
   const switchingOverride = (s.term_switching || "").trim();
 
+  // User-customisable signpost triggers (default "+" / "-"). Sync them into the
+  // shared parser HERE — useTerms is called by every signpost composer, so by
+  // the time a composer's parse runs this render, the module signs are current.
+  // configureSignpostSigns is idempotent (no-ops when unchanged).
+  const signpostAdd = safe(s.signpost_add, DEFAULT_SIGNPOST_ADD);
+  const signpostReplace = safe(s.signpost_replace, DEFAULT_SIGNPOST_REPLACE);
+  configureSignpostSigns({ add: signpostAdd, replace: signpostReplace });
+
   // Memoize derived terms to avoid rebuilds
   const terms = useMemo(() => {
     // System variants
@@ -176,11 +188,16 @@ export function useTerms() {
       cofronting: cofronting_lower,
       Cofronting: Cofronting_cap,
 
+      // Signpost triggers (user-customisable) — surfaced so composers can show
+      // the right hint text ("type - to sign") without hardcoding the sign.
+      signpostAdd,
+      signpostReplace,
+
       // Raw settings id for saving
       _settingsId: s.id || null,
       _hasSettings: !!s.id,
     };
-  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, s.id]);
+  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, signpostAdd, signpostReplace, s.id]);
 
   return terms;
 }

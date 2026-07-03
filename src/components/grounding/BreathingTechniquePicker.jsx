@@ -9,8 +9,10 @@ export default function BreathingTechniquePicker({ onSelect, onBack }) {
       <button
         onClick={onBack}
         className="text-xs text-muted-foreground hover:text-foreground mb-3 flex items-center gap-1 transition-colors"
+        aria-label="Back"
+        title="Back"
       >
-        <ChevronLeft className="w-3.5 h-3.5" /> Back
+        <ChevronLeft className="w-3.5 h-3.5" />
       </button>
 
       <div>

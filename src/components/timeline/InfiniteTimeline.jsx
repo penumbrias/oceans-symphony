@@ -2078,8 +2078,23 @@ export default function InfiniteTimeline({
                 ))}
               </div>
             )}
-            {["sleep", "lineage", "diary", "poll", "reminder", "reflection", "alter_note", "daily_task"].includes(entry.type) && (
+            {["sleep", "lineage", "diary", "poll", "reflection", "alter_note", "daily_task"].includes(entry.type) && (
               <p className="text-sm font-semibold whitespace-pre-wrap">{entry.label}</p>
+            )}
+            {entry.type === "reminder" && (
+              <div className="space-y-1.5">
+                <p className="text-sm font-semibold whitespace-pre-wrap">{entry.data?.title || entry.label || "Reminder"}</p>
+                {entry.data?.body && entry.data.body !== entry.data?.title && (
+                  <p className="text-sm text-foreground whitespace-pre-wrap">{entry.data.body}</p>
+                )}
+                <button
+                  type="button"
+                  onClick={() => { setDetailPopup(null); navigate("/reminders"); }}
+                  className="text-xs text-primary hover:underline"
+                >
+                  View in Reminders →
+                </button>
+              </div>
             )}
             {entry.type === "daily_tasks" && (() => {
               const ids = entry.data?.completed_task_ids || [];

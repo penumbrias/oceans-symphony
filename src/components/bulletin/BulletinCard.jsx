@@ -55,8 +55,10 @@ export default function BulletinCard({ bulletin, alters, currentAlterId, frontin
     ? bulletin.author_alter_ids
     : (bulletin.author_alter_id ? [bulletin.author_alter_id] : []);
 
-const rawDate = bulletin.created_date;
-const dateObj = new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z");
+// Imported/merged bulletins may lack `created_date` (it's normally auto-set on
+// create) — fall back to `timestamp`, then now, so a missing date never crashes.
+const rawDate = bulletin.created_date || bulletin.timestamp;
+const dateObj = rawDate ? new Date(rawDate.endsWith("Z") ? rawDate : rawDate + "Z") : new Date();
 // Absolute (Mmm d at h:mm a) + relative — therapists / users wanted
 // the exact day and time, not just "N days ago". The relative form
 // still helps gauge recency at a glance.

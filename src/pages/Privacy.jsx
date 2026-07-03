@@ -72,12 +72,11 @@ export default function Privacy() {
           </p>
         </Section>
 
-        <Section title="Simply Plural integration (optional)">
+        <Section title="Simply Plural import (optional)">
           <p>
-            If you connect a Simply Plural account, your Simply Plural API token is stored
-            locally on your device only. Data imported from Simply Plural ({terms.alter} profiles,
-            {terms.fronting} history) is stored locally and subject to Simply Plural's own privacy policy.
-            We do not store or transmit your Simply Plural credentials.
+            Simply Plural is imported from an export file you provide — there is no account
+            connection or API token, and nothing about the import leaves your device. The imported
+            data ({terms.alter} profiles, {terms.fronting} history) is stored locally.
           </p>
         </Section>
 

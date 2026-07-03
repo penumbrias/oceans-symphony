@@ -225,6 +225,7 @@ export default function MeetingParticipantsSection({ participants = [], onChange
         onClose={() => setPickerOpen(false)}
         alters={alters}
         selectionMode
+        allowPresenceTab
         preselectedIds={selectedIds}
         onConfirm={applySelection}
         confirmLabel="Add to meeting"

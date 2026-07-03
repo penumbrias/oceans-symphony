@@ -315,6 +315,7 @@ function AlterProfileInner() {
               }
             }}
             aria-pressed={!!alter.is_pinned}
+            aria-label={alter.is_pinned ? "Unpin from top of the alters page" : "Pin to top of the alters page"}
             title={alter.is_pinned ? "Unpin from top of the alters page" : "Pin to top of the alters page"}
             className={cn(
               "flex items-center gap-1.5 px-2.5 h-8 rounded-lg text-xs font-medium transition-colors flex-shrink-0",
@@ -324,22 +325,19 @@ function AlterProfileInner() {
             )}
           >
             <Pin className={cn("w-4 h-4", alter.is_pinned && "fill-primary")} />
-            {alter.is_pinned ? "Pinned" : "Pin"}
           </button>
           <div className="flex flex-wrap items-center justify-end gap-2">
             {prevAlter && (
               <Link to={`/alter/${prevAlter.id}`}>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  <ArrowLeft className="w-4 h-4 mr-2" />
-                  Prev
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" aria-label={`Previous ${terms.alter}`} title={`Previous ${terms.alter}`}>
+                  <ArrowLeft className="w-4 h-4" />
                 </Button>
               </Link>
             )}
             {nextAlter && (
               <Link to={`/alter/${nextAlter.id}`}>
-                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground">
-                  Next
-                  <ArrowRight className="w-4 h-4 ml-2" />
+                <Button variant="ghost" size="sm" className="text-muted-foreground hover:text-foreground" aria-label={`Next ${terms.alter}`} title={`Next ${terms.alter}`}>
+                  <ArrowRight className="w-4 h-4" />
                 </Button>
               </Link>
             )}
@@ -348,11 +346,10 @@ function AlterProfileInner() {
               variant={isFronting ? "default" : "outline"}
               size="sm"
               onClick={handleToggleFront}
-              className="gap-1.5"
+              aria-label={isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
               title={isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
             >
               <User className="w-3.5 h-3.5" />
-              {isFronting ? `Stop ${terms.fronting}` : `Start ${terms.fronting}`}
             </Button>
             {tab !== "profile" && (
               <Button
@@ -367,9 +364,10 @@ function AlterProfileInner() {
                   params.set("compose", "1");
                   setSearchParams(params, { replace: true });
                 }}
-                className="gap-1.5"
+                aria-label="Message"
+                title="Message"
               >
-                <Mail className="w-3.5 h-3.5" /> Message
+                <Mail className="w-3.5 h-3.5" />
               </Button>
             )}
             {tab === "profile" && (
@@ -391,9 +389,10 @@ function AlterProfileInner() {
                   variant="outline"
                   size="sm"
                   onClick={() => setEditMode(e => !e)}
-                  className="gap-1.5"
+                  aria-label={editMode ? "View" : "Edit"}
+                  title={editMode ? "View" : "Edit"}
                 >
-                  {editMode ? <><Eye className="w-3.5 h-3.5" /> View</> : <><Pencil className="w-3.5 h-3.5" /> Edit</>}
+                  {editMode ? <Eye className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
                 </Button>
               </div>
             )}

@@ -133,7 +133,7 @@ export default function ContactProfile() {
         <button type="button" onClick={() => navigate("/contacts")} className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground">
           <ArrowLeft className="w-4 h-4" /> Contacts
         </button>
-        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} className="gap-1.5"><Pencil className="w-3.5 h-3.5" /> Edit</Button>
+        <Button size="sm" variant="outline" onClick={() => setEditOpen(true)} aria-label="Edit" title="Edit"><Pencil className="w-3.5 h-3.5" /></Button>
       </div>
 
       {/* Header */}

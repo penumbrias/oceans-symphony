@@ -4,13 +4,23 @@
 
 import { openDB } from 'idb';
 import { encryptData, decryptData, generateSalt, deriveKey } from './localEncryption';
-import { getEncSalt, setEncSalt, setEncryptionEnabled } from './storageMode';
+import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 
 const IDB_NAME = 'oceans_symphony';
 const IDB_VERSION = 1;
 const IDB_STORE = 'keyval';
-const STORAGE_KEY = 'symphony_local_data';
+const DEFAULT_STORAGE_KEY = 'symphony_local_data';
 const FAKE_USER_EMAIL = 'local@symphony.app';
+
+// The active system's blob key. Multi-system support (see systems.js) points
+// this at the active system's storage slot once, on boot, BEFORE any load or
+// save. It defaults to the legacy single-system key so existing data is read
+// and written from exactly where it has always lived — turning multi-system on
+// moves nothing. localDb does NOT import systems.js (one-way dependency, no
+// cycle); systems.js calls setActiveStorageKey() during initSystemsRegistry().
+let _storageKey = DEFAULT_STORAGE_KEY;
+export function setActiveStorageKey(key) { _storageKey = key || DEFAULT_STORAGE_KEY; }
+export function getActiveStorageKey() { return _storageKey; }
 
 let _db = null;       // in-memory: { EntityName: { id: record } }
 let _previewDb = null; // in-memory only: when set, all reads/writes use this and skip persistence
@@ -69,20 +79,20 @@ async function loadFromStorage() {
   let idbError = null;
   try {
     const idb = await getIdb();
-    idbValue = await idb.get(IDB_STORE, STORAGE_KEY);
+    idbValue = await idb.get(IDB_STORE, _storageKey);
   } catch (e) {
     idbError = e;
   }
   if (idbValue !== undefined) return idbValue;
 
   // One-time migration from localStorage to IndexedDB (if IDB is healthy).
-  const legacy = localStorage.getItem(STORAGE_KEY);
+  const legacy = localStorage.getItem(_storageKey);
   if (legacy) {
     if (!idbError) {
       try {
         const idb = await getIdb();
-        await idb.put(IDB_STORE, legacy, STORAGE_KEY);
-        localStorage.removeItem(STORAGE_KEY);
+        await idb.put(IDB_STORE, legacy, _storageKey);
+        localStorage.removeItem(_storageKey);
       } catch { /* migration best-effort; data already in the legacy slot */ }
     }
     return legacy;
@@ -95,9 +105,9 @@ async function loadFromStorage() {
 async function saveToStorage(value) {
   try {
     const idb = await getIdb();
-    await idb.put(IDB_STORE, value, STORAGE_KEY);
+    await idb.put(IDB_STORE, value, _storageKey);
   } catch {
-    localStorage.setItem(STORAGE_KEY, value);
+    localStorage.setItem(_storageKey, value);
   }
 }
 
@@ -238,6 +248,7 @@ export async function initLocalDb(password) {
       _activeSalt = salt;
       _encKey = await deriveKey(password, salt);
       setEncryptionEnabled(true);
+      setSessionPassword(password);
     } else {
       _activeSalt = null;
       _encKey = null;
@@ -289,6 +300,9 @@ export async function initLocalDb(password) {
     }
     _encKey = key;
     _db = decrypted;
+    // Hold the password for this app session so switching to another encrypted
+    // system auto-unlocks (one password for the whole app).
+    setSessionPassword(password);
     return;
   }
 
@@ -308,19 +322,49 @@ export async function enableEncryption(password) {
   _encKey = await deriveKey(password, salt);
   setEncryptionEnabled(true);
   _db = db;
-  await saveDb();
+  await saveDb(); // encrypts the ACTIVE system's blob
+  // One password for the whole app: encrypt EVERY other system's blob too, with
+  // the same key + salt, so "encryption on" means all systems. Dynamic import
+  // avoids a static localDb⇄systems cycle. Non-fatal per-blob (a blob that
+  // can't be re-encrypted stays plain; nothing is lost).
+  try {
+    const { encryptOtherSystemBlobs } = await import('./systems');
+    await encryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey, salt });
+  } catch { /* other systems encrypt when next saved while encryption is on */ }
+  setSessionPassword(password);
 }
 
 export async function disableEncryption(password) {
-  await initLocalDb(password);
+  await initLocalDb(password); // decrypts + loads the active system; _encKey set
+  // Decrypt every OTHER system's blob while we still hold the key.
+  try {
+    const { decryptOtherSystemBlobs } = await import('./systems');
+    await decryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey });
+  } catch { /* a blob left encrypted is still openable with this password */ }
   _encKey = null;
   _activeSalt = null;
   setEncryptionEnabled(false);
-  await saveDb();
+  clearSessionPassword();
+  await saveDb(); // active system written back as plain
 }
 
 export const isDbInitialized = () => _db !== null;
-export const clearSession = () => { _db = null; _encKey = null; _activeSalt = null; };
+export const clearSession = () => { _db = null; _encKey = null; _activeSalt = null; clearSessionPassword(); };
+
+// Encryption accessors for multi-system backup/restore: read/write OTHER
+// systems' blobs with the active in-memory key (set after unlock). Used so the
+// "export all systems" / restore paths can decrypt sibling systems for export
+// and write imported systems in the same encrypted-or-plain state as the rest.
+export const isEncryptionActive = () => !!_encKey;
+export const getActiveSalt = () => _activeSalt || getEncSalt();
+export async function encryptWithActiveKey(data) {
+  if (!_encKey) return null;
+  return await encryptData(data, _encKey);
+}
+export async function decryptWithActiveKey(payload) {
+  if (!_encKey) throw new Error('No active encryption key (locked)');
+  return await decryptData(payload, _encKey);
+}
 
 function getCollection(entityName) {
   const db = getDb();
@@ -504,9 +548,9 @@ export async function clearStoredData() {
   _db = {};
   try {
     const idb = await getIdb();
-    await idb.delete(IDB_STORE, STORAGE_KEY);
+    await idb.delete(IDB_STORE, _storageKey);
   } catch { /* fall through to localStorage cleanup */ }
-  try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+  try { localStorage.removeItem(_storageKey); } catch { /* ignore */ }
 }
 
 // Add-only merge: only inserts records whose IDs don't already exist locally.

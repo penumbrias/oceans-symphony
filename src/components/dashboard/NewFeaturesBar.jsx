@@ -3,6 +3,11 @@ import { Link } from "react-router-dom";
 import { X, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
+import { openExternalUrl } from "@/lib/openExternalUrl";
+import BugReportModal from "@/components/settings/BugReportModal";
+
+// Google Play listing for the app (the "leave a review" target).
+const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.oceans_symphony.twa";
 
 // "What's new" strip on the dashboard. Shows the latest changelog
 // date block whenever the user opens the app on a version they
@@ -43,6 +48,7 @@ export default function NewFeaturesBar() {
   // Number of OLDER date blocks the user has chosen to reveal in
   // addition to the headline (most-recent) block. Reset every mount.
   const [extraBlocks, setExtraBlocks] = useState(0);
+  const [bugOpen, setBugOpen] = useState(false);
 
   // Pre-filter the whole changelog once: drop hotfixes, drop empty
   // blocks. The order is preserved (newest first).
@@ -92,6 +98,7 @@ export default function NewFeaturesBar() {
   const changeCount = block.changes.length;
 
   return (
+    <>
     <div
       role="region"
       aria-label="What's new"
@@ -176,6 +183,16 @@ export default function NewFeaturesBar() {
             </div>
           )}
 
+          {/* Persistent feedback CTA. Lives INSIDE the What's new panel, so it
+              vanishes when the bar is dismissed — non-obtrusive. */}
+          <div className="pt-2 border-t border-primary/20 text-[0.6875rem] text-muted-foreground leading-relaxed">
+            Enjoying Oceans Symphony? Have any issues?{" "}
+            <button type="button" onClick={() => openExternalUrl(PLAY_STORE_URL)} className="font-medium text-primary hover:underline">leave a review</button>
+            {" "}or{" "}
+            <button type="button" onClick={() => setBugOpen(true)} className="font-medium text-primary hover:underline">submit a bug report</button>
+            , thanks for giving OS a try! 💜
+          </div>
+
           <div className="flex items-center justify-between gap-2 pt-1 flex-wrap">
             {hasMoreOlder ? (
               <button
@@ -199,5 +216,7 @@ export default function NewFeaturesBar() {
         </div>
       )}
     </div>
+    <BugReportModal open={bugOpen} onClose={() => setBugOpen(false)} />
+    </>
   );
 }

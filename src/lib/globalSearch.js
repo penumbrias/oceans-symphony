@@ -405,6 +405,21 @@ export function buildGroupRecords({ items = [], alters = [] }) {
   });
 }
 
+// Multiple-systems registry entries. Only surfaced when more than one system
+// exists (searching for "your system" otherwise is noise). Results route to the
+// Systems manager where you can switch/rename/delete.
+export function buildSystemRecords({ items = [] }) {
+  if (!Array.isArray(items) || items.length <= 1) return [];
+  return items.map((s) => ({
+    type: "system",
+    id: s.id,
+    title: s.name || "System",
+    subtitle: "Switch or manage systems",
+    path: "/settings#systems",
+    searchableText: joinNonEmpty([s.name, "system", "switch system"]).toLowerCase(),
+  }));
+}
+
 export function buildContactRecords({ items = [] }) {
   return (items || [])
     .filter((c) => !c.is_archived)
@@ -660,6 +675,7 @@ export function buildSearchIndex(sources = {}) {
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,
+    systems,
   } = sources;
 
   const records = [];
@@ -691,6 +707,7 @@ export function buildSearchIndex(sources = {}) {
   records.push(...buildInnerWorldLocationRecords({ items: innerWorldLocations || [] }));
   records.push(...buildPresenceRecords({ items: presences || [], alters: alters || [] }));
   records.push(...buildContactRecords({ items: contacts || [] }));
+  records.push(...buildSystemRecords({ items: systems || [] }));
   return records;
 }
 

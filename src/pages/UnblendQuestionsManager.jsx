@@ -313,8 +313,8 @@ export default function UnblendQuestionsManager() {
   return (
     <div className="os-page-shell p-4 sm:p-6 space-y-6">
       <div className="flex items-center gap-2">
-        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} className="gap-1.5">
-          <ChevronLeft className="w-4 h-4" /> Back
+        <Button variant="ghost" size="sm" onClick={() => navigate(-1)} aria-label="Back" title="Back">
+          <ChevronLeft className="w-4 h-4" />
         </Button>
         <div className="flex-1">
           <h1 className="text-xl sm:text-2xl font-semibold">Manage unblend questions</h1>

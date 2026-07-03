@@ -40,20 +40,28 @@ export function useDailyCheckInOnOpen() {
           (p) => (p.frequency === "daily" || !p.frequency) && (p.period_key === periodKey || p.date === today),
         );
 
+        const nowIso = new Date().toISOString();
         if (rec) {
           const stored = new Set(rec.completed_task_ids || []);
           const missing = ids.filter((id) => !stored.has(id));
           if (!missing.length) return; // already credited today
+          // Stamp completion times so each task lists individually on the Timeline.
+          const completion_times = { ...(rec.completion_times || {}) };
+          for (const id of missing) if (!completion_times[id]) completion_times[id] = nowIso;
           await base44.entities.DailyProgress.update(rec.id, {
             completed_task_ids: [...stored, ...missing],
+            completion_times,
             xp_earned: (rec.xp_earned || 0) + missing.reduce((s, id) => s + pointsFor(id), 0),
           });
         } else {
+          const completion_times = {};
+          for (const id of ids) completion_times[id] = nowIso;
           await base44.entities.DailyProgress.create({
             date: today,
             period_key: periodKey,
             frequency: "daily",
             completed_task_ids: ids,
+            completion_times,
             xp_earned: ids.reduce((s, id) => s + pointsFor(id), 0),
           });
         }

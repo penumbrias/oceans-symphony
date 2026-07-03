@@ -607,17 +607,26 @@ export default function DailyTasks() {
     const newIds = [...existing];
     const newXP = templates.filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
       .reduce((sum, t) => existing.has(t.id) ? sum + (t.points || 0) : sum, 0);
+    // Per-task checkoff time so each completion lands individually on the
+    // Timeline. Only stamp for today's daily record: a real wall-clock time on
+    // a past-day record would fall outside that day's window and vanish from
+    // the view, so retroactive toggles stay untimed (they collapse into one
+    // day marker, which is the honest fallback when we don't know the time).
+    const completion_times = { ...(record?.completion_times || {}) };
+    if (currentDone) delete completion_times[taskId];
+    else if (activeFreq === "daily" && periodKey === TODAY) completion_times[taskId] = new Date().toISOString();
     if (record) {
       queryClient.setQueryData(["dailyProgress"], old =>
-        Array.isArray(old) ? old.map(p => p.id === record.id ? { ...p, completed_task_ids: newIds, xp_earned: newXP } : p) : old
+        Array.isArray(old) ? old.map(p => p.id === record.id ? { ...p, completed_task_ids: newIds, completion_times, xp_earned: newXP } : p) : old
       );
-      await base44.entities.DailyProgress.update(record.id, { completed_task_ids: newIds, xp_earned: newXP });
+      await base44.entities.DailyProgress.update(record.id, { completed_task_ids: newIds, completion_times, xp_earned: newXP });
     } else {
       await base44.entities.DailyProgress.create({
         date: periodKey,
         period_key: periodKey,
         frequency: activeFreq,
         completed_task_ids: newIds,
+        completion_times,
         xp_earned: newXP,
       });
     }
@@ -644,9 +653,14 @@ export default function DailyTasks() {
 
     // Per-task checkoff timestamps so the Timeline can place each completed task
     // at the moment it was actually ticked, rather than all at one marker.
+    const nowStamp = new Date().toISOString();
     const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
-    if (nowCompleted) completion_times[templateId] = new Date().toISOString();
+    if (nowCompleted) completion_times[templateId] = nowStamp;
     else delete completion_times[templateId];
+    // allCompleted also folds in auto-completed IDs (below); stamp any that
+    // lack a time so each lands individually on the Timeline rather than
+    // collapsing into one "N daily tasks done" marker.
+    for (const id of autoCompletedIds) { if (!completion_times[id]) completion_times[id] = nowStamp; }
 
     // Optimistic update
     const optimistic = {
@@ -711,22 +725,41 @@ export default function DailyTasks() {
   useEffect(() => {
     if (progressLoading || templatesLoading || activeFreq !== "daily") return;
     const allIds = [...new Set([...manualCompletedIds, ...autoCompletedIds])];
+    // Stamp a completion time for each id so each task lands on the Timeline
+    // individually (at when it was first recorded done) instead of being lumped
+    // into one "N daily tasks done" entry. Auto-completed tasks are timestamped
+    // when first observed satisfied; existing times are preserved.
+    const nowIso = new Date().toISOString();
     if (!currentRecord && todayXP > 0) {
+      const completion_times = {};
+      for (const id of allIds) completion_times[id] = nowIso;
       base44.entities.DailyProgress.create({
         date: TODAY,
         period_key: currentPeriodKey,
         frequency: "daily",
         completed_task_ids: allIds,
+        completion_times,
         xp_earned: todayXP,
       }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
     } else if (currentRecord) {
-      // Backfill any auto IDs missing from the stored record
+      // Only persist auto IDs that have NEWLY become satisfied (not yet stored),
+      // stamping each with "now" as its first-observed time. We deliberately do
+      // NOT fabricate a time for already-completed-but-untimed IDs: inventing a
+      // "now" for a task the user actually ticked earlier (or under an older
+      // build) would show a WRONG time in the review — every such task would
+      // read the same recent timestamp. Untimed tasks stay untimed: the review
+      // shows a plain "Completed" and the Timeline groups them (honest fallback
+      // when the real time is unknown). Real mark-offs are timestamped at the
+      // moment they happen by toggleManual / toggleHistory / dashboard paths.
       const stored = new Set(currentRecord.completed_task_ids || []);
-      const missingAuto = autoCompletedIds.some(id => !stored.has(id));
-      if (missingAuto) {
+      const missingAuto = autoCompletedIds.filter(id => !stored.has(id));
+      if (missingAuto.length) {
         const merged = [...new Set([...stored, ...autoCompletedIds])];
+        const completion_times = { ...(currentRecord.completion_times || {}) };
+        for (const id of missingAuto) if (!completion_times[id]) completion_times[id] = nowIso;
         base44.entities.DailyProgress.update(currentRecord.id, {
           completed_task_ids: merged,
+          completion_times,
           xp_earned: todayXP,
         }).then(() => queryClient.invalidateQueries({ queryKey: ["dailyProgress"] }));
       }

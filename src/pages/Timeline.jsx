@@ -142,6 +142,18 @@ export default function Timeline() {
     queryFn: () => base44.entities.ReminderInstance.list("-scheduled_for", 2000),
   });
 
+  // Parent reminders hold the actual title/message — the instance only has a
+  // reminder_id — so fetch them to label timeline entries with what the
+  // reminder was actually about (instead of a generic "Reminder").
+  const { data: reminders = [] } = useQuery({
+    queryKey: ["reminders"],
+    queryFn: () => base44.entities.Reminder.list("-created_date", 1000),
+  });
+  const reminderById = React.useMemo(
+    () => Object.fromEntries((reminders || []).map((r) => [r.id, r])),
+    [reminders]
+  );
+
   const { data: reflections = [] } = useQuery({
     queryKey: ["supportJournalAll"],
     queryFn: () => base44.entities.SupportJournalEntry.list("-created_date", 2000),
@@ -414,7 +426,14 @@ export default function Timeline() {
           const dayLineage = lineageEvents.filter((ev) => inDay(ev.date));
           const dayDiaryCards = diaryCards.filter((d) => inDay(d.created_date || (d.date ? `${d.date}T12:00:00` : null)));
           const dayPolls = polls.filter((p) => inDay(p.created_date));
-          const dayReminderInstances = reminderInstances.filter((ri) => inDay(ri.fired_at || ri.scheduled_for));
+          const dayReminderInstances = reminderInstances
+            .filter((ri) => inDay(ri.fired_at || ri.scheduled_for))
+            .map((ri) => {
+              // Pull the title/message from the parent reminder so the timeline
+              // shows what it was about, not just "Reminder".
+              const r = reminderById[ri.reminder_id];
+              return r ? { ...ri, title: ri.title || r.title, body: ri.body || r.body } : ri;
+            });
           const dayReflections = reflections.filter((r) => inDay(r.created_date));
           const dayAlterNotes = alterNotes.filter((n) => inDay(n.created_date));
           const dayProgress = dailyProgress.find((p) => p.date === dateStr) || null;

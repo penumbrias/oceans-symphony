@@ -36,7 +36,6 @@ export default function Home() {
   });
 
   const systemSettings = settings[0] || null;
-  const isConnected = !!systemSettings?.sp_token;
 
   const activeAlters = alters.filter((a) => !a.is_archived);
   const archivedAlters = alters.filter((a) => a.is_archived);
@@ -53,7 +52,7 @@ export default function Home() {
       </div>);
   }
 
-  if (!isConnected && activeAlters.length === 0) {
+  if (activeAlters.length === 0) {
     return (
       <motion.div
         initial={{ opacity: 0, y: 20 }}

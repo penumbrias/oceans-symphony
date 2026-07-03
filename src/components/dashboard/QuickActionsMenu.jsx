@@ -320,10 +320,14 @@ function DailyTaskRow({ action }) {
         : old
     );
 
+    // Stamp/clear the completion time so the task lists individually on the Timeline.
+    const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
+    if (nowCompleted) completion_times[task_id] = new Date().toISOString();
+    else delete completion_times[task_id];
     if (currentRecord) {
-      await base44.entities.DailyProgress.update(currentRecord.id, { completed_task_ids: [...newCompleted], xp_earned: newXP });
+      await base44.entities.DailyProgress.update(currentRecord.id, { completed_task_ids: [...newCompleted], completion_times, xp_earned: newXP });
     } else {
-      await base44.entities.DailyProgress.create({ date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], xp_earned: newXP });
+      await base44.entities.DailyProgress.create({ date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], completion_times, xp_earned: newXP });
     }
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
     if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);

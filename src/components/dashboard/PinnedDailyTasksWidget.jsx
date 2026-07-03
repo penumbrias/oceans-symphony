@@ -144,9 +144,14 @@ export default function PinnedDailyTasksWidget() {
     const newXP = activeTemplates
       .filter((t) => (t.frequency || "daily") === f && t.mode === "MANUAL")
       .reduce((sum, t) => completed.has(t.id) ? sum + (t.points || 0) : sum, 0);
+    // Stamp/clear completion time so each task lists individually on the Timeline.
+    const completion_times = { ...((slot.record && slot.record.completion_times) || {}) };
+    if (nowDone) completion_times[template.id] = new Date().toISOString();
+    else delete completion_times[template.id];
     if (slot.record) {
       await base44.entities.DailyProgress.update(slot.record.id, {
         completed_task_ids: newIds,
+        completion_times,
         xp_earned: Math.max(slot.record.xp_earned || 0, newXP),
       });
     } else {
@@ -155,6 +160,7 @@ export default function PinnedDailyTasksWidget() {
         period_key: slot.periodKey,
         frequency: f,
         completed_task_ids: newIds,
+        completion_times,
         xp_earned: newXP,
       });
     }

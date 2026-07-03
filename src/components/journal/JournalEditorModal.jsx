@@ -324,11 +324,13 @@ useEffect(() => {
     const val = e.target.value;
     if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
     setSignpostText(val);
-    // Detect a `-<chars>` token sitting at the caret. If the user is mid-
-    // word (no space yet), surface the autocomplete; otherwise hide it.
+    // Detect a `-<chars>` OR `+<chars>` token sitting at the caret. Both `-` and
+    // `+` are signpost triggers (parseSignpostAuthors recognises either), so the
+    // autocomplete surfaces for both. If the user is mid-word (no space yet),
+    // surface the autocomplete; otherwise hide it.
     const cursor = e.target.selectionStart ?? val.length;
     const before = val.slice(0, cursor);
-    const m = before.match(/-([\w/]*)$/);
+    const m = before.match(/[+-]([\w/]*)$/);
     if (m) {
       setSignpostQuery(m[1]);
       setSignpostMenuOpen(true);
@@ -347,7 +349,11 @@ useEffect(() => {
     // user's term casing. (The system keyword is term-aware on the
     // parsing side too, so either form round-trips.)
     const token = alter.isSystem ? "system" : (alter.alias || alter.name);
-    const replaced = before.replace(/-([\w/]*)$/, `-${token} `);
+    // Preserve whichever sign the user typed (`-` or `+`) so autocompleting a
+    // `+name` stays a `+` signpost, not silently rewritten to `-`.
+    const signMatch = before.match(/([+-])([\w/]*)$/);
+    const sign = signMatch ? signMatch[1] : "-";
+    const replaced = before.replace(/[+-]([\w/]*)$/, `${sign}${token} `);
     const next = replaced + after;
     if (!signpostTouchedByUser) setSignpostTouchedByUser(true);
     setSignpostText(next);
@@ -439,7 +445,7 @@ useEffect(() => {
                   value={signpostText}
                   onChange={handleSignpostChange}
                   onBlur={() => { setTimeout(() => setSignpostMenuOpen(false), 150); }}
-                  placeholder="-name or -alias to sign"
+                  placeholder={`${terms.signpostReplace || "-"}name or ${terms.signpostAdd || "+"}name to sign`}
                   className="w-full text-xs font-mono bg-transparent border border-border/40 rounded-lg px-2.5 py-1 focus:border-primary/50 outline-none placeholder:text-muted-foreground/40"
                 />
                 {signpostMenuOpen && signpostSuggestions.length > 0 && (

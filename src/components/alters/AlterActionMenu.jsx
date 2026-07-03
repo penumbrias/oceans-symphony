@@ -3,10 +3,12 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus } from "lucide-react";
+import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus, ArrowRightLeft } from "lucide-react";
 import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
+import TransferToSystemModal from "@/components/systems/TransferToSystemModal";
+import { hasMultipleSystems } from "@/lib/systems";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -24,6 +26,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
   // menu the instant it opens.
   const openedAt = useRef(Date.now());
   const [showGroupPicker, setShowGroupPicker] = useState(false);
+  const [showTransfer, setShowTransfer] = useState(false);
   const [creating, setCreating] = useState(false);
 
   const { data: allGroups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
@@ -101,6 +104,11 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
     return <GroupPickerModal alter={alter} open onClose={() => { setShowGroupPicker(false); close(); }} />;
   }
 
+  // Render only the transfer modal while it's open (avoid z-index fights).
+  if (showTransfer) {
+    return <TransferToSystemModal alter={alter} onClose={() => { setShowTransfer(false); close(); }} />;
+  }
+
   const Item = ({ icon: Icon, label, onClick, busy }) => (
     <button type="button" onClick={onClick} disabled={busy}
       className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-foreground hover:bg-muted/50 transition-colors disabled:opacity-60">
@@ -138,6 +146,9 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
           <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
             onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
+          {hasMultipleSystems() && (
+            <Item icon={ArrowRightLeft} label={`Move to another ${t.system}`} onClick={() => setShowTransfer(true)} />
+          )}
           {memberOfSubs.map((g) => (
             <Item key={g.id} icon={UserMinus} label={`Remove from ${g.name}`} onClick={() => go(() => leaveSubsystem(g))} />
           ))}

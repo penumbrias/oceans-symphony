@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 
 /**
  * Reads the user's system identity (display name + avatar) from
@@ -18,22 +19,11 @@ export function useSystemIdentity() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
-  // SystemSettings is a singleton by design, but boot-time auto-create
-  // can leave an empty default record sitting alongside an imported
-  // backup (Settings → Backup → "Add new" merge mode). In that case
-  // `[0]` is order-dependent and may return the empty stub, making
-  // the user's restored system name / bio / avatar appear blank.
-  // Prefer whichever record actually has user-meaningful content over
-  // a fully-empty stub. Pure read-side resolution — no records are
-  // mutated, deleted, or merged.
-  const meaningful = settingsList.find(
-    (r) => r && (
-      (r.system_name && String(r.system_name).trim()) ||
-      (r.system_description && String(r.system_description).trim()) ||
-      (r.system_avatar_url && String(r.system_avatar_url).trim())
-    )
-  );
-  const s = meaningful || settingsList[0] || {};
+  // SystemSettings is a singleton by design, but boot-time auto-create can
+  // leave an empty default record sitting alongside an imported backup — `[0]`
+  // is order-dependent and may return the empty stub, making the system name /
+  // bio / avatar appear blank. Shared resolver picks the meaningful record.
+  const s = pickPrimarySystemSettings(settingsList) || {};
   const name = (s.system_name && s.system_name.trim()) || `${terms.System}-wide`;
   return {
     name,

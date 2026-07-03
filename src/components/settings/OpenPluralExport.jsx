@@ -115,6 +115,9 @@ export default function OpenPluralExport() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             Saves a <code className="font-mono bg-muted px-1 rounded">.zip</code> containing your {t.alters}, groups, custom fields, front history, journal notes, relationships, and avatars — in the open OpenPlural v0.1 format. Re-importing it back into this app reproduces your data without duplicating it.
           </p>
+          <p className="text-xs text-amber-600/90 dark:text-amber-400/90 leading-relaxed rounded-lg border border-amber-500/30 bg-amber-500/10 p-2">
+            ⚠️ This is <strong>not</strong> a full backup. OpenPlural only carries the {t.alters}-related data above — it leaves out your emotions, symptoms, activities &amp; plans, to-dos, locations, sleep, bulletins, chat, contacts, diary cards, reminders, and app settings. For a complete backup you can restore everything from, use <strong>Plain .json</strong>.
+          </p>
 
           {progress && (
             <div className="flex items-center gap-2 text-xs text-muted-foreground">

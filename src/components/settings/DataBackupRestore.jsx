@@ -17,6 +17,8 @@ import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
 import { shareFile } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { isNative } from "@/lib/platform";
+import { listSystems, getActiveSystemId, getSystemData, createSystemWithData, deleteSystem, setActiveSystem } from "@/lib/systems";
+import { mergeSystemsAsGroups, computeUnmatchedExistingSystems } from "@/lib/multiSystemBackup";
 import pako from "pako";
 
 // Single source of truth for the localStorage keys that belong in a
@@ -226,6 +228,28 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   // web/TWA keeps the existing navigator.share → anchor-download chain.
   // Returning the result so the caller can distinguish "failed" from
   // "shared" / "downloaded" / "cancelled".
+
+  // WEB: prefer the File System Access API so the user picks the exact folder +
+  // filename (a real "Save As" dialog) instead of the file silently landing in
+  // the browser's default download folder — the "it feels sneaky" complaint.
+  // Chrome/Edge desktop support it; other browsers (and the native WebView,
+  // handled above via MediaStore) fall through to the anchor-download below.
+  if (!isNative() && typeof window !== "undefined" && typeof window.showSaveFilePicker === "function") {
+    try {
+      const handle = await window.showSaveFilePicker({
+        suggestedName: filename,
+        types: [{ description: "Oceans Symphony backup", accept: { [mime]: [isCompact ? ".txt" : ".json"] } }],
+      });
+      const writable = await handle.createWritable();
+      await writable.write(blob);
+      await writable.close();
+      return { result: "downloaded", location: `“${handle.name}” (where you chose)` };
+    } catch (e) {
+      if (e && e.name === "AbortError") return { result: "cancelled" }; // user closed the Save dialog
+      console.warn("[downloadJson] showSaveFilePicker failed, falling back to download:", e?.message || e);
+    }
+  }
+
   return shareFile({
     blob,
     filename,
@@ -257,6 +281,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState("add");
+  // Multi-system "Replace all": when the backup doesn't include some systems the
+  // user currently has, park the pending import here and show a keep/clear
+  // prompt. `replaceResolveRef` holds the promise resolver `processImport`
+  // awaits — called with the Set of system ids to KEEP (or null to cancel).
+  const [replaceSystemsPrompt, setReplaceSystemsPrompt] = useState(null);
+  const replaceResolveRef = useRef(null);
   const [cachingUrls, setCachingUrls] = useState(false);
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
@@ -290,6 +320,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
   const [selectiveOpen, setSelectiveOpen] = useState(false);
   const [selectedCats, setSelectedCats] = useState(() => new Set(EXPORT_CATEGORIES.map(c => c.id)));
+  // Multi-system export scope (Symphony format only): "active" (this system),
+  // "separate" (every system, kept distinct), or "merged" (all flattened into
+  // one, each system becoming a group). Only surfaced when >1 system exists.
+  const allSystems = listSystems();
+  const hasManySystems = allSystems.length > 1;
+  const [systemsScope, setSystemsScope] = useState("active");
   const [catSizes, setCatSizes] = useState(null); // { catId: sizeKB } — lazy loaded
 
   // Fetch and cache the full dump + images once
@@ -339,52 +375,81 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     return next;
   });
 
-  const buildExportData = async (overrideSelectedCats) => {
-    const activeCats = overrideSelectedCats ?? selectedCats;
-    const { dump, images } = await fetchFullDump();
-
-    const filteredDump = {};
+  // Filter one raw entity dump ({ EntityName: { id: rec } }) down to the
+  // selected export categories. GroundingTechnique defaults (re-seeded on every
+  // fresh boot) are dropped so imports don't duplicate them.
+  const filterDump = (dump, activeCats) => {
+    const out = {};
     for (const cat of EXPORT_CATEGORIES) {
-      if (!cat.isImages && activeCats.has(cat.id)) {
-        for (const e of cat.entities) {
-          if (dump[e] === undefined) continue;
-          // GroundingTechnique default templates are re-seeded on every
-          // fresh device boot from src/utils/groundingDefaults.js, so
-          // including them in backups produces duplicates when the user
-          // imports onto a device that has already seeded its defaults.
-          // Only user-authored / user-edited entries (is_default !== true)
-          // are exported.
-          if (e === "GroundingTechnique") {
-            // dump[e] is an object keyed by id ({ id1: rec1, ... }), NOT
-            // an array — calling .filter on it threw "filter is not a
-            // function" and broke every export path. Walk the entries and
-            // rebuild the same object shape.
-            const src = dump[e];
-            if (Array.isArray(src)) {
-              filteredDump[e] = src.filter((t) => t && !t.is_default);
-            } else if (src && typeof src === "object") {
-              const out = {};
-              for (const [id, rec] of Object.entries(src)) {
-                if (rec && !rec.is_default) out[id] = rec;
-              }
-              filteredDump[e] = out;
-            } else {
-              filteredDump[e] = src;
-            }
+      if (cat.isImages || !activeCats.has(cat.id)) continue;
+      for (const e of cat.entities) {
+        if (dump[e] === undefined) continue;
+        if (e === "GroundingTechnique") {
+          const src = dump[e];
+          if (Array.isArray(src)) {
+            out[e] = src.filter((t) => t && !t.is_default);
+          } else if (src && typeof src === "object") {
+            const o = {};
+            for (const [id, rec] of Object.entries(src)) if (rec && !rec.is_default) o[id] = rec;
+            out[e] = o;
           } else {
-            filteredDump[e] = dump[e];
+            out[e] = src;
           }
+        } else {
+          out[e] = dump[e];
         }
       }
     }
+    return out;
+  };
 
+  const buildExportData = async (overrideSelectedCats) => {
+    const activeCats = overrideSelectedCats ?? selectedCats;
+    const { dump, images } = await fetchFullDump();
     const imagesExport = activeCats.has("images") ? images : {};
+    const nowIso = new Date().toISOString();
 
+    // Multi-system scope (Symphony format only; "active" = just this system).
+    const systems = listSystems();
+    if (systems.length > 1 && systemsScope !== "active") {
+      const activeSystemId = getActiveSystemId();
+      const perSystem = [];
+      for (const s of systems) {
+        // Active system's data is the in-memory dump we already fetched; other
+        // systems are read (and decrypted, if unlocked) from their own blobs.
+        const raw = s.id === activeSystemId ? dump : await getSystemData(s);
+        if (!raw) continue;
+        perSystem.push({ name: s.name, avatar: s.avatar || null, data: filterDump(raw, activeCats) });
+      }
+      if (systemsScope === "separate") {
+        // Symphony multi-system container — each system restored as its own.
+        return {
+          __format: "symphony_backup",
+          __version: 1,
+          __multisystem: 1,
+          __exported_at: nowIso,
+          systems: perSystem,
+          __local_images: imagesExport,
+          __local_settings: exportLocalSettings(),
+        };
+      }
+      // "merged" — flatten every system into one, each becoming a group.
+      return {
+        __format: "symphony_backup",
+        __version: 1,
+        __exported_at: nowIso,
+        data: mergeSystemsAsGroups(perSystem),
+        __local_images: imagesExport,
+        __local_settings: exportLocalSettings(),
+      };
+    }
+
+    // Single (active) system — unchanged behaviour.
     return {
       __format: "symphony_backup",
       __version: 1,
-      __exported_at: new Date().toISOString(),
-      data: filteredDump,
+      __exported_at: nowIso,
+      data: filterDump(dump, activeCats),
       __local_images: imagesExport,
       __local_settings: exportLocalSettings(),
     };
@@ -459,6 +524,20 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
   const applyImportPayload = async ({ data, localImages, localSettings }) => {
+    // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
+    // (single-system) backup — offer the same keep/clear choice as the
+    // multi-system flow so "Replace all" doesn't silently leave them behind (or
+    // wipe them). Done first, before touching anything, so cancelling is clean.
+    let clearOtherSystemIds = null;
+    if (importMode === "replace") {
+      const others = listSystems().filter((s) => s.id !== getActiveSystemId());
+      if (others.length > 0) {
+        const decision = await promptKeepClearSystems(others);
+        if (decision === null) { setImportLoading(false); return; } // cancelled
+        const keepSet = new Set(decision);
+        clearOtherSystemIds = others.filter((s) => !keepSet.has(s.id)).map((s) => s.id);
+      }
+    }
     if (localImages) {
       try { await restoreLocalImages(localImages); } catch (e) {
         console.warn("Failed to restore local images:", e);
@@ -468,6 +547,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       importLocalSettings(localSettings);
     }
     if (importMode === "replace") {
+      // Remove the other systems the user chose to clear (all non-active, so
+      // deleteSystem is safe). Kept ones are left untouched.
+      if (clearOtherSystemIds) {
+        for (const id of clearOtherSystemIds) {
+          try { await deleteSystem(id); } catch (e) { console.warn("delete system failed", e); }
+        }
+      }
       // Device-bound entities (FriendIdentity, PushSubscription) are
       // deliberately excluded from backups so they can't be restored onto a
       // DIFFERENT device and impersonate the user. But a Replace-All restore
@@ -498,7 +584,97 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // modal; the modal's submit calls applyImportPayload once decrypted.
   const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
 
+  // Show the keep/clear prompt for existing systems a Replace-all backup doesn't
+  // include. Resolves to a Set of system ids to KEEP, or null if cancelled.
+  const promptKeepClearSystems = (unmatched) => new Promise((resolve) => {
+    replaceResolveRef.current = resolve;
+    // Default every system to KEEP (checked) — safest start: a system is only
+    // removed when the user deliberately unchecks it.
+    setReplaceSystemsPrompt({ unmatched, keepIds: new Set(unmatched.map((s) => s.id)) });
+  });
+
+  // Full REPLACE of a multi-system backup: recreate the backup's systems fresh,
+  // then delete every current system except the ones the user chose to keep.
+  // Matching is by name (the format carries no ids), so a clean round-trip
+  // (export all → replace-all import) ends with exactly the backup's systems and
+  // no duplicates.
+  const executeMultiSystemReplace = async (importedSystems, keepIds) => {
+    const keepSet = new Set(keepIds || []);
+    const activeId = getActiveSystemId();
+    const deleteIds = listSystems().filter((s) => !keepSet.has(s.id)).map((s) => s.id);
+
+    let created = 0;
+    for (const s of importedSystems) {
+      await createSystemWithData(s.name, s.data);
+      created++;
+    }
+    // deleteSystem refuses the active system — if it's being removed, land on a
+    // surviving (freshly-created or kept) system first.
+    if (deleteIds.includes(activeId)) {
+      const survivor = listSystems().find((s) => !deleteIds.includes(s.id));
+      if (survivor) await setActiveSystem(survivor.id);
+    }
+    for (const id of deleteIds) {
+      try { await deleteSystem(id); } catch (e) { console.warn("delete system failed", e); }
+    }
+    return created;
+  };
+
+  const toggleKeepSystem = (id) => setReplaceSystemsPrompt((p) => {
+    if (!p) return p;
+    const next = new Set(p.keepIds);
+    next.has(id) ? next.delete(id) : next.add(id);
+    return { ...p, keepIds: next };
+  });
+  const setAllKeepSystems = (keep) => setReplaceSystemsPrompt((p) =>
+    p ? { ...p, keepIds: keep ? new Set(p.unmatched.map((s) => s.id)) : new Set() } : p);
+  const resolveReplacePrompt = (keepIdsOrNull) => {
+    const resolve = replaceResolveRef.current;
+    replaceResolveRef.current = null;
+    setReplaceSystemsPrompt(null);
+    if (resolve) resolve(keepIdsOrNull);
+  };
+
   const processImport = async (text) => {
+    // Detect a multi-system Symphony backup up front so we can honour the
+    // Replace-vs-Add choice (and surface its own errors) instead of silently
+    // falling through to the single-dump parser.
+    let maybe = null;
+    try { maybe = JSON.parse(text); } catch { /* not JSON — normal parse below */ }
+    if (maybe && maybe.__multisystem && Array.isArray(maybe.systems)) {
+      try {
+        const importedSystems = maybe.systems.filter((s) => s && s.data);
+        if (!importedSystems.length) { showStatus("error", "No systems found in the archive."); return; }
+        if (maybe.__local_images) { try { await restoreLocalImages(maybe.__local_images); } catch (e) { console.warn("restore images failed", e); } }
+        if (maybe.__local_settings) { try { importLocalSettings(maybe.__local_settings); } catch (e) { console.warn("restore settings failed", e); } }
+
+        if (importMode === "replace") {
+          // Ask about existing systems the backup doesn't include before wiping.
+          const unmatched = computeUnmatchedExistingSystems(importedSystems, listSystems());
+          let keepIds = new Set();
+          if (unmatched.length > 0) {
+            const decision = await promptKeepClearSystems(unmatched);
+            if (decision === null) { setImportLoading(false); return; } // cancelled
+            keepIds = decision;
+          }
+          const created = await executeMultiSystemReplace(importedSystems, keepIds);
+          showStatus("success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}! The app will reload.`);
+          setTimeout(() => window.location.reload(), 1200);
+          return;
+        }
+
+        // Add New — additive; existing systems untouched.
+        let created = 0;
+        for (const s of importedSystems) { await createSystemWithData(s.name, s.data); created++; }
+        showStatus("success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}! The app will reload.`);
+        setTimeout(() => window.location.reload(), 1200);
+        return;
+      } catch (e) {
+        showStatus("error", e?.message || "Import failed");
+        return;
+      }
+    }
+
     const parsed = parseImportText(text);
     if (parsed.format === FORMAT_STANDARD) {
       await applyImportPayload({
@@ -559,29 +735,96 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
   };
 
-  const handleImportFromFile = async (e) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    // A .zip can only be an OpenPlural export (binary — can't be read as text
-    // and probed). Hand it straight to the OpenPlural importer.
-    if (onExternalFile && (file.name || "").toLowerCase().endsWith(".zip")) {
-      onExternalFile(file, "openplural");
-      if (fileInputRef.current) fileInputRef.current.value = "";
-      return;
+  // Read a picked file NATIVELY (Capacitor) so Android's content resolver
+  // streams the real bytes. This is why it matters: a Google Drive file is a
+  // cloud placeholder — a native content-resolver read (what Ampersand does)
+  // makes Drive hydrate and stream the bytes, but a WebView `<input type=file>`
+  // gets a 0-byte snapshot. So on native we pick via the FilePicker plugin and
+  // hand a real, byte-filled File to the same importer.
+  const handleNativeImportPick = async () => {
+    try {
+      const { FilePicker } = await import("@capawesome/capacitor-file-picker");
+      const res = await FilePicker.pickFiles({ readData: true });
+      const picked = res?.files?.[0];
+      if (!picked) return;
+      let bytes = null;
+      const b64ToBytes = (b64) => {
+        const bin = atob(b64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+      };
+      if (picked.data) {
+        bytes = b64ToBytes(picked.data);
+      } else if (picked.path) {
+        // Fallback: read the content URI via Filesystem if readData didn't inline it.
+        const { Filesystem } = await import("@capacitor/filesystem");
+        const r = await Filesystem.readFile({ path: picked.path });
+        bytes = typeof r.data === "string" ? b64ToBytes(r.data) : new Uint8Array(await r.data.arrayBuffer());
+      }
+      if (!bytes) throw new Error("couldn't read the file's contents");
+      const fileObj = new File([bytes], picked.name || "import", { type: picked.mimeType || "application/octet-stream" });
+      await handleImportFromFile(fileObj);
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (/cancel/i.test(msg)) return; // user dismissed the picker
+      showStatus("error", `Import failed: ${msg}`);
     }
+  };
+
+  const handleImportFromFile = async (file) => {
+    if (!file) return;
+    const lname = (file.name || "").toLowerCase();
     setImportLoading(true);
     try {
-      // Two-stage decode: try the compact (gzip) wrapper first to get
-      // the inner JSON text, then hand off to parseImportText which
-      // accepts standard backup, raw plain, or raw encrypted shapes.
-      const fileText = await file.text();
-      const trimmed = fileText.trim();
+      // Read the raw bytes ONCE, then decide the format. We detect binary
+      // formats by MAGIC BYTES rather than the filename, because Android
+      // content:// pickers (Google Drive especially) frequently hand the
+      // WebView a file whose `.name` has lost its real extension — so
+      // `name.endsWith(".ampar")` alone silently missed real archives and
+      // they fell through to the JSON parser ("File is not valid JSON").
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      const head = bytes.subarray(0, 10);
+      const hasMagic = (sig) => sig.every((b, i) => head[i] === b);
+
+      // Ampersand .ampar archive — binary msgpack behind an "AMPAR" magic.
+      // Recreate each Ampersand system as its own Symphony system (additive —
+      // existing systems untouched).
+      const isAmpar = lname.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52]); // "AMPAR"
+      if (isAmpar) {
+        const { parseAmpar, ampersandToSystemDumps } = await import("@/lib/ampersand");
+        const sysDumps = ampersandToSystemDumps(parseAmpar(buf));
+        let created = 0;
+        for (const s of sysDumps) {
+          if (!s || !s.data) continue;
+          await createSystemWithData(s.name, s.data);
+          created++;
+        }
+        if (created === 0) throw new Error("no systems found in the archive");
+        showStatus("success", `Imported ${created} ${created === 1 ? terms.system : terms.systems} from Ampersand! The app will reload.`);
+        setTimeout(() => window.location.reload(), 1400);
+        return;
+      }
+
+      // OpenPlural .zip — binary (PK magic). Hand straight to the OpenPlural
+      // importer via the connector dispatcher; it can't be read as text.
+      const isZip = lname.endsWith(".zip") || hasMagic([0x50, 0x4b, 0x03, 0x04]); // "PK\x03\x04"
+      if (onExternalFile && isZip) {
+        onExternalFile(file, "openplural");
+        return;
+      }
+
+      // Text formats. Two-stage decode: try the compact (gzip) wrapper first to
+      // get the inner JSON text, then hand off to parseImportText which accepts
+      // standard backup, raw plain, or raw encrypted shapes.
+      const trimmed = new TextDecoder("utf-8").decode(bytes).trim();
       let innerJsonText;
       if (trimmed.startsWith("SYMPHONYZ:")) {
         const binary = atob(trimmed.slice(10));
-        const bytes = new Uint8Array(binary.length);
-        for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
-        innerJsonText = pako.inflate(bytes, { to: "string" });
+        const zbytes = new Uint8Array(binary.length);
+        for (let i = 0; i < binary.length; i++) zbytes[i] = binary.charCodeAt(i);
+        innerJsonText = pako.inflate(zbytes, { to: "string" });
       } else {
         innerJsonText = trimmed;
       }
@@ -847,6 +1090,30 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         <div className="space-y-2">
           <p className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Export</p>
 
+          {/* Multi-system scope — only when more than one system exists, and only
+              for the Symphony format (which can carry multiple systems). */}
+          {hasManySystems && isStdFormat && (
+            <div className="rounded-xl border border-border/50 px-3 py-2.5 space-y-1.5">
+              <label className="text-xs font-medium text-foreground block">{terms.Systems} to include</label>
+              <select
+                value={systemsScope}
+                onChange={(e) => setSystemsScope(e.target.value)}
+                className="w-full h-9 px-2 text-sm rounded-lg border border-border bg-background"
+              >
+                <option value="active">This {terms.system} only</option>
+                <option value="separate">All {terms.systems} — kept separate</option>
+                <option value="merged">All {terms.systems} — merged into one (grouped)</option>
+              </select>
+              <p className="text-[0.6875rem] text-muted-foreground">
+                {systemsScope === "separate"
+                  ? `Each ${terms.system} is restored as its own ${terms.system}.`
+                  : systemsScope === "merged"
+                  ? `All ${terms.systems} become one ${terms.system}, each turned into a group of its name — works with any format.`
+                  : `Only your current ${terms.system} is exported.`}
+              </p>
+            </div>
+          )}
+
           {/* Selective export collapsible — Symphony-native formats only. */}
           {isStdFormat && (
           <div className="rounded-xl border border-border/50 overflow-hidden">
@@ -932,10 +1199,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                 <p className="font-medium">Save to device</p>
                 <p className="text-xs text-muted-foreground font-normal">
                   {selectiveOpen && selectedCats.size < EXPORT_CATEGORIES.length
-                    ? `${selectedCats.size} categories · drops in Downloads/Oceans Symphony`
+                    ? `${selectedCats.size} categories · ${isNative() ? "→ Downloads/Oceans Symphony" : (typeof window !== "undefined" && window.showSaveFilePicker) ? "you pick where to save" : "→ your Downloads folder"}`
                     : isNative()
-                      ? "Drops in Downloads/Oceans Symphony — no share sheet"
-                      : "Browser downloads to your default folder"}
+                      ? "Saves to Downloads/Oceans Symphony (you'll see a confirmation)"
+                      : (typeof window !== "undefined" && window.showSaveFilePicker)
+                        ? "Pick where to save it — opens a Save-As dialog"
+                        : "Downloads to your browser's default folder"}
                 </p>
               </div>
             </Button>
@@ -1152,12 +1421,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
               backup unselectable. Local files still work because
               the parse step rejects anything that isn't a valid
               backup envelope with a clear error toast. */}
-          <input ref={fileInputRef} type="file" onChange={handleImportFromFile} className="hidden" />
-          <Button variant="outline" onClick={() => fileInputRef.current?.click()} disabled={importLoading} className="w-full gap-2 justify-start h-auto py-2.5">
+          <input ref={fileInputRef} type="file" onChange={(e) => handleImportFromFile(e.target.files?.[0])} className="hidden" />
+          <Button variant="outline" onClick={() => { if (isNative()) { handleNativeImportPick(); } else { fileInputRef.current?.click(); } }} disabled={importLoading} className="w-full gap-2 justify-start h-auto py-2.5">
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">
@@ -1229,12 +1498,52 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     </>
   );
   const modal = (
-    <EncryptedImportPasswordModal
-      open={!!pendingEncryptedImport}
-      onClose={() => setPendingEncryptedImport(null)}
-      onSubmit={handleDecryptAndImport}
-      busy={importLoading}
-    />
+    <>
+      <EncryptedImportPasswordModal
+        open={!!pendingEncryptedImport}
+        onClose={() => setPendingEncryptedImport(null)}
+        onSubmit={handleDecryptAndImport}
+        busy={importLoading}
+      />
+      {replaceSystemsPrompt && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-black/60" role="dialog" aria-modal="true">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-background shadow-xl max-h-[85vh] flex flex-col">
+            <div className="p-4 border-b border-border/60">
+              <h3 className="text-base font-semibold">
+                {replaceSystemsPrompt.unmatched.length} {replaceSystemsPrompt.unmatched.length === 1 ? terms.System : terms.Systems} not in this backup
+              </h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                These {terms.systems} aren’t in the backup you’re importing with “Replace all”. Choose which to keep — unchecked ones are permanently removed.
+              </p>
+            </div>
+            <div className="flex items-center gap-2 px-4 py-2 border-b border-border/40">
+              <button type="button" onClick={() => setAllKeepSystems(true)} className="text-xs px-2.5 py-1 rounded-lg border border-border/50 hover:bg-muted/40">Keep all</button>
+              <button type="button" onClick={() => setAllKeepSystems(false)} className="text-xs px-2.5 py-1 rounded-lg border border-border/50 hover:bg-muted/40">Clear all</button>
+            </div>
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {replaceSystemsPrompt.unmatched.map((s) => {
+                const keep = replaceSystemsPrompt.keepIds.has(s.id);
+                const showImg = s.avatar && /^(data:|https?:)/.test(s.avatar);
+                return (
+                  <label key={s.id} className={`flex items-center gap-3 p-2 rounded-xl cursor-pointer ${keep ? "bg-primary/5" : "bg-muted/20"}`}>
+                    <input type="checkbox" checked={keep} onChange={() => toggleKeepSystem(s.id)} className="w-4 h-4 flex-shrink-0" />
+                    <span className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-muted text-xs font-semibold flex-shrink-0">
+                      {showImg ? <img src={s.avatar} alt="" className="w-full h-full object-cover" /> : (s.name || "?").slice(0, 1).toUpperCase()}
+                    </span>
+                    <span className="flex-1 text-sm truncate">{s.name || "Unnamed"}</span>
+                    <span className={`text-[0.625rem] font-medium uppercase tracking-wide ${keep ? "text-primary" : "text-destructive"}`}>{keep ? "Keep" : "Remove"}</span>
+                  </label>
+                );
+              })}
+            </div>
+            <div className="p-3 border-t border-border/60 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => resolveReplacePrompt(null)} className="px-3 py-2 text-sm rounded-xl border border-border/50 hover:bg-muted/40">Cancel</button>
+              <button type="button" onClick={() => resolveReplacePrompt(replaceSystemsPrompt.keepIds)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">Continue import</button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
   if (section !== "all") {
     return <div className="space-y-3">{inner}{modal}</div>;

@@ -10,21 +10,22 @@ import { Button } from "@/components/ui/button";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
 import { useTerms } from "@/lib/useTerms";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
 import CustomFieldsManager from "@/components/settings/CustomFieldsManager";
 import ArchivedAltersManager from "@/components/settings/ArchivedAltersManager";
 import DuplicateAltersManager from "@/components/settings/DuplicateAltersManager";
 import RelationshipTypesManager from "@/components/settings/RelationshipTypesManager";
-import SimplyPluralConnect from "@/components/settings/SimplyPluralConnect";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import PluralKitConnect from "@/components/settings/PluralKitConnect";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OctoconConnect from "@/components/settings/OctoconConnect";
 import OpenPluralExport from "@/components/settings/OpenPluralExport";
-import SimplyPluralExport from "@/components/settings/SimplyPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import ImportDataSection from "@/components/settings/ImportDataSection";
+import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 // AdvancedAppearance now renders the ENTIRE Appearance section body
@@ -36,7 +37,7 @@ import RemindersSettings from "@/components/settings/RemindersSettings";
 import NotificationSettings from "@/components/settings/NotificationSettings";
 import AccessibilitySettings from "@/components/settings/AccessibilitySettings";
 import QuickActionsConfig from "@/components/settings/QuickActionsConfig";
-import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, Download, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Info, Link2, Bug } from "lucide-react";
+import { Save, Loader2, ChevronDown, Check, BarChart2, Users, Upload, Download, X as XIcon, Globe, Images, IdCard, Palette, Bell, Accessibility, Activity, Database, Boxes, Info, Link2, Bug } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -52,6 +53,7 @@ import { SubSection, IconButton, iconBtnClass } from "@/components/settings/Sett
 import PreviewModeSection from "@/components/settings/PreviewModeSection";
 import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
 import BugReportModal from "@/components/settings/BugReportModal";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Switch } from "@/components/ui/switch";
 import {
   arePageTutorialsEnabled,
@@ -166,6 +168,15 @@ export default function Settings() {
   const [inferPresence, setInferPresence] = useState(getInferPresenceEnabled);
   const [inferWindow, setInferWindow] = useState(getInferPresenceWindowMinutes);
   const [backingUp, setBackingUp] = useState(false);
+  // Backup dropdown → opens the import/export UI directly as a popup (was just
+  // scrolling to the collapsed Data & Privacy section).
+  const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
+  // Cross-app export FORMAT chips (alongside Plain .json / Compact), shared by
+  // the inline Export section and the Backup → Export popup so they match.
+  // Simply Plural export was removed — SP shut its servers down.
+  const exportFormatExtras = [
+    { key: "openplural", label: "OpenPlural", node: <OpenPluralExport /> },
+  ];
 
   // One-tap "Back up now" in the header — runs the same full-DB export the
   // auto-backup uses (saves to the device's Downloads on native, share /
@@ -191,6 +202,7 @@ export default function Settings() {
     { id: "accessibility", label: "Accessibility", icon: "♿" },
     { id: "alters", label: `${terms.Alter} setup`, icon: "👥" },
     { id: "checkin", label: "Tracking setup", icon: "⚡" },
+    { id: "systems", label: terms.Systems, icon: "🪞" },
     { id: "data", label: "Data & privacy", icon: "💾" },
     { id: "about", label: "About & help", icon: "ℹ️" },
   ];
@@ -207,7 +219,11 @@ export default function Settings() {
     queryFn: () => base44.entities.SystemSettings.list(),
   });
 
-  const settings = settingsList[0] || null;
+  // Not settingsList[0]: a boot-created empty stub can shadow the real record
+  // (e.g. after an Ampersand import), which made the profile name / bio / avatar
+  // read + save against the wrong row. Pick the record that actually has profile
+  // content — same resolution the switcher and useSystemIdentity use.
+  const settings = pickPrimarySystemSettings(settingsList);
   const [systemName, setSystemName] = useState("");
   const [systemAvatarUrl, setSystemAvatarUrl] = useState("");
   const [uploadingSysAvatar, setUploadingSysAvatar] = useState(false);
@@ -232,9 +248,6 @@ export default function Settings() {
   const [showAlterCount, setShowAlterCount] = useState(false);
   const [saving, setSaving] = useState(false);
 
-  // Unified "Import from file" dispatch: DataBackupRestore detects a non-Symphony
-  // export and hands the file up here, which routes it to the right app's importer.
-  const [externalImport, setExternalImport] = useState(null); // { file, type }
 
   React.useEffect(() => {
     if (settings?.system_name) setSystemName(settings.system_name);
@@ -385,10 +398,10 @@ export default function Settings() {
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-52">
-                <DropdownMenuItem onSelect={handleBackupNow} className="gap-2 cursor-pointer">
-                  <Download className="w-4 h-4" /> Export a backup now
+                <DropdownMenuItem onSelect={() => setBackupModal("export")} className="gap-2 cursor-pointer">
+                  <Download className="w-4 h-4" /> Export a backup
                 </DropdownMenuItem>
-                <DropdownMenuItem onSelect={() => scrollTo("data")} className="gap-2 cursor-pointer">
+                <DropdownMenuItem onSelect={() => setBackupModal("import")} className="gap-2 cursor-pointer">
                   <Upload className="w-4 h-4" /> Import a backup…
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -757,6 +770,11 @@ export default function Settings() {
           </SubSection>
         </Section>
 
+        {/* ── SYSTEMS (multiple-systems switcher) ── */}
+        <Section id="systems" icon={Boxes} label={terms.Systems}>
+          <SystemSwitcherPanel />
+        </Section>
+
         {/* ── DATA & PRIVACY ── */}
         <Section id="data" icon={Database} label="Data & privacy">
           <p className="text-xs text-muted-foreground">
@@ -774,111 +792,13 @@ export default function Settings() {
               importer nested. Import sits above Export so bringing data IN is the
               first thing users see. */}
           <SubSection title="Import" defaultOpen={false}>
-            <DataBackupRestore
-              section="import"
-              onExternalFile={(file, type) => setExternalImport(type ? { file, type } : null)}
+            <ImportDataSection
+              settings={settings}
+              onChanged={() => {
+                refetch();
+                queryClient.invalidateQueries({ queryKey: ["alters"] });
+              }}
             />
-
-            {/* Unified file-import dispatcher. "Import from file" above
-                auto-detects the export type; for a non-Symphony export it
-                hands the file up here, which routes it to the matching app's
-                importer (or asks when a members-style file is ambiguous). */}
-            {externalImport?.type === "ask" && (
-              <div className="mt-3 rounded-lg border border-border/60 bg-muted/20 p-3 space-y-3">
-                <p className="text-sm text-foreground">
-                  We can't tell whether this file is from Simply Plural or OpenPlural. Which app is it from?
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setExternalImport((p) => ({ ...p, type: "simplyplural" }))}
-                  >
-                    Simply Plural
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => setExternalImport((p) => ({ ...p, type: "openplural" }))}
-                  >
-                    OpenPlural / PluralSpace
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => setExternalImport(null)}
-                  >
-                    Cancel
-                  </Button>
-                </div>
-              </div>
-            )}
-
-            {externalImport && externalImport.type !== "ask" && (
-              <div className="mt-3 space-y-2">
-                <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground">
-                  <span>
-                    Detected {externalImport.file.name} — importing as{" "}
-                    {externalImport.type === "simplyplural"
-                      ? "Simply Plural"
-                      : externalImport.type === "octocon"
-                      ? "Octocon"
-                      : "OpenPlural / PluralSpace"}
-                    .
-                  </span>
-                  <button
-                    type="button"
-                    className="underline shrink-0 hover:text-foreground"
-                    onClick={() => setExternalImport(null)}
-                  >
-                    Use a different file
-                  </button>
-                </div>
-                {externalImport.type === "simplyplural" && (
-                  <SimplyPluralFileImport
-                    presetFile={externalImport.file}
-                    settings={settings}
-                    onSettingsChange={() => {
-                      refetch();
-                      queryClient.invalidateQueries({ queryKey: ["alters"] });
-                    }}
-                  />
-                )}
-                {externalImport.type === "octocon" && (
-                  <OctoconConnect
-                    presetFile={externalImport.file}
-                    settings={settings}
-                    onSettingsChange={() => {
-                      refetch();
-                      queryClient.invalidateQueries({ queryKey: ["alters"] });
-                    }}
-                  />
-                )}
-                {externalImport.type === "openplural" && (
-                  <OpenPluralConnect
-                    presetFile={externalImport.file}
-                    settings={settings}
-                    onSettingsChange={() => {
-                      refetch();
-                      queryClient.invalidateQueries({ queryKey: ["alters"] });
-                    }}
-                  />
-                )}
-              </div>
-            )}
-
-            <SubSection title="PluralKit (live token)" defaultOpen={false}>
-              <PluralKitConnect settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
-            <SubSection title="Simply Plural (live token)" defaultOpen={false}>
-              <SimplyPluralConnect settings={settings} onSettingsChange={() => {
-                refetch();
-                queryClient.invalidateQueries({ queryKey: ["alters"] });
-              }} />
-            </SubSection>
           </SubSection>
 
           {/* ── EXPORT ──────────────────────────────────────────────────────
@@ -888,16 +808,12 @@ export default function Settings() {
               cross-app export formats are inline format chips and automatic
               backups nest beneath it. */}
           <SubSection title="Export" defaultOpen={false}>
-            {/* OpenPlural + Simply Plural are inline FORMAT chips alongside
-                Plain .json / Compact (.txt); selecting one shows that
-                exporter inline. (Portable OpenPlural carries avatars and
-                imports into PluralSpace; Simply Plural is JSON only.) */}
+            {/* OpenPlural is an inline FORMAT chip alongside Plain .json /
+                Compact (.txt); selecting it shows that exporter inline.
+                Portable OpenPlural carries avatars and imports into PluralSpace. */}
             <DataBackupRestore
               section="export"
-              exportExtras={[
-                { key: "openplural", label: "OpenPlural", node: <OpenPluralExport /> },
-                { key: "simplyplural", label: "Simply Plural", node: <SimplyPluralExport /> },
-              ]}
+              exportExtras={exportFormatExtras}
             />
             <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
           </SubSection>
@@ -936,6 +852,28 @@ export default function Settings() {
       </SectionsAccordion>
 
       <BugReportModal open={showBugReport} onClose={() => setShowBugReport(false)} />
+
+      {/* Backup dropdown → import/export UI directly, so it's one tap instead of
+          expanding Data & Privacy and hunting for the nested section. */}
+      <Dialog open={backupModal === "export"} onOpenChange={(o) => { if (!o) setBackupModal(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Download className="w-4 h-4" /> Export a backup</DialogTitle>
+          </DialogHeader>
+          <DataBackupRestore section="export" exportExtras={exportFormatExtras} />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={backupModal === "import"} onOpenChange={(o) => { if (!o) setBackupModal(null); }}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Upload className="w-4 h-4" /> Import a backup</DialogTitle>
+          </DialogHeader>
+          <ImportDataSection
+            settings={settings}
+            onChanged={() => { refetch(); queryClient.invalidateQueries({ queryKey: ["alters"] }); }}
+          />
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }

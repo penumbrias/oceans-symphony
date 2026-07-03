@@ -76,7 +76,7 @@ export default function PeriodReview({ frequency, templates, allProgress, onTogg
     // Short tap on a completed cell → show completion date
     if (elapsed < 500 && done) {
       clearTimeout(tapInfoTimerRef.current);
-      setTapInfo(formatCompletionDate(frequency, key, record));
+      setTapInfo(formatCompletionDate(frequency, key, record, taskId));
       tapInfoTimerRef.current = setTimeout(() => setTapInfo(null), 4000);
     }
   }, [clearHold, frequency]);
@@ -252,22 +252,28 @@ function formatPeriodKeyShort(frequency, key) {
   return key;
 }
 
-function formatCompletionDate(frequency, key, record) {
+function formatCompletionDate(frequency, key, record, taskId) {
   if (!key) return "";
 
-  // For daily tasks the date is already on the column header — show time instead
+  // The per-task checkoff time is the source of truth. Fall back to the
+  // record's own timestamps only when THIS task has no stored time (e.g. it was
+  // ticked under an older build before per-task times were captured).
+  const perTask = taskId ? record?.completion_times?.[taskId] : null;
+
+  // For daily tasks the day is already on the column header — show the time.
   if (frequency === "daily") {
-    const ts = record?.updated_date || record?.created_date;
-    if (ts) {
-      const d = new Date(ts);
-      const timeStr = d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+    if (perTask) {
+      const timeStr = new Date(perTask).toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
       return `✓ Completed at ${timeStr}`;
     }
+    // No per-task time: do NOT fall back to the record's shared last-write time
+    // — that made every task in the day read the same recent timestamp, which
+    // is the whole bug. Just confirm it's done.
     return `✓ Completed`;
   }
 
-  // For other frequencies, prefer the record's created/updated timestamp
-  const ts = record?.created_date || record?.updated_date;
+  // For other frequencies, prefer the per-task time, then the record's dates.
+  const ts = perTask || record?.created_date || record?.updated_date;
   if (ts) {
     const d = new Date(ts);
     const dateStr = d.toLocaleDateString(undefined, { weekday: "long", month: "long", day: "numeric", year: "numeric" });

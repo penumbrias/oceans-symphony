@@ -7,6 +7,7 @@ import { Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useTerms } from "@/lib/useTerms";
 import { buildSearchIndex, searchIndex, groupResults } from "@/lib/globalSearch";
+import { listSystems } from "@/lib/systems";
 
 const localMode = isLocalMode();
 const db = localMode ? localEntities : base44.entities;
@@ -46,6 +47,7 @@ const TYPE_ICONS = {
   innerworld:"🗺️",
   presence:  "🌫️",
   contact:   "📇",
+  system:    "🪞",
 };
 
 function getTypeLabels(t) {
@@ -71,6 +73,7 @@ function getTypeLabels(t) {
     innerworld: `${t.System} Map`,
     presence:  "New Presences",
     contact:   "Contacts",
+    system:    t.Systems,
   };
 }
 
@@ -281,6 +284,7 @@ export default function GlobalSearch() {
     groundingTechniques, innerWorldLocations,
     presences,
     contacts,
+    systems: listSystems(),
 }), [
     alters, customFieldDefs,
     journals, supportJournals,
@@ -333,7 +337,7 @@ export default function GlobalSearch() {
   const TYPE_ORDER = [
     "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
-    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence",
+    "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system",
   ];
 
   return (

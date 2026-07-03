@@ -48,7 +48,7 @@ import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
-import { setEncryptionEnabled, setEncSalt } from '@/lib/storageMode';
+import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
 
@@ -68,6 +68,7 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
+import { initSystemsRegistry } from '@/lib/systems';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
@@ -292,6 +293,12 @@ function App() {
       // Best-effort, but call it before anything that depends on storage.
       try { await requestPersistentStorage(); } catch { /* non-fatal */ }
 
+      // Resolve which system (data slot) is active BEFORE any storage read, so
+      // peek/init read the active system's blob. For existing users this is
+      // "System 1" → the legacy key, i.e. exactly the data they already have.
+      // Non-fatal: on failure localDb keeps its default (legacy) key.
+      try { await initSystemsRegistry(); } catch { /* non-fatal — defaults to legacy key */ }
+
       let peek;
       try {
         peek = await peekStoredData();
@@ -321,6 +328,27 @@ function App() {
         // wipe path.
         setEncryptionEnabled(true);
         if (peek.salt) setEncSalt(peek.salt);
+        // One password for the whole app: if we already unlocked earlier this
+        // app session, reuse it so switching between encrypted systems doesn't
+        // re-prompt. A wrong/stale session password falls through to the
+        // unlock screen.
+        const sessionPw = getSessionPassword();
+        if (sessionPw) {
+          try {
+            await initLocalDb(sessionPw);
+            await restorePreviewIfActive();
+            if (cancelled) return;
+            if (!isPreviewActive()) {
+              cleanupBrokenSessionsOnce(base44.entities);
+              cleanupLegacyCardEntryOnce(base44.entities);
+            }
+            setSetupState(null);
+            return;
+          } catch {
+            clearSessionPassword();
+          }
+        }
+        if (cancelled) return;
         setSetupState('unlock');
         return;
       }
@@ -380,8 +408,9 @@ function App() {
           <StorageModeSetup mode="setup" onComplete={() => setSetupState(null)} />
           {/* Accessibility quick-access available from the very first screen,
               before Settings is reachable. Writes localStorage-backed prefs
-              that apply instantly. */}
-          <AccessibilityFab />
+              that apply instantly. zIndex must clear the welcome overlay
+              (the StorageModeSetup backdrop is z-100) so it isn't covered. */}
+          <AccessibilityFab zIndex={110} />
         </QueryClientProvider>
       </ThemeProvider>
     );

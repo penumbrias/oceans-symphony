@@ -6,7 +6,7 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Inbox } from "lucide-react";
+import { Heart, Inbox, ChevronsUpDown } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -26,6 +26,8 @@ import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
+import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
@@ -141,6 +143,10 @@ export default function Dashboard() {
   });
   const terms = useTerms();
   const systemName = settings[0]?.system_name || `Your ${terms.system}`;
+  // Tap the dashboard title to switch systems — only when more than one exists,
+  // so single-system users see no change.
+  const multiSystem = hasMultipleSystems();
+  const [showSystemSwitcher, setShowSystemSwitcher] = useState(false);
 
   // Resolved dashboard element ordering + per-element toggles. The
   // settings panel writes these to SystemSettings.dashboard_layout and
@@ -550,10 +556,30 @@ export default function Dashboard() {
       
       <div className="mb-3 flex items-start justify-between">
         <div>
-          <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
+          {multiSystem ? (
+            <button
+              type="button"
+              onClick={() => setShowSystemSwitcher(true)}
+              title={`Switch ${terms.system}`}
+              className="group inline-flex items-center gap-1.5 text-left"
+            >
+              <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
+              <ChevronsUpDown className="w-4 h-4 text-muted-foreground/60 group-hover:text-foreground transition-colors flex-shrink-0" />
+            </button>
+          ) : (
+            <h1 className="font-display text-3xl font-semibold text-foreground">{systemName}</h1>
+          )}
           <p className="text-muted-foreground mt-0.5 text-sm">
             {now.toLocaleDateString([], { weekday: "long", month: "long", day: "numeric" })} · {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
           </p>
+          <Dialog open={showSystemSwitcher} onOpenChange={setShowSystemSwitcher}>
+            <DialogContent className="max-w-sm">
+              <DialogHeader>
+                <DialogTitle>{terms.Systems}</DialogTitle>
+              </DialogHeader>
+              <SystemSwitcherPanel />
+            </DialogContent>
+          </Dialog>
         </div>
         <div className="flex items-center gap-1">
         <div className="flex flex-col items-end gap-0.5">

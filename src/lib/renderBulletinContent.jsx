@@ -234,8 +234,23 @@ function escapeHtmlForBreaks(s) {
     .replace(/\r?\n/g, "<br>");
 }
 
+// Detects whether a string actually contains one of our recognised HTML tags
+// (opening, closing, or self-closing). Content from imports (Ampersand),
+// preview data, or older posts often carries real markup like <b>…</b> WITHOUT
+// the is_rich flag being set — escaping it would show the raw tags. If a
+// recognised tag is present we render it as rich regardless of the flag, which
+// matches the documented intent ("the rich set … applied to ANY post that
+// contains these tags"). Plain text with a stray "<" ("a < b", "<3", "x > y")
+// has no tag name after the "<", so it stays plain and gets escaped.
+const HTML_TAG_RE = /<\/?(?:b|strong|i|em|u|s|strike|br|p|ul|ol|li|a|h1|h2|h3|blockquote|code|sup|sub|hr|span|div|img)\b[^>]*>/i;
+
+export function contentLooksRich(content) {
+  return typeof content === "string" && HTML_TAG_RE.test(content);
+}
+
 export function renderBulletinContent(content, alters = [], terms = null, { isRich = true } = {}) {
-  const prepared = isRich ? content : escapeHtmlForBreaks(content);
+  const treatAsRich = isRich || contentLooksRich(content);
+  const prepared = treatAsRich ? content : escapeHtmlForBreaks(content);
   return renderRichContent(prepared, {
     terms,
     renderText: (text, key) => renderTextWithMentions(text, alters, key),

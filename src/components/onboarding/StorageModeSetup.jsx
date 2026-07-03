@@ -2,10 +2,10 @@ import React, { useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { openExternalUrl } from "@/lib/openExternalUrl";
-import { Label } from "@/components/ui/label";
-import { Cloud, HardDrive, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
+import { Cloud, Lock, Eye, EyeOff, ShieldCheck, Loader2, ChevronDown, Upload } from "lucide-react";
 import { setMode, setEncryptionEnabled } from "@/lib/storageMode";
 import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
+import { isNative } from "@/lib/platform";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
@@ -86,9 +86,7 @@ function FirstRunSetup({ onComplete }) {
     onComplete();
   };
 
-  const handleImportFile = async (event) => {
-    const file = event.target.files?.[0];
-    event.target.value = "";
+  const handleImportFile = async (file) => {
     if (!file) return;
     setImporting(true);
     setImportStatus(null);
@@ -101,16 +99,53 @@ function FirstRunSetup({ onComplete }) {
         setError("Existing data was found on this device. Reload — you should be prompted to unlock or recover before importing.");
         return;
       }
-      const text = await file.text();
-      // Detect another app's export (Simply Plural / Octocon / OpenPlural /
-      // PluralSpace .json, or OpenPlural .zip) BEFORE the Symphony parse. If
-      // it's external, set up storage (honouring the encryption toggle) and
-      // mount that app's importer with the file pre-loaded — routing it
-      // through the Symphony restore path would corrupt the DB.
+
+      // Read the bytes ONCE and detect binary formats by MAGIC (filename/MIME
+      // are unreliable via Android content:// pickers) — same as the Settings
+      // importer.
+      const buf = await file.arrayBuffer();
+      const bytes = new Uint8Array(buf);
+      const head = bytes.subarray(0, 10);
+      const hasMagic = (sig) => sig.every((b, i) => head[i] === b);
       const lowerName = (file.name || "").toLowerCase();
+
+      // Ampersand .ampar — binary msgpack. Set up an (unencrypted) local DB,
+      // load the first system into it, and create any additional systems from
+      // the archive. (Encryption can be turned on later in Settings — matches
+      // applyDumpAndComplete, which also imports unencrypted.)
+      if (lowerName.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52])) {
+        const { parseAmpar, ampersandToSystemDumps } = await import("@/lib/ampersand");
+        const sysDumps = ampersandToSystemDumps(parseAmpar(buf));
+        if (!sysDumps.length) throw new Error("no systems found in the archive");
+        setMode("local");
+        setEncryptionEnabled(false);
+        await initLocalDb(null);
+        await loadDbDump(sysDumps[0].data);
+        if (sysDumps.length > 1) {
+          const { createSystemWithData } = await import("@/lib/systems");
+          for (let i = 1; i < sysDumps.length; i++) {
+            await createSystemWithData(sysDumps[i].name, sysDumps[i].data);
+          }
+          window.location.reload();
+          return;
+        }
+        onComplete();
+        return;
+      }
+
+      // OpenPlural .zip — binary; hand to the connector after storage setup.
+      if (lowerName.endsWith(".zip") || hasMagic([0x50, 0x4b, 0x03, 0x04])) {
+        setImporting(false);
+        if (await setupLocalStorage()) setExternalImport({ file, type: "openplural" });
+        return;
+      }
+
+      // Text formats. Detect another app's export (Simply Plural / Octocon /
+      // PluralSpace .json) BEFORE the Symphony parse.
+      const text = new TextDecoder("utf-8").decode(bytes);
       let probe = null;
-      if (!lowerName.endsWith(".zip")) { try { probe = JSON.parse(text); } catch {} }
-      const externalKind = lowerName.endsWith(".zip") ? "openplural" : externalKindFromJson(probe);
+      try { probe = JSON.parse(text); } catch {}
+      const externalKind = externalKindFromJson(probe);
       if (externalKind) {
         setImporting(false);
         if (await setupLocalStorage()) setExternalImport({ file, type: externalKind });
@@ -133,6 +168,44 @@ function FirstRunSetup({ onComplete }) {
     } finally {
       setImporting(false);
     }
+  };
+
+  // Native (Capacitor) file pick — reads via the content resolver so Google
+  // Drive cloud files stream their real bytes (a WebView <input> gets a 0-byte
+  // placeholder). Mirrors DataBackupRestore.handleNativeImportPick.
+  const handleNativeImportPick = async () => {
+    try {
+      const { FilePicker } = await import("@capawesome/capacitor-file-picker");
+      const res = await FilePicker.pickFiles({ readData: true });
+      const picked = res?.files?.[0];
+      if (!picked) return;
+      const b64ToBytes = (b64) => {
+        const bin = atob(b64);
+        const out = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) out[i] = bin.charCodeAt(i);
+        return out;
+      };
+      let bytes = null;
+      if (picked.data) {
+        bytes = b64ToBytes(picked.data);
+      } else if (picked.path) {
+        const { Filesystem } = await import("@capacitor/filesystem");
+        const r = await Filesystem.readFile({ path: picked.path });
+        bytes = typeof r.data === "string" ? b64ToBytes(r.data) : new Uint8Array(await r.data.arrayBuffer());
+      }
+      if (!bytes) throw new Error("couldn't read the file's contents");
+      await handleImportFile(new File([bytes], picked.name || "import", { type: picked.mimeType || "application/octet-stream" }));
+    } catch (err) {
+      const msg = err?.message || String(err);
+      if (/cancel/i.test(msg)) return;
+      setImportStatus({ type: "error", text: `Import failed: ${msg}` });
+    }
+  };
+
+  // Open the right file picker for the platform (native content picker on
+  // device so Drive cloud files hydrate; the hidden <input> on web).
+  const openImportPicker = () => {
+    if (isNative()) { handleNativeImportPick(); } else { fileInputRef.current?.click(); }
   };
 
   const handleDecryptAndImport = async () => {
@@ -201,17 +274,6 @@ function FirstRunSetup({ onComplete }) {
     if (await setupLocalStorage()) setShowImportModal(true);
   };
 
-  // Guided "set up encryption": creates the empty (unencrypted) local DB now,
-  // then drops a flag so AppLayout lands the user on Settings → Data & privacy,
-  // where they turn on password encryption (which re-encrypts the DB). Kept off
-  // the welcome screen so first launch can't be mistaken for a login wall.
-  const handleSetupEncryption = async () => {
-    if (await setupLocalStorage()) {
-      try { localStorage.setItem("symphony_onboard_goto_encryption", "1"); } catch { /* storage disabled */ }
-      onComplete();
-    }
-  };
-
   // Auto-start local setup for APK (skip mode selection)
   if (step === "choose") {
     handleChooseLocal();
@@ -232,54 +294,40 @@ function FirstRunSetup({ onComplete }) {
         onImport={() => {
           setShowMigration(false);
           // Defer one tick so the modal unmounts before we open the
-          // native file picker — otherwise some Android WebView
-          // versions race the activity-stack transitions and
-          // suppress the picker dialog.
-          setTimeout(() => fileInputRef.current?.click(), 50);
+          // file picker — otherwise some Android WebView versions race
+          // the activity-stack transitions and suppress the dialog.
+          setTimeout(() => openImportPicker(), 50);
         }}
       />
       <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
         <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-        <p className="text-sm text-foreground">
-          <span className="font-semibold">No account or sign-in needed.</span> Your data stays on this device — there's nothing to log into.
+        <p className="text-sm text-muted-foreground leading-relaxed">
+          <span className="font-semibold">No account or sign-in needed.</span> Data is saved locally on your device. Optional at-rest password encryption available in settings. Export a backup in the settings menu to transfer data between devices.
         </p>
       </div>
       <div className="pt-2">
         <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
-          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <HardDrive className="w-4 h-4 mr-2" />}
-          Start fresh
+          {loading ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : (
+            /* The same sun-over-waves mark used as the push-notification glyph
+               (android .../res/drawable/ic_stat_symphony.xml) — sun filled,
+               two waves stroked. currentColor so it inherits the button text. */
+            <svg className="w-4 h-4 mr-2 flex-shrink-0" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <circle cx="12" cy="7.5" r="3.2" fill="currentColor" />
+              <path d="M3,15 q1.5,-2 3,0 t3,0 t3,0 t3,0 t3,0 t3,0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+              <path d="M3,19.5 q1.5,-2 3,0 t3,0 t3,0 t3,0 t3,0 t3,0" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" />
+            </svg>
+          )}
+          Enter
         </Button>
-        <p className="text-xs text-muted-foreground text-center mt-1.5">
-          Begin with an empty space. You can import data anytime later.
-        </p>
-        {/* Encryption is opt-in and lives in Settings now (kept off the
-            welcome screen so the first launch can't be mistaken for a login
-            wall). This sets up an empty space, then drops the user on
-            Settings → Data & privacy → Storage & encryption. */}
-        <p className="text-xs text-muted-foreground text-center mt-2.5">
-          Want to protect your data with a password?{" "}
-          <button
-            type="button"
-            onClick={handleSetupEncryption}
-            disabled={loading || importing}
-            className="text-primary underline font-medium disabled:opacity-50"
-          >
-            Set up encryption
-          </button>
-        </p>
         {error && <p className="text-xs text-destructive text-center mt-1.5">{error}</p>}
       </div>
 
       <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
         <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
-        <p className="text-xs text-muted-foreground -mt-1">
-          Bring it in now instead of starting empty — your encryption choice above still applies.
-        </p>
         <input
           ref={fileInputRef}
           type="file"
-          accept="application/json,.json,.txt,.zip,application/zip"
-          onChange={handleImportFile}
+          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ""; handleImportFile(f); }}
           className="hidden"
         />
         {!externalImport ? (
@@ -287,7 +335,7 @@ function FirstRunSetup({ onComplete }) {
             <Button
               type="button"
               variant="outline"
-              onClick={() => fileInputRef.current?.click()}
+              onClick={openImportPicker}
               disabled={loading || importing}
               className="w-full justify-start h-auto py-2.5 whitespace-normal"
             >
@@ -297,7 +345,7 @@ function FirstRunSetup({ onComplete }) {
               <span className="text-left min-w-0">
                 <span className="block">Import from a file</span>
                 <span className="block text-xs text-muted-foreground font-normal whitespace-normal break-words">
-                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json) or OpenPlural (.zip) — auto-detected
+                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar) — auto-detected
                 </span>
               </span>
             </Button>
@@ -515,17 +563,13 @@ export default function StorageModeSetup({ mode, onComplete }) {
               Welcome to Oceans Symphony
             </h2>
             <p className="text-sm text-foreground/90 leading-relaxed text-center mt-3">
-              A companion app for dissociative systems — made by a system, for systems.
+              A companion app for dissociative systems
             </p>
-            <p className="text-sm text-muted-foreground leading-relaxed text-center mt-2">
-              Keep track of who's fronting, your activities, symptoms and emotions,
-              and build bridges across amnesia gaps and barriers. Quick Support is a
-              tap away for guided breathing and grounding, and any stretch of time
-              can become a therapy report to share.
-            </p>
-            <div className="w-full mt-5 pt-4 border-t border-border/60">
-              <h3 className="text-sm font-semibold text-foreground">First, choose how your data is stored</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">You can change this anytime in Settings.</p>
+            <div className="mt-3 space-y-2.5 text-sm text-muted-foreground leading-relaxed text-center">
+              <p>Designed by an AuDHD, DID system to fill a specific void and assist my needs.</p>
+              <p>Beyond just tracking your system, OS provides structure, tools, and guidance to support your system and build bridges across dissociative and amnesiac barriers.</p>
+              <p>Everything is designed with dissociative systems in mind.</p>
+              <p>Utilize as many or as few of the features as you find helpful, explore at your own pace, and thank you for giving OS a try.</p>
             </div>
           </div>
         )}
@@ -560,11 +604,11 @@ export default function StorageModeSetup({ mode, onComplete }) {
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
-                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, only what you explicitly choose to share is transmitted to the friends relay: your system name, your display name, and your current front status — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. <strong className="text-foreground">Journals, emotions, symptoms, plans, locations, and chat are never sent.</strong></p>
+                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, the only data that reaches the friends relay is the identity you set up (your chosen system + display name) and your current front — essentially just the <strong className="text-foreground">display name and colour of whoever's fronting</strong> — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. <strong className="text-foreground">Everything else stays on this device and is never sent.</strong> Journals, emotions, symptoms, plans, locations, chat, and all your other logged data are private — and that list isn't exhaustive: nothing beyond the fronting display name and colour ever leaves.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🌐 Optional third-party imports</p>
-                  <p>PluralKit and Simply Plural connectors are also opt-in and one-way: you provide their tokens, the app fetches your data from their servers and stores it locally. No data flows back to them from Symphony.</p>
+                  <p>The PluralKit connector is opt-in and one-way: you provide a token, the app fetches your data from PluralKit's servers and stores it locally. Simply Plural, OpenPlural, Octocon and PluralSpace import from an export file — nothing leaves your device. No data flows back to any of them from Symphony.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">💾 Backups</p>
@@ -577,6 +621,13 @@ export default function StorageModeSetup({ mode, onComplete }) {
                 <p className="text-amber-600 dark:text-amber-400 font-medium pt-1">
                   🌊 Free and open source, shared by a DID system to fill a void in the community.{" "}
                   Contact: pesturedrawing@gmail.com ·{" "}
+                  <span
+                    onClick={() => openExternalUrl("https://oceans-symphony.app")}
+                    className="text-primary underline cursor-pointer"
+                  >
+                    Website
+                  </span>{" "}
+                  ·{" "}
                   <span
                     onClick={() => openExternalUrl("https://github.com/penumbrias/oceans-symphony/releases")}
                     className="text-primary underline cursor-pointer"

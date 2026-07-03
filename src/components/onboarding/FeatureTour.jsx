@@ -831,6 +831,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "settings", sectionLabel: "Settings",
+      emoji: "🪞",
+      title: `Multiple ${t.Systems}`,
+      body: `Keep more than one ${t.system} in the app — each with its own ${t.alters}, ${t.fronting}, journals, and settings. Add a new ${t.system}, switch between them (you can also tap your ${t.system}'s name on the home screen), rename, or delete one (a backup is saved automatically first). Only one ${t.system} is active at a time.`,
+      route: "/settings", target: "settings-systems",
+      look: `the highlighted ${t.Systems} section — tap its header to expand it`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
       emoji: "💜",
       title: "Tracking & Analytics",
       body: `Configure the Quick Check-In flow and sections order using the Check-In Manager link. Create custom emotion labels that appear in check-ins. Add custom trigger type categories with emoji and hint text — these appear as options in the "Triggered ${t.switch}?" section of the ${t.Front} modal. The Analytics Grouping setting at the bottom of this section lets you aggregate analytics by group rather than by individual ${t.alter} — useful for larger ${t.systems}.`,
@@ -849,7 +857,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
-      body: `Oceans Symphony is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server. The only ways data leaves this device are: exporting a backup yourself, or opting in to Friends mode (which only transmits your system name, display name, and current front status at the privacy level you choose — never any of your other local data). For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. If file downloads are blocked (e.g. the Facebook or Instagram in-app browser), use the Copy/Paste Backup alternative right below the download button — it lets you split your data into text chunks you can paste anywhere safe. Connect Simply Plural to sync ${t.alter} profiles. Your data is fully yours and always exportable.`,
+      body: `Oceans Symphony is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server. The only ways data leaves this device are: exporting a backup yourself, or opting in to Friends mode (which only transmits your system name, display name, and current front status at the privacy level you choose — never any of your other local data). For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. If file downloads are blocked (e.g. the Facebook or Instagram in-app browser), use the Copy/Paste Backup alternative right below the download button — it lets you split your data into text chunks you can paste anywhere safe. Your data is fully yours and always exportable.`,
       route: "/settings", target: "settings-data",
       look: `the highlighted Data & Privacy section — tap its header to expand it`, action: null,
     },
@@ -1217,8 +1225,10 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
                 onClick={() => goTo(step - 1)}
                 disabled={isFirst}
                 className="flex items-center gap-1 px-3 py-1.5 rounded-lg border border-border text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted/40 disabled:opacity-30 transition-colors flex-shrink-0"
+                aria-label="Back"
+                title="Back"
               >
-                <ChevronLeft className="w-3 h-3" /> Back
+                <ChevronLeft className="w-3 h-3" />
               </button>
               <button
                 onClick={() => {
@@ -1253,8 +1263,9 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
       </div>
 
       {/* Accessibility quick-access during the tour — sits on the opposite edge
-          from the tour card so it never overlaps it. */}
-      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} />
+          from the tour card, and compact (icon-only) so it never covers tour
+          content. */}
+      <AccessibilityFab position={cardAtTop ? "bottom-left" : "top-left"} zIndex={101} compact />
     </>,
     document.body
   );

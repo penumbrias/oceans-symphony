@@ -280,7 +280,7 @@ const bioProfileFields = `
   ${section("History tab",
     `Front session log for this alter. Every session, with start / end / duration, primary or co-fronter, attached notes, emotions, symptoms, and triggered-switch info.`)}
   ${section("Notes tab",
-    `Long-form notes. Imports from Simply Plural notes if you've connected an SP account. Free-form HTML editor.`)}
+    `Long-form notes. Imports notes from a Simply Plural export file. Free-form HTML editor.`)}
   ${section("Lineage tab",
     `<strong>Connections map</strong> — predecessors → this alter → successors, from recorded fusion / split events. <strong>Relationships</strong> — explicit per-pair labels (twin, protector of, trauma holder for, split from). <strong>Event log</strong> — fusion, split, dormancy, return entries with cause + notes. "Record Event" button at the top.`)}
   ${section("Options tab",
@@ -492,7 +492,7 @@ const bioSettings = `
   ${section("Reminders",
     `Timezone, push toggle, push diagnostics, pause-all kill switch, quiet hours window, default snooze options. See the Reminders wiki alter for the firing logic.`)}
   ${section("Data & Privacy",
-    `Backup & Restore (per-category JSON / .symphonyz), password encryption (AES-256-GCM, optional), Simply Plural Connect. The Privacy & Data Notice at the top of the page covers what's stored locally vs what Friends Mode transmits.`)}
+    `Backup & Restore (per-category JSON / .symphonyz), password encryption (AES-256-GCM, optional), and file imports from other plural apps. The Privacy & Data Notice at the top of the page covers what's stored locally vs what Friends Mode transmits.`)}
   ${section("Recent Updates",
     `Scrollable changelog viewer.`)}
   ${tip(`The build version and "alpha" chip are pinned in the top-right of Settings — bump-with-every-changelog by design, so when reporting a bug you can cite the exact build.`)}

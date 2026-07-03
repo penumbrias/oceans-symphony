@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { Accessibility, X } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import {
@@ -30,7 +31,7 @@ const FONT_OPTIONS = [
   { value: "xl5",     label: "Huge",    desc: "200%" },
 ];
 
-export default function AccessibilityFab({ position = "bottom-left", zIndex = 60 }) {
+export default function AccessibilityFab({ position = "bottom-left", zIndex = 60, compact = false }) {
   const [open, setOpen] = useState(false);
   const [settings, setSettings] = useState(getAccessibilitySettings);
 
@@ -49,17 +50,22 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
     ? { marginTop: "env(safe-area-inset-top)" }
     : { marginBottom: "env(safe-area-inset-bottom)" };
 
-  return (
+  // Render through a portal to <body>. The onboarding/tour screens animate
+  // their containers (framer-motion transforms), which turn a `position:fixed`
+  // child into one positioned relative to that transformed ancestor — so the
+  // button got clipped/hidden. A body portal escapes any such containing block.
+  return createPortal(
     <>
       <button
         type="button"
         onClick={() => setOpen(true)}
         aria-label="Accessibility options"
-        className={`fixed ${vertCls} ${horizCls} flex items-center gap-1.5 h-11 px-3.5 rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 border border-white/10 text-sm font-medium active:scale-95 transition-transform`}
+        title="Accessibility options"
+        className={`fixed ${vertCls} ${horizCls} flex items-center gap-1.5 ${compact ? "h-11 w-11 justify-center px-0" : "h-11 px-3.5"} rounded-full bg-primary text-primary-foreground shadow-lg shadow-black/20 border border-white/10 text-sm font-medium active:scale-95 transition-transform`}
         style={{ ...vertStyle, zIndex }}
       >
         <Accessibility className="w-5 h-5" />
-        <span>Accessibility</span>
+        {!compact && <span>Accessibility</span>}
       </button>
 
       {open && (
@@ -138,6 +144,7 @@ export default function AccessibilityFab({ position = "bottom-left", zIndex = 60
           </div>
         </div>
       )}
-    </>
+    </>,
+    document.body,
   );
 }

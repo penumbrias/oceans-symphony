@@ -316,8 +316,8 @@ export default function EmotionWheelPicker({
             <div className="rounded-xl border border-border/50 bg-muted/20 p-2.5 space-y-2">
               {activeCore && (
                 <button onClick={() => setActiveCore(null)}
-                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1">
-                  <ChevronLeft className="w-3 h-3" /> Back
+                  className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground mb-1" aria-label="Back" title="Back">
+                  <ChevronLeft className="w-3 h-3" />
                 </button>
               )}
 
