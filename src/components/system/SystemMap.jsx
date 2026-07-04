@@ -8,6 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { buildAbsorptionMap } from "@/lib/absorptionUtils";
 import useSystemMapLayout from "@/lib/useSystemMapLayout";
+import { computeFrontingTimeAll } from "@/lib/systemMapCompute";
+import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { byGroupOrder } from "@/lib/groupTreeUtils";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -43,6 +47,35 @@ const TIME_MODES = [
   { id: 'primary', label: '⭐ Primary' },
   { id: 'cofronting', label: '👥 Co-front' },
 ];
+
+// Default display cap. Big systems don't render every member at once —
+// the map shows the top N (by the chosen metric) and the Display panel
+// lets the user raise/lower N or hand-pick who's shown. 150 keeps the
+// full visual treatment (avatars etc. — perf mode starts at 250) and
+// stays readable.
+const AUTO_DISPLAY_LIMIT = 150;
+const DISPLAY_LIMIT_MAX = 500;
+const DISPLAY_MODES = [
+  { id: 'top_front', label: 'Top front time' },
+  { id: 'top_cofront', label: 'Top co-front time' },
+  { id: 'custom', label: 'Hand-picked' },
+];
+
+// Collapse-into-groups: fold members into a single node per group/subsystem.
+// Groups nest, so the depth picks WHICH ancestor the members fold into:
+// their immediate group, its parent, or the topmost qualifying ancestor.
+const COLLAPSE_MODES = [
+  { id: 'off', label: 'Off' },
+  { id: 'groups', label: 'Groups' },
+  { id: 'subsystems', label: 'Subsystems' },
+  { id: 'both', label: 'Both' },
+];
+const COLLAPSE_DEPTHS = [
+  { id: 'immediate', label: 'Immediate' },
+  { id: 'parent', label: 'One level up' },
+  { id: 'root', label: 'To root' },
+];
+const MAX_COLLAPSE_CLIMB = 8; // matches MAX_GROUP_DEPTH — cycle/degenerate-chain clamp
 
 // Shape returned by useSystemMapLayout while the worker is still
 // computing (or while inputs aren't ready). Frozen so consumers can't
@@ -83,9 +116,33 @@ const SystemMap = ({ relationships = [] }) => {
   const [relDisplayMode, setRelDisplayMode] = useState('simple');
   const [timeMode, setTimeMode] = useState('total');
 
+  // Display cap + who's shown (see AUTO_DISPLAY_LIMIT above).
+  const [displaySelectMode, setDisplaySelectMode] = useState('top_front');
+  const [displayLimit, setDisplayLimit] = useState(AUTO_DISPLAY_LIMIT);
+  const [displayLimitText, setDisplayLimitText] = useState(String(AUTO_DISPLAY_LIMIT));
+  const [customSelection, setCustomSelection] = useState(() => new Set());
+  const [showMemberPicker, setShowMemberPicker] = useState(false);
+
+  // Collapse-into-groups controls (see COLLAPSE_MODES above).
+  const [collapseMode, setCollapseMode] = useState('off');
+  const [collapseDepth, setCollapseDepth] = useState('immediate');
+
   // Keep transform in a ref so event handlers always see current value without re-registering
   const transformRef = useRef(transform);
   useEffect(() => { transformRef.current = transform; }, [transform]);
+
+  // Pan/zoom WITHOUT React re-renders: gestures write the transform straight
+  // onto the content <g> and only commit to state when the gesture ends.
+  // Setting state per mousemove re-rendered every node + link each frame —
+  // the single biggest reason large systems froze the map.
+  const contentGRef = useRef(null);
+  const applyTransform = useCallback((next) => {
+    transformRef.current = next;
+    if (contentGRef.current) {
+      contentGRef.current.style.transform = `translate(${next.x}px, ${next.y}px) scale(${next.scale})`;
+    }
+  }, []);
+  const commitTransform = useCallback(() => { setTransform(transformRef.current); }, []);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -118,7 +175,78 @@ const SystemMap = ({ relationships = [] }) => {
   // logic was extracted to src/lib/systemMapCompute.js so the worker
   // and any future server / main-thread fallback can share it.
 
-  const filteredAlters = useMemo(() => {
+  // Collapse assignment: alterId → the group/subsystem node it folds into.
+  // Cycle-guarded parent climb, clamped at MAX_COLLAPSE_CLIMB. A parent only
+  // counts if it matches the collapse mode (folders vs subsystems), so
+  // "collapse to root subsystems" doesn't leak members into folder groups.
+  const collapseInfo = useMemo(() => {
+    if (collapseMode === 'off' || !groups.length) return null;
+    const wantSub = collapseMode === 'subsystems' || collapseMode === 'both';
+    const wantFolder = collapseMode === 'groups' || collapseMode === 'both';
+    const qualifies = (g) => !!g && ((g.owner_alter_id ? wantSub : wantFolder));
+    const byId = {};
+    const spToId = {};
+    for (const g of groups) { byId[g.id] = g; if (g.sp_id) spToId[g.sp_id] = g.id; }
+    const resolveGroup = (ref) => (ref && (byId[ref] || (spToId[ref] ? byId[spToId[ref]] : null))) || null;
+
+    // Immediate qualifying group(s) per alter (via the robust membership walk).
+    const memberOf = {};
+    for (const g of groups) {
+      if (!qualifies(g)) continue;
+      for (const m of getMemberAlters(g, alters)) {
+        (memberOf[m.id] ||= []).push(g);
+      }
+    }
+
+    const climb = (g) => {
+      if (collapseDepth === 'immediate') return g;
+      let cur = g;
+      const seen = new Set([g.id]);
+      const steps = collapseDepth === 'parent' ? 1 : MAX_COLLAPSE_CLIMB;
+      for (let i = 0; i < steps; i++) {
+        const p = resolveGroup(cur.parent);
+        if (!p || seen.has(p.id) || !qualifies(p)) break;
+        seen.add(p.id);
+        cur = p;
+      }
+      return cur;
+    };
+
+    const assignment = {};
+    const targetGroups = {};
+    for (const [alterId, gs] of Object.entries(memberOf)) {
+      // Deterministic immediate group when an alter is in several: the same
+      // ordering the Groups page uses.
+      const immediate = [...gs].sort(byGroupOrder)[0];
+      const target = climb(immediate);
+      assignment[alterId] = target.id;
+      targetGroups[target.id] = target;
+    }
+    return { assignment, targetGroups };
+  }, [collapseMode, collapseDepth, groups, alters]);
+
+  // Absorption map for time-folding, composed with the collapse assignment so
+  // absorbed→persistent→group chains resolve in one hop for the worker.
+  const layoutAbsorptionMap = useMemo(() => {
+    if (!collapseInfo) return absorptionMap;
+    const merged = { ...collapseInfo.assignment };
+    for (const [from, to] of Object.entries(absorptionMap)) {
+      merged[from] = collapseInfo.assignment[to] || to;
+    }
+    return merged;
+  }, [absorptionMap, collapseInfo]);
+
+  // Cheap per-entity totals for RANKING who gets displayed. O(sessions) on the
+  // main thread — the heavy pair/slice work stays in the worker; this only
+  // feeds the top-N ordering (total for front time, .cofronting for co-front).
+  // Folded through the collapse assignment, so collapsed group nodes rank by
+  // their members' combined time.
+  const rankTimes = useMemo(
+    () => computeFrontingTimeAll(frontingSessions, layoutAbsorptionMap),
+    [frontingSessions, layoutAbsorptionMap]
+  );
+
+  const { filteredAlters, eligibleCount } = useMemo(() => {
     let result = alters.filter(a => showArchived ? true : !a.is_archived);
     if (selectedGroup) {
       const group = groups.find((g) => g.id === selectedGroup);
@@ -138,8 +266,49 @@ const SystemMap = ({ relationships = [] }) => {
         (a) => a.name.toLowerCase().includes(query) || (a.alias && a.alias.toLowerCase().includes(query))
       );
     }
-    return result;
-  }, [alters, groups, selectedGroup, searchQuery, showArchived]);
+    const eligible = result.length;
+    // Hand-picked selection wins outright (people are picked BEFORE folding —
+    // collapse then folds whoever was picked).
+    if (displaySelectMode === "custom" && customSelection.size > 0) {
+      result = result.filter((a) => customSelection.has(a.id));
+    }
+    // Collapse BEFORE the cap: replace assigned members with ONE pseudo-entity
+    // per target group/subsystem. Times fold into the group id via
+    // layoutAbsorptionMap, so sizing / co-front links / selection / the cap's
+    // ranking all work on the folded id. (Capping first would arbitrarily drop
+    // mid-ranked members before they could fold into their group.)
+    if (collapseInfo) {
+      const kept = [];
+      const memberCounts = {};
+      const usedGroups = new Map();
+      for (const a of result) {
+        const gid = collapseInfo.assignment[a.id];
+        if (!gid) { kept.push(a); continue; }
+        memberCounts[gid] = (memberCounts[gid] || 0) + 1;
+        usedGroups.set(gid, collapseInfo.targetGroups[gid]);
+      }
+      const pseudo = [...usedGroups.values()].map((g) => ({
+        id: g.id,
+        name: g.name || "Group",
+        alias: "",
+        color: g.color || "#6366f1",
+        avatar_url: "",
+        __collapsedGroup: true,
+        __memberCount: memberCounts[g.id] || 0,
+      }));
+      result = [...kept, ...pseudo];
+    }
+    // Display cap: top N by the chosen metric (rankTimes is folded through the
+    // collapse assignment, so group nodes rank by their members' combined
+    // time). Never fabricates — an entity with no tracked time ranks at 0.
+    if (displaySelectMode !== "custom" && result.length > displayLimit) {
+      const metric = displaySelectMode === "top_cofront"
+        ? (a) => rankTimes[a.id]?.cofronting || 0
+        : (a) => rankTimes[a.id]?.total || 0;
+      result = [...result].sort((x, y) => metric(y) - metric(x)).slice(0, displayLimit);
+    }
+    return { filteredAlters: result, eligibleCount: eligible };
+  }, [alters, groups, selectedGroup, searchQuery, showArchived, displaySelectMode, customSelection, displayLimit, rankTimes, collapseInfo]);
 
   // Memoized worker input. A new reference is what triggers a fresh
   // worker compute (the hook tears down the previous worker first), so
@@ -151,12 +320,12 @@ const SystemMap = ({ relationships = [] }) => {
     if (!filteredAlters || filteredAlters.length === 0) return null;
     return {
       frontingSessions,
-      absorptionMap,
+      absorptionMap: layoutAbsorptionMap,
       filteredAlters,
       selectedAlterId: selectedAlter?.id || null,
       timeMode,
     };
-  }, [frontingSessions, absorptionMap, filteredAlters, selectedAlter, timeMode]);
+  }, [frontingSessions, layoutAbsorptionMap, filteredAlters, selectedAlter, timeMode]);
 
   const layout = useSystemMapLayout(layoutInput);
   const isComputingLayout = layout.state === "computing";
@@ -188,11 +357,14 @@ const SystemMap = ({ relationships = [] }) => {
       const sorted = Object.entries(cofrontingTime[selectedAlter.id])
         .sort((a, b) => b[1] - a[1])
         .slice(0, cofronterCount);
-      setCofronters(alters.filter((a) => sorted.some(([id]) => id === a.id)));
+      // Resolve against the display list too so collapsed group nodes show
+      // up as co-front peers (their times are folded onto the group id).
+      const pool = [...alters, ...filteredAlters.filter((a) => a.__collapsedGroup)];
+      setCofronters(pool.filter((a) => sorted.some(([id]) => id === a.id)));
     } else {
       setCofronters([]);
     }
-  }, [selectedAlter, cofrontingTime, cofronterCount, alters]);
+  }, [selectedAlter, cofrontingTime, cofronterCount, alters, filteredAlters]);
 
   const fitToNodes = useCallback((nodeList) => {
     if (!nodeList.length || !svgRef.current) return;
@@ -236,6 +408,7 @@ const SystemMap = ({ relationships = [] }) => {
         radius: pos.nodeR ?? 35,
         isSelected: selectedAlter?.id === alter.id,
         isCofronter: selectedAlter ? (cofrontingTime[selectedAlter.id]?.[alter.id] || 0) > 0 : false,
+        collapsedCount: alter.__collapsedGroup ? alter.__memberCount : 0,
       };
     });
 
@@ -290,10 +463,15 @@ const SystemMap = ({ relationships = [] }) => {
     const dx = e.clientX - (dragStartRef.current.x + transformRef.current.x);
     const dy = e.clientY - (dragStartRef.current.y + transformRef.current.y);
     dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
-    setTransform(t => ({ ...t, x: e.clientX - dragStartRef.current.x, y: e.clientY - dragStartRef.current.y }));
-  }, []);
+    applyTransform({ ...transformRef.current, x: e.clientX - dragStartRef.current.x, y: e.clientY - dragStartRef.current.y });
+  }, [applyTransform]);
 
-  const handleMouseUp = useCallback(() => { isDraggingRef.current = false; }, []);
+  const handleMouseUp = useCallback(() => {
+    // Always commit: pinch-zoom ends here too (without the dragging flag),
+    // and an uncommitted ref transform would snap back on the next render.
+    commitTransform();
+    isDraggingRef.current = false;
+  }, [commitTransform]);
 
   const handleTouchStart = useCallback((e) => {
     if (e.touches.length !== 1) return;
@@ -309,7 +487,8 @@ const SystemMap = ({ relationships = [] }) => {
       const dist = Math.hypot(e.touches[0].clientX - e.touches[1].clientX, e.touches[0].clientY - e.touches[1].clientY);
       if (lastPinchRef.current !== null) {
         const delta = dist / lastPinchRef.current;
-        setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
+        const t = transformRef.current;
+        applyTransform({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) });
       }
       lastPinchRef.current = dist;
       return;
@@ -319,14 +498,16 @@ const SystemMap = ({ relationships = [] }) => {
     const dx = e.touches[0].clientX - (dragStartRef.current.x + transformRef.current.x);
     const dy = e.touches[0].clientY - (dragStartRef.current.y + transformRef.current.y);
     dragDistanceRef.current = Math.sqrt(dx * dx + dy * dy);
-    setTransform(t => ({ ...t, x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y }));
-  }, []);
+    applyTransform({ ...transformRef.current, x: e.touches[0].clientX - dragStartRef.current.x, y: e.touches[0].clientY - dragStartRef.current.y });
+  }, [applyTransform]);
 
   const handleWheel = useCallback((e) => {
     e.preventDefault();
     const delta = e.deltaY > 0 ? 0.9 : 1.1;
-    setTransform(t => ({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) }));
-  }, []);
+    const t = transformRef.current;
+    applyTransform({ ...t, scale: Math.max(0.5, Math.min(3, t.scale * delta)) });
+    commitTransform();
+  }, [applyTransform, commitTransform]);
 
   useEffect(() => {
     const svg = svgRef.current;
@@ -349,9 +530,12 @@ const SystemMap = ({ relationships = [] }) => {
 
   const handleNodeClick = useCallback((alterId) => {
     if (dragDistanceRef.current > 5) return;
-    const clicked = alters.find((a) => a.id === alterId);
+    // Collapsed group pseudo-nodes aren't in `alters` — resolve from the
+    // display list too, so tapping one still centres it (times are folded
+    // onto the group id, so the co-front view works the same).
+    const clicked = alters.find((a) => a.id === alterId) || filteredAlters.find((a) => a.id === alterId);
     setSelectedAlter(prev => prev?.id === alterId ? null : clicked);
-  }, [alters]);
+  }, [alters, filteredAlters]);
 
   const handleReset = () => {
     const alterNodes = nodes.filter(n => n.type === "alter");
@@ -386,6 +570,18 @@ const SystemMap = ({ relationships = [] }) => {
     () => Math.max(...links.filter(l => l.type === "cofronting").map(l => l.strength || 1), 1),
     [links]
   );
+  // O(1) node lookup — links/relationships used to nodes.find() per line,
+  // which was O(links × nodes) on EVERY render and a major freeze factor
+  // for big systems.
+  const nodesById = useMemo(() => {
+    const m = {};
+    for (const n of nodes) m[n.id] = n;
+    return m;
+  }, [nodes]);
+  // Level of detail: past this many nodes, skip avatars, per-node shadows
+  // and sublabels — coloured circles + names render an order of magnitude
+  // faster and stay legible at large-system zoom levels anyway.
+  const perfMode = nodes.length > 250;
   const currentTimeMode = TIME_MODES.find(t => t.id === timeMode);
 
   return (
@@ -450,12 +646,19 @@ const SystemMap = ({ relationships = [] }) => {
           className="w-full h-full cursor-grab active:cursor-grabbing"
           onMouseDown={handleMouseDown}
         >
-          <g style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
+          <defs>
+            {/* ONE shared node shadow — a per-node <filter> def made large
+                systems rasterise hundreds of identical filters. */}
+            <filter id="sysmap-node-shadow">
+              <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
+            </filter>
+          </defs>
+          <g ref={contentGRef} style={{ transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})` }}>
 
             {/* Co-fronting + membership links */}
             {links.map((link, idx) => {
-              const sourceNode = nodes.find((n) => n.id === link.source);
-              const targetNode = nodes.find((n) => n.id === link.target);
+              const sourceNode = nodesById[link.source];
+              const targetNode = nodesById[link.target];
               if (!sourceNode || !targetNode) return null;
               const isCofronting = link.type === "cofronting";
               const opacity = isCofronting ? 0.15 + (link.strength / maxCofrontStrength) * 0.55 : 0.3;
@@ -490,8 +693,8 @@ const SystemMap = ({ relationships = [] }) => {
 
               const lines = [];
               visibleRels.forEach(rel => {
-                const nodeA = nodes.find(n => n.id === rel.alter_id_a);
-                const nodeB = nodes.find(n => n.id === rel.alter_id_b);
+                const nodeA = nodesById[rel.alter_id_a];
+                const nodeB = nodesById[rel.alter_id_b];
                 if (!nodeA || !nodeB) return;
                 const pairKey = [rel.alter_id_a, rel.alter_id_b].sort().join("-");
                 const pairRels = pairGroups[pairKey] || [rel];
@@ -564,25 +767,25 @@ const SystemMap = ({ relationships = [] }) => {
               return <g>{lines}</g>;
             })()}
 
-            {/* Nodes */}
+            {/* Nodes. perfMode (large systems) trades decoration for speed:
+                no avatars, no shadow filter, no sublabels — coloured circles
+                + names only. */}
             {nodes.map((node) => {
               const r = node.radius || (node.type === "group" ? 40 : 35);
+              const showAvatar = !perfMode && node.avatar && node.type === "alter";
               return (
                 <g key={node.id}>
-                  <defs>
-                    <filter id={`shadow-${node.id}`}>
-                      <feDropShadow dx="0" dy="2" stdDeviation="3" floodOpacity="0.3" />
-                    </filter>
-                    {node.avatar && node.type === "alter" && (
+                  {showAvatar && (
+                    <defs>
                       <clipPath id={`clip-circle-${node.id}`}>
                         <circle cx={node.x} cy={node.y} r={r - 5} />
                       </clipPath>
-                    )}
-                  </defs>
+                    </defs>
+                  )}
                   <circle
                     cx={node.x} cy={node.y} r={r}
                     fill={node.color} opacity={0.85}
-                    filter={`url(#shadow-${node.id})`}
+                    filter={perfMode ? undefined : "url(#sysmap-node-shadow)"}
                     stroke={node.isSelected ? "white" : node.isCofronter ? "hsl(var(--accent))" : "transparent"}
                     strokeWidth={node.isSelected ? 3 : node.isCofronter ? 2 : 0}
                     style={{ cursor: node.type === "alter" ? "pointer" : "default" }}
@@ -595,7 +798,7 @@ const SystemMap = ({ relationships = [] }) => {
                       if (dragDistanceRef.current <= 8) handleNodeClick(node.id);
                     }}
                   />
-                  {node.avatar && node.type === "alter" && (
+                  {showAvatar && (
                     <NodeAvatarImage
                       node={node}
                       r={r}
@@ -613,18 +816,20 @@ const SystemMap = ({ relationships = [] }) => {
                     fill="white" pointerEvents="none">
                     {node.label.length > 12 ? node.label.slice(0, 10) + "…" : node.label}
                   </text>
-                  {!node.avatar && node.type === "alter" && node.displayName !== node.label && (
+                  {!perfMode && !node.avatar && node.type === "alter" && node.displayName !== node.label && (
                     <text x={node.x} y={node.y + 8}
                       textAnchor="middle" fontSize="11"
                       fill="white" opacity="0.8" pointerEvents="none">
                       {node.displayName.length > 12 ? node.displayName.slice(0, 10) + "…" : node.displayName}
                     </text>
                   )}
-                  <text x={node.x} y={node.y + (node.type === "group" ? r - 8 : 25)}
-                    textAnchor="middle" fontSize="10"
-                    fill="white" opacity="0.6" pointerEvents="none">
-                    {node.type === "group" ? "Group" : "Alter"}
-                  </text>
+                  {!perfMode && (
+                    <text x={node.x} y={node.y + (node.type === "group" ? r - 8 : 25)}
+                      textAnchor="middle" fontSize="10"
+                      fill="white" opacity="0.6" pointerEvents="none">
+                      {node.collapsedCount ? `${node.collapsedCount} inside` : node.type === "group" ? "Group" : "Alter"}
+                    </text>
+                  )}
                 </g>
               );
             })}
@@ -691,6 +896,79 @@ const SystemMap = ({ relationships = [] }) => {
       <div className="flex-shrink-0 border-t border-border bg-card/95 backdrop-blur">
         {panelOpen && (
           <div className="p-3 space-y-3 border-b border-border max-h-[50vh] overflow-y-auto overflow-x-hidden w-full">
+
+            {/* Who's displayed: top-N by metric, or a hand-picked set. Large
+                systems never draw everyone at once — that's what kept the map
+                unusable for big systems. */}
+            <div>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide block mb-1">Displayed {t.alters}</label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {DISPLAY_MODES.map((m) => (
+                  <Badge key={m.id}
+                    variant={displaySelectMode === m.id ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => setDisplaySelectMode(m.id)}>
+                    {m.id === 'top_front' ? `Top ${t.fronting} time` : m.id === 'top_cofront' ? `Top ${t.cofronting || "co-fronting"} time` : m.label}
+                  </Badge>
+                ))}
+              </div>
+              {/* Collapse-into-groups: fold members into one node per
+                  group/subsystem, with a nesting depth (groups nest). */}
+              <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                <span className="text-xs text-muted-foreground">Collapse into:</span>
+                {COLLAPSE_MODES.map((m) => (
+                  <Badge key={m.id}
+                    variant={collapseMode === m.id ? "default" : "outline"}
+                    className="cursor-pointer text-xs"
+                    onClick={() => setCollapseMode(m.id)}>
+                    {m.id === 'subsystems' ? (t.system === "system" ? "Subsystems" : `Sub${t.systems}`) : m.label}
+                  </Badge>
+                ))}
+              </div>
+              {collapseMode !== 'off' && (
+                <div className="flex items-center gap-1.5 flex-wrap mb-2">
+                  <span className="text-xs text-muted-foreground">Collapse level:</span>
+                  {COLLAPSE_DEPTHS.map((d) => (
+                    <Badge key={d.id}
+                      variant={collapseDepth === d.id ? "default" : "outline"}
+                      className="cursor-pointer text-xs"
+                      onClick={() => setCollapseDepth(d.id)}>
+                      {d.label}
+                    </Badge>
+                  ))}
+                </div>
+              )}
+              {displaySelectMode !== "custom" ? (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <label className="text-xs text-muted-foreground">Show up to</label>
+                  <input type="number" inputMode="numeric" min="5" max={DISPLAY_LIMIT_MAX} value={displayLimitText}
+                    onChange={(e) => setDisplayLimitText(e.target.value)}
+                    onBlur={() => {
+                      const parsed = parseInt(displayLimitText, 10);
+                      const n = Number.isFinite(parsed) ? Math.max(5, Math.min(DISPLAY_LIMIT_MAX, parsed)) : AUTO_DISPLAY_LIMIT;
+                      setDisplayLimit(n);
+                      setDisplayLimitText(String(n));
+                    }}
+                    onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }}
+                    className="w-16 h-7 px-2 border border-border rounded text-xs bg-background" />
+                  <span className="text-xs text-muted-foreground">
+                    showing {filteredAlters.length} of {eligibleCount}
+                  </span>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <button type="button" onClick={() => setShowMemberPicker(true)}
+                    className="px-3 py-1.5 rounded-lg border border-border bg-background text-xs font-medium hover:bg-muted/50 transition-colors">
+                    Choose {t.alters}…{customSelection.size ? ` (${customSelection.size})` : ""}
+                  </button>
+                  <span className="text-xs text-muted-foreground">
+                    {customSelection.size === 0
+                      ? `None picked yet — showing all ${eligibleCount}.`
+                      : `showing ${filteredAlters.length} of ${eligibleCount}`}
+                  </span>
+                </div>
+              )}
+            </div>
 
             <div className="flex items-center justify-between">
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Show Archived</label>
@@ -789,14 +1067,38 @@ const SystemMap = ({ relationships = [] }) => {
           className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-muted/20 transition-colors">
           <div className="flex items-center gap-2 text-sm font-medium text-foreground">
             <SlidersHorizontal className="w-4 h-4 text-muted-foreground" />
-            Filters & Search
-            {(searchQuery || selectedGroup || showArchived || showGroups) && (
+            Filters & Display
+            {(searchQuery || selectedGroup || showArchived || showGroups || displaySelectMode === "custom") && (
               <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />
+            )}
+            {filteredAlters.length < eligibleCount && (
+              <span className="text-xs font-normal text-muted-foreground">· {filteredAlters.length} of {eligibleCount} shown</span>
             )}
           </div>
           {panelOpen ? <ChevronDown className="w-4 h-4 text-muted-foreground" /> : <ChevronUp className="w-4 h-4 text-muted-foreground" />}
         </button>
       </div>
+
+      {/* Hand-picked member selection — the standard alter selection TREE
+          (Members organised by subsystem + a Groups tab; same surface the
+          export / sharing flows use). */}
+      <Dialog open={showMemberPicker} onOpenChange={(o) => { if (!o) setShowMemberPicker(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Shown on map</DialogTitle>
+          </DialogHeader>
+          <AlterTreeSelect
+            isSelected={(id) => customSelection.has(id)}
+            onToggle={(a, on) => setCustomSelection((s) => { const n = new Set(s); if (on) n.add(a.id); else n.delete(a.id); return n; })}
+            onSetMany={(arr, on) => setCustomSelection((s) => { const n = new Set(s); for (const a of arr) { if (on) n.add(a.id); else n.delete(a.id); } return n; })}
+            maxHeight="48vh"
+          />
+          <button type="button" onClick={() => setShowMemberPicker(false)}
+            className="w-full px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm">
+            Done{customSelection.size ? ` (${customSelection.size})` : ""}
+          </button>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

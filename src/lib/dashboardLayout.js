@@ -56,6 +56,10 @@ export const DASHBOARD_ELEMENTS = {
     label: "What's new bar",
     description: "Brief 'New in this version' strip.",
   },
+  insight_spotlight: {
+    label: "Insight spotlight",
+    description: "One dismissible card with the most notable analytics insight this week — tap it to open Analytics.",
+  },
   quick_nav_menu: {
     label: "Dashboard grid + search",
     description: "Quick-nav tile grid and the global search.",
@@ -93,6 +97,7 @@ export const DEFAULT_LAYOUT = [
   // custom layout keep their existing order via resolveLayout.
   { id: "pinned_daily_tasks", enabled: true },
   { id: "new_features_bar", enabled: true },
+  { id: "insight_spotlight", enabled: true },
   { id: "quick_nav_menu",   enabled: true },
   { id: "bulletin_board",   enabled: true },
   { id: "upcoming_bottom",  enabled: true },

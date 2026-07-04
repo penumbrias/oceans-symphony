@@ -272,6 +272,9 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
         const existingGroups = await localEntities.Group.list();
         const existingByOctoId = {};
         for (const g of existingGroups) { if (g.octo_id) existingByOctoId[g.octo_id] = g; }
+        // `order` follows the file's tag sequence — order-less groups fall
+        // back to the newest-first default and render REVERSED otherwise.
+        let groupOrder = existingGroups.length;
         for (const tag of d.tags || []) {
           const mapped = mapTagToGroup(tag);
           if (!mapped.octo_id) continue;
@@ -282,6 +285,7 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
               name: mapped.name,
               color: mapped.color,
               description: mapped.description,
+              ...(existing.order == null ? { order: groupOrder } : {}),
             });
             groupIdByOctoId[mapped.octo_id] = existing.id;
             groupsUpdated++;
@@ -292,10 +296,12 @@ export default function OctoconConnect({ settings, onSettingsChange, presetFile 
               color: mapped.color,
               description: mapped.description,
               parent: "",
+              order: groupOrder,
             });
             groupIdByOctoId[mapped.octo_id] = created.id;
             groupsCreated++;
           }
+          groupOrder++;
         }
         // Second pass: resolve parent_tag_id → local parent id.
         setProgress("Resolving group nesting…");

@@ -12,6 +12,7 @@ import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
+import { byGroupOrder } from "@/lib/groupTreeUtils";
 import { useTerms } from "@/lib/useTerms";
 import useLongPress from "@/hooks/useLongPress";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -202,7 +203,7 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
     }
     return g.parent && (g.parent === currentGroupKey || g.parent === currentGroup?.sp_id);
   }).
-  sort((a, b) => (a.order || 0) - (b.order || 0));
+  sort(byGroupOrder);
 
   // Are there any subsystems at root that the toggle could reveal?
   const rootSubsystemCount = allGroups.filter((g) => (!g.parent || g.parent === "" || g.parent === "root") && g.owner_alter_id).length;

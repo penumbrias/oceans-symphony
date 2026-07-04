@@ -177,8 +177,34 @@ export function ampersandToSystemDumps(parsed) {
 
   const dumps = targets.map(() => ({
     Alter: {}, FrontingSession: {}, JournalEntry: {}, Bulletin: {}, BulletinComment: {},
-    CustomField: {}, SystemSettings: {},
+    CustomField: {}, SystemSettings: {}, Group: {},
   }));
+
+  // Ampersand "tags" are its member-grouping concept (its folders). They used
+  // to import only as flat tag strings on each alter — no Group records — so
+  // a system's whole folder structure silently vanished ("my groups didn't
+  // all import"). Create a real Group per tag in every system that has a
+  // member carrying it, keyed by the tag's uuid (each system dump is its own
+  // isolated database, so reusing the uuid across dumps is safe). `order`
+  // follows the archive's tag sequence so the Groups page mirrors Ampersand.
+  const tagRec = {};
+  tags.forEach((t, i) => { if (t && t.uuid) tagRec[t.uuid] = { ...t, _order: i }; });
+  const ensureGroup = (dump, tagUuid) => {
+    const t = tagRec[tagUuid];
+    if (!t) return null;
+    if (!dump.Group[tagUuid]) {
+      dump.Group[tagUuid] = {
+        id: tagUuid,
+        name: t.name || 'Unnamed Group',
+        color: normColor(t.color),
+        description: '',
+        parent: '',
+        order: t._order,
+        created_date: nowIso(),
+      };
+    }
+    return dump.Group[tagUuid];
+  };
 
   // Members → Alters.
   members.forEach((m) => {
@@ -189,6 +215,13 @@ export function ampersandToSystemDumps(parsed) {
     const avatar = fileToDataUrl(m.image);
     const banner = fileToDataUrl(m.cover);
     if (banner) custom._header_image = banner;
+    // Tag uuids → Group membership refs ({id, name, color}) + the flat tag
+    // strings kept as before (they're searchable and harmless).
+    const memberTagUuids = Array.isArray(m.tags) ? m.tags.filter((u) => tagRec[u]) : [];
+    const groupRefs = memberTagUuids.map((u) => {
+      const g = ensureGroup(dump, u);
+      return g ? { id: g.id, name: g.name, color: g.color } : null;
+    }).filter(Boolean);
     dump.Alter[id] = {
       id,
       name: m.name || 'Unknown',
@@ -200,6 +233,7 @@ export function ampersandToSystemDumps(parsed) {
       avatar_url: avatar || '',
       ...(banner ? { banner_url: banner } : {}),
       tags: Array.isArray(m.tags) ? m.tags.map((u) => tagName[u] || u).filter(Boolean) : [],
+      ...(groupRefs.length ? { groups: groupRefs } : {}),
       custom_fields: custom,
       is_archived: !!m.isArchived,
       is_pinned: !!m.isPinned,

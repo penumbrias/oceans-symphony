@@ -1,4 +1,5 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useMemo } from "react";
+import useFormDraft from "@/hooks/useFormDraft";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -93,6 +94,37 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   // detection, which is correct: inserting formatting shouldn't pop the
   // mention/signpost menus.
   const insertHtml = useTextareaInsert(textareaRef, content, setContent);
+
+  // ── Draft autosave — a half-written post (incl. poll fields + whisper
+  // recipients) survives navigating away and comes back on the next visit.
+  const draftSnapshot = useMemo(() => ({
+    content,
+    pinned,
+    showPoll,
+    pollQuestion,
+    pollOptions,
+    whisperOn,
+    whisperTo: [...whisperTo],
+    removedAuthorIds: [...removedAuthorIds],
+  }), [content, pinned, showPoll, pollQuestion, pollOptions, whisperOn, whisperTo, removedAuthorIds]);
+  const { clearDraft } = useFormDraft("symphony_draft_bulletin_new_v1", draftSnapshot, {
+    // Don't draft when composing started from a prefilled template/share.
+    active: !initialContent,
+    isEmpty: (s) =>
+      !(s.content || "").replace(/<[^>]*>/g, "").trim() &&
+      !s.pollQuestion?.trim() &&
+      !(s.pollOptions || []).some((o) => o?.trim()),
+    onRestore: (d) => {
+      if (typeof d.content === "string") setContent(d.content);
+      if (typeof d.pinned === "boolean") setPinned(d.pinned);
+      if (typeof d.showPoll === "boolean") setShowPoll(d.showPoll);
+      if (typeof d.pollQuestion === "string") setPollQuestion(d.pollQuestion);
+      if (Array.isArray(d.pollOptions) && d.pollOptions.length) setPollOptions(d.pollOptions);
+      if (typeof d.whisperOn === "boolean") setWhisperOn(d.whisperOn);
+      if (Array.isArray(d.whisperTo)) setWhisperTo(new Set(d.whisperTo));
+      if (Array.isArray(d.removedAuthorIds)) setRemovedAuthorIds(new Set(d.removedAuthorIds));
+    },
+  });
 
   const handleComposerImage = async (e) => {
     const file = e.target.files?.[0];
@@ -374,6 +406,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       });
     }
     toast.success("Bulletin posted!");
+    clearDraft(); // posted — never "restore" it again
     setSaving(false);
     onClose?.();
   };

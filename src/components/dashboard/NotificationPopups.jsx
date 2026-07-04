@@ -40,6 +40,7 @@ export default function NotificationPopups({ mentionLogs = [], alters = [], fron
       role="status"
       aria-live="polite"
       aria-atomic="false"
+      data-overlay-notification
       className="fixed right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
       style={{ top: "calc(env(safe-area-inset-top, 0px) + 16px)" }}
     >

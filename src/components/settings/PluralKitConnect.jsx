@@ -155,12 +155,67 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
         getMembers(settings.pk_token),
         getGroups(settings.pk_token),
       ]);
-      // Build memberId → [{id, name, color}] map from the groups payload.
+
+      // PK groups → REAL local Group records. Previously the groups payload
+      // only annotated alter.groups[] with PK ids that matched no local Group,
+      // so imported groups were invisible on the Groups page and members
+      // looked ungrouped ("my groups didn't import"). Dedup by pk_group_id,
+      // then by name — an SP-imported group with the same name is the same
+      // group; backfill pk_group_id on it so future imports are exact.
+      // `order` follows PK's list order (order-less groups otherwise render
+      // newest-first, i.e. reversed).
+      setProgress("Importing groups…");
+      const existingGroupRows = await localEntities.Group.list();
+      const groupByPkId = {};
+      const groupByNameKey = {};
+      for (const g of existingGroupRows) {
+        if (g.pk_group_id) groupByPkId[g.pk_group_id] = g;
+        const key = (g.name || "").trim().toLowerCase();
+        if (key && !groupByNameKey[key]) groupByNameKey[key] = g;
+      }
+      const consumedGroupMatchIds = new Set();
+      const localGroupIdByPkId = {};
+      let groupOrder = existingGroupRows.length;
+      for (const g of groups || []) {
+        if (!g?.id) continue;
+        const color = g.color ? `#${g.color}` : "";
+        const nameKey = (g.name || "").trim().toLowerCase();
+        let match = groupByPkId[g.id] || null;
+        if (!match && nameKey) {
+          const byNm = groupByNameKey[nameKey];
+          if (byNm && !consumedGroupMatchIds.has(byNm.id)) match = byNm;
+        }
+        if (match) {
+          consumedGroupMatchIds.add(match.id);
+          await localEntities.Group.update(match.id, {
+            pk_group_id: g.id,
+            name: g.name || match.name,
+            ...(color ? { color } : {}),
+            ...(g.description ? { description: g.description } : {}),
+            ...(match.order == null ? { order: groupOrder } : {}),
+          });
+          localGroupIdByPkId[g.id] = match.id;
+        } else {
+          const createdGroup = await localEntities.Group.create({
+            pk_group_id: g.id,
+            name: g.name || "Unnamed Group",
+            color,
+            description: g.description || "",
+            parent: "",
+            order: groupOrder,
+          });
+          localGroupIdByPkId[g.id] = createdGroup.id;
+        }
+        groupOrder++;
+      }
+
+      // Build memberId → [{id, name, color}] from the groups payload, with
+      // `id` remapped to the LOCAL Group id so membership actually resolves.
       const groupsByMemberId = {};
       for (const g of groups || []) {
         for (const mid of g.members || []) {
           if (!groupsByMemberId[mid]) groupsByMemberId[mid] = [];
-          groupsByMemberId[mid].push({ id: g.id, name: g.name, color: g.color ? `#${g.color}` : "" });
+          groupsByMemberId[mid].push({ id: localGroupIdByPkId[g.id] || g.id, name: g.name, color: g.color ? `#${g.color}` : "" });
         }
       }
 

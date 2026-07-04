@@ -5,12 +5,9 @@ import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { motion } from "framer-motion";
-import { subDays, startOfDay, endOfDay } from "date-fns";
-import { BarChart2, Hash, Clock, TrendingUp, TrendingDown, Timer, ChevronLeft, Star, Users, AlertTriangle } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { subDays } from "date-fns";
+import { BarChart2 } from "lucide-react";
 import DateRangePicker from "@/components/analytics/DateRangePicker";
-import AlterStatRow from "@/components/analytics/AlterStatRow";
-import ActivityHeatmap from "@/components/analytics/ActivityHeatmap";
 import TimeOfDayFronters from "@/components/analytics/TimeOfDayFronters";
 import DiaryAnalytics from "@/components/diary/DiaryAnalytics";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
@@ -18,37 +15,31 @@ import ActivityFrequencyChart from "@/components/analytics/ActivityFrequencyChar
 import AlterActivityMatrix from "@/components/analytics/AlterActivityMatrix";
 import ActivityTrendsChart from "@/components/analytics/ActivityTrendsChart";
 import ActivityTimeOfDayChart from "@/components/analytics/ActivityTimeOfDayChart";
-import AlterFrontingTimeline from "@/components/analytics/AlterFrontingTimeline";
 import ActivitySummaryCards from "@/components/analytics/ActivitySummaryCards";
 import AlterActivityDeepDive from "@/components/analytics/AlterActivityDeepDive";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import SleepAnalytics from "@/components/analytics/SleepAnalytics";
 import JournalAnalytics from "@/components/analytics/JournalAnalytics";
 import AuthorshipAnalytics from "@/components/analytics/AuthorshipAnalytics";
-import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import SwitchLogAnalytics from "@/components/analytics/SwitchLogAnalytics";
 import CheckInAnalytics from "@/components/analytics/CheckInAnalytics";
 import PatternInsights from "@/components/analytics/PatternInsights";
 import LocationAnalytics from "@/components/analytics/LocationAnalytics";
 import InsightsHub from "@/components/analytics/InsightsHub";
 import StaleSessionsModal from "@/components/analytics/StaleSessionsModal";
+import OverviewTab from "@/components/analytics/OverviewTab";
+import FrontingTab from "@/components/analytics/FrontingTab";
+import WellbeingTab from "@/components/analytics/WellbeingTab";
+import LifeTab from "@/components/analytics/LifeTab";
+import AltersTab from "@/components/analytics/AltersTab";
+import { useSearchParams } from "react-router-dom";
 import {
   normalizeSessions,
   sessionsInRange,
   sliceByOverlap,
   staleOpenSessions,
 } from "@/lib/sessionNormalizer";
-
-const MODES = [
-  { id: "total",      label: "Total",    icon: Clock },
-  { id: "solo",       label: "Solo",     icon: Clock },
-  { id: "primary",    label: "Primary",  icon: Star },
-  { id: "cofronting", label: "Co-front", icon: Users },
-  { id: "average",    label: "Average",  icon: Timer },
-  { id: "max",        label: "Max",      icon: TrendingUp },
-  { id: "min",        label: "Min",      icon: TrendingDown },
-  { id: "count",      label: "Count",    icon: Hash },
-];
+import { startOfDay, endOfDay } from "date-fns";
 
 // Per-alter totals computed via a sweep-line over normalised
 // sessions (see /src/lib/sessionNormalizer.js). Single pass, no
@@ -57,21 +48,6 @@ const MODES = [
 // counted in full (their duration is the user's data to interpret,
 // not ours to silently truncate) but get flagged via `stale` so the
 // Analytics banner can prompt the user to review them.
-//
-// For every alter:
-//   total       = solo + cofronting (effective active time inside
-//                 the window)
-//   solo        = time the alter was the only one active
-//   cofronting  = time at least one other alter was also active
-//   primary     = subset of total where this alter was the primary
-//                 (`is_primary` on their per-alter row, OR equal to
-//                 the legacy `primary_alter_id`). Computed by
-//                 walking individual sessions; legacy group rows
-//                 attribute every alter's time to the legacy
-//                 primary so the number still rolls up cleanly.
-//   count       = distinct underlying session ids
-//   sessions    = durations of those underlying sessions (for the
-//                 average-session-length card)
 function computeStats(sessions, alters, from, to) {
   const fromMs = startOfDay(from).getTime();
   const toMs = endOfDay(to).getTime();
@@ -84,10 +60,6 @@ function computeStats(sessions, alters, from, to) {
     alterMap[alter.id] = { alter, total: 0, primary: 0, cofronting: 0, solo: 0, sessions: [], count: 0 };
   }
 
-  // 1) Solo / co-fronting / total time via a sweep-line slice.
-  //    Each slice has a stable set of active alters; if |set|==1
-  //    that's pure solo time, otherwise it's co-fronting for
-  //    every alter in the slice.
   const slices = sliceByOverlap(filtered, fromMs, toMs, now);
   for (const slice of slices) {
     const dur = slice.endMs - slice.startMs;
@@ -103,11 +75,6 @@ function computeStats(sessions, alters, from, to) {
     }
   }
 
-  // 2) Per-alter session lengths (for "average session" stat) +
-  //    distinct session counts + primary time. We iterate over
-  //    the normalised sessions once and contribute the in-range
-  //    portion only — same clamping logic as the slice pass,
-  //    just attributed to each alter individually.
   for (const s of filtered) {
     const start = Math.max(s.startMs, fromMs);
     const end = s.endMs != null
@@ -124,65 +91,34 @@ function computeStats(sessions, alters, from, to) {
     }
   }
 
-  // Surface stale-open sessions so callers can hint the user.
   const stale = staleOpenSessions(filtered);
-
-  // Re-expose the raw session rows for the in-range sessions so
-  // downstream consumers (TimeOfDayFronters, the folded-session
-  // absorption remap, etc.) keep working without needing to know
-  // about the normalised shape.
   const filteredRaw = filtered.map((s) => s.raw);
 
   return { alterMap, filtered: filteredRaw, normalised: filtered, slices, stale };
 }
 
-// Landing page section cards
-function SectionGrid({ terms, onSelect }) {
-  const sections = [
-    { id: "alters", emoji: "🧑‍🤝‍🧑", label: `${terms.Alters}`, desc: `${terms.Fronting} time and patterns` },
-    { id: "activities", emoji: "⚡", label: "Activities", desc: "What you've been doing" },
-    { id: "emotions", emoji: "💜", label: "Emotions", desc: "Mood and check-in trends" },
-    { id: "symptoms", emoji: "💊", label: "Symptoms", desc: "Symptom and habit tracking" },
-    { id: "diary", emoji: "📔", label: "Check-In Log", desc: "Check-in summaries" },
-    { id: "sleep", emoji: "😴", label: "Sleep", desc: "Sleep patterns" },
-    { id: "journals", emoji: "📖", label: "Journals", desc: "Writing activity" },
-    { id: "authorship", emoji: "✍️", label: "Authorship", desc: `What each ${terms.alter} has written` },
-    { id: "cofronting", emoji: "🔀", label: terms.Cofronting, desc: `Who ${terms.fronts} together` },
-    { id: "switchlogs", emoji: "🔄", label: `${terms.Switch} Logs`, desc: "Triggers, symptoms, and patterns" },
-    { id: "checkins", emoji: "✅", label: `${terms.System} Meetings`, desc: "Frequency and member insights" },
-    { id: "insights", emoji: "✨", label: "Insights", desc: `Plans, goals, check-ins, sleep, mood↔activity rollups` },
-    { id: "patterns", emoji: "🔍", label: "Patterns & Insights", desc: `Cross-${terms.system} correlations and trends` },
-    { id: "locations", emoji: "📍", label: "Locations", desc: "Where you go and patterns by place" },
-  ];
-
-  return (
-    <div className="grid grid-cols-2 gap-3">
-      {sections.map((s) => (
-        <button
-          key={s.id}
-          onClick={() => onSelect(s.id)}
-          className="bg-card border border-border/50 rounded-xl p-4 text-left hover:bg-muted/30 hover:border-primary/40 hover:shadow-sm transition-all active:scale-[0.98] space-y-1.5 group"
-        >
-          <span className="text-2xl group-hover:scale-110 transition-transform inline-block">{s.emoji}</span>
-          <p className="font-semibold text-sm text-foreground leading-tight">{s.label}</p>
-          <p className="text-xs text-muted-foreground leading-snug">{s.desc}</p>
-        </button>
-      ))}
-    </div>
-  );
-}
-
 export default function Analytics() {
   const terms = useTerms();
-  const [activeSection, setActiveSection] = useState(null);
+
+  // ── New IA: four tabs replace the old 14-tile landing grid.
+  //    Overview is the rebuilt engine-driven view; the other tabs
+  //    temporarily house the existing section components (grouped by
+  //    domain) until their phase of the rebuild replaces them — see the
+  //    analytics-rebuild plan. Old section ids are preserved so nothing
+  //    is lost in the cutover.
+  // Deep-linkable: /analytics?tab=alters&alter=<id> (used by alter profiles).
+  const [searchParams] = useSearchParams();
+  const VALID_TABS = ["overview", "fronting", "wellbeing", "life", "alters"];
+  const [activeTab, setActiveTab] = useState(() => {
+    const t = searchParams.get("tab");
+    return VALID_TABS.includes(t) ? t : "overview";
+  });
+  const [selectedAlterId, setSelectedAlterId] = useState(() => searchParams.get("alter") || null);
+
   const [preset, setPreset] = useState("30d");
   const [from, setFrom] = useState(subDays(new Date(), 30));
   const [to, setTo] = useState(new Date());
-  const [mode, setMode] = useState("total");
-  const [showArchived, setShowArchived] = useState(false);
   const [staleModalOpen, setStaleModalOpen] = useState(false);
-  const [topTab, setTopTab] = useState("stats");
-  const [activitySubTab, setActivitySubTab] = useState("overview");
 
   const PRESETS = [
     { id: "7d",   label: "7d",       from: () => subDays(new Date(), 7) },
@@ -198,13 +134,6 @@ export default function Analytics() {
     const p = PRESETS.find(x => x.id === id);
     if (p?.from) { setFrom(p.from()); setTo(new Date()); }
   };
-
-  const ACTIVITY_SUB_TABS = [
-    { id: "overview", label: "Overview" },
-    { id: "trends", label: "Trends" },
-    { id: "alters", label: `${terms.Alter} × Activity` },
-    { id: "deep", label: "Deep Dive" },
-  ];
 
   const { data: allSessions = [], isLoading: sessionsLoading } = useQuery({
     queryKey: ["frontHistory"],
@@ -280,6 +209,34 @@ export default function Analytics() {
     queryKey: ["mentionLogs"],
     queryFn: () => base44.entities.MentionLog.list("-source_date", 3000),
   });
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["tasks"],
+    queryFn: () => base44.entities.Task.list(),
+  });
+  const { data: statusNotes = [] } = useQuery({
+    queryKey: ["statusNotes"],
+    queryFn: () => localEntities.StatusNote.list("-timestamp", 500),
+  });
+  const { data: contactEncounters = [] } = useQuery({
+    queryKey: ["contactEncounters"],
+    queryFn: () => base44.entities.ContactEncounter.list("-start_time", 1000),
+  });
+  const { data: goals = [] } = useQuery({
+    queryKey: ["activityGoals"],
+    queryFn: () => base44.entities.ActivityGoal.list(),
+  });
+  const { data: locations = [] } = useQuery({
+    queryKey: ["locations"],
+    queryFn: () => localEntities.Location.list("-timestamp", 2000),
+  });
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => base44.entities.Contact.list(),
+  });
+  const { data: chatMessages = [] } = useQuery({
+    queryKey: ["systemChatMessages"],
+    queryFn: () => localEntities.SystemChatMessage.list("-timestamp", 3000),
+  });
 
   const { data: systemChangeEvents = [] } = useQuery({
     queryKey: ["systemChangeEvents"],
@@ -300,33 +257,10 @@ export default function Analytics() {
   // fronting here. Inferred-from-authorship presence is applied where it
   // belongs: attributing activities / emotions / symptoms to alters (see
   // AlterActivityMatrix, EmotionAnalytics, SymptomAnalytics).
-  const { alterMap: rawAlterMap, filtered, stale } = useMemo(
+  const { filtered, stale } = useMemo(
     () => computeStats(sessions, alters, from, to),
     [sessions, alters, from, to]
   );
-
-  // Fold absorbed alters' stats into their persistent alter so analytics
-  // reflects total front history including pre-fusion sessions
-  const alterMap = useMemo(() => {
-    if (!Object.keys(absorptionMap).length) return rawAlterMap;
-    const result = {};
-    Object.entries(rawAlterMap).forEach(([id, d]) => {
-      result[id] = { ...d, sessions: [...d.sessions] };
-    });
-    Object.entries(absorptionMap).forEach(([absorbedId, persistentId]) => {
-      const src = result[absorbedId];
-      const dst = result[persistentId];
-      if (!src || !dst) return;
-      dst.total += src.total;
-      dst.primary += src.primary;
-      dst.cofronting += src.cofronting;
-      dst.solo += src.solo || 0;
-      dst.sessions = [...dst.sessions, ...src.sessions];
-      dst.count += src.count;
-      delete result[absorbedId];
-    });
-    return result;
-  }, [rawAlterMap, absorptionMap]);
 
   // Remap absorbed alter IDs in sessions so TimeOfDayFronters attributes
   // pre-fusion sessions to the persistent alter, not the absorbed one
@@ -341,26 +275,6 @@ export default function Analytics() {
     });
   }, [filtered, absorptionMap]);
 
-  const rows = useMemo(() => {
-    return Object.values(alterMap)
-      .filter((d) => d.count > 0 && (showArchived || !d.alter.is_archived))
-      .map((d) => {
-        let stat = 0;
-        if (mode === "total")           stat = d.total;
-        else if (mode === "solo")       stat = d.solo;
-        else if (mode === "primary")    stat = d.primary;
-        else if (mode === "cofronting") stat = d.cofronting;
-        else if (mode === "average")    stat = d.sessions.length ? d.total / d.sessions.length : 0;
-        else if (mode === "max")        stat = d.sessions.length ? Math.max(...d.sessions) : 0;
-        else if (mode === "min")        stat = d.sessions.length ? Math.min(...d.sessions) : 0;
-        else if (mode === "count")      stat = d.count;
-        return { alter: d.alter, stat };
-      })
-      .sort((a, b) => b.stat - a.stat);
-  }, [alterMap, mode, showArchived]);
-
-  const maxStat = rows.length > 0 ? rows[0].stat : 1;
-
   if (sessionsLoading) {
     return (
       <div className="flex items-center justify-center py-32">
@@ -369,277 +283,192 @@ export default function Analytics() {
     );
   }
 
-  const SECTION_LABELS = {
-    alters: `${terms.Alters}`,
-    activities: "Activities",
-    emotions: "Emotions",
-    symptoms: "Symptoms",
-    diary: "Check-In Log",
-    sleep: "Sleep",
-    journals: "Journals",
-    authorship: "Authorship",
-    cofronting: terms.Cofronting,
-    switchlogs: `${terms.Switch} Logs`,
-    checkins: `${terms.System} Meetings`,
-    patterns: "Patterns & Insights",
-    locations: "Locations",
-  };
+  const TABS = [
+    { id: "overview", label: "Overview" },
+    { id: "fronting", label: terms.Fronting },
+    { id: "wellbeing", label: "Wellbeing" },
+    { id: "life", label: "Life" },
+    { id: "alters", label: terms.Alters },
+  ];
 
   return (
     <div data-tour="analytics-charts" className="space-y-5">
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}>
-        {activeSection ? (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8 flex-shrink-0" onClick={() => setActiveSection(null)}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <div>
-              <p className="text-xs text-muted-foreground">Analytics</p>
-              <h1 className="font-display text-xl font-semibold leading-tight">{SECTION_LABELS[activeSection]}</h1>
-            </div>
+        <div className="flex items-center gap-3">
+          <BarChart2 className="w-6 h-6 text-primary" />
+          <div>
+            <h1 className="font-display text-3xl font-semibold text-foreground">Analytics</h1>
+            <p className="text-muted-foreground text-sm">Track {terms.system} and wellness data over time</p>
           </div>
-        ) : (
-          <div className="flex items-center gap-3">
-            <BarChart2 className="w-6 h-6 text-primary" />
-            <div>
-              <h1 className="font-display text-3xl font-semibold text-foreground">Analytics</h1>
-              <p className="text-muted-foreground text-sm">Track {terms.system} and wellness data over time</p>
-            </div>
-          </div>
-        )}
+        </div>
       </motion.div>
 
-      {/* Global Date Range — preset chips + optional custom pickers */}
-      <div className="space-y-2">
-        <div className="flex gap-1.5 flex-wrap">
-          {PRESETS.map(p => (
-            <button
-              key={p.id}
-              onClick={() => applyPreset(p.id)}
-              className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
-                preset === p.id
-                  ? "bg-primary text-primary-foreground border-primary"
-                  : "bg-card text-muted-foreground border-border hover:border-primary/40"
-              }`}
-            >
-              {p.label}
-            </button>
-          ))}
-        </div>
-        {preset === "custom" && (
-          <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
-        )}
+      {/* Top-level tabs */}
+      <div className="flex gap-1.5 overflow-x-auto no-scrollbar -mx-1 px-1">
+        {TABS.map((t) => (
+          <button key={t.id} onClick={() => setActiveTab(t.id)}
+            className={`px-4 py-2 rounded-xl text-sm font-semibold border flex-shrink-0 transition-all ${
+              activeTab === t.id
+                ? "bg-primary text-primary-foreground border-transparent shadow-sm"
+                : "bg-card border-border/60 text-muted-foreground hover:text-foreground hover:border-primary/40"
+            }`}>
+            {t.label}
+          </button>
+        ))}
       </div>
 
-      {/* Landing grid */}
-      {!activeSection && <SectionGrid terms={terms} onSelect={setActiveSection} />}
-
-      {/* ── MEMBERS ── */}
-      {activeSection === "alters" && (
-        <div className="space-y-4">
-          {/* Sub-tab pills */}
-          <div className="flex gap-2">
-            {[{ id: "stats", label: "Stats" }, { id: "timeofday", label: "Time of Day" }].map((t) => (
-              <button key={t.id} onClick={() => setTopTab(t.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border transition-all ${
-                  topTab === t.id
-                    ? "bg-primary text-primary-foreground border-transparent"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}>
-                {t.label}
+      {/* Global Date Range — drives the domain tabs. Overview intentionally
+          runs on its own fixed "this week vs your usual" window instead. */}
+      {activeTab !== "overview" && (
+        <div className="space-y-2">
+          <div className="flex gap-1.5 flex-wrap">
+            {PRESETS.map(p => (
+              <button
+                key={p.id}
+                onClick={() => applyPreset(p.id)}
+                className={`px-3 py-1 rounded-full text-xs font-medium border transition-all ${
+                  preset === p.id
+                    ? "bg-primary text-primary-foreground border-primary"
+                    : "bg-card text-muted-foreground border-border hover:border-primary/40"
+                }`}
+              >
+                {p.label}
               </button>
             ))}
           </div>
-
-          {topTab === "stats" && (
-            <>
-              {stale && stale.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setStaleModalOpen(true)}
-                  className="w-full text-left mb-3 flex items-start gap-2 p-3 rounded-xl border border-amber-500/30 bg-amber-500/5 text-xs hover:bg-amber-500/10 transition-colors"
-                >
-                  <AlertTriangle className="w-3.5 h-3.5 flex-shrink-0 mt-0.5 text-amber-600 dark:text-amber-400" />
-                  <p className="text-foreground/90 flex-1">
-                    {stale.length} {`${terms.fronting} session${stale.length === 1 ? " has" : "s have"}`} been open for over 48 hours. Their full duration is counted in these stats — review and confirm or close any that aren't actually still active. <span className="font-medium text-primary">Tap to review →</span>
-                  </p>
-                </button>
-              )}
-              <div className="mb-4">
-                <ActivityHeatmap sessions={filtered} from={from} to={to} />
-              </div>
-
-              {/* Mode pills + archived toggle */}
-              <div className="flex items-center gap-2 justify-between flex-wrap">
-                <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-                  {MODES.map((m) => {
-                    const Icon = m.icon;
-                    return (
-                      <button key={m.id} onClick={() => setMode(m.id)}
-                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                          mode === m.id
-                            ? "bg-primary text-primary-foreground border-transparent"
-                            : "border-border text-muted-foreground hover:text-foreground"
-                        }`}>
-                        <Icon className="w-3.5 h-3.5" />
-                        {m.label}
-                      </button>
-                    );
-                  })}
-                </div>
-                <button
-                  onClick={() => setShowArchived(v => !v)}
-                  className={`flex-shrink-0 px-3 py-1.5 rounded-full text-xs font-medium border transition-all ${
-                    showArchived
-                      ? "bg-muted text-foreground border-border"
-                      : "border-border text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {showArchived ? "Hide archived" : "Show archived"}
-                </button>
-              </div>
-
-              {rows.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 text-center">
-                  <BarChart2 className="w-10 h-10 text-muted-foreground/30 mb-3" />
-                  <p className="text-muted-foreground text-sm">No {terms.fronting} data in this date range.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {rows.map(({ alter, stat }) => {
-                    const d = alterMap[alter.id];
-                    return (
-                      <motion.div key={alter.id} initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }}>
-                        <AlterStatRow
-                          alter={alter} stat={stat} mode={mode} maxStat={maxStat}
-                          primaryMs={d?.primary || 0}
-                          cofrontingMs={d?.cofronting || 0}
-                          totalMs={d?.total || 0}
-                        />
-                      </motion.div>
-                    );
-                  })}
-                </div>
-              )}
-
-              <div className="mt-4">
-                <AlterFrontingTimeline sessions={filtered} alters={alters} from={from} to={to} />
-              </div>
-            </>
-          )}
-
-          {topTab === "timeofday" && (
-            <TimeOfDayFronters sessions={foldedSessions} alters={showArchived ? alters : alters.filter(a => !a.is_archived)} />
+          {preset === "custom" && (
+            <DateRangePicker from={from} to={to} onChange={(f, t) => { setFrom(f); setTo(t); }} />
           )}
         </div>
       )}
 
-      {/* ── ACTIVITIES ── */}
-      {activeSection === "activities" && (
-        <div className="space-y-4">
-          {/* Sub-tab pill row — horizontal scroll */}
-          <div className="flex gap-2 overflow-x-auto pb-1 no-scrollbar">
-            {ACTIVITY_SUB_TABS.map((t) => (
-              <button key={t.id} onClick={() => setActivitySubTab(t.id)}
-                className={`px-4 py-1.5 rounded-full text-sm font-medium border flex-shrink-0 transition-all ${
-                  activitySubTab === t.id
-                    ? "bg-primary text-primary-foreground border-transparent"
-                    : "border-border text-muted-foreground hover:text-foreground"
-                }`}>
-                {t.label}
-              </button>
-            ))}
-          </div>
-
-          {activitySubTab === "overview" && (
-            <div className="space-y-6">
-              <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
-              <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
-              <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
-            </div>
-          )}
-          {activitySubTab === "trends" && (
-            <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
-          )}
-          {activitySubTab === "alters" && (
-            <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
-          )}
-          {activitySubTab === "deep" && (
-            <AlterActivityDeepDive
-              activities={activities} categories={activityCategories} alters={alters}
-              emotionCheckIns={emotionCheckIns} checkIns={systemCheckIns} from={from} to={to}
-            />
-          )}
-        </div>
-      )}
-
-      {/* ── DIARY ── */}
-      {activeSection === "diary" && (
-        <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} />
-      )}
-
-      {/* ── EMOTIONS ── */}
-      {activeSection === "emotions" && (
-        <EmotionAnalytics from={from} to={to} />
-      )}
-
-      {/* ── SYMPTOMS ── */}
-      {activeSection === "symptoms" && (
-        <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} />
-      )}
-
-      {/* ── SLEEP ── */}
-      {activeSection === "sleep" && (
-        <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} />
-      )}
-
-      {/* ── JOURNALS ── */}
-      {activeSection === "journals" && (
-        <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} />
-      )}
-
-      {/* ── AUTHORSHIP ── */}
-      {activeSection === "authorship" && (
-        <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} />
-      )}
-
-      {/* ── CO-FRONTING ── */}
-      {activeSection === "cofronting" && (
-        <CoFrontingAnalytics sessions={sessions} alters={alters} altersById={altersById} from={from} to={to} />
-      )}
-
-      {/* ── SWITCH LOGS ── */}
-      {activeSection === "switchlogs" && (
-        <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
-      )}
-
-      {/* ── CHECK-INS ── */}
-      {activeSection === "checkins" && (
-        <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} />
-      )}
-
-      {/* ── LOCATIONS ── */}
-      {activeSection === "locations" && (
-        <LocationAnalytics from={from} to={to} />
-      )}
-
-      {/* ── INSIGHTS ── */}
-      {activeSection === "insights" && (
-        <InsightsHub from={from} to={to} />
-      )}
-
-      {/* ── PATTERNS & INSIGHTS ── */}
-      {activeSection === "patterns" && (
-        <PatternInsights
+      {/* ── OVERVIEW ── */}
+      {activeTab === "overview" && (
+        <OverviewTab
           sessions={sessions}
           alters={alters}
           altersById={altersById}
-          symptomCheckIns={symptomCheckIns}
-          symptoms={symptoms}
           emotionCheckIns={emotionCheckIns}
+          symptomCheckIns={symptomCheckIns}
+          activities={activities}
+          sleepRecords={sleepRecords}
+          journals={journals}
+          diaryCards={cards}
+          bulletins={bulletins}
+          systemCheckIns={systemCheckIns}
+          tasks={tasks}
+          statusNotes={statusNotes}
+          onNavigateTab={setActiveTab}
+        />
+      )}
+
+      {/* ── FRONTING (rebuilt, Phase 2) ── */}
+      {activeTab === "fronting" && (
+        <FrontingTab
+          sessions={sessions}
+          alters={alters}
+          altersById={altersById}
           from={from}
           to={to}
+          stale={stale}
+          onReviewStale={() => setStaleModalOpen(true)}
+          timeOfDayNode={
+            <TimeOfDayFronters sessions={foldedSessions} alters={alters.filter(a => !a.is_archived)} />
+          }
+          switchLogNode={
+            <SwitchLogAnalytics journals={journals} sessions={sessions} from={from} to={to} />
+          }
+        />
+      )}
+
+      {/* ── WELLBEING (rebuilt, Phase 3) ── */}
+      {activeTab === "wellbeing" && (
+        <WellbeingTab
+          sessions={sessions}
+          emotionCheckIns={emotionCheckIns}
+          symptomCheckIns={symptomCheckIns}
+          symptoms={symptoms}
+          sleepRecords={sleepRecords}
+          activities={activities}
+          activityCategories={activityCategories}
+          contactEncounters={contactEncounters}
+          systemChangeEvents={systemChangeEvents}
+          from={from}
+          to={to}
+          legacySections={[
+            { title: "Emotions", node: <EmotionAnalytics from={from} to={to} /> },
+            { title: "Symptoms", node: <SymptomAnalytics startDate={from} endDate={to} symptomSessions={symptomSessions} symptomCheckIns={symptomCheckIns} symptoms={symptoms} /> },
+            { title: "Check-In Log", node: <DiaryAnalytics cards={cards} altersById={altersById} from={from} to={to} /> },
+            { title: "Sleep", node: <SleepAnalytics sleepRecords={sleepRecords} from={from} to={to} /> },
+            { title: `${terms.System} Meetings`, node: <CheckInAnalytics checkIns={systemCheckIns} alters={alters} from={from} to={to} /> },
+            { title: "Patterns (advanced)", node: (
+              <PatternInsights
+                sessions={sessions}
+                alters={alters}
+                altersById={altersById}
+                symptomCheckIns={symptomCheckIns}
+                symptoms={symptoms}
+                emotionCheckIns={emotionCheckIns}
+                from={from}
+                to={to}
+              />
+            ) },
+          ]}
+        />
+      )}
+
+      {/* ── LIFE (rebuilt, Phase 4) ── */}
+      {activeTab === "life" && (
+        <LifeTab
+          activities={activities}
+          activityCategories={activityCategories}
+          goals={goals}
+          tasks={tasks}
+          locations={locations}
+          contacts={contacts}
+          contactEncounters={contactEncounters}
+          from={from}
+          to={to}
+          legacySections={[
+            { title: "Activity charts (classic)", node: (
+              <div className="space-y-6">
+                <ActivitySummaryCards activities={activities} categories={activityCategories} from={from} to={to} />
+                <ActivityFrequencyChart activities={activities} categories={activityCategories} from={from} to={to} />
+                <ActivityTimeOfDayChart activities={activities} categories={activityCategories} from={from} to={to} />
+                <ActivityTrendsChart activities={activities} categories={activityCategories} from={from} to={to} />
+                <AlterActivityMatrix activities={activities} categories={activityCategories} alters={alters} from={from} to={to} />
+                <AlterActivityDeepDive
+                  activities={activities} categories={activityCategories} alters={alters}
+                  emotionCheckIns={emotionCheckIns} checkIns={systemCheckIns} from={from} to={to}
+                />
+              </div>
+            ) },
+            { title: "Journals", node: <JournalAnalytics journals={journals} bulletins={bulletins} alters={alters} from={from} to={to} /> },
+            { title: "Authorship", node: <AuthorshipAnalytics mentionLogs={mentionLogs} journals={journals} alters={alters} from={from} to={to} /> },
+            { title: "Locations (map & details)", node: <LocationAnalytics from={from} to={to} /> },
+            { title: "Rollups (classic)", node: <InsightsHub from={from} to={to} /> },
+          ]}
+        />
+      )}
+
+      {/* ── ALTERS (fingerprints, Phase 4) ── */}
+      {activeTab === "alters" && (
+        <AltersTab
+          alters={alters}
+          altersById={altersById}
+          sessions={sessions}
+          emotionCheckIns={emotionCheckIns}
+          symptomCheckIns={symptomCheckIns}
+          symptoms={symptoms}
+          journals={journals}
+          bulletins={bulletins}
+          chatMessages={chatMessages}
+          activities={activities}
+          from={from}
+          to={to}
+          selectedAlterId={selectedAlterId}
+          onSelectAlter={setSelectedAlterId}
         />
       )}
 

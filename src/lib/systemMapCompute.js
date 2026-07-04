@@ -61,22 +61,40 @@ export function computeCofrontingTimeAll(frontingSessions, absorptionMap) {
     if (!map[idA][idB]) map[idA][idB] = { total: 0, primary: 0, cofronting: 0 };
   };
   const slices = sliceByOverlap(normalised, fromMs, toMs, now);
-  const rowSpans = normalised.map((s) => {
-    const start = Math.max(s.startMs, fromMs);
-    const end = s.endMs != null
-      ? Math.min(s.endMs, toMs)
-      : Math.min(now, toMs);
-    return { s, start, end };
-  });
+  // Primary-per-slice via a chronological sweep instead of re-scanning EVERY
+  // session for EVERY slice. The old inner scan was O(slices × sessions) —
+  // effectively sessions² on long histories, and the real reason the worker
+  // could run for minutes on large systems. Slices come out of sliceByOverlap
+  // in time order, so a start-sorted pointer + a small live set (pruned as
+  // spans expire — ends only ever fall behind advancing slice ends) does the
+  // same job in O(slices × concurrent-fronters).
+  const primarySpans = normalised
+    .filter((s) => s.primaryAlterId)
+    .map((s) => {
+      const start = Math.max(s.startMs, fromMs);
+      const end = s.endMs != null ? Math.min(s.endMs, toMs) : Math.min(now, toMs);
+      return { primaryAlterId: s.primaryAlterId, start, end };
+    })
+    .sort((a, b) => a.start - b.start);
+  let spanPtr = 0;
+  const liveSpans = [];
   for (const slice of slices) {
     const ids = [...slice.aliveAlterIds];
+    while (spanPtr < primarySpans.length && primarySpans[spanPtr].start <= slice.startMs) {
+      liveSpans.push(primarySpans[spanPtr++]);
+    }
+    for (let k = liveSpans.length - 1; k >= 0; k--) {
+      if (liveSpans[k].end < slice.endMs) {
+        liveSpans[k] = liveSpans[liveSpans.length - 1];
+        liveSpans.pop();
+      }
+    }
     if (ids.length < 2) continue;
     const dur = slice.endMs - slice.startMs;
     const primarySet = new Set();
-    for (const { s, start, end } of rowSpans) {
-      if (!s.primaryAlterId) continue;
-      if (start <= slice.startMs && end >= slice.endMs && slice.aliveAlterIds.has(s.primaryAlterId)) {
-        primarySet.add(s.primaryAlterId);
+    for (const span of liveSpans) {
+      if (span.start <= slice.startMs && slice.aliveAlterIds.has(span.primaryAlterId)) {
+        primarySet.add(span.primaryAlterId);
       }
     }
     for (let i = 0; i < ids.length; i++) {

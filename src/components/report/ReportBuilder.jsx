@@ -183,7 +183,7 @@ const buildSectionDefs = (t) => [
   {
     id: "patterns",
     label: "Patterns & Narrative",
-    desc: "Auto-generated summary of patterns across all your data",
+    desc: "Clinician summary (switching, distress, sleep, symptoms — same math as Analytics) plus an auto-generated patterns narrative",
   },
   {
     id: "alterAppendix",

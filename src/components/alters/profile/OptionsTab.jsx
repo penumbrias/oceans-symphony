@@ -3,11 +3,15 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Switch } from "@/components/ui/switch";
-import { Trash2, AlertTriangle, Share2 } from "lucide-react";
+import { Trash2, AlertTriangle, Share2, BarChart2, GitMerge, Loader2 } from "lucide-react";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from "@/components/ui/alert-dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useTerms } from "@/lib/useTerms";
+import { toast } from "sonner";
 import AlterExportModal from "@/components/alters/AlterExportModal";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
+import { mergeAlterInto } from "@/lib/alterMerge";
 import { getPrivacyLevels, sortedLevels, selectablePillClass } from "@/lib/privacyLevels";
 import { Settings2 } from "lucide-react";
 
@@ -21,7 +25,11 @@ export default function OptionsTab({ alter }) {
   const [saving, setSaving] = useState(false);
   const [levelIds, setLevelIds] = useState(() => (Array.isArray(alter.privacy_levels) ? alter.privacy_levels : []));
   const [showLevelsManager, setShowLevelsManager] = useState(false);
+  const [showMerge, setShowMerge] = useState(false);
+  const [mergeTargetId, setMergeTargetId] = useState(null);
+  const [merging, setMerging] = useState(false);
 
+  const { data: allAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list(), enabled: showMerge });
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
 
@@ -55,6 +63,22 @@ export default function OptionsTab({ alter }) {
     await base44.entities.Alter.delete(alter.id);
     queryClient.invalidateQueries({ queryKey: ["alters"] });
     navigate("/Home");
+  };
+
+  const runMerge = async () => {
+    if (!mergeTargetId || merging) return;
+    setMerging(true);
+    try {
+      const { mergedName, intoName } = await mergeAlterInto(alter.id, mergeTargetId);
+      // A merge rewrites references across many entities — refresh everything.
+      queryClient.invalidateQueries();
+      toast.success(`${mergedName || "Profile"} merged into ${intoName || "the other profile"} — all history moved across.`);
+      navigate(`/alter/${mergeTargetId}`);
+    } catch (e) {
+      console.error("[alter merge] failed", e);
+      toast.error(e.message || "Merge failed — nothing was deleted.");
+      setMerging(false);
+    }
   };
 
   return (
@@ -136,6 +160,31 @@ export default function OptionsTab({ alter }) {
         </button>
       </div>
 
+      {/* Analytics fingerprint */}
+      <div>
+        <p className="text-xs font-medium text-primary uppercase tracking-wider mb-3">Analytics</p>
+        <button
+          onClick={() => navigate(`/analytics?tab=alters&alter=${alter.id}`)}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 transition-colors text-left">
+          <BarChart2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <span className="text-sm font-medium">View this {terms.alter}'s analytics</span>
+        </button>
+      </div>
+
+      {/* Merge duplicates */}
+      <div>
+        <p className="text-xs font-medium text-primary uppercase tracking-wider mb-3">Merge</p>
+        <button
+          onClick={() => { setMergeTargetId(null); setShowMerge(true); }}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl border border-border/50 bg-muted/10 hover:bg-muted/30 transition-colors text-left">
+          <GitMerge className="w-4 h-4 text-primary flex-shrink-0" />
+          <div className="min-w-0">
+            <span className="text-sm font-medium block">Merge into another {terms.alter}…</span>
+            <span className="text-xs text-muted-foreground">Got a duplicate from an import? Move everything onto the original.</span>
+          </div>
+        </button>
+      </div>
+
       {/* Danger zone */}
       <div>
         <p className="text-xs font-medium text-destructive uppercase tracking-wider mb-3 flex items-center gap-1.5">
@@ -172,6 +221,42 @@ export default function OptionsTab({ alter }) {
         presetAlterId={alter.id} />
 
       <PrivacyLevelsManager isOpen={showLevelsManager} onClose={() => setShowLevelsManager(false)} />
+
+      {/* Merge dialog */}
+      <Dialog open={showMerge} onOpenChange={(o) => { if (!o && !merging) setShowMerge(false); }}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><GitMerge className="w-4 h-4" /> Merge {alter.name} into…</DialogTitle>
+            <DialogDescription>
+              Everything belonging to <span className="font-medium">{alter.name}</span> — {terms.fronting} history, check-ins,
+              journals, notes, chat messages, relationships, group memberships — moves onto the {terms.alter} you pick.
+              Fields the other profile left empty are filled from this one; nothing is overwritten and no history is lost.
+              This profile is then removed. This can't be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <AlterSearchSelect
+              alters={allAlters.filter((a) => a.id !== alter.id)}
+              value={mergeTargetId}
+              onChange={setMergeTargetId}
+              terms={terms}
+              showNone={false}
+              placeholder={`Pick the ${terms.alter} to keep`}
+            />
+            <div className="flex gap-2">
+              <button type="button" disabled={merging} onClick={() => setShowMerge(false)}
+                className="flex-1 px-4 py-2 rounded-lg bg-muted text-muted-foreground hover:bg-muted/80 font-medium text-sm">
+                Cancel
+              </button>
+              <button type="button" disabled={!mergeTargetId || merging} onClick={runMerge}
+                className="flex-1 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 font-medium text-sm disabled:opacity-50 flex items-center justify-center gap-2">
+                {merging && <Loader2 className="w-4 h-4 animate-spin" />}
+                {merging ? "Merging…" : "Merge"}
+              </button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

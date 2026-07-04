@@ -15,7 +15,7 @@ import {
 import GroupMembersModal from "./GroupMembersModal";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { useTerms } from "@/lib/useTerms";
-import { MAX_GROUP_DEPTH } from "@/lib/groupTreeUtils";
+import { MAX_GROUP_DEPTH, byGroupOrder } from "@/lib/groupTreeUtils";
 
 export default function GroupTreeRow({
   group,
@@ -62,7 +62,7 @@ export default function GroupTreeRow({
           g.id !== group.id &&
           (g.parent === group.id || g.parent === group.sp_id)
         )
-        .sort((a, b) => (a.order || 0) - (b.order || 0));
+        .sort(byGroupOrder);
 
   const hasChildren = childGroups.length > 0;
   const isExpanded = expandedGroups.has(group.id);

@@ -5,8 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import {
   Loader2, CheckCircle2, FileJson, ArrowDownLeft, Clock, FileText,
   Users, Layers, ImageOff, Link2, Upload, UserCircle, MessageSquare,
+  UserCheck, UserPlus,
 } from "lucide-react";
 import { localEntities } from "@/api/base44Client";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import {
   parseSimplyPluralFile,
   spFileFieldId,
@@ -36,6 +39,11 @@ import { useTerms } from "@/lib/useTerms";
 // they already read flat docs, which is exactly what the export file contains.
 // Mirrors OpenPluralConnect's create/dedup/merge-safe loop and SimplyPlural
 // Connect's date-range presets + toggle UI.
+
+// Normalised name for match-by-name: lowercase, collapse runs of whitespace.
+// Import-time matching failures are how users end up with doubled profiles,
+// so be forgiving about case / stray spaces.
+const normName = (s) => String(s || "").toLowerCase().replace(/\s+/g, " ").trim();
 
 // Front-history range presets (mirror SimplyPluralConnect / OpenPluralConnect).
 // SP exports carry hundreds-to-thousands of history entries, so default to 1
@@ -102,6 +110,39 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
   const [importing, setImporting] = useState(false);
   const [progress, setProgress] = useState("");
 
+  // Match-review state. When the file's members don't all cleanly match
+  // existing profiles by SP link, we pause before writing and let the user
+  // point each incoming member at an existing profile (or "new") — this is
+  // what prevents re-imports from doubling the roster.
+  // { rows: [{ spId, name, matchedBy: "sp_id"|"name"|null, targetId: string|null }], alters: [...] }
+  const [matchPlan, setMatchPlan] = useState(null);
+
+  // Auto-match one parsed member against the existing roster.
+  // Priority: exact sp_id → normalised name → normalised alias.
+  const buildMatchRows = (members, existingAlters, systemId) => {
+    const bySpId = {};
+    const byName = {};
+    for (const a of existingAlters) {
+      if (a.sp_id) bySpId[a.sp_id] = a;
+      const nameKey = normName(a.name);
+      if (nameKey && !byName[nameKey]) byName[nameKey] = a;
+      const aliasKey = normName(a.alias);
+      if (aliasKey && !byName[aliasKey]) byName[aliasKey] = a;
+    }
+    return members.map((member, i) => {
+      const mapped = mapMemberToAlter(member, {}, {}, systemId);
+      const spMatch = mapped.sp_id ? bySpId[mapped.sp_id] : null;
+      const nameMatch = spMatch ? null : byName[normName(mapped.name)];
+      return {
+        _i: i,
+        spId: mapped.sp_id,
+        name: mapped.name || "(unnamed)",
+        matchedBy: spMatch ? "sp_id" : nameMatch ? "name" : null,
+        targetId: spMatch?.id || nameMatch?.id || null,
+      };
+    });
+  };
+
   // ── File selection / parse ─────────────────────────────────────────────────
   const handleFile = async (e) => {
     const file = e.target.files?.[0];
@@ -137,9 +178,32 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
     system: data.users?.[0]?.username || "",
   } : null;
 
-  // ── Import ───────────────────────────────────────────────────────────────
+  // ── Import entry: review matches first when anything is ambiguous ─────────
   const handleImport = async () => {
     if (!data) return;
+    if (includeAlters) {
+      const members = data.members || [];
+      const systemId = data.users?.[0]?.uid || data.users?.[0]?._id || members[0]?.uid || "";
+      const existingAlters = await localEntities.Alter.list();
+      if (existingAlters.length > 0 && members.length > 0) {
+        const rows = buildMatchRows(members, existingAlters, systemId);
+        // Only pause for review when something ISN'T a clean re-sync: any
+        // member that would create a new profile or only matched by name.
+        // An all-sp_id re-import flows straight through, no extra taps.
+        if (rows.some((r) => r.matchedBy !== "sp_id")) {
+          setMatchPlan({ rows, alters: existingAlters });
+          return;
+        }
+        return runImport(Object.fromEntries(rows.filter((r) => r.spId).map((r) => [r.spId, r.targetId])));
+      }
+    }
+    return runImport(null);
+  };
+
+  // alterDecisions: { [spId]: localAlterId | null } — null means "create new".
+  // Passing null for the whole map means "no existing roster, create freely".
+  const runImport = async (alterDecisions) => {
+    setMatchPlan(null);
     setImporting(true);
     setProgress("");
     try {
@@ -206,19 +270,30 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
       const alterFailures = [];
       if (includeAlters) {
         const existingAlters = await localEntities.Alter.list();
+        const existingById = {};
         const existingBySpId = {};
         const existingByName = {};
         for (const a of existingAlters) {
+          existingById[a.id] = a;
           if (a.sp_id) existingBySpId[a.sp_id] = a;
-          const key = (a.name || "").toLowerCase().trim();
-          if (key && !existingByName[key]) existingByName[key] = a;
+          const nameKey = normName(a.name);
+          if (nameKey && !existingByName[nameKey]) existingByName[nameKey] = a;
+          const aliasKey = normName(a.alias);
+          if (aliasKey && !existingByName[aliasKey]) existingByName[aliasKey] = a;
         }
         let idx = 0;
         for (const member of members) {
           idx++;
           setProgress(`Importing ${t.alters}… (${idx}/${members.length})`);
           const mapped = mapMemberToAlter(member, effectiveGroupsById, fieldIdMap, systemId);
-          const existing = existingBySpId[mapped.sp_id] || existingByName[(mapped.name || "").toLowerCase().trim()];
+          // The review step's decision wins; otherwise fall back to auto-match
+          // (sp_id, then normalised name / alias).
+          const decided = alterDecisions && mapped.sp_id in (alterDecisions || {})
+            ? (alterDecisions[mapped.sp_id] ? existingById[alterDecisions[mapped.sp_id]] : null)
+            : undefined;
+          const existing = decided !== undefined
+            ? decided
+            : existingBySpId[mapped.sp_id] || existingByName[normName(mapped.name)];
           try {
             if (existing) {
               // ALLOWLIST — write ONLY the fields SP owns; never touch local
@@ -278,16 +353,22 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
       }
 
       // ── Step 3: Groups + nesting (SP `parent` is "root" or a group id) ──
-      let groupsCreated = 0, groupsUpdated = 0;
+      let groupsCreated = 0, groupsUpdated = 0, groupsSkippedNoId = 0;
       if (includeGroups) {
         setProgress("Importing groups…");
         const existingGroups = await localEntities.Group.list();
         const existingBySpId = {};
         for (const g of existingGroups) { if (g.sp_id) existingBySpId[g.sp_id] = g; }
         const groupIdBySpId = {};
+        // `order` follows the FILE's group sequence so the Groups page shows
+        // them the way SP did. Without it, order-less groups fall back to the
+        // newest-first default and every import rendered in REVERSE. Appends
+        // after whatever exists locally; a group the user already dragged /
+        // ordered (order set) is never re-stamped.
+        let groupOrder = existingGroups.length;
         for (const spGroup of groups) {
           const mapped = mapGroupToLocalGroup(spGroup);
-          if (!mapped.sp_id) continue;
+          if (!mapped.sp_id) { groupsSkippedNoId++; continue; }
           mapped.parent = "";
           const existing = existingBySpId[mapped.sp_id];
           if (existing) {
@@ -298,14 +379,16 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
               ...mapped,
               parent: existing.parent,
               member_sp_ids: existing.member_sp_ids || [],
+              ...(existing.order == null ? { order: groupOrder } : {}),
             });
             groupIdBySpId[mapped.sp_id] = existing.id;
             groupsUpdated++;
           } else {
-            const created = await localEntities.Group.create(mapped);
+            const created = await localEntities.Group.create({ ...mapped, order: groupOrder });
             groupIdBySpId[mapped.sp_id] = created.id;
             groupsCreated++;
           }
+          groupOrder++;
         }
         // Second pass: resolve parent ("root"/"" → no parent, else local id).
         setProgress("Resolving group nesting…");
@@ -467,7 +550,9 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
         setProgress("Importing system profile…");
         try {
           const settingsList = await localEntities.SystemSettings.list();
-          const existingSettings = settingsList[0] || null;
+          // Never settingsList[0]: an empty stub can shadow the real record
+          // (newest-first sort) and this merge-safe patch would fill the stub.
+          const existingSettings = pickPrimarySystemSettings(settingsList);
           const patch = buildSpSystemPatch(data.users[0], existingSettings || {});
           if (Object.keys(patch).length > 0) {
             if (existingSettings?.id) {
@@ -497,7 +582,7 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
 
       const parts = [
         includeAlters && `${t.Alters}: ${altersCreated} new, ${altersUpdated} updated${alterFailures.length ? `, ${alterFailures.length} failed` : ""}`,
-        includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated`,
+        includeGroups && `Groups: ${groupsCreated} new, ${groupsUpdated} updated${groupsSkippedNoId ? `, ${groupsSkippedNoId} skipped (no id in file)` : ""}`,
         includeCustomFields && fieldsCreated > 0 && `Fields: ${fieldsCreated} new`,
         includeFrontHistory && `${t.Fronting}: ${frontsCreated} new${frontsSkipped ? `, ${frontsSkipped} existed` : ""}`,
         includeChat && (chatChannelsCreated > 0 || chatMessagesCreated > 0) && `Chat: ${chatChannelsCreated} channel${chatChannelsCreated === 1 ? "" : "s"}, ${chatMessagesCreated} message${chatMessagesCreated === 1 ? "" : "s"}`,
@@ -587,8 +672,8 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
             </div>
           )}
 
-          {/* Options */}
-          {counts && (
+          {/* Options (hidden while the match review is up) */}
+          {counts && !matchPlan && (
             <div className="border-t pt-4 space-y-3">
               <p className="text-xs text-muted-foreground font-medium">Include:</p>
               <div className="space-y-1.5">
@@ -667,6 +752,70 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
               <p className="text-[11px] text-muted-foreground">
                 Re-importing the same export updates existing records instead of duplicating them. Nothing is ever deleted.
               </p>
+            </div>
+          )}
+
+          {/* Match review — shown before writing when the file's members don't
+              all cleanly match by SP link. Each row can be re-pointed at any
+              existing profile (or "new") so re-imports never double the roster. */}
+          {matchPlan && (
+            <div className="border-t pt-4 space-y-3">
+              <div className="space-y-1">
+                <p className="text-sm font-medium flex items-center gap-1.5">
+                  <UserCheck className="w-4 h-4 text-primary" /> Review matches
+                </p>
+                <p className="text-xs text-muted-foreground leading-relaxed">
+                  {matchPlan.rows.filter((r) => r.targetId).length} of {matchPlan.rows.length} in this file matched
+                  {" "}{t.alters} you already have. Check the rest — point an incoming {t.alter} at an existing profile
+                  to update it instead of creating a duplicate.
+                </p>
+              </div>
+              <div className="space-y-2 max-h-72 overflow-y-auto overscroll-contain pr-1">
+                {[...matchPlan.rows]
+                  .sort((a, b) => {
+                    const rank = (r) => (r.matchedBy === null ? 0 : r.matchedBy === "name" ? 1 : 2);
+                    return rank(a) - rank(b) || a._i - b._i;
+                  })
+                  .map((row) => (
+                    <div key={row._i} className="flex items-center gap-2">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm truncate">{row.name}</p>
+                        <p className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          {row.matchedBy === "sp_id" && <><UserCheck className="w-3 h-3 text-green-500" /> linked from a previous import</>}
+                          {row.matchedBy === "name" && <><UserCheck className="w-3 h-3 text-sky-500" /> matched by name</>}
+                          {row.matchedBy === null && <><UserPlus className="w-3 h-3 text-amber-500" /> no match — will be added as new</>}
+                        </p>
+                      </div>
+                      <div className="w-40 flex-shrink-0">
+                        <AlterSearchSelect
+                          alters={matchPlan.alters}
+                          value={row.targetId}
+                          terms={t}
+                          showNone
+                          noneLabel={`New ${t.alter}`}
+                          placeholder={`New ${t.alter}`}
+                          onChange={(id) =>
+                            setMatchPlan((mp) => ({
+                              ...mp,
+                              rows: mp.rows.map((r) => (r._i === row._i ? { ...r, targetId: id || null } : r)),
+                            }))
+                          }
+                        />
+                      </div>
+                    </div>
+                  ))}
+              </div>
+              <div className="flex gap-2">
+                <Button variant="outline" size="sm" className="flex-1" disabled={importing}
+                  onClick={() => setMatchPlan(null)}>
+                  Back
+                </Button>
+                <Button size="sm" className="flex-1 bg-blue-600 hover:bg-blue-700" disabled={importing}
+                  onClick={() => runImport(Object.fromEntries(matchPlan.rows.filter((r) => r.spId).map((r) => [r.spId, r.targetId])))}>
+                  {importing ? <Loader2 className="w-4 h-4 mr-2 animate-spin" /> : <ArrowDownLeft className="w-4 h-4 mr-2" />}
+                  Import with these matches
+                </Button>
+              </div>
             </div>
           )}
         </div>

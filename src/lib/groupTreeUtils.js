@@ -24,6 +24,21 @@ export function isRootParent(value) {
   return ROOT_VALUES.has(value);
 }
 
+/**
+ * THE group display comparator — use this for every group list/tree sort.
+ * Explicit `order` wins; ties fall back to created_date ASCENDING (the
+ * order groups were made or imported), then name. Without the created_date
+ * leg, order-less groups inherit Group.list()'s default newest-first sort,
+ * so every import (and every hand-built set of groups) rendered REVERSED.
+ */
+export function byGroupOrder(a, b) {
+  return (
+    (a?.order || 0) - (b?.order || 0) ||
+    String(a?.created_date || "").localeCompare(String(b?.created_date || "")) ||
+    (a?.name || "").localeCompare(b?.name || "")
+  );
+}
+
 function buildIndex(allGroups) {
   const map = {};
   for (const g of allGroups || []) {
@@ -59,7 +74,7 @@ export function findRootGroups(allGroups) {
   const byId = buildIndex(allGroups);
   return (allGroups || [])
     .filter((g) => isRootParent(g.parent) || !isReachableFromRoot(g, byId))
-    .sort((a, b) => (a.order || 0) - (b.order || 0) || (a.name || "").localeCompare(b.name || ""));
+    .sort(byGroupOrder);
 }
 
 /**

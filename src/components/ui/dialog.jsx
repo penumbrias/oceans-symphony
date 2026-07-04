@@ -55,8 +55,18 @@ const DialogContent = React.forwardRef(({ className, children, onInteractOutside
       ref={ref}
       // When the tour is active, block outside-click dismissal so tapping the
       // tour card's Next/Back/Skip buttons doesn't accidentally close the dialog.
+      // Same for the floating notification layers (reminder toasts, mention
+      // popups, sonner toasts): they render above dialogs, and tapping one —
+      // e.g. "Update front" on a second stacked reminder — used to count as an
+      // outside interaction and close the dialog underneath.
       onInteractOutside={e => {
         if (window.__tourActive) { e.preventDefault(); return; }
+        const target = e.detail?.originalEvent?.target || e.target;
+        if (target instanceof Element &&
+            target.closest('[data-overlay-notification], [data-sonner-toaster]')) {
+          e.preventDefault();
+          return;
+        }
         onInteractOutside?.(e);
       }}
       style={{

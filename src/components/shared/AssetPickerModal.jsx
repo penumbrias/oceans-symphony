@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from "react";
-import { createPortal } from "react-dom";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -136,12 +136,20 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
 
   if (!open) return null;
 
-  return createPortal(
-    <div className="fixed inset-0 z-[80] bg-black/40 flex items-start justify-center p-4 pt-[8vh]" onClick={onClose}>
-      <div onClick={(e) => e.stopPropagation()}
-        className="bg-popover border border-border rounded-2xl shadow-2xl w-full max-w-lg max-h-[82vh] flex flex-col overflow-hidden">
+  // Nested Radix dialog, NOT a hand-rolled portal. The opener is often a modal
+  // Radix dialog (alter edit, group create, bulletin edit…), which sets
+  // body{pointer-events:none} and traps focus inside itself — a plain portal
+  // appended to <body> is un-tappable there, and even when taps are re-enabled
+  // the parent's focus trap yanks focus out of the picker's search box.
+  // Registering as a nested dialog gives the picker its own interactive layer
+  // + focus scope that stacks above the parent (same fix as ColorPickerModal).
+  // zIndex 110 keeps it above the inner-world map's fullscreen shell (z-[100]).
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onClose(); }}>
+      <DialogContent showCloseButton={false} style={{ zIndex: 110 }}
+        className="max-w-lg p-0 gap-0 flex flex-col overflow-hidden rounded-2xl">
         <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
-          <span className="font-semibold text-sm flex items-center gap-1.5"><Images className="w-4 h-4" /> Choose an image</span>
+          <DialogTitle className="font-semibold text-sm flex items-center gap-1.5"><Images className="w-4 h-4" /> Choose an image</DialogTitle>
           <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
         </div>
 
@@ -178,7 +186,7 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto overscroll-contain p-3" style={{ WebkitOverflowScrolling: "touch" }}>
+        <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-3" style={{ WebkitOverflowScrolling: "touch" }}>
           {filtered.length === 0 ? (
             <div className="text-center py-12 text-sm text-muted-foreground">
               {items.length === 0 ? "No images stored yet — upload one above." : "No images match."}
@@ -189,9 +197,8 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
             </div>
           )}
         </div>
-      </div>
-    </div>,
-    document.body
+      </DialogContent>
+    </Dialog>
   );
 }
 

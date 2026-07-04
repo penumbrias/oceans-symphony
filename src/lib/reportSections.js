@@ -16,6 +16,8 @@ import {
   TIME_OF_DAY_LABELS,
   DAY_OF_WEEK_LABELS,
 } from "./planAnalytics";
+import { normalizeSessions, sessionsInRange, effectiveDurationMs } from "./sessionNormalizer";
+import { buildClinicianParagraphs } from "./analytics/clinicianSummary";
 
 // ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -99,22 +101,36 @@ export function buildOverview({ dateFrom, dateTo, frontingSessions, emotionCheck
 // ── SECTION: FRONTING HISTORY ─────────────────────────────────────────────────
 
 export function buildFrontingSection({ dateFrom, dateTo, frontingSessions, alters, includeAlterInfo, thresholds, mode }) {
-  const sessions = frontingSessions
-    .filter(s => inRange(s.start_time, dateFrom, dateTo))
-    .sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
+  // REBASED onto sessionNormalizer (Phase 5 of the analytics rebuild) so the
+  // report's fronting math matches the Analytics page exactly:
+  //  - durations are CLAMPED to the report window (a session spanning the
+  //    boundary contributes only the inside portion),
+  //  - open sessions end at min(now, window end) — no more `?? Date.now()`
+  //    leaking a months-old forgotten session's full length into the report,
+  //  - legacy group rows credit every listed member, not just the primary.
+  // Parse the "YYYY-MM-DD" boundaries as LOCAL days (new Date(str) would be
+  // UTC midnight and shift the window a day in timezones behind UTC).
+  const [fy, fm, fd] = String(dateFrom).split("-").map(Number);
+  const [ty, tm, td] = String(dateTo).split("-").map(Number);
+  const fromMs = new Date(fy, fm - 1, fd).getTime();
+  const toMs = new Date(ty, tm - 1, td, 23, 59, 59, 999).getTime();
+  const now = Date.now();
+  const normalized = normalizeSessions(frontingSessions, now);
+  const inWin = sessionsInRange(normalized, fromMs, toMs, now)
+    .sort((a, b) => a.startMs - b.startMs);
+  const sessions = inWin.map(n => n.raw);
 
-  // Per-alter totals
+  // Per-alter totals (clamped)
   const alterTotals = {};
-  sessions.forEach(s => {
-    const id = s.alter_id || s.primary_alter_id;
-    if (!id) return;
-    const start = new Date(s.start_time);
-    const end = s.end_time ? new Date(s.end_time) : new Date();
-    const ms = end - start;
-    if (!alterTotals[id]) alterTotals[id] = { ms: 0, sessions: 0, primary: 0, cofronting: 0 };
-    alterTotals[id].ms += ms;
-    alterTotals[id].sessions += 1;
-    if (s.is_primary) alterTotals[id].primary += 1;
+  inWin.forEach(n => {
+    const ms = effectiveDurationMs(n, fromMs, toMs, now);
+    if (ms <= 0) return;
+    for (const id of n.alterIds) {
+      if (!alterTotals[id]) alterTotals[id] = { ms: 0, sessions: 0, primary: 0, cofronting: 0 };
+      alterTotals[id].ms += ms;
+      alterTotals[id].sessions += 1;
+      if (id === n.primaryAlterId) alterTotals[id].primary += 1;
+    }
   });
 
   const summaryTable = Object.entries(alterTotals).map(([id, t]) => ({
@@ -467,7 +483,24 @@ export function buildStatusNotesSection({ dateFrom, dateTo, statusNotes = [] }) 
 export function buildPatternsSummary({
   systemName, dateFrom, dateTo, overview, frontingData, emotionData, symptomsData, diaryData,
   sessions = [], alters = [], symptomCheckIns = [], symptoms = [], emotionCheckIns = [],
+  sleepLogs = [],
 }) {
+  // Clinician summary (Phase 5): computed by the same engine as the
+  // Analytics page, so report numbers == page numbers. Prepended as plain
+  // paragraphs so the PDF, text export, and preview all carry it without
+  // renderer changes. Failures degrade to the narrative-only output.
+  let clinicianParagraphs = [];
+  try {
+    clinicianParagraphs = buildClinicianParagraphs({
+      sessions,
+      emotionCheckIns,
+      symptomCheckIns,
+      symptoms,
+      sleepRecords: sleepLogs,
+      dateFrom,
+      dateTo,
+    });
+  } catch { clinicianParagraphs = []; }
   const name = systemName || "The system";
   const dayCount = Math.round((new Date(dateTo) - new Date(dateFrom)) / 86400000) + 1;
   // Anything logged fewer than twice in the whole period isn't really
@@ -509,15 +542,15 @@ export function buildPatternsSummary({
     const earlyWarning = computeEarlyWarningStatus(symptomCheckIns, preSwitchSignature);
 
     const paragraphs = narrativeParagraphs.length > 0
-      ? [statsParagraph, ...narrativeParagraphs]
-      : [statsParagraph];
+      ? [...clinicianParagraphs, statsParagraph, ...narrativeParagraphs]
+      : [...clinicianParagraphs, statsParagraph];
 
     return {
       paragraphs,
       earlyWarning: (earlyWarning.status === "warning" || earlyWarning.status === "elevated") ? earlyWarning : null,
     };
   } catch {
-    return { paragraphs: [statsParagraph], earlyWarning: null };
+    return { paragraphs: [...clinicianParagraphs, statsParagraph], earlyWarning: null };
   }
 }
 

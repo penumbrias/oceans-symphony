@@ -47,7 +47,10 @@ export async function seedSymptomDefaults() {
   seeded = true;
   try {
     const existing = await base44.entities.Symptom.list();
-    if (existing.length > 0) return;
+    if (existing.length > 0) {
+      await healDuplicateDefaults(existing);
+      return;
+    }
     for (const def of SYMPTOM_DEFAULTS) {
       await base44.entities.Symptom.create({ ...def, is_default: true, is_archived: false });
     }
@@ -55,4 +58,69 @@ export async function seedSymptomDefaults() {
     console.warn("Failed to seed symptom defaults:", e);
     seeded = false;
   }
+}
+
+// Merge duplicate DEFAULT symptom/habit rows (same label + category, both
+// is_default). These crept in when a backup made after seeding was
+// re-imported in merge mode: the defaults seed with fresh RANDOM ids, so the
+// backup's "Anxiety" never id-matched the local "Anxiety" and both survived
+// (mergeDbDump now dedupes Symptom by content key, but data duplicated by
+// older imports is already on devices). Keeps the most-referenced copy,
+// re-points check-ins / symptom sessions at it, then deletes the extras.
+// Custom rows (is_default falsy) are never touched — two same-named custom
+// symptoms remain the user's choice. Idempotent; runs at most once per
+// app session via the `seeded` flag.
+async function healDuplicateDefaults(allSymptoms) {
+  const groups = new Map();
+  for (const s of allSymptoms) {
+    if (!s?.is_default) continue;
+    const label = String(s.label || "").trim().toLowerCase();
+    if (!label) continue;
+    const key = `${label}::${s.category || "symptom"}`;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(s);
+  }
+  const dupGroups = [...groups.values()].filter((g) => g.length > 1);
+  if (dupGroups.length === 0) return;
+
+  const [checkIns, sessions] = await Promise.all([
+    base44.entities.SymptomCheckIn.list().catch(() => []),
+    base44.entities.SymptomSession.list().catch(() => []),
+  ]);
+  const refCount = {};
+  for (const c of checkIns) if (c?.symptom_id) refCount[c.symptom_id] = (refCount[c.symptom_id] || 0) + 1;
+  for (const s of sessions) if (s?.symptom_id) refCount[s.symptom_id] = (refCount[s.symptom_id] || 0) + 1;
+
+  for (const group of dupGroups) {
+    // Keeper: most referenced; tie → oldest created_date (the original seed).
+    const sorted = [...group].sort(
+      (a, b) =>
+        (refCount[b.id] || 0) - (refCount[a.id] || 0) ||
+        String(a.created_date || "").localeCompare(String(b.created_date || ""))
+    );
+    const keeper = sorted[0];
+    const dropped = sorted.slice(1);
+    const droppedIds = new Set(dropped.map((d) => d.id));
+
+    // Never lose history: re-point every reference at the keeper first.
+    for (const c of checkIns) {
+      if (c?.symptom_id && droppedIds.has(c.symptom_id)) {
+        await base44.entities.SymptomCheckIn.update(c.id, { symptom_id: keeper.id }).catch(() => {});
+      }
+    }
+    for (const s of sessions) {
+      if (s?.symptom_id && droppedIds.has(s.symptom_id)) {
+        await base44.entities.SymptomSession.update(s.id, { symptom_id: keeper.id }).catch(() => {});
+      }
+    }
+    // If the keeper was archived but a duplicate wasn't, the user clearly
+    // still wants it visible — unarchive the merged row.
+    if (keeper.is_archived && dropped.some((d) => !d.is_archived)) {
+      await base44.entities.Symptom.update(keeper.id, { is_archived: false }).catch(() => {});
+    }
+    for (const d of dropped) {
+      await base44.entities.Symptom.delete(d.id).catch(() => {});
+    }
+  }
+  console.info(`[symptomDefaults] merged ${dupGroups.length} duplicated default symptom(s)`);
 }

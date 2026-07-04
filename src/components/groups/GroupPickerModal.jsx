@@ -7,6 +7,7 @@ import { Loader2, Save, ChevronDown, ChevronRight, Check, Crown, Ban, Folder } f
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle } from "@/lib/subsystemUtils";
+import { byGroupOrder } from "@/lib/groupTreeUtils";
 
 // One row in the nested group tree
 function GroupRow({ group, depth, isSelected, subgroupDotColors, onToggle, children }) {
@@ -215,7 +216,7 @@ export default function GroupPickerModal({ alter, open, onClose }) {
           const resolvedParent = resolveParentId(g.parent);
           return resolvedParent === parentId;
         })
-        .sort((a, b) => (a.order || 0) - (b.order || 0))
+        .sort(byGroupOrder)
         .map((g) => {
           const childNodes = buildTree(g.id, depth + 1);
           const dotColors = !selectedGroupIds.has(g.id) && ancestorGroupIds.has(g.id)

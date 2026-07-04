@@ -22,6 +22,7 @@ import CurrentContacts from "@/components/contacts/CurrentContacts";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
+import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
@@ -704,6 +705,8 @@ export default function Dashboard() {
             );
           case "new_features_bar":
             return <NewFeaturesBar key="new_features_bar" />;
+          case "insight_spotlight":
+            return <InsightSpotlight key="insight_spotlight" />;
           case "quick_nav_menu":
             return <QuickNavMenu key="quick_nav_menu" />;
           case "bulletin_board":

@@ -298,8 +298,8 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "alters", sectionLabel: t.Alters,
       emoji: "⚙️",
-      title: "Options Tab — Archive & Delete",
-      body: `The Options tab has two controls: Archive (hides the ${t.alter} from the main grid and ${t.fronting} counts without deleting them — useful for inactive ${t.alters}), and the Danger Zone delete button which permanently removes them and all their data.`,
+      title: "Options Tab — Archive, Merge & Delete",
+      body: `The Options tab has Archive (hides the ${t.alter} from the main grid and ${t.fronting} counts without deleting them — useful for inactive ${t.alters}), Merge (ended up with a duplicate from an import? Move everything onto the original and remove the copy), and the Danger Zone delete button which permanently removes them and all their data.`,
       route: ai ? `/alter/${ai}?tab=options` : "/Home",
       target: ai ? "alter-profile-delete" : null,
       look: ai ? `the highlighted "Delete member" button at the bottom of the Options tab` : `open an ${t.alter} profile, tap Options, and look for Archive and Delete`, action: null,
@@ -606,10 +606,18 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "analytics", sectionLabel: "Analytics",
       emoji: "📊",
-      title: "Analytics Landing",
-      body: `Analytics has 12 specialized sections accessible from this grid: ${t.Alters}, Activities, Emotions, Symptoms, Check-In Log, Sleep, Journals, Co-${t.Fronting}, ${t.Switch} Logs, ${t.System} Meetings, Patterns & Insights, and Locations. Each section has its own charts and date range controls.`,
+      title: "Analytics Overview",
+      body: `Analytics opens on the Overview tab: the last 7 days compared against your own usual — ${t.fronting} time, ${t.switches}, check-ins, and sleep, each with a mini trend. Below that is the Insights feed (short pattern cards you can dismiss or mute, each showing exactly what it's based on) and a "Showing up" calendar of days with at least one log — tap a day to open its Timeline.`,
       route: "/analytics", target: "analytics-charts",
-      look: `the highlighted section grid — each card is a different analysis area`, action: null,
+      look: `the highlighted Overview — headline cards up top, insight cards and the calendar below`, action: null,
+    },
+    {
+      section: "analytics", sectionLabel: "Analytics",
+      emoji: "🗂️",
+      title: "Analytics Tabs",
+      body: `The other tabs group every analysis by domain: ${t.Fronting} (${t.front} share, history, switch timing, co-${t.fronting}), Wellbeing (trends, after-distress, before-${t.switches}, linked patterns, symptoms), Life (activities, plans, goals, to-dos, places, contact time), and ${t.Alters} — a per-${t.alter} fingerprint with their ${t.fronting} texture, emotions, symptoms, and footprint around the app. These tabs share the date range picker — 7d, 30d, 90d, 1y, All Time, or Custom.`,
+      route: "/analytics", target: "analytics-charts",
+      look: `the tab row under the Analytics title`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",
@@ -625,7 +633,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: `${t.Alters}`,
       body: `${t.Alters} ranks ${t.alters} by ${t.fronting} time. Stat modes: Total time, Primary-only, Co-${t.front}-only, Average session length, Max, Min, and Count. The "Time of Day" tab shows a heatmap of when each ${t.alter} tends to front by hour — useful for spotting patterns.`,
       route: "/analytics", target: "analytics-charts",
-      look: `tap "${t.Alters}" on the analytics grid to open this section`, action: null,
+      look: `open the ${t.Fronting} tab → Stats`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",
@@ -633,7 +641,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: "Emotions, Symptoms & Activities",
       body: `Emotions shows mood trends and check-in frequency over time. Symptoms tracks recurring patterns and can correlate with specific ${t.alters}. Activities shows time-per-activity-type trends and an ${t.Alter} × Activity matrix. All three sections have date range pickers — 7d, 30d, 90d, 1y, All Time, or Custom.`,
       route: "/analytics", target: "analytics-charts",
-      look: `tap Emotions, Symptoms, or Activities on the analytics grid`, action: null,
+      look: `Emotions & Symptoms live under the Wellbeing tab; Activities under Life`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",
@@ -641,7 +649,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: `Co-${t.Fronting} & ${t.Switch} Logs`,
       body: `Co-${t.Fronting} shows which ${t.alters} tend to ${t.front} together — a co-occurrence analysis of your ${t.system}'s dynamics. ${t.Switch} Log analytics breaks down triggered ${t.switches} by category and visualizes patterns in what tends to cause ${t.switches} over time.`,
       route: "/analytics", target: "analytics-charts",
-      look: `tap "Co-${t.Fronting}" or "${t.Switch} Logs" on the analytics grid`, action: null,
+      look: `both live under the ${t.Fronting} tab`, action: null,
     },
     {
       section: "analytics", sectionLabel: "Analytics",
@@ -649,7 +657,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       title: "Patterns & Insights",
       body: `Patterns & Insights cross-references multiple data sources to find correlations — activities that follow certain emotions, whether specific ${t.alters} fronting correlates with symptom changes, and recurring time-of-day patterns. The more you log over time, the more meaningful this section becomes.`,
       route: "/analytics", target: "analytics-charts",
-      look: `tap "Patterns & Insights" on the analytics grid`, action: null,
+      look: `open the Wellbeing tab → "Patterns (advanced)" at the bottom`, action: null,
     },
 
     // ─── SYSTEM MAP ─────────────────────────────────────────────────────────
@@ -657,7 +665,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "systemmap", sectionLabel: `${t.System} Map`,
       emoji: "🗺️",
       title: `${t.System} Map`,
-      body: `The ${t.System} Map has two tabs: Analytics Map (circles auto-sized by ${t.fronting} time, positioned by co-${t.fronting} overlap) and Inner World Canvas (freeform drag-and-drop layout for your inner world). Below both tabs is the Relationships panel.`,
+      body: `The ${t.System} Map has two tabs: Analytics Map (circles auto-sized by ${t.fronting} time, positioned by co-${t.fronting} overlap) and Inner World Canvas (freeform drag-and-drop layout for your inner world). Big ${t.systems}: the map shows your top ${t.alters} by ${t.fronting} time — the "Filters & Display" bar at the bottom sets how many, or lets you hand-pick who's shown. Below both tabs is the Relationships panel.`,
       route: "/system-map", target: "system-map-canvas",
       look: `the highlighted map canvas — notice the "Analytics" and "Inner World" tabs at the top`, action: null,
     },

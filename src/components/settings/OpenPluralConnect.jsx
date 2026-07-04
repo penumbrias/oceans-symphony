@@ -407,6 +407,9 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
         const existingGroups = await localEntities.Group.list();
         const existingByOpId = {};
         for (const g of existingGroups) { if (g.op_id) existingByOpId[g.op_id] = g; }
+        // `order` follows the file's group sequence — order-less groups fall
+        // back to the newest-first default and render REVERSED otherwise.
+        let groupOrder = existingGroups.length;
         for (const opGroup of d.groups || []) {
           const mapped = mapGroupToLocalGroup(opGroup);
           if (!mapped.op_id) continue;
@@ -419,6 +422,7 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
               name: mapped.name,
               color: mapped.color,
               description: mapped.description,
+              ...(existing.order == null ? { order: groupOrder } : {}),
             });
             groupIdByOpId[mapped.op_id] = existing.id;
             groupsUpdated++;
@@ -429,10 +433,12 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
               color: mapped.color,
               description: mapped.description,
               parent: "",
+              order: groupOrder,
             });
             groupIdByOpId[mapped.op_id] = created.id;
             groupsCreated++;
           }
+          groupOrder++;
         }
         // Second pass: resolve parent_group_id → local parent id.
         setProgress("Resolving group nesting…");

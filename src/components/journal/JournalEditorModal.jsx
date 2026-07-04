@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import useFormDraft from "@/hooks/useFormDraft";
 import { useTerms } from "@/lib/useTerms";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -229,6 +230,38 @@ useEffect(() => {
     setAuthorAlterId((prev) => (prev == null ? currentAlterId : prev));
   }, [currentAlterId, isOpenFinal]);
 
+  // ── Draft autosave — a partial entry survives accidental close/navigation
+  // and is restored the next time this editor opens (per entry; "new" has its
+  // own slot). Declared AFTER the reset effect above so restore runs after
+  // reset on open. Encrypted entries are NEVER drafted — a draft would write
+  // decrypted text to localStorage.
+  const draftKey = `symphony_draft_journal_${editingEntryFinal?.id || "new"}_v1`;
+  const draftActive = !!isOpenFinal && !isEncrypted && !editingEntryFinal?.is_encrypted;
+  const draftSnapshot = useMemo(() => ({
+    title, content, folder, editorMode, mentionNote,
+    authorAlterId, coAuthorIds, signpostText,
+  }), [title, content, folder, editorMode, mentionNote, authorAlterId, coAuthorIds, signpostText]);
+  const { clearDraft } = useFormDraft(draftKey, draftSnapshot, {
+    active: draftActive,
+    isEmpty: (s) =>
+      !s.title?.trim() &&
+      !(s.content || "").replace(/<[^>]*>/g, "").trim() &&
+      !s.mentionNote?.trim(),
+    onRestore: (d) => {
+      if (typeof d.title === "string") setTitle(d.title);
+      if (typeof d.content === "string") setContent(d.content);
+      if (d.folder !== undefined) setFolder(d.folder);
+      if (typeof d.editorMode === "string") setEditorMode(d.editorMode);
+      if (typeof d.mentionNote === "string") setMentionNote(d.mentionNote);
+      if (d.authorAlterId !== undefined) setAuthorAlterId(d.authorAlterId);
+      if (Array.isArray(d.coAuthorIds)) setCoAuthorIds(d.coAuthorIds);
+      if (typeof d.signpostText === "string" && d.signpostText) {
+        setSignpostText(d.signpostText);
+        setSignpostTouchedByUser(true); // don't let the auto-fill clobber it
+      }
+    },
+  });
+
   const handleDecrypt = async () => {
     setIsDecrypting(true);
     setDecryptionError("");
@@ -267,6 +300,7 @@ useEffect(() => {
       queryClient.invalidateQueries({ queryKey: ["journalEntries"] });
       queryClient.invalidateQueries({ queryKey: ["mentionLogs"] });
       setMentionNote("");
+      clearDraft(); // published — never "restore" it again
       onClose();
     },
   });

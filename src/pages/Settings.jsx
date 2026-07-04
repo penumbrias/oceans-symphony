@@ -767,6 +767,39 @@ export default function Settings() {
                 </div>
               )}
             </div>
+
+            {/* Dashboard insight spotlight — opt-in, lives HERE (Kane: not on
+                the dashboard itself; the explainer card there felt intrusive). */}
+            <div className="mt-4 pt-4 border-t border-border/30">
+              <label className="flex items-start gap-3 cursor-pointer">
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={settings?.analytics_spotlight_enabled === true}
+                  onClick={async () => {
+                    const next = settings?.analytics_spotlight_enabled !== true;
+                    try {
+                      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { analytics_spotlight_enabled: next });
+                      else await base44.entities.SystemSettings.create({ analytics_spotlight_enabled: next });
+                      refetch();
+                      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+                    } catch { /* non-fatal */ }
+                  }}
+                  className={`mt-0.5 flex-shrink-0 w-10 h-6 rounded-full transition-colors relative ${settings?.analytics_spotlight_enabled === true ? "bg-primary" : "bg-muted-foreground/30"}`}
+                >
+                  <span className={`absolute top-0.5 w-5 h-5 rounded-full bg-white transition-all ${settings?.analytics_spotlight_enabled === true ? "left-[1.125rem]" : "left-0.5"}`} />
+                </button>
+                <span className="flex-1 min-w-0">
+                  <p className="text-sm font-semibold">
+                    Dashboard insight spotlight{" "}
+                    <span className="text-[0.5625rem] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded bg-primary/15 text-primary align-middle">Experimental</span>
+                  </p>
+                  <p className="text-xs text-muted-foreground leading-snug mt-0.5">
+                    Shows one gentle pattern from your analytics on the dashboard — like a shift in {terms.switch} rhythm or sleep vs your own usual. Descriptive only, dismissible, never a judgement. Off by default.
+                  </p>
+                </span>
+              </label>
+            </div>
           </SubSection>
         </Section>
 

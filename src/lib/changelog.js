@@ -18,8 +18,112 @@
 
 export const CHANGELOG = [
   {
-    date: "July 2, 2026",
+    date: "July 4, 2026",
     changes: [
+      {
+        type: "improve",
+        text: "The dashboard insight card is now fully opt-in and off by default — nothing shows on the dashboard until you enable the experimental \"Dashboard insight spotlight\" toggle in Settings (with the other analytics preferences).",
+      },
+      {
+        type: "feature",
+        text: "Half-written entries are no longer lost: the quick check-in, journal editor, and bulletin composer now keep a draft if you close them or navigate away, and restore it when you come back. (Meetings and Learn reflections already did.)",
+      },
+      {
+        type: "feature",
+        text: "The analytics map can now collapse members into their groups or subsystems — pick how deep (immediate group, one level up, or all the way to the root), and tap a collapsed node to explore it.",
+      },
+      {
+        type: "improve",
+        text: "Hand-picking who's shown on the analytics map now uses the full member tree (organized by groups and subsystems) instead of a flat list.",
+      },
+      {
+        type: "fix",
+        text: "Duplicate \"checking in on the front\" popups no longer stack, and tapping a popup no longer closes whatever window you already had open.",
+      },
+      {
+        type: "feature",
+        text: "The analytics map now works for any size system: it shows your top members by front time (you choose how many), or switch to co-front ranking or hand-pick exactly who's displayed — all in the Filters & Display bar.",
+      },
+      {
+        type: "improve",
+        text: "Analytics map performance: faster lighter drawing for big systems and smooth panning.",
+      },
+      {
+        type: "feature",
+        text: "The classic front stats are back under Analytics → Fronting: the solo / primary / co-front / average bars, the daily stacked timeline, and the co-fronting deep dive.",
+      },
+      {
+        type: "feature",
+        text: "Front share can now count untracked time or show shares of tracked time only — a toggle on the card, remembered like the other analytics preferences.",
+      },
+      {
+        type: "fix",
+        text: "The Systems switcher no longer spills its buttons past the edge of the screen on phones.",
+      },
+      {
+        type: "fix",
+        text: "Imported groups no longer appear in reverse — imports keep the source app's order, and re-importing the same file repairs the order of groups from older imports.",
+      },
+      {
+        type: "fix",
+        text: "Ampersand import: folders/tags now come across as real groups with their members, instead of being dropped.",
+      },
+      {
+        type: "fix",
+        text: "PluralKit import: groups now show up on the Groups page with their members — previously they imported as invisible references.",
+      },
+      {
+        type: "improve",
+        text: "Groups you haven't manually arranged now list in the order they were created, instead of newest-first.",
+      },
+    ],
+  },
+  {
+    date: "July 3, 2026",
+    version: "0.73.5",
+    changes: [
+      {
+        type: "feature",
+        text: "Importing a Simply Plural file now shows a match review: point each incoming member at a profile you already have (or \"new\") so re-imports update instead of doubling your roster.",
+      },
+      {
+        type: "feature",
+        text: "New \"Merge into another profile\" option in a profile's Options tab — moves all history, check-ins, messages, and relationships onto the profile you keep, then removes the duplicate.",
+      },
+      {
+        type: "fix",
+        text: "Duplicated symptom/habit presets (two Anxiety, two Amnesia…) from re-importing a backup are now merged automatically — check-in history is kept — and future imports can't create them.",
+      },
+      {
+        type: "fix",
+        text: "The image library popup couldn't be tapped when opened from an edit window (like setting a profile picture) — it works everywhere now.",
+      },
+    ],
+  },
+  {
+    date: "July 2, 2026",
+    version: "0.73.4",
+    changes: [
+      {
+        type: "feature",
+        text: "Analytics rebuilt, part 5 (final) — the Therapy Report's Patterns section now opens with a computed clinician summary (switching, distress, sleep, symptoms, recovery — with a method note), and the report's fronting math was rebased onto the same engine as the Analytics page, so both always show the same numbers.",
+      },
+      {
+        type: "feature",
+        text: "Analytics rebuilt, part 4 — the Life tab (activity time with top categories, plan follow-through, weekly goals, to-dos, places, time with people) and a new per-member tab: pick anyone to see their fronting texture, when their fronts start, their emotions, symptoms, and footprint around the app. Each profile's Options tab links straight to it.",
+      },
+      {
+        type: "feature",
+        text: "Analytics rebuilt, part 3 — the Wellbeing tab: annotated trends (with system-change markers), an \"after distress\" recovery card, symptoms that tend to show up before switches, and linked patterns (sleep, activities, contact time vs distress) — every pattern gated on enough data and phrased as a link, never a cause.",
+      },
+      {
+        type: "feature",
+        text: "Analytics rebuilt, part 2 — the Fronting tab: front-share bars with honest untracked time (hideable, with co-front counting modes), a duration-proportional front history you can tap for each session's notes and feelings, switch rhythm and timing heatmap, \"often front together\" pairs, per-alter session texture, and an opt-in gentle reconnection list.",
+      },
+      {
+        type: "feature",
+        text: "Analytics rebuilt, part 1: a new Overview tab shows your week vs your own usual, a feed of gentle pattern insights (dismissible, with \"how this is computed\"), and a showing-up calendar — plus one insight card on the dashboard. The old sections are regrouped under Fronting / Wellbeing / Life tabs.",
+      },
       {
         type: "improve",
         text: "Exporting now lets you choose where to save the backup (on browsers that support it) instead of silently dropping it into Downloads, and the button says exactly where the file goes.",

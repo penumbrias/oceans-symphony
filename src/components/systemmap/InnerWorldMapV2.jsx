@@ -21,6 +21,7 @@ import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, isSubsystem } from "@/lib/subsystemUtils";
+import { byGroupOrder } from "@/lib/groupTreeUtils";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import {
@@ -61,7 +62,7 @@ function flattenGroupTree(groups) {
   const spToId = {};
   for (const g of groups) if (g.sp_id) spToId[g.sp_id] = g.id;
   const resolveParent = (p) => (!p || p === "root" ? null : byId[p] ? p : spToId[p] || null);
-  const childrenOf = (pid) => groups.filter((g) => resolveParent(g.parent) === pid).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const childrenOf = (pid) => groups.filter((g) => resolveParent(g.parent) === pid).sort(byGroupOrder);
   const out = [];
   const seen = new Set();
   const visit = (g, depth) => {

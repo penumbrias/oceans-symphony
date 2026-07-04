@@ -22,13 +22,12 @@ const db = localMode ? localEntities : base44.entities;
 // Hard ceiling above which we don't even try to build the analytics
 // map. The compute now runs in a Web Worker so the main thread stays
 // responsive at any size, BUT the worker itself can still take many
-// minutes on truly extreme systems (the cofronting computation is
-// O(slices × alters²) inside the worker just like it was on main).
-// At ~500 alters the worker would likely run for several minutes —
-// the friendly "taking a breather" fallback is a better experience
-// than a spinner that never resolves. Below this, the worker handles
-// it; the error boundary still wraps the render as defense-in-depth.
-const ANALYTICS_MAP_TOO_LARGE_THRESHOLD = 500;
+// The hard size pre-empt is GONE (v0.73.8): the map itself now caps how
+// many members it draws at once (top-N by front time by default, with a
+// Display panel for the metric / N / hand-picking — see AUTO_DISPLAY_LIMIT
+// in components/system/SystemMap.jsx), so any system size renders a
+// bounded number of nodes. The error boundary below stays as
+// defense-in-depth for genuine render crashes.
 
 export default function SystemMapPage() {
   const terms = useTerms();
@@ -130,25 +129,17 @@ export default function SystemMapPage() {
       {/* Map area */}
       {tab === "analytics" && (
         <div className="h-[calc(100vh-280px)] min-h-[400px]">
-          {alters.length > ANALYTICS_MAP_TOO_LARGE_THRESHOLD ? (
-            <AnalyticsMapTooLargeFallback
-              systemTerm={terms.system}
-              alterCount={alters.length}
-              onUseInnerWorld={() => setTab("inner")}
-            />
-          ) : (
-            <AnalyticsMapErrorBoundary
-              fallback={
-                <AnalyticsMapTooLargeFallback
-                  systemTerm={terms.system}
-                  alterCount={alters.length}
-                  onUseInnerWorld={() => setTab("inner")}
-                />
-              }
-            >
-              <AnalyticsMap relationships={relationships} />
-            </AnalyticsMapErrorBoundary>
-          )}
+          <AnalyticsMapErrorBoundary
+            fallback={
+              <AnalyticsMapTooLargeFallback
+                systemTerm={terms.system}
+                alterCount={alters.length}
+                onUseInnerWorld={() => setTab("inner")}
+              />
+            }
+          >
+            <AnalyticsMap relationships={relationships} />
+          </AnalyticsMapErrorBoundary>
         </div>
       )}
       {tab === "inner" && (
@@ -210,14 +201,9 @@ function AnalyticsMapTooLargeFallback({ systemTerm, alterCount, onUseInnerWorld 
       <p className="text-base font-semibold text-foreground mb-1.5">
         Analytics map is taking a breather
       </p>
-      <p className="text-sm text-muted-foreground max-w-md mb-2">
-        It looks like your {systemTerm} might be too large for the analytics map at this time, we're working on it!
+      <p className="text-sm text-muted-foreground max-w-md mb-5">
+        Something went wrong drawing your {systemTerm}'s map{typeof alterCount === "number" && alterCount > 0 ? ` (${alterCount} active alters)` : ""}. Reloading usually fixes it — if it keeps happening, please send a bug report.
       </p>
-      {typeof alterCount === "number" && alterCount > 0 && (
-        <p className="text-xs text-muted-foreground/70 mb-5">
-          ({alterCount} active alters — the analytics layout struggles past ~{ANALYTICS_MAP_TOO_LARGE_THRESHOLD}.)
-        </p>
-      )}
       <button
         onClick={onUseInnerWorld}
         className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors text-sm font-medium"

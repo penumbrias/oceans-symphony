@@ -95,8 +95,16 @@ export default function ReminderToast() {
       });
       valid.forEach(({ instance }) => addShownId(instance.id));
       setVisible(prev => {
-        const existingReminderIds = new Set(prev.map(v => v.reminder.id));
-        const deduped = valid.filter(v => !existingReminderIds.has(v.reminder.id));
+        // One toast per REMINDER — dedupe against what's already showing AND
+        // within this batch. Two fired instances of the same reminder arriving
+        // together used to both render ("stacked check-in toasts" bug).
+        const seenReminderIds = new Set(prev.map(v => v.reminder.id));
+        const deduped = [];
+        for (const v of valid) {
+          if (seenReminderIds.has(v.reminder.id)) continue;
+          seenReminderIds.add(v.reminder.id);
+          deduped.push(v);
+        }
         return [...prev, ...deduped];
       });
     });
@@ -128,15 +136,27 @@ export default function ReminderToast() {
     dismiss(id);
   };
 
+  // If a second toast's action fires while a modal opened by a FIRST toast is
+  // still up, mark that first instance acted before replacing it — otherwise
+  // it stays "fired" forever and re-toasts next session.
+  const settlePendingBeforeReplace = (nextInstance, actionType) => {
+    setPendingActInstance((prev) => {
+      if (prev && prev.id !== nextInstance.id) {
+        updateInstance(prev.id, { status: "acted", acted_action: prev.__actionType || actionType }).catch(() => {});
+      }
+      return { ...nextInstance, __actionType: actionType };
+    });
+  };
+
   const handleAction = async ({ instance, reminder }, action) => {
     const type = action.action_type;
     if (type === "open_set_front") {
-      setPendingActInstance(instance);
+      settlePendingBeforeReplace(instance, "open_set_front");
       setSetFrontOpen(true);
       dismiss(instance.id);
       return;
     } else if (type === "open_check_in") {
-      setPendingActInstance(instance);
+      settlePendingBeforeReplace(instance, "open_check_in");
       setCheckInOpen(true);
       dismiss(instance.id);
       return;
@@ -176,7 +196,8 @@ export default function ReminderToast() {
   return (
     <>
       {visible.length > 0 && (
-        <div role="status" aria-live="polite" aria-atomic="false" className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
+        <div role="status" aria-live="polite" aria-atomic="false" data-overlay-notification
+          className="fixed bottom-20 sm:bottom-6 right-4 sm:right-6 left-4 sm:left-auto z-[200] pointer-events-none flex flex-col-reverse gap-2 max-w-sm sm:max-w-xs mx-auto sm:mx-0">
           {visible.slice(0, 3).map(({ instance, reminder }) => {
             const Icon = CATEGORY_ICONS[reminder.category] || CATEGORY_ICONS.custom;
             const inlineActions = reminder.inline_actions || [];

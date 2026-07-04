@@ -576,6 +576,31 @@ function isEmptyValue(v) {
   return false;
 }
 
+// Content identity for entities whose default/preset rows auto-seed with
+// fresh RANDOM ids on first use (symptom presets, grounding techniques,
+// relationship-type catalogues, daily-task templates…). A backup made after
+// seeding carries the same rows under DIFFERENT ids, so the plain "skip if
+// id exists" merge below would duplicate every preset — two "Anxiety"
+// symptoms, two "Friends" relationship types, etc. When local rows exist,
+// incoming rows whose content key matches a local one are skipped; the
+// local row wins so user tweaks survive the import. (Same lineage as the
+// PR #91 SystemSettings singleton fix; generalised after multi-system
+// backup testing surfaced duplicated symptom/habit presets.)
+const MERGE_CONTENT_KEYS = {
+  DailyTaskTemplate: (r) => {
+    const t = String(r.title || "").trim().toLowerCase();
+    return t ? `${t}::${r.frequency || "daily"}` : null;
+  },
+  GroundingPreference: (r) => (r.technique_id ? String(r.technique_id) : null),
+  Symptom: (r) => {
+    const l = String(r.label || "").trim().toLowerCase();
+    return l ? `${l}::${r.category || "symptom"}` : null;
+  },
+  GroundingTechnique: (r) => String(r.name || "").trim().toLowerCase() || null,
+  RelationshipType: (r) => String(r.label || "").trim().toLowerCase() || null,
+  ContactRelationshipType: (r) => String(r.label || "").trim().toLowerCase() || null,
+};
+
 export async function mergeDbDump(dump) {
   if (!_db) _db = {};
   for (const [entityName, records] of Object.entries(dump)) {
@@ -607,63 +632,27 @@ export async function mergeDbDump(dump) {
       // No local record yet — fall through to the regular add path.
     }
 
-    if (entityName === "DailyTaskTemplate") {
-      // The default daily-task templates auto-seed (with fresh random ids)
-      // the first time the Daily Tasks page is opened on an empty DB. A
-      // backup made after the original seed carries the SAME defaults
-      // under different ids, so the plain "skip if id exists" merge below
-      // would let both sets coexist — visible to the user as every preset
-      // task appearing twice. Dedupe by (title, frequency) when local
-      // templates already exist; local row wins so user tweaks (custom
-      // triggers, sort_order, is_active toggles) survive the import.
+    const keyFn = MERGE_CONTENT_KEYS[entityName];
+    if (keyFn) {
       const localIds = Object.keys(_db[entityName]);
       if (localIds.length > 0) {
         const seen = new Set();
         for (const local of Object.values(_db[entityName])) {
           if (!local || typeof local !== "object") continue;
-          const title = String(local.title || "").trim().toLowerCase();
-          if (!title) continue;
-          const freq = local.frequency || "daily";
-          seen.add(`${title}::${freq}`);
+          const key = keyFn(local);
+          if (key) seen.add(key);
         }
         for (const [id, record] of Object.entries(records)) {
           if (!record || typeof record !== "object") continue;
           if (_db[entityName][id]) continue;
-          const title = String(record.title || "").trim().toLowerCase();
-          const freq = record.frequency || "daily";
-          const key = title ? `${title}::${freq}` : null;
+          const key = keyFn(record);
           if (key && seen.has(key)) continue;
           _db[entityName][id] = record;
           if (key) seen.add(key);
         }
         continue;
       }
-      // No local templates yet — fall through to the regular add path.
-    }
-
-    if (entityName === "GroundingPreference") {
-      // One preference per technique_id. A same-device backup carries the
-      // same prefs under different ids, so the plain id-skip merge would let
-      // two rows for one technique coexist — the per-technique read map then
-      // silently picks one, hiding the other's rating/notes/favorite.
-      // Dedupe by technique_id when local prefs exist; local row wins.
-      const localIds = Object.keys(_db[entityName]);
-      if (localIds.length > 0) {
-        const seen = new Set();
-        for (const local of Object.values(_db[entityName])) {
-          if (local?.technique_id) seen.add(String(local.technique_id));
-        }
-        for (const [id, record] of Object.entries(records)) {
-          if (!record || typeof record !== "object") continue;
-          if (_db[entityName][id]) continue;
-          const key = record.technique_id ? String(record.technique_id) : null;
-          if (key && seen.has(key)) continue;
-          _db[entityName][id] = record;
-          if (key) seen.add(key);
-        }
-        continue;
-      }
-      // No local prefs yet — fall through to the regular add path.
+      // No local rows yet — fall through to the regular add path.
     }
 
     for (const [id, record] of Object.entries(records)) {
@@ -673,6 +662,58 @@ export async function mergeDbDump(dump) {
     }
   }
   await saveDb();
+}
+
+// Recursively dedupe string arrays that ended up holding `id` more than once
+// after a reference rewrite (e.g. co_fronter_ids that contained both halves of
+// a merged pair). Only removes EXTRA copies of that one id — everything else
+// in the array is untouched.
+function dedupeIdInArrays(value, id) {
+  if (Array.isArray(value)) {
+    const out = [];
+    let seenId = false;
+    for (const item of value) {
+      if (item === id) {
+        if (seenId) continue;
+        seenId = true;
+      }
+      out.push(dedupeIdInArrays(item, id));
+    }
+    return out;
+  }
+  if (value && typeof value === "object") {
+    const out = {};
+    for (const [k, v] of Object.entries(value)) out[k] = dedupeIdInArrays(v, id);
+    return out;
+  }
+  return value;
+}
+
+// Rewrite every reference to `oldId` across the whole database to `newId` —
+// the storage-layer half of "merge two records into one". Works by exact
+// substring replacement on each record's JSON serialisation, which also
+// reaches ids embedded inside JSON-stringified payload strings (e.g.
+// FrontingSession.session_symptoms). Ids are UUIDs, so an exact match can't
+// collide with ordinary text. Records are only rewritten, never deleted —
+// deleting the merged-away record is the CALLER's explicit final step.
+export async function replaceIdReferences(oldId, newId, { skipEntities = [] } = {}) {
+  const db = getDb();
+  if (!oldId || !newId || oldId === newId) return 0;
+  let changed = 0;
+  for (const [entityName, col] of Object.entries(db)) {
+    if (skipEntities.includes(entityName)) continue;
+    if (!col || typeof col !== "object") continue;
+    for (const [rid, rec] of Object.entries(col)) {
+      if (!rec || typeof rec !== "object") continue;
+      const str = JSON.stringify(rec);
+      if (!str.includes(oldId)) continue;
+      const replaced = JSON.parse(str.split(oldId).join(newId));
+      col[rid] = dedupeIdInArrays(replaced, newId);
+      changed++;
+    }
+  }
+  if (changed > 0) await saveDb();
+  return changed;
 }
 
 async function walkAndMigrate(value, saveLocalImage, createLocalImageUrl, isLocalImageUrl) {

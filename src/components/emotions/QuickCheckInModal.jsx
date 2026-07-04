@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect } from "react";
+import useFormDraft from "@/hooks/useFormDraft";
 import { base44, localEntities } from "@/api/base44Client";
 import { LOCATION_CATEGORIES, getCategoryMeta } from "@/lib/locationCategories";
 import { findNearbyLocationName } from "@/lib/locationUtils";
@@ -464,6 +465,49 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setShowSliderPicker(false);
     setCurrentSectionId("feeling");
   };
+
+  // ── Draft autosave — a half-filled check-in survives an accidental close /
+  // app switch and restores on the next open. Create-mode only (edits pre-fill
+  // from the record). Fronting state is deliberately NOT drafted: it mirrors
+  // the LIVE sessions and restoring a stale front would be wrong. Declared
+  // AFTER the isOpen effect above so restore runs after the open-reset.
+  const draftSnapshot = useMemo(() => ({
+    selectedEmotions, sliderValue, note, diaryData,
+    selectedActivityCategories, activityDetails,
+    journalSwitch, isTriggeredSwitch, triggerCategory, triggerLabel,
+    locationName, locationCategory, locationLat, locationLng,
+    entryTime,
+  }), [selectedEmotions, sliderValue, note, diaryData, selectedActivityCategories, activityDetails,
+    journalSwitch, isTriggeredSwitch, triggerCategory, triggerLabel,
+    locationName, locationCategory, locationLat, locationLng, entryTime]);
+  const { clearDraft } = useFormDraft("symphony_draft_quickcheckin_v1", draftSnapshot, {
+    active: !!isOpen && !isEditing,
+    isEmpty: (s) =>
+      !(s.selectedEmotions || []).length &&
+      s.sliderValue == null &&
+      !s.note?.trim() &&
+      !Object.keys(s.diaryData || {}).length &&
+      !(s.selectedActivityCategories || []).length &&
+      !s.locationName?.trim() &&
+      !s.triggerLabel?.trim(),
+    onRestore: (d) => {
+      if (Array.isArray(d.selectedEmotions)) setSelectedEmotions(d.selectedEmotions);
+      if (d.sliderValue !== undefined) setSliderValue(d.sliderValue);
+      if (typeof d.note === "string") setNote(d.note);
+      if (d.diaryData && typeof d.diaryData === "object") setDiaryData(d.diaryData);
+      if (Array.isArray(d.selectedActivityCategories)) setSelectedActivityCategories(d.selectedActivityCategories);
+      if (d.activityDetails && typeof d.activityDetails === "object") setActivityDetails(d.activityDetails);
+      if (typeof d.journalSwitch === "boolean") setJournalSwitch(d.journalSwitch);
+      if (typeof d.isTriggeredSwitch === "boolean") setIsTriggeredSwitch(d.isTriggeredSwitch);
+      if (typeof d.triggerCategory === "string") setTriggerCategory(d.triggerCategory);
+      if (typeof d.triggerLabel === "string") setTriggerLabel(d.triggerLabel);
+      if (typeof d.locationName === "string") setLocationName(d.locationName);
+      if (typeof d.locationCategory === "string") setLocationCategory(d.locationCategory);
+      if (d.locationLat !== undefined) setLocationLat(d.locationLat);
+      if (d.locationLng !== undefined) setLocationLng(d.locationLng);
+      if (typeof d.entryTime === "string" && d.entryTime) setEntryTime(d.entryTime);
+    },
+  });
 
   const handleGPS = async () => {
     setGpsLoading(true);
@@ -931,6 +975,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         queryClient.invalidateQueries({ queryKey: ["locations"] });
       }
 
+      // Everything saved — the draft must never "restore" a posted check-in.
+      clearDraft();
       const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
       if (journalSwitch && frontingActuallyChanged) {
         // Journal modal opens; support prompt shows after it closes
