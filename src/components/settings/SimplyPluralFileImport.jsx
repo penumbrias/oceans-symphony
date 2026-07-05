@@ -10,6 +10,7 @@ import {
 import { localEntities } from "@/api/base44Client";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
+import { localizeRemoteImages } from "@/lib/localizeRemoteImages";
 import {
   parseSimplyPluralFile,
   spFileFieldId,
@@ -567,6 +568,22 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
         }
       }
 
+      // ── Step 7: Localize avatars (best-effort) ──
+      // SP avatars are remote CDN URLs; SP's servers going offline makes them
+      // vanish. Download whatever's still reachable into local storage NOW so
+      // it survives. Best-effort: failures keep the remote URL (no regression);
+      // if SP's CDN is already dead, this simply saves nothing.
+      let avatarsSaved = 0;
+      if (includeAvatars) {
+        setProgress("Saving pictures to this device…");
+        try {
+          const res = await localizeRemoteImages();
+          avatarsSaved = res.localized;
+        } catch (err) {
+          console.warn("[SP file import] avatar localization failed", err);
+        }
+      }
+
       // ── Finish ──
       onSettingsChange?.();
       queryClient.invalidateQueries({ queryKey: ["alters"] });
@@ -587,6 +604,7 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
         includeFrontHistory && `${t.Fronting}: ${frontsCreated} new${frontsSkipped ? `, ${frontsSkipped} existed` : ""}`,
         includeChat && (chatChannelsCreated > 0 || chatMessagesCreated > 0) && `Chat: ${chatChannelsCreated} channel${chatChannelsCreated === 1 ? "" : "s"}, ${chatMessagesCreated} message${chatMessagesCreated === 1 ? "" : "s"}`,
         includeSystemProfile && systemProfileUpdated && `${t.System} profile updated`,
+        avatarsSaved > 0 && `${avatarsSaved} picture${avatarsSaved === 1 ? "" : "s"} saved locally`,
       ].filter(Boolean).join(" · ");
 
       if (alterFailures.length > 0) {

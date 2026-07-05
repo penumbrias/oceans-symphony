@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "July 4, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Avatars from imported profiles (especially Simply Plural) were kept on the other app's server, so they vanished when that server went offline. New \"Save remote images to this device\" button in Settings → Data & privacy downloads every picture that's still reachable and stores it permanently — and imports now do this automatically.",
+      },
+      {
         type: "improve",
         text: "The dashboard insight card is now fully opt-in and off by default — nothing shows on the dashboard until you enable the experimental \"Dashboard insight spotlight\" toggle in Settings (with the other analytics preferences).",
       },
