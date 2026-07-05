@@ -21,8 +21,8 @@ export const CHANGELOG = [
     date: "July 4, 2026",
     changes: [
       {
-        type: "feature",
-        text: "Avatars from imported profiles (especially Simply Plural) were kept on the other app's server, so they vanished when that server went offline. New \"Save remote images to this device\" button in Settings → Data & privacy downloads every picture that's still reachable and stores it permanently — and imports now do this automatically.",
+        type: "fix",
+        text: "Imported avatars (especially Simply Plural) were kept on the other app's server and vanished when it went offline. \"Cache Images for Offline\" (Settings → Data & privacy → Storage) now works on the app even for servers that block it, so it can actually save those pictures locally — and imports run it automatically.",
       },
       {
         type: "improve",

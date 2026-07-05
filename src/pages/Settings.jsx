@@ -25,7 +25,6 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import ImportDataSection from "@/components/settings/ImportDataSection";
-import RemoteImageRescue from "@/components/settings/RemoteImageRescue";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import { runAutoBackupNow } from "@/lib/autoBackup";
@@ -852,13 +851,9 @@ export default function Settings() {
             <SubSection title="Automatic backups" defaultOpen={false}><AutoBackupSettings /></SubSection>
           </SubSection>
 
-          {/* ── SAVE REMOTE IMAGES ── retroactive fix for imported avatars
-              (mostly Simply Plural) that live on a now-offline CDN. */}
-          <SubSection title="Save remote images" defaultOpen={false}>
-            <RemoteImageRescue />
-          </SubSection>
-
-          {/* ── STORAGE & ENCRYPTION ── */}
+          {/* ── STORAGE & ENCRYPTION ── (contains "Cache Images for Offline",
+              which downloads remote-URL images — incl. imported avatars — into
+              local storage; upgraded to bypass CORS on the native build). */}
           <SubSection title="Storage & encryption" defaultOpen={false}>
             <StorageModeSettings />
             <DataBackupRestore section="storage" />

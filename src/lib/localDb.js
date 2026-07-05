@@ -849,21 +849,13 @@ async function _walkAndMigrateHttp(value, saveLocalImage, createLocalImageUrl, i
     }
     if (value.startsWith('http://') || value.startsWith('https://')) {
       try {
-        const response = await fetch(value, { mode: 'cors' });
-        if (!response.ok) { onResult('failed'); return { changed: false, value }; }
-        const contentType = response.headers.get('content-type') || '';
-        if (!contentType.startsWith('image/')) {
-          onResult('skipped');
-          return { changed: false, value };
-        }
-        const blob = await response.blob();
-        let dataUrl = await new Promise((resolve, reject) => {
-          const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
-          reader.onerror = reject;
-          reader.readAsDataURL(blob);
-        });
-        const { compressImageDataUrl } = await import('./localImageStorage.js');
+        // fetchRemoteImageAsDataUrl tries native HTTP first (bypasses WebView
+        // CORS — needed for CDNs like Simply Plural's that a plain fetch can't
+        // reach on the app), then falls back to a CORS fetch. null → couldn't
+        // be fetched or isn't an image.
+        const { fetchRemoteImageAsDataUrl, compressImageDataUrl } = await import('./localImageStorage.js');
+        let dataUrl = await fetchRemoteImageAsDataUrl(value);
+        if (!dataUrl) { onResult('failed'); return { changed: false, value }; }
         dataUrl = await compressImageDataUrl(dataUrl);
         const imageId = `cached-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);

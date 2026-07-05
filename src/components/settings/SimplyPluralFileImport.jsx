@@ -10,7 +10,7 @@ import {
 import { localEntities } from "@/api/base44Client";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
-import { localizeRemoteImages } from "@/lib/localizeRemoteImages";
+import { migrateHttpImagesToLocal } from "@/lib/localDb";
 import {
   parseSimplyPluralFile,
   spFileFieldId,
@@ -570,15 +570,16 @@ export default function SimplyPluralFileImport({ settings, onSettingsChange, pre
 
       // ── Step 7: Localize avatars (best-effort) ──
       // SP avatars are remote CDN URLs; SP's servers going offline makes them
-      // vanish. Download whatever's still reachable into local storage NOW so
-      // it survives. Best-effort: failures keep the remote URL (no regression);
+      // vanish. Reuse the canonical "Cache Images for Offline" migration to
+      // download whatever's still reachable into local storage NOW so it
+      // survives. Best-effort: failures keep the remote URL (no regression);
       // if SP's CDN is already dead, this simply saves nothing.
       let avatarsSaved = 0;
       if (includeAvatars) {
         setProgress("Saving pictures to this device…");
         try {
-          const res = await localizeRemoteImages();
-          avatarsSaved = res.localized;
+          const res = await migrateHttpImagesToLocal();
+          avatarsSaved = res.migrated;
         } catch (err) {
           console.warn("[SP file import] avatar localization failed", err);
         }

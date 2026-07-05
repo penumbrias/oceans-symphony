@@ -122,6 +122,60 @@ export async function restoreLocalImages(imagesMap) {
   }
 }
 
+// Download a remote image URL and return it as a data URL, or null if it
+// can't be fetched / isn't an image. On the NATIVE build this first tries
+// Capacitor's native HTTP, which is NOT subject to WebView CORS — critical
+// for CDNs (e.g. Simply Plural's) that don't send permissive CORS headers,
+// where a plain browser fetch would be blocked. Used by
+// migrateHttpImagesToLocal ("Cache Images for Offline") so it actually works
+// against those CDNs on the app.
+async function _fetchViaCapacitor(url) {
+  try {
+    const { isNative } = await import('./platform');
+    if (!isNative()) return null;
+    const { CapacitorHttp } = await import('@capacitor/core');
+    const res = await CapacitorHttp.get({ url, responseType: 'blob' });
+    if (!res || typeof res.status !== 'number' || res.status < 200 || res.status >= 300) return null;
+    const data = res.data; // base64 string for responseType:"blob"
+    if (!data || typeof data !== 'string') return null;
+    let contentType = 'image/png';
+    const headers = res.headers || {};
+    for (const k of Object.keys(headers)) {
+      if (k.toLowerCase() === 'content-type' && headers[k]) { contentType = String(headers[k]).split(';')[0].trim(); break; }
+    }
+    if (!/^image\//i.test(contentType)) return null;
+    return `data:${contentType};base64,${data}`;
+  } catch {
+    return null;
+  }
+}
+
+async function _fetchViaBrowser(url) {
+  try {
+    const res = await fetch(url, { mode: 'cors', credentials: 'omit' });
+    if (!res.ok) return null;
+    const contentType = res.headers.get('content-type') || '';
+    if (contentType && !/^image\//i.test(contentType)) return null;
+    const blob = await res.blob();
+    if (!blob || blob.size === 0) return null;
+    return await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
+export async function fetchRemoteImageAsDataUrl(url) {
+  if (!url || typeof url !== 'string' || !/^https?:\/\//i.test(url)) return null;
+  const viaNative = await _fetchViaCapacitor(url);
+  if (viaNative) return viaNative;
+  return await _fetchViaBrowser(url);
+}
+
 // True for image formats we must never push through the canvas: vector
 // (SVG — rasterising it loses scalability) and any format that can carry
 // animation and/or an alpha channel that a JPEG re-encode would destroy.
