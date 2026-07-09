@@ -11,7 +11,11 @@
 // `fontStackFor(value)`. An empty value ("") means "inherit the app default"
 // — the default for every profile, so existing profiles are unaffected.
 
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import { APP_FONT_OPTIONS, EXTRA_FONT_OPTIONS } from "@/lib/useAccessibility";
+import { customFontFamilyCss } from "@/lib/customFontFaces";
 
 export const PROFILE_FONTS = [
   { id: "", label: "Default", stack: "" },
@@ -21,6 +25,28 @@ export const PROFILE_FONTS = [
     stack: f.value,
   })),
 ];
+
+// PROFILE_FONTS + the user's uploaded fonts (Settings → Appearance → font
+// upload). Uploaded fonts store the same thing built-ins do — a CSS
+// font-family stack (`customFontFamilyCss(id)`) — and their @font-face rules
+// are injected app-wide by customFontFaces.js, so profile pages render them
+// with no extra plumbing. `isUpload` lets pickers group them separately.
+// Reuses the shared ["customFonts"] query cache (same key as Appearance).
+export function useProfileFonts() {
+  const { data: customFonts = [] } = useQuery({
+    queryKey: ["customFonts"],
+    queryFn: () => base44.entities.CustomFont.list(),
+  });
+  return useMemo(() => [
+    ...PROFILE_FONTS,
+    ...customFonts.map((f) => ({
+      id: customFontFamilyCss(f.id),
+      label: f.name || "Uploaded font",
+      stack: customFontFamilyCss(f.id),
+      isUpload: true,
+    })),
+  ], [customFonts]);
+}
 
 const _byId = Object.fromEntries(PROFILE_FONTS.map((f) => [f.id, f]));
 

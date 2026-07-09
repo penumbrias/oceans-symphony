@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
-import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
+import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
@@ -169,6 +169,9 @@ const HEADER_PALETTE = [
 ];
 
 function FontSelect({ value, onChange, ariaLabel }) {
+  const fonts = useProfileFonts(); // built-ins + the user's uploaded fonts
+  const builtIn = fonts.filter((f) => !f.isUpload);
+  const uploads = fonts.filter((f) => f.isUpload);
   return (
     <select
       value={value || ""}
@@ -177,9 +180,16 @@ function FontSelect({ value, onChange, ariaLabel }) {
       className="w-full text-sm rounded-md border border-input bg-background px-2 py-2"
       style={{ fontFamily: fontStackFor(value) || undefined }}
     >
-      {PROFILE_FONTS.map((f) => (
+      {builtIn.map((f) => (
         <option key={f.id || "default"} value={f.id} style={{ fontFamily: f.stack || undefined }}>{f.label}</option>
       ))}
+      {uploads.length > 0 && (
+        <optgroup label="Your uploads">
+          {uploads.map((f) => (
+            <option key={f.id} value={f.id} style={{ fontFamily: f.stack || undefined }}>{f.label}</option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }

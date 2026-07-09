@@ -48,6 +48,10 @@ export const CHANGELOG = [
         type: "feature",
         text: "Preview Mode: five new design-exploration profiles push the editors' limits — real tables, in-app link launchpads, mixed typography & colour, a drag-to-reorder Blocks playground, and a full custom page with its own header and background. Open Raw mode on any of them to copy the code.",
       },
+      {
+        type: "fix",
+        text: "Your uploaded fonts now appear in the Profile style font pickers (header + page font), grouped under \"Your uploads\".",
+      },
     ],
   },
   {
