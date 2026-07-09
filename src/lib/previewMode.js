@@ -16,8 +16,19 @@
 
 import { queryClientInstance } from "./query-client";
 import { setPreviewDb, clearPreviewDb, isPreviewDbActive } from "./localDb";
-import { getPreviewSystem, PREVIEW_SYSTEMS } from "./previewSystems";
+import { PREVIEW_SYSTEMS_META, getPreviewSystemMeta } from "./previewMeta";
 import { resolveFontCss, initAccessibility } from "./useAccessibility";
+
+// The example content (previewSystems.js + previewWiki.js — hundreds of KB of
+// bios and dataset generators) is LAZY-LOADED here so it lives in its own
+// chunk: normal boots never download/parse it; it only loads the moment
+// Preview Mode is entered (or restored after a reload while active). All
+// synchronous consumers (banner, Settings card, usePreviewMode) read the tiny
+// static metadata from previewMeta.js instead.
+async function loadPreviewSystem(key) {
+  const { getPreviewSystem } = await import("./previewSystems");
+  return getPreviewSystem(key);
+}
 
 const STORAGE_KEY = "symphony_preview_active_system";
 const THEME_BACKUP_KEY = "symphony_preview_saved_theme";
@@ -38,10 +49,13 @@ export function getActiveSystemKey() {
   return localStorage.getItem(STORAGE_KEY) || null;
 }
 
+// Synchronous — returns the METADATA entry (key, name, wiki flag, theme…),
+// which is all the banner / hooks need. The heavy builder is never exposed
+// synchronously.
 export function getActiveSystem() {
   const key = getActiveSystemKey();
   if (!key) return null;
-  return getPreviewSystem(key);
+  return getPreviewSystemMeta(key);
 }
 
 function applyFont(font) {
@@ -137,7 +151,7 @@ function splitBuildOutput(data) {
 }
 
 export async function enterPreview(systemKey) {
-  const system = getPreviewSystem(systemKey);
+  const system = await loadPreviewSystem(systemKey);
   if (!system) throw new Error(`Unknown preview system: ${systemKey}`);
   backupCurrentThemeState();
   const { entities, meta } = splitBuildOutput(system.build());
@@ -167,14 +181,27 @@ export async function exitPreview() {
 export async function restorePreviewIfActive() {
   const key = getActiveSystemKey();
   if (!key) return;
-  const system = getPreviewSystem(key);
+  // Cheap meta check first so an unknown/stale key cleans up without ever
+  // downloading the example-content chunk.
+  if (!getPreviewSystemMeta(key)) {
+    localStorage.removeItem(STORAGE_KEY);
+    localStorage.removeItem(THEME_BACKUP_KEY);
+    return;
+  }
+  const system = await loadPreviewSystem(key);
   if (!system) {
     localStorage.removeItem(STORAGE_KEY);
     localStorage.removeItem(THEME_BACKUP_KEY);
     return;
   }
-  const { entities } = splitBuildOutput(system.build());
+  const { entities, meta } = splitBuildOutput(system.build());
   setPreviewDb(entities);
+  // Each build() mints fresh alter ids (see uid() in previewWiki.js), so the
+  // per-alter theme LINKS saved at enterPreview time now point at dead ids.
+  // Re-apply them against this build's ids so fronting a theme-showcase page
+  // still swaps the app palette after a reload. (The user's originals are
+  // preserved in the theme backup made at enterPreview and restored on exit.)
+  applyAlterCustomization(meta.themePresets, meta.alterThemeLinks);
   notify();
 }
 
@@ -183,4 +210,6 @@ export function subscribe(fn) {
   return () => listeners.delete(fn);
 }
 
-export { PREVIEW_SYSTEMS };
+// Metadata list for the Settings card (name / blurb / key / termsLabel) —
+// intentionally the META entries, so importing this never pulls the content.
+export const PREVIEW_SYSTEMS = PREVIEW_SYSTEMS_META;

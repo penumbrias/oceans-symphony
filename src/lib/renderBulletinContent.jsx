@@ -202,6 +202,14 @@ function nodeToReact(node, key, renderText) {
     if (forNames != null) props["data-whisper-for"] = forNames;
   } else if (/\bspoiler\b/.test(cls)) {
     props.className = "spoiler";
+  } else if (/\blog-chip\b/.test(cls)) {
+    // Inline "~command" quick-log chip baked into stored content. Preserve the
+    // class + data-* so the .log-chip CSS pill renders. Inert — just a label.
+    props.className = "log-chip";
+    const lt = node.getAttribute("data-log-type");
+    if (lt != null) props["data-log-type"] = lt;
+    const eid = node.getAttribute("data-entity-id");
+    if (eid != null) props["data-entity-id"] = eid;
   }
   return React.createElement(tag, props, children);
 }

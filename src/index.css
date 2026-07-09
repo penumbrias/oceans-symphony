@@ -203,6 +203,26 @@ body {
   color: hsl(var(--primary));
 }
 
+/* Log chip — an inline "~command" quick-log (symptom / feeling / company /
+   activity) baked into content on save. A small, inert pill so the reader can
+   see what was logged at that point. */
+.log-chip {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0.25em;
+  font-size: 0.78rem;
+  font-weight: 600;
+  line-height: 1.4;
+  padding: 1px 8px;
+  margin: 0 1px;
+  border-radius: 999px;
+  border: 1px solid hsl(var(--primary) / 0.35);
+  background: hsl(var(--primary) / 0.12);
+  color: hsl(var(--primary));
+  white-space: nowrap;
+  vertical-align: baseline;
+}
+
 /* ─── App header decoration ──────────────────────────────────────────
  * The header has a slightly lighter wash on its top half whose bottom
  * edge is wavy and scrolls slowly sideways — calm-waves motion,

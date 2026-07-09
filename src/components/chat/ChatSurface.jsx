@@ -15,6 +15,7 @@ import { renderRichContent } from "@/lib/renderBulletinContent";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, hasWhisperCommand } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { parseAndStripSignposts, foldSignpostAuthors, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { processUploadedImage, saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
@@ -693,7 +694,9 @@ export default function ChatSurface({
   };
 
   // Build a fully-resolved send payload and hand it to the host.
-  const handleComposerSubmit = async ({ content, speakerIds, notifyOnReply }) => {
+  const handleComposerSubmit = async ({ content: rawContent, speakerIds, notifyOnReply }) => {
+    // Execute any inline ~commands first — each becomes a chip in the message.
+    const content = (await applyLogCommands(rawContent, { isRich: true })).content;
     let body = content;
     let whisperRecipientIds = [];
     let isWhisper = false;

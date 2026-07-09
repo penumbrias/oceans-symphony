@@ -15,6 +15,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import ActivityLifecyclePopover from "@/components/activities/ActivityLifecyclePopover";
 import RecurrenceBranchDialog from "@/components/activities/RecurrenceBranchDialog";
 import { statusFor, STATUS_LABELS, ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -259,9 +260,11 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       toast.error("Select an activity");
       return;
     }
+    // Run inline ~commands first (each becomes a chip), then whisper handling.
+    const lc = await applyLogCommands(data.notes || "", { isRich: false });
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(data.notes || "", alters, { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
+    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
     if (w === null) return;
     const notes = w.content;
     setIsLoading(true);

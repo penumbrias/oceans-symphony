@@ -705,7 +705,7 @@ useEffect(() => {
           }
           return (
             <div className="bg-muted/20 rounded-xl p-4 border border-border/40" style={sectionCardStyle}>
-              <SimplePreview blocks={blocks} onBlockChange={() => {}} readOnly={true} />
+              <SimplePreview blocks={blocks} onBlockChange={() => {}} readOnly={true} scopeId={alter?.id} />
             </div>
           );
         })() : (

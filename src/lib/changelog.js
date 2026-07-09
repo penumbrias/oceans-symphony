@@ -18,7 +18,41 @@
 
 export const CHANGELOG = [
   {
+    date: "July 9, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Type ~ in any note or message to quick-log symptoms, feelings, company, or activities inline — an autocomplete helps you fill it in, and it turns into a chip when you save. e.g. \"~symptom:anxiety:3\".",
+      },
+      {
+        type: "fix",
+        text: "Bio animations now play on profile pages, and each profile's custom CSS stays scoped to that profile so it can't affect other profiles or the rest of the app.",
+      },
+      {
+        type: "fix",
+        text: "Preview Mode: the theme-showcase pages now actually swap the whole app palette when you front them.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: ~ quick-log now coexists with @mentions and signposts on the same line, and you can still add \":active\" after picking a multi-word activity/contact.",
+      },
+      {
+        type: "feature",
+        text: "Profile templates: the bio editor's new Templates button offers full-page designs (terminal, neon, night sky, character sheet…) and stackable modules (headers, likes/dislikes, skill bars, triggers & needs, dividers…) — pick one, then tap the dotted fields to fill it in.",
+      },
+      {
+        type: "improve",
+        text: "Leaner app startup: Preview Mode's example content and the template library now only load when you actually open them.",
+      },
+      {
+        type: "feature",
+        text: "Preview Mode: five new design-exploration profiles push the editors' limits — real tables, in-app link launchpads, mixed typography & colour, a drag-to-reorder Blocks playground, and a full custom page with its own header and background. Open Raw mode on any of them to copy the code.",
+      },
+    ],
+  },
+  {
     date: "July 8, 2026",
+    version: "0.80.2",
     changes: [
       {
         type: "improve",

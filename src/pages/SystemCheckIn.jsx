@@ -17,6 +17,7 @@ import MeetingParticipantsSection, { normalizeParticipants } from "@/components/
 import MeetingDialogue, { normalizeDialogue } from "@/components/system-checkin/MeetingDialogue";
 import { saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import RichText from "@/components/shared/RichText";
 import { renderRichContent } from "@/lib/renderBulletinContent";
 import { useMentionHighlight } from "@/lib/useMentionHighlight";
@@ -151,7 +152,8 @@ export default function SystemCheckInPage() {
     for (const key of ["step3_greet", "step4_share", "step5_closing"]) {
       const step = dataToSave[key];
       if (step?.notes) {
-        const ww = applyWhisper(step.notes, alters, { allowWholeBlur: false, rich: false, surfaceLabel: "check-in note" });
+        const lc = await applyLogCommands(step.notes, { isRich: false });
+        const ww = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "check-in note" });
         if (ww === null) return; // user backed out of the whole-blur warning
         dataToSave[key] = { ...step, notes: ww.content };
       }

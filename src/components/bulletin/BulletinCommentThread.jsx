@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import AuthorsRow from "./AuthorsRow";
 import { saveAuthoredLog, saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { parseAndStripSignposts, foldSignpostAuthors, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
@@ -170,10 +171,12 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
   const handleSubmit = async () => {
     if (!text.trim()) return;
     setSaving(true);
+    // Execute any inline ~commands first — each becomes a chip in the comment.
+    const textWithChips = (await applyLogCommands(text, { isRich: true })).content;
     // Strip signposts from the ORIGINAL text first so whisper wrapping can't be
     // mangled by signpost stripping. Authorship is computed from the shared fold
     // below (same rule as the preview chips).
-    const { cleanContent: signpostClean } = parseSignposts(text, alters, systemKeywords);
+    const { cleanContent: signpostClean } = parseSignposts(textWithChips, alters, systemKeywords);
     // Whisper — explicit toggle is the reliable path; inline "/w" is the fallback.
     let cleanContent = signpostClean;
     let whisperRecipientIds = [];

@@ -1,9 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { spoilersToHtml } from "@/lib/renderBulletinContent";
+import { scopeBioStyles, bioHasStyle, rewriteInlineAnimations } from "@/lib/scopedBioStyle";
+
+// Strip <style> blocks out of a single block's HTML — when scoping is active
+// their CSS is hoisted (scoped) into one injected <style> at the container.
+function stripStyleTags(html) {
+  return (html || "").replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "");
+}
 
 // The placeholder HTML is a hardcoded constant — sanitizing the dynamic content
 // only. The placeholder string is repeated verbatim and contains only safe
@@ -21,7 +28,7 @@ function sanitizeBlockHtml(html) {
   // keyframes were gone). Allow <style>; DOMPurify still sanitises the CSS
   // (drops @import / expression() / javascript: url()), and arbitrary inline
   // styles — which can already restyle the page — are permitted anyway.
-  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"], ADD_TAGS: ["style"] });
+  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target", "data-log-type", "data-entity-id"], ADD_TAGS: ["style"] });
   // Make hard-coded px font sizes (common in pasted / imported bios) respond to
   // the accessibility Text size slider by converting them to rem — the same
   // visual size at the default scale, but now they grow/shrink with the slider.
@@ -30,7 +37,7 @@ function sanitizeBlockHtml(html) {
   return clean.replace(/font-size:\s*([\d.]+)px/gi, (_, n) => `font-size:${(parseFloat(n) / 16).toFixed(4)}rem`);
 }
 
-export default function SimplePreview({ blocks, onBlockChange, readOnly = false }) {
+export default function SimplePreview({ blocks, onBlockChange, readOnly = false, scopeId = null }) {
   const navigate = useNavigate();
   const [editModal, setEditModal] = useState(null);
   const [editValue, setEditValue] = useState("");
@@ -62,6 +69,22 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
 
   // Resolve a src for rendering (falls back to original if not yet resolved)
   const resolveSrc = (src) => (src?.startsWith("local-image://") ? resolvedImages[src] || "" : src);
+
+  // Per-profile CSS scoping. Any <style> in a bio's blocks is extracted, its
+  // selectors prefixed with `.${scopeClass}` and its @keyframes renamed per
+  // profile, then injected once. This makes bio animations actually render on
+  // the page AND keeps one profile's CSS from touching other profiles / the
+  // app. When there's no <style>, this is a no-op (bodies render unchanged).
+  const scoped = useMemo(() => {
+    if (!scopeId) return null;
+    const combined = (blocks || []).map((b) => b.content || b.text || "").join("\n");
+    if (!bioHasStyle(combined)) return null;
+    return scopeBioStyles(combined, scopeId);
+  }, [blocks, scopeId]);
+
+  // Body HTML for a block, with <style> stripped when scoping hoisted it and
+  // inline animation refs pointed at the renamed (scoped) @keyframes.
+  const bodyFor = (html) => (scoped ? rewriteInlineAnimations(stripStyleTags(html), scoped.renamed) : html);
 
   const handleClick = (e, block, field) => {
     // Check for internal link clicks (works in both read-only and edit mode)
@@ -123,14 +146,18 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
           .sp-editable [data-edit]:hover { background: rgba(99,102,241,0.12); }
         `}</style>
       )}
-      <div className={readOnly ? "wysiwyg-content space-y-2" : "wysiwyg-content sp-editable space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]"}>
+      {scoped?.styleCss && <style>{scoped.styleCss}</style>}
+      <div className={[
+        readOnly ? "wysiwyg-content space-y-2" : "wysiwyg-content sp-editable space-y-2 rounded-xl border border-input bg-background p-3 min-h-[200px]",
+        scoped?.scopeClass || "",
+      ].filter(Boolean).join(" ")}>
         {blocks.map(block => {
           if (block.type === "text") {
             return (
               <div key={block.id}
                 onClick={(e) => handleClick(e, block, "content")}
                 className="px-2 py-1 rounded-lg min-h-[24px]"
-                dangerouslySetInnerHTML={{ __html: block.content ? sanitizeBlockHtml(block.content) : (!readOnly ? PLACEHOLDER_HTML : '') }}
+                dangerouslySetInnerHTML={{ __html: block.content ? sanitizeBlockHtml(bodyFor(block.content)) : (!readOnly ? PLACEHOLDER_HTML : '') }}
               />
             );
           }
@@ -148,7 +175,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
                 )}
                 <div onClick={(e) => handleClick(e, block, "text")}
                   className="flex-1 px-2 py-1 rounded-lg min-h-[40px]"
-                  dangerouslySetInnerHTML={{ __html: block.text ? sanitizeBlockHtml(block.text) : (!readOnly ? PLACEHOLDER_HTML : '') }} />
+                  dangerouslySetInnerHTML={{ __html: block.text ? sanitizeBlockHtml(bodyFor(block.text)) : (!readOnly ? PLACEHOLDER_HTML : '') }} />
               </div>
             );
           }
@@ -192,7 +219,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false 
             <div key={block.id}
               onClick={(e) => !readOnly && handleClick(e, block, "content")}
               style={{ width: "100%" }}
-              dangerouslySetInnerHTML={{ __html: sanitizeBlockHtml(html) }} />
+              dangerouslySetInnerHTML={{ __html: sanitizeBlockHtml(bodyFor(html)) }} />
           );
         })}
         {blocks.length === 0 && !readOnly && (

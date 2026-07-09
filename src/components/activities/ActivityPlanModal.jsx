@@ -12,6 +12,7 @@ import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { Plus, MapPin, Zap, Repeat, Bell, UserPlus, X } from "lucide-react";
 import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
 import { useTerms } from "@/lib/useTerms";
@@ -301,10 +302,12 @@ export default function ActivityPlanModal({
     if (!isQuickPlan && !startTime) { toast.error("Set start time"); return; }
     if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
+    // Run inline ~commands first (each becomes a chip), then whisper handling.
+    const lc = await applyLogCommands(notes || "", { isRich: false });
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — a plan note is a personal record). Done
     // before setIsLoading so a "go back" leaves the form untouched.
-    const w = applyWhisper(notes || "", alters || [], { allowWholeBlur: false, rich: false, surfaceLabel: "plan" });
+    const w = applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "plan" });
     if (w === null) return;
     const finalNotes = w.content;
 

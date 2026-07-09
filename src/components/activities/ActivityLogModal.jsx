@@ -15,6 +15,7 @@ import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { addActiveActivity } from "@/lib/activitySession";
@@ -269,9 +270,11 @@ export default function ActivityLogModal({
       return;
     }
 
+    // Run inline ~commands first (each becomes a chip), then whisper handling.
+    const lc = await applyLogCommands(notes || "", { isRich: false });
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — an activity note is a personal record).
-    const w = applyWhisper(notes || "", alters || [], { allowWholeBlur: false, rich: false, surfaceLabel: "note" });
+    const w = applyWhisper(lc.content, alters || [], { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "note" });
     if (w === null) return;
     const finalNotes = w.content;
 

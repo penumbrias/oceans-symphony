@@ -55,7 +55,7 @@ export default function SystemHeaderCard({ settings, action = null }) {
           </button>
           {showBio && (
             <div className="mt-2 bg-muted/20 rounded-xl p-4 border border-border/40">
-              <SimplePreview blocks={bioBlocks} onBlockChange={() => {}} readOnly={true} />
+              <SimplePreview blocks={bioBlocks} onBlockChange={() => {}} readOnly={true} scopeId="system-bio" />
             </div>
           )}
         </div>

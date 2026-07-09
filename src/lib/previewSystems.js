@@ -15,6 +15,7 @@
 // this file imports them and generates the surrounding dataset.
 
 import { buildPages } from "./previewWiki";
+import { PREVIEW_SYSTEMS_META } from "./previewMeta";
 
 const DAY = 86400000;
 const HOUR = 3600000;
@@ -749,22 +750,18 @@ function buildGuidedDemo() {
 
 // ---------------------------------------------------------------------------
 
-// Public registry — one guided example. `wiki: true` keeps the banner's
-// "walkthrough up to date with vX.Y.Z" tag (see PreviewModeBanner.jsx),
-// since the alter profiles are the walkthrough.
-export const PREVIEW_SYSTEMS = [
-  {
-    key: "guide",
-    wiki: true,
-    name: "Preview Mode",
-    blurb: "An example system where every profile is a walkthrough of a feature — and the whole app is filled with realistic example data so you can actually try things. Many profiles double as design showcases that flex what the alter bio editor can produce (animation, gradients, custom fields, per-alter themes); a few stay deliberately minimal to show the range. Your real data is hidden but never touched while Preview Mode is on.",
-    termsLabel: "system / alter / fronting / switching",
-    theme: "cool",
-    font:  "'Atkinson Hyperlegible', sans-serif",
-    themeMode: null,
-    build: buildGuidedDemo,
-  },
-];
+// Public registry — one guided example. All display metadata lives in
+// previewMeta.js (tiny, static — safe for the banner / Settings card to
+// import); this file only attaches the heavy `build` function. This module is
+// LAZY-LOADED via dynamic import() in previewMode.js — never import it
+// statically from UI code or the whole example content lands in the main
+// bundle.
+const BUILDERS = { guide: buildGuidedDemo };
+
+export const PREVIEW_SYSTEMS = PREVIEW_SYSTEMS_META.map((m) => ({
+  ...m,
+  build: BUILDERS[m.key],
+}));
 
 export function getPreviewSystem(key) {
   return PREVIEW_SYSTEMS.find((s) => s.key === key) || null;

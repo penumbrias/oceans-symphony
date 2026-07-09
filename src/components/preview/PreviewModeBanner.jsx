@@ -3,7 +3,7 @@ import { Eye, X } from "lucide-react";
 import { usePreviewMode } from "@/lib/usePreviewMode";
 import { exitPreview } from "@/lib/previewMode";
 import { APP_VERSION } from "@/lib/appVersion";
-import { WIKI_CONTENT_VERSION } from "@/lib/previewWiki";
+import { WIKI_CONTENT_VERSION } from "@/lib/previewMeta";
 
 // Loose semver compare — returns negative if a < b, 0 if equal, positive
 // if a > b. Tolerates pre-release suffixes and missing patch numbers by

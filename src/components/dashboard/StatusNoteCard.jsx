@@ -5,6 +5,7 @@ import { Edit2, X } from "lucide-react";
 import { toast } from "sonner";
 import { localEntities, base44 } from "@/api/base44Client";
 import MentionTextarea from "@/components/shared/MentionTextarea";
+import { applyLogCommands } from "@/lib/logCommands";
 
 // Standalone "What's happening right now…" status note.
 //
@@ -39,15 +40,20 @@ export default function StatusNoteCard() {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
 
   const handleSave = async () => {
-    const note = tempStatus.trim();
-    if (!note) { setEditing(false); return; }
+    const raw = tempStatus.trim();
+    if (!raw) { setEditing(false); return; }
     setEditing(false);
     setTempStatus("");
+    // Execute any inline ~commands (status notes render as plain text, so use
+    // plain-label tokens rather than HTML chips).
+    const { content: note } = await applyLogCommands(raw, { chips: false });
     await localEntities.StatusNote.create({
       timestamp: new Date().toISOString(),
       note,
     });
     queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
+    queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+    queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
     toast.success("Status saved");
   };
 

@@ -92,6 +92,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "⚡",
+      title: "Quick-log with ~",
+      body: `Type a ~ command in almost any note or message to log something inline — a dropdown helps you fill it in. For example "~symptom:anxiety:3" logs anxiety at severity 3, "~feeling:on edge" logs an emotion, and "~company:emma:active" marks that you're with a contact. It turns into a chip when you save, and lands wherever Quick Check-In would have put it.`,
+      route: "/", target: "status-note",
+      look: `the status note field — try it here, or in any journal, ${t.alter} note, or chat`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🧭",
       title: "Quick Nav Menu",
       body: `Below the status input is the Quick Nav Menu — shortcuts to every section of the app. The icon in the header cycles through list view and 2–5 column grid layouts on each tap. In Settings → Appearance → Navigation you can choose which pages appear here and in what order.`,
@@ -245,7 +253,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "alters", sectionLabel: t.Alters,
       emoji: "✏️",
       title: "Edit Profile",
-      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, alias, pronouns, role, color, avatar, first appearance, bio, profile style, groups, and ${t.subsystem || "subsystem"}s. Under "Header extras" you can choose to show this ${t.alter}'s groups, ${t.subsystem || "subsystem"}s, or custom fields right in the profile header (as icon, name, or both — and they link to their pages). Tap Save when done. The View button switches back to read-only without saving.`,
+      body: `The highlighted Edit button switches the profile tab into edit mode. You can update the name, alias, pronouns, role, color, avatar, first appearance, bio, profile style, groups, and ${t.subsystem || "subsystem"}s. The bio editor's Templates button offers ready-made page designs and stackable sections (headers, likes/dislikes, dividers…) — pick one, then tap the dotted fields to fill it in. Under "Header extras" you can choose to show this ${t.alter}'s groups, ${t.subsystem || "subsystem"}s, or custom fields right in the profile header. Tap Save when done.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-edit-btn" : null,
       look: ai ? `the highlighted "Edit" button in the top-right of the profile page` : `open a profile and look for the Edit button in the top-right`, action: null,
