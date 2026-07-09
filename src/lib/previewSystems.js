@@ -756,8 +756,8 @@ export const PREVIEW_SYSTEMS = [
   {
     key: "guide",
     wiki: true,
-    name: "Guided example",
-    blurb: "One example system where every profile is a walkthrough of a feature — and the whole app is filled with realistic example data so you can actually try things. A few profiles double as design showcases that flex what the alter bio editor can produce (animation, gradients, custom fields, per-alter themes). Your real data is hidden but never touched while Preview Mode is on.",
+    name: "Preview Mode",
+    blurb: "An example system where every profile is a walkthrough of a feature — and the whole app is filled with realistic example data so you can actually try things. Many profiles double as design showcases that flex what the alter bio editor can produce (animation, gradients, custom fields, per-alter themes); a few stay deliberately minimal to show the range. Your real data is hidden but never touched while Preview Mode is on.",
     termsLabel: "system / alter / fronting / switching",
     theme: "cool",
     font:  "'Atkinson Hyperlegible', sans-serif",

@@ -77,18 +77,21 @@ export function ContactMultiSelectList({ selectedContactIds = [], onChange, excl
           visible.map((c) => {
             const checked = selectedContactIds.includes(c.id);
             return (
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 key={c.id}
                 onClick={() => toggle(c.id)}
-                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-colors text-left ${
+                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(c.id); } }}
+                aria-pressed={checked}
+                className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-xl border transition-colors text-left cursor-pointer ${
                   checked ? "border-primary/60 bg-primary/5" : "border-border/50 bg-card hover:bg-muted/30"
                 }`}
               >
                 <Checkbox checked={checked} className="pointer-events-none" />
                 <ContactThumb contact={c} />
                 <span className="flex-1 min-w-0 text-sm font-medium truncate">{contactDisplayName(c)}</span>
-              </button>
+              </div>
             );
           })
         )}

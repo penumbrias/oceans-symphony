@@ -15,6 +15,7 @@ import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
 import { getActiveEncounters, startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
+import { enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -92,11 +93,11 @@ const TRIGGER_CATEGORIES = [
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
 { id: "fronting", label: "Fronting", icon: Users },
-{ id: "contacts", label: "Who are you with?", icon: UserCheck },
 { id: "activity", label: "Activity", icon: Zap },
 { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
 { id: "diary", label: "Diary", icon: BookOpen },
 { id: "note", label: "Note", icon: FileText },
+{ id: "contacts", label: "Company", icon: UserCheck },
 { id: "location", label: "Location", icon: MapPin }];
 
 
@@ -114,6 +115,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Which section pills the user has enabled (Manage Check-In → Sections).
+  const { data: ssList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(ssList?.[0]), [ssList]);
+  const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
   // most-recently-opened section; arrows close it and open the adjacent one.
@@ -326,12 +334,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // in PILLS order, and scroll it into view. Other manually-opened sections
   // are left as-is (step-one-at-a-time, not a strict wizard).
   const goToSection = (dir) => {
-    const idx = PILLS.findIndex((p) => p.id === currentSectionId);
+    const steps = visiblePills.length ? visiblePills : PILLS;
+    const idx = steps.findIndex((p) => p.id === currentSectionId);
     const base = idx < 0 ? 0 : idx;
     const nextIdx = base + dir;
-    if (nextIdx < 0 || nextIdx >= PILLS.length) return;
-    const curId = PILLS[base].id;
-    const nextId = PILLS[nextIdx].id;
+    if (nextIdx < 0 || nextIdx >= steps.length) return;
+    const curId = steps[base].id;
+    const nextId = steps[nextIdx].id;
     setOpenSections((prev) => {
       const next = new Set(prev);
       next.delete(curId);
@@ -400,10 +409,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         return;
       }
       setEntryTime(toDatetimeLocal(retroTimestamp));
-      const initial = new Set(["feeling"]);
-      if (initialSection) initial.add(initialSection);
-      setOpenSections(initial);
-      setCurrentSectionId(initialSection || "feeling");
+      // When opened targeting a specific section (e.g. a quick action for
+      // Location), open ONLY that section — don't also pop Feeling open.
+      // Respect the user's enabled-sections config: never open a hidden one.
+      const enabled = enabledCheckinSectionIds(ssList?.[0]);
+      const target = initialSection && enabled.includes(initialSection) ? initialSection : (enabled[0] || "feeling");
+      setOpenSections(new Set([target]));
+      setCurrentSectionId(target);
       if (initialSection === "fronting") setHadFrontingOpen(true);
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
@@ -1149,7 +1161,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
           {/* Pill toggles */}
           <div className="flex flex-wrap gap-1.5 pb-1">
-            {PILLS.map((pill) => {
+            {visiblePills.map((pill) => {
               const PillIcon = pill.icon;
               // Module-scope PILLS can't hit useTerms, so resolve the
               // label for any system-customisable terms here at render.
@@ -1317,14 +1329,6 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             </div>
           }
 
-          {/* Contacts */}
-          {openSections.has("contacts") &&
-          <div ref={(el) => (sectionRefs.current.contacts = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
-              <p className="text-sm font-medium">Who are you with?</p>
-              <ContactMultiSelectList selectedContactIds={selectedContactIds} onChange={setSelectedContactIds} />
-            </div>
-          }
-
           {/* Activity */}
           {openSections.has("activity") &&
           <div ref={(el) => (sectionRefs.current.activity = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
@@ -1446,6 +1450,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   {note.trim().split(/\s+/).filter(Boolean).length > 50 && " · will save as journal entry"}
                 </p>
             }
+            </div>
+          }
+
+          {/* Company (who are you with) */}
+          {openSections.has("contacts") &&
+          <div ref={(el) => (sectionRefs.current.contacts = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">Company</p>
+              <ContactMultiSelectList selectedContactIds={selectedContactIds} onChange={setSelectedContactIds} />
             </div>
           }
 

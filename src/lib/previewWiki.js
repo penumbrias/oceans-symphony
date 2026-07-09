@@ -23,7 +23,7 @@
 // Bump this string whenever you meaningfully change a bio in this
 // file. PATCH bumps for added detail / small tweaks; MINOR for a
 // whole new wiki alter / topic; MAJOR for a structural rewrite.
-export const WIKI_CONTENT_VERSION = "0.79.0";
+export const WIKI_CONTENT_VERSION = "0.79.1";
 
 let _counter = 0;
 function uid(prefix) {
@@ -881,8 +881,8 @@ export function buildPages() {
 
   const settings = {
     id: uid("wiki-settings"),
-    system_name: "Oceans Symphony — guided example",
-    system_description: "A guided example: every profile is a walkthrough of one feature, and the whole app is filled with example data so you can try things. Your real data is untouched.",
+    system_name: "Preview Mode — example system",
+    system_description: "Every profile is a walkthrough of one feature, and the whole app is filled with example data so you can try things. Your real data is untouched.",
     term_system: "system",
     term_alter: "alter",
     term_switch: "switch",

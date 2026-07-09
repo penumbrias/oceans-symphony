@@ -918,10 +918,10 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "done", sectionLabel: "Done!",
       emoji: "👁️",
-      title: "Feeling lost? Try the guided example",
-      body: `To see how the app feels with everything filled in, head to Settings → Guided example. It drops you into an example ${t.system} where every ${t.alter} profile walks you through one feature — and the whole app is populated so you can actually try things. Your real data stays exactly where it is; anything you touch in the example vanishes when you exit.`,
+      title: "Feeling lost? Try Preview Mode",
+      body: `To see how the app feels with everything filled in, head to Settings → Preview Mode. It drops you into an example ${t.system} where every ${t.alter} profile walks you through one feature — and the whole app is populated so you can actually try things. Your real data stays exactly where it is; anything you touch in the example vanishes when you exit.`,
       route: "/settings", target: "settings-preview",
-      look: `the Guided example section — tap its header to expand it and start the example`,
+      look: `the Preview Mode section — tap its header to expand it and start the example`,
       action: null,
     },
     {

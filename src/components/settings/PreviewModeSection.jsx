@@ -43,7 +43,7 @@ export default function PreviewModeSection() {
           What is Preview Mode?
         </p>
         <p className="text-muted-foreground">
-          Preview Mode drops you into a guided example — the whole app filled with realistic data so
+          Preview Mode drops you into an example system — the whole app filled with realistic data so
           you can actually try every section. <strong>Your real data is never touched</strong>; it's
           just hidden while preview is on, and anything you change while previewing disappears the
           moment you exit.

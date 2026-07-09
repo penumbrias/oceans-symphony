@@ -888,7 +888,7 @@ export default function Settings() {
           </SubSection>
           <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
           <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
-          <SubSection title="Guided example (Preview Mode)" defaultOpen={false}><PreviewModeSection /></SubSection>
+          <SubSection title="Preview Mode" defaultOpen={false}><PreviewModeSection /></SubSection>
           <SubSection title="What's new" defaultOpen={false}><RecentUpdates /></SubSection>
         </Section>
 

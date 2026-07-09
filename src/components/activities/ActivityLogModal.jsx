@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -160,13 +160,32 @@ export default function ActivityLogModal({
   // mode (matches the minimal Start Activity dashboard button's explicit
   // "no fronting picker" design), so nothing should be silently attributed
   // behind the scenes either.
+  // Snapshot of the date/time/fronting range captured when Active mode is
+  // enabled, so toggling it back OFF restores a coherent range instead of
+  // leaving the start pinned to "now" while the end stays where it was
+  // (which made start > end — the duration vanished and save would fail).
+  const preActiveRef = useRef(null);
   const enableActiveMode = (on) => {
-    setActiveMode(on);
-    if (!on) return;
-    const now = new Date();
-    setSelectedDateStr(format(now, "yyyy-MM-dd"));
-    setStartTime(format(now, "HH:mm"));
-    setSelectedAlters([]);
+    if (on) {
+      preActiveRef.current = { selectedDateStr, endDateStr, startTime, endTime, selectedAlters, stillFronting };
+      const now = new Date();
+      setActiveMode(true);
+      setSelectedDateStr(format(now, "yyyy-MM-dd"));
+      setStartTime(format(now, "HH:mm"));
+      setSelectedAlters([]);
+      return;
+    }
+    setActiveMode(false);
+    const snap = preActiveRef.current;
+    if (snap) {
+      setSelectedDateStr(snap.selectedDateStr);
+      setEndDateStr(snap.endDateStr);
+      setStartTime(snap.startTime);
+      setEndTime(snap.endTime);
+      setSelectedAlters(snap.selectedAlters);
+      setStillFronting(snap.stillFronting);
+      preActiveRef.current = null;
+    }
   };
 
   // Auto-populate alters from fronting history. Stable date key avoids
@@ -534,17 +553,9 @@ export default function ActivityLogModal({
               they're the same flow reached from two doors. */}
           {!activeMode && (
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Who was {terms.fronting}?
-              {selectedAlters.length > 0 && (
-                <span className="text-xs font-normal text-muted-foreground ml-2">
-                  ({selectedAlters.length} selected)
-                </span>
-              )}
-            </label>
             <Button type="button" variant="outline" onClick={() => setFronterPickerOpen(true)} className="w-full gap-2">
               <UserPlus className="w-4 h-4" />
-              {selectedAlters.length > 0 ? `Add or remove ${terms.alters}` : `Choose who was ${terms.fronting}…`}
+              {selectedAlters.length > 0 ? `${terms.Fronting}: ${selectedAlters.length} selected` : `Choose who was ${terms.fronting}…`}
             </Button>
             {selectedAlters.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
@@ -575,17 +586,9 @@ export default function ActivityLogModal({
               external people. Purely descriptive (Activity.contact_ids);
               doesn't touch ContactEncounter/"currently with" state. */}
           <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Who are you with?
-              {selectedContactIds.length > 0 && (
-                <span className="text-xs font-normal text-muted-foreground ml-2">
-                  ({selectedContactIds.length} selected)
-                </span>
-              )}
-            </label>
             <Button type="button" variant="outline" onClick={() => setContactsPickerOpen(true)} className="w-full gap-2">
               <Users className="w-4 h-4" />
-              {selectedContactIds.length > 0 ? "Add or remove contacts" : "Choose who you were with…"}
+              {selectedContactIds.length > 0 ? `Company: ${selectedContactIds.length} selected` : "Choose who you were with…"}
             </Button>
             {selectedContactIds.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">

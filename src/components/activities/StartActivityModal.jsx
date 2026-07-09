@@ -128,15 +128,14 @@ export default function StartActivityModal({ isOpen, onClose, alters = [] }) {
           </div>
 
           <div>
-            <label className="text-sm font-medium text-foreground">Who are you with?</label>
             <button
               type="button"
               onClick={() => setContactsOpen(true)}
-              className="mt-1 w-full flex items-center gap-1.5 text-left px-3 py-2 rounded-lg border border-border/60 bg-background text-sm hover:border-foreground/30"
+              className="w-full flex items-center gap-1.5 text-left px-3 py-2 rounded-lg border border-border/60 bg-background text-sm hover:border-foreground/30"
             >
               <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
               <span className={selectedContactNames.length ? "text-foreground truncate" : "text-muted-foreground"}>
-                {selectedContactNames.length ? selectedContactNames.join(", ") : "Tap to pick contacts…"}
+                {selectedContactNames.length ? `Company: ${selectedContactNames.join(", ")}` : "Choose who you're with…"}
               </span>
             </button>
           </div>

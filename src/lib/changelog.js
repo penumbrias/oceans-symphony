@@ -22,7 +22,19 @@ export const CHANGELOG = [
     changes: [
       {
         type: "feature",
-        text: "Preview Mode rebuilt as one guided example: every profile is a walkthrough of a feature, the whole app comes filled with example data so you can try things, and a few profiles show off what the profile editor can create. Your real data stays untouched. Settings → Guided example.",
+        text: "Quick Check-In: choose which sections appear (Feeling, Fronting, Activity, Company, Location…) under Manage Check-In → Sections. Renamed \"Who are you with?\" to \"Company\" and moved it next to Location.",
+      },
+      {
+        type: "fix",
+        text: "Quick Check-In: opening it straight to a section (like Location) no longer also pops open Feeling.",
+      },
+      {
+        type: "fix",
+        text: "Log Activity: fixed the start/end times getting out of order after toggling \"Active\" on and back off, and tidied the fronting / company pickers.",
+      },
+      {
+        type: "feature",
+        text: "Preview Mode rebuilt as one example system: every profile is a walkthrough of a feature, the whole app comes filled with example data so you can try things, and a few profiles show off what the profile editor can create. Your real data stays untouched. Settings → Preview Mode.",
       },
       {
         type: "feature",
