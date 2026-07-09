@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format, addMinutes } from "date-fns";
 import { toast } from "sonner";
-import { Trash2, Loader2, X } from "lucide-react";
+import { Trash2, Loader2, X, Repeat, Users } from "lucide-react";
+import { contactDisplayName } from "@/lib/contacts";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -197,6 +198,12 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
 
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => base44.entities.Contact.list(),
+  });
+  const contactsById = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
+
   const catById = useMemo(() => {
     const m = {};
     categories.forEach(c => { m[c.id] = c; });
@@ -357,6 +364,34 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
     }
   };
 
+  // "Log again" — quickly re-log the same activity at the current time as a
+  // fresh instant log (no duration, no carried-over alters/contacts). The
+  // common "I just did this again" flow without reopening the full modal.
+  const handleLogAgain = async (act) => {
+    setIsLoading(true);
+    try {
+      await base44.entities.Activity.create({
+        timestamp: new Date().toISOString(),
+        activity_name: act.activity_name,
+        activity_category_ids: act.activity_category_ids || [],
+        ...(act.color ? { color: act.color } : {}),
+        duration_minutes: null,
+        fronting_alter_ids: [],
+        contact_ids: [],
+        notes: null,
+        is_planned: false,
+        status: ACTIVITY_STATUSES.LOGGED,
+      });
+      toast.success(`Logged "${act.activity_name}" again`);
+      onSave?.();
+      onClose();
+    } catch {
+      toast.error("Couldn't log it again");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handleConfirmRecurringDelete = async (branch) => {
     const target = pendingDeleteRecurring;
     setPendingDeleteRecurring(null);
@@ -482,6 +517,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                         );
                       })()}
                     </div>
+                    <p className="text-xs text-muted-foreground text-center">{format(startTime, "EEEE, MMM d, yyyy")}</p>
                     <div className="grid grid-cols-3 gap-3 text-sm bg-muted/30 rounded-lg p-3">
                       <div><p className="text-muted-foreground text-xs font-semibold mb-1">Start</p><p className="font-medium">{format(startTime, "HH:mm")}</p></div>
                       <div>
@@ -512,6 +548,23 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                               <span>{alter.alias || alter.name}</span>
                             </div>
                           ))}
+                        </div>
+                      </div>
+                    )}
+                    {(act.contact_ids || []).length > 0 && (
+                      <div>
+                        <p className="text-xs font-semibold text-muted-foreground mb-2">Company</p>
+                        <div className="flex flex-wrap gap-2">
+                          {(act.contact_ids || []).map((id) => {
+                            const c = contactsById[id];
+                            if (!c) return null;
+                            return (
+                              <span key={id} className="px-3 py-1.5 rounded-lg border text-sm font-medium flex items-center gap-1.5" style={{ borderColor: c.color || "#0ea5e9" }}>
+                                <Users className="w-3.5 h-3.5 text-muted-foreground" />
+                                {contactDisplayName(c)}
+                              </span>
+                            );
+                          })}
                         </div>
                       </div>
                     )}
@@ -568,6 +621,16 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
                           className="flex-1 min-w-[120px]"
                         >
                           {act.recurrence_group_id ? "Manage this occurrence" : "Manage Plan"}
+                        </Button>
+                      )}
+                      {statusFor(act) === ACTIVITY_STATUSES.LOGGED && !act.recurrence_group_id && (
+                        <Button
+                          variant="outline"
+                          onClick={() => handleLogAgain(act)}
+                          disabled={isLoading}
+                          className="flex-1 min-w-[110px] gap-1.5"
+                        >
+                          <Repeat className="w-4 h-4" /> Log again
                         </Button>
                       )}
                       <Button

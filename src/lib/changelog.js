@@ -21,6 +21,14 @@ export const CHANGELOG = [
     date: "July 8, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Activity details now show the date and who you were with (Company), plus a \"Log again\" button to quickly re-log the same thing.",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In has a settings icon in its header — a shortcut to choose which sections show.",
+      },
+      {
         type: "feature",
         text: "Quick Check-In: choose which sections appear (Feeling, Fronting, Activity, Company, Location…) under Manage Check-In → Sections. Renamed \"Who are you with?\" to \"Company\" and moved it next to Location.",
       },

@@ -1131,7 +1131,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-destructive" />
-              {isEditing ? "Edit Check-In" : "Quick Check-In"}
+              <span className="flex-1">{isEditing ? "Edit Check-In" : "Quick Check-In"}</span>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); navigate("/manage-checkin"); }}
+                  aria-label="Check-in settings — choose which sections show"
+                  title="Check-in settings"
+                  className="text-muted-foreground hover:text-foreground transition-colors mr-6"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                </button>
+              )}
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
               <input
