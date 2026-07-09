@@ -3,7 +3,7 @@ import { Eye, X } from "lucide-react";
 import { usePreviewMode } from "@/lib/usePreviewMode";
 import { exitPreview } from "@/lib/previewMode";
 import { APP_VERSION } from "@/lib/appVersion";
-import { WIKI_CONTENT_VERSION } from "@/lib/previewWiki";
+import { WIKI_CONTENT_VERSION } from "@/lib/previewMeta";
 
 // Loose semver compare — returns negative if a < b, 0 if equal, positive
 // if a > b. Tolerates pre-release suffixes and missing patch numbers by
@@ -48,10 +48,8 @@ export default function PreviewModeBanner() {
         <Eye className="w-4 h-4 text-amber-600 dark:text-amber-400 flex-shrink-0" />
         <div className="flex-1 min-w-0">
           <span className="font-semibold text-amber-700 dark:text-amber-300">Preview Mode</span>
-          <span className="text-muted-foreground hidden sm:inline"> — viewing the example system </span>
-          <span className="text-muted-foreground sm:hidden"> · </span>
-          <span className="font-medium text-foreground truncate">{system.name}</span>
-          <span className="text-muted-foreground hidden md:inline">. Your real data is untouched.</span>
+          <span className="text-muted-foreground hidden sm:inline"> — you're viewing an example system.</span>
+          <span className="text-muted-foreground hidden md:inline"> Your real data is untouched.</span>
           {isWiki && (() => {
             // The wiki bios are hardcoded in previewWiki.js and only
             // get refreshed when someone actually edits them — NOT on

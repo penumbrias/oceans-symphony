@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import { saveMentions } from "@/lib/mentionUtils";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { useTerms } from "@/lib/useTerms";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { format } from "date-fns";
@@ -83,10 +84,12 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       return;
     }
 
+    // Run inline ~commands first (each becomes a chip), then whisper handling.
+    const lc = await applyLogCommands(formData.description || "", { isRich: false });
     // A "/w @name [secret]" in the description hides that part behind a
     // whisper bar (no brackets warns first — a task is a personal record,
     // not a post). Done before setLoading so a "go back" leaves the form be.
-    const w = applyWhisper(formData.description || "", alters, { allowWholeBlur: false, rich: false, surfaceLabel: "task" });
+    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "task" });
     if (w === null) return;
     const description = w.content;
 

@@ -5,8 +5,9 @@
 // pollutes the logged grid/tally.
 //
 // MULTIPLE concurrent sessions are supported: the store is an ARRAY of
-//   { id, categoryId, name, color, startTime (ISO), alterIds: [], notes }
-// (legacy sessions may carry a single `alterId` instead of `alterIds`).
+//   { id, categoryId, name, color, startTime (ISO), alterIds: [], contactIds: [], notes }
+// (legacy sessions may carry a single `alterId` instead of `alterIds`, and
+// sessions started before contactIds existed simply omit it).
 //
 // A session can optionally carry `planActivityId` — the id of an existing
 // scheduled plan it was started from. When such a session ends, the plan is
@@ -87,6 +88,7 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
   const end = endTimeIso ? new Date(endTimeIso) : new Date();
   const minutes = Math.max(1, Math.round((end - start) / 60000));
   const alterIds = active.alterIds || (active.alterId ? [active.alterId] : []);
+  const contactIds = active.contactIds || [];
   const noteVal = (typeof active.notes === "string" && active.notes.trim()) ? active.notes.trim() : null;
   let record;
   if (active.planActivityId) {
@@ -100,6 +102,7 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       duration_minutes: minutes,
       actual_duration_minutes: minutes,
       fronting_alter_ids: alterIds,
+      contact_ids: contactIds,
       notes: noteVal,
     });
     // The plan happened — clear any pending pre-start OS reminder for it.
@@ -115,6 +118,7 @@ export async function endAndLogActiveActivity(id, endTimeIso) {
       ...(active.color ? { color: active.color } : {}),
       duration_minutes: minutes,
       fronting_alter_ids: alterIds,
+      contact_ids: contactIds,
       notes: noteVal,
       is_planned: false,
       status: ACTIVITY_STATUSES.LOGGED,

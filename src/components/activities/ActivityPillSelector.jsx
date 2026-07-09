@@ -125,7 +125,7 @@ function buildCategoryPath(category, byId) {
   return parts.join(" › ");
 }
 
-export default function ActivityPillSelector({ selectedActivities = [], onActivityChange, allowCreate = true }) {
+export default function ActivityPillSelector({ selectedActivities = [], onActivityChange, allowCreate = true, required = false }) {
   const [expandedIds, setExpandedIds] = useState(new Set());
   const [search, setSearch] = useState("");
   const [creating, setCreating] = useState(false);
@@ -251,7 +251,10 @@ export default function ActivityPillSelector({ selectedActivities = [], onActivi
 
   return (
     <div>
-      <p className="text-sm font-medium mb-2">What activity?</p>
+      <p className="text-sm font-medium mb-2">
+        What activity?
+        {required && <span className="text-destructive"> *</span>}
+      </p>
       <div className="relative mb-2">
         <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
         <Input

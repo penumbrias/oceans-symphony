@@ -9,6 +9,53 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { Switch } from "@/components/ui/switch";
+import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
+
+// Toggle which section pills appear in the Quick Check-In modal.
+function SectionsTab() {
+  const qc = useQueryClient();
+  const { data: list = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settings = list?.[0] || null;
+  const enabled = enabledCheckinSectionIds(settings);
+  const [saving, setSaving] = useState(false);
+
+  const toggle = async (id) => {
+    if (saving) return;
+    const set = new Set(enabled);
+    if (set.has(id)) {
+      if (set.size <= 1) { toast.error("Keep at least one section on"); return; }
+      set.delete(id);
+    } else {
+      set.add(id);
+    }
+    const next = QUICK_CHECKIN_SECTIONS.map((s) => s.id).filter((x) => set.has(x));
+    setSaving(true);
+    try {
+      if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { quick_checkin_sections: next });
+      else await base44.entities.SystemSettings.create({ quick_checkin_sections: next });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="space-y-3">
+      <p className="text-xs text-muted-foreground">
+        Choose which sections show in Quick Check-In. Turn off the ones you don't use to keep it tidy — Feeling stays available if you turn everything else off.
+      </p>
+      <div className="space-y-2">
+        {QUICK_CHECKIN_SECTIONS.map((s) => (
+          <label key={s.id} className="flex items-center justify-between gap-3 bg-card border border-border/50 rounded-xl px-4 py-3 cursor-pointer">
+            <span className="text-sm font-medium">{s.label}</span>
+            <Switch checked={enabled.includes(s.id)} onCheckedChange={() => toggle(s.id)} />
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, total }) {
   const [editing, setEditing] = useState(false);
@@ -237,6 +284,7 @@ export default function ManageCheckIn() {
   const [tab, setTab] = useState("symptoms");
 
   const TABS = [
+    { id: "sections", label: "Sections" },
     { id: "symptoms", label: "Symptoms" },
     { id: "habits", label: "Habits" },
     { id: "diary", label: "Diary card fields" },
@@ -263,6 +311,7 @@ export default function ManageCheckIn() {
         ))}
       </div>
 
+      {tab === "sections" && <SectionsTab />}
       {tab === "symptoms" && <SymptomTab category="symptom" />}
       {tab === "habits" && <SymptomTab category="habit" />}
       {tab === "diary" && <DiaryTemplateManager />}

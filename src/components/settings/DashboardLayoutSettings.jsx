@@ -32,7 +32,11 @@ import { toast } from "sonner";
 // Drag/drop pill row. Whole row is the drag handle when grabbed from
 // the GripVertical icon — using a dedicated handle keeps the toggle
 // switch tappable without accidentally starting a drag.
-function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize }) {
+// Sub-toggle ids that live INSIDE another pill's row (see quick_checkin
+// below) rather than getting their own draggable SortablePill.
+const SUB_TOGGLE_IDS = ["start_activity_button", "start_symptom_button", "quick_task_button", "quick_plan_button"];
+
+function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bulletinBatchSize, subToggleEntries }) {
   const meta = DASHBOARD_ELEMENTS[entry.id];
   const locked = !!meta?.locked;
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } =
@@ -105,6 +109,27 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
             Report a Bug.
           </p>
         )}
+        {entry.id === "quick_checkin" && subToggleEntries && (
+          <div className="mt-2 space-y-1.5 border-l-2 border-border/30 pl-2">
+            {subToggleEntries.map((sub) => {
+              const subMeta = DASHBOARD_ELEMENTS[sub.id];
+              if (!subMeta) return null;
+              return (
+                <div key={sub.id} className="flex items-center gap-2">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-medium truncate">{subMeta.label}</p>
+                    <p className="text-[0.625rem] text-muted-foreground leading-snug">{subMeta.description}</p>
+                  </div>
+                  <Switch
+                    checked={sub.enabled}
+                    onCheckedChange={(v) => onToggle(sub.id, v)}
+                    aria-label={`Toggle ${subMeta.label}`}
+                  />
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
       {locked ? (
         <span className="text-[0.625rem] text-muted-foreground uppercase tracking-wide flex-shrink-0">
@@ -140,6 +165,19 @@ export default function DashboardLayoutSettings() {
   // a beat later.
   const [draftLayout, setDraftLayout] = useState(layout);
   useEffect(() => { setDraftLayout(layout); }, [layout]);
+
+  // start_activity_button / start_symptom_button aren't standalone
+  // draggable pills — they render nested inside the quick_checkin row
+  // (see SortablePill). Keep them out of the visible/sortable list but
+  // still part of draftLayout so toggle()/persist() covers them.
+  const visiblePills = useMemo(
+    () => draftLayout.filter((e) => !SUB_TOGGLE_IDS.includes(e.id)),
+    [draftLayout]
+  );
+  const subToggleEntries = useMemo(
+    () => draftLayout.filter((e) => SUB_TOGGLE_IDS.includes(e.id)),
+    [draftLayout]
+  );
 
   // Bulletin batch size lives in localStorage (per-device), not on
   // SystemSettings. Mirrored here in state so the input is reactive
@@ -235,19 +273,20 @@ export default function DashboardLayoutSettings() {
         onDragEnd={handleDragEnd}
       >
         <SortableContext
-          items={draftLayout.map((e) => e.id)}
+          items={visiblePills.map((e) => e.id)}
           strategy={verticalListSortingStrategy}
         >
           <div className="space-y-1.5">
-            {draftLayout.map((entry, idx) => (
+            {visiblePills.map((entry, idx) => (
               <SortablePill
                 key={entry.id}
                 entry={entry}
                 idx={idx}
-                total={draftLayout.length}
+                total={visiblePills.length}
                 onToggle={toggle}
                 onBulletinBatchChange={handleBatchChange}
                 bulletinBatchSize={batchSize}
+                subToggleEntries={entry.id === "quick_checkin" ? subToggleEntries : undefined}
               />
             ))}
           </div>

@@ -65,13 +65,21 @@ function FirstRunSetup({ onComplete }) {
   // complete setup without offering encryption (their old data may
   // already be encrypted and re-deriving keys here would be confusing).
   // They can flip encryption on or off later from Settings.
-  const applyDumpAndComplete = async ({ data, localImages, localSettings }) => {
+  const applyDumpAndComplete = async ({ data, localImages, localFonts, localSettings }) => {
     if (localImages) {
       try {
         const { restoreLocalImages } = await import("@/lib/localImageStorage");
         await restoreLocalImages(localImages);
       } catch (e) {
         console.warn("[Setup import] failed to restore local images:", e);
+      }
+    }
+    if (localFonts) {
+      try {
+        const { restoreLocalFonts } = await import("@/lib/localFontStorage");
+        await restoreLocalFonts(localFonts);
+      } catch (e) {
+        console.warn("[Setup import] failed to restore local fonts:", e);
       }
     }
     if (localSettings) {
@@ -156,6 +164,7 @@ function FirstRunSetup({ onComplete }) {
         await applyDumpAndComplete({
           data: parsed.data,
           localImages: parsed.localImages,
+          localFonts: parsed.localFonts,
           localSettings: parsed.localSettings,
         });
       } else if (parsed.format === FORMAT_RAW_PLAIN) {
@@ -622,7 +631,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
                   🌊 Free and open source, shared by a DID system to fill a void in the community.{" "}
                   Contact: pesturedrawing@gmail.com ·{" "}
                   <span
-                    onClick={() => openExternalUrl("https://oceans-symphony.app")}
+                    onClick={() => openExternalUrl("https://penumbrialecosystem.neocities.org/os")}
                     className="text-primary underline cursor-pointer"
                   >
                     Website

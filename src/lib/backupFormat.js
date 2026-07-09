@@ -68,6 +68,7 @@ export function parseImportText(text) {
       format,
       data: parsed.data,
       localImages: parsed.__local_images || null,
+      localFonts: parsed.__local_fonts || null,
       localSettings: parsed.__local_settings || null,
     };
   }
@@ -100,7 +101,7 @@ export async function decryptRawEncrypted({ ciphertext, salt }, password) {
 // Wraps a plaintext entity dump in the standard backup envelope so it
 // can be saved as an importable file. Used by RecoveryScreen's
 // "Save as standard backup" button when the on-device data is plain.
-export function wrapAsStandardBackup(dump, { localImages = null, localSettings = null } = {}) {
+export function wrapAsStandardBackup(dump, { localImages = null, localFonts = null, localSettings = null } = {}) {
   return {
     __format: 'symphony_backup',
     __version: 1,
@@ -108,6 +109,7 @@ export function wrapAsStandardBackup(dump, { localImages = null, localSettings =
     __from: 'recovery_screen',
     data: dump,
     __local_images: localImages || {},
+    __local_fonts: localFonts || {},
     __local_settings: localSettings || {},
   };
 }

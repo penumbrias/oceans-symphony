@@ -11,6 +11,7 @@ import {
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -57,7 +58,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
-  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   // Mirror the anonymize toggle from the Alters page so the chips here
   // blur the same way for screenshots.
   const { mode: anonymize } = useAnonymizeMode();
@@ -182,7 +184,8 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 // Compact avatar + name header for AlterPanel's controlled (meeting) mode,
 // where there's no FronterChip above the panel to identify the alter.
 function PanelHeader({ alter, onRemove }) {
-  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   return (
@@ -213,7 +216,8 @@ function PanelHeader({ alter, onRemove }) {
 // Hold-menu header avatar — resolves legacy local-image:// avatars the same
 // way FronterChip / PanelHeader do (a raw <img src> on those renders broken).
 function HoldMenuAvatar({ alter }) {
-  const resolvedAvatar = useResolvedAvatarUrl(alter?.avatar_url);
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   return resolvedAvatar
     ? <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover" />
     : <User className="w-5 h-5 text-muted-foreground" />;

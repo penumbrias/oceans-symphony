@@ -240,14 +240,14 @@ What always needs a changelog entry:
 
 ## Critical: Keep the Wiki Preview Honest
 
-The "Wiki" preview mode (Settings → Preview Mode → Wiki) is a feature walkthrough — each example alter is a docs page for one part of the app, written in HTML inside `src/lib/previewWiki.js`. The PreviewModeBanner reads `WIKI_CONTENT_VERSION` from that file and compares it to `APP_VERSION`:
+The "Wiki" preview mode (Settings → Preview Mode → Wiki) is a feature walkthrough — each example alter is a docs page for one part of the app, written in HTML inside `src/lib/previewWiki.js`. The PreviewModeBanner reads `WIKI_CONTENT_VERSION` from `src/lib/previewMeta.js` (it moved there in v0.82.0 — previewWiki/previewSystems are lazy-loaded via dynamic import in previewMode.js so the example content stays out of the main bundle; previewMeta holds the tiny static metadata the banner/Settings card need) and compares it to `APP_VERSION`:
 
 - If equal → "walkthrough up to date with vX.Y.Z"
 - If `WIKI_CONTENT_VERSION < APP_VERSION` → "last refreshed for vX, you're on vY (some new features may be missing)"
 
 **Bump `WIKI_CONTENT_VERSION` only when you actually update the wiki bios** — NOT on every `APP_VERSION` bump. The whole point of the separate constant is to honestly signal staleness; auto-bumping it on every PR re-creates the original bug (banner always claims fresh while bios drift months behind real features).
 
-When adding a meaningful new dashboard widget, new top-level page, or significant UX change, write a corresponding bio block in `previewWiki.js`, append it to the `A = {...}` map, add it to the right `groups[].member_alter_ids` array, and bump `WIKI_CONTENT_VERSION`. PATCH for adding/refreshing detail, MINOR for a whole new wiki alter / topic, MAJOR for a structural rewrite.
+When adding a meaningful new dashboard widget, new top-level page, or significant UX change, write a corresponding bio block in `previewWiki.js`, append it to the `A = {...}` map, add it to the right `groups[].member_alter_ids` array, and bump `WIKI_CONTENT_VERSION` (in `previewMeta.js`). PATCH for adding/refreshing detail, MINOR for a whole new wiki alter / topic, MAJOR for a structural rewrite.
 
 ---
 

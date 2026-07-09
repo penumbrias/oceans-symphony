@@ -18,7 +18,149 @@
 
 export const CHANGELOG = [
   {
+    date: "July 9, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Type ~ in any note or message to quick-log symptoms, feelings, company, or activities inline — an autocomplete helps you fill it in, and it turns into a chip when you save. e.g. \"~symptom:anxiety:3\".",
+      },
+      {
+        type: "fix",
+        text: "Bio animations now play on profile pages, and each profile's custom CSS stays scoped to that profile so it can't affect other profiles or the rest of the app.",
+      },
+      {
+        type: "fix",
+        text: "Preview Mode: the theme-showcase pages now actually swap the whole app palette when you front them.",
+      },
+      {
+        type: "hotfix",
+        text: "Hotfix: ~ quick-log now coexists with @mentions and signposts on the same line, and you can still add \":active\" after picking a multi-word activity/contact.",
+      },
+      {
+        type: "feature",
+        text: "Profile templates: the bio editor's new Templates button offers full-page designs (terminal, neon, night sky, character sheet…) and stackable modules (headers, likes/dislikes, skill bars, triggers & needs, dividers…) — pick one, then tap the dotted fields to fill it in.",
+      },
+      {
+        type: "improve",
+        text: "Leaner app startup: Preview Mode's example content and the template library now only load when you actually open them.",
+      },
+      {
+        type: "feature",
+        text: "Preview Mode: five new design-exploration profiles push the editors' limits — real tables, in-app link launchpads, mixed typography & colour, a drag-to-reorder Blocks playground, and a full custom page with its own header and background. Open Raw mode on any of them to copy the code.",
+      },
+    ],
+  },
+  {
+    date: "July 8, 2026",
+    version: "0.80.2",
+    changes: [
+      {
+        type: "improve",
+        text: "Raw mode in the profile editor now has syntax highlighting — colour-coded tags, attributes, and strings — so hand-editing HTML/CSS is much easier to read.",
+      },
+      {
+        type: "fix",
+        text: "Fixed CSS animations in alter profiles rendering static — the Raw-mode <style> block (and its animations) was being stripped when displayed, so animated bios never moved. They now animate.",
+      },
+      {
+        type: "feature",
+        text: "Preview Mode redesign: the walkthrough pages are now sorted into folders (with a subsystem), link to each other so you can step through in order, and most are redesigned as rich \"designer examples\" that show off what a profile can look like.",
+      },
+      {
+        type: "improve",
+        text: "Activity details now show the date and who you were with (Company), plus a \"Log again\" button to quickly re-log the same thing.",
+      },
+      {
+        type: "improve",
+        text: "Quick Check-In has a settings icon in its header — a shortcut to choose which sections show.",
+      },
+      {
+        type: "feature",
+        text: "Quick Check-In: choose which sections appear (Feeling, Fronting, Activity, Company, Location…) under Manage Check-In → Sections. Renamed \"Who are you with?\" to \"Company\" and moved it next to Location.",
+      },
+      {
+        type: "fix",
+        text: "Quick Check-In: opening it straight to a section (like Location) no longer also pops open Feeling.",
+      },
+      {
+        type: "fix",
+        text: "Log Activity: fixed the start/end times getting out of order after toggling \"Active\" on and back off, and tidied the fronting / company pickers.",
+      },
+      {
+        type: "feature",
+        text: "Preview Mode rebuilt as one example system: every profile is a walkthrough of a feature, the whole app comes filled with example data so you can try things, and a few profiles show off what the profile editor can create. Your real data stays untouched. Settings → Preview Mode.",
+      },
+      {
+        type: "feature",
+        text: "New optional dashboard buttons next to Quick Check-In — \"Start Activity\" and \"Start Symptom\" let you mark something active right now in a couple of taps, without opening the Activity Tracker. Turn them on in Settings → Appearance → Layout → Dashboard.",
+      },
+      {
+        type: "feature",
+        text: "\"Start Activity\" can switch to \"Log activity instead\" for the full Log Activity form, and both it and the Activity Tracker's Log Activity now let you tag who you were with.",
+      },
+      {
+        type: "feature",
+        text: "New \"Who are you with?\" section in Quick Check-In and the Activity Tracker — mark contacts as currently with you, the same way you track who's fronting.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where briefly trying Preview Mode could leave one of its example reminders (like \"Morning meds\") scheduled as a real notification that kept firing after you left Preview Mode.",
+      },
+      {
+        type: "fix",
+        text: "\"See Your Data\" no longer tells you to look in the wrong section for the persistent-storage option, and no longer shows a false warning about it on the installed app (where it doesn't apply).",
+      },
+      {
+        type: "improve",
+        text: "The persistent-storage status and request button now also show in Settings → Data & Privacy → Storage & Encryption, not just under Automatic backups.",
+      },
+      {
+        type: "feature",
+        text: "Quick Actions can now do a lot more: start an activity, mark a contact as currently with you, start/end sleep, post a quick status, add a to-do, or jump straight to any page in the app — add them from Settings → Tracking setup → Quick actions.",
+      },
+      {
+        type: "feature",
+        text: "The Bulletin Board's \"Quick task\" and \"Quick plan\" composers can now also be turned into buttons next to Quick Check-In, so you can add a to-do or schedule a plan without scrolling to the bulletin board.",
+      },
+      {
+        type: "improve",
+        text: "The optional buttons next to Quick Check-In (Start Activity, Start Symptom, Quick Task, Quick Plan) each now have their own colour instead of all being grey.",
+      },
+    ],
+  },
+  {
+    date: "July 7, 2026",
+    version: "0.76.1",
+    changes: [
+      {
+        type: "fix",
+        text: "Fixed the sidebar on tablets and wider screens getting stuck part-way down, making Analytics and Map unreachable.",
+      },
+      {
+        type: "fix",
+        text: "Groups now has its own list/grid view toggle on the alters directory, independent from the alters section below it.",
+      },
+      {
+        type: "feature",
+        text: "You can now upload your own font file (.ttf/.otf/.woff/.woff2, 5MB max) instead of picking only from the built-in list — manage uploads from Settings → Appearance.",
+      },
+      {
+        type: "feature",
+        text: "New: \"See Your Data\" in Settings → Data & Privacy shows exactly what's stored on your device, category by category, with record counts and sizes — export or delete any one category on its own (deleting always backs that category up first).",
+      },
+      {
+        type: "feature",
+        text: "You can now upload multiple avatar or background images per alter and have the app rotate through them — randomly or in order — each time you reload. Set it up from the avatar/background editor; \"Manage pool images\" lets you upload and remove them.",
+      },
+      {
+        type: "improve",
+        text: "Tidied up the font row in Settings → Appearance — \"More fonts\" and \"Upload a font\" are now compact icons. Tap the ⓘ next to the download icon for what that font pack actually contains (it's 14 more English/Latin-style fonts, not other languages — those are already built in).",
+      },
+    ],
+  },
+  {
     date: "July 4, 2026",
+    version: "0.73.13",
     changes: [
       {
         type: "fix",

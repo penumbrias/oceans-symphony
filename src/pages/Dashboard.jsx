@@ -6,7 +6,7 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Inbox, ChevronsUpDown } from "lucide-react";
+import { Heart, Inbox, ChevronsUpDown, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays } from "lucide-react";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -18,6 +18,8 @@ import DashboardPins from "@/components/dashboard/DashboardPins";
 import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import CurrentActivities from "@/components/activities/CurrentActivities";
+import StartActivityModal from "@/components/activities/StartActivityModal";
+import StartSymptomModal from "@/components/symptoms/StartSymptomModal";
 import CurrentContacts from "@/components/contacts/CurrentContacts";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
@@ -25,6 +27,8 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
+import QuickPlanComposer from "@/components/bulletin/QuickPlanComposer";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
@@ -36,10 +40,18 @@ import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/Dis
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
+import { addActiveActivity } from "@/lib/activitySession";
+import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
+import { contactDisplayName } from "@/lib/contacts";
+import { ALL_PAGES } from "@/utils/navigationConfig";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
   const [showEmotionModal, setShowEmotionModal] = useState(false);
+  const [showStartActivity, setShowStartActivity] = useState(false);
+  const [showStartSymptom, setShowStartSymptom] = useState(false);
+  const [showQuickTask, setShowQuickTask] = useState(false);
+  const [showQuickPlan, setShowQuickPlan] = useState(false);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
@@ -512,6 +524,86 @@ export default function Dashboard() {
           ? (tpl.points > 0 ? `+${tpl.points} XP — ${tpl.title} done! 🎉` : `${tpl.title} done!`)
           : `${tpl.title} unchecked`
       );
+    } else if (action.type === "start_activity") {
+      // Minimal "start now" flow — no fronting/contact picker, mirrors
+      // StartActivityModal's own minimal path via the same primitive.
+      const { category_id } = action.config || {};
+      if (!category_id) return;
+      const cat = activityCategories.find((c) => c.id === category_id);
+      addActiveActivity({
+        categoryId: category_id,
+        name: cat?.name || "Activity",
+        color: cat?.color || null,
+        startTime: now,
+        alterIds: [],
+        contactIds: [],
+        notes: "",
+      });
+      toast.success(`▶ Started ${cat?.name || "activity"}`);
+    } else if (action.type === "mark_contact_with") {
+      const { contact_id } = action.config || {};
+      if (!contact_id) return;
+      const [activeEncounters, contacts] = await Promise.all([
+        base44.entities.ContactEncounter.filter({ is_active: true }),
+        base44.entities.Contact.list(),
+      ]);
+      const contact = contacts.find((c) => c.id === contact_id);
+      const name = contact ? contactDisplayName(contact) : "contact";
+      const existing = activeEncounters.find((e) => e.contact_id === contact_id);
+      if (existing) {
+        await endEncounterForContact(contact_id);
+        toast.success(`Ended time with ${name}`);
+      } else {
+        await startEncounter(contact_id);
+        toast.success(`Marked with ${name}`);
+      }
+      queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
+    } else if (action.type === "toggle_sleep") {
+      const sleepRecords = await base44.entities.Sleep.list();
+      const inProgress = [...sleepRecords]
+        .filter((s) => s.bedtime && !s.wake_time)
+        .sort((a, b) => new Date(b.bedtime) - new Date(a.bedtime))[0] || null;
+      if (inProgress) {
+        // Minimal end — no quality/notes prompt (that's what SleepEndModal
+        // is for). Matches the "no picker, one tap" spirit of quick actions.
+        await base44.entities.Sleep.update(inProgress.id, { wake_time: now });
+        toast.success("😴 Sleep ended");
+      } else {
+        await base44.entities.Sleep.create({
+          date: format(new Date(), "yyyy-MM-dd"),
+          bedtime: now,
+        });
+        toast.success("💤 Sleep started");
+      }
+      queryClient.invalidateQueries({ queryKey: ["sleep"] });
+    } else if (action.type === "set_status_note") {
+      // OS-launcher shortcut path has no extraData to prompt with — pop the
+      // in-app sheet instead, same fallback log_location already uses.
+      if (!extraData || extraData.text === undefined) {
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+        return;
+      }
+      const text = (extraData.text || "").trim();
+      if (!text) return;
+      // StatusNote is an immutable log — always create, never update.
+      await localEntities.StatusNote.create({ timestamp: now, note: text });
+      queryClient.invalidateQueries({ queryKey: ["statusNotes"] });
+      toast.success("Status posted");
+    } else if (action.type === "add_task") {
+      if (!extraData || extraData.title === undefined) {
+        showQuickActionsRef.current = true;
+        setShowQuickActions(true);
+        return;
+      }
+      const title = (extraData.title || "").trim();
+      if (!title) return;
+      await base44.entities.Task.create({ title, completed: false, priority: "medium" });
+      queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("To-do added");
+    } else if (action.type === "navigate_to_page") {
+      const page = ALL_PAGES.find((p) => p.id === action.config?.page_id);
+      if (page) navigate(page.path);
     }
   };
 
@@ -669,7 +761,7 @@ export default function Dashboard() {
               // room from the Active Symptoms pill row above it (which
               // can grow tall when several symptoms are running) and
               // from whatever sits below.
-              <div key="quick_checkin" className="relative inline-flex mt-3 mb-3">
+              <div key="quick_checkin" className="relative flex flex-wrap items-center gap-2 mt-3 mb-3">
                 <button
                   data-tour="quick-checkin"
                   onPointerDown={startHold}
@@ -692,6 +784,46 @@ export default function Dashboard() {
                     />
                   )}
                 </button>
+                {layoutEnabled.start_activity_button && (
+                  <button
+                    data-tour="start-activity-button"
+                    onClick={() => setShowStartActivity(true)}
+                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-amber-500/20 transition-colors"
+                  >
+                    <Zap className="w-4 h-4" />
+                    <span>Start Activity</span>
+                  </button>
+                )}
+                {layoutEnabled.start_symptom_button && (
+                  <button
+                    data-tour="start-symptom-button"
+                    onClick={() => setShowStartSymptom(true)}
+                    className="bg-violet-500/10 text-violet-600 dark:text-violet-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-violet-500/20 transition-colors"
+                  >
+                    <ActivityIcon className="w-4 h-4" />
+                    <span>Start Symptom</span>
+                  </button>
+                )}
+                {layoutEnabled.quick_task_button && (
+                  <button
+                    data-tour="quick-task-button"
+                    onClick={() => setShowQuickTask(true)}
+                    className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-blue-500/20 transition-colors"
+                  >
+                    <CheckSquare className="w-4 h-4" />
+                    <span>Quick Task</span>
+                  </button>
+                )}
+                {layoutEnabled.quick_plan_button && (
+                  <button
+                    data-tour="quick-plan-button"
+                    onClick={() => setShowQuickPlan(true)}
+                    className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-emerald-500/20 transition-colors"
+                  >
+                    <CalendarDays className="w-4 h-4" />
+                    <span>Quick Plan</span>
+                  </button>
+                )}
                 <AnimatePresence>
                   {showQuickActions && (
                     <QuickActionsMenu
@@ -745,6 +877,40 @@ export default function Dashboard() {
         alters={alters}
         currentFronterIds={frontingAlterIds}
         initialSection={emotionModalInitialSection} />
+
+      {showStartActivity && (
+        <StartActivityModal
+          isOpen
+          onClose={() => setShowStartActivity(false)}
+          alters={alters}
+        />
+      )}
+      {showStartSymptom && (
+        <StartSymptomModal
+          isOpen
+          onClose={() => setShowStartSymptom(false)}
+        />
+      )}
+      <Dialog open={showQuickTask} onOpenChange={(v) => !v && setShowQuickTask(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
+              <CheckSquare className="w-4 h-4" /> Quick Task
+            </DialogTitle>
+          </DialogHeader>
+          <QuickTaskComposer frontingAlterIds={frontingAlterIds} onSaved={() => setShowQuickTask(false)} hideCancelButton />
+        </DialogContent>
+      </Dialog>
+      <Dialog open={showQuickPlan} onOpenChange={(v) => !v && setShowQuickPlan(false)}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
+              <CalendarDays className="w-4 h-4" /> Quick Plan
+            </DialogTitle>
+          </DialogHeader>
+          <QuickPlanComposer onSaved={() => setShowQuickPlan(false)} hideCancelButton />
+        </DialogContent>
+      </Dialog>
 
       {/* "Customize dashboard" (header cog) → the section drag/drop layout
           editor in a popup. Reuses the exact component from Settings →

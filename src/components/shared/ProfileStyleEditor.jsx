@@ -12,6 +12,8 @@ import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { profileThemeCss, profileSurfaceCss } from "@/lib/profileStyle";
+import RotationModeControl from "@/components/shared/RotationModeControl";
+import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 
 // Shared profile-style editor for alter AND group profiles. Renders the
 // collapsible Header + Body sub-blocks that the hand-drawn redesign calls for:
@@ -26,6 +28,7 @@ import { profileThemeCss, profileSurfaceCss } from "@/lib/profileStyle";
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
+const BG_ROTATION_KEY = "_bg_rotation_mode";
 // _bg_opacity = opacity of the BODY background layer. With an image set it's
 // the image's opacity (default 0.5); with only a colour it's that colour's
 // opacity (default 0.15).
@@ -181,11 +184,12 @@ function FontSelect({ value, onChange, ariaLabel }) {
   );
 }
 
-export default function ProfileStyleEditor({ customFields, setField, clearField }) {
+export default function ProfileStyleEditor({ customFields, setField, clearField, rotationConfig = null }) {
   const cf = customFields || {};
   const [colorPickerFor, setColorPickerFor] = useState(null);
   const [uploadingHeader, setUploadingHeader] = useState(false);
   const [uploadingBg, setUploadingBg] = useState(false);
+  const [bgPoolOpen, setBgPoolOpen] = useState(false);
   const headerFileRef = useRef(null);
   const bgFileRef = useRef(null);
   // Sync controls: which way the one-tap "Sync" copies (headerToBody = →), and
@@ -486,6 +490,17 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           </p>
         )}
         {imageRow("Image", BG_IMAGE_KEY, bgFileRef, uploadingBg, (e) => { uploadImage(e.target.files?.[0], BG_IMAGE_KEY, setUploadingBg, 1200, 0.8); e.target.value = ""; }, resolvedBgImg)}
+        {rotationConfig && (
+          <RotationModeControl
+            label="Background rotation"
+            mode={cf[BG_ROTATION_KEY]}
+            onChange={(m) => setField(BG_ROTATION_KEY, m)}
+            disabled={false}
+            showManage
+            onManagePool={() => setBgPoolOpen(true)}
+            hint="When not Off, the background shown cycles through a pool of images — randomly, or in order — each time the app reloads."
+          />
+        )}
         <div className="space-y-1.5">
           <Label className="text-xs">Font style</Label>
           <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
@@ -506,6 +521,15 @@ export default function ProfileStyleEditor({ customFields, setField, clearField 
           label="Pick colour"
           onSave={(hex) => setFieldSynced(colorPickerFor, hex)}
           onClose={() => setColorPickerFor(null)}
+        />
+      )}
+
+      {rotationConfig && (
+        <AlterImagePoolManager
+          open={bgPoolOpen}
+          onClose={() => setBgPoolOpen(false)}
+          alterId={rotationConfig.alterId}
+          role={rotationConfig.role}
         />
       )}
     </div>

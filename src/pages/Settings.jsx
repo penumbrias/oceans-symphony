@@ -24,6 +24,7 @@ import OpenPluralExport from "@/components/settings/OpenPluralExport";
 import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
+import DataInspector from "@/components/settings/DataInspector";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
@@ -859,6 +860,14 @@ export default function Settings() {
             <DataBackupRestore section="storage" />
           </SubSection>
 
+          {/* ── SEE YOUR DATA ── (advanced/technical view: per-category record
+              counts + sizes, export or delete any one category on its own) */}
+          <div data-tour="settings-data-inspector">
+            <SubSection title="See Your Data" defaultOpen={false}>
+              <DataInspector />
+            </SubSection>
+          </div>
+
           {/* ── PRIVACY COVER ── */}
           <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
         </Section>
@@ -879,7 +888,7 @@ export default function Settings() {
           </SubSection>
           <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
           <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
-          <SubSection title="Preview mode (dev)" defaultOpen={false}><PreviewModeSection /></SubSection>
+          <SubSection title="Preview Mode" defaultOpen={false}><PreviewModeSection /></SubSection>
           <SubSection title="What's new" defaultOpen={false}><RecentUpdates /></SubSection>
         </Section>
 

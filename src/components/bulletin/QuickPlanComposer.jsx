@@ -113,7 +113,7 @@ function SelectedFronterChip({ alter, label, onRemove }) {
 // who it's for / to-do / location / repeat / reminder / critical / notes)
 // — kept as compact pills so the quick path stays quick but never less
 // capable than the modal.
-export default function QuickPlanComposer({ onSaved }) {
+export default function QuickPlanComposer({ onSaved, hideCancelButton = false }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -471,14 +471,16 @@ export default function QuickPlanComposer({ onSaved }) {
                 <><Plus className="w-4 h-4 mr-1" /> Plan</>
               )}
             </Button>
-            <button
-              type="button"
-              onClick={collapse}
-              aria-label="Cancel"
-              className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1"
-            >
-              <X className="w-4 h-4" />
-            </button>
+            {!hideCancelButton && (
+              <button
+                type="button"
+                onClick={collapse}
+                aria-label="Cancel"
+                className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </>
         ) : (
           justSaved && (

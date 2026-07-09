@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
 import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import { scopeBioStyles } from "@/lib/scopedBioStyle";
 
 function fileToDataUrl(file) {
   return new Promise((resolve, reject) => {
@@ -27,23 +28,42 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [showAssetPicker, setShowAssetPicker] = useState(false);
+  // A bio's <style> must NOT apply globally while it's being edited. Keep the
+  // raw <style> out of the contentEditable and inject a SCOPED copy into a
+  // sibling instead; reattach the raw text on emit so the value round-trips.
+  const styleTextRef = useRef("");
+  const [scopedCss, setScopedCss] = useState("");
+
+  const applyValue = useCallback((html) => {
+    const raw = html || "";
+    // Split <style> out of the EDITABLE body (kept verbatim in styleTextRef and
+    // reattached on emit, so the saved bio round-trips unchanged) and inject a
+    // scoped copy into a sibling so the CSS can't leak to the app.
+    const styles = [];
+    const body = raw.replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, (mm) => { styles.push(mm); return ""; });
+    styleTextRef.current = styles.join("");
+    const { styleCss } = scopeBioStyles(raw, "wysiwyg-live");
+    if (editorRef.current) editorRef.current.innerHTML = body;
+    setScopedCss(styleCss || "");
+  }, []);
 
   useEffect(() => {
-    if (editorRef.current) editorRef.current.innerHTML = value || "";
+    applyValue(value);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
     if (editorRef.current && value !== lastHtml.current) {
-      editorRef.current.innerHTML = value || "";
+      applyValue(value);
       lastHtml.current = value;
     }
-  }, [value]);
+  }, [value, applyValue]);
 
   const emit = useCallback(() => {
-    const html = editorRef.current?.innerHTML ?? "";
-    lastHtml.current = html;
-    onChange(html);
+    const body = editorRef.current?.innerHTML ?? "";
+    const full = body + (styleTextRef.current || "");
+    lastHtml.current = full;
+    onChange(full);
   }, [onChange]);
 
   // Toggle-style formatting (bold/italic/headings/lists/align…) — flips the
@@ -105,6 +125,9 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
 
   return (
     <div className="rounded-xl border border-input bg-background overflow-hidden">
+      {/* Scoped copy of the bio's own <style> — applies only inside the editor,
+          never to the rest of the app. */}
+      {scopedCss && <style>{scopedCss}</style>}
       {/* Editable content area */}
       <div
         ref={editorRef}
@@ -113,7 +136,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         onInput={emit}
         onKeyDown={handleKeyDown}
         data-placeholder={placeholder}
-        className="wysiwyg-content min-h-[200px] px-3 py-2.5 text-sm focus:outline-none prose prose-sm dark:prose-invert max-w-none leading-relaxed"
+        className="wysiwyg-content bio-scope-wysiwyg-live min-h-[200px] px-3 py-2.5 text-sm focus:outline-none prose prose-sm dark:prose-invert max-w-none leading-relaxed"
       />
 
       {/* Image / GIF + asset row (mirrors the chat composer) */}

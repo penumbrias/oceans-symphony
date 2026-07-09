@@ -6,6 +6,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -32,7 +33,8 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
   // malformed alter doesn't render as a blank uncoloured tile next
   // to its siblings.
   const alterColor = isValidHexColor(alter.color) ? alter.color : "#9333ea";
-  const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
+  const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
   const [imgError, setImgError] = useState(false);
   const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, onLongPress: () => setMenuOpen(true) });
 

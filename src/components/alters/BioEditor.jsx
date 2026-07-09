@@ -1,12 +1,15 @@
 import React, { useState, useMemo, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
-import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown } from "lucide-react";
+import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown, LayoutTemplate } from "lucide-react";
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import CodeEditor from "@/components/shared/CodeEditor";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
+import BioTemplatePicker from "@/components/alters/BioTemplatePicker";
+import { scopeBioStyles } from "@/lib/scopedBioStyle";
 
 
 let _id = 0;
@@ -144,6 +147,9 @@ function ImportSPModal({ onImport, onClose }) {
 
 function HTMLPreviewModal({ html, onClose }) {
   const [tab, setTab] = useState("preview");
+  // Scope the bio's own <style> to this preview so animations render here just
+  // like the profile page — and don't leak to the app while previewing.
+  const scoped = scopeBioStyles(html, "bio-html-preview");
   return createPortal(
     <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50">
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-2xl mx-4 shadow-2xl flex flex-col" style={{ maxHeight: "80vh" }}>
@@ -160,7 +166,12 @@ function HTMLPreviewModal({ html, onClose }) {
         </div>
         <div className="flex-1 overflow-y-auto p-5">
           {tab === "preview"
-            ? <div className="wysiwyg-content text-sm leading-relaxed" dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(html) }} />
+            ? (
+              <div className={`wysiwyg-content text-sm leading-relaxed ${scoped.scopeClass}`}>
+                {scoped.styleCss && <style>{scoped.styleCss}</style>}
+                <div dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(scoped.bodyHtml) }} />
+              </div>
+            )
             : <pre className="text-xs font-mono text-muted-foreground whitespace-pre-wrap break-all">{html}</pre>}
         </div>
       </div>
@@ -178,6 +189,7 @@ export default function BioEditor({ value, onChange }) {
   const [showModeHelp, setShowModeHelp] = useState(false);
   const [showImport, setShowImport] = useState(false);
   const [showHTMLPreview, setShowHTMLPreview] = useState(false);
+  const [showTemplates, setShowTemplates] = useState(false);
   const [currentHTML, setCurrentHTML] = useState(value || "");
   const historyRef = useRef({ stack: [value || ""], index: 0 });
   const taRef = useRef(null);
@@ -264,6 +276,11 @@ export default function BioEditor({ value, onChange }) {
             className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors">
             <Eye className="w-3 h-3" />
           </button>
+          <button type="button" onClick={() => setShowTemplates(true)}
+            title="Browse profile templates"
+            className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
+            <LayoutTemplate className="w-3 h-3" />
+          </button>
           <button type="button" onClick={() => setShowImport(true)}
             title="Import a bio template"
             className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1">
@@ -316,16 +333,14 @@ export default function BioEditor({ value, onChange }) {
         <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
       ) : editorMode === "raw" ? (
         <div className="rounded-xl border border-input bg-background">
-          <textarea ref={taRef} value={currentHTML} onChange={e => handleChange(e.target.value)}
-            placeholder="Write a bio..."
-            className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
-            spellCheck={false} />
+          <CodeEditor ref={taRef} value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
           <MiniToolbar onInsert={insert} templateField />
         </div>
       ) : editorMode === "simple" ? (
         <SimplePreview
           blocks={previewBlocks}
           onBlockChange={handleBlockChange}
+          scopeId="bio-editor-preview"
         />
       ) : (
         <BlockEditor value={currentHTML} onChange={handleChange} />
@@ -333,6 +348,17 @@ export default function BioEditor({ value, onChange }) {
 
       {showImport && <ImportSPModal onImport={handleImport} onClose={() => setShowImport(false)} />}
       {showHTMLPreview && <HTMLPreviewModal html={currentHTML} onClose={() => setShowHTMLPreview(false)} />}
+      {showTemplates && (
+        <BioTemplatePicker
+          current={currentHTML}
+          onApply={(html, { close } = {}) => {
+            handleChange(html);      // goes through undo history — reversible
+            setEditorMode("simple"); // land where the data-edit fields are tappable
+            if (close) setShowTemplates(false); // module adds keep the picker open to stack more
+          }}
+          onClose={() => setShowTemplates(false)}
+        />
+      )}
     </div>
   );
 }

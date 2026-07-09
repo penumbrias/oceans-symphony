@@ -344,7 +344,7 @@ function LocationProfileInner() {
 
           {location.description ? (
             <div className="bg-muted/20 rounded-xl p-4 border border-border/40">
-              <SimplePreview blocks={htmlToBlocks(location.description)} onBlockChange={() => {}} readOnly />
+              <SimplePreview blocks={htmlToBlocks(location.description)} onBlockChange={() => {}} readOnly scopeId={location?.id} />
             </div>
           ) : (
             <div className="text-center py-6 text-muted-foreground text-sm bg-muted/20 rounded-xl border border-border/30">

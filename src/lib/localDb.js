@@ -483,6 +483,33 @@ export function getFullDbDump() {
   return { ...getDb() };
 }
 
+// Deletes every record across the given entity names in a SINGLE saveDb()
+// call, instead of one saveDb() per record (the Proxy's delete(id) does
+// exactly that). Under encryption, saveDb() re-serializes and re-encrypts
+// the WHOLE db blob every call — looping delete(id) across a large
+// category would mean one full-blob encryption per record. Still emits a
+// 'delete' event per record for any .subscribe() consumer, matching the
+// Proxy's per-record delete behavior. Purely additive — doesn't touch
+// initLocalDb or any boot-path invariant.
+export async function bulkDeleteEntities(entityNames) {
+  const db = getDb();
+  let totalDeleted = 0;
+  const deletedIdsByEntity = {};
+  for (const entityName of entityNames) {
+    const col = db[entityName];
+    if (!col) continue;
+    const ids = Object.keys(col);
+    for (const id of ids) delete col[id];
+    deletedIdsByEntity[entityName] = ids;
+    totalDeleted += ids.length;
+  }
+  await saveDb();
+  for (const [entityName, ids] of Object.entries(deletedIdsByEntity)) {
+    for (const id of ids) emit(entityName, { type: 'delete', id });
+  }
+  return totalDeleted;
+}
+
 // Rewrites every local-image:// URL in the DB to /local-image/[id]
 // so the Service Worker can intercept them. Safe to run on every startup —
 // exits fast once all URLs are already in the new format.

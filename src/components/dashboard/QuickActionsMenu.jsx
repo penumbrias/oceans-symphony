@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { findNearbyLocationName } from "@/lib/locationUtils";
-import { Plus, MapPin, Loader2, UserPlus, RefreshCw, Check } from "lucide-react";
+import { Plus, MapPin, Loader2, UserPlus, RefreshCw, Check, Play, Moon, MessageSquarePlus, ListPlus } from "lucide-react";
 import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import RatingRow from "@/components/diary/RatingRow";
 import { Switch } from "@/components/ui/switch";
@@ -13,6 +13,8 @@ import { useTerms } from "@/lib/useTerms";
 import { getTodayString, applyTerms } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
+import { contactDisplayName } from "@/lib/contacts";
+import { ALL_PAGES } from "@/utils/navigationConfig";
 
 const SECTION_LABELS = {
   feeling: "Feeling / Emotions",
@@ -203,11 +205,14 @@ function DiaryFieldRow({ action, onAction }) {
 }
 
 function NavRow({ action, onAction }) {
+  const page = action.type === "navigate_to_page" ? ALL_PAGES.find(p => p.id === action.config?.page_id) : null;
   const label =
     action.type === "open_set_front"   ? "Set Fronters" :
     action.type === "view_grocery_list" ? "Grocery list" :
     action.type === "add_grocery_item"  ? "Add to grocery list" :
+    action.type === "navigate_to_page"  ? (page?.label || action.label || "Open") :
     (SECTION_LABELS[action.config?.section] || action.label || "Open");
+  const Icon = action.type === "navigate_to_page" ? page?.icon : null;
   const emoji =
     action.type === "open_set_front"   ? "🔄" :
     action.type === "view_grocery_list" ? "🛒" :
@@ -216,9 +221,101 @@ function NavRow({ action, onAction }) {
   return (
     <button onClick={() => onAction(action)}
       className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
-      <span>{emoji}</span>
+      {Icon ? <Icon className="w-4 h-4 flex-shrink-0" /> : <span>{emoji}</span>}
       <span>{label}</span>
     </button>
+  );
+}
+
+// Start-active-activity — single tap, mirrors ActivityRow but visually
+// distinct (Play icon) since tapping starts an open-ended timer rather
+// than logging a completed record.
+function StartActivityRow({ action, category, onAction }) {
+  return (
+    <button onClick={() => onAction(action)}
+      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+      <Play className="w-3.5 h-3.5 flex-shrink-0" style={{ color: category.color || "currentColor" }} />
+      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: category.color || "#888" }} />
+      <span>Start {category.name}</span>
+    </button>
+  );
+}
+
+// Mark-contact-with — reflects live ContactEncounter state so the button
+// reads correctly as "with" or "not with" and toggles on tap.
+function ContactRow({ action, contact, onAction }) {
+  const { data: encounters = [] } = useQuery({
+    queryKey: ["contactEncounters"],
+    queryFn: () => base44.entities.ContactEncounter.list(),
+  });
+  const isWith = encounters.some(e => e.is_active && e.contact_id === contact.id);
+  const color = contact.color || "#0ea5e9";
+  return (
+    <button onClick={() => onAction(action)}
+      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full"
+      style={{ borderColor: isWith ? color : "hsl(var(--border) / 0.5)", backgroundColor: isWith ? `${color}15` : undefined }}>
+      <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ backgroundColor: color }} />
+      <span className="flex-1">{contactDisplayName(contact)}</span>
+      <span className="text-[0.625rem] font-semibold uppercase tracking-wide flex-shrink-0" style={{ color: isWith ? color : "hsl(var(--muted-foreground))" }}>
+        {isWith ? "With" : "Mark with"}
+      </span>
+    </button>
+  );
+}
+
+// Start/end sleep — reflects whether a sleep is currently in progress.
+function SleepRow({ action, onAction }) {
+  const { data: sleepRecords = [] } = useQuery({
+    queryKey: ["sleep"],
+    queryFn: () => base44.entities.Sleep.list(),
+  });
+  const inProgress = sleepRecords.some(s => s.bedtime && !s.wake_time);
+  return (
+    <button onClick={() => onAction(action)}
+      className="flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-muted/50 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full">
+      <Moon className="w-4 h-4 flex-shrink-0 text-indigo-400" />
+      <span>{inProgress ? "End sleep" : "Start sleep"}</span>
+    </button>
+  );
+}
+
+// Quick status note — inline text input, mirrors LocationRow's collect-then-log shape.
+function StatusNoteRow({ action, onAction }) {
+  const [text, setText] = useState("");
+  return (
+    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm space-y-2">
+      <div className="flex items-center gap-2">
+        <MessageSquarePlus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-medium flex-1 text-foreground">Quick status</span>
+      </div>
+      <input value={text} onChange={e => setText(e.target.value)} placeholder="What's happening right now…"
+        onKeyDown={e => { if (e.key === "Enter" && text.trim()) onAction(action, { text }); }}
+        className="w-full h-8 px-3 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+      <button onClick={() => onAction(action, { text })} disabled={!text.trim()}
+        className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+        Post
+      </button>
+    </div>
+  );
+}
+
+// Add a to-do — inline text input, same shape as StatusNoteRow.
+function AddTaskRow({ action, onAction }) {
+  const [title, setTitle] = useState("");
+  return (
+    <div className="px-4 py-3 bg-card border border-border/50 rounded-2xl shadow-sm space-y-2">
+      <div className="flex items-center gap-2">
+        <ListPlus className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+        <span className="text-sm font-medium flex-1 text-foreground">Add a to-do</span>
+      </div>
+      <input value={title} onChange={e => setTitle(e.target.value)} placeholder="Task title…"
+        onKeyDown={e => { if (e.key === "Enter" && title.trim()) onAction(action, { title }); }}
+        className="w-full h-8 px-3 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary" />
+      <button onClick={() => onAction(action, { title })} disabled={!title.trim()}
+        className="w-full h-8 rounded-lg bg-primary text-primary-foreground text-xs font-semibold hover:bg-primary/90 transition-colors disabled:opacity-50">
+        Add
+      </button>
+    </div>
   );
 }
 
@@ -367,6 +464,7 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
   const { data: symptoms = [] } = useQuery({ queryKey: ["symptoms"], queryFn: () => base44.entities.Symptom.list() });
   const { data: activityCategories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   // Live active sessions for the fronting-row gestures. The toggle helpers
   // also refetch fresh before writing (the canonical refetch-before-write
   // pattern), so this is just the seed state.
@@ -457,10 +555,27 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         return <DiaryFieldRow key={action.id} action={action} onAction={onAction} />;
       case "log_location":
         return <LocationRow key={action.id} action={action} onAction={onAction} />;
+      case "start_activity": {
+        const cat = activityCategories.find(c => c.id === action.config?.category_id);
+        if (!cat) return null;
+        return <StartActivityRow key={action.id} action={action} category={cat} onAction={onAction} />;
+      }
+      case "mark_contact_with": {
+        const contact = contacts.find(c => c.id === action.config?.contact_id);
+        if (!contact) return null;
+        return <ContactRow key={action.id} action={action} contact={contact} onAction={onAction} />;
+      }
+      case "toggle_sleep":
+        return <SleepRow key={action.id} action={action} onAction={onAction} />;
+      case "set_status_note":
+        return <StatusNoteRow key={action.id} action={action} onAction={onAction} />;
+      case "add_task":
+        return <AddTaskRow key={action.id} action={action} onAction={onAction} />;
       case "open_checkin_section":
       case "open_set_front":
       case "view_grocery_list":
       case "add_grocery_item":
+      case "navigate_to_page":
         return <NavRow key={action.id} action={action} onAction={onAction} />;
       default:
         return null;

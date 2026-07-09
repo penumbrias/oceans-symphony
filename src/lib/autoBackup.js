@@ -21,6 +21,7 @@
 
 import { getFullDbDump } from "@/lib/localDb";
 import { getAllLocalImages } from "@/lib/localImageStorage";
+import { getAllLocalFonts } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
@@ -135,6 +136,8 @@ async function buildFullBackupPayload() {
   const dump = getFullDbDump();
   let images = {};
   try { images = await getAllLocalImages(); } catch { /* skip images on failure */ }
+  let fonts = {};
+  try { fonts = await getAllLocalFonts(); } catch { /* skip fonts on failure */ }
   return {
     __format: "symphony_backup",
     __version: 1,
@@ -142,6 +145,7 @@ async function buildFullBackupPayload() {
     __auto: true,
     data: dump,
     __local_images: images,
+    __local_fonts: fonts,
     __local_settings: readBackupLocalSettings(),
   };
 }

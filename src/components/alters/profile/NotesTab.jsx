@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import RichText from "@/components/shared/RichText";
 import { applyWhisper } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { useTerms } from "@/lib/useTerms";
 import { format } from "date-fns";
 
@@ -50,7 +51,8 @@ export default function NotesTab({ alterId }) {
 
   const createNote = async () => {
     if (!newContent.trim()) return;
-    const w = applyWhisper(newContent.trim(), alters, { allowWholeBlur: false, rich: false, surfaceLabel: `${t.alter} note` });
+    const lc = await applyLogCommands(newContent.trim(), { isRich: false });
+    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return; // user backed out of the whole-blur warning
     setSaving(true);
     const note = await base44.entities.AlterNote.create({ alter_id: alterId, content: w.content });
@@ -63,7 +65,8 @@ export default function NotesTab({ alterId }) {
 
   const saveEdit = async () => {
     if (!editContent.trim()) return;
-    const w = applyWhisper(editContent.trim(), alters, { allowWholeBlur: false, rich: false, surfaceLabel: `${t.alter} note` });
+    const lc = await applyLogCommands(editContent.trim(), { isRich: false });
+    const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return;
     setSaving(true);
     await base44.entities.AlterNote.update(editingId, { content: w.content });

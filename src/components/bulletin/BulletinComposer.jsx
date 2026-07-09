@@ -8,6 +8,7 @@ import { Send, Pin, BarChart2, X, Plus, AtSign, Sparkles, Type, ImagePlus, Loade
 import { toast } from "sonner";
 import { saveMentions, saveAuthoredLog, extractMentionedIds } from "@/lib/mentionUtils";
 import { applyWhisper, whisperSpan } from "@/lib/whisperUtils";
+import { applyLogCommands } from "@/lib/logCommands";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { parseAndStripSignposts, parseSignpostAuthors, parseSignpostDirectives, foldSignpostAuthors, isSystemSignpost, SYSTEM_SENTINEL_ID } from "@/lib/signpostAuthors";
 import { useTerms } from "@/lib/useTerms";
@@ -233,12 +234,14 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const handlePost = async () => {
     if (!content.trim()) return;
     setSaving(true);
+    // Execute any inline ~commands first — each becomes a chip in the post.
+    const contentWithChips = (await applyLogCommands(content, { isRich: true })).content;
     // Parse signpost authorship from the ORIGINAL text FIRST, so the whisper
     // wrapping below can't be mangled by signpost stripping (the dash matcher
     // would otherwise chew on the whisper span's data-whisper-for attribute).
     // Strip signposts from the body for the saved content. Authorship comes
     // from the folded displayAuthors below — exactly what the preview shows.
-    const { cleanContent: signpostClean } = parseSignposts(content, alters, systemKeywords);
+    const { cleanContent: signpostClean } = parseSignposts(contentWithChips, alters, systemKeywords);
 
     // Whisper. The explicit toggle is the reliable path — it produces a
     // guaranteed-correct whisper span addressed to the chosen recipients,

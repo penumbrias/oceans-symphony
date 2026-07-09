@@ -668,6 +668,7 @@ useEffect(() => {
                     const updated = previewBlocks.map(b => b.id === id ? { ...b, ...patch } : b);
                     setContent(blocksToHTML(updated));
                   }}
+                  scopeId="journal-editor-preview"
                 />
               ) : (
                 <BlockEditor value={content} onChange={setContent} />

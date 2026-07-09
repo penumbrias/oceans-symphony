@@ -1,4 +1,5 @@
 import React, { forwardRef, useRef, useEffect, useCallback, useImperativeHandle, useState, useMemo } from "react";
+import { ChevronRight } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
@@ -6,6 +7,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { effectiveAlias } from "@/lib/alterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { detectCommandToken, buildCommandSuggestions, buildCatalogues } from "@/lib/logCommands";
 
 // A true inline rich-text input (contentEditable) with @mention (always)
 // and -signpost (opt-in) autocomplete. Unlike MentionTextarea — which is a
@@ -56,17 +58,28 @@ function SuggestionRow({ alter, label, onPick }) {
 }
 
 const RichMentionInput = forwardRef(function RichMentionInput(
-  { value = "", onChange, alters = [], signposts = false, systemName, placeholder, className = "", onKeyDown },
+  { value = "", onChange, alters = [], signposts = false, commands = true, systemName, placeholder, className = "", onKeyDown },
   forwardedRef
 ) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const editorRef = useRef(null);
   const lastHtml = useRef(value);
-  const [menu, setMenu] = useState(null); // { type, query } | null
+  const [menu, setMenu] = useState(null); // { type, query } | { type:"command", segments } | null
 
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const hidden = useMemo(() => getAlterIdsByGroupFlag(groups, alters, "hide_from_mentions"), [groups, alters]);
+
+  // Catalogues for ~command autocomplete (own namespaced keys, deduped across
+  // instances by react-query).
+  const { data: cmdSymptoms = [] } = useQuery({ queryKey: ["logcmd", "symptoms"], queryFn: () => base44.entities.Symptom.list(), enabled: commands });
+  const { data: cmdContacts = [] } = useQuery({ queryKey: ["logcmd", "contacts"], queryFn: () => base44.entities.Contact.list(), enabled: commands });
+  const { data: cmdActivityCats = [] } = useQuery({ queryKey: ["logcmd", "activityCategories"], queryFn: () => base44.entities.ActivityCategory.list(), enabled: commands });
+  const { data: cmdCustomEmotions = [] } = useQuery({ queryKey: ["logcmd", "customEmotions"], queryFn: () => base44.entities.CustomEmotion.list(), enabled: commands });
+  const catalogues = useMemo(
+    () => buildCatalogues({ symptoms: cmdSymptoms, contacts: cmdContacts, activityCategories: cmdActivityCats, customEmotions: cmdCustomEmotions }),
+    [cmdSymptoms, cmdContacts, cmdActivityCats, cmdCustomEmotions]
+  );
 
   const sysToken = terms.system || "system";
   const sysLabel = systemName || terms.System || "System";
@@ -134,11 +147,26 @@ const RichMentionInput = forwardRef(function RichMentionInput(
   };
 
   const recompute = useCallback(() => {
-    const tok = currentToken();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0 || !sel.isCollapsed) { setMenu(null); return; }
+    const node = sel.anchorNode;
+    if (!node || node.nodeType !== Node.TEXT_NODE) { setMenu(null); return; }
+    const text = node.textContent || "";
+    const caret = sel.anchorOffset;
+    if (commands) {
+      const cmd = detectCommandToken(text, caret);
+      if (cmd) { setMenu({ type: "command", segments: cmd.segments }); return; }
+    }
+    const tok = detectToken(text, caret);
     if (!tok || (tok.type === "signpost" && !signposts)) { setMenu(null); return; }
     setMenu({ type: tok.type, query: tok.query });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [signposts]);
+  }, [signposts, commands]);
+
+  const commandMenu = useMemo(() => {
+    if (!menu || menu.type !== "command") return null;
+    return buildCommandSuggestions({ segments: menu.segments, catalogues });
+  }, [menu, catalogues]);
 
   const handleInput = () => { emit(); recompute(); };
 
@@ -165,7 +193,70 @@ const RichMentionInput = forwardRef(function RichMentionInput(
       || (typeof sysLabel === "string" && sysLabel.toLowerCase().split(/\s+/).some((t) => t.startsWith(q)));
   }, [menu, sysToken, sysLabel]);
 
-  const open = !!menu && (suggestions.length > 0 || (menu.type === "signpost" && showSystemRow));
+  const open = !!menu && (
+    menu.type === "command"
+      ? !!(commandMenu && (commandMenu.items.length || commandMenu.canFinish))
+      : (suggestions.length > 0 || (menu.type === "signpost" && showSystemRow))
+  );
+
+  // Replace the ~command token at the caret with the staged insert, in-place.
+  const pickCommand = (item) => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { setMenu(null); return; }
+    const node = sel.anchorNode;
+    const offset = sel.anchorOffset;
+    if (!node || node.nodeType !== Node.TEXT_NODE) { setMenu(null); return; }
+    const text = node.textContent || "";
+    const cmd = detectCommandToken(text, offset);
+    if (!cmd) { setMenu(null); return; }
+    const body = [...cmd.segments.slice(0, -1), item.insert].join(":");
+    const insertText = "~" + body + (item.terminal ? "" : ":");
+    const before = text.slice(0, cmd.start);
+    const after = text.slice(offset);
+    node.textContent = before + insertText + after;
+    const caretPos = Math.min(before.length + insertText.length, (node.textContent || "").length);
+    try {
+      const range = document.createRange();
+      range.setStart(node, caretPos);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch { /* detached node */ }
+    emit();
+    if (item.terminal) setMenu(null); else recompute();
+  };
+
+  // Header chevron — "log it / finish": drop a trailing ":" and end with a space.
+  const finishCommand = () => {
+    const el = editorRef.current;
+    if (!el) return;
+    el.focus();
+    const sel = window.getSelection();
+    if (!sel || sel.rangeCount === 0) { setMenu(null); return; }
+    const node = sel.anchorNode;
+    const offset = sel.anchorOffset;
+    if (!node || node.nodeType !== Node.TEXT_NODE) { setMenu(null); return; }
+    const text = node.textContent || "";
+    const cmd = detectCommandToken(text, offset);
+    if (!cmd) { setMenu(null); return; }
+    const insertText = "~" + cmd.body.replace(/:$/, "") + " ";
+    const before = text.slice(0, cmd.start);
+    const after = text.slice(offset);
+    node.textContent = before + insertText + after;
+    const caretPos = Math.min(before.length + insertText.length, (node.textContent || "").length);
+    try {
+      const range = document.createRange();
+      range.setStart(node, caretPos);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch { /* detached node */ }
+    emit();
+    setMenu(null);
+  };
 
   // Replace the @/- token at the caret with the chosen name, in-place in
   // the caret's text node, then drop the caret right after it.
@@ -199,6 +290,11 @@ const RichMentionInput = forwardRef(function RichMentionInput(
 
   const pickFirst = () => {
     if (!open) return false;
+    if (menu.type === "command") {
+      if (commandMenu?.items?.[0]) { pickCommand(commandMenu.items[0]); return true; }
+      if (commandMenu?.canFinish) { finishCommand(); return true; }
+      return false;
+    }
     if (suggestions[0]) { pick(tokenFor(suggestions[0], menu.type), menu.type === "mention" ? "@" : "-"); return true; }
     if (menu.type === "signpost" && showSystemRow) { pick(sysToken, "-"); return true; }
     return false;
@@ -240,6 +336,34 @@ const RichMentionInput = forwardRef(function RichMentionInput(
       {open && (
         <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
           style={{ bottom: "calc(100% + 4px)" }}>
+          {menu.type === "command" ? (
+            <>
+              <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border/50">
+                <span className="text-xs text-muted-foreground font-medium">{commandMenu.icon} {commandMenu.header}</span>
+                {commandMenu.canFinish && (
+                  <button
+                    type="button"
+                    title="Log it — finish the command"
+                    onMouseDown={(e) => { e.preventDefault(); finishCommand(); }}
+                    className="flex items-center justify-center w-6 h-6 -mr-1 rounded-md text-primary hover:bg-primary/15 transition-colors"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                )}
+              </div>
+              {commandMenu.items.map((it, idx) => (
+                <button
+                  key={idx}
+                  type="button"
+                  onMouseDown={(e) => { e.preventDefault(); pickCommand(it); }}
+                  className="w-full flex items-center px-3 py-1.5 text-left hover:bg-muted/50 transition-colors text-sm"
+                >
+                  <span className="truncate">{it.insert}</span>
+                </button>
+              ))}
+            </>
+          ) : (
+          <>
           {menu.type === "signpost" && (
             <div className="px-3 py-1.5 text-xs text-muted-foreground font-medium border-b border-border/50">Sign as author…</div>
           )}
@@ -261,6 +385,8 @@ const RichMentionInput = forwardRef(function RichMentionInput(
               onPick={() => pick(tokenFor(a, menu.type), menu.type === "mention" ? "@" : "-")}
             />
           ))}
+          </>
+          )}
         </div>
       )}
     </div>

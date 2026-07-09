@@ -25,6 +25,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isNative } from "@/lib/platform";
+import { isPreviewActive } from "@/lib/previewMode";
 import {
   isNativeNotificationsEnabled,
   ensureRemindersChannel,
@@ -293,6 +294,14 @@ export async function reconcilePlanReminders(activities) {
     await cancelAllPlanReminders();
     return { scheduled: 0, cancelled: 0, skipped: "disabled" };
   }
+
+  // Same rationale as nativeReminderScheduler.js: Preview Mode swaps the
+  // Activity list for in-memory example plans, but a scheduled OS/setTimeout
+  // notification talks past that sandbox. Skip reconciling while preview is
+  // on so demo plans never turn into a real, un-cancellable notification —
+  // whatever real-data schedule already exists is left alone and
+  // re-reconciles the moment preview exits.
+  if (isPreviewActive()) return { scheduled: 0, cancelled: 0, skipped: "preview_active" };
 
   const oldLog = readLog();
   // Cancel everything we previously held, both native and web.

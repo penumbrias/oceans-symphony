@@ -154,13 +154,21 @@ export default function RecoveryScreen({ reason, onResolved }) {
   // Applies a decrypted/parsed dump (with optional images/settings) to
   // the in-memory DB. Mirrors the Settings → DataBackupRestore behaviour
   // so this screen's restore button is just as capable.
-  const applyDump = async ({ data, localImages, localSettings }) => {
+  const applyDump = async ({ data, localImages, localFonts, localSettings }) => {
     if (localImages) {
       try {
         const { restoreLocalImages } = await import("@/lib/localImageStorage");
         await restoreLocalImages(localImages);
       } catch (e) {
         console.warn("Failed to restore local images during recovery:", e);
+      }
+    }
+    if (localFonts) {
+      try {
+        const { restoreLocalFonts } = await import("@/lib/localFontStorage");
+        await restoreLocalFonts(localFonts);
+      } catch (e) {
+        console.warn("Failed to restore local fonts during recovery:", e);
       }
     }
     if (localSettings) {
@@ -188,6 +196,7 @@ export default function RecoveryScreen({ reason, onResolved }) {
         await applyDump({
           data: parsed.data,
           localImages: parsed.localImages,
+          localFonts: parsed.localFonts,
           localSettings: parsed.localSettings,
         });
         setStatus({ type: "success", text: "Backup restored. Reloading…" });

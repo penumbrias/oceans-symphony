@@ -10,9 +10,12 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
+import { getActiveEncounters, startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
+import { enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -94,6 +97,7 @@ const PILLS = [
 { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
 { id: "diary", label: "Diary", icon: BookOpen },
 { id: "note", label: "Note", icon: FileText },
+{ id: "contacts", label: "Company", icon: UserCheck },
 { id: "location", label: "Location", icon: MapPin }];
 
 
@@ -111,6 +115,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const terms = useTerms();
+  // Which section pills the user has enabled (Manage Check-In → Sections).
+  const { data: ssList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const enabledSectionIds = useMemo(() => enabledCheckinSectionIds(ssList?.[0]), [ssList]);
+  const visiblePills = useMemo(() => PILLS.filter((p) => enabledSectionIds.includes(p.id)), [enabledSectionIds]);
   const [openSections, setOpenSections] = useState(new Set(["feeling"]));
   // The section the bottom prev/next arrows currently step from. Tracks the
   // most-recently-opened section; arrows close it and open the adjacent one.
@@ -161,6 +172,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [primaryId, setPrimaryId] = useState("");
   const [coFronterIds, setCoFronterIds] = useState([]);
   const [alterSearch, setAlterSearch] = useState("");
+  // Contacts — "who are you with?" mirrors live ContactEncounter sessions,
+  // same idea as Fronting but there's no primary/co concept.
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const initialContactIdsRef = useRef([]);
   // Activity
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
@@ -319,12 +334,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   // in PILLS order, and scroll it into view. Other manually-opened sections
   // are left as-is (step-one-at-a-time, not a strict wizard).
   const goToSection = (dir) => {
-    const idx = PILLS.findIndex((p) => p.id === currentSectionId);
+    const steps = visiblePills.length ? visiblePills : PILLS;
+    const idx = steps.findIndex((p) => p.id === currentSectionId);
     const base = idx < 0 ? 0 : idx;
     const nextIdx = base + dir;
-    if (nextIdx < 0 || nextIdx >= PILLS.length) return;
-    const curId = PILLS[base].id;
-    const nextId = PILLS[nextIdx].id;
+    if (nextIdx < 0 || nextIdx >= steps.length) return;
+    const curId = steps[base].id;
+    const nextId = steps[nextIdx].id;
     setOpenSections((prev) => {
       const next = new Set(prev);
       next.delete(curId);
@@ -393,10 +409,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         return;
       }
       setEntryTime(toDatetimeLocal(retroTimestamp));
-      const initial = new Set(["feeling"]);
-      if (initialSection) initial.add(initialSection);
-      setOpenSections(initial);
-      setCurrentSectionId(initialSection || "feeling");
+      // When opened targeting a specific section (e.g. a quick action for
+      // Location), open ONLY that section — don't also pop Feeling open.
+      // Respect the user's enabled-sections config: never open a hidden one.
+      const enabled = enabledCheckinSectionIds(ssList?.[0]);
+      const target = initialSection && enabled.includes(initialSection) ? initialSection : (enabled[0] || "feeling");
+      setOpenSections(new Set([target]));
+      setCurrentSectionId(target);
       if (initialSection === "fronting") setHadFrontingOpen(true);
       // Load current active sessions to pre-populate fronting state
       base44.entities.FrontingSession.filter({ is_active: true }).then((active) => {
@@ -433,11 +452,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   }, [isOpen]);
 
+  // Contacts — seed from whoever's currently marked "with" regardless of
+  // create/edit mode (there's no per-check-in contact record to restore from,
+  // it always mirrors the live ContactEncounter sessions).
+  useEffect(() => {
+    if (!isOpen) return;
+    getActiveEncounters().then((active) => {
+      const ids = active.map((e) => e.contact_id);
+      setSelectedContactIds(ids);
+      initialContactIdsRef.current = ids;
+    }).catch(() => {});
+  }, [isOpen]);
+
   const resetForm = () => {
     setSelectedEmotions([]);
     setPrimaryId("");
     setCoFronterIds([]);
     setAlterSearch("");
+    setSelectedContactIds([]);
+    initialContactIdsRef.current = [];
     setSelectedActivityCategories([]);
     setActivityDuration("");
     setActivityNote("");
@@ -662,6 +695,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   };
 
+  // Diff selectedContactIds against whoever was active when the modal opened
+  // and start/end ContactEncounter sessions for the difference. Both helper
+  // functions already guard against double-start / missing-session no-ops.
+  const commitContactChanges = async () => {
+    const initialSet = new Set(initialContactIdsRef.current);
+    const nextSet = new Set(selectedContactIds);
+    let changed = false;
+    for (const id of nextSet) {
+      if (!initialSet.has(id)) { await startEncounter(id); changed = true; }
+    }
+    for (const id of initialSet) {
+      if (!nextSet.has(id)) { await endEncounterForContact(id); changed = true; }
+    }
+    if (changed) queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
+  };
+
   const handleSubmit = async () => {
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     // Fold in the Feeling-section slider, unless the user already logged that
@@ -818,6 +867,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           });
           queryClient.invalidateQueries({ queryKey: ["locations"] });
         }
+        await commitContactChanges();
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["timeline"] });
@@ -975,6 +1025,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         queryClient.invalidateQueries({ queryKey: ["locations"] });
       }
 
+      await commitContactChanges();
+
       // Everything saved — the draft must never "restore" a posted check-in.
       clearDraft();
       const hasDistress = selectedEmotions.some(e => isDistressingEmotion(e));
@@ -1079,7 +1131,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <Heart className="w-5 h-5 text-destructive" />
-              {isEditing ? "Edit Check-In" : "Quick Check-In"}
+              <span className="flex-1">{isEditing ? "Edit Check-In" : "Quick Check-In"}</span>
+              {!isEditing && (
+                <button
+                  type="button"
+                  onClick={() => { onClose(); navigate("/manage-checkin"); }}
+                  aria-label="Check-in settings — choose which sections show"
+                  title="Check-in settings"
+                  className="text-muted-foreground hover:text-foreground transition-colors mr-6"
+                >
+                  <SlidersHorizontal className="w-4 h-4" />
+                </button>
+              )}
             </DialogTitle>
             <DialogDescription className="flex items-center gap-2 pt-1 flex-wrap">
               <input
@@ -1109,7 +1172,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         <div className="flex-1 overflow-y-auto min-h-0 px-6 py-4 space-y-3">
           {/* Pill toggles */}
           <div className="flex flex-wrap gap-1.5 pb-1">
-            {PILLS.map((pill) => {
+            {visiblePills.map((pill) => {
               const PillIcon = pill.icon;
               // Module-scope PILLS can't hit useTerms, so resolve the
               // label for any system-customisable terms here at render.
@@ -1398,6 +1461,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   {note.trim().split(/\s+/).filter(Boolean).length > 50 && " · will save as journal entry"}
                 </p>
             }
+            </div>
+          }
+
+          {/* Company (who are you with) */}
+          {openSections.has("contacts") &&
+          <div ref={(el) => (sectionRefs.current.contacts = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">Company</p>
+              <ContactMultiSelectList selectedContactIds={selectedContactIds} onChange={setSelectedContactIds} />
             </div>
           }
 

@@ -4,13 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow, format } from "date-fns";
 import { X, Clock } from "lucide-react";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
-
-function toLocalDatetimeValue(iso) {
-  if (!iso) return "";
-  try {
-    return format(new Date(iso), "yyyy-MM-dd'T'HH:mm");
-  } catch { return ""; }
-}
+import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
 
 function SeverityDots({ severity }) {
   return (
@@ -29,6 +23,8 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   const [saving, setSaving] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
   const [startDraft, setStartDraft] = useState(() => toLocalDatetimeValue(sess.start_time));
+  const [editingNotes, setEditingNotes] = useState(false);
+  const [notesDraft, setNotesDraft] = useState(sess.notes || "");
   const lastSnapshot = sess.severity_snapshots?.[sess.severity_snapshots.length - 1];
   // null when no snapshot exists — distinct from an explicit 0 severity.
   // The popup uses this to decide whether to highlight a button and to
@@ -45,6 +41,16 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       queryClient.invalidateQueries({ queryKey: ["timeline"] });
       setEditingStart(false);
+    } finally { setSaving(false); }
+  };
+
+  const handleSaveNotes = async () => {
+    setSaving(true);
+    try {
+      const trimmed = notesDraft.trim();
+      await base44.entities.SymptomSession.update(sess.id, { notes: trimmed || null });
+      queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+      setEditingNotes(false);
     } finally { setSaving(false); }
   };
 
@@ -157,6 +163,46 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
             <Clock className="w-3.5 h-3.5" />
             Edit start time
             <span className="text-xs text-muted-foreground">({format(new Date(sess.start_time), "MMM d, h:mm a")})</span>
+          </button>
+        )}
+
+        {editingNotes ? (
+          <div className="space-y-2">
+            <p className="text-xs font-medium text-muted-foreground">Note</p>
+            <textarea
+              value={notesDraft}
+              onChange={(e) => setNotesDraft(e.target.value)}
+              rows={2}
+              placeholder="Optional note about this session…"
+              className="w-full px-3 py-2 rounded-lg border border-border bg-background text-sm resize-none"
+            />
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={handleSaveNotes}
+                disabled={saving}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+              >
+                Save
+              </button>
+              <button
+                type="button"
+                onClick={() => { setNotesDraft(sess.notes || ""); setEditingNotes(false); }}
+                className="flex-1 py-2 rounded-lg text-sm font-medium bg-muted/50 text-muted-foreground hover:bg-muted"
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={() => setEditingNotes(true)}
+            className="w-full flex items-center gap-1.5 py-2 px-1 rounded-lg text-sm font-medium bg-muted/50 text-foreground hover:bg-muted transition-colors text-left"
+          >
+            <span className="flex-1 min-w-0 truncate">
+              {sess.notes ? sess.notes : <span className="text-muted-foreground font-normal">Add a note…</span>}
+            </span>
           </button>
         )}
 
