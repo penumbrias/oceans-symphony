@@ -23,7 +23,7 @@
 // Bump this string whenever you meaningfully change a bio in this
 // file. PATCH bumps for added detail / small tweaks; MINOR for a
 // whole new wiki alter / topic; MAJOR for a structural rewrite.
-export const WIKI_CONTENT_VERSION = "0.79.1";
+export const WIKI_CONTENT_VERSION = "0.80.0";
 
 let _counter = 0;
 function uid(prefix) {
@@ -76,14 +76,24 @@ function richBio(html) {
 // Each function returns a string of HTML. Kept inline so the file reads
 // top-to-bottom; if any one bio gets unwieldy, split it out.
 
+// Designed "hero" header — an eyebrow label + lede inside a soft
+// primary-tinted gradient card. Theme-safe (uses the live CSS vars so it
+// recolours with the active theme / per-alter preset).
 const intro = (subtitle, lede) => `
-  <p style="opacity:0.7;font-size:0.9em;margin-bottom:6px;">${subtitle}</p>
-  <p style="font-size:1.05em;line-height:1.55;">${lede}</p>
+  <div style="margin:0 0 14px;padding:15px 17px;border-radius:16px;background:linear-gradient(135deg,hsl(var(--primary)/0.16),hsl(var(--primary)/0.02));border:1px solid hsl(var(--primary)/0.25);">
+    <div style="font-size:0.68em;font-weight:700;letter-spacing:0.2em;text-transform:uppercase;color:hsl(var(--primary));margin-bottom:7px;">${subtitle}</div>
+    <div style="font-size:1.12em;line-height:1.55;font-weight:500;">${lede}</div>
+  </div>
 `;
 
+// A section: accent-dot heading + a left-ruled body. Reads as "designed"
+// without turning every block into a heavy card.
 const section = (title, body) => `
-  <h3 style="margin:14px 0 4px;font-size:1em;font-weight:600;">${title}</h3>
-  <div style="font-size:0.92em;line-height:1.55;">${body}</div>
+  <h3 style="margin:16px 0 5px;font-size:0.95em;font-weight:700;display:flex;align-items:center;gap:8px;">
+    <span style="width:6px;height:6px;border-radius:50%;background:hsl(var(--primary));flex-shrink:0;"></span>
+    ${title}
+  </h3>
+  <div style="font-size:0.92em;line-height:1.62;opacity:0.92;padding-left:14px;border-left:1px solid hsl(var(--border));margin-left:2px;">${body}</div>
 `;
 
 // HTML-escape so example HTML tags render as literal text inside the
@@ -101,26 +111,64 @@ function esc(s) {
 const kbd = (text) => `<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">${esc(text)}</code>`;
 
 const tip = (body) => `
-  <div style="border-left:3px solid hsl(var(--primary));margin:8px 0;padding:6px 10px;font-size:0.88em;opacity:0.85;">
-    <strong>Tip:</strong> ${body}
+  <div style="margin:11px 0;padding:10px 13px;border-radius:12px;background:hsl(var(--primary)/0.08);border:1px solid hsl(var(--primary)/0.22);font-size:0.88em;line-height:1.55;">
+    <strong style="color:hsl(var(--primary));">💡 Tip</strong> — ${body}
+  </div>
+`;
+
+// ── Rich helpers for bespoke "designer example" pages ────────────────────
+// A full gradient hero with custom colours (each showcase page picks its own,
+// so browsing the guide displays a range of looks). Emoji is optional.
+const hero = ({ eyebrow, title, blurb, c1 = "#6366f1", c2 = "#0ea5e9", emoji = "" }) => `
+  <div style="position:relative;overflow:hidden;border-radius:18px;padding:20px 20px 18px;margin:0 0 14px;background:linear-gradient(135deg,${c1},${c2});color:#fff;box-shadow:0 8px 30px ${c1}44;">
+    <div style="position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.12);"></div>
+    ${emoji ? `<div style="font-size:1.8em;line-height:1;margin-bottom:8px;">${emoji}</div>` : ""}
+    ${eyebrow ? `<div style="font-size:0.66em;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;opacity:0.85;margin-bottom:6px;">${eyebrow}</div>` : ""}
+    <div style="font-size:1.5em;font-weight:800;letter-spacing:0.01em;line-height:1.15;">${title}</div>
+    ${blurb ? `<div style="font-size:0.95em;line-height:1.5;opacity:0.94;margin-top:8px;max-width:52ch;">${blurb}</div>` : ""}
+  </div>
+`;
+
+// A responsive grid of little feature cards: [{ emoji, title, body }].
+const grid = (items) => `
+  <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:9px;margin:12px 0;">
+    ${items.map((it) => `
+      <div style="border:1px solid hsl(var(--border));border-radius:13px;padding:11px 12px;background:hsl(var(--muted)/0.35);">
+        ${it.emoji ? `<div style="font-size:1.2em;margin-bottom:4px;">${it.emoji}</div>` : ""}
+        <div style="font-weight:700;font-size:0.9em;margin-bottom:2px;">${it.title}</div>
+        <div style="font-size:0.82em;line-height:1.45;opacity:0.85;">${it.body}</div>
+      </div>`).join("")}
+  </div>
+`;
+
+// A row of headline stats: [{ value, label }].
+const stats = (items, accent = "hsl(var(--primary))") => `
+  <div style="display:flex;flex-wrap:wrap;gap:10px;margin:12px 0;">
+    ${items.map((s) => `
+      <div style="flex:1;min-width:88px;border-radius:13px;padding:11px 13px;background:linear-gradient(135deg,${accent}22,transparent);border:1px solid hsl(var(--border));">
+        <div style="font-size:1.5em;font-weight:800;line-height:1;color:${accent};">${s.value}</div>
+        <div style="font-size:0.72em;text-transform:uppercase;letter-spacing:0.08em;opacity:0.7;margin-top:4px;">${s.label}</div>
+      </div>`).join("")}
   </div>
 `;
 
 // ── 1. Welcome / index ─────────────────────────────────────────────────
 const bioWelcome = `
-  ${intro("Wiki · Start Here", "This preview is a walkthrough of the whole app. Each alter in this <em>example system</em> covers one feature area — open them in order, or jump to the one you need.")}
-  ${section("How to use it",
-    `Every wiki alter is a real alter profile, so the same edit modes and tabs that work on your own alters work here. Their bios are read-only walkthroughs. Open the Alters page to see them all grouped by topic, or use the sidebar to jump straight to a category.`)}
-  ${section("Reading order if you're new",
-    `<ol style="padding-left:22px;margin:4px 0;line-height:1.55;">
+  ${hero({ eyebrow: "Preview Mode · Start here", title: "Welcome to the guided example", blurb: "Every profile in this example system is a walkthrough of one feature — and the whole app is filled with example data so you can actually try things. Read a page, then follow the <strong>Next →</strong> link at the bottom to walk the whole guide.", c1: "#0ea5e9", c2: "#6366f1", emoji: "🌊" })}
+  ${grid([
+    { emoji: "👆", title: "It's a real profile", body: "Each page is an actual alter profile — the same tabs and edit modes work here." },
+    { emoji: "🎨", title: "Designed to inspire", body: "Many pages flex the profile editor's range; a few stay minimal to show the span." },
+    { emoji: "🔗", title: "Walk it in order", body: "Prev / Next links at the foot of every page thread the whole walkthrough." },
+    { emoji: "🛟", title: "Your data is safe", body: "Real data is hidden, never touched. Exit any time from the top banner." },
+  ])}
+  ${section("Where to go first",
+    `<ol style="padding-left:20px;margin:4px 0;line-height:1.6;">
       <li><strong>Gestures cheatsheet</strong> — every swipe / long-press / triple-tap in one place.</li>
-      <li><strong>Dashboard</strong> — what every tile on the home screen does.</li>
-      <li><strong>Alter profiles</strong> → <strong>Edit modes</strong> → <strong>Mini toolbar</strong> — how to build out a profile.</li>
-      <li>Pick the tracking + sharing topics you actually care about. Skip anything you don't.</li>
+      <li><strong>Dashboard</strong> — what each tile on the home screen does.</li>
+      <li><strong>Alters &amp; profiles</strong> — building a profile, plus the design showcases.</li>
+      <li>Then pick the tracking &amp; connection topics you care about — skip the rest.</li>
     </ol>`)}
-  ${section("Your real data is safe",
-    `Preview Mode hides your real data but never touches it. The banner up top exits back to your own system in one tap. Nothing you change in here is saved.`)}
-  ${tip(`The version pinned in the banner is the app version this walkthrough was last refreshed against. If you're on a newer build than the banner says, some bits of these wiki pages might be a little out of date.`)}
+  ${tip(`Open the <strong>Alters</strong> page to see every topic grouped into folders. The "edit modes" page even owns a <em>subsystem</em> of design-showcase pages — tap into it to see nesting in action.`)}
 `;
 
 // ── 2. Gestures cheatsheet ─────────────────────────────────────────────
@@ -174,7 +222,7 @@ const bioGestures = `
 
 // ── 3. Dashboard ───────────────────────────────────────────────────────
 const bioDashboard = `
-  ${intro("Wiki · Dashboard", `The dashboard ('/') is the at-a-glance home for "what is happening right now". Top to bottom:`)}
+  ${hero({ eyebrow: "Feature · Home screen", title: "Dashboard", blurb: `The at-a-glance home for what's happening right now — current fronters, status, pins, plans, tasks, and search, top to bottom.`, c1: "#a855f7", c2: "#6366f1", emoji: "🏠" })}
   ${section("Header bar",
     `App logo on the left (tap → home). Centered title "${"Oceans Symphony"}". On the right: a 🛒 grocery list button (also opens via triple-tap), the notification bell (= reminders + push), and Settings. The bar has a faint primary-tinted wave block on its top half; the wave scrolls slowly. The bottom border matches the bottom tab bar so the header reads as a defined band.`)}
   ${section("Currently Fronting strip",
@@ -363,7 +411,7 @@ const bioTimeline = `
 
 // ── 11. Activity Tracker ───────────────────────────────────────────────
 const bioActivities = `
-  ${intro("Wiki · Activity Tracker", `Track what your system actually does — work, errands, rest, therapy, meals. Two tabs: Logged (past) and Planned (future).`)}
+  ${hero({ eyebrow: "Feature · What you do", title: "Activity Tracker", blurb: `Track what your system actually does — work, errands, rest, therapy, meals. Two tabs: Logged (past) and Planned (future).`, c1: "#10b981", c2: "#0ea5e9", emoji: "⚡" })}
   ${section("Views",
     `Week (default), Month, Year. Week is a 7-day hourly grid. Month is a calendar with day-level heatmap dots. Year is a 3×4 grid of mini-months; tap a day or month to drill down.`)}
   ${section("Logging an activity",
@@ -608,7 +656,7 @@ const bioSafetyPlan = `
 
 // ── 26. Contacts — "who are you with?" ──────────────────────────────────
 const bioContacts = `
-  ${intro("Guide · Contacts", `A private directory of the <strong>external people</strong> in your life — the parallel to your alter roster, but for outside relationships. Safe people, tricky people, professionals.`)}
+  ${hero({ eyebrow: "Feature · External people", title: "Contacts", blurb: `A private directory of the people in your life — the parallel to your alter roster, but pointed outward. Safe people, tricky people, professionals.`, c1: "#0ea5e9", c2: "#22c55e", emoji: "🧭" })}
   ${section("Safety + awareness at a glance",
     `Each contact carries a <strong>safety</strong> read (safe / caution / unsafe) and an <strong>awareness</strong> flag (do they know about the system? not at all / partially / fully). Colour-coded so the directory is scannable in a stressed moment. Some are flagged as emergency support.`)}
   ${section("Who are you with?",
@@ -657,7 +705,8 @@ const bioSystemHistory = `
 
 // ── 31. Analytics ───────────────────────────────────────────────────────
 const bioAnalytics = `
-  ${intro("Guide · Analytics", `Patterns across everything you've logged — fronting, wellbeing, and life context — read-only and computed from your real records. Nothing here is entered; it's all derived.`)}
+  ${hero({ eyebrow: "Feature · Patterns", title: "Analytics", blurb: `Patterns across everything you've logged — fronting, wellbeing, and life context. Read-only and computed from your records; nothing here is entered.`, c1: "#8b5cf6", c2: "#ec4899", emoji: "📊" })}
+  ${stats([{ value: "4", label: "tabs" }, { value: "29h", label: "example fronting" }, { value: "6", label: "member fingerprints" }], "#a855f7")}
   ${section("Four tabs",
     `<strong>Overview</strong> — the headline read on the range. <strong>Fronting</strong> — who's out how much, solo vs co-front, switch counts, primary time. <strong>Wellbeing</strong> — mood / anxiety / symptom trends. <strong>Life</strong> — activities, sleep, locations, and contacts correlated against the rest.`)}
   ${section("Alter fingerprints",
@@ -879,6 +928,49 @@ export function buildPages() {
     { id: uid("wiki-group"), name: "7 · Insight & data",    color: "#6366f1", description: "Analytics, therapy reports, settings, privacy, and multiple systems.",        member_alter_ids: [A.analytics.id, A.reports.id, A.settings.id, A.privacy.id, A.multipleSystems.id], parent: "root", order: 6 },
   ];
 
+  // A subsystem (a group OWNED by an alter via `owner_alter_id`) demonstrates
+  // that feature: the "edit modes" page owns a nested set of design-showcase
+  // pages. It shows up under its owner on the Alters page.
+  const showcaseSubsystem = {
+    id: uid("wiki-group"),
+    name: "Design showcases",
+    color: "#f97316",
+    description: "A subsystem owned by the edit-modes page — pages that flex the editor's range.",
+    owner_alter_id: A.editModes.id,
+    member_alter_ids: [A.rawShowcase.id, A.themeShowcase.id, A.avatars.id],
+    order: 0,
+  };
+  const allGroups = [...groups, showcaseSubsystem];
+
+  // The app resolves group + subsystem membership from each alter's `groups`
+  // array (objects {id,name,color}) via getMemberAlters — NOT from a group's
+  // member_alter_ids. Populate it so tapping a folder / subsystem actually
+  // lists its pages.
+  const byId = Object.fromEntries(alters.map((a) => [a.id, a]));
+  for (const g of allGroups) {
+    for (const aid of g.member_alter_ids || []) {
+      const al = byId[aid];
+      if (!al) continue;
+      (al.groups ||= []).push({ id: g.id, name: g.name, color: g.color });
+    }
+  }
+
+  // Sequential walkthrough: append an in-app Prev/Next footer to each page (in
+  // top-level reading order) so a reader can move through the whole guide by
+  // tapping — using the same `data-internal-link` the link picker inserts.
+  const order = groups.flatMap((g) => g.member_alter_ids);
+  const navLink = (al, label) => `<a data-internal-link="/alter/${al.id}" style="color:hsl(var(--primary));text-decoration:none;font-weight:600;">${label}</a>`;
+  order.forEach((id, i) => {
+    const al = byId[id];
+    if (!al) return;
+    const prev = i > 0 ? byId[order[i - 1]] : null;
+    const next = i < order.length - 1 ? byId[order[i + 1]] : null;
+    al.description += `<div style="display:flex;justify-content:space-between;gap:12px;margin-top:20px;padding-top:12px;border-top:1px solid hsl(var(--border));font-size:0.85em;">` +
+      `<span>${prev ? navLink(prev, `← ${prev.name}`) : ""}</span>` +
+      `<span style="text-align:right;">${next ? navLink(next, `${next.name} →`) : ""}</span>` +
+      `</div>`;
+  });
+
   const settings = {
     id: uid("wiki-settings"),
     system_name: "Preview Mode — example system",
@@ -892,7 +984,7 @@ export function buildPages() {
   return {
     A,
     alters,
-    groups,
+    groups: allGroups,
     settings,
     themePresets: WIKI_THEME_PRESETS,
     alterThemeLinks,

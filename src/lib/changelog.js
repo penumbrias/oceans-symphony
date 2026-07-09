@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "July 8, 2026",
     changes: [
       {
+        type: "feature",
+        text: "Preview Mode redesign: the walkthrough pages are now sorted into folders (with a subsystem), link to each other so you can step through in order, and most are redesigned as rich \"designer examples\" that show off what a profile can look like.",
+      },
+      {
         type: "improve",
         text: "Activity details now show the date and who you were with (Company), plus a \"Log again\" button to quickly re-log the same thing.",
       },
