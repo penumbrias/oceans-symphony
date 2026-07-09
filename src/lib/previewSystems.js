@@ -212,7 +212,7 @@ function buildGuidedDemo() {
   const statusNotes = [
     rec({ timestamp: isoOffset(0, 9),  note: "Exploring the guided example." }),
     rec({ timestamp: isoOffset(0, 16), note: "Afternoon — reading through the pages." }),
-    rec({ timestamp: isoOffset(0, 21), note: "Made tea. Winding down." }),
+    rec({ timestamp: isoOffset(0, 21), note: "Tip: press and hold on a fronting alter's card to see more." }),
     rec({ timestamp: isoOffset(1, 15), note: "On calls today." }),
     rec({ timestamp: isoOffset(2, 10), note: "Creative morning." }),
     rec({ timestamp: isoOffset(2, 14), note: "Switching a fair bit. Tiring but okay." }),
