@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2 } from "lucide-react";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
+import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -122,22 +123,24 @@ const ENTITY_NAMES = [
   "SystemChatChannel", "SystemChatMessage", "SystemChatCategory",
   "ImageAsset", "GroupNote", "Presence",
   "Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter",
+  "CustomFont",
 ];
 
 // Module-scope so it can't hit useTerms — `label` and `desc` are resolved
-// at render time via resolveCatLabel / resolveCatDesc below.
-function resolveCatLabel(cat, terms) {
+// at render time via resolveCatLabel / resolveCatDesc below. Exported so
+// the data inspector (DataInspector.jsx) can render the same labels.
+export function resolveCatLabel(cat, terms) {
   if (cat.id === "alters")   return `${terms.Alters} & Profiles`;
   if (cat.id === "fronting") return `${terms.Fronting} History`;
   return cat.label;
 }
-function resolveCatDesc(cat, terms) {
+export function resolveCatDesc(cat, terms) {
   if (cat.id === "alters")   return `Bios, avatars, custom fields, relationships, relationship types, inner world`;
   if (cat.id === "fronting") return `${terms.Switch} history`;
   return cat.desc;
 }
 
-const EXPORT_CATEGORIES = [
+export const EXPORT_CATEGORIES = [
   { id: "alters",        label: "Alters & Profiles",       entities: ["Alter", "CustomField", "AlterRelationship", "RelationshipType", "InnerWorldLocation", "InnerWorldMap", "InnerWorldLayer", "InnerWorldImage", "InnerWorldPlacement", "Presence"], desc: "Bios, avatars, custom fields, relationships, relationship types, inner-world maps, layers, placements & new presences" },
   { id: "fronting",      label: "Fronting History",         entities: ["FrontingSession"],                                                  desc: "Switch history" },
   { id: "journals",      label: "Journals",                 entities: ["JournalEntry", "SupportJournalEntry"],                              desc: "Journal entries" },
@@ -161,6 +164,7 @@ const EXPORT_CATEGORIES = [
   { id: "chat",         label: "System Chat",               entities: ["SystemChatChannel", "SystemChatMessage", "SystemChatCategory"],        desc: "Chat channels, categories, and every message in them (including private/Direct Message channels)." },
   { id: "images",        label: "Local Images & Assets",    entities: ["ImageAsset"],                                                        desc: "Uploaded images + the reusable asset library (local mode only)", isImages: true },
   { id: "contacts",      label: "Contacts",                 entities: ["Contact", "ContactNote", "ContactRelationship", "ContactCustomField", "ContactCategory", "ContactRelationshipType", "ContactEncounter"], desc: "External people: contact info, safety, boundaries, notes, relationships, custom fields, categories, types & time-together log" },
+  { id: "fonts",         label: "Custom Fonts",             entities: ["CustomFont"],                                                        desc: "Uploaded font files (local mode only)", isFonts: true },
 ];
 
 async function downloadJson(data, filename, format = "json", mode = "save") {
@@ -264,6 +268,98 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
   });
 }
 
+// Filter one raw entity dump ({ EntityName: { id: rec } }) down to the
+// selected export categories. GroundingTechnique defaults (re-seeded on every
+// fresh boot) are dropped so imports don't duplicate them. Module-scope
+// (not component-scoped) so both the main export flow and the data
+// inspector's per-category export can share it.
+function filterDump(dump, activeCats) {
+  const out = {};
+  for (const cat of EXPORT_CATEGORIES) {
+    if (cat.isImages || !activeCats.has(cat.id)) continue;
+    for (const e of cat.entities) {
+      if (dump[e] === undefined) continue;
+      if (e === "GroundingTechnique") {
+        const src = dump[e];
+        if (Array.isArray(src)) {
+          out[e] = src.filter((t) => t && !t.is_default);
+        } else if (src && typeof src === "object") {
+          const o = {};
+          for (const [id, rec] of Object.entries(src)) if (rec && !rec.is_default) o[id] = rec;
+          out[e] = o;
+        } else {
+          out[e] = src;
+        }
+      } else {
+        out[e] = dump[e];
+      }
+    }
+  }
+  return out;
+}
+
+// Device-bound entities — deliberately excluded from ENTITY_NAMES /
+// EXPORT_CATEGORIES (see the comment block above ENTITY_NAMES). Listed here
+// only so the data inspector can show them as "this device only" with a
+// count, for transparency, without offering export/delete on them.
+const DEVICE_BOUND_ENTITIES = ["FriendIdentity", "PushSubscription"];
+
+// Per-category breakdown (record count + size in KB) for the "See Your
+// Data" advanced inspector. Generic over EXPORT_CATEGORIES so it self-adapts
+// to any isImages/isFonts-style special-cased category without needing to
+// know about them individually.
+export async function computeCategoryStats() {
+  const dump = getFullDbDump();
+  let images = {};
+  try { images = await getAllLocalImages(); } catch {}
+  let fonts = {};
+  try { fonts = await getAllLocalFonts(); } catch {}
+  const categories = {};
+  for (const cat of EXPORT_CATEGORIES) {
+    if (cat.isImages) {
+      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(images).length / 1024), count: Object.keys(images).length };
+    } else if (cat.isFonts) {
+      categories[cat.id] = { sizeKB: Math.round(JSON.stringify(fonts).length / 1024), count: Object.keys(fonts).length };
+    } else {
+      let total = 0, count = 0;
+      for (const e of cat.entities) {
+        if (dump[e]) { total += JSON.stringify(dump[e]).length; count += Object.keys(dump[e]).length; }
+      }
+      categories[cat.id] = { sizeKB: Math.round(total / 1024), count };
+    }
+  }
+  const deviceBound = {};
+  for (const e of DEVICE_BOUND_ENTITIES) {
+    deviceBound[e] = { count: dump[e] ? Object.keys(dump[e]).length : 0 };
+  }
+  return { categories, deviceBound };
+}
+
+// Exports just ONE category, reusing the same envelope shape/format and
+// silent "save to device" path as the main selective export. Used by the
+// data inspector's per-category export and, ahead of any per-category
+// delete, as the safety-net backup that must succeed before the delete
+// proceeds.
+export async function exportSingleCategory(catId) {
+  const cat = EXPORT_CATEGORIES.find((c) => c.id === catId);
+  if (!cat) throw new Error(`Unknown category: ${catId}`);
+  const dump = getFullDbDump();
+  const images = cat.isImages ? await getAllLocalImages() : {};
+  const fonts = cat.isFonts ? await getAllLocalFonts() : {};
+  const activeCats = new Set([catId]);
+  const exportData = {
+    __format: "symphony_backup",
+    __version: 1,
+    __exported_at: new Date().toISOString(),
+    data: filterDump(dump, activeCats),
+    __local_images: images,
+    __local_fonts: fonts,
+    __local_settings: {},
+  };
+  const date = new Date().toISOString().slice(0, 10);
+  return downloadJson(exportData, `oceans-symphony-${catId}-${date}.json`, "json", "save");
+}
+
 export default function DataBackupRestore({ section = "all", onExternalFile, exportExtras = [] }) {
   const terms = useTerms();
   // Which slice to render — lets Settings split this into separate accordion
@@ -328,27 +424,33 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [systemsScope, setSystemsScope] = useState("active");
   const [catSizes, setCatSizes] = useState(null); // { catId: sizeKB } — lazy loaded
 
-  // Fetch and cache the full dump + images once
+  // Fetch and cache the full dump + images + fonts once
   const fullDumpRef = useRef(null);
   const fullImagesRef = useRef(null);
+  const fullFontsRef = useRef(null);
 
   const fetchFullDump = useCallback(async () => {
-    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current };
+    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current };
     const dump = getFullDbDump();
     let images = {};
     try { images = await getAllLocalImages(); } catch {}
+    let fonts = {};
+    try { fonts = await getAllLocalFonts(); } catch {}
     fullDumpRef.current = dump;
     fullImagesRef.current = images;
-    return { dump, images };
+    fullFontsRef.current = fonts;
+    return { dump, images, fonts };
   }, []);
 
   const computeCatSizes = useCallback(async () => {
     if (catSizes) return;
-    const { dump, images } = await fetchFullDump();
+    const { dump, images, fonts } = await fetchFullDump();
     const sizes = {};
     for (const cat of EXPORT_CATEGORIES) {
       if (cat.isImages) {
         sizes[cat.id] = Math.round(JSON.stringify(images).length / 1024);
+      } else if (cat.isFonts) {
+        sizes[cat.id] = Math.round(JSON.stringify(fonts).length / 1024);
       } else {
         let total = 0;
         for (const e of cat.entities) {
@@ -375,38 +477,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     return next;
   });
 
-  // Filter one raw entity dump ({ EntityName: { id: rec } }) down to the
-  // selected export categories. GroundingTechnique defaults (re-seeded on every
-  // fresh boot) are dropped so imports don't duplicate them.
-  const filterDump = (dump, activeCats) => {
-    const out = {};
-    for (const cat of EXPORT_CATEGORIES) {
-      if (cat.isImages || !activeCats.has(cat.id)) continue;
-      for (const e of cat.entities) {
-        if (dump[e] === undefined) continue;
-        if (e === "GroundingTechnique") {
-          const src = dump[e];
-          if (Array.isArray(src)) {
-            out[e] = src.filter((t) => t && !t.is_default);
-          } else if (src && typeof src === "object") {
-            const o = {};
-            for (const [id, rec] of Object.entries(src)) if (rec && !rec.is_default) o[id] = rec;
-            out[e] = o;
-          } else {
-            out[e] = src;
-          }
-        } else {
-          out[e] = dump[e];
-        }
-      }
-    }
-    return out;
-  };
-
   const buildExportData = async (overrideSelectedCats) => {
     const activeCats = overrideSelectedCats ?? selectedCats;
-    const { dump, images } = await fetchFullDump();
+    const { dump, images, fonts } = await fetchFullDump();
     const imagesExport = activeCats.has("images") ? images : {};
+    const fontsExport = activeCats.has("fonts") ? fonts : {};
     const nowIso = new Date().toISOString();
 
     // Multi-system scope (Symphony format only; "active" = just this system).
@@ -430,6 +505,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           __exported_at: nowIso,
           systems: perSystem,
           __local_images: imagesExport,
+          __local_fonts: fontsExport,
           __local_settings: exportLocalSettings(),
         };
       }
@@ -440,6 +516,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         __exported_at: nowIso,
         data: mergeSystemsAsGroups(perSystem),
         __local_images: imagesExport,
+        __local_fonts: fontsExport,
         __local_settings: exportLocalSettings(),
       };
     }
@@ -451,6 +528,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       __exported_at: nowIso,
       data: filterDump(dump, activeCats),
       __local_images: imagesExport,
+      __local_fonts: fontsExport,
       __local_settings: exportLocalSettings(),
     };
   };
@@ -520,10 +598,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const handleExportFull  = () => runExport("save");
   const handleExportShare = () => runExport("share");
 
-  // Applies an already-parsed { data, localImages?, localSettings? } payload
-  // to the in-memory DB. Shared by the standard-backup, raw-plain, and
+  // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
+  // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
-  const applyImportPayload = async ({ data, localImages, localSettings }) => {
+  const applyImportPayload = async ({ data, localImages, localFonts, localSettings }) => {
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
     // multi-system flow so "Replace all" doesn't silently leave them behind (or
@@ -541,6 +619,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     if (localImages) {
       try { await restoreLocalImages(localImages); } catch (e) {
         console.warn("Failed to restore local images:", e);
+      }
+    }
+    if (localFonts) {
+      try { await restoreLocalFonts(localFonts); } catch (e) {
+        console.warn("Failed to restore local fonts:", e);
       }
     }
     if (localSettings) {
@@ -646,6 +729,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         const importedSystems = maybe.systems.filter((s) => s && s.data);
         if (!importedSystems.length) { showStatus("error", "No systems found in the archive."); return; }
         if (maybe.__local_images) { try { await restoreLocalImages(maybe.__local_images); } catch (e) { console.warn("restore images failed", e); } }
+        if (maybe.__local_fonts) { try { await restoreLocalFonts(maybe.__local_fonts); } catch (e) { console.warn("restore fonts failed", e); } }
         if (maybe.__local_settings) { try { importLocalSettings(maybe.__local_settings); } catch (e) { console.warn("restore settings failed", e); } }
 
         if (importMode === "replace") {
@@ -680,6 +764,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       await applyImportPayload({
         data: parsed.data,
         localImages: parsed.localImages,
+        localFonts: parsed.localFonts,
         localSettings: parsed.localSettings,
       });
       return;

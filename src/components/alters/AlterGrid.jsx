@@ -49,6 +49,19 @@ export default function AlterGrid({ alters }) {
     if (oldCols) return oldCols;
     return "list";
   });
+  // Groups' own view mode — independent of the Alters section above. Seeds
+  // from whatever alter_display_mode already holds (so existing users see
+  // no visual change on first load post-upgrade), then diverges the moment
+  // either toggle is cycled.
+  const [groupsDisplayMode, setGroupsDisplayMode] = useState(() => {
+    const saved = localStorage.getItem("alter_groups_display_mode");
+    if (saved) return saved;
+    const savedAlters = localStorage.getItem("alter_display_mode");
+    if (savedAlters) return savedAlters;
+    const oldCols = localStorage.getItem("alter_grid_cols");
+    if (oldCols) return oldCols;
+    return "list";
+  });
   // anonymize cycles: "off" | "names" | "all" — persisted to localStorage
   // so the toggle applies system-wide (Dashboard's Currently Fronting
   // widget reads the same mode).
@@ -76,6 +89,11 @@ export default function AlterGrid({ alters }) {
     const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(displayMode) + 1) % DISPLAY_CYCLE.length];
     setDisplayMode(next);
     localStorage.setItem("alter_display_mode", next);
+  };
+  const cycleGroupsDisplayMode = () => {
+    const next = DISPLAY_CYCLE[(DISPLAY_CYCLE.indexOf(groupsDisplayMode) + 1) % DISPLAY_CYCLE.length];
+    setGroupsDisplayMode(next);
+    localStorage.setItem("alter_groups_display_mode", next);
   };
 
 
@@ -248,6 +266,15 @@ export default function AlterGrid({ alters }) {
         className={`flex items-center justify-center w-7 h-7 rounded-lg transition-colors ${active ? "text-primary" : "text-muted-foreground"} hover:bg-muted/60`}>
         {showFolders ? <Eye className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
       </button>
+      {/* View / column cycle — Groups' own, independent of the Alters
+          section's toggle below. Covered by the parent's data-tour
+          (alter-groups-controls), same as its Eye/+/gear siblings. */}
+      <button
+        onClick={cycleGroupsDisplayMode}
+        title={groupsDisplayMode === "list" ? "Switch groups to 2-column grid" : `Groups: ${groupsDisplayMode}-col grid — tap to ${groupsDisplayMode === "5" ? "switch to list" : "add a column"}`}
+        className="flex items-center justify-center w-7 h-7 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-bold">
+        {groupsDisplayMode === "list" ? <Grid3X3 className="w-4 h-4" /> : groupsDisplayMode}
+      </button>
       <button
         onClick={() => setCreateGroupOpen(true)}
         title="New group"
@@ -289,7 +316,7 @@ export default function AlterGrid({ alters }) {
               sortDir={sortMode === "alpha-desc" ? "desc" : "asc"}
               activeSessions={activeSessions}
               anonymize={anonymize}
-              displayMode={displayMode}
+              displayMode={groupsDisplayMode}
             />
           )}
           {rootGroups.length === 0 && (

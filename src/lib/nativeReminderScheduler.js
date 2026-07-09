@@ -39,6 +39,7 @@
 import { useEffect, useRef } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { isNative } from "@/lib/platform";
+import { isPreviewActive } from "@/lib/previewMode";
 import {
   isNativeNotificationsEnabled,
   ensureRemindersChannel,
@@ -291,6 +292,16 @@ export function isRollingFrontReminder(reminder) {
 // and settings (avoids a second API round-trip).
 export async function reconcileNativeSchedule(reminders, settings, context = {}) {
   if (!isNative()) return { scheduled: 0, cancelled: 0, skipped: "not_native" };
+
+  // Preview Mode swaps every entity read (including Reminder) for in-memory
+  // example data (see previewMode.js) — but LocalNotifications.schedule()
+  // talks straight to the OS, outside that sandbox. Scheduling a preview
+  // system's fake reminders as real Android notifications would leave them
+  // firing forever after the user exits preview, since there's no real
+  // Reminder record left to reconcile against. Skip entirely while preview
+  // is on; whatever was already scheduled from the user's real data stays
+  // untouched and gets re-reconciled the moment preview exits.
+  if (isPreviewActive()) return { scheduled: 0, cancelled: 0, skipped: "preview_active" };
 
   const granted = await isNativeNotificationsEnabled();
   if (!granted) {

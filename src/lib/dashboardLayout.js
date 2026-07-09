@@ -52,6 +52,26 @@ export const DASHBOARD_ELEMENTS = {
     label: "Quick Check-In button",
     description: "Heart-icon button that opens the Quick Check-In modal.",
   },
+  // Sub-toggles of quick_checkin — rendered nested inside that pill's row in
+  // DashboardLayoutSettings (mirrors the bulletin_board batch-size pattern),
+  // NOT as their own draggable pills. Still ordinary dashboard_layout entries
+  // under the hood, so resolveLayout/isElementEnabled need no changes.
+  start_activity_button: {
+    label: "Start Activity button",
+    description: "Quick-start button next to Quick Check-In — pick an activity and mark it active right now, or switch it to open the full Log Activity modal instead.",
+  },
+  start_symptom_button: {
+    label: "Start Symptom/Habit button",
+    description: "Quick-start button next to Quick Check-In — pick a symptom/habit and start an active session right now.",
+  },
+  quick_task_button: {
+    label: "Quick Task button",
+    description: "Quick-start button next to Quick Check-In — the same quick-task composer from the Bulletin Board, in a popup.",
+  },
+  quick_plan_button: {
+    label: "Quick Plan button",
+    description: "Quick-start button next to Quick Check-In — the same quick-plan composer from the Bulletin Board, in a popup.",
+  },
   new_features_bar: {
     label: "What's new bar",
     description: "Brief 'New in this version' strip.",
@@ -90,6 +110,11 @@ export const DEFAULT_LAYOUT = [
   { id: "current_activities", enabled: true },
   { id: "current_contacts", enabled: true },
   { id: "quick_checkin",    enabled: true },
+  // Off by default — opt-in extras, not a default-on dashboard fixture.
+  { id: "start_activity_button", enabled: false },
+  { id: "start_symptom_button",  enabled: false },
+  { id: "quick_task_button",     enabled: false },
+  { id: "quick_plan_button",     enabled: false },
   // Pinned tasks default below the Quick Check-In button so the tour's
   // scroll-into-view leaves room for the bottom-nav + tour card on phones —
   // when this widget was higher up, the highlighted check-in button could

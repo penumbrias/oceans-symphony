@@ -18,7 +18,83 @@
 
 export const CHANGELOG = [
   {
+    date: "July 8, 2026",
+    changes: [
+      {
+        type: "feature",
+        text: "Preview Mode rebuilt as one guided example: every profile is a walkthrough of a feature, the whole app comes filled with example data so you can try things, and a few profiles show off what the profile editor can create. Your real data stays untouched. Settings → Guided example.",
+      },
+      {
+        type: "feature",
+        text: "New optional dashboard buttons next to Quick Check-In — \"Start Activity\" and \"Start Symptom\" let you mark something active right now in a couple of taps, without opening the Activity Tracker. Turn them on in Settings → Appearance → Layout → Dashboard.",
+      },
+      {
+        type: "feature",
+        text: "\"Start Activity\" can switch to \"Log activity instead\" for the full Log Activity form, and both it and the Activity Tracker's Log Activity now let you tag who you were with.",
+      },
+      {
+        type: "feature",
+        text: "New \"Who are you with?\" section in Quick Check-In and the Activity Tracker — mark contacts as currently with you, the same way you track who's fronting.",
+      },
+      {
+        type: "fix",
+        text: "Fixed a bug where briefly trying Preview Mode could leave one of its example reminders (like \"Morning meds\") scheduled as a real notification that kept firing after you left Preview Mode.",
+      },
+      {
+        type: "fix",
+        text: "\"See Your Data\" no longer tells you to look in the wrong section for the persistent-storage option, and no longer shows a false warning about it on the installed app (where it doesn't apply).",
+      },
+      {
+        type: "improve",
+        text: "The persistent-storage status and request button now also show in Settings → Data & Privacy → Storage & Encryption, not just under Automatic backups.",
+      },
+      {
+        type: "feature",
+        text: "Quick Actions can now do a lot more: start an activity, mark a contact as currently with you, start/end sleep, post a quick status, add a to-do, or jump straight to any page in the app — add them from Settings → Tracking setup → Quick actions.",
+      },
+      {
+        type: "feature",
+        text: "The Bulletin Board's \"Quick task\" and \"Quick plan\" composers can now also be turned into buttons next to Quick Check-In, so you can add a to-do or schedule a plan without scrolling to the bulletin board.",
+      },
+      {
+        type: "improve",
+        text: "The optional buttons next to Quick Check-In (Start Activity, Start Symptom, Quick Task, Quick Plan) each now have their own colour instead of all being grey.",
+      },
+    ],
+  },
+  {
+    date: "July 7, 2026",
+    version: "0.76.1",
+    changes: [
+      {
+        type: "fix",
+        text: "Fixed the sidebar on tablets and wider screens getting stuck part-way down, making Analytics and Map unreachable.",
+      },
+      {
+        type: "fix",
+        text: "Groups now has its own list/grid view toggle on the alters directory, independent from the alters section below it.",
+      },
+      {
+        type: "feature",
+        text: "You can now upload your own font file (.ttf/.otf/.woff/.woff2, 5MB max) instead of picking only from the built-in list — manage uploads from Settings → Appearance.",
+      },
+      {
+        type: "feature",
+        text: "New: \"See Your Data\" in Settings → Data & Privacy shows exactly what's stored on your device, category by category, with record counts and sizes — export or delete any one category on its own (deleting always backs that category up first).",
+      },
+      {
+        type: "feature",
+        text: "You can now upload multiple avatar or background images per alter and have the app rotate through them — randomly or in order — each time you reload. Set it up from the avatar/background editor; \"Manage pool images\" lets you upload and remove them.",
+      },
+      {
+        type: "improve",
+        text: "Tidied up the font row in Settings → Appearance — \"More fonts\" and \"Upload a font\" are now compact icons. Tap the ⓘ next to the download icon for what that font pack actually contains (it's 14 more English/Latin-style fonts, not other languages — those are already built in).",
+      },
+    ],
+  },
+  {
     date: "July 4, 2026",
+    version: "0.73.13",
     changes: [
       {
         type: "fix",

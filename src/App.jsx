@@ -68,6 +68,7 @@ import {
   EncryptedDataWithoutKeyError,
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
+import { refreshCustomFontFaces } from '@/lib/customFontFaces';
 import { initSystemsRegistry } from '@/lib/systems';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
@@ -384,6 +385,9 @@ function App() {
       migrateBase64AvatarsToLocal().catch(() => {});
       // Rewrite legacy local-image:// URLs to /local-image/ so the SW can serve them
       migrateLocalImageUrlScheme().catch(() => {});
+      // Best-effort; may pop in a beat after first paint, same as the
+      // extra Google Fonts <link> loader.
+      refreshCustomFontFaces().catch(() => {});
       // Skip auto-backup while preview mode is active — preview's
       // in-memory snapshot is not the user's real data, exporting it
       // would overwrite their last real backup file with junk.

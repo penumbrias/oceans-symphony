@@ -10,9 +10,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
-import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight } from "lucide-react";
+import { Loader2, Heart, X, Plus, Minus, Smile, Users, Zap, Activity, BookOpen, FileText, Star, User, AlertTriangle, MapPin, List, FolderTree, SlidersHorizontal, ChevronLeft, ChevronRight, UserCheck } from "lucide-react";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import { addActiveActivity, endAndLogActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { ContactMultiSelectList } from "@/components/contacts/ContactMultiSelect";
+import { getActiveEncounters, startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
 import { toast } from "sonner";
 import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
@@ -90,6 +92,7 @@ const TRIGGER_CATEGORIES = [
 const PILLS = [
 { id: "feeling", label: "Feeling", icon: Smile },
 { id: "fronting", label: "Fronting", icon: Users },
+{ id: "contacts", label: "Who are you with?", icon: UserCheck },
 { id: "activity", label: "Activity", icon: Zap },
 { id: "symptoms", label: "Symptoms / Habits", icon: Activity },
 { id: "diary", label: "Diary", icon: BookOpen },
@@ -161,6 +164,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const [primaryId, setPrimaryId] = useState("");
   const [coFronterIds, setCoFronterIds] = useState([]);
   const [alterSearch, setAlterSearch] = useState("");
+  // Contacts — "who are you with?" mirrors live ContactEncounter sessions,
+  // same idea as Fronting but there's no primary/co concept.
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const initialContactIdsRef = useRef([]);
   // Activity
   const [selectedActivityCategories, setSelectedActivityCategories] = useState([]);
   const [activityDuration, setActivityDuration] = useState("");
@@ -433,11 +440,25 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   }, [isOpen]);
 
+  // Contacts — seed from whoever's currently marked "with" regardless of
+  // create/edit mode (there's no per-check-in contact record to restore from,
+  // it always mirrors the live ContactEncounter sessions).
+  useEffect(() => {
+    if (!isOpen) return;
+    getActiveEncounters().then((active) => {
+      const ids = active.map((e) => e.contact_id);
+      setSelectedContactIds(ids);
+      initialContactIdsRef.current = ids;
+    }).catch(() => {});
+  }, [isOpen]);
+
   const resetForm = () => {
     setSelectedEmotions([]);
     setPrimaryId("");
     setCoFronterIds([]);
     setAlterSearch("");
+    setSelectedContactIds([]);
+    initialContactIdsRef.current = [];
     setSelectedActivityCategories([]);
     setActivityDuration("");
     setActivityNote("");
@@ -662,6 +683,22 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     }
   };
 
+  // Diff selectedContactIds against whoever was active when the modal opened
+  // and start/end ContactEncounter sessions for the difference. Both helper
+  // functions already guard against double-start / missing-session no-ops.
+  const commitContactChanges = async () => {
+    const initialSet = new Set(initialContactIdsRef.current);
+    const nextSet = new Set(selectedContactIds);
+    let changed = false;
+    for (const id of nextSet) {
+      if (!initialSet.has(id)) { await startEncounter(id); changed = true; }
+    }
+    for (const id of initialSet) {
+      if (!nextSet.has(id)) { await endEncounterForContact(id); changed = true; }
+    }
+    if (changed) queryClient.invalidateQueries({ queryKey: ["contactEncounters"] });
+  };
+
   const handleSubmit = async () => {
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     // Fold in the Feeling-section slider, unless the user already logged that
@@ -818,6 +855,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           });
           queryClient.invalidateQueries({ queryKey: ["locations"] });
         }
+        await commitContactChanges();
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
         queryClient.invalidateQueries({ queryKey: ["timeline"] });
@@ -974,6 +1012,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         });
         queryClient.invalidateQueries({ queryKey: ["locations"] });
       }
+
+      await commitContactChanges();
 
       // Everything saved — the draft must never "restore" a posted check-in.
       clearDraft();
@@ -1274,6 +1314,14 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   )}
                 </div>
               )}
+            </div>
+          }
+
+          {/* Contacts */}
+          {openSections.has("contacts") &&
+          <div ref={(el) => (sectionRefs.current.contacts = el)} className="border border-border/50 rounded-xl p-3 space-y-2">
+              <p className="text-sm font-medium">Who are you with?</p>
+              <ContactMultiSelectList selectedContactIds={selectedContactIds} onChange={setSelectedContactIds} />
             </div>
           }
 

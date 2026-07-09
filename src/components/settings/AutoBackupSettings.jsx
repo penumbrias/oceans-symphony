@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Loader2, Download, ShieldCheck, ShieldAlert, Bell, Zap } from "lucide-react";
+import { Loader2, Download, ShieldAlert, Bell, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import {
@@ -15,20 +15,12 @@ import {
   setBackupDestination,
   BACKUP_DESTINATIONS,
   runAutoBackupNow,
-  requestPersistentStorage,
-  getStorageState,
 } from "@/lib/autoBackup";
 import { reconcileNativeBackupReminder } from "@/lib/nativeBackupScheduler";
 import { isNative } from "@/lib/platform";
+import PersistentStorageStatus from "./PersistentStorageStatus";
 
 const NATIVE = isNative();
-
-function fmtBytes(n) {
-  if (n == null) return "—";
-  if (n < 1024) return `${n} B`;
-  if (n < 1024 * 1024) return `${(n / 1024).toFixed(0)} KB`;
-  return `${(n / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 /**
  * Auto-Backup settings panel. Three pieces:
@@ -46,7 +38,6 @@ export default function AutoBackupSettings() {
   const [destination, setDestinationState] = useState(BACKUP_DESTINATIONS.ASK);
   const [lastAt, setLastAt] = useState(null);
   const [running, setRunning] = useState(false);
-  const [storage, setStorage] = useState({ persisted: null, usage: null, quota: null });
 
   // Initial read of state from localStorage + browser.
   useEffect(() => {
@@ -54,7 +45,6 @@ export default function AutoBackupSettings() {
     setModeState(getAutoBackupMode());
     setDestinationState(getBackupDestination());
     setLastAt(getAutoBackupLastAt());
-    getStorageState().then(setStorage).catch(() => {});
   }, []);
 
   const handleDestinationChange = (next) => {
@@ -101,13 +91,6 @@ export default function AutoBackupSettings() {
     } finally {
       setRunning(false);
     }
-  };
-
-  const handleRequestPersistent = async () => {
-    const granted = await requestPersistentStorage();
-    setStorage(await getStorageState());
-    if (granted) toast.success("Storage marked persistent");
-    else toast.error("Browser refused persistent storage");
   };
 
   const lastLabel = lastAt
@@ -207,13 +190,11 @@ export default function AutoBackupSettings() {
         </Button>
       </div>
 
-      {/* On native: the persistence concept doesn't apply — the
-          WebView's storage is the app's own data and isn't subject to
-          browser eviction. Replace the persistence section with the
-          backup-destination picker, which is the actual user-meaningful
-          control on this platform. On web/TWA: keep the existing
-          persistence status + Request button. */}
-      {NATIVE ? (
+      {/* On native, the backup-destination picker is the actual
+          user-meaningful control on this platform — the persistence
+          status still renders below it (PersistentStorageStatus handles
+          the native/web difference internally). */}
+      {NATIVE && (
         <div className="border-t border-border/30 pt-3 space-y-2">
           <label className="text-xs font-medium text-muted-foreground block">Backup destination</label>
           <div className="grid gap-1.5">
@@ -232,41 +213,12 @@ export default function AutoBackupSettings() {
               body={"Pops the system share sheet so you pick where to save each backup (Files, Drive, email, etc.). Slower but lets you put backups in cloud storage in one tap."}
             />
           </div>
-          {storage.usage != null && (
-            <p className="text-[0.6875rem] text-muted-foreground pt-1">
-              App is using ~{fmtBytes(storage.usage)}{storage.quota ? ` of ${fmtBytes(storage.quota)}` : ""} of WebView storage.
-            </p>
-          )}
-        </div>
-      ) : (
-        <div className="border-t border-border/30 pt-3 space-y-2">
-          <div className="flex items-start gap-2">
-            {storage.persisted === true ? (
-              <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
-            ) : (
-              <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
-            )}
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium">
-                Storage persistence: {storage.persisted === true ? "Granted" : storage.persisted === false ? "Not granted" : "Unknown"}
-              </p>
-              <p className="text-[0.6875rem] text-muted-foreground mt-0.5">
-                {storage.persisted === true
-                  ? "The browser has marked this app's storage as persistent — it won't be evicted by background cleanup."
-                  : "The browser hasn't marked this app's storage as persistent yet. Installed PWAs / TWAs usually get this automatically; web tabs need to earn user engagement first."}
-                {storage.usage != null && (
-                  <> Currently using ~{fmtBytes(storage.usage)}{storage.quota ? ` of ${fmtBytes(storage.quota)}` : ""}.</>
-                )}
-              </p>
-            </div>
-          </div>
-          {storage.persisted !== true && (
-            <Button onClick={handleRequestPersistent} variant="outline" size="sm">
-              Request persistent storage
-            </Button>
-          )}
         </div>
       )}
+
+      <div className="border-t border-border/30 pt-3">
+        <PersistentStorageStatus />
+      </div>
     </div>
   );
 }

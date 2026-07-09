@@ -21,6 +21,9 @@ import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
+import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
+import RotationModeControl from "@/components/shared/RotationModeControl";
+import { useNavigate } from "react-router-dom";
 
 // Profile-style custom_field keys — shared with the profile renderer
 // (AlterProfile.jsx / ProfileTab.jsx). Storing these here lets the
@@ -64,16 +67,18 @@ function FontSelect({ value, onChange, ariaLabel }) {
 
 export default function AlterEditModal({ alter, open, onClose, mode = "edit", initialGroupIds = [] }) {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const t = useTerms();
   const isNew = mode === "create";
   const subTerm = t.system === "system" ? "subsystem" : `sub${t.system}`;
 
   const [form, setForm] = useState({
     name: "", alias: "", pronouns: "", role: "",
-    description: "", color: "", avatar_url: "",
+    description: "", color: "", avatar_url: "", avatar_rotation_mode: "off",
     birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false,
     custom_fields: {},
   });
+  const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -117,12 +122,12 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
-        avatar_url: alter.avatar_url || "",
+        avatar_url: alter.avatar_url || "", avatar_rotation_mode: alter.avatar_rotation_mode || "off",
         birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "", use_emoji_as_alias: !!alter.use_emoji_as_alias,
         custom_fields: alter.custom_fields || {},
       });
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {} });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {} });
     }
     setShowAvatarUrl(false);
   }, [alter, open, isNew]);
@@ -370,6 +375,26 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             <LocalImageFixer value={form.avatar_url} maxWidth={400} quality={0.85} onFixed={(url) => set("avatar_url", url)} />
           )}
 
+          <RotationModeControl
+            mode={form.avatar_rotation_mode}
+            onChange={(m) => set("avatar_rotation_mode", m)}
+            disabled={isNew}
+            showManage={!isNew}
+            onManagePool={() => setAvatarPoolOpen(true)}
+            hint={isNew
+              ? `Save this ${t.alter} first to set up multiple avatar images to rotate through.`
+              : `When not Off, the avatar shown cycles through a pool of images for this ${t.alter} — randomly, or in order — each time the app reloads.`}
+          />
+          {!isNew && alter && (
+            <button
+              type="button"
+              onClick={() => { onClose(); navigate(`/assets?alter=${alter.id}`); }}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              Manage all images in the Image Library →
+            </button>
+          )}
+
           {/* Pronouns + Color */}
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
@@ -448,7 +473,12 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
           {/* Profile style — shared editor: Header is a collapsible
               subsection; Body renders inline beneath it. */}
           <SubSection title="Profile style" icon={Palette} defaultOpen={false}>
-            <ProfileStyleEditor customFields={form.custom_fields} setField={setCF} clearField={clearCF} />
+            <ProfileStyleEditor
+              customFields={form.custom_fields}
+              setField={setCF}
+              clearField={clearCF}
+              rotationConfig={!isNew && alter ? { alterId: alter.id, role: "background" } : null}
+            />
           </SubSection>
 
           {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
@@ -508,6 +538,15 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
           label="Pick colour"
           onSave={(hex) => set("color", hex)}
           onClose={() => setMainColorOpen(false)}
+        />
+      )}
+
+      {!isNew && alter && (
+        <AlterImagePoolManager
+          open={avatarPoolOpen}
+          onClose={() => setAvatarPoolOpen(false)}
+          alterId={alter.id}
+          role="avatar"
         />
       )}
     </Dialog>

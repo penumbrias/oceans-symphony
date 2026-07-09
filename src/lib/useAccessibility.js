@@ -97,6 +97,7 @@ export const FONT_CATEGORY_LABELS = {
   display:     "Display",
   other:       "Multilingual",
   fun:         "Fun (affects readability)",
+  custom:      "Your uploads",
 };
 
 /** Returns the CSS font-family string for a stored value (handles legacy short keys). */

@@ -43,15 +43,16 @@ export default function PreviewModeSection() {
           What is Preview Mode?
         </p>
         <p className="text-muted-foreground">
-          Preview Mode temporarily replaces what you see with a curated example system so you can
-          explore how the app works with realistic data. <strong>Your real data is never touched</strong> —
-          it's just hidden while preview is on. Anything you add or change while previewing
-          disappears the moment you exit.
+          Preview Mode drops you into a guided example — the whole app filled with realistic data so
+          you can actually try every section. <strong>Your real data is never touched</strong>; it's
+          just hidden while preview is on, and anything you change while previewing disappears the
+          moment you exit.
         </p>
         <p className="text-muted-foreground">
-          The example brings its own theme, font, and terminology, and a handful of {terms.alters}
-          carry their own theme presets that take over when they're the primary {terms.fronter} — so
-          you can also see how the app feels with different vocabularies and visual identities.
+          In the example, each {terms.alter} profile is a short walkthrough of one feature — open them
+          from the {terms.Alters} page to read at your own pace. A few double as design showcases that
+          flex what the profile editor can produce (animation, gradients, custom fields, per-{terms.alter}
+          themes) — long-press one on the dashboard to make it primary and watch the whole app recolour.
         </p>
       </div>
 
@@ -116,9 +117,9 @@ export default function PreviewModeSection() {
 
       {active && (
         <div className="rounded-xl border border-border/60 bg-muted/20 p-3 text-xs text-muted-foreground">
-          Preview Mode is currently <strong className="text-foreground">on</strong>. Switch examples
-          above, or tap <strong>Exit Preview</strong> (also available in the banner at the top of
-          every page) to return to your real data.
+          Preview Mode is currently <strong className="text-foreground">on</strong>. Tap
+          <strong> Exit Preview</strong> (also available in the banner at the top of every page) to
+          return to your real data.
         </div>
       )}
     </div>

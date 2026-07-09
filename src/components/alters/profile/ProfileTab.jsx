@@ -20,6 +20,7 @@ import { htmlToBlocks } from "@/components/shared/BlockEditor";
 import { isLocalMode } from "@/lib/storageMode";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
@@ -29,6 +30,8 @@ import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
 import MarkdownText from "@/components/shared/MarkdownText";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
+import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
+import RotationModeControl from "@/components/shared/RotationModeControl";
 
 // Pull a 4-digit year out of a free-form birthday string so we can keep
 // the integer origin_year (used by Alter History / lineage) linked
@@ -162,10 +165,11 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
   const avatarFileRef = useRef(null);
   const [form, setForm, formHistory] = useUndoRedo({
     name: "", alias: "", pronouns: "", role: "", birthday: "", origin_year: "",
-    description: "", color: "", avatar_url: "", emoji: "", use_emoji_as_alias: false, subsystems_icon: "",
+    description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", emoji: "", use_emoji_as_alias: false, subsystems_icon: "",
     is_pinned: false,
     custom_fields: {},
   });
+  const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -226,6 +230,7 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       description: alter.description || "",
       color: alter.color || "",
       avatar_url: alter.avatar_url || "",
+      avatar_rotation_mode: alter.avatar_rotation_mode || "off",
       emoji: alter.emoji || "",
       use_emoji_as_alias: !!alter.use_emoji_as_alias,
       is_pinned: !!alter.is_pinned,
@@ -349,7 +354,8 @@ useEffect(() => {
   // avatars and AlterCard already guard against). Resolve the saved
   // alter.avatar_url directly so the header is correct regardless of how the
   // profile was reached (Alters page or a group's member list).
-  const viewAvatar = useResolvedAvatarUrl(alter.avatar_url);
+  const rotatingViewAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
+  const viewAvatar = useResolvedAvatarUrl(rotatingViewAvatarUrl);
 
   // First-appearance is one field feeding both the free-form birthday text
   // (display) and the integer origin_year (lineage/timeline) — same as the
@@ -961,6 +967,15 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         <Input value={form.avatar_url} onChange={(e) => set("avatar_url", e.target.value)} placeholder="https://… or paste an image URL" />
       )}
 
+      <RotationModeControl
+        mode={form.avatar_rotation_mode}
+        onChange={(m) => set("avatar_rotation_mode", m)}
+        disabled={false}
+        showManage
+        onManagePool={() => setAvatarPoolOpen(true)}
+        hint="When not Off, the avatar shown cycles through a pool of images for this alter — randomly, or in order — each time the app reloads."
+      />
+
       {/* Pronouns + Color */}
       <div className="grid grid-cols-2 gap-3 rounded-2xl" data-pf-surface>
         <div className="space-y-1">
@@ -1093,6 +1108,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
             delete cf[key];
             return { ...f, custom_fields: cf };
           })}
+          rotationConfig={{ alterId: alter.id, role: "background" }}
         />
       </SubSection>
 
@@ -1235,6 +1251,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
       {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}
       {showPageTextPicker && <ColorPickerModal color={pageTextColor || "#ffffff"} label="Page Text Color" onSave={(hex) => setBgField(PAGE_TEXT_KEY, hex)} onClose={() => setShowPageTextPicker(false)} />}
+      <AlterImagePoolManager open={avatarPoolOpen} onClose={() => setAvatarPoolOpen(false)} alterId={alter.id} role="avatar" />
     </div>
   );
 }

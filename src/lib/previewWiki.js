@@ -23,7 +23,7 @@
 // Bump this string whenever you meaningfully change a bio in this
 // file. PATCH bumps for added detail / small tweaks; MINOR for a
 // whole new wiki alter / topic; MAJOR for a structural rewrite.
-export const WIKI_CONTENT_VERSION = "0.26.2";
+export const WIKI_CONTENT_VERSION = "0.79.0";
 
 let _counter = 0;
 function uid(prefix) {
@@ -44,22 +44,32 @@ function isoOffset(daysAgo, hour = 12, min = 0) {
 // uses `description` (HTML), not `bio` — that was a typo in the first cut
 // and made every wiki bio render empty. Groups likewise own a list of
 // alter IDs (`member_alter_ids`), not the other way around.
-function wikiAlter({ name, alias, role, color, description, order_index }) {
+function wikiAlter({ name, alias, role, color, description, order_index, pronouns = "", custom_fields, alter_custom_fields, avatar_url = "", tags }) {
   return {
     id: uid("wiki-alter"),
     name,
     alias: alias || "",
-    pronouns: "",
+    pronouns,
     color,
     role,
     description,
     order_index,
     friends_visible: false,
     is_archived: false,
-    custom_fields: {},
-    avatar_url: "",
+    custom_fields: custom_fields || {},
+    ...(alter_custom_fields ? { alter_custom_fields } : {}),
+    ...(tags ? { tags } : {}),
+    avatar_url,
     birthday: "",
   };
+}
+
+// Wrap rich HTML (with <style> blocks, gradients, animations, SVG) so the
+// bio renderer treats it as one text block. htmlToBlocks splits on
+// `\n<div>` / `\n<hr>`, so strip whitespace between tags before wrapping.
+// Used by the showcase pages that flex the Raw-HTML/CSS range.
+function richBio(html) {
+  return `<div class="bio-text">${html.replace(/>\s*\n\s*</g, "><").trim()}</div>`;
 }
 
 // ─── Bio templates ──────────────────────────────────────────────────────
@@ -515,93 +525,377 @@ const bioPrivacy = `
     `Settings → Data & Privacy → Delete All Local Data. Two-stage confirm (type "delete my data"). Clears IndexedDB, localStorage, wipes Friends mode server-side, redirects to "/" as if it's a fresh install.`)}
 `;
 
-// ─── Build ──────────────────────────────────────────────────────────────
-export function buildWiki() {
-  // Make every wiki alter first so we can reference them by handle when
-  // assembling group.member_alter_ids.
+// ── 18. Symptoms & habits ──────────────────────────────────────────────
+const bioSymptoms = `
+  ${intro("Guide · Symptoms & habits", `The <strong>System Check-In</strong> page tracks recurring symptoms (dissociation, anxiety, sleep trouble) and habits (took meds, used coping skills) — with per-alter attribution and intensity.`)}
+  ${section("Rating vs boolean",
+    `Some entries are <strong>1–5 ratings</strong> (overall mood, anxiety, feeling overwhelmed) and some are <strong>yes/no</strong> (triggered switch, attended therapy). Positive ones (mood, self-care) and negative ones (depression, sleep trouble) are coloured differently so a glance reads well.`)}
+  ${section("Sessions vs check-ins",
+    `A <strong>check-in</strong> is a point-in-time reading. A <strong>session</strong> has a start and an end — start an active symptom (e.g. a dissociative episode) now, end it later, and the duration is recorded. This example has a couple of past sessions and a spread of check-ins so the Timeline symptoms column and the analytics look alive.`)}
+  ${section("Where it surfaces",
+    `The Timeline symptoms column, the Daily Tally panel, the Wellbeing analytics tab, and the Symptoms section of a therapy report. Attribution defaults to whoever's fronting.`)}
+  ${tip(`Add your own symptoms and habits — the catalogue is fully editable in Settings → Tracking. Colour and 1–5-vs-yes/no are per-entry.`)}
+`;
+
+// ── 19. Sleep & dream journal ──────────────────────────────────────────
+const bioSleep = `
+  ${intro("Guide · Sleep", `Log bedtime, wake time, and quality (1–10). This example has two weeks of nights so the trends read properly.`)}
+  ${section("Quality + interruptions",
+    `Each night stores a quality score, optional notes, and flags for interruptions, nightmares, or vivid dreams. Rough nights (short sleep, a nightmare) stand out against the steady ones.`)}
+  ${section("Dream journal",
+    `A night flagged as a dream can "Save to Dream Journal" — that writes a linked <strong>Journal entry</strong> so the dream lives in your journals too, tagged and searchable. One record, two surfaces.`)}
+  ${section("Mirrors an activity",
+    `Logging sleep also mirrors it as a Sleep activity so it shows on the Timeline and feeds your rest totals. You don't double-enter anything.`)}
+`;
+
+// ── 20. Locations ──────────────────────────────────────────────────────
+const bioLocations = `
+  ${intro("Guide · Locations", `A private, timestamped log of where you've been — home, work, outdoors, medical, social. GPS-captured or typed by hand.`)}
+  ${section("GPS vs manual",
+    `Tap the GPS button to capture coordinates (a "Open in Maps" link appears on those records), or just type a place name and pick a category. This example has both kinds across a week.`)}
+  ${section("Why track it",
+    `Location context helps make sense of switches and moods — a rough afternoon reads differently when you can see it was a medical appointment. Locations render as their own Timeline column and feed the Life analytics tab.`)}
+`;
+
+// ── 21. Diary cards ─────────────────────────────────────────────────────
+const bioDiary = `
+  ${intro("Guide · Diary cards", `A structured daily card (DBT-style) — mood, anxiety, skills used, and a short "what happened". Fully templated, so you decide what a card asks.`)}
+  ${section("Templates",
+    `A template is a list of fields — ratings, checkbox-lists, long-text. Build your own in Settings, or use the Standard Daily card this example ships with. Each day is one card against a template.`)}
+  ${section("Skills tracking",
+    `The checkbox-list field ("grounding / breathwork / journaling / reaching out / movement") turns "did I use a skill today" into something you can actually see a trend in over a week.`)}
+`;
+
+// ── 22. Journaling ──────────────────────────────────────────────────────
+const bioJournaling = `
+  ${intro("Guide · Journaling", `Long-form, dated writing — end-of-day reflection, therapy homework, dream logs. Optionally attached to one alter.`)}
+  ${section("Rich text + mentions",
+    `The editor supports HTML formatting and @mentions of other alters. Tag entries (this example uses <code>tutorial</code>, <code>design</code>, <code>therapy</code>) — tags filter the Journals page and folders group them.`)}
+  ${section("Whispers",
+    `Type <code>/w @name a secret</code> in an entry to hide that part behind a whisper bar only that alter reveals — a private note inside a shared journal. Works the same across bulletins and chat.`)}
+  ${section("Three kinds of note, on purpose",
+    `Journals are long-form and alter-attached. <strong>Status notes</strong> are short, system-wide, and immutable (a Facebook-style log). <strong>Bulletins</strong> are a shared wall. Pick the one that matches the shape of what you're writing.`)}
+`;
+
+// ── 23. Grounding & Learn ───────────────────────────────────────────────
+const bioGrounding = `
+  ${intro("Guide · Grounding & Learn", `In-the-moment crisis support (Grounding) and longer-form psychoeducation for systems (Learn). Reachable any time from the floating support bubble.`)}
+  ${section("Grounding techniques",
+    `A catalogue of breathing and sensory exercises — 5-4-3-2-1, box breathing, cold water — with a guided timer view. Favourite the ones that work; add your own. A distressing check-in can offer one automatically.`)}
+  ${section("Learn module",
+    `Topic pages written for plural systems (managers, firefighters, exiles, self-energy, in IFS terms), with interactive exercises and reflection prompts. Your reflections save as Support-journal entries and your progress is tracked per topic.`)}
+  ${section("Not medical advice",
+    `Every clinical-adjacent surface says so plainly — the app supports care, it doesn't replace it.`)}
+`;
+
+// ── 24. Help me unblend / Get to know me ────────────────────────────────
+const bioUnblend = `
+  ${intro("Guide · Unblend & Get to know me", `Two grounding-through-questions flows. <strong>Help me unblend</strong> walks you through prompts to separate from an overwhelming part; <strong>Get to know me</strong> is a gentler set for a specific alter.`)}
+  ${section("Questions are yours",
+    `A set of built-in prompts ships ready to use, and you can add your own or hide ones that don't fit. This example adds a couple of custom questions so you can see how the manager works.`)}
+  ${section("When to reach for it",
+    `Blend / over-identification is real and disorienting. A short structured set of questions — "whose feeling is this? how old does this feel?" — can create just enough distance to think.`)}
+`;
+
+// ── 25. Safety plan ─────────────────────────────────────────────────────
+const bioSafetyPlan = `
+  ${intro("Guide · Safety plan", `A private, always-reachable crisis plan — warning signs, coping steps, people and places that help, and how to make the environment safer.`)}
+  ${section("Built for a hard moment",
+    `The point is that when things are bad, thinking is hard. A plan written on a calm day, kept one tap away, does the remembering for you. It never leaves the device.`)}
+  ${section("Crisis resources",
+    `Sits alongside the grounding tools and crisis-line resources so support is one surface, not a scavenger hunt.`)}
+`;
+
+// ── 26. Contacts — "who are you with?" ──────────────────────────────────
+const bioContacts = `
+  ${intro("Guide · Contacts", `A private directory of the <strong>external people</strong> in your life — the parallel to your alter roster, but for outside relationships. Safe people, tricky people, professionals.`)}
+  ${section("Safety + awareness at a glance",
+    `Each contact carries a <strong>safety</strong> read (safe / caution / unsafe) and an <strong>awareness</strong> flag (do they know about the system? not at all / partially / fully). Colour-coded so the directory is scannable in a stressed moment. Some are flagged as emergency support.`)}
+  ${section("Who are you with?",
+    `Start an <strong>encounter</strong> to mark "I'm currently with this person" — it shows on the dashboard the same way current fronters do, and you can tag an activity with the contacts you did it with. This example has a live encounter and some past visits.`)}
+  ${section("Notes, relationships, custom fields",
+    `Per-contact notes, relationship links (friend / partner / therapist / family), and custom fields — the same building blocks as an alter profile, pointed outward. Folders group them.`)}
+`;
+
+// ── 27. System chat ─────────────────────────────────────────────────────
+const bioSystemChat = `
+  ${intro("Guide · System chat", `An internal group chat for the system — channels, threads, reactions, pinned messages. A living space for inside-talk, distinct from the bulletin wall.`)}
+  ${section("Channels + categories",
+    `Organise conversations into channels (general, planning, a private one) grouped under categories. This example seeds a few channels with a real back-and-forth so the analytics authorship view has something to read.`)}
+  ${section("Signposts & whispers",
+    `Type <code>+name</code> to sign a line as a specific alter, or <code>-name</code> to attribute without switching front — the sticky last-author carries down until you change it. <code>/w @name</code> whispers a line to one reader. The composer is the same rich one used across bulletins.`)}
+  ${section("Reactions, threads, pins",
+    `React with emoji, reply in a thread, pin the message that matters. One message in this example is pinned and one has a thread so you can see both.`)}
+`;
+
+// ── 28. Presences ───────────────────────────────────────────────────────
+const bioPresences = `
+  ${intro("Guide · Presences", `A gentle holding space for <strong>not-yet-alters</strong> — a vibe, a felt sense, someone new you're only starting to notice. Log a presence before it's ready to be a full profile.`)}
+  ${section("Sightings over time",
+    `Each presence collects timestamped "sightings" so you can see a pattern emerge without pressure to name or define anything. When it's ready, resolve a presence into a full alter — or leave it as it is.`)}
+  ${section("Notice who's near",
+    `Presences also show up in the system-meeting "notice who's near" picker, so a felt-but-unnamed someone can still be acknowledged in a check-in.`)}
+`;
+
+// ── 29. Inner-world map ─────────────────────────────────────────────────
+const bioSystemMap = `
+  ${intro("Guide · Inner-world map", `A visual layout of your headspace — rooms, places, and where alters tend to be. Maps can have layers; alters get placed on them.`)}
+  ${section("Places & occupants",
+    `Add locations (a meeting room, a garden, a quiet library) and list the alters usually there. This example seeds a small inner world with a few rooms so the map isn't blank.`)}
+  ${section("Layers + big systems",
+    `Stack layers (a base map + an overlay), toggle labels, go fullscreen. The map is built to stay usable even for very large systems via display caps and group-collapse.`)}
+`;
+
+// ── 30. System history & lineage ────────────────────────────────────────
+const bioSystemHistory = `
+  ${intro("Guide · System history", `A timeline of <strong>lineage events</strong> — splits, fusions, someone going dormant, someone returning, a new arrival — with dates, causes, and notes.`)}
+  ${section("Events + relationships",
+    `Recording a split can auto-create "split from" relationships between the alters involved, so the lineage view and the relationship map stay in sync. Year-only events (you remember the year, not the day) display as just the year.`)}
+  ${section("Careful wording",
+    `Fusion is described as an alter that <em>persists</em>, not a "surviving" one — the absorbed alters aren't being lost. Language here matters and the app tries to get it right.`)}
+`;
+
+// ── 31. Analytics ───────────────────────────────────────────────────────
+const bioAnalytics = `
+  ${intro("Guide · Analytics", `Patterns across everything you've logged — fronting, wellbeing, and life context — read-only and computed from your real records. Nothing here is entered; it's all derived.`)}
+  ${section("Four tabs",
+    `<strong>Overview</strong> — the headline read on the range. <strong>Fronting</strong> — who's out how much, solo vs co-front, switch counts, primary time. <strong>Wellbeing</strong> — mood / anxiety / symptom trends. <strong>Life</strong> — activities, sleep, locations, and contacts correlated against the rest.`)}
+  ${section("Alter fingerprints",
+    `Each alter gets a "fingerprint" — their characteristic emotions, activities, and times of day — built from attribution across your data. Because this example is populated across weeks, the fingerprints and trends actually render.`)}
+  ${section("Trauma-informed by design",
+    `Minimum-data gates mean it won't draw confident conclusions from three data points, and the framing avoids scoring you. It's a mirror, not a report card.`)}
+`;
+
+// ── 32. Therapy reports ─────────────────────────────────────────────────
+const bioReports = `
+  ${intro("Guide · Therapy reports", `A date-bounded summary you can hand to a therapist — with per-section opt-in so you share exactly what you want to.`)}
+  ${section("Build + save presets",
+    `Pick a date range and toggle sections (fronting, mood, symptoms, activities, journal excerpts, status notes, plan completion…). Save a builder preset so the weekly report is one tap next time. This example ships a couple of templates and an export log.`)}
+  ${section("Anonymise",
+    `An anonymise toggle blurs alter references throughout, for when you want to share patterns without names.`)}
+`;
+
+// ── 33. Multiple systems ────────────────────────────────────────────────
+const bioMultipleSystems = `
+  ${intro("Guide · Multiple systems", `The app can hold more than one separate system — fully independent rosters, settings, and data — switched from the profile menu. (The switcher works on your real data; this walkthrough is a single example system, so there's nothing to switch to here.)`)}
+  ${section("Truly separate",
+    `Each system is its own world: its own alters, terms, theme, and history. Nothing bleeds between them. Useful for a co-writer, a separate median system, or keeping a work profile apart.`)}
+  ${section("Import a whole system",
+    `Bring one in from an Ampersand <code>.ampar</code> file, or from PluralKit / Simply Plural, as its own system — or merge into an existing one. Alters and groups can also be transferred between systems, nesting and all.`)}
+`;
+
+// ── 34. Avatars & image rotation ────────────────────────────────────────
+const bioAvatars = richBio(`
+<style>@keyframes rot-spin{from{transform:rotate(0)}to{transform:rotate(360deg)}}</style>
+<div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border:1px solid #6366f1;border-radius:16px;padding:16px 18px;color:#e0e7ff;">
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:10px;">
+    <div style="width:56px;height:56px;border-radius:50%;flex-shrink:0;background:conic-gradient(#a5b4fc,#f472b6,#38bdf8,#a5b4fc);animation:rot-spin 6s linear infinite;box-shadow:0 0 20px rgba(129,140,248,.5);"></div>
+    <div>
+      <div style="font-size:1.2em;font-weight:700;">Avatars &amp; image rotation</div>
+      <div style="font-size:.82em;opacity:.75;">One alter, a whole pool of pictures.</div>
+    </div>
+  </div>
+  <p style="font-size:.9em;line-height:1.65;margin:0 0 .8em;">An alter's avatar can be a single image <em>or</em> a rotating pool — the picture changes on a schedule or at random, so a mood-fluid or age-fluid member isn't pinned to one face. Backgrounds rotate the same way.</p>
+  <p style="font-size:.9em;line-height:1.65;margin:0;">Images live in the <strong>Assets Library</strong> (folders, GIFs, per-alter ownership) and are picked from there anywhere the app wants a picture. This example seeds a small library and a rotation pool so the feature has something to show.</p>
+</div>
+`);
+
+// ── Showcase · Raw HTML / CSS ───────────────────────────────────────────
+// This page's bio is authored in Raw mode to demonstrate what the editor
+// can produce — animation, gradient, grid, custom type. The content is
+// about the feature, not a character.
+const bioRawShowcase = richBio(`
+<style>
+@keyframes gd-shimmer{0%{background-position:0% 50%}50%{background-position:100% 50%}100%{background-position:0% 50%}}
+@keyframes gd-pulse{0%,100%{opacity:.5;transform:scale(1)}50%{opacity:1;transform:scale(1.06)}}
+</style>
+<div style="background:linear-gradient(135deg,#020617 0%,#0c4a6e 50%,#020617 100%);background-size:200% 200%;animation:gd-shimmer 8s ease-in-out infinite;border:1px solid #06b6d4;border-radius:18px;overflow:hidden;">
+  <div style="position:relative;background:linear-gradient(180deg,rgba(6,182,212,.18),transparent);padding:18px 18px 12px;">
+    <div style="position:absolute;top:14px;right:14px;width:8px;height:8px;border-radius:50%;background:#06b6d4;box-shadow:0 0 16px #06b6d4;animation:gd-pulse 1.6s ease-in-out infinite;"></div>
+    <div style="font-family:'Courier New',monospace;font-size:.62em;letter-spacing:.4em;color:#67e8f9;text-transform:uppercase;margin-bottom:6px;">// raw mode showcase</div>
+    <div style="font-size:1.7em;font-weight:300;letter-spacing:.12em;color:#cffafe;">A bio is a tiny webpage</div>
+  </div>
+  <div style="padding:14px 18px 18px;color:#a5f3fc;font-size:.9em;line-height:1.85;">
+    <p style="margin:0 0 .9em;">Everything you see on this page — the shimmer, the pulsing dot, the gradient, the monospace label — is written in the alter bio editor's <strong>Raw</strong> mode: plain HTML with a <code style="background:rgba(6,182,212,.15);padding:1px 5px;border-radius:3px;color:#cffafe;">&lt;style&gt;</code> block. Gradients, CSS animation, inline SVG, custom fonts — anything a browser can render.</p>
+    <div style="display:grid;grid-template-columns:auto 1fr;gap:6px 14px;font-size:.82em;border-top:1px solid rgba(6,182,212,.3);padding-top:12px;">
+      <div style="color:#67e8f9;letter-spacing:.1em;">USE FOR</div><div style="color:#cffafe;">a profile that should look unmistakably like <em>this</em> alter.</div>
+      <div style="color:#67e8f9;letter-spacing:.1em;">OR STAY IN</div><div style="color:#cffafe;">Plain / Blocks if you'd rather not touch code — they're faster and just as valid.</div>
+      <div style="color:#67e8f9;letter-spacing:.1em;">TIP</div><div style="color:#cffafe;">keep <code style="background:rgba(6,182,212,.15);padding:1px 5px;border-radius:3px;color:#cffafe;">@keyframes</code> scoped to a wrapper class so bios don't affect each other.</div>
+    </div>
+  </div>
+</div>
+`);
+
+// ── Showcase · Theme presets ────────────────────────────────────────────
+// Carries its own theme preset (Glow). Long-pressing this page's chip on
+// the dashboard swaps the whole app to amber; switching primary swaps back.
+const bioThemeShowcase = richBio(`
+<style>@keyframes gd-warm{0%,100%{box-shadow:0 0 22px rgba(245,158,11,.28)}50%{box-shadow:0 0 38px rgba(245,158,11,.55),0 0 70px rgba(245,158,11,.15)}}</style>
+<div style="background:linear-gradient(180deg,#1a0f06 0%,#3b1d08 50%,#1a0f06 100%);border:2px solid #f59e0b;border-radius:12px;overflow:hidden;animation:gd-warm 5s ease-in-out infinite;">
+  <div style="background:linear-gradient(135deg,rgba(245,158,11,.18),transparent);padding:14px 18px;border-bottom:1px solid rgba(245,158,11,.3);text-align:center;">
+    <div style="color:#f59e0b;font-size:.6em;letter-spacing:.4em;">✦ PER-ALTER ✦</div>
+    <div style="font-family:'Playfair Display',serif;font-size:1.6em;font-weight:700;color:#fde68a;letter-spacing:.1em;">THEME PRESETS</div>
+  </div>
+  <div style="padding:16px 18px;color:#fed7aa;font-size:.9em;line-height:1.8;">
+    <p style="margin:0 0 .9em;">The amber-on-black you're seeing right now is <strong>this page's own theme preset</strong>. Bind a palette + font to an alter (Settings → Appearance → Fronter-linked themes) and the <em>whole app</em> recolours when they become the primary fronter — then snaps back when someone else takes over.</p>
+    <p style="margin:0;font-size:.86em;"><b style="color:#fbbf24;">Try it:</b> long-press this page's chip on the dashboard to make it primary and watch the app turn warm. Other showcase pages carry their own palettes too — sky, neon, berry, bloom — so switching primary is a live demo of the feature.</p>
+  </div>
+</div>
+`);
+
+// ── Per-page theme presets (6 members carry these) ──────────────────────
+// Shape mirrors the Tapestry presets: light + dark palettes, font,
+// themeMode, fontSize, terms. Long-pressing a member page's chip swaps the
+// whole app to their palette. Names are keyed by the member page.
+const WIKI_THEME_PRESETS = {
+  "Start — Sky": {
+    light: { bg: "#F0F9FF", surface: "#E0F2FE", primary: "#0284C7", secondary: "#BAE6FD", accent: "#0EA5E9", muted: "#E0F2FE", "text-primary": "#082F49", "text-secondary": "#075985" },
+    dark:  { bg: "#0C1827", surface: "#0E2A3F", primary: "#38BDF8", secondary: "#1E3A52", accent: "#7DD3FC", muted: "#1F3447", "text-primary": "#E0F2FE", "text-secondary": "#7DD3FC" },
+    font: "'Atkinson Hyperlegible', sans-serif", themeMode: null, fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+  "Raw — Neon": {
+    light: { bg: "#ECFEFF", surface: "#CFFAFE", primary: "#0E7490", secondary: "#A5F3FC", accent: "#06B6D4", muted: "#CFFAFE", "text-primary": "#083344", "text-secondary": "#155E75" },
+    dark:  { bg: "#020617", surface: "#0C1828", primary: "#22D3EE", secondary: "#155E75", accent: "#67E8F9", muted: "#0E2A3F", "text-primary": "#CFFAFE", "text-secondary": "#67E8F9" },
+    font: "'Atkinson Hyperlegible', sans-serif", themeMode: "dark", fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+  "Theme — Glow": {
+    light: { bg: "#FFF7ED", surface: "#FFEDD5", primary: "#C2410C", secondary: "#FED7AA", accent: "#F97316", muted: "#FFEDD5", "text-primary": "#431407", "text-secondary": "#7C2D12" },
+    dark:  { bg: "#1F0B05", surface: "#2A1208", primary: "#FB923C", secondary: "#3B1A0A", accent: "#FDBA74", muted: "#5A2E15", "text-primary": "#FFEDD5", "text-secondary": "#FED7AA" },
+    font: "'Playfair Display', serif", themeMode: null, fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+  "Fields — Berry": {
+    light: { bg: "#FDF2F8", surface: "#FBCFE8", primary: "#DB2777", secondary: "#FBCFE8", accent: "#EC4899", muted: "#FCE7F3", "text-primary": "#500724", "text-secondary": "#831843" },
+    dark:  { bg: "#1F0B2E", surface: "#2D1645", primary: "#EC4899", secondary: "#6B1B47", accent: "#F472B6", muted: "#5A3668", "text-primary": "#FBCFE8", "text-secondary": "#F0ABFC" },
+    font: "'Playfair Display', serif", themeMode: null, fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+  "Toolbar — Bloom": {
+    light: { bg: "#FDF2F8", surface: "#FCE7F3", primary: "#BE185D", secondary: "#FBCFE8", accent: "#EC4899", muted: "#FCE7F3", "text-primary": "#500724", "text-secondary": "#9D174D" },
+    dark:  { bg: "#1F0B1B", surface: "#2D1325", primary: "#F472B6", secondary: "#5B1B47", accent: "#EC4899", muted: "#4A1737", "text-primary": "#FBCFE8", "text-secondary": "#F0ABFC" },
+    font: "'Playfair Display', serif", themeMode: null, fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+  "Avatars — Constellation": {
+    light: { bg: "#EEF2FF", surface: "#E0E7FF", primary: "#4338CA", secondary: "#C7D2FE", accent: "#6366F1", muted: "#E0E7FF", "text-primary": "#1E1B4B", "text-secondary": "#3730A3" },
+    dark:  { bg: "#03050F", surface: "#0F172A", primary: "#A5B4FC", secondary: "#1E1B4B", accent: "#6366F1", muted: "#312E81", "text-primary": "#E0E7FF", "text-secondary": "#A5B4FC" },
+    font: "'Atkinson Hyperlegible', sans-serif", themeMode: "dark", fontSize: "default",
+    terms: { system: "system", alter: "alter", switch: "switch", front: "front" },
+  },
+};
+
+// System-wide custom-field definitions used by the showcase pages' Info
+// tabs. Stable ids so buildPages (values) and previewSystems (the
+// CustomField entity definitions) stay in sync. Exported for the assembler.
+export const WIKI_CUSTOM_FIELDS = [
+  { id: "wcf-comfort",  name: "Comfort",          order: 0, type: "text",     placeholder: "What helps them settle" },
+  { id: "wcf-besttime", name: "Best time of day", order: 1, type: "text",     placeholder: "Morning / night / anytime" },
+  { id: "wcf-sensory",  name: "Sensory likes",    order: 2, type: "longtext", placeholder: "Textures, sounds, tastes" },
+  { id: "wcf-pronoun",  name: "Pronoun notes",    order: 3, type: "text",     placeholder: "Any nuance" },
+];
+
+// ─── Build the feature-page set ──────────────────────────────────────────
+// Every page is an alter profile whose bio documents one feature area. Six
+// "member" pages carry a theme preset + are the ones the assembler
+// (previewSystems.js) attributes fronting / tracking data to, so the app
+// looks lived-in while every page stays a walkthrough. Returns the pieces;
+// previewSystems assembles the full entity dict + generated data.
+export function buildPages() {
   const A = {
-    welcome:    wikiAlter({ name: "01. Welcome",                  alias: "start", role: "Index",            color: "#22d3ee", order_index: 0,  description: bioWelcome }),
-    gestures:   wikiAlter({ name: "02. Gestures cheatsheet",      alias: "swipe", role: "Shortcuts",        color: "#06b6d4", order_index: 1,  description: bioGestures }),
-    dashboard:  wikiAlter({ name: "03. Dashboard",                alias: "dash",  role: "Home screen",      color: "#a855f7", order_index: 2,  description: bioDashboard }),
-    altersPage: wikiAlter({ name: "04. Alters page & groups",     alias: "alt",   role: "Directory",        color: "#f59e0b", order_index: 3,  description: bioAltersGroups }),
-    editModes:  wikiAlter({ name: "05. Profile · edit modes",     alias: "edit",  role: "Profile editing",  color: "#f97316", order_index: 4,  description: bioEditModes }),
-    toolbar:    wikiAlter({ name: "06. Profile · mini toolbar",   alias: "tool",  role: "Toolbar reference",color: "#ea580c", order_index: 5,  description: bioMiniToolbar }),
-    fields:     wikiAlter({ name: "07. Profile · fields & tabs",  alias: "field", role: "Profile reference",color: "#dc2626", order_index: 6,  description: bioProfileFields }),
-    fronting:   wikiAlter({ name: "08. Fronting & switching",     alias: "front", role: "Sessions",         color: "#eab308", order_index: 7,  description: bioFronting }),
-    bulletin:   wikiAlter({ name: "09. Bulletin board",           alias: "post",  role: "Sharing wall",     color: "#ec4899", order_index: 8,  description: bioBulletinBoard }),
-    timeline:   wikiAlter({ name: "10. Timeline",                 alias: "time",  role: "Day-by-day view",  color: "#84cc16", order_index: 9,  description: bioTimeline }),
-    activities: wikiAlter({ name: "11. Activity Tracker",         alias: "act",   role: "Activities",       color: "#10b981", order_index: 10, description: bioActivities }),
-    checkIn:    wikiAlter({ name: "12. Quick Check-In",           alias: "ci",    role: "Daily capture",    color: "#14b8a6", order_index: 11, description: bioQuickCheckIn }),
-    pinnedDailyTasks: wikiAlter({ name: "12b. Pinned tasks card", alias: "pin",   role: "Dashboard widget", color: "#0ea5e9", order_index: 12, description: bioPinnedDailyTasks }),
-    todo:       wikiAlter({ name: "13. To-Do & plans",            alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 13, description: bioTodo }),
-    reminders:  wikiAlter({ name: "14. Reminders & push",         alias: "ping",  role: "Notifications",    color: "#ef4444", order_index: 14, description: bioReminders }),
-    friends:    wikiAlter({ name: "15. Friends mode",             alias: "amigo", role: "Relay & friends",  color: "#f472b6", order_index: 15, description: bioFriends }),
-    settings:   wikiAlter({ name: "16. Settings & themes",        alias: "set",   role: "Customisation",    color: "#6366f1", order_index: 16, description: bioSettings }),
-    privacy:    wikiAlter({ name: "17. Privacy & backup",         alias: "lock",  role: "Data scope",       color: "#4f46e5", order_index: 17, description: bioPrivacy }),
+    // 1 · Start here
+    welcome:    wikiAlter({ name: "Welcome — start here",   alias: "start", role: "Guided tour",      color: "#38bdf8", order_index: 0,  pronouns: "any/all", description: bioWelcome,
+      custom_fields: { "wcf-comfort": "A slow cup of tea and the dashboard open.", "wcf-besttime": "Whenever you open the app." } }),
+    gestures:   wikiAlter({ name: "Gestures cheatsheet",    alias: "swipe", role: "Shortcuts",        color: "#06b6d4", order_index: 1,  description: bioGestures }),
+    // 2 · Alters & profiles
+    altersPage: wikiAlter({ name: "Alters page & groups",   alias: "alt",   role: "Directory",        color: "#f59e0b", order_index: 2,  description: bioAltersGroups }),
+    editModes:  wikiAlter({ name: "Profile · edit modes",   alias: "edit",  role: "Profile editing",  color: "#f97316", order_index: 3,  description: bioEditModes }),
+    toolbar:    wikiAlter({ name: "Profile · mini toolbar", alias: "tool",  role: "Toolbar reference",color: "#ec4899", order_index: 4,  description: bioMiniToolbar }),
+    fields:     wikiAlter({ name: "Profile · fields & tabs",alias: "field", role: "Profile reference",color: "#db2777", order_index: 5,  pronouns: "she/they", description: bioProfileFields,
+      custom_fields: { "wcf-comfort": "Quiet and a warm drink.", "wcf-besttime": "Late evening.", "wcf-sensory": "Soft blankets, low light, lo-fi.", "wcf-pronoun": "she/her, but they/them is fine too." },
+      alter_custom_fields: [
+        { id: uid("acf"), label: "Reads",  value: "Long-form essays, recipe books." },
+        { id: uid("acf"), label: "Avoids", value: "Loud rooms, surprise phone calls." },
+      ] }),
+    rawShowcase:   wikiAlter({ name: "Raw HTML showcase",   alias: "raw",   role: "Design range",     color: "#06b6d4", order_index: 6,  description: bioRawShowcase,
+      custom_fields: { "wcf-sensory": "Gradients, monospace, a single pulsing dot." } }),
+    themeShowcase: wikiAlter({ name: "Theme presets showcase", alias: "theme", role: "Design range",  color: "#f59e0b", order_index: 7,  description: bioThemeShowcase }),
+    avatars:    wikiAlter({ name: "Avatars & rotation",     alias: "face",  role: "Design range",     color: "#6366f1", order_index: 8,  description: bioAvatars }),
+    // 3 · Fronting & system
+    fronting:   wikiAlter({ name: "Fronting & switching",   alias: "front", role: "Sessions",         color: "#eab308", order_index: 9,  description: bioFronting }),
+    systemHistory: wikiAlter({ name: "System history",      alias: "hist",  role: "Lineage",          color: "#a855f7", order_index: 10, description: bioSystemHistory }),
+    systemMap:  wikiAlter({ name: "Inner-world map",        alias: "map",   role: "Headspace",        color: "#8b5cf6", order_index: 11, description: bioSystemMap }),
+    presences:  wikiAlter({ name: "Presences",              alias: "vibe",  role: "Not-yet-alters",   color: "#c084fc", order_index: 12, description: bioPresences }),
+    // 4 · Tracking
+    dashboard:  wikiAlter({ name: "Dashboard",              alias: "dash",  role: "Home screen",      color: "#a855f7", order_index: 13, description: bioDashboard }),
+    timeline:   wikiAlter({ name: "Timeline",               alias: "time",  role: "Day-by-day view",  color: "#84cc16", order_index: 14, description: bioTimeline }),
+    activities: wikiAlter({ name: "Activity Tracker",       alias: "act",   role: "Activities",       color: "#10b981", order_index: 15, description: bioActivities }),
+    checkIn:    wikiAlter({ name: "Quick Check-In",         alias: "ci",    role: "Daily capture",    color: "#14b8a6", order_index: 16, description: bioQuickCheckIn }),
+    symptoms:   wikiAlter({ name: "Symptoms & habits",      alias: "sym",   role: "Tracking",         color: "#ef4444", order_index: 17, description: bioSymptoms }),
+    sleep:      wikiAlter({ name: "Sleep & dreams",         alias: "sleep", role: "Rest",             color: "#4f46e5", order_index: 18, description: bioSleep }),
+    locations:  wikiAlter({ name: "Locations",              alias: "loc",   role: "Where you've been",color: "#0ea5e9", order_index: 19, description: bioLocations }),
+    todo:       wikiAlter({ name: "To-Do & plans",          alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 20, description: bioTodo }),
+    pinnedDailyTasks: wikiAlter({ name: "Pinned tasks card",alias: "pin",   role: "Dashboard widget", color: "#0ea5e9", order_index: 21, description: bioPinnedDailyTasks }),
+    diary:      wikiAlter({ name: "Diary cards",            alias: "card",  role: "Daily card",       color: "#14b8a6", order_index: 22, description: bioDiary }),
+    // 5 · Reflection & support
+    journaling: wikiAlter({ name: "Journaling",             alias: "journ", role: "Long-form",        color: "#8b5cf6", order_index: 23, description: bioJournaling }),
+    grounding:  wikiAlter({ name: "Grounding & Learn",      alias: "calm",  role: "Support",          color: "#22c55e", order_index: 24, description: bioGrounding }),
+    unblend:    wikiAlter({ name: "Unblend & get to know me",alias: "unbl", role: "Grounding Qs",     color: "#16a34a", order_index: 25, description: bioUnblend }),
+    safetyPlan: wikiAlter({ name: "Safety plan",            alias: "safe",  role: "Crisis plan",      color: "#dc2626", order_index: 26, description: bioSafetyPlan }),
+    reminders:  wikiAlter({ name: "Reminders & push",       alias: "ping",  role: "Notifications",    color: "#f97316", order_index: 27, description: bioReminders }),
+    // 6 · Connection
+    contacts:   wikiAlter({ name: "Contacts",               alias: "who",   role: "External people",  color: "#0ea5e9", order_index: 28, description: bioContacts }),
+    systemChat: wikiAlter({ name: "System chat",            alias: "chat",  role: "Inside-talk",      color: "#6366f1", order_index: 29, description: bioSystemChat }),
+    bulletin:   wikiAlter({ name: "Bulletin board",         alias: "post",  role: "Sharing wall",     color: "#ec4899", order_index: 30, description: bioBulletinBoard }),
+    friends:    wikiAlter({ name: "Friends mode",           alias: "amigo", role: "Relay & friends",  color: "#f472b6", order_index: 31, description: bioFriends }),
+    // 7 · Insight & data
+    analytics:  wikiAlter({ name: "Analytics",              alias: "stats", role: "Patterns",         color: "#a855f7", order_index: 32, description: bioAnalytics }),
+    reports:    wikiAlter({ name: "Therapy reports",        alias: "rep",   role: "Summaries",        color: "#7c3aed", order_index: 33, description: bioReports }),
+    settings:   wikiAlter({ name: "Settings & themes",      alias: "set",   role: "Customisation",    color: "#6366f1", order_index: 34, description: bioSettings }),
+    privacy:    wikiAlter({ name: "Privacy & backup",       alias: "lock",  role: "Data scope",       color: "#4f46e5", order_index: 35, description: bioPrivacy }),
+    multipleSystems: wikiAlter({ name: "Multiple systems",  alias: "sys",   role: "Parallel systems", color: "#4338ca", order_index: 36, description: bioMultipleSystems }),
   };
   const alters = Object.values(A);
 
+  // The six "member" pages carry theme presets and get attributed data.
+  const alterThemeLinks = {
+    [A.welcome.id]:       "Start — Sky",
+    [A.rawShowcase.id]:   "Raw — Neon",
+    [A.themeShowcase.id]: "Theme — Glow",
+    [A.fields.id]:        "Fields — Berry",
+    [A.toolbar.id]:       "Toolbar — Bloom",
+    [A.avatars.id]:       "Avatars — Constellation",
+  };
+
   // Groups own their members via `member_alter_ids` + `parent` + `order`.
-  // (Matches the Tapestry preview's shape; the alter entity has no
-  // group_id field.)
   const groups = [
-    { id: uid("wiki-group"), name: "1 · Start Here",      color: "#22d3ee", description: "Welcome + the gestures cheatsheet. Read these first.",                          member_alter_ids: [A.welcome.id, A.gestures.id],                                                              parent: "root", order: 0 },
-    { id: uid("wiki-group"), name: "2 · Dashboard",       color: "#a855f7", description: "What every tile on the home screen does.",                                       member_alter_ids: [A.dashboard.id],                                                                           parent: "root", order: 1 },
-    { id: uid("wiki-group"), name: "3 · Alter profiles",  color: "#f59e0b", description: "The Alters page, profile edit modes, the mini-toolbar, profile fields, fronting.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.fronting.id],               parent: "root", order: 2 },
-    { id: uid("wiki-group"), name: "4 · Tracking",        color: "#10b981", description: "Timeline, Activity Tracker, Quick Check-In, the Pinned tasks dashboard widget, To-Do.", member_alter_ids: [A.timeline.id, A.activities.id, A.checkIn.id, A.pinnedDailyTasks.id, A.todo.id],            parent: "root", order: 3 },
-    { id: uid("wiki-group"), name: "5 · Sharing & relay", color: "#ec4899", description: "Bulletin board (internal) and Friends mode (opt-in cloud relay).",                member_alter_ids: [A.bulletin.id, A.friends.id],                                                              parent: "root", order: 4 },
-    { id: uid("wiki-group"), name: "6 · Notifications",   color: "#ef4444", description: "Reminder editor, scheduler, push pipeline + diagnostics.",                        member_alter_ids: [A.reminders.id],                                                                           parent: "root", order: 5 },
-    { id: uid("wiki-group"), name: "7 · Personal",        color: "#6366f1", description: "Settings, themes, privacy, backups.",                                             member_alter_ids: [A.settings.id, A.privacy.id],                                                              parent: "root", order: 6 },
+    { id: uid("wiki-group"), name: "1 · Start here",        color: "#38bdf8", description: "Welcome + the gestures cheatsheet. Read these first.",                       member_alter_ids: [A.welcome.id, A.gestures.id], parent: "root", order: 0 },
+    { id: uid("wiki-group"), name: "2 · Alters & profiles", color: "#f59e0b", description: "The directory, the four edit modes, the toolbar, custom fields — and showcase pages that flex what a profile can look like.", member_alter_ids: [A.altersPage.id, A.editModes.id, A.toolbar.id, A.fields.id, A.rawShowcase.id, A.themeShowcase.id, A.avatars.id], parent: "root", order: 1 },
+    { id: uid("wiki-group"), name: "3 · Fronting & system", color: "#a855f7", description: "Who's out, lineage over time, the inner-world map, and presences.",           member_alter_ids: [A.fronting.id, A.systemHistory.id, A.systemMap.id, A.presences.id], parent: "root", order: 2 },
+    { id: uid("wiki-group"), name: "4 · Tracking",          color: "#10b981", description: "Dashboard, timeline, activities, check-ins, symptoms, sleep, locations, tasks, diary.", member_alter_ids: [A.dashboard.id, A.timeline.id, A.activities.id, A.checkIn.id, A.symptoms.id, A.sleep.id, A.locations.id, A.todo.id, A.pinnedDailyTasks.id, A.diary.id], parent: "root", order: 3 },
+    { id: uid("wiki-group"), name: "5 · Reflection & support", color: "#22c55e", description: "Journaling, grounding & learn, unblend, safety plan, reminders.",           member_alter_ids: [A.journaling.id, A.grounding.id, A.unblend.id, A.safetyPlan.id, A.reminders.id], parent: "root", order: 4 },
+    { id: uid("wiki-group"), name: "6 · Connection",        color: "#ec4899", description: "Contacts (external people), system chat, bulletins, and friends mode.",       member_alter_ids: [A.contacts.id, A.systemChat.id, A.bulletin.id, A.friends.id], parent: "root", order: 5 },
+    { id: uid("wiki-group"), name: "7 · Insight & data",    color: "#6366f1", description: "Analytics, therapy reports, settings, privacy, and multiple systems.",        member_alter_ids: [A.analytics.id, A.reports.id, A.settings.id, A.privacy.id, A.multipleSystems.id], parent: "root", order: 6 },
   ];
 
   const settings = {
     id: uid("wiki-settings"),
-    system_name: "Oceans Symphony Wiki",
-    system_description: "Walkthrough preview. Open any alter to read about that part of the app. The banner shows which app version this walkthrough was last refreshed against.",
+    system_name: "Oceans Symphony — guided example",
+    system_description: "A guided example: every profile is a walkthrough of one feature, and the whole app is filled with example data so you can try things. Your real data is untouched.",
     term_system: "system",
     term_alter: "alter",
     term_switch: "switch",
     term_front: "front",
   };
 
-  // No fronting sessions, no bulletins, no journals — the wiki is reading
-  // material, not a populated example system. Tapestry covers the
-  // "everything filled in" case.
   return {
-    SystemSettings:    toMap([settings]),
-    Alter:             toMap(alters),
-    Group:             toMap(groups),
-    FrontingSession:   toMap([]),
-    EmotionCheckIn:    toMap([]),
-    Activity:          toMap([]),
-    JournalEntry:      toMap([]),
-    SystemCheckIn:     toMap([]),
-    StatusNote:        toMap([]),
-    AlterRelationship: toMap([]),
-    SystemChangeEvent: toMap([]),
-    Symptom:           toMap([]),
-    SymptomSession:    toMap([]),
-    SymptomCheckIn:    toMap([]),
-    Bulletin:          toMap([]),
-    BulletinComment:   toMap([]),
-    Poll:              toMap([]),
-    Task:              toMap([]),
-    DailyTaskTemplate: toMap([]),
-    Sleep:             toMap([]),
-    Reminder:          toMap([]),
-    CustomEmotion:     toMap([]),
-    TriggerType:       toMap([]),
-    ActivityCategory:  toMap([]),
-    ActivityGoal:      toMap([]),
-    GroundingTechnique:toMap([]),
-    GroundingPreference:toMap([]),
-    InnerWorldLocation:toMap([]),
-    Location:          toMap([]),
-    AlterMessage:      toMap([]),
-    AlterNote:         toMap([]),
-    DiaryTemplate:     toMap([]),
-    DiaryCard:         toMap([]),
-    DailyProgress:     toMap([]),
-    SupportJournalEntry: toMap([]),
+    A,
+    alters,
+    groups,
+    settings,
+    themePresets: WIKI_THEME_PRESETS,
+    alterThemeLinks,
+    customFields: WIKI_CUSTOM_FIELDS,
   };
 }

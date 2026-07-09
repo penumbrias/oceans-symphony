@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { fontStackFor } from "@/lib/profileFonts";
 import { readProfileBg, profileSurfaceCss, profileThemeCss } from "@/lib/profileStyle";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
@@ -42,6 +43,7 @@ const TABS = [
 
 const BG_COLOR_KEY = "_bg_color";
 const BG_IMAGE_KEY = "_bg_image";
+const BG_ROTATION_KEY = "_bg_rotation_mode";
 const BG_OPACITY_KEY = "_bg_opacity";
 const HEADER_IMAGE_KEY = "_header_image";
 const HEADER_BG_KEY = "_header_bg_color";
@@ -172,14 +174,21 @@ function AlterProfileInner() {
     return () => { cancelled = true; };
   }, [alter, queryClient]);
 
+  // Avatar / background may rotate through a per-alter image pool (set up
+  // via the profile editors) instead of showing one fixed image — resolve
+  // through useRotatingImageUrl first, which is a no-op passthrough of the
+  // fixed value when rotation isn't turned on.
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
+  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[BG_ROTATION_KEY], fallbackUrl: alter?.custom_fields?.[BG_IMAGE_KEY] });
+
   // Resolve avatar URL (local or external)
   useEffect(() => {
-    if (alter?.avatar_url) {
-      resolveImageUrl(alter.avatar_url).then(setAvatarSrc);
+    if (rotatingAvatarUrl) {
+      resolveImageUrl(rotatingAvatarUrl).then(setAvatarSrc);
     } else {
       setAvatarSrc(null);
     }
-  }, [alter?.avatar_url]);
+  }, [rotatingAvatarUrl]);
 
   // Resolve header image URL
   useEffect(() => {
@@ -193,10 +202,9 @@ function AlterProfileInner() {
   // consumed by a CSS background-image, which is why some backgrounds showed
   // up in the header but never behind the page.
   useEffect(() => {
-    const img = alter?.custom_fields?.[BG_IMAGE_KEY];
-    if (img) resolveImageUrl(img).then(setResolvedBgImage).catch(() => setResolvedBgImage(null));
+    if (rotatingBgUrl) resolveImageUrl(rotatingBgUrl).then(setResolvedBgImage).catch(() => setResolvedBgImage(null));
     else setResolvedBgImage(null);
-  }, [alter?.custom_fields?.[BG_IMAGE_KEY]]);
+  }, [rotatingBgUrl]);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -232,7 +240,6 @@ function AlterProfileInner() {
   const cf = alter.custom_fields || {};
   const ps = readProfileBg(cf);
   const pageBgColor = ps.bgColor;
-  const pageBgImage = ps.bgImage;
   const pageBgOpacity = ps.bgOpacity;       // image:0.5 / colour:0.15 default
   const readability = ps.readability;        // _bg_color tint over image (0.1 default)
   const headerOpacity = ps.headerOpacity;    // header image opacity (0.45 default)
@@ -243,7 +250,10 @@ function AlterProfileInner() {
   // colour can be made translucent independently of the body.
   const pageHeaderBgColor = ps.headerBgColorWithAlpha || cf[HEADER_BG_KEY] || "";
   const headerFont = fontStackFor(cf[HEADER_FONT_KEY]);
-  const hasPageBg = ps.hasPageBg;
+  // A rotation-only setup (pool populated but no fixed _bg_image ever set)
+  // still counts as "has a background" — readProfileBg doesn't know about
+  // rotation, so OR in the rotated pick's presence locally.
+  const hasPageBg = ps.hasPageBg || !!rotatingBgUrl;
   const surfaceCss = profileSurfaceCss("os-pf", cf);
   const themeCss = profileThemeCss("os-pf", cf);
 
@@ -261,7 +271,7 @@ function AlterProfileInner() {
     >
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
-          {pageBgImage && resolvedBgImage ? (
+          {resolvedBgImage ? (
             <>
               {/* SOLID full-opacity base layer of _bg_color UNDER the image, so
                   lowering the image opacity reveals the colour beneath it (and

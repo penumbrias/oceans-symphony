@@ -12,6 +12,8 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { DEFAULT_GROUPS } from "@/components/diary/DiarySection";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { getRootCategories } from "@/lib/categoryTreeUtils";
+import { ALL_PAGES } from "@/utils/navigationConfig";
+import { contactDisplayName } from "@/lib/contacts";
 
 const CHECKIN_SECTIONS = [
   { id: "feeling", label: "Feeling / Emotions" },
@@ -199,6 +201,79 @@ function SymptomPicker({ symptoms, selectedId, onChange }) {
   );
 }
 
+// ── Page picker (generic "jump to any page" shortcut) ────────────────────────
+function PagePicker({ selectedId, onChange }) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return q ? ALL_PAGES.filter(p => p.label.toLowerCase().includes(q)) : ALL_PAGES;
+  }, [search]);
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search pages…" className="pl-8 h-8 text-sm" />
+      </div>
+      <div className="space-y-1 max-h-52 overflow-y-auto rounded-lg border border-border/40 p-1">
+        {filtered.map(p => {
+          const Icon = p.icon;
+          const isSelected = selectedId === p.id;
+          return (
+            <button key={p.id} type="button" onClick={() => onChange(p.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"
+              }`}>
+              {Icon && <Icon className="w-3.5 h-3.5 flex-shrink-0" />}
+              <span className="flex-1">{p.label}</span>
+              {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+            </button>
+          );
+        })}
+        {filtered.length === 0 && <p className="text-xs text-muted-foreground px-2 py-3 text-center">No matches</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Contact picker ────────────────────────────────────────────────────────────
+function ContactPicker({ contacts, selectedId, onChange }) {
+  const [search, setSearch] = useState("");
+  const filtered = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    const list = contacts.filter(c => !c.is_archived);
+    return q ? list.filter(c => contactDisplayName(c).toLowerCase().includes(q)) : list;
+  }, [search, contacts]);
+
+  if (contacts.length === 0)
+    return <p className="text-xs text-muted-foreground">No contacts yet. Add one from the Contacts page.</p>;
+
+  return (
+    <div className="space-y-2">
+      <div className="relative">
+        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+        <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search contacts…" className="pl-8 h-8 text-sm" />
+      </div>
+      <div className="space-y-1 max-h-48 overflow-y-auto rounded-lg border border-border/40 p-1">
+        {filtered.map(c => {
+          const isSelected = selectedId === c.id;
+          return (
+            <button key={c.id} type="button" onClick={() => onChange(c.id)}
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm transition-colors text-left ${
+                isSelected ? "bg-primary/10 text-primary font-medium" : "hover:bg-muted/40 text-foreground"
+              }`}>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: c.color || "#0ea5e9" }} />
+              <span className="flex-1">{contactDisplayName(c)}</span>
+              {isSelected && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+            </button>
+          );
+        })}
+        {filtered.length === 0 && <p className="text-xs text-muted-foreground px-2 py-3 text-center">No matches</p>}
+      </div>
+    </div>
+  );
+}
+
 // ── Diary field picker ────────────────────────────────────────────────────────
 function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onChange }) {
   return (
@@ -227,7 +302,7 @@ function DiaryFieldPicker({ diaryGroups, selectedGroupId, selectedFieldKey, onCh
 }
 
 // ── ActionForm ────────────────────────────────────────────────────────────────
-function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, diaryGroups, dailyTaskTemplates, onSave, onCancel, terms }) {
+function ActionForm({ initialData, alters, symptoms, activityCategories, customEmotions, diaryGroups, dailyTaskTemplates, contacts, onSave, onCancel, terms }) {
   const [data, setData] = useState(initialData || blankForm());
 
   const actionTypes = [
@@ -236,11 +311,17 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     { id: "set_front_alter", label: `Set a specific ${terms.alter} as ${terms.front} (replaces current)` },
     { id: "add_to_front_alter", label: `Add a specific ${terms.alter} to ${terms.front} (keeps current)` },
     { id: "log_activity", label: "Log an activity" },
+    { id: "start_activity", label: "Start an activity now (active timer)" },
     { id: "log_symptom", label: "Log a symptom or habit" },
     { id: "log_emotion", label: "Log an emotion" },
     { id: "log_diary", label: "Log a diary entry" },
     { id: "log_location", label: "Log a location" },
+    { id: "mark_contact_with", label: "Mark a contact as currently with you" },
+    { id: "toggle_sleep", label: "Start / end sleep" },
+    { id: "set_status_note", label: "Post a quick status" },
+    { id: "add_task", label: "Add a to-do" },
     { id: "toggle_daily_task", label: "Toggle a daily task" },
+    { id: "navigate_to_page", label: "Open a page" },
     { id: "view_grocery_list", label: "View grocery list (privacy cover)" },
     { id: "add_grocery_item", label: "Add to grocery list" },
   ];
@@ -285,6 +366,21 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       const t = dailyTaskTemplates?.find(t => t.id === data.config?.task_id);
       return t ? applyTerms(t.title, terms) : "Daily task";
     }
+    if (data.type === "start_activity") {
+      const c = activityCategories.find(c => c.id === data.config?.category_id);
+      return c ? `Start ${c.name}` : "Start activity";
+    }
+    if (data.type === "mark_contact_with") {
+      const c = contacts?.find(c => c.id === data.config?.contact_id);
+      return c ? `With ${contactDisplayName(c)}` : "Mark contact with you";
+    }
+    if (data.type === "toggle_sleep") return "Start / end sleep";
+    if (data.type === "set_status_note") return "Quick status";
+    if (data.type === "add_task") return "Add a to-do";
+    if (data.type === "navigate_to_page") {
+      const p = ALL_PAGES.find(p => p.id === data.config?.page_id);
+      return p ? `Open ${p.label}` : "Open page";
+    }
     return data.type;
   };
 
@@ -296,6 +392,9 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
     if (data.type === "log_emotion" && !data.config?.emotion_label?.trim()) { toast.error("Choose an emotion"); return; }
     if (data.type === "log_diary" && !data.config?.field_data_key) { toast.error("Choose a diary field"); return; }
     if (data.type === "toggle_daily_task" && !data.config?.task_id) { toast.error("Choose a daily task"); return; }
+    if (data.type === "start_activity" && !data.config?.category_id) { toast.error("Choose an activity category"); return; }
+    if (data.type === "mark_contact_with" && !data.config?.contact_id) { toast.error("Choose a contact"); return; }
+    if (data.type === "navigate_to_page" && !data.config?.page_id) { toast.error("Choose a page"); return; }
     onSave({ ...data, label: derivedLabel(), emoji: null });
   };
 
@@ -342,6 +441,41 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
             <Input type="number" value={data.config?.duration_minutes || ""} onChange={e => setConfig("duration_minutes", e.target.value ? parseInt(e.target.value) : undefined)} placeholder="e.g. 15" className="h-8 text-sm" min="1" />
           </div>
         </div>
+      )}
+
+      {data.type === "start_activity" && (
+        <div>
+          <Label className="text-xs font-medium mb-1 block">Activity category</Label>
+          <ActivityCategoryPicker categories={sortedCategories} selectedId={data.config?.category_id || ""} onChange={id => setConfig("category_id", id || undefined)} />
+          <p className="text-xs text-muted-foreground mt-1">Starts an active timer immediately — no fronting picker, end it later from the dashboard.</p>
+        </div>
+      )}
+
+      {data.type === "mark_contact_with" && (
+        <div>
+          <Label className="text-xs font-medium mb-2 block">Which contact?</Label>
+          <ContactPicker contacts={contacts || []} selectedId={data.config?.contact_id} onChange={id => setConfig("contact_id", id)} />
+          <p className="text-xs text-muted-foreground mt-1">Tapping this toggles them currently "with you" on or off.</p>
+        </div>
+      )}
+
+      {data.type === "navigate_to_page" && (
+        <div>
+          <Label className="text-xs font-medium mb-2 block">Which page?</Label>
+          <PagePicker selectedId={data.config?.page_id} onChange={id => setConfig("page_id", id)} />
+        </div>
+      )}
+
+      {data.type === "toggle_sleep" && (
+        <p className="text-xs text-muted-foreground">Starts sleep now if none is in progress, or ends the in-progress one — no config needed.</p>
+      )}
+
+      {data.type === "set_status_note" && (
+        <p className="text-xs text-muted-foreground">Prompts for the status text when tapped — no config needed.</p>
+      )}
+
+      {data.type === "add_task" && (
+        <p className="text-xs text-muted-foreground">Prompts for the to-do title when tapped — no config needed.</p>
       )}
 
       {data.type === "log_symptom" && (
@@ -444,6 +578,7 @@ export default function QuickActionsConfig() {
   const { data: customEmotions = [] } = useQuery({ queryKey: ["customEmotions"], queryFn: () => base44.entities.CustomEmotion.list() });
   const { data: diaryTemplates = [] } = useQuery({ queryKey: ["diaryTemplate"], queryFn: () => base44.entities.DiaryTemplate.list() });
   const { data: allTaskTemplates = [] } = useQuery({ queryKey: ["dailyTaskTemplates"], queryFn: () => base44.entities.DailyTaskTemplate.list("sort_order", 200) });
+  const { data: contacts = [] } = useQuery({ queryKey: ["contacts"], queryFn: () => base44.entities.Contact.list() });
   const dailyTaskTemplates = useMemo(() => allTaskTemplates.filter(t => t.is_active !== false && t.mode === "MANUAL"), [allTaskTemplates]);
   const diaryGroups = useMemo(() => {
     const tpl = diaryTemplates[0];
@@ -499,6 +634,12 @@ export default function QuickActionsConfig() {
     toggle_daily_task: "Toggle daily task",
     view_grocery_list: "Grocery list",
     add_grocery_item: "Add to grocery list",
+    start_activity: "Start activity",
+    mark_contact_with: "Mark contact with you",
+    toggle_sleep: "Start / end sleep",
+    set_status_note: "Quick status",
+    add_task: "Add a to-do",
+    navigate_to_page: "Open a page",
   }[type] || type);
 
   return (
@@ -517,7 +658,7 @@ export default function QuickActionsConfig() {
 
       {adding && (
         <ActionForm alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-          diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
+          diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} contacts={contacts} terms={terms} onSave={handleAdd} onCancel={() => setAdding(false)} />
       )}
 
       {sorted.length === 0 && !adding && (
@@ -530,7 +671,7 @@ export default function QuickActionsConfig() {
             {editId === action.id ? (
               <ActionForm initialData={{ label: action.label, type: action.type, emoji: action.emoji || "", config: action.config || {} }}
                 alters={alters} symptoms={symptoms} activityCategories={activityCategories} customEmotions={customEmotions}
-                diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
+                diaryGroups={diaryGroups} dailyTaskTemplates={dailyTaskTemplates} contacts={contacts} terms={terms} onSave={handleEdit} onCancel={() => setEditId(null)} />
             ) : (
               <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/20 border border-border/30 group">
                 <div className="flex-1 min-w-0">

@@ -40,7 +40,7 @@ function formatDateLabel(iso) {
 // (target + unit), a note/description, plus Pin-to-dashboard and Mark-urgent
 // toggles. Minimal by default; tapping in expands to the optional pills so it
 // isn't overwhelming. Creating it posts the matching task-bulletin.
-export default function QuickTaskComposer({ frontingAlterIds = [], onSaved }) {
+export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hideCancelButton = false }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
@@ -172,9 +172,11 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved }) {
             <Button onClick={handleSave} disabled={!title.trim() || saving} size="sm" className="rounded-full px-3 flex-shrink-0 bg-primary">
               {justSaved ? <><Check className="w-4 h-4 mr-1" /> Added</> : <><Plus className="w-4 h-4 mr-1" /> Add</>}
             </Button>
-            <button type="button" onClick={collapse} aria-label="Cancel" className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1">
-              <X className="w-4 h-4" />
-            </button>
+            {!hideCancelButton && (
+              <button type="button" onClick={collapse} aria-label="Cancel" className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1">
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </>
         ) : (
           justSaved && (

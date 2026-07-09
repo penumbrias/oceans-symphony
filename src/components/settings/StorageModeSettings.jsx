@@ -8,6 +8,7 @@ import {
   isEncryptionEnabled, setEncryptionEnabled,
 } from "@/lib/storageMode";
 import { enableEncryption, disableEncryption, clearStoredData } from "@/lib/localDb";
+import PersistentStorageStatus from "./PersistentStorageStatus";
 
 export default function StorageModeSettings() {
   const encEnabled = isEncryptionEnabled();
@@ -155,6 +156,10 @@ export default function StorageModeSettings() {
               </p>
             </div>
           </details>
+        </div>
+
+        <div className="rounded-xl border border-border/40 p-3">
+          <PersistentStorageStatus />
         </div>
 
         {/* Encryption controls */}

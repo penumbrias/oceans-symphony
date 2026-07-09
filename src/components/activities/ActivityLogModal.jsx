@@ -6,10 +6,12 @@ import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { format, differenceInMinutes } from "date-fns";
 import { toast } from "sonner";
-import { UserPlus, X, Play } from "lucide-react";
+import { UserPlus, Users, X, Play } from "lucide-react";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import MentionTextarea from "@/components/shared/MentionTextarea";
 import SetFrontModal from "@/components/fronting/SetFrontModal";
+import ContactMultiSelect from "@/components/contacts/ContactMultiSelect";
+import { contactDisplayName } from "@/lib/contacts";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { applyWhisper } from "@/lib/whisperUtils";
@@ -57,6 +59,18 @@ function SelectedFronterChip({ alter, label, onRemove }) {
   );
 }
 
+// Contact-selection equivalent of SelectedFronterChip — no avatar resolution
+// needed since Contact display here is name-only, matching CurrentContacts.
+function SelectedContactChip({ contact, onRemove }) {
+  return (
+    <span className="inline-flex items-center gap-1.5 pl-2 pr-1.5 py-0.5 rounded-full border border-border bg-muted/30 text-xs">
+      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: contact?.color || "#0ea5e9" }} />
+      <span className="truncate max-w-[140px]">{contactDisplayName(contact)}</span>
+      <button type="button" onClick={onRemove} aria-label="Remove" className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+    </span>
+  );
+}
+
 export default function ActivityLogModal({
   isOpen,
   onClose,
@@ -80,6 +94,8 @@ export default function ActivityLogModal({
   const [startTime, setStartTime] = useState("");
   const [endTime, setEndTime] = useState("");
   const [selectedAlters, setSelectedAlters] = useState([]);
+  const [selectedContactIds, setSelectedContactIds] = useState([]);
+  const [contactsPickerOpen, setContactsPickerOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   // Quick-duration presets: which end stays fixed when a preset is applied.
@@ -136,27 +152,21 @@ export default function ActivityLogModal({
     setSelectedActivityCategories([]);
     setNotes("");
     setActiveMode(false);
+    setSelectedContactIds([]);
   }, [isOpen, startDateProp, endDateProp, startHour, endHour, startMinute, endMinute]);
 
-  // Turning "Active" on snaps the start to now (still adjustable) and
-  // pre-selects whoever is currently fronting.
-  const enableActiveMode = async (on) => {
+  // Turning "Active" on snaps the start to now (still adjustable) and clears
+  // any fronting selection — the fronting picker is hidden entirely in this
+  // mode (matches the minimal Start Activity dashboard button's explicit
+  // "no fronting picker" design), so nothing should be silently attributed
+  // behind the scenes either.
+  const enableActiveMode = (on) => {
     setActiveMode(on);
     if (!on) return;
     const now = new Date();
     setSelectedDateStr(format(now, "yyyy-MM-dd"));
     setStartTime(format(now, "HH:mm"));
-    try {
-      const sessions = await base44.entities.FrontingSession.filter({ is_active: true });
-      const ids = new Set();
-      sessions.forEach((s) => {
-        if (s.is_primary && s.alter_id) ids.add(s.alter_id);
-        if (s.alter_id) ids.add(s.alter_id);
-        if (s.primary_alter_id) ids.add(s.primary_alter_id);
-        (s.co_fronter_ids || []).forEach((id) => ids.add(id));
-      });
-      if (ids.size) setSelectedAlters(Array.from(ids));
-    } catch { /* no fronters — leave selection as-is */ }
+    setSelectedAlters([]);
   };
 
   // Auto-populate alters from fronting history. Stable date key avoids
@@ -198,6 +208,11 @@ export default function ActivityLogModal({
   }, [startDate, endDate, startTime, endTime]);
 
   const altersById = useMemo(() => Object.fromEntries((alters || []).map((a) => [a.id, a])), [alters]);
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => base44.entities.Contact.list(),
+  });
+  const contactsById = useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
 
   // Apply a quick duration. Anchored on END (default) → moves START back by n;
   // anchored on START → moves END forward by n. Handles day rollover.
@@ -253,6 +268,7 @@ export default function ActivityLogModal({
         color: cat?.color || null,
         startTime: parseTimeToDate(startDate, startTime).toISOString(),
         alterIds: selectedAlters,
+        contactIds: selectedContactIds,
         notes: finalNotes || "",
       });
       setSelectedActivityCategories([]);
@@ -279,6 +295,7 @@ export default function ActivityLogModal({
           ...(cat?.color ? { color: cat.color } : {}),
           duration_minutes: durationMinutes > 0 ? durationMinutes : null,
           fronting_alter_ids: selectedAlters,
+          contact_ids: selectedContactIds,
           notes: finalNotes || null,
           is_planned: false,
           status: ACTIVITY_STATUSES.LOGGED,
@@ -377,119 +394,145 @@ export default function ActivityLogModal({
             <Switch checked={activeMode} onCheckedChange={enableActiveMode} />
           </label>
 
-          {/* Start {!activeMode && "/ end"} date */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">Start date</label>
-              <input
-                type="date"
-                value={selectedDateStr}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setSelectedDateStr(v);
-                  // Push the end date forward if it now precedes the start.
-                  if (!endDateStr || endDateStr < v) setEndDateStr(v);
-                }}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            {!activeMode && (
-              <div className="flex-1">
-                <label className="text-sm font-medium block mb-1">End date</label>
-                <input
-                  type="date"
-                  value={endDateStr}
-                  min={selectedDateStr || undefined}
-                  onChange={(e) => setEndDateStr(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                />
-              </div>
-            )}
-          </div>
-
-          {/* Start {!activeMode && "/ end"} time + duration */}
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
+          {activeMode ? (
+            /* Active mode collapses to a single combined field — matches the
+               minimal Start Activity dashboard button's own layout, since
+               they're the same "start now" flow reached from two doors. */
+            <div>
               <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
-                <span>Start time</span>
+                <span>Start time <span className="text-destructive">*</span></span>
                 <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
                   className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
               </label>
               <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
+                type="datetime-local"
+                value={selectedDateStr && startTime ? `${selectedDateStr}T${startTime}` : ""}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (!v) return;
+                  const [d, t] = v.split("T");
+                  setSelectedDateStr(d);
+                  setStartTime(t);
+                }}
                 className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
               />
             </div>
-            {!activeMode && (
-              <div className="flex-1">
-                <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
-                  <span>
-                    End time
-                    {isCrossDay && endDate && (
-                      <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
-                    )}
-                  </span>
-                  <button type="button" onClick={() => { const n = new Date(); setEndDateStr(format(n, "yyyy-MM-dd")); setEndTime(format(n, "HH:mm")); }}
-                    className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
-                </label>
-                <input
-                  type="time"
-                  value={endTime}
-                  onChange={(e) => setEndTime(e.target.value)}
-                  className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-                />
+          ) : (
+            <>
+              {/* Start / end date */}
+              <div className="flex gap-3">
+                <div className="flex-1">
+                  <label className="text-sm font-medium block mb-1">Start date</label>
+                  <input
+                    type="date"
+                    value={selectedDateStr}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setSelectedDateStr(v);
+                      // Push the end date forward if it now precedes the start.
+                      if (!endDateStr || endDateStr < v) setEndDateStr(v);
+                    }}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium block mb-1">End date</label>
+                  <input
+                    type="date"
+                    value={endDateStr}
+                    min={selectedDateStr || undefined}
+                    onChange={(e) => setEndDateStr(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
               </div>
-            )}
-            {!activeMode && durationMinutes > 0 && (
-              <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
-                {durationMinutes >= 60
-                  ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
-                  : `${durationMinutes}m`}
-              </div>
-            )}
-          </div>
 
-          {/* Quick-duration presets. The "from end/start" toggle on the right
-              decides which time stays fixed — e.g. "30m" from end sets the
-              start to (end − 30m). */}
-          {!activeMode && (
-          <div className="flex items-center gap-1.5 flex-wrap">
-            {[{ l: "1hr", m: 60 }, { l: "30m", m: 30 }, { l: "15m", m: 15 }].map((p) => (
-              <button key={p.l} type="button" onClick={() => applyDuration(p.m)}
-                className="px-2.5 h-7 rounded-md border border-border text-xs text-foreground hover:bg-muted/50 transition-colors">
-                {p.l}
-              </button>
-            ))}
-            <div className="flex items-center rounded-md border border-border overflow-hidden h-7">
-              <input type="number" min="1" inputMode="numeric" value={customAmt}
-                onChange={(e) => setCustomAmt(e.target.value)}
-                onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCustom(); } }}
-                placeholder="—" className="w-10 h-full px-1.5 text-xs bg-background outline-none text-center" aria-label="Custom amount" />
-              <button type="button" onClick={() => setCustomUnit((u) => (u === "m" ? "h" : "m"))}
-                className="px-1.5 h-full text-xs border-l border-border bg-muted/30 text-muted-foreground" title="Toggle minutes / hours">
-                {customUnit === "m" ? "min" : "hr"}
-              </button>
-              <button type="button" onClick={applyCustom}
-                className="px-2 h-full text-xs border-l border-border bg-primary/10 text-primary font-medium">set</button>
-            </div>
-            <button type="button" onClick={() => setPresetAnchor((a) => (a === "end" ? "start" : "end"))}
-              className="ml-auto px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
-              title="Which time the presets keep fixed">
-              from <span className="font-medium text-foreground">{presetAnchor}</span>
-            </button>
-          </div>
+              {/* Start / end time + duration */}
+              <div className="flex gap-3 items-end">
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
+                    <span>Start time <span className="text-destructive">*</span></span>
+                    <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
+                      className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
+                    <span>
+                      End time
+                      {isCrossDay && endDate && (
+                        <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
+                      )}
+                    </span>
+                    <button type="button" onClick={() => { const n = new Date(); setEndDateStr(format(n, "yyyy-MM-dd")); setEndTime(format(n, "HH:mm")); }}
+                      className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
+                  />
+                </div>
+                {durationMinutes > 0 && (
+                  <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
+                    {durationMinutes >= 60
+                      ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
+                      : `${durationMinutes}m`}
+                  </div>
+                )}
+              </div>
+
+              {/* Quick-duration presets. The "from end/start" toggle on the
+                  right decides which time stays fixed — e.g. "30m" from end
+                  sets the start to (end − 30m). */}
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[{ l: "1hr", m: 60 }, { l: "30m", m: 30 }, { l: "15m", m: 15 }].map((p) => (
+                  <button key={p.l} type="button" onClick={() => applyDuration(p.m)}
+                    className="px-2.5 h-7 rounded-md border border-border text-xs text-foreground hover:bg-muted/50 transition-colors">
+                    {p.l}
+                  </button>
+                ))}
+                <div className="flex items-center rounded-md border border-border overflow-hidden h-7">
+                  <input type="number" min="1" inputMode="numeric" value={customAmt}
+                    onChange={(e) => setCustomAmt(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); applyCustom(); } }}
+                    placeholder="—" className="w-10 h-full px-1.5 text-xs bg-background outline-none text-center" aria-label="Custom amount" />
+                  <button type="button" onClick={() => setCustomUnit((u) => (u === "m" ? "h" : "m"))}
+                    className="px-1.5 h-full text-xs border-l border-border bg-muted/30 text-muted-foreground" title="Toggle minutes / hours">
+                    {customUnit === "m" ? "min" : "hr"}
+                  </button>
+                  <button type="button" onClick={applyCustom}
+                    className="px-2 h-full text-xs border-l border-border bg-primary/10 text-primary font-medium">set</button>
+                </div>
+                <button type="button" onClick={() => setPresetAnchor((a) => (a === "end" ? "start" : "end"))}
+                  className="ml-auto px-2.5 h-7 rounded-md border border-border text-xs text-muted-foreground hover:bg-muted/50 transition-colors"
+                  title="Which time the presets keep fixed">
+                  from <span className="font-medium text-foreground">{presetAnchor}</span>
+                </button>
+              </div>
+            </>
           )}
 
           {/* Activity categories */}
           <ActivityPillSelector
             selectedActivities={selectedActivityCategories}
             onActivityChange={setSelectedActivityCategories}
+            required
           />
 
           {/* Alters — reuses the standard Set Fronters modal in selection mode
-              (same picker as "Choose who's near" in system meetings). */}
+              (same picker as "Choose who's near" in system meetings). Hidden
+              entirely in Active mode — matches the minimal Start Activity
+              dashboard button's explicit "no fronting picker" design, since
+              they're the same flow reached from two doors. */}
+          {!activeMode && (
           <div>
             <label className="text-sm font-medium text-foreground mb-2 block">
               Who was {terms.fronting}?
@@ -512,13 +555,13 @@ export default function ActivityLogModal({
                 })}
               </div>
             )}
-            {!activeMode && selectedAlters.length > 0 && (
+            {selectedAlters.length > 0 && (
               <label className="flex items-center justify-between gap-2 mt-2.5 px-1 cursor-pointer">
                 <span className="text-sm text-foreground">Still {terms.fronting} now</span>
                 <Switch checked={stillFronting} onCheckedChange={setStillFronting} />
               </label>
             )}
-            {!activeMode && selectedAlters.length > 0 && (
+            {selectedAlters.length > 0 && (
               <p className="text-xs text-muted-foreground px-1 mt-1">
                 {stillFronting
                   ? `They'll stay on ${terms.front} after saving (an open ${terms.fronting} session).`
@@ -526,10 +569,38 @@ export default function ActivityLogModal({
               </p>
             )}
           </div>
+          )}
+
+          {/* Contacts — same idea as the alters picker above, but for
+              external people. Purely descriptive (Activity.contact_ids);
+              doesn't touch ContactEncounter/"currently with" state. */}
+          <div>
+            <label className="text-sm font-medium text-foreground mb-2 block">
+              Who are you with?
+              {selectedContactIds.length > 0 && (
+                <span className="text-xs font-normal text-muted-foreground ml-2">
+                  ({selectedContactIds.length} selected)
+                </span>
+              )}
+            </label>
+            <Button type="button" variant="outline" onClick={() => setContactsPickerOpen(true)} className="w-full gap-2">
+              <Users className="w-4 h-4" />
+              {selectedContactIds.length > 0 ? "Add or remove contacts" : "Choose who you were with…"}
+            </Button>
+            {selectedContactIds.length > 0 && (
+              <div className="flex flex-wrap gap-1.5 mt-2">
+                {selectedContactIds.map((id) => {
+                  const c = contactsById[id];
+                  if (!c) return null;
+                  return <SelectedContactChip key={id} contact={c} onRemove={() => setSelectedContactIds((prev) => prev.filter((x) => x !== id))} />;
+                })}
+              </div>
+            )}
+          </div>
 
           {/* Notes */}
           <div>
-            <label className="text-sm font-medium text-foreground">Notes — Optional</label>
+            <label className="text-sm font-medium text-foreground">Notes</label>
             <MentionTextarea
               value={notes}
               onChange={setNotes}
@@ -556,6 +627,12 @@ export default function ActivityLogModal({
             preselectedIds={selectedAlters}
             onConfirm={(ids) => setSelectedAlters(ids)}
             confirmLabel="Add to activity"
+          />
+          <ContactMultiSelect
+            isOpen={contactsPickerOpen}
+            onClose={() => setContactsPickerOpen(false)}
+            selectedContactIds={selectedContactIds}
+            onChange={setSelectedContactIds}
           />
         </div>
       </DialogContent>

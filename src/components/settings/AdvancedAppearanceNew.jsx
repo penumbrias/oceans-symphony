@@ -10,10 +10,12 @@ import {
 import { isExtraFontsInstalled, installExtraFonts, uninstallExtraFonts } from '@/lib/fontPacks';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
-import { X, ChevronDown, Search, Check, Trash2, Unlink, Save, Download, Loader2 } from 'lucide-react';
+import { X, ChevronDown, Search, Check, Trash2, Unlink, Save, Download, Loader2, Upload, Info } from 'lucide-react';
 import { toast } from 'sonner';
 import { useTerms } from '@/lib/useTerms';
 import '@/lib/editorFonts.js'; // ensure all bundled fonts are loaded
+import { saveLocalFont, deleteLocalFont, fileToDataUrl, sniffFontFormat, MAX_FONT_SIZE_BYTES } from '@/lib/localFontStorage';
+import { refreshCustomFontFaces, customFontFamilyCss } from '@/lib/customFontFaces';
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from '@/lib/waveColorKey';
 import { SubSection } from '@/components/settings/SettingsUI';
 import { UiSizeControl, TouchTargetControl, NavHeightControl } from './DisplaySizeControls';
@@ -83,7 +85,7 @@ function AnchoredPortal({ anchorRef, open, onClose, align = 'left', width, maxHe
 }
 
 // ── Font Picker ──────────────────────────────────────────────────────────────
-function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolveCurrent }) {
+function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolveCurrent, onDeleteCustom }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const inputRef = useRef(null);
@@ -158,7 +160,21 @@ function FontPicker({ currentFont, onSelect, options = APP_FONT_OPTIONS, resolve
                     style={{ fontFamily: previewFontFor(f) }}
                   >
                     <span>{f.label}</span>
-                    {isSelected(f) && <Check className="w-3.5 h-3.5 flex-shrink-0" />}
+                    <span className="flex items-center gap-1.5 flex-shrink-0">
+                      {isSelected(f) && <Check className="w-3.5 h-3.5" />}
+                      {f.isCustom && onDeleteCustom && (
+                        <span
+                          role="button"
+                          tabIndex={0}
+                          onClick={(e) => { e.stopPropagation(); onDeleteCustom(f.customFontId); }}
+                          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onDeleteCustom(f.customFontId); } }}
+                          title="Delete this uploaded font"
+                          className="p-1 rounded hover:bg-destructive/10 hover:text-destructive"
+                        >
+                          <Trash2 className="w-3 h-3" />
+                        </span>
+                      )}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -423,6 +439,106 @@ export default function AdvancedAppearance() {
   const headingFontOptions = useMemo(
     () => extraInstalled ? [...HEADING_FONT_OPTIONS, ...EXTRA_FONT_OPTIONS] : HEADING_FONT_OPTIONS,
     [extraInstalled]);
+
+  // User-uploaded fonts — appended to both pickers under their own "Your
+  // uploads" category.
+  const { data: customFonts = [] } = useQuery({
+    queryKey: ['customFonts'],
+    queryFn: () => base44.entities.CustomFont.list(),
+  });
+  const customFontOptions = useMemo(() => customFonts.map(f => ({
+    label: f.display_name,
+    value: customFontFamilyCss(f.id),
+    category: 'custom',
+    isCustom: true,
+    customFontId: f.id,
+  })), [customFonts]);
+  const appFontOptionsWithCustom = useMemo(
+    () => [...appFontOptions, ...customFontOptions], [appFontOptions, customFontOptions]);
+  const headingFontOptionsWithCustom = useMemo(
+    () => [...headingFontOptions, ...customFontOptions], [headingFontOptions, customFontOptions]);
+
+  const [uploadingFont, setUploadingFont] = useState(false);
+  const fontFileInputRef = useRef(null);
+  const [showFontPackInfo, setShowFontPackInfo] = useState(false);
+  const fontPackInfoRef = useRef(null);
+
+  const processFontFile = async (file) => {
+    if (!file) return;
+    if (file.size > MAX_FONT_SIZE_BYTES) {
+      toast.error("Font files must be 5MB or smaller.");
+      return;
+    }
+    setUploadingFont(true);
+    try {
+      const format = await sniffFontFormat(file);
+      if (!format) {
+        toast.error("That doesn't look like a valid font file (.ttf/.otf/.woff/.woff2).");
+        return;
+      }
+      const dataUrl = await fileToDataUrl(file);
+      const displayName = (file.name || "Custom font").replace(/\.[^.]+$/, '');
+      const record = await base44.entities.CustomFont.create({
+        display_name: displayName,
+        format,
+        mime: file.type || `font/${format}`,
+        size_bytes: file.size,
+      });
+      await saveLocalFont(record.id, dataUrl);
+      await refreshCustomFontFaces();
+      qc.invalidateQueries({ queryKey: ['customFonts'] });
+      toast.success(`"${displayName}" uploaded`);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't upload that font");
+    } finally {
+      setUploadingFont(false);
+    }
+  };
+
+  const handleUploadFontClick = async () => {
+    if (isNative()) {
+      try {
+        const { FilePicker } = await import('@capawesome/capacitor-file-picker');
+        const res = await FilePicker.pickFiles({ readData: true });
+        const picked = res?.files?.[0];
+        if (!picked) return;
+        // Native returns base64 data, not a File — reconstruct one so the
+        // rest of the pipeline (size/type checks, magic-byte sniff,
+        // fileToDataUrl) stays identical to the web path.
+        const byteChars = atob(picked.data);
+        const bytes = new Uint8Array(byteChars.length);
+        for (let i = 0; i < byteChars.length; i++) bytes[i] = byteChars.charCodeAt(i);
+        const file = new File([bytes], picked.name || 'font', { type: picked.mimeType || '' });
+        await processFontFile(file);
+      } catch (e) {
+        toast.error(e?.message || "Couldn't open the file picker");
+      }
+    } else {
+      fontFileInputRef.current?.click();
+    }
+  };
+
+  const handleDeleteCustomFont = async (id) => {
+    try {
+      const deletedFamily = customFontFamilyCss(id);
+      await base44.entities.CustomFont.delete(id);
+      await deleteLocalFont(id);
+      await refreshCustomFontFaces();
+      qc.invalidateQueries({ queryKey: ['customFonts'] });
+      // If the deleted font was actively selected, fall back so the app
+      // never points --font-sans/--font-display at a family that no
+      // longer exists.
+      if (currentFont === deletedFamily) {
+        handleFontSelect(APP_FONT_OPTIONS[0].value);
+      }
+      if (currentHeadingFont === deletedFamily) {
+        handleHeadingFontSelect('default');
+      }
+      toast.success("Font deleted");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't delete that font");
+    }
+  };
 
   const handleInstallExtraFonts = async () => {
     setInstallingFonts(true);
@@ -705,29 +821,80 @@ export default function AdvancedAppearance() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Font family</p>
           <div className="flex items-stretch gap-2">
             <div className="flex-1 min-w-0">
-              <FontPicker currentFont={currentFont} onSelect={handleFontSelect} options={appFontOptions} />
+              <FontPicker
+                currentFont={currentFont}
+                onSelect={handleFontSelect}
+                options={appFontOptionsWithCustom}
+                resolveCurrent={(v) => appFontOptionsWithCustom.find(f => f.value === v) || appFontOptionsWithCustom[0]}
+                onDeleteCustom={handleDeleteCustomFont}
+              />
             </div>
             {extraInstalled ? (
               <button
                 type="button"
                 onClick={handleRemoveExtraFonts}
                 title="Remove the downloaded extra fonts"
-                className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-3 rounded-xl border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
+                aria-label="Remove the downloaded extra fonts"
+                className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl border border-border/60 text-muted-foreground hover:text-destructive hover:border-destructive/40"
               >
-                <Trash2 className="w-3.5 h-3.5" /> Remove fonts
+                <Trash2 className="w-4 h-4" />
               </button>
             ) : (
-              <button
-                type="button"
-                onClick={handleInstallExtraFonts}
-                disabled={installingFonts}
-                title="Download 14 more fonts (one-time, needs internet)"
-                className="flex-shrink-0 inline-flex items-center gap-1.5 text-xs px-3 rounded-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
-              >
-                {installingFonts ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Download className="w-3.5 h-3.5" />}
-                {installingFonts ? "Downloading…" : "More fonts"}
-              </button>
+              <div className="relative flex-shrink-0 flex items-stretch">
+                <button
+                  type="button"
+                  onClick={handleInstallExtraFonts}
+                  disabled={installingFonts}
+                  title="Download 14 more fonts (one-time, needs internet)"
+                  aria-label="Download 14 more fonts"
+                  className="inline-flex items-center justify-center w-9 h-9 rounded-l-xl bg-primary text-white hover:bg-primary/90 disabled:opacity-60"
+                >
+                  {installingFonts ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+                </button>
+                <button
+                  ref={fontPackInfoRef}
+                  type="button"
+                  onClick={() => setShowFontPackInfo(v => !v)}
+                  title="What's in this font pack?"
+                  aria-label="What's in this font pack?"
+                  className="inline-flex items-center justify-center w-6 h-9 rounded-r-xl bg-primary text-white/80 hover:text-white border-l border-white/20"
+                >
+                  <Info className="w-3.5 h-3.5" />
+                </button>
+                <AnchoredPortal anchorRef={fontPackInfoRef} open={showFontPackInfo} onClose={() => setShowFontPackInfo(false)} align="right" width={260}>
+                  <div className="bg-background border-2 border-border rounded-xl shadow-2xl p-3 text-xs text-muted-foreground leading-relaxed space-y-1.5">
+                    <p className="text-foreground font-medium">Not about languages</p>
+                    <p>
+                      This downloads 14 extra decorative fonts (like Bebas Neue, Josefin Sans,
+                      Permanent Marker) for regular English/Latin text — not new language or
+                      script support. They're kept out of the app's default download to keep
+                      it smaller.
+                    </p>
+                    <p>
+                      Fonts for other scripts (Korean, Japanese, Arabic, etc.) are already
+                      included in the font list above — no download needed.
+                    </p>
+                  </div>
+                </AnchoredPortal>
+              </div>
             )}
+            <button
+              type="button"
+              onClick={handleUploadFontClick}
+              disabled={uploadingFont}
+              title="Upload your own font file (.ttf, .otf, .woff, .woff2 — 5MB max)"
+              aria-label="Upload your own font file"
+              className="flex-shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-xl border border-border/60 text-muted-foreground hover:text-foreground hover:border-foreground/40 disabled:opacity-60"
+            >
+              {uploadingFont ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
+            </button>
+            <input
+              ref={fontFileInputRef}
+              type="file"
+              accept=".ttf,.otf,.woff,.woff2"
+              className="hidden"
+              onChange={(e) => { processFontFile(e.target.files?.[0]); e.target.value = ''; }}
+            />
           </div>
         </div>
         <div className="space-y-1.5">
@@ -735,12 +902,13 @@ export default function AdvancedAppearance() {
           <FontPicker
             currentFont={currentHeadingFont}
             onSelect={handleHeadingFontSelect}
-            options={headingFontOptions}
-            resolveCurrent={(v) => headingFontOptions.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
+            options={headingFontOptionsWithCustom}
+            resolveCurrent={(v) => headingFontOptionsWithCustom.find(f => f.value === v) || HEADING_FONT_OPTIONS[0]}
+            onDeleteCustom={handleDeleteCustomFont}
           />
         </div>
         <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-          Body text uses the font family; headings and the app name use the heading font.
+          Body text uses the font family; headings and the app name use the heading font. Upload your own .ttf/.otf/.woff/.woff2 file (5MB max) to use a font that isn't in the list — it'll show up in both pickers above.
         </p>
       </div>
 

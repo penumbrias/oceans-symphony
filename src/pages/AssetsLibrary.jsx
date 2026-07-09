@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -32,6 +33,16 @@ function autoFolderFor(id) {
   return PREFIX_FOLDERS[String(id).split("-")[0]] || "Other";
 }
 
+// Images uploaded into a specific alter's rotation pool (owner_alter_id set
+// on the ImageAsset) get synthesized into their own folder here, labeled by
+// the owning alter's CURRENT name (resolved live, not baked in, so a later
+// rename doesn't orphan the group) rather than the manual `folder` string
+// those images don't use.
+const ALTER_FOLDER_PREFIX = "👤 ";
+function folderIdAttr(folder) {
+  return `asset-folder-${encodeURIComponent(folder)}`;
+}
+
 const ORDER_KEY = "asset_folder_order_v1";     // user-created folder order (incl. empty)
 const COLLAPSED_KEY = "asset_collapsed_folders_v1";
 const PAGE = 24; // lazy-load page size per folder
@@ -51,7 +62,7 @@ function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
       {item.isGif && <span className="absolute top-1 left-1 text-[0.5rem] font-bold px-1 rounded bg-black/60 text-white">GIF</span>}
       <p className="text-[0.625rem] text-muted-foreground truncate mt-0.5 px-0.5">{item.name}</p>
       <div className="mt-1 flex items-center justify-center gap-1">
-        {item.asset ? (
+        {item.asset?.owner_alter_id ? null : item.asset ? (
           <>
             <button type="button" onClick={() => onRename(item)} title="Rename" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><Pencil className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => onMove(item)} title="Move to folder" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><FolderInput className="w-3.5 h-3.5" /></button>
@@ -67,6 +78,7 @@ function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
 
 export default function AssetsLibrary() {
   const qc = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [rawImages, setRawImages] = useState({});
   const [loadingImages, setLoadingImages] = useState(true);
   const [search, setSearch] = useState("");
@@ -85,6 +97,37 @@ export default function AssetsLibrary() {
     queryKey: ["imageAssets"],
     queryFn: () => base44.entities.ImageAsset.list("-created_date"),
   });
+
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+  });
+  const alterNameById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])), [alters]);
+  const alterFolderName = (alterId) => `${ALTER_FOLDER_PREFIX}${alterNameById[alterId] || "Unknown alter"}`;
+
+  // Deep link from an alter's edit screen (?alter=<id>) — default-open and
+  // scroll to that alter's synthesized folder, then strip the param so a
+  // refresh/back-nav doesn't re-fire.
+  useEffect(() => {
+    const alterId = searchParams.get("alter");
+    if (!alterId || loadingImages || alters.length === 0) return;
+    const folderName = alterFolderName(alterId);
+    setCollapsed((s) => {
+      if (!s.has(folderName)) return s;
+      const n = new Set(s);
+      n.delete(folderName);
+      return n;
+    });
+    requestAnimationFrame(() => {
+      document.getElementById(folderIdAttr(folderName))?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("alter");
+      return next;
+    }, { replace: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams, loadingImages, alters.length]);
 
   const loadImages = async () => {
     setLoadingImages(true);
@@ -109,7 +152,7 @@ export default function AssetsLibrary() {
         url: `/local-image/${encodeURIComponent(id)}`,
         asset: asset || null,
         name: asset?.name || id,
-        folder: (asset?.folder || "").trim() || autoFolderFor(id),
+        folder: asset?.owner_alter_id ? alterFolderName(asset.owner_alter_id) : ((asset?.folder || "").trim() || autoFolderFor(id)),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
       });
     }
@@ -118,11 +161,13 @@ export default function AssetsLibrary() {
       if (lid && rawImages[lid] !== undefined) continue;
       out.push({
         key: `asset-${a.id}`, id: a.id, url: a.image_url, asset: a,
-        name: a.name || "Image", folder: (a.folder || "").trim() || "Library uploads", isGif: !!a.is_gif,
+        name: a.name || "Image",
+        folder: a.owner_alter_id ? alterFolderName(a.owner_alter_id) : ((a.folder || "").trim() || "Library uploads"),
+        isGif: !!a.is_gif,
       });
     }
     return out;
-  }, [rawImages, assets, assetByImageId]);
+  }, [rawImages, assets, assetByImageId, alterNameById]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -136,19 +181,22 @@ export default function AssetsLibrary() {
     const map = {};
     for (const it of filtered) (map[it.folder] ||= []).push(it);
 
-    const userFromItems = [...new Set(filtered.map((i) => i.folder).filter((f) => !AUTO_FOLDERS.has(f)))];
+    const isAlterFolder = (f) => f.startsWith(ALTER_FOLDER_PREFIX);
+    const userFromItems = [...new Set(filtered.map((i) => i.folder).filter((f) => !AUTO_FOLDERS.has(f) && !isAlterFolder(f)))];
     const userNames = [...folderOrder];
     for (const n of userFromItems) if (!userNames.includes(n)) userNames.push(n);
+
+    const alterFolderNames = Object.keys(map).filter(isAlterFolder).sort((a, b) => a.localeCompare(b));
 
     const autoNames = Object.keys(map)
       .filter((f) => AUTO_FOLDERS.has(f))
       .sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
 
-    return { byFolder: map, orderedFolders: [...userNames, ...autoNames] };
+    return { byFolder: map, orderedFolders: [...userNames, ...alterFolderNames, ...autoNames] };
   }, [filtered, folderOrder]);
 
   const toggleCollapse = (name) => setCollapsed((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
-  const isUser = (name) => !AUTO_FOLDERS.has(name);
+  const isUser = (name) => !AUTO_FOLDERS.has(name) && !name.startsWith(ALTER_FOLDER_PREFIX);
 
   const createFolder = () => {
     const name = window.prompt("New folder name:")?.trim();
@@ -286,7 +334,7 @@ export default function AssetsLibrary() {
             const limit = limits[folder] || PAGE;
             const userFolder = isUser(folder);
             return (
-              <div key={folder} className="rounded-xl border border-border/40 overflow-hidden">
+              <div key={folder} id={folderIdAttr(folder)} className="rounded-xl border border-border/40 overflow-hidden">
                 <div className="flex items-center gap-1 px-2 py-2 bg-muted/20">
                   <button type="button" onClick={() => toggleCollapse(folder)} className="flex items-center gap-1.5 flex-1 min-w-0 text-left">
                     {open ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
