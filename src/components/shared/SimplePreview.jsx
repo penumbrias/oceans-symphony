@@ -14,7 +14,14 @@ function sanitizeBlockHtml(html) {
   // Allow data-* attributes so internal-link / data-edit hooks keep working.
   // Also turn ||spoiler|| markers into censor bars (DOMPurify keeps the
   // class; the global tap handler + .spoiler CSS do the reveal).
-  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"] });
+  //
+  // ADD_TAGS:["style"] — Raw mode is documented to support <style> blocks and
+  // CSS animations, but DOMPurify strips <style> by default, so any bio using
+  // @keyframes rendered as static (the animation: property survived but its
+  // keyframes were gone). Allow <style>; DOMPurify still sanitises the CSS
+  // (drops @import / expression() / javascript: url()), and arbitrary inline
+  // styles — which can already restyle the page — are permitted anyway.
+  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target"], ADD_TAGS: ["style"] });
   // Make hard-coded px font sizes (common in pasted / imported bios) respond to
   // the accessibility Text size slider by converting them to rem — the same
   // visual size at the default scale, but now they grow/shrink with the slider.

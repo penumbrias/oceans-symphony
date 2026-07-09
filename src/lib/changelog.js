@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "July 8, 2026",
     changes: [
       {
+        type: "fix",
+        text: "Fixed CSS animations in alter profiles rendering static — the Raw-mode <style> block (and its animations) was being stripped when displayed, so animated bios never moved. They now animate.",
+      },
+      {
         type: "feature",
         text: "Preview Mode redesign: the walkthrough pages are now sorted into folders (with a subsystem), link to each other so you can step through in order, and most are redesigned as rich \"designer examples\" that show off what a profile can look like.",
       },

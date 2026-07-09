@@ -23,7 +23,7 @@
 // Bump this string whenever you meaningfully change a bio in this
 // file. PATCH bumps for added detail / small tweaks; MINOR for a
 // whole new wiki alter / topic; MAJOR for a structural rewrite.
-export const WIKI_CONTENT_VERSION = "0.80.0";
+export const WIKI_CONTENT_VERSION = "0.80.1";
 
 let _counter = 0;
 function uid(prefix) {
