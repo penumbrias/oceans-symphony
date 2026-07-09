@@ -21,6 +21,10 @@ export const CHANGELOG = [
     date: "July 8, 2026",
     changes: [
       {
+        type: "improve",
+        text: "Raw mode in the profile editor now has syntax highlighting — colour-coded tags, attributes, and strings — so hand-editing HTML/CSS is much easier to read.",
+      },
+      {
         type: "fix",
         text: "Fixed CSS animations in alter profiles rendering static — the Raw-mode <style> block (and its animations) was being stripped when displayed, so animated bios never moved. They now animate.",
       },

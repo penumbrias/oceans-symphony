@@ -4,6 +4,7 @@ import { Eye, X, Type, LayoutGrid, Undo2, RotateCcw, Code, HelpCircle, FileDown 
 import { toast } from "sonner";
 import DOMPurify from "dompurify";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
+import CodeEditor from "@/components/shared/CodeEditor";
 import BlockEditor, { blocksToHTML, htmlToBlocks } from "@/components/shared/BlockEditor";
 import SimplePreview from "@/components/shared/SimplePreview";
 import WysiwygEditor from "@/components/shared/WysiwygEditor";
@@ -316,10 +317,7 @@ export default function BioEditor({ value, onChange }) {
         <WysiwygEditor value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
       ) : editorMode === "raw" ? (
         <div className="rounded-xl border border-input bg-background">
-          <textarea ref={taRef} value={currentHTML} onChange={e => handleChange(e.target.value)}
-            placeholder="Write a bio..."
-            className="w-full min-h-[200px] px-3 py-2.5 text-sm bg-transparent focus:outline-none resize-y font-mono leading-relaxed rounded-t-xl"
-            spellCheck={false} />
+          <CodeEditor ref={taRef} value={currentHTML} onChange={handleChange} placeholder="Write a bio..." />
           <MiniToolbar onInsert={insert} templateField />
         </div>
       ) : editorMode === "simple" ? (
