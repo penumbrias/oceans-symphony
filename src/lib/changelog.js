@@ -18,6 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "July 11, 2026",
+    version: "0.82.3",
+    changes: [
+      {
+        type: "fix",
+        text: "Added a safety net: if the app ever opens to an empty Welcome screen but your data is still on the device, it now finds it and offers to restore it instead of looking like everything was wiped.",
+      },
+    ],
+  },
+  {
     date: "July 9, 2026",
     changes: [
       {
