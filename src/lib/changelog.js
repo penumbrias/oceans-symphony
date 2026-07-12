@@ -19,8 +19,12 @@
 export const CHANGELOG = [
   {
     date: "July 11, 2026",
-    version: "0.82.3",
+    version: "0.82.4",
     changes: [
+      {
+        type: "fix",
+        text: "Fixed the sidebar vanishing on profile pages that use a custom background or theme.",
+      },
       {
         type: "fix",
         text: "Added a safety net: if the app ever opens to an empty Welcome screen but your data is still on the device, it now finds it and offers to restore it instead of looking like everything was wiped.",
