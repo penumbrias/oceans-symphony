@@ -19,8 +19,12 @@
 export const CHANGELOG = [
   {
     date: "July 11, 2026",
-    version: "0.82.4",
+    version: "0.82.5",
     changes: [
+      {
+        type: "feature",
+        text: "New \"Find my data\" recovery tool (Settings → Data & privacy, and on the Welcome screen): if the app ever opens empty or to the wrong data, it lists every copy stored on your device and lets you switch back to yours.",
+      },
       {
         type: "fix",
         text: "Fixed the sidebar vanishing on profile pages that use a custom background or theme.",

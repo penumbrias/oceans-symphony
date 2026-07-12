@@ -8,6 +8,7 @@ import { initLocalDb, loadDbDump, peekStoredData } from "@/lib/localDb";
 import { isNative } from "@/lib/platform";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
+import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
@@ -38,6 +39,7 @@ function FirstRunSetup({ onComplete }) {
   // the modal completes onboarding and lands the user in the app with
   // their imported data already in place.
   const [showImportModal, setShowImportModal] = useState(false);
+  const [showRescue, setShowRescue] = useState(false);
   const [externalImport, setExternalImport] = useState(null); // { file, type }
   const fileInputRef = useRef(null);
 
@@ -332,6 +334,17 @@ function FirstRunSetup({ onComplete }) {
       </div>
 
       <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
+        {/* Recovery-first: a user whose data vanished after an update should
+            look for it here BEFORE re-importing over the top (which is
+            destructive). Opens the same scan the boot path uses. */}
+        <button
+          type="button"
+          onClick={() => setShowRescue(true)}
+          className="w-full text-left text-xs rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-foreground hover:bg-amber-500/10"
+        >
+          <span className="font-medium">Data missing after an update?</span>{" "}
+          <span className="text-muted-foreground">Tap to find it — don't import over the top yet.</span>
+        </button>
         <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
         <input
           ref={fileInputRef}
@@ -494,6 +507,8 @@ function FirstRunSetup({ onComplete }) {
         onClose={() => { setShowImportModal(false); onComplete(); }}
         contentClassName="z-[130]"
       />
+
+      {showRescue && <DataRescuePanel onClose={() => setShowRescue(false)} />}
     </div>
   );
 }

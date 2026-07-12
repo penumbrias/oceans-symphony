@@ -152,3 +152,57 @@ export async function scanForOrphanedData() {
   });
   return candidates;
 }
+
+// Like scanForOrphanedData, but returns EVERY data blob in the scope — including
+// the currently-active one (marked `isActive`) — so a manual rescue UI can show
+// the user the full picture even when the app booted into a real (or empty)
+// system and the boot-time scanner never ran (the `peek.exists === true` gap:
+// e.g. a user who tapped "Get Started" over the wipe and now has an empty active
+// system). This is the ground-truth enumerator: what data actually exists in
+// this app's storage, under which key. Read-only. Never throws per-key.
+export async function listAllStorageBlobs() {
+  const activeKey = getActiveStorageKey();
+  let keys = [];
+  try {
+    const idb = await getIdb();
+    keys = await idb.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
+  } catch {
+    return [];
+  }
+
+  const blobs = [];
+  for (const key of keys) {
+    if (!isDataBlobKey(key)) continue;
+    let raw;
+    try {
+      const idb = await getIdb();
+      raw = await idb.get(IDB_STORE, key);
+    } catch { continue; }
+    if (raw == null) continue;
+    const rawStr = typeof raw === 'string' ? raw : (() => { try { return JSON.stringify(raw); } catch { return ''; } })();
+    if (!rawStr) continue;
+
+    let parsed;
+    try { parsed = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+    catch {
+      blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: false, corrupted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr });
+      continue;
+    }
+
+    if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
+      blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr });
+      continue;
+    }
+
+    const { entityCount, alterCount, name } = summarizePlainData(parsed);
+    blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: false, entityCount, alterCount, sizeBytes: rawStr.length, name, raw: rawStr });
+  }
+
+  // Active first, then richest — so the user sees "the one you're in" up top,
+  // then any other copies ranked by how much data they hold.
+  blobs.sort((a, b) => {
+    if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
+    return (b.entityCount ?? -1) - (a.entityCount ?? -1);
+  });
+  return blobs;
+}
