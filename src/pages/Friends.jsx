@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useRef } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -855,6 +855,11 @@ export default function FriendsPage() {
     refetchOnMount: 'always',
     refetchOnWindowFocus: true,
     staleTime: 0,
+    // Never blank the visible list during a refetch or a transient error —
+    // keep showing the last-known-good friends until fresh data lands. Pairs
+    // with fetchFriendsList now throwing (instead of returning empty) on a
+    // failed request, so a resume-time blip can't wipe the list.
+    placeholderData: keepPreviousData,
   });
 
   const friends = friendsData?.friends || [];

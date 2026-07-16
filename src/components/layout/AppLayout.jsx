@@ -14,6 +14,7 @@ import SystemBanner from "@/components/system/SystemBanner";
 import useTripleTapPanic from "@/hooks/useTripleTapPanic";
 import useFrontSessionSweep from "@/hooks/useFrontSessionSweep";
 import useRefreshOnResume from "@/hooks/useRefreshOnResume";
+import useFriendsLiveRefresh from "@/hooks/useFriendsLiveRefresh";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
@@ -49,6 +50,9 @@ export default function AppLayout() {
   // foreground (fixes the "opened the app but it shows yesterday / a plan
   // that should be active isn't" staleness).
   useRefreshOnResume();
+  // Refresh the friends list when a front-change push arrives on any page
+  // (the Friends page's own listener only runs while it's mounted).
+  useFriendsLiveRefresh();
   // Header auto-hide on scroll was a recurring source of confusion —
   // even with a landscape-only gate, edge cases let it fire in
   // portrait. Reverted to a permanently-pinned header. If we want
