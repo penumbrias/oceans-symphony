@@ -286,6 +286,53 @@ export async function setActiveSystem(id) {
   return reg;
 }
 
+// Boot-recovery primitive (see dataRecovery.js): make the given storage key the
+// ACTIVE system, so the next boot loads the blob living at that key. Used when
+// the scanner finds real data under a key the active pointer wasn't aimed at
+// (a mis-pointed / drifted registry). NON-DESTRUCTIVE: only edits the registry
+// pointer — never reads, moves, or deletes a data blob.
+//
+// Resolution order:
+//   1. An existing system already maps to this key → just activate it.
+//   2. key is the legacy slot but no system maps to it (drifted registry) →
+//      re-point the lowest-order system at the legacy key and activate it, so
+//      we heal in place instead of spawning a duplicate System 1.
+//   3. Otherwise → append a new system entry pointing at the key and activate.
+// Returns the now-active system record.
+export async function adoptStorageKeyAsActive(key, fallbackName) {
+  const reg = await ensureRegistry();
+
+  const existing = reg.systems.find((s) => storageKeyForSystem(s) === key);
+  if (existing) {
+    reg.activeSystemId = existing.id;
+    await saveRegistry(reg);
+    return existing;
+  }
+
+  if (key === LEGACY_STORAGE_KEY && reg.systems.length > 0) {
+    const first = [...reg.systems].sort((a, b) => (a.order ?? 0) - (b.order ?? 0))[0];
+    first.storageKey = LEGACY_STORAGE_KEY;
+    reg.activeSystemId = first.id;
+    await saveRegistry(reg);
+    return first;
+  }
+
+  const id = genId();
+  const maxOrder = reg.systems.reduce((m, s) => Math.max(m, s.order ?? 0), -1);
+  const system = {
+    id,
+    name: (fallbackName && fallbackName.trim()) || `Recovered System`,
+    avatar: null,
+    storageKey: key, // explicit — points straight at the found blob
+    order: maxOrder + 1,
+    createdAt: nowIso(),
+  };
+  reg.systems.push(system);
+  reg.activeSystemId = id;
+  await saveRegistry(reg);
+  return system;
+}
+
 export async function renameSystem(id, name) {
   const reg = await ensureRegistry();
   const sys = reg.systems.find((s) => s.id === id);

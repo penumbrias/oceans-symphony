@@ -18,6 +18,24 @@
 
 export const CHANGELOG = [
   {
+    date: "July 11, 2026",
+    version: "0.82.5",
+    changes: [
+      {
+        type: "feature",
+        text: "New \"Find my data\" recovery tool (Settings → Data & privacy, and on the Welcome screen): if the app ever opens empty or to the wrong data, it lists every copy stored on your device and lets you switch back to yours.",
+      },
+      {
+        type: "fix",
+        text: "Fixed the sidebar vanishing on profile pages that use a custom background or theme.",
+      },
+      {
+        type: "fix",
+        text: "Added a safety net: if the app ever opens to an empty Welcome screen but your data is still on the device, it now finds it and offers to restore it instead of looking like everything was wiped.",
+      },
+    ],
+  },
+  {
     date: "July 9, 2026",
     changes: [
       {
@@ -47,6 +65,10 @@ export const CHANGELOG = [
       {
         type: "feature",
         text: "Preview Mode: five new design-exploration profiles push the editors' limits — real tables, in-app link launchpads, mixed typography & colour, a drag-to-reorder Blocks playground, and a full custom page with its own header and background. Open Raw mode on any of them to copy the code.",
+      },
+      {
+        type: "fix",
+        text: "Your uploaded fonts now appear in the Profile style font pickers (header + page font), grouped under \"Your uploads\".",
       },
     ],
   },

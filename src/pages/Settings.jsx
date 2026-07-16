@@ -25,6 +25,7 @@ import StorageModeSettings from "@/components/settings/StorageModeSettings";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
 import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import DataInspector from "@/components/settings/DataInspector";
+import DataRescuePanel from "@/components/settings/DataRescuePanel";
 import ImportDataSection from "@/components/settings/ImportDataSection";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
@@ -172,6 +173,7 @@ export default function Settings() {
   // Backup dropdown → opens the import/export UI directly as a popup (was just
   // scrolling to the collapsed Data & Privacy section).
   const [backupModal, setBackupModal] = useState(null); // "import" | "export" | null
+  const [showRescue, setShowRescue] = useState(false); // "Find my data" recovery overlay
   // Cross-app export FORMAT chips (alongside Plain .json / Compact), shared by
   // the inline Export section and the Backup → Export popup so they match.
   // Simply Plural export was removed — SP shut its servers down.
@@ -868,6 +870,20 @@ export default function Settings() {
             </SubSection>
           </div>
 
+          {/* ── FIND MY DATA ── (recovery: lists every data copy in this app's
+              storage and can switch to one — for when the app opened to an
+              empty/wrong system while the real data is still on the device) */}
+          <SubSection title="Find my data" defaultOpen={false}>
+            <p className="text-xs text-muted-foreground leading-relaxed mb-3">
+              Opened to an empty app or the wrong data after an update? This scans
+              everything stored on this device and lets you switch back to your data.
+              It only re-points the app — it never deletes anything.
+            </p>
+            <Button type="button" variant="outline" onClick={() => setShowRescue(true)}>
+              Find my data
+            </Button>
+          </SubSection>
+
           {/* ── PRIVACY COVER ── */}
           <SubSection title="Privacy cover" defaultOpen={false}><GroceryPanicTapsSettings /></SubSection>
         </Section>
@@ -918,6 +934,8 @@ export default function Settings() {
           />
         </DialogContent>
       </Dialog>
+
+      {showRescue && <DataRescuePanel onClose={() => setShowRescue(false)} />}
     </motion.div>
   );
 }

@@ -70,6 +70,7 @@ import {
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { refreshCustomFontFaces } from '@/lib/customFontFaces';
 import { initSystemsRegistry } from '@/lib/systems';
+import { scanForOrphanedData } from '@/lib/dataRecovery';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
 import { useNativeReminderSync } from '@/lib/nativeReminderScheduler';
 import { useServerReminderSync } from '@/lib/serverReminderSync';
@@ -85,6 +86,7 @@ import { base44 } from '@/api/base44Client';
 import { useTimezoneSync } from '@/lib/useTimezoneSync';
 import UnlockScreen from '@/components/onboarding/UnlockScreen';
 import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
+import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
 
@@ -275,6 +277,9 @@ function App() {
   //   null       → DB ready
   const [setupState, setSetupState] = useState('booting');
   const [recoveryReason, setRecoveryReason] = useState(null);
+  // Data blobs found under a non-active key when the active slot was empty —
+  // populated in the 'recover-orphan' boot branch (see dataRecovery.js).
+  const [orphanCandidates, setOrphanCandidates] = useState([]);
 
   // Boot sequence: persist storage FIRST (so the browser stops marking us
   // for eviction before any further work), then peek at IndexedDB to
@@ -312,6 +317,20 @@ function App() {
       if (cancelled) return;
 
       if (!peek.exists) {
+        // The ACTIVE system slot is empty — but before treating this as a
+        // brand-new user, scan the whole IndexedDB scope for a real data blob
+        // under another key (a mis-pointed / drifted registry can leave a user
+        // with hundreds of alters staring at the empty Welcome screen while
+        // every byte is still on the device). If we find data, offer recovery
+        // instead of setup. Non-fatal: a scan failure just proceeds to firstrun.
+        let orphans = [];
+        try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
+        if (cancelled) return;
+        if (orphans.length > 0) {
+          setOrphanCandidates(orphans);
+          setSetupState('recover-orphan');
+          return;
+        }
         setSetupState('firstrun');
         return;
       }
@@ -402,6 +421,20 @@ function App() {
       <div className="fixed inset-0 bg-background flex flex-col items-center justify-center gap-4">
         <div className="w-12 h-12 border-4 border-muted border-t-primary rounded-full animate-spin"></div>
       </div>
+    );
+  }
+
+  if (setupState === 'recover-orphan') {
+    return (
+      <ThemeProvider>
+        <QueryClientProvider client={queryClientInstance}>
+          <OrphanRecoveryScreen
+            candidates={orphanCandidates}
+            onSetupNew={() => { setOrphanCandidates([]); setSetupState('firstrun'); }}
+          />
+          <AccessibilityFab zIndex={110} />
+        </QueryClientProvider>
+      </ThemeProvider>
     );
   }
 

@@ -640,7 +640,11 @@ const handleNotifClick = (mentionLog) => {
       <div className="flex flex-1 overflow-hidden">
 
         {/* Desktop persistent sidebar */}
-        <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)]">
+        {/* z-30 + frosted backdrop so the sidebar stays visible chrome (like the
+            header) even when a page paints a full-viewport `fixed inset-0`
+            background — e.g. an alter/group profile with a custom theme, whose
+            background otherwise painted over the sidebar and made it vanish. */}
+        <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
           <nav className="px-2 py-4 space-y-5" aria-label="Sidebar navigation">
             {[
               {
