@@ -32,6 +32,10 @@ export default async function handler(req, res) {
     updatedAt: now,
   };
 
+  // Needed both to clear stale overrides below and for the notify pass further
+  // down — fetched once, up front.
+  const friends = await getFriends(userId);
+
   // Store default front blob + per-friend overrides in parallel
   const storeOps = [kv.set(`user:${userId}:front`, frontData)];
   for (const [friendId, data] of Object.entries(perFriendFronters)) {
@@ -45,6 +49,21 @@ export default async function handler(req, res) {
       updatedAt: now,
     }));
   }
+
+  // Clear overrides for friends who no longer have one. saveFriendVisibility
+  // drops a friend from perFriendVisibility once their settings are all empty,
+  // so the client simply stops sending an override for them — it never asks for
+  // one to be removed. Without this, the stored key survives forever, and both
+  // list.js and status.js resolve `frontForMe || frontDefault`, so the stale
+  // override silently pins that friend to an old snapshot. If it happened to be
+  // a `hidden` one, they see an empty front permanently.
+  // DEL takes N keys as a single command, so this costs one command regardless
+  // of friend count.
+  const staleKeys = Object.keys(friends)
+    .filter((friendId) => !perFriendFronters[friendId])
+    .map((friendId) => `user:${userId}:front:${friendId}`);
+  if (staleKeys.length > 0) storeOps.push(kv.del(...staleKeys));
+
   await Promise.all(storeOps);
 
   // Notify friends who opted in (best-effort, non-blocking). Two delivery
@@ -53,7 +72,6 @@ export default async function handler(req, res) {
   // their phone — both fire):
   //   - Web Push  → browser / TWA  (user:<id>:pushsub,   VAPID_* env vars)
   //   - FCM       → native Android (user:<id>:fcmtoken,  FIREBASE_SERVICE_ACCOUNT env var)
-  const friends = await getFriends(userId);
   const notifyFriends = Object.entries(friends)
     .filter(([, f]) => f.status === 'approved' && f.notifyOnChange);
 

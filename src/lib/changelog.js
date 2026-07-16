@@ -18,6 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "July 15, 2026",
+    changes: [
+      {
+        type: "fix",
+        text: "Fixed friends seeing a frozen or empty view of your front after you lift a visibility restriction you'd set for them.",
+      },
+    ],
+  },
+  {
     date: "July 11, 2026",
     version: "0.82.5",
     changes: [
