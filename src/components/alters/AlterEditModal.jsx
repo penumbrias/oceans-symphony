@@ -20,7 +20,7 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
-import { PROFILE_FONTS, fontStackFor } from "@/lib/profileFonts";
+import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { useNavigate } from "react-router-dom";
@@ -50,6 +50,9 @@ function extractYear(str) {
 
 // Small system-safe font picker reused for the header and the body.
 function FontSelect({ value, onChange, ariaLabel }) {
+  const fonts = useProfileFonts(); // built-ins + the user's uploaded fonts
+  const builtIn = fonts.filter((f) => !f.isUpload);
+  const uploads = fonts.filter((f) => f.isUpload);
   return (
     <select
       value={value || ""}
@@ -58,9 +61,16 @@ function FontSelect({ value, onChange, ariaLabel }) {
       className="w-full text-sm rounded-md border border-input bg-background px-2 py-2"
       style={{ fontFamily: fontStackFor(value) || undefined }}
     >
-      {PROFILE_FONTS.map((f) => (
+      {builtIn.map((f) => (
         <option key={f.id || "default"} value={f.id} style={{ fontFamily: f.stack || undefined }}>{f.label}</option>
       ))}
+      {uploads.length > 0 && (
+        <optgroup label="Your uploads">
+          {uploads.map((f) => (
+            <option key={f.id} value={f.id} style={{ fontFamily: f.stack || undefined }}>{f.label}</option>
+          ))}
+        </optgroup>
+      )}
     </select>
   );
 }

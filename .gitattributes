@@ -1,0 +1,26 @@
+# Normalize all text files to LF in the repo (auto-detects binary and leaves it alone).
+* text=auto eol=lf
+
+# Windows-only scripts must stay CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# Explicit binaries — never touch these.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.webp binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+*.pdf binary
+*.jar binary
+*.keystore binary
+*.jks binary
+*.mp3 binary
+*.mp4 binary
+*.wav binary
