@@ -9,6 +9,7 @@ import { isNative } from "@/lib/platform";
 import TwaToNativeMigrationModal, { shouldShowTwaToNativeMigration } from "@/components/onboarding/TwaToNativeMigrationModal";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import DataRescuePanel from "@/components/settings/DataRescuePanel";
+import { scanForOrphanedData } from "@/lib/dataRecovery";
 import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
@@ -254,6 +255,20 @@ function FirstRunSetup({ onComplete }) {
       if (peek.exists) {
         setError(
           "Existing data was found on this device. To protect it from being overwritten, the app cannot run setup again. Please reload — you should be prompted to unlock or recover your data."
+        );
+        return false;
+      }
+      // peek only inspects the ACTIVE key. If that slot is empty (storage
+      // eviction, or a drifted registry pointer) but a real data blob still
+      // exists under another key OR in localStorage, reseeding here would
+      // strand it. App.jsx's boot path already routes such users to recovery,
+      // but a stale tab or a race could land here — so re-check the WHOLE
+      // storage scope and refuse rather than overwrite a recoverable copy.
+      let orphans = [];
+      try { orphans = await scanForOrphanedData(); } catch { orphans = []; }
+      if (orphans.length > 0) {
+        setError(
+          "Other data was found on this device. To protect it from being overwritten, setup can't continue. Please reload — you should be offered to recover it."
         );
         return false;
       }
