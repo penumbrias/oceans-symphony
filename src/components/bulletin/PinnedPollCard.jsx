@@ -26,10 +26,18 @@ export default function PinnedPollCard({ poll, currentAlterId }) {
 
   const handleVote = async (optionIndex) => {
     if (poll.is_closed) return;
+    // Refetch the freshest poll before tallying so rapid votes don't overwrite
+    // each other from a render-stale count.
+    let source = poll;
+    try {
+      const fresh = await base44.entities.Poll.get(poll.id);
+      if (fresh) source = fresh;
+    } catch { /* fall back to cached */ }
+    if (source.is_closed) return;
     const key = String(optionIndex);
-    const newVotes = JSON.parse(JSON.stringify(poll.votes || {}));
+    const newVotes = JSON.parse(JSON.stringify(source.votes || {}));
     if (!newVotes[key]) newVotes[key] = [];
-    if (poll.tally_mode) {
+    if (source.tally_mode) {
       newVotes[key].push("");
     } else if (newVotes[key].includes(voterId)) {
       newVotes[key] = newVotes[key].filter((id) => id !== voterId);
