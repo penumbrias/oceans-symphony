@@ -99,6 +99,10 @@ export default function ActivityLogModal({
   const [contactsPickerOpen, setContactsPickerOpen] = useState(false);
   const [notes, setNotes] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  // Synchronous in-flight guard. setIsLoading is async and only flips after an
+  // await in handleSave, so a fast double-tap could pass validation twice and
+  // write duplicate records — this ref closes that gap.
+  const savingRef = useRef(false);
   // Quick-duration presets: which end stays fixed when a preset is applied.
   // "end"  → preset sets START to (end − n).  "start" → sets END to (start + n).
   const [presetAnchor, setPresetAnchor] = useState("end");
@@ -257,6 +261,7 @@ export default function ActivityLogModal({
   };
 
   const handleSave = async () => {
+    if (savingRef.current) return; // re-entry guard (see savingRef above)
     if (selectedActivityCategories.length === 0) {
       toast.error("Select an activity");
       return;
@@ -270,6 +275,8 @@ export default function ActivityLogModal({
       return;
     }
 
+    savingRef.current = true;
+    try {
     // Run inline ~commands first (each becomes a chip), then whisper handling.
     const lc = await applyLogCommands(notes || "", { isRich: false });
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
@@ -386,6 +393,9 @@ export default function ActivityLogModal({
       toast.error(err.message || "Failed to log activity");
     } finally {
       setIsLoading(false);
+    }
+    } finally {
+      savingRef.current = false; // always unlock, incl. the early-return paths
     }
   };
 

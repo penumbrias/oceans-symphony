@@ -152,7 +152,10 @@ export default function PinnedDailyTasksWidget() {
       await base44.entities.DailyProgress.update(slot.record.id, {
         completed_task_ids: newIds,
         completion_times,
-        xp_earned: Math.max(slot.record.xp_earned || 0, newXP),
+        // Write the recomputed value directly. Math.max meant unchecking a task
+        // never lowered XP, so lifetime XP inflated and desynced from the
+        // DailyTasks page (which writes newXP).
+        xp_earned: newXP,
       });
     } else {
       await base44.entities.DailyProgress.create({

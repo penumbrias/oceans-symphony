@@ -32,7 +32,6 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
   );
 
   const future = useMemo(() => {
-    const now = Date.now();
     return activities
       .filter(a => {
         if (!a) return false;
@@ -44,9 +43,11 @@ export default function PlannedActivitiesList({ activities = [], alters = [], on
         // belongs in the Logged grid. Future-dated plans whose status is
         // still resolved are also excluded (the user explicitly closed
         // them out).
-        const status = statusFor(a);
-        if (status !== ACTIVITY_STATUSES.SCHEDULED) return false;
-        return ts.getTime() > now;
+        // Keep overdue-but-unmarked SCHEDULED plans too (dropping the old
+        // `ts > now` gate). Otherwise a scheduled plan whose time had passed but
+        // that the user hadn't resolved fell out of BOTH tabs (Past only lists
+        // resolved outcomes) and vanished entirely.
+        return statusFor(a) === ACTIVITY_STATUSES.SCHEDULED;
       })
       .sort((a, b) => parseDate(a.timestamp) - parseDate(b.timestamp));
   }, [activities]);

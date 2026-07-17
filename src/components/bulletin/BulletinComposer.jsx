@@ -77,6 +77,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
   const [pollQuestion, setPollQuestion] = useState("");
   const [pollOptions, setPollOptions] = useState(["", ""]);
   const [saving, setSaving] = useState(false);
+  const savingRef = useRef(false); // synchronous re-entry guard vs duplicate posts
   const textareaRef = useRef(null);
   const imageInputRef = useRef(null);
   const [uploadingImage, setUploadingImage] = useState(false);
@@ -233,7 +234,10 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
 
   const handlePost = async () => {
     if (!content.trim()) return;
+    if (savingRef.current) return; // re-entry guard (see savingRef above)
+    savingRef.current = true;
     setSaving(true);
+    try {
     // Execute any inline ~commands first — each becomes a chip in the post.
     const contentWithChips = (await applyLogCommands(content, { isRich: true })).content;
     // Parse signpost authorship from the ORIGINAL text FIRST, so the whisper
@@ -259,7 +263,7 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
       isWhisper = true;
     } else {
       const w = applyWhisper(signpostClean, alters, { rich: true, surfaceLabel: "bulletin" });
-      if (w === null) { setSaving(false); return; } // user backed out of the whole-blur warning
+      if (w === null) return; // user backed out of the whole-blur warning (finally resets saving)
       cleanContent = w.content;
       whisperRecipientIds = w.recipientIds || [];
       isWhisper = !!w.isWhisper;
@@ -410,8 +414,13 @@ export default function BulletinComposer({ alters, authorAlterId, frontingAlterI
     }
     toast.success("Bulletin posted!");
     clearDraft(); // posted — never "restore" it again
-    setSaving(false);
     onClose?.();
+    } catch (e) {
+      toast.error(e?.message || "Failed to post bulletin");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   return (
