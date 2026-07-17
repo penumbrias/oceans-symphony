@@ -36,9 +36,9 @@ export default function PersistentStorageStatus() {
   if (NATIVE) {
     return (
       <div className="flex items-start gap-2">
-        <ShieldCheck className="w-4 h-4 text-emerald-500 flex-shrink-0 mt-0.5" />
+        <ShieldAlert className="w-4 h-4 text-amber-500 flex-shrink-0 mt-0.5" />
         <p className="text-xs text-muted-foreground">
-          This is the installed app's own storage, so it isn't subject to browser eviction — no action needed here.
+          This is the installed app's own storage — more durable than a browser tab, but it can still be wiped by "Clear storage" in Android app settings or by device-cleaner apps. Keep a recent backup as your safety net; it's the only thing that survives a storage wipe.
           {storage.usage != null && (
             <> Using ~{fmtBytes(storage.usage)}{storage.quota ? ` of ${fmtBytes(storage.quota)}` : ""}.</>
           )}

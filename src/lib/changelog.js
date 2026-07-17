@@ -18,7 +18,20 @@
 
 export const CHANGELOG = [
   {
+    date: "July 16, 2026",
+    changes: [
+      { type: "fix", text: "Double-tapping Save no longer creates duplicate entries when logging activities, check-ins, tasks, or bulletins." },
+      { type: "fix", text: "The friends list no longer disappears when you leave and come back to the app, and friends' fronting updates refresh more reliably." },
+      { type: "fix", text: "Data recovery now searches more places for your data, and the Welcome screen can no longer overwrite data that's still recoverable." },
+      { type: "fix", text: "Overdue plans no longer disappear from your plans list." },
+      { type: "fix", text: "Emotion check-in no longer gets stuck if saving fails." },
+      { type: "fix", text: "Fixed daily-task XP not dropping back down when you uncheck a pinned task." },
+      { type: "fix", text: "\"Help me unblend\" no longer shows internal styling fields as questions." },
+    ],
+  },
+  {
     date: "July 15, 2026",
+    version: "0.82.6",
     changes: [
       {
         type: "fix",

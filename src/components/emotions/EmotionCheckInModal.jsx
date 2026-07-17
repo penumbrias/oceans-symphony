@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient, useMutation, useQuery } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -9,6 +9,7 @@ import { Loader2, Heart, X } from "lucide-react";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 import { useTerms } from "@/lib/useTerms";
+import { toast } from "sonner";
 
 export default function EmotionCheckInModal({ isOpen, onClose, alters = [], currentFronterIds = [] }) {
   const terms = useTerms();
@@ -18,6 +19,7 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
   const [alterInput,       setAlterInput]        = useState("");
   const [note,             setNote]              = useState("");
   const [saving,           setSaving]            = useState(false);
+  const savingRef = useRef(false); // synchronous re-entry guard
   const [activity,         setActivity]          = useState("");
   const [activityDuration, setActivityDuration]  = useState("");
 
@@ -115,10 +117,21 @@ export default function EmotionCheckInModal({ isOpen, onClose, alters = [], curr
 
   const handleSubmit = async () => {
     if (selectedEmotions.length === 0) return;
+    if (savingRef.current) return; // re-entry guard
+    savingRef.current = true;
     setSaving(true);
-    await handleSaveActivity();
-    await createCheckInMutation.mutateAsync();
-    setSaving(false);
+    try {
+      // Save the check-in FIRST, then log the activity — so a failed check-in
+      // can't leave an orphan Activity behind. try/finally guarantees the Save
+      // button re-enables even if the check-in throws.
+      await createCheckInMutation.mutateAsync();
+      await handleSaveActivity();
+    } catch (e) {
+      toast.error(e?.message || "Failed to save check-in");
+    } finally {
+      savingRef.current = false;
+      setSaving(false);
+    }
   };
 
   return (

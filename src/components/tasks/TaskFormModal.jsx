@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -50,9 +50,10 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       setFormData({
         title: editingTask.title || "",
         description: editingTask.description || "",
-        // Read either the new array field or the legacy single-string category.
-        activity_category_ids: editingTask.activity_category_ids
-          || (editingTask.category ? [editingTask.category] : []),
+        // Read the array field only. The legacy single-string `category` held a
+        // category NAME, not an id — folding it into the id array corrupted the
+        // ids on re-save, so we no longer seed from it.
+        activity_category_ids: editingTask.activity_category_ids || [],
         priority: editingTask.priority || "medium",
         due_date: editingTask.due_date || "",
         scheduled_at: editingTask.scheduled_at || "",
@@ -77,13 +78,17 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
     }
   }, [editingTask, open]);
 
+  const savingRef = useRef(false); // synchronous re-entry guard vs duplicate tasks
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (savingRef.current) return; // re-entry guard (see savingRef above)
     if (!formData.title.trim()) {
       toast.error("Task title is required");
       return;
     }
 
+    savingRef.current = true;
+    try {
     // Run inline ~commands first (each becomes a chip), then whisper handling.
     const lc = await applyLogCommands(formData.description || "", { isRich: false });
     // A "/w @name [secret]" in the description hides that part behind a
@@ -147,6 +152,9 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       toast.error(error.message || "Failed to save task");
     } finally {
       setLoading(false);
+    }
+    } finally {
+      savingRef.current = false; // always unlock, incl. the early-return paths
     }
   };
 

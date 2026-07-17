@@ -363,6 +363,12 @@ export function buildDynamicQuestions(alters, customFields = []) {
     const map = cf || legacy;
     if (!map) continue;
     for (const [k, v] of Object.entries(map)) {
+      // Skip internal `_`-prefixed profile-style keys (_header_text_color,
+      // _bg_image, _page_font, … from profileStyle.js). They live in the same
+      // custom_fields map but are NOT user custom fields and must never surface
+      // as reconnection questions. Matches the isInternalFieldKey convention
+      // used by the importers and global search.
+      if (!k || k.startsWith("_")) continue;
       const value = typeof v === "string" ? v.trim() : "";
       if (!value) continue;
       const fieldDef = fieldById.get(k);
@@ -449,6 +455,7 @@ export function buildAllFieldQuestions(alters, customFields = []) {
     const map = cf || legacy;
     if (!map) continue;
     for (const [k, v] of Object.entries(map)) {
+      if (!k || k.startsWith("_")) continue; // skip internal profile-style keys
       if (typeof v !== "string" || !v.trim()) continue;
       if (!valuesByField[k]) valuesByField[k] = new Map();
       valuesByField[k].set(a.id, v.trim());

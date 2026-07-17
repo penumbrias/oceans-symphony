@@ -209,6 +209,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   const initialFrontRef = useRef({ primaryId: "", coFronterIds: [] });
   // Saving
   const [saving, setSaving] = useState(false);
+  // Synchronous re-entry guard — setSaving is async, so a fast double-tap could
+  // otherwise write two check-ins (+ duplicate fronting/activity/diary rows).
+  const savingRef = useRef(false);
   const [showGroundingPrompt, setShowGroundingPrompt] = useState(false);
   // Location
   const [locationName, setLocationName] = useState("");
@@ -712,6 +715,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
   };
 
   const handleSubmit = async () => {
+    if (savingRef.current) return; // re-entry guard (see savingRef above)
     const symptomCheckIns = symptomGetterRef.current ? symptomGetterRef.current() : [];
     // Fold in the Feeling-section slider, unless the user already logged that
     // same symptom in the Symptoms / Habits section (avoid double-logging).
@@ -735,6 +739,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       return;
     }
 
+    savingRef.current = true;
     setSaving(true);
     try {
       const now = entryTime ? new Date(entryTime).toISOString() : new Date().toISOString();
@@ -1042,6 +1047,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     } catch (e) {
       toast.error(e.message || "Failed to save");
     } finally {
+      savingRef.current = false;
       setSaving(false);
     }
   };
