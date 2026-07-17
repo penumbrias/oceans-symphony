@@ -478,13 +478,20 @@ function CommentNode({ comment, allComments, bulletinId, depth, maxDepth, alters
   const pending = pendingDeletes[comment.id];
 
   const handleReact = async (emoji) => {
-    const existing = reactions[emoji] || [];
+    setShowReactPicker(false);
+    // Read the freshest reactions before merging so two quick taps don't clobber
+    // each other from a render-stale copy.
+    let base = reactions;
+    try {
+      const fresh = await base44.entities.BulletinComment.get(comment.id);
+      if (fresh) base = fresh.reactions || {};
+    } catch { /* fall back to cached */ }
+    const existing = base[emoji] || [];
     const next = existing.includes(currentAlterId)
       ? existing.filter(id => id !== currentAlterId)
       : [...existing, currentAlterId];
-    await base44.entities.BulletinComment.update(comment.id, { reactions: { ...reactions, [emoji]: next } });
+    await base44.entities.BulletinComment.update(comment.id, { reactions: { ...base, [emoji]: next } });
     qc.invalidateQueries({ queryKey: ["bulletinComments", bulletinId] });
-    setShowReactPicker(false);
   };
 
   if (pending) {

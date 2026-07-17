@@ -72,16 +72,25 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
   const voterId = currentAlterId || "";
 
   const handleReact = async (emoji) => {
-    const existing = reactions[emoji] || [];
+    setShowReactPicker(false);
+    // Read the freshest reactions before merging. Two quick taps (on different
+    // emojis, or two people on the same device) would otherwise both start from
+    // the same render-captured object, and the second write would clobber the
+    // first.
+    let base = reactions;
+    try {
+      const fresh = await base44.entities.Bulletin.get(bulletin.id);
+      if (fresh) base = fresh.reactions || {};
+    } catch { /* fall back to the cached copy */ }
+    const existing = base[emoji] || [];
     const next = existing.includes(voterId) ?
     existing.filter((id) => id !== voterId) :
     [...existing, voterId];
-    const newReactions = { ...reactions, [emoji]: next };
+    const newReactions = { ...base, [emoji]: next };
     // Optimistic update
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
     Array.isArray(old) ? old.map((b) => b.id === bulletin.id ? { ...b, reactions: newReactions } : b) : old
     );
-    setShowReactPicker(false);
     await base44.entities.Bulletin.update(bulletin.id, { reactions: newReactions });
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
@@ -102,7 +111,14 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
   // the Poll record so the standalone Polls page reflects the same votes.
   const handleVoteInline = async (optionIndex) => {
     if (!bulletin.poll) return;
-    const poll = { ...bulletin.poll };
+    // Refetch the freshest inline poll before mutating so rapid votes don't
+    // clobber each other from a render-stale copy.
+    let source = bulletin.poll;
+    try {
+      const fresh = await base44.entities.Bulletin.get(bulletin.id);
+      if (fresh?.poll) source = fresh.poll;
+    } catch { /* fall back to cached */ }
+    const poll = { ...source };
     poll.options = poll.options.map((opt) => ({ ...opt, votes: (opt.votes || []).filter((id) => id !== voterId) }));
     poll.options[optionIndex] = { ...poll.options[optionIndex], votes: [...(poll.options[optionIndex].votes || []), voterId] };
     qc.setQueriesData({ queryKey: ["bulletins"] }, (old) =>
@@ -116,10 +132,18 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
   const handleVoteLinked = async (optionIndex) => {
     if (!linkedPoll) return;
     if (linkedPoll.is_closed) return;
+    // Refetch the freshest poll before tallying so rapid votes don't overwrite
+    // each other from a render-stale count.
+    let source = linkedPoll;
+    try {
+      const fresh = await base44.entities.Poll.get(linkedPoll.id);
+      if (fresh) source = fresh;
+    } catch { /* fall back to cached */ }
+    if (source.is_closed) return;
     const key = String(optionIndex);
-    const newVotes = JSON.parse(JSON.stringify(linkedPoll.votes || {}));
+    const newVotes = JSON.parse(JSON.stringify(source.votes || {}));
     if (!newVotes[key]) newVotes[key] = [];
-    if (linkedPoll.tally_mode) {
+    if (source.tally_mode) {
       // Anonymous tally: each tap is +1, no toggle, no removal from
       // other options. Decrement is only exposed on the standalone Polls
       // page detail view to keep the in-card UI simple.
