@@ -213,10 +213,16 @@ export default function AssetsLibrary() {
     if (AUTO_FOLDERS.has(next)) { toast.error("That name is reserved."); return; }
     // Move every asset in the folder, then update the order list.
     const moving = assets.filter((a) => (a.folder || "") === oldName);
-    for (const a of moving) { try { await base44.entities.ImageAsset.update(a.id, { folder: next }); } catch {} }
+    let failed = 0;
+    for (const a of moving) {
+      try { await base44.entities.ImageAsset.update(a.id, { folder: next }); }
+      catch { failed += 1; }
+    }
     setFolderOrder((o) => o.map((n) => (n === oldName ? next : n)).filter((n, i, arr) => arr.indexOf(n) === i));
     qc.invalidateQueries({ queryKey: ["imageAssets"] });
-    toast.success("Folder renamed");
+    // Don't claim success when some items were left behind in the old folder.
+    if (failed > 0) toast.error(`Renamed, but ${failed} item${failed === 1 ? "" : "s"} couldn't be moved.`);
+    else toast.success("Folder renamed");
   };
 
   const moveFolder = (name, dir) => {

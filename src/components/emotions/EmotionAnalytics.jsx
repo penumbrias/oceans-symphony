@@ -225,7 +225,9 @@ export default function EmotionAnalytics({ from, to }) {
       const d = new Date(ts);
       if (grain === "day") return d.toISOString().slice(0, 10);
       if (grain === "week") {
-        const day = d.getUTCDay();
+        // Days since Monday (Mon=0 … Sun=6). getUTCDay() alone starts weeks on
+        // Sunday, so buckets labelled "monday" were actually a day off.
+        const day = (d.getUTCDay() + 6) % 7;
         const diff = d.getUTCDate() - day;
         const monday = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), diff));
         return monday.toISOString().slice(0, 10);

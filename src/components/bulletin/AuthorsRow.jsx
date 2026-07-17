@@ -61,8 +61,10 @@ export default function AuthorsRow({ authorIds = [], alters = [], timestamp, sho
     );
   }
 
-  const collapseToAvatars = ids.length > 2;
   const altersToShow = ids.map(id => alters.find(a => a.id === id)).filter(Boolean);
+  // Base the collapse on the alters we can actually render, not the raw id list —
+  // otherwise 3 ids with 2 deleted alters collapsed a single visible author.
+  const collapseToAvatars = altersToShow.length > 2;
 
   if (collapseToAvatars || !showNames) {
     return (
