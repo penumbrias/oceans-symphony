@@ -603,7 +603,10 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           sessionsByAlterId[s.alter_id].push(s);
         }
 
-        // 1. End sessions for removed alters, status-changed alters, and ALL duplicates
+        // 1. End sessions for removed alters and ALL duplicates. A still-present
+        //    alter whose ONLY change is primary status is intentionally NOT ended
+        //    here — step 2 updates it in place so its start_time (the "fronting
+        //    since" timer) is preserved instead of reset to now.
         for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
           const isStillPresent = alterId in desiredMap;
           const hasDuplicates = sessions.length > 1;
@@ -612,15 +615,16 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             for (const s of sessions) {
               await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
             }
-          } else {
-            const primaryStatusChanged = isStillPresent && sessions[0].is_primary !== desiredMap[alterId];
-            if (!isStillPresent || primaryStatusChanged) {
-              await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
-            }
+          } else if (!isStillPresent) {
+            await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
           }
         }
 
-        // 2. Create sessions for new alters, status-changed alters, or duplicates that were cleared
+        // 2. Update or create sessions:
+        //    - still-present alter, single session, only primary changed → UPDATE
+        //      in place (preserves start_time / the "fronting since" timer)
+        //    - new alter, or duplicates cleared in step 1 → CREATE a fresh session
+        //    - unchanged single session → nothing to do
         let firstSessionId = null;
         for (const id of allSelectedIds) {
           const sessions = sessionsByAlterId[id] || [];
@@ -628,7 +632,10 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           const single = sessions.length === 1 ? sessions[0] : null;
           const statusUnchanged = single && single.is_primary === desiredMap[id];
 
-          if (hasDuplicates || !statusUnchanged) {
+          if (single && !hasDuplicates && !statusUnchanged) {
+            await base44.entities.FrontingSession.update(single.id, { is_primary: desiredMap[id] });
+            if (!firstSessionId) firstSessionId = single.id;
+          } else if (hasDuplicates || !single) {
             const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],

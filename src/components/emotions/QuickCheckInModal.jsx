@@ -909,7 +909,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           sessionsByAlterId[s.alter_id].push(s);
         }
 
-        // 1. End sessions for removed alters, status-changed alters, and ALL duplicates
+        // 1. End sessions for removed alters and ALL duplicates. A still-present
+        //    alter whose ONLY change is primary status is updated in place in
+        //    step 2 (preserves start_time / the "fronting since" timer).
         for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
           const isStillPresent = alterId in desiredMap;
           const hasDuplicates = sessions.length > 1;
@@ -917,26 +919,29 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             for (const s of sessions) {
               await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
             }
-          } else {
-            const primaryStatusChanged = isStillPresent && sessions[0].is_primary !== desiredMap[alterId];
-            if (!isStillPresent || primaryStatusChanged) {
-              await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
-            }
+          } else if (!isStillPresent) {
+            await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
           }
         }
 
-        // 2. Create sessions for new alters, status-changed alters, or duplicates that were cleared
+        // 2. Update or create sessions. Still-present alters whose only change is
+        //    primary status are updated in place (preserves start_time / the
+        //    "fronting since" timer); new alters and cleared-duplicate slots get
+        //    a fresh session. Trigger metadata rides along in both paths.
         let firstNewSessionId = null;
         for (const id of allSelectedIds) {
           const sessions = sessionsByAlterId[id] || [];
           const hasDuplicates = sessions.length > 1;
           const single = sessions.length === 1 ? sessions[0] : null;
           const statusUnchanged = single && single.is_primary === desiredMap[id];
+          const triggerExtras = isTriggeredSwitch && triggerCategory
+            ? { is_triggered_switch: true, trigger_category: triggerCategory, trigger_label: triggerLabel }
+            : {};
 
-          if (hasDuplicates || !statusUnchanged) {
-            const triggerExtras = isTriggeredSwitch && triggerCategory
-              ? { is_triggered_switch: true, trigger_category: triggerCategory, trigger_label: triggerLabel }
-              : {};
+          if (single && !hasDuplicates && !statusUnchanged) {
+            await base44.entities.FrontingSession.update(single.id, { is_primary: desiredMap[id], ...triggerExtras });
+            if (!firstNewSessionId) firstNewSessionId = single.id;
+          } else if (hasDuplicates || !single) {
             const newSession = await base44.entities.FrontingSession.create({
               alter_id: id,
               is_primary: desiredMap[id],
