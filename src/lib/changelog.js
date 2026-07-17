@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 16, 2026",
     changes: [
+      { type: "fix", text: "The app now tells you if a check-in or an image-folder rename couldn't fully save, instead of silently dropping data or falsely reporting success." },
+      { type: "fix", text: "Small display fixes: task goal progress no longer shows \"NaN\", the activity tally now sorts by how often you do each activity, and weekly emotion charts start on Monday." },
       { type: "fix", text: "Changing who's primary no longer resets everyone's \"fronting since\" timer." },
       { type: "fix", text: "Bulletin reactions and poll votes are no longer occasionally dropped when tapped in quick succession." },
       { type: "fix", text: "Double-tapping Save no longer creates duplicate entries when logging activities, check-ins, tasks, or bulletins." },
