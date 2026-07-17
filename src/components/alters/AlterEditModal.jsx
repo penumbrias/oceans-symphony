@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -276,7 +277,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`)) return;
+    if (!(await confirm(`Permanently delete ${alter?.name}? This cannot be undone. All data linked to this ${t.alter} will be removed.`))) return;
     setDeleting(true);
     try {
       if (alter.avatar_url && isLocalImageUrl(alter.avatar_url)) {

@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -181,12 +182,12 @@ export default function OpenPluralConnect({ settings, onSettingsChange, presetFi
         includeChat && "chat",
       ].filter(Boolean);
       if (cats.length === 0) { toast.error("Tick at least one category to replace."); return; }
-      const ok = typeof window !== "undefined" && window.confirm(
+      const ok = typeof window !== "undefined" && (await confirm(
         `REPLACE EVERYTHING\n\n` +
         `This permanently DELETES all of your existing ${cats.join(", ")} and replaces them with this file.\n\n` +
         `A full backup of ALL your data is saved to your device first. Your ${t.system} settings, terminology and themes are kept.\n\n` +
         `Proceed?`
-      );
+      ));
       if (!ok) return;
     }
 

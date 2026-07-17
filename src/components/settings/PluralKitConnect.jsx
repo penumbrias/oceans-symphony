@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -145,7 +146,7 @@ export default function PluralKitConnect({ settings, onSettingsChange }) {
   const handleImportMembers = async () => {
     if (!settings?.pk_token) return;
     if (importMode === "replace_all" &&
-      !window.confirm("Replace all: this DELETES your current local alters and recreates them from PluralKit. Local-only alters, per-alter notes and relationships tied to deleted alters will be lost. Continue?")) {
+      !(await confirm("Replace all: this DELETES your current local alters and recreates them from PluralKit. Local-only alters, per-alter notes and relationships tied to deleted alters will be lost. Continue?"))) {
       return;
     }
     setWorking(true);

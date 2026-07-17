@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { User, Tag, Users, Save, Archive, ArchiveRestore, Trash2, Loader2, Upload, X, Image, Link2, FolderPlus, Folder, Undo2, Redo2 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -289,7 +290,7 @@ useEffect(() => {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Permanently delete ${alter?.name}? This cannot be undone.`)) return;
+    if (!(await confirm(`Permanently delete ${alter?.name}? This cannot be undone.`))) return;
     setDeleting(true);
     try {
       await base44.entities.Alter.delete(alter.id);
@@ -402,7 +403,7 @@ useEffect(() => {
   const clearAllTags = async () => {
     const existing = Array.isArray(alter.tags) ? alter.tags : [];
     if (existing.length === 0) return;
-    if (!window.confirm(`Remove all ${existing.length} tag${existing.length === 1 ? "" : "s"} from ${alter.name || "this alter"}? This can't be undone.`)) return;
+    if (!(await confirm(`Remove all ${existing.length} tag${existing.length === 1 ? "" : "s"} from ${alter.name || "this alter"}? This can't be undone.`))) return;
     try {
       await base44.entities.Alter.update(alter.id, { tags: [] });
       queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });

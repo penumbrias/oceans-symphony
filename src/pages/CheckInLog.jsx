@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect, useRef } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -1463,7 +1464,7 @@ export default function CheckInLog() {
   }, [highlightId, dateParam, checkIns]);
 
   const handleDelete = async (checkInId) => {
-    if (!confirm("Delete this check-in?")) return;
+    if (!(await confirm("Delete this check-in?"))) return;
     // Cascade: also remove any SymptomCheckIns logged alongside this
     // check-in so the symptom doesn't outlive the parent on the
     // timeline. (Bug report: deleting a check-in left "emotional

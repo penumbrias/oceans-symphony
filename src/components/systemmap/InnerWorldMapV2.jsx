@@ -15,6 +15,7 @@
 // view mode — it's navigate-only, not hidden.
 
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -615,7 +616,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               <>
                 <button onClick={async () => { const n = window.prompt("Rename map", activeMap.name); if (n) await renameMap(activeMap.id, n); }} className="px-1.5 py-1 rounded-lg text-xs text-muted-foreground hover:bg-muted/40" title="Rename map"><Pencil className="w-3 h-3" /></button>
                 {maps.length > 1 && (
-                  <button onClick={async () => { if (window.confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`)) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
+                  <button onClick={async () => { if ((await confirm(`Delete map "${activeMap.name}" and everything on it? This can't be undone.`))) { await deleteMap(activeMap.id); setActiveMapId(null); } }} className="px-1.5 py-1 rounded-lg text-xs text-destructive hover:bg-destructive/10" title="Delete map"><Trash2 className="w-3 h-3" /></button>
                 )}
               </>
             )}
@@ -650,7 +651,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                         <button onClick={(e) => { e.stopPropagation(); if (idx > 0) iw.reorderLayers(swap(layersBottomToTop.map((l) => l.id), idx, idx - 1)); }} disabled={idx === 0} className="text-muted-foreground hover:text-foreground disabled:opacity-25" title="Move down"><ChevronDown className="w-3 h-3" /></button>
                         <button onClick={(e) => { e.stopPropagation(); const n = window.prompt("Rename layer", layer.name); if (n) iw.renameLayer(layer.id, n); }} className="text-muted-foreground hover:text-foreground" title="Rename"><Pencil className="w-2.5 h-2.5" /></button>
                         {layers.length > 1 && (
-                          <button onClick={(e) => { e.stopPropagation(); if (window.confirm(`Delete layer "${layer.name}" and everything on it?`)) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
+                          <button onClick={async (e) => { e.stopPropagation(); if ((await confirm(`Delete layer "${layer.name}" and everything on it?`))) iw.deleteLayer(layer.id); }} className="text-destructive/70 hover:text-destructive" title="Delete layer"><Trash2 className="w-2.5 h-2.5" /></button>
                         )}
                       </>
                     )}
@@ -940,7 +941,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
                     setEditingLocation((l) => ({ ...l, link_target_type: type, link_target_id: id })); iw.setLocationLink(editingLocation.id, type, id);
                   }} />
               </div>
-              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={() => { if (window.confirm("Delete this location?")) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>Delete Location</Button>
+              <Button size="sm" variant="destructive" className="w-full h-7 text-xs" onClick={async () => { if ((await confirm("Delete this location?"))) { iw.deleteLocation(editingLocation.id); setEditingLocation(null); setSelectedLocation(null); } }}>Delete Location</Button>
             </div>
           )}
 

@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { DndContext, closestCenter, KeyboardSensor, PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
@@ -221,8 +222,8 @@ export default function DiaryTemplateManager() {
     );
   };
 
-  const handleGroupDelete = (groupId) => {
-    if (!confirm("Delete this group?")) return;
+  const handleGroupDelete = async (groupId) => {
+    if (!(await confirm("Delete this group?"))) return;
     setGroups(prev => prev.filter(g => g.id !== groupId));
   };
 
@@ -289,8 +290,8 @@ export default function DiaryTemplateManager() {
     }
   };
 
-  const handleReset = () => {
-    if (!confirm("Reset to defaults? This will overwrite your current configuration.")) return;
+  const handleReset = async () => {
+    if (!(await confirm("Reset to defaults? This will overwrite your current configuration."))) return;
     setGroups(structuredClone(DEFAULT_GROUPS));
   };
 

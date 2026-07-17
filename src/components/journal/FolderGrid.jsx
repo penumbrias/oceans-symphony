@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Folder, FolderOpen, MoreVertical, Pencil, Trash2 } from "lucide-react";
 
 export default function FolderGrid({ folders, onSelect, onRename, onDelete }) {
@@ -60,7 +61,7 @@ export default function FolderGrid({ folders, onSelect, onRename, onDelete }) {
     setRenameValue("");
   };
 
-  const handleDeleteClick = (folder) => {
+  const handleDeleteClick = async (folder) => {
     setMenuFor(null);
     if (!onDelete) return;
     const inside = folder.count;
@@ -71,7 +72,7 @@ export default function FolderGrid({ folders, onSelect, onRename, onDelete }) {
     const msg = inside > 0
       ? `Delete "${folder.name}"? ${inside} ${inside === 1 ? "entry" : "entries"} inside will be moved to ${destination} — entries themselves will NOT be deleted.${subfolderNote}`
       : `Delete the empty folder "${folder.name}"?${subfolderNote}`;
-    if (window.confirm(msg)) {
+    if ((await confirm(msg))) {
       onDelete(folder.path);
     }
   };

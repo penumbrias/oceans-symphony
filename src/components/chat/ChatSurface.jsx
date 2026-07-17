@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { Send, Pencil, Trash2, Reply, X, Check, User, ChevronDown, Lock, ImagePlus, Loader2 } from "lucide-react";
@@ -208,10 +209,10 @@ export function MessageRow({ msg, alters, allMessages = [], editing, highlighted
     (msg.whisper_to_ids || []).some((id) => frontSet.has(id)) ||
     (Array.isArray(msg.author_alter_ids) ? msg.author_alter_ids : [msg.author_alter_id]).some((id) => id && frontSet.has(id))
   );
-  const revealWhisper = () => {
+  const revealWhisper = async () => {
     if (whisperForFronter) { setRevealed(true); return; }
     const who = whisperNames || "the intended recipient";
-    if (window.confirm(`This message is only intended for ${who}. Display anyway?`)) setRevealed(true);
+    if ((await confirm(`This message is only intended for ${who}. Display anyway?`))) setRevealed(true);
   };
   const whisperHidden = isWhisper && !isDeleted && !revealed;
   const authorNames = authors.map((a) => formatAlter(a)).join(", ");

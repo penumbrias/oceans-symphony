@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil } from "lucide-react";
@@ -448,7 +449,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
     const confirmText = itemCount > 0
       ? `Delete "${list.name}" and its ${itemCount} item${itemCount === 1 ? "" : "s"}? This cannot be undone.`
       : `Delete "${list.name}"? This cannot be undone.`;
-    if (!window.confirm(confirmText)) return;
+    if (!(await confirm(confirmText))) return;
     if (list.source === "local") {
       deleteUnlockedList(list.id);
     } else {

@@ -11,6 +11,7 @@
 // "Sub-locations" — locations on the SAME map whose box sits inside this one
 //                   (the existing coordinate-overlap nesting; cycle-safe).
 import React, { useState, useEffect, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -263,7 +264,7 @@ function LocationProfileInner() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Delete the location "${location.name}"? ${t.Alters} placed here are not deleted — they just lose this location. This can't be undone.`)) return;
+    if (!(await confirm(`Delete the location "${location.name}"? ${t.Alters} placed here are not deleted — they just lose this location. This can't be undone.`))) return;
     setDeleting(true);
     try {
       await base44.entities.InnerWorldLocation.delete(location.id);
