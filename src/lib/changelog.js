@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 16, 2026",
     changes: [
+      { type: "fix", text: "Changing who's primary no longer resets everyone's \"fronting since\" timer." },
+      { type: "fix", text: "Bulletin reactions and poll votes are no longer occasionally dropped when tapped in quick succession." },
       { type: "fix", text: "Double-tapping Save no longer creates duplicate entries when logging activities, check-ins, tasks, or bulletins." },
       { type: "fix", text: "The friends list no longer disappears when you leave and come back to the app, and friends' fronting updates refresh more reliably." },
       { type: "fix", text: "Data recovery now searches more places for your data, and the Welcome screen can no longer overwrite data that's still recoverable." },
