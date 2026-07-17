@@ -76,9 +76,83 @@ function summarizePlainData(data) {
   return { entityCount, alterCount, name };
 }
 
-// Scan the whole IndexedDB scope for data blobs that are NOT the (empty) active
-// slot. Returns a list of candidates sorted richest-first:
-//   { key, systemId, encrypted, entityCount, alterCount, sizeBytes, name, raw }
+// ── Shared blob enumeration (IndexedDB + localStorage) ──
+//
+// The data blob normally lives in IndexedDB, but it can also end up in
+// localStorage: saveToStorage falls back to localStorage when an IDB write
+// throws (localDb.js), and a pre-migration blob lingers there until it's read.
+// The original scan only looked at IndexedDB, so a blob stranded in localStorage
+// under a NON-active key was invisible — the user was told "no other copies"
+// while their data sat right there. These helpers read BOTH stores so recovery
+// sees everything. All read-only; none ever throw.
+
+// localStorage data-blob keys → raw string. Never throws.
+function readLocalStorageBlobs() {
+  const out = new Map();
+  try {
+    if (typeof localStorage === 'undefined') return out;
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!isDataBlobKey(key)) continue;
+      let raw;
+      try { raw = localStorage.getItem(key); } catch { continue; }
+      if (raw == null || raw === '') continue;
+      out.set(key, raw);
+    }
+  } catch { /* localStorage unavailable — the IDB pass still ran */ }
+  return out;
+}
+
+// Every data-blob key across both stores. IndexedDB first (authoritative — it's
+// what loadFromStorage reads), then any localStorage-ONLY keys. Returns
+// [{ key, raw, source }] with source 'idb' | 'localStorage'.
+async function readAllBlobs() {
+  const seen = new Set();
+  const blobs = [];
+  try {
+    const idb = await getIdb();
+    const keys = await idb.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
+    for (const key of keys) {
+      if (!isDataBlobKey(key)) continue;
+      let raw;
+      try { raw = await idb.get(IDB_STORE, key); } catch { continue; }
+      if (raw == null) continue;
+      seen.add(key);
+      blobs.push({ key, raw, source: 'idb' });
+    }
+  } catch { /* IDB unreadable — still surface any localStorage copies below */ }
+  for (const [key, raw] of readLocalStorageBlobs()) {
+    if (seen.has(key)) continue; // an IDB copy under the same key wins
+    blobs.push({ key, raw, source: 'localStorage' });
+  }
+  return blobs;
+}
+
+// Turn one raw blob into a candidate record, or null to skip it. `skipEmpty`
+// drops parseable-but-empty blobs and skips unparseable ones (orphan scan);
+// with skipEmpty=false an unparseable blob is surfaced as `corrupted` (full
+// enumeration). The `source` and `isActive` fields are additive — existing
+// consumers ignore them.
+function classifyBlob({ key, raw, source }, { skipEmpty, isActive = false }) {
+  const rawStr = typeof raw === 'string' ? raw : (() => { try { return JSON.stringify(raw); } catch { return ''; } })();
+  if (!rawStr) return null;
+  let parsed;
+  try { parsed = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+  catch {
+    if (skipEmpty) return null; // unparseable — not a clean orphan candidate
+    return { key, systemId: systemIdFromKey(key), source, isActive, encrypted: false, corrupted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr };
+  }
+  if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
+    return { key, systemId: systemIdFromKey(key), source, isActive, encrypted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr };
+  }
+  const { entityCount, alterCount, name } = summarizePlainData(parsed);
+  if (skipEmpty && entityCount <= 0) return null; // empty object — nothing to recover
+  return { key, systemId: systemIdFromKey(key), source, isActive, encrypted: false, entityCount, alterCount, sizeBytes: rawStr.length, name, raw: rawStr };
+}
+
+// Scan BOTH stores for data blobs that are NOT the (empty) active slot. Returns
+// candidates sorted richest-first:
+//   { key, systemId, source, encrypted, entityCount, alterCount, sizeBytes, name, raw }
 // - `encrypted` candidates can't be counted without the password, so their
 //   entityCount/alterCount are null; they're still offered (a locked blob is
 //   still the user's data).
@@ -87,62 +161,13 @@ function summarizePlainData(data) {
 // Never throws for a per-key parse failure — a corrupted key is simply skipped.
 export async function scanForOrphanedData() {
   const activeKey = getActiveStorageKey();
-  let keys = [];
-  let store = null;
-  try {
-    const idb = await getIdb();
-    const tx = idb.transaction(IDB_STORE, 'readonly');
-    store = tx.objectStore(IDB_STORE);
-    keys = await store.getAllKeys();
-  } catch {
-    return []; // storage unreadable — App.jsx's own peek already routes to recovery
-  }
-
+  const blobs = await readAllBlobs();
   const candidates = [];
-  for (const key of keys) {
-    if (!isDataBlobKey(key)) continue;
-    if (key === activeKey) continue; // the empty slot that sent us here
-    let raw;
-    try {
-      const idb = await getIdb();
-      raw = await idb.get(IDB_STORE, key);
-    } catch { continue; }
-    if (raw == null) continue;
-    const rawStr = typeof raw === 'string' ? raw : (() => { try { return JSON.stringify(raw); } catch { return ''; } })();
-    if (!rawStr) continue;
-
-    let parsed;
-    try { parsed = typeof raw === 'string' ? JSON.parse(raw) : raw; }
-    catch { continue; } // unparseable — not a clean candidate
-
-    if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
-      candidates.push({
-        key,
-        systemId: systemIdFromKey(key),
-        encrypted: true,
-        entityCount: null,
-        alterCount: null,
-        sizeBytes: rawStr.length,
-        name: null,
-        raw: rawStr,
-      });
-      continue;
-    }
-
-    const { entityCount, alterCount, name } = summarizePlainData(parsed);
-    if (entityCount <= 0) continue; // empty object — nothing to recover
-    candidates.push({
-      key,
-      systemId: systemIdFromKey(key),
-      encrypted: false,
-      entityCount,
-      alterCount,
-      sizeBytes: rawStr.length,
-      name,
-      raw: rawStr,
-    });
+  for (const b of blobs) {
+    if (b.key === activeKey) continue; // the empty slot that sent us here
+    const c = classifyBlob(b, { skipEmpty: true });
+    if (c) candidates.push(c);
   }
-
   // Richest first: real record counts beat encrypted-unknown, then by size.
   candidates.sort((a, b) => {
     const ae = a.entityCount ?? -1;
@@ -162,47 +187,17 @@ export async function scanForOrphanedData() {
 // this app's storage, under which key. Read-only. Never throws per-key.
 export async function listAllStorageBlobs() {
   const activeKey = getActiveStorageKey();
-  let keys = [];
-  try {
-    const idb = await getIdb();
-    keys = await idb.transaction(IDB_STORE, 'readonly').objectStore(IDB_STORE).getAllKeys();
-  } catch {
-    return [];
+  const blobs = await readAllBlobs();
+  const out = [];
+  for (const b of blobs) {
+    const rec = classifyBlob(b, { skipEmpty: false, isActive: b.key === activeKey });
+    if (rec) out.push(rec);
   }
-
-  const blobs = [];
-  for (const key of keys) {
-    if (!isDataBlobKey(key)) continue;
-    let raw;
-    try {
-      const idb = await getIdb();
-      raw = await idb.get(IDB_STORE, key);
-    } catch { continue; }
-    if (raw == null) continue;
-    const rawStr = typeof raw === 'string' ? raw : (() => { try { return JSON.stringify(raw); } catch { return ''; } })();
-    if (!rawStr) continue;
-
-    let parsed;
-    try { parsed = typeof raw === 'string' ? JSON.parse(raw) : raw; }
-    catch {
-      blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: false, corrupted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr });
-      continue;
-    }
-
-    if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
-      blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: true, entityCount: null, alterCount: null, sizeBytes: rawStr.length, name: null, raw: rawStr });
-      continue;
-    }
-
-    const { entityCount, alterCount, name } = summarizePlainData(parsed);
-    blobs.push({ key, systemId: systemIdFromKey(key), isActive: key === activeKey, encrypted: false, entityCount, alterCount, sizeBytes: rawStr.length, name, raw: rawStr });
-  }
-
   // Active first, then richest — so the user sees "the one you're in" up top,
   // then any other copies ranked by how much data they hold.
-  blobs.sort((a, b) => {
+  out.sort((a, b) => {
     if (a.isActive !== b.isActive) return a.isActive ? -1 : 1;
     return (b.entityCount ?? -1) - (a.entityCount ?? -1);
   });
-  return blobs;
+  return out;
 }
