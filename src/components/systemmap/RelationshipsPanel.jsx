@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect } from "react";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { useNavigate } from "react-router-dom";
 import { Plus, Pencil, Trash2, ChevronDown, ChevronUp, MapPin, X, Upload, Settings2, ExternalLink } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -265,13 +266,14 @@ export default function RelationshipsPanel({ relationships, alters, locations = 
 
             {/* Alter filter (only for relationships and all modes) */}
             {(filterMode === "all" || filterMode === "relationships") && (
-              <select value={filterAlterId} onChange={e => setFilterAlterId(e.target.value)}
-                className="h-8 px-2 rounded border border-border bg-background text-xs">
-                <option value="">{`All ${t.alters}`}</option>
-                {alters.filter(a => !a.is_archived).map(a => (
-                  <option key={a.id} value={a.id}>{a.name}</option>
-                ))}
-              </select>
+              <AlterSearchSelect
+                alters={alters.filter(a => !a.is_archived)}
+                value={filterAlterId || null}
+                onChange={id => setFilterAlterId(id || "")}
+                terms={t}
+                noneLabel={`All ${t.alters}`}
+                buttonClassName="h-8 text-xs"
+              />
             )}
 
             {(filterMode === "all" || filterMode === "relationships") && (

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { ChevronUp, ChevronDown, ChevronRight, Trash2, Plus, Check, X, Pencil, Search } from "lucide-react";
@@ -411,11 +412,14 @@ function ActionForm({ initialData, alters, symptoms, activityCategories, customE
       {(data.type === "set_front_alter" || data.type === "add_to_front_alter") && (
         <div>
           <Label className="text-xs font-medium mb-1 block">Which {terms.alter}?</Label>
-          <select value={data.config?.alter_id || ""} onChange={e => setConfig("alter_id", e.target.value)}
-            className="w-full h-9 px-2 rounded-lg border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-primary">
-            <option value="">Select an {terms.alter}…</option>
-            {activeAlters.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-          </select>
+          <AlterSearchSelect
+            alters={activeAlters}
+            value={data.config?.alter_id || null}
+            onChange={id => setConfig("alter_id", id || "")}
+            terms={terms}
+            showNone={false}
+            placeholder={`Select an ${terms.alter}…`}
+          />
         </div>
       )}
 
