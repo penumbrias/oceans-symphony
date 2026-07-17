@@ -20,7 +20,7 @@ export default function TaskItem({
   level = 0,
 }) {
   const progress = task.goal_target
-    ? Math.round((task.current_progress / task.goal_target) * 100)
+    ? Math.round(((task.current_progress || 0) / task.goal_target) * 100)
     : null;
 
   // Fetch activity categories so we can render the new array-based tag with

@@ -279,7 +279,10 @@ export default function SystemCheckInPage() {
           note: noteParts.join(". "),
         });
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
-      } catch {}
+      } catch (e) {
+        console.error("Failed to save check-in emotions", e);
+        toast.error("Couldn't save your emotions to the log.");
+      }
     }
   };
 
@@ -289,6 +292,7 @@ export default function SystemCheckInPage() {
   const syncParticipantEmotions = async (participants) => {
     const list = Array.isArray(participants) ? participants : [];
     let created = false;
+    let failed = 0;
     for (const p of list) {
       const emos = Array.isArray(p?.emotions) ? p.emotions.filter((s) => typeof s === "string" && s.trim()) : [];
       if (!p?.alter_id || emos.length === 0) continue;
@@ -303,9 +307,13 @@ export default function SystemCheckInPage() {
           note: noteBits.join(". "),
         });
         created = true;
-      } catch {}
+      } catch (e) {
+        console.error("Failed to save a participant's emotions", e);
+        failed += 1;
+      }
     }
     if (created) queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+    if (failed > 0) toast.error(`Couldn't save emotions for ${failed} participant${failed === 1 ? "" : "s"}.`);
   };
 
   const handleNewCheckIn = () => {

@@ -143,7 +143,9 @@ export default function ActivityTallyTracker({ activities = [] }) {
       // roots so they still render — otherwise their counts would silently
       // vanish from the tally if a parent was deleted.
       .filter(c => (!c.parent_category_id || !catById[c.parent_category_id]) && tally[c.id]?.count > 0)
-      .sort((a, b) => (b.count || 0) - (a.count || 0)),
+      // Counts live in the tally map, not on the category record — sort by those
+      // so the list is actually ordered by frequency (was a no-op: c.count is undefined).
+      .sort((a, b) => (tally[b.id]?.count || 0) - (tally[a.id]?.count || 0)),
     [categories, catById, tally]
   );
 
