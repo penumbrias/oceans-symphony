@@ -183,7 +183,15 @@ export async function fetchFriendsList() {
   if (!identity) return { friends: [], pending: [], pendingSent: [] };
 
   const res = await fetch(`${BASE}/list?userId=${identity.userId}&secret=${identity.secret}`);
-  if (!res.ok) return { friends: [], pending: [], pendingSent: [] };
+  if (!res.ok) {
+    // THROW rather than return an empty list. A transient 5xx / offline blip
+    // that still produced an HTTP response would otherwise resolve as a
+    // *successful* empty result — and React Query caches it, wiping the friends
+    // list the user could see a moment ago until a full app restart (the
+    // "friends disappeared on resume" bug). Throwing leaves the query in error
+    // state with the last-known-good data intact, and it retries on its own.
+    throw new Error(`friends/list failed (${res.status})`);
+  }
   return res.json();
 }
 
