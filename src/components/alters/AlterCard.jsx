@@ -51,7 +51,7 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
           is_active: false,
           end_time: new Date().toISOString(),
         });
-        toast.success(`${alter.name} removed from front`);
+        toast.success(`${alter.name} removed from ${terms.front}`);
       } else {
         // Add alter to front (as co-fronter by default — promote to primary
         // only if nobody else holds primary right now)
@@ -62,12 +62,12 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
           start_time: new Date().toISOString(),
           is_active: true,
         });
-        toast.success(`${alter.name} added to front!`);
+        toast.success(`${alter.name} added to ${terms.front}!`);
       }
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
     } catch (err) {
-      toast.error(err.message || "Failed to update front");
+      toast.error(err.message || `Failed to update ${terms.front}`);
     }
   };
 

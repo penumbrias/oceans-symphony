@@ -571,7 +571,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
             await base44.entities.FrontingSession.update(g.id, { end_time: now });
           }
         } catch { /* filter on end_time: null may not be supported */ }
-        toast.success("✅ Front cleared");
+        toast.success(`✅ ${terms.Front} cleared`);
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
         // Push cleared status to friends server (fire-and-forget)
@@ -657,7 +657,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           ));
         }
 
-        toast.success("✅ Front updated!");
+        toast.success(`✅ ${terms.Front} updated!`);
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
 
@@ -692,7 +692,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
         }
       }
     } catch (e) {
-      toast.error(e.message || "Failed to set front");
+      toast.error(e.message || `Failed to set ${terms.front}`);
     } finally {
       setSaving(false);
     }
