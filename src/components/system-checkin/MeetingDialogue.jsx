@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
 import { saveMentions, saveAuthoredLog } from "@/lib/mentionUtils";
 import ChatSurface from "@/components/chat/ChatSurface";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 // ── Meeting "open dialogue" space ────────────────────────────────────────────
 //
@@ -354,7 +355,7 @@ export default function MeetingDialogue({
   };
 
   const handleDeleteMeeting = async (msg) => {
-    if (!window.confirm("Delete this message from the dialogue?")) return;
+    if (!(await confirm("Delete this message from the dialogue?"))) return;
     // Soft-delete so reply quotes still resolve, mirroring System Chat.
     onChange(meetingMessages.map((m) => (m.id === msg.id
       ? toStored({ ...m, content: "", deleted_at: new Date().toISOString() })
@@ -362,7 +363,7 @@ export default function MeetingDialogue({
   };
 
   const handleDeleteChannel = async (msg) => {
-    if (!window.confirm("Delete this message?")) return;
+    if (!(await confirm("Delete this message?"))) return;
     await localEntities.SystemChatMessage.update(msg.id, {
       content: "",
       deleted_at: new Date().toISOString(),

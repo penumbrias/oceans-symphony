@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Plus, Trash2, FolderOpen } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 // Phase 2/categories — manage the contact category list (add / rename /
 // recolour / delete). Categories are flat for now (a contact can be in
@@ -58,7 +59,7 @@ export default function ContactCategoriesModal({ open, onClose }) {
   };
 
   const remove = async (cat) => {
-    if (!window.confirm(`Delete the "${cat.name}" category? Contacts keep their info — they're just no longer filed under it.`)) return;
+    if (!(await confirm(`Delete the "${cat.name}" category? Contacts keep their info — they're just no longer filed under it.`))) return;
     try { await base44.entities.ContactCategory.delete(cat.id); invalidate(); }
     catch (err) { toast.error(err?.message || "Couldn't delete"); }
   };

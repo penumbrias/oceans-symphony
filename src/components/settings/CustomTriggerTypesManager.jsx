@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Trash2, Pencil, Check, X, Zap, Plus } from "lucide-react";
 import { toast } from "sonner";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 const EMOJI_SUGGESTIONS = ["🌀","🔥","❄️","🌊","💤","🫁","💊","🏠","🌩️","😶","🪨","💔","🧩","🫀","🦷","🌑","🎭","🧸","🪞","🌿"];
 
@@ -115,7 +116,7 @@ export default function CustomTriggerTypesManager() {
   const handleDelete = async (id) => {
     const target = triggerTypes.find(t => t.id === id);
     const label = target?.label || "this trigger";
-    if (!window.confirm(`Delete the trigger type "${label}"? Past sessions that recorded this trigger keep the label, but it will no longer appear in the picker.`)) return;
+    if (!(await confirm(`Delete the trigger type "${label}"? Past sessions that recorded this trigger keep the label, but it will no longer appear in the picker.`))) return;
     try {
       await base44.entities.TriggerType.delete(id);
       queryClient.invalidateQueries({ queryKey: ["customTriggerTypes"] });

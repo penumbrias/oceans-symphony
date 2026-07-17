@@ -7,6 +7,7 @@ import { ChevronLeft, FileText, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 // One saved reflection — read-only by default, with inline edit (each response
 // becomes an editable field) and delete. SupportJournalEntry.responses is a
@@ -39,7 +40,7 @@ function ReflectionCard({ entry }) {
   };
 
   const del = async () => {
-    if (!window.confirm("Delete this reflection? This can't be undone.")) return;
+    if (!(await confirm("Delete this reflection? This can't be undone."))) return;
     try {
       await base44.entities.SupportJournalEntry.delete(entry.id);
       invalidate();

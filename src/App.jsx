@@ -1,4 +1,5 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
+import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
 import { useState, useEffect } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
@@ -500,6 +501,7 @@ function App() {
             <AuthenticatedApp />
           </Router>
           <SonnerToaster richColors closeButton />
+          <ConfirmRoot />
         </AuthProvider>
       </QueryClientProvider>
     </ThemeProvider>

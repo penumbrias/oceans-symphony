@@ -8,6 +8,7 @@ import { Plus, Trash2, Link2 } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { fetchActiveContactRelationshipTypes } from "@/lib/contacts";
+import { confirm } from "@/components/shared/ConfirmDialog";
 
 // Manage the SEPARATE contact relationship-type catalogue (add / rename /
 // recolour / delete). Distinct from the internal alter RelationshipType set.
@@ -51,7 +52,7 @@ export default function ContactRelationshipTypesModal({ open, onClose }) {
   };
 
   const remove = async (t) => {
-    if (!window.confirm(`Delete the "${t.label}" type? Existing relationships keep their label — it just won't be a suggestion anymore.`)) return;
+    if (!(await confirm(`Delete the "${t.label}" type? Existing relationships keep their label — it just won't be a suggestion anymore.`))) return;
     try { await base44.entities.ContactRelationshipType.delete(t.id); invalidate(); }
     catch (err) { toast.error(err?.message || "Couldn't delete"); }
   };

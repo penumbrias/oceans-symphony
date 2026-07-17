@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
 import { ArrowLeft, ArrowRight, Star, ChevronDown, ChevronUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CATEGORY_EMOJIS, resolveCategory } from "@/utils/groundingDefaults";
@@ -227,11 +228,13 @@ export default function GuidedTechniqueView({
           {alters.length > 0 && (
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">Saving as:</span>
-              <select value={selectedAlterId || ""} onChange={e => setSelectedAlterId(e.target.value || null)}
-                className="text-xs h-7 px-2 rounded-md border border-border bg-background">
-                <option value="">System</option>
-                {alters.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
-              </select>
+              <AlterSearchSelect
+                alters={alters}
+                value={selectedAlterId || null}
+                onChange={id => setSelectedAlterId(id || null)}
+                noneLabel="System"
+                buttonClassName="text-xs h-7"
+              />
             </div>
           )}
 
