@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -57,8 +58,8 @@ function ActivityActionMenu({ activity, onClose }) {
     finally { setBusy(false); onClose(); }
   };
 
-  const handleDiscard = () => {
-    if (!window.confirm("Discard this in-progress activity? No record will be saved.")) return;
+  const handleDiscard = async () => {
+    if (!(await confirm("Discard this in-progress activity? No record will be saved."))) return;
     removeActiveActivity(activity.id);
     toast.success("Discarded");
     onClose();
