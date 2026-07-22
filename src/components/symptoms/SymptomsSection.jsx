@@ -3,6 +3,7 @@ import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus } from "lucide-rea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL } from "@/lib/trackingModel";
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
@@ -260,8 +261,16 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
           <div className="flex gap-1 mt-1">
               {LABELS.map((lbl, idx) => {
               const sel = idx === 0 ? severity === null : severity === idx - 1;
+              // Anchor labels give the numbers a stable meaning ("3" drifts
+              // across days — and across alters — without them). 0 is an
+              // explicit "None": a real "checked, and it was absent" answer,
+              // distinct from "—" (skip / no answer, logs nothing).
+              const anchor = idx === 0 ? SEVERITY_SKIP_LABEL : `${idx - 1} — ${SEVERITY_ANCHORS[idx - 1]}`;
               return (
                 <button key={idx} onClick={() => handleSeverity(idx)}
+                title={anchor}
+                aria-label={anchor}
+                aria-pressed={sel}
                 className="w-6 h-6 rounded text-xs font-medium transition-colors"
                 style={{
                   backgroundColor: sel ? idx === 0 ? `${color}30` : color : "hsl(var(--muted))",

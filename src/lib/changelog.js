@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Symptom rating buttons now explain themselves — each number shows its meaning (None / Mild / … / Extreme), and \"—\" is clearly \"skip, no answer\"." },
+      { type: "improve", text: "Rating a symptom 0 now shows as \"none\" in logs and the timeline instead of looking like a real episode — recording a good moment no longer reads like a bad one." },
+      { type: "improve", text: "Checked-but-unrated symptoms now count as mid-scale in report averages instead of being ignored, and stress items are treated as context rather than getting severity flags." },
       { type: "improve", text: "Security hardening: custom profile-page styles can no longer cover the app's own buttons or quietly load anything from the internet, and data arriving from friends is double-checked before it's shown." },
       { type: "improve", text: "Password-protected data now uses a much stronger lock. Existing encrypted data upgrades itself automatically the next time you unlock." },
     ],
