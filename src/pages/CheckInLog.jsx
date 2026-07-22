@@ -13,7 +13,7 @@ import { getCategoryMeta } from "@/lib/locationCategories";
 import { extractPerAlterEntries } from "@/lib/perAlterSessionEntries";
 import PerAlterEntryEditor from "@/components/fronting/PerAlterEntryEditor";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
-import { formatSeverityShort } from "@/lib/trackingModel";
+import { formatSeverityForSymptom } from "@/lib/trackingModel";
 
 // Long-press / double-click helper for re-opening a check-in in the
 // Quick Check-In modal so the user can fix mistakes after the fact.
@@ -358,7 +358,7 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
             return (
               <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border text-foreground"
                 style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
-                {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${formatSeverityShort(sc.severity)}` : ""}
+                {symptom?.label || "Symptom"}{sc.severity != null ? ` · ${formatSeverityForSymptom(symptom, sc.severity)}` : ""}
               </span>
             );
           })}
@@ -578,7 +578,7 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
             return (
               <span key={i} className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
                 style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
-                {label}{sc.severity != null ? ` · ${formatSeverityShort(sc.severity)}` : ""}
+                {label}{sc.severity != null ? ` · ${formatSeverityForSymptom(symptom, sc.severity)}` : ""}
               </span>
             );
           })}
@@ -850,7 +850,7 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
     >
       <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border flex-shrink-0 text-foreground"
         style={{ backgroundColor: `${color}33`, borderColor: `${color}99` }}>
-        {symptom?.label || "Symptom"}{!editing && sc.severity != null ? ` · ${formatSeverityShort(sc.severity)}` : ""}
+        {symptom?.label || "Symptom"}{!editing && sc.severity != null ? ` · ${formatSeverityForSymptom(symptom, sc.severity)}` : ""}
       </span>
       {editing && (
         <>

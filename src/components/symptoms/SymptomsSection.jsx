@@ -3,7 +3,7 @@ import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus } from "lucide-rea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL } from "@/lib/trackingModel";
+import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
@@ -36,9 +36,14 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
   filter((s) => !s.is_archived && s.category === activeTab &&
   (s.label || "").toLowerCase().includes(search.toLowerCase())).
   sort((a, b) => {
+    // Context items (triggers/factors) group under their own divider at
+    // the bottom — they're logged the same way but scored differently.
+    const ctxDiff = (isContextItem(a) ? 1 : 0) - (isContextItem(b) ? 1 : 0);
+    if (ctxDiff !== 0) return ctxDiff;
     const cmp = (a.label || "").localeCompare(b.label || "");
     return sortAsc ? cmp : -cmp;
   });
+  const firstContextId = visible.find((s) => isContextItem(s))?.id;
 
   const getSession = (id) => activeSessions.find((s) => s.symptom_id === id) || null;
 
@@ -158,13 +163,19 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
         <p className="text-xs text-muted-foreground text-center py-6">No {TAB_LABELS[activeTab].toLowerCase()} found</p> :
 
         visible.map((symptom) =>
-        <SymptomCardRow
-          key={symptom.id}
-          symptom={symptom}
-          activeSession={getSession(symptom.id)}
-          state={cardStates[symptom.id]}
-          onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
-
+        <React.Fragment key={symptom.id}>
+          {symptom.id === firstContextId &&
+          <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground pt-2 pb-0.5 px-1"
+            title="Context items log what was going on around you — they feed pattern-spotting but are never scored like symptoms.">
+              Context & triggers
+            </p>
+          }
+          <SymptomCardRow
+            symptom={symptom}
+            activeSession={getSession(symptom.id)}
+            state={cardStates[symptom.id]}
+            onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
+        </React.Fragment>
         )
         }
       </div>
@@ -183,7 +194,15 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
   const color = symptom.color || "#8B5CF6";
   const isActive = !!activeSession;
   const isRating = symptom.type === "rating";
-  const LABELS = ["—", "0", "1", "2", "3", "4", "5"];
+  const bipolar = isBipolarScale(symptom);
+  // Bipolar constructs (mood, energy) get a two-ended scale with a real
+  // neutral midpoint — displayed −2..+2, stored 0..4. Unipolar stays 0–5.
+  const LABELS = bipolar ? ["—", ...BIPOLAR_DISPLAY] : ["—", "0", "1", "2", "3", "4", "5"];
+  const direction = deriveDirection(symptom);
+  const directionCue = !isRating || bipolar ? null
+    : direction === "higher_better" ? { glyph: "▲", hint: "Higher is better" }
+    : direction === "higher_worse" ? { glyph: "▼", hint: "Higher is worse" }
+    : null;
 
   const updateState = (c, s) => {
     setChecked(c);setSeverity(s);
@@ -256,7 +275,14 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
 
         {/* Label + severity */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{symptom.label}</p>
+          <p className="text-sm font-medium truncate">
+            {symptom.label}
+            {directionCue &&
+            <span className="ml-1 text-[0.5625rem] align-middle text-muted-foreground/70" title={directionCue.hint} aria-label={directionCue.hint}>
+                {directionCue.glyph}
+              </span>
+            }
+          </p>
           {isRating &&
           <div className="flex gap-1 mt-1">
               {LABELS.map((lbl, idx) => {
@@ -265,13 +291,15 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
               // across days — and across alters — without them). 0 is an
               // explicit "None": a real "checked, and it was absent" answer,
               // distinct from "—" (skip / no answer, logs nothing).
-              const anchor = idx === 0 ? SEVERITY_SKIP_LABEL : `${idx - 1} — ${SEVERITY_ANCHORS[idx - 1]}`;
+              const anchor = idx === 0 ? SEVERITY_SKIP_LABEL
+                : bipolar ? `${BIPOLAR_DISPLAY[idx - 1]} — ${BIPOLAR_ANCHORS[idx - 1]}`
+                : `${idx - 1} — ${SEVERITY_ANCHORS[idx - 1]}`;
               return (
                 <button key={idx} onClick={() => handleSeverity(idx)}
                 title={anchor}
                 aria-label={anchor}
                 aria-pressed={sel}
-                className="w-6 h-6 rounded text-xs font-medium transition-colors"
+                className={`${bipolar ? "w-7" : "w-6"} h-6 rounded text-xs font-medium transition-colors`}
                 style={{
                   backgroundColor: sel ? idx === 0 ? `${color}30` : color : "hsl(var(--muted))",
                   color: sel ? idx === 0 ? color : "#fff" : "hsl(var(--muted-foreground))"

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
+import BundlePicker from "@/components/symptoms/BundlePicker";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
@@ -199,6 +200,7 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
 function SymptomTab({ category }) {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
@@ -234,13 +236,17 @@ function SymptomTab({ category }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={() => setShowPresets(true)} className="gap-1.5" data-tour="symptom-presets">
+          📦 Browse presets
+        </Button>
         <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
           <Plus className="w-3.5 h-3.5" /> Add {category === "symptom" ? "Symptom" : "Habit"}
         </Button>
       </div>
 
       {showAdd && <AddSymptomForm category={category} onAdd={handleAdd} onCancel={() => setShowAdd(false)} />}
+      <BundlePicker open={showPresets} onClose={() => setShowPresets(false)} onAdded={invalidate} />
 
       {filtered.length === 0 && !showAdd && (
         <div className="flex flex-col items-center py-10 text-center">

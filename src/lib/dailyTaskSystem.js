@@ -396,15 +396,10 @@ export const FREQUENCY_LABELS = {
  */
 export function applyTerms(text, terms) {
   if (!text || !terms) return text;
-  return text
-    .replace(/\{\{system\}\}/g, terms.system)
-    .replace(/\{\{System\}\}/g, terms.System)
-    .replace(/\{\{alter\}\}/g, terms.alter)
-    .replace(/\{\{Alter\}\}/g, terms.Alter)
-    .replace(/\{\{front\}\}/g, terms.front)
-    .replace(/\{\{Front\}\}/g, terms.Front)
-    .replace(/\{\{switch\}\}/g, terms.switch)
-    .replace(/\{\{Switch\}\}/g, terms.Switch);
+  // Generic token pass: any {{key}} present on the terms object resolves
+  // ({{fronting}}, {{Fronter}}, {{Switching}}, …), unknown tokens stay
+  // visible as-is (never the string "undefined").
+  return text.replace(/\{\{(\w+)\}\}/g, (m, key) => (terms[key] != null ? terms[key] : m));
 }
 
 // localStorage marker keys for triggers that don't leave an entity behind.

@@ -277,7 +277,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     enabled: isOpen,
   });
   const ratingSymptoms = useMemo(
-    () => allSymptoms.filter((s) => s.type === "rating" && !s.is_archived),
+    // The slider is a 0–5 unipolar control — bipolar-scale items (mood,
+    // energy on the −2..+2 scale) can't ride it; they're rated in the
+    // Symptoms section with their own two-ended row.
+    () => allSymptoms.filter((s) => s.type === "rating" && !s.is_archived && s.scale !== "bipolar_2"),
     [allSymptoms]
   );
   // Default the slider to "Energy level"; fall back to any rating symptom.

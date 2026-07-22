@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "New \"Browse presets\" catalogue in the Check-in manager — opt-in packs like Dissociation, Trauma responses, Focus, Sensory, and Daily care, written for how dissociative systems actually track. New systems start from these instead of the old list." },
+      { type: "feature", text: "Overall mood and Energy can now use a two-ended −2..+2 scale with a real neutral midpoint, instead of forcing a one-way 0–5." },
+      { type: "improve", text: "Context items (like work stress) now sit under their own divider in check-ins — logged the same way, but treated as context in analytics rather than scored like symptoms." },
       { type: "improve", text: "Symptom rating buttons now explain themselves — each number shows its meaning (None / Mild / … / Extreme), and \"—\" is clearly \"skip, no answer\"." },
       { type: "improve", text: "Rating a symptom 0 now shows as \"none\" in logs and the timeline instead of looking like a real episode — recording a good moment no longer reads like a bad one." },
       { type: "improve", text: "Checked-but-unrated symptoms now count as mid-scale in report averages instead of being ignored, and stress items are treated as context rather than getting severity flags." },
