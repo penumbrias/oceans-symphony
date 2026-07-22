@@ -1,6 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { X, ChevronLeft, Plus, Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useEmotionCategoryLabels } from "@/lib/emotionCategories";
 
 export const WHEEL = {
   good: {
@@ -139,6 +140,10 @@ export default function EmotionWheelPicker({
   const [activeCore,    setActiveCore]    = useState(null);
   const [search,        setSearch]        = useState("");
   const [customInput,   setCustomInput]   = useState("");
+  // User-renamable root labels ("Good" → "Positive", …). Structure stays;
+  // display AND the logged valence-mood string use the current name.
+  const catLabels = useEmotionCategoryLabels();
+  const rootLabel = (key) => catLabels[key] || WHEEL[key]?.label;
 
   const handleModeToggle = (mode) => {
     setPickerMode(mode);
@@ -156,8 +161,8 @@ export default function EmotionWheelPicker({
     // "Body & Nervous System" is a category, not a loggable mood, so it only
     // expands (no pill).
     if (key !== "body") {
-      const wasSelected = selectedEmotions.includes(WHEEL[key].label);
-      onToggle?.(WHEEL[key].label);
+      const wasSelected = selectedEmotions.includes(rootLabel(key));
+      onToggle?.(rootLabel(key));
       if (wasSelected) {
         if (activeValence === key) { setActiveValence(null); setActiveCore(null); }
       } else {
@@ -189,9 +194,16 @@ export default function EmotionWheelPicker({
 
   const colorFor = (label) => {
     // Base moods (the Good / Neutral / Bad quick buttons) are saved as plain
-    // "Good" / "Neutral" / "Bad" labels — map them to their valence colour so
-    // they read as members of those categories everywhere they're shown.
-    const base = { good: WHEEL.good.color, neutral: WHEEL.neutral.color, bad: WHEEL.bad.color };
+    // valence labels — map them to their valence colour so they read as
+    // members of those categories everywhere they're shown. Both the
+    // DEFAULT names and any user-renamed names resolve (historical entries
+    // logged under an old name keep their colour after a rename).
+    const base = {
+      good: WHEEL.good.color, neutral: WHEEL.neutral.color, bad: WHEEL.bad.color,
+      [String(catLabels.good).toLowerCase()]: WHEEL.good.color,
+      [String(catLabels.neutral).toLowerCase()]: WHEEL.neutral.color,
+      [String(catLabels.bad).toLowerCase()]: WHEEL.bad.color,
+    };
     if (base[label?.toLowerCase()]) return base[label.toLowerCase()];
     for (const v of Object.values(WHEEL)) {
       if (v.flat?.includes(label)) return v.color;
@@ -298,7 +310,7 @@ export default function EmotionWheelPicker({
             {Object.entries(WHEEL).map(([key, v]) => {
               // Good/Bad/Neutral light up when selected (they're loggable moods);
               // any valence lights up while expanded.
-              const lit = activeValence === key || (key !== "body" && selectedEmotions.includes(v.label));
+              const lit = activeValence === key || (key !== "body" && selectedEmotions.includes(rootLabel(key)));
               return (
                 <button key={key}
                   onClick={() => handleValence(key)}
@@ -306,7 +318,7 @@ export default function EmotionWheelPicker({
                     lit ? v.activeClass : v.bgClass
                   }`}
                   style={lit ? {} : { color: v.color }}>
-                  {v.label}
+                  {rootLabel(key)}
                 </button>
               );
             })}
@@ -423,7 +435,7 @@ export default function EmotionWheelPicker({
           {Object.entries(WHEEL).map(([key, v]) => (
             <div key={key}>
               <p className="text-xs font-semibold uppercase tracking-wide mb-1.5" style={{ color: v.color }}>
-                {v.label}
+                {rootLabel(key)}
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {v.flat

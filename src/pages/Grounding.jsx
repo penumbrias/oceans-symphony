@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Shield, Shuffle, AlertTriangle } from "lucide-react";
@@ -107,6 +107,10 @@ export default function Grounding({ initialPath = null }) {
   const [activeTab, setActiveTab] = useState(searchParams.get("tab") === "learn" ? "learn" : "support"); // "support" | "learn"
   // Deep-link to a Learn lesson (e.g. the safety-plan button → /grounding?tab=learn&topic=m4_t3).
   const deepLinkTopicId = searchParams.get("topic");
+  // Deep-link from the post-check-in support prompt (?states=anxiety,stuck):
+  // open the state check with those states pre-selected so the user isn't
+  // asked to re-answer what their check-in already said. One-shot.
+  const deepLinkStates = searchParams.get("states");
   // Whether the floating support bubble is currently shown (so this page can
   // offer to bring it back after the user dragged it away to hide it).
   const [bubbleEnabled, setBubbleEnabled] = useState(() => isGroundingButtonEnabled());
@@ -129,6 +133,22 @@ export default function Grounding({ initialPath = null }) {
   const [suggestionFadeKey, setSuggestionFadeKey] = useState(0);
 
   const queryClient = useQueryClient();
+
+  // One-shot: a ?states= deep link (post-check-in support prompt) jumps
+  // straight to the state check with those states pre-selected.
+  const statesConsumedRef = useRef(false);
+  useEffect(() => {
+    if (statesConsumedRef.current || !deepLinkStates) return;
+    statesConsumedRef.current = true;
+    const valid = deepLinkStates
+      .split(",")
+      .map((s) => s.trim())
+      .filter((id) => EMOTIONAL_STATES.some((st) => st.id === id));
+    if (valid.length) {
+      setSelectedStates(valid);
+      setPath("state-check");
+    }
+  }, [deepLinkStates]);
 
   const { data: supportEntries = [] } = useQuery({
     queryKey: ["supportJournalEntries"],
@@ -383,6 +403,7 @@ export default function Grounding({ initialPath = null }) {
     return (
       <div className="max-w-lg mx-auto p-4">
         <StateCheckFlow
+          initialSelected={selectedStates}
           onComplete={handleStateCheckComplete}
           onBack={() => setPath("entry")}
         />

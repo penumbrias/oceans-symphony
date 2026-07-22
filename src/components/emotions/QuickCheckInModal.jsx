@@ -23,7 +23,7 @@ import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
-import { loadSystemDistressSet } from "@/lib/emotionDistress";
+import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions from "@/hooks/useSwipeActions";
@@ -1083,7 +1083,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
                 No thanks
               </Button>
-              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); navigate("/grounding"); }} className="flex-1">
+              <Button onClick={() => {
+                setShowGroundingPrompt(false); onClose();
+                // Carry what was just logged into the grounding flow: the
+                // state check opens with matching states PRE-SELECTED
+                // instead of dumping the user at the entry screen to
+                // re-answer what they already told us.
+                const states = mapEmotionsToGroundingStates(
+                  selectedEmotions.filter((e) => isDistressingEmotion(e)),
+                  { triggeredSwitch: isTriggeredSwitch }
+                );
+                navigate(states.length ? `/grounding?states=${states.join(",")}` : "/grounding");
+              }} className="flex-1">
                 Yes, open grounding
               </Button>
             </div>

@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Your distressing-emotion choices now ride along in backups and restores (they were stuck on one device before), and the default list finally covers the sad, angry, and shut-down emotions it was missing." },
+      { type: "feature", text: "The four emotion categories can now be renamed — \"Good\" can become \"Positive\", or whatever fits. Settings → Tracking setup → Emotions → Rename categories." },
+      { type: "improve", text: "Saying yes to the support prompt after a hard check-in now opens the grounding state check with your answers already selected — no re-answering what you just logged." },
+      { type: "improve", text: "Context items (stress, routine breaks…) now have their own tab in the check-in and the Check-in manager, instead of mixing into the symptom list." },
       { type: "feature", text: "New \"Browse presets\" catalogue in the Check-in manager — opt-in packs like Dissociation, Trauma responses, Focus, Sensory, and Daily care, written for how dissociative systems actually track. New systems start from these instead of the old list." },
       { type: "feature", text: "Overall mood and Energy can now use a two-ended −2..+2 scale with a real neutral midpoint, instead of forcing a one-way 0–5." },
       { type: "improve", text: "Context items (like work stress) now sit under their own divider in check-ins — logged the same way, but treated as context in analytics rather than scored like symptoms." },

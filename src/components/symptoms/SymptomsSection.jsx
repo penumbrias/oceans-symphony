@@ -5,8 +5,11 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
 
-const TABS = ["symptom", "habit"];
-const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
+// "context" is a virtual tab: context-kind items live in category "symptom"
+// (legacy rows) but are triggers/factors, not symptoms — they get their own
+// tab so the symptom list stays clean and their different scoring is clear.
+const TABS = ["symptom", "habit", "context"];
+const TAB_LABELS = { symptom: "Symptoms", habit: "Habits", context: "Context" };
 
 // Exported so QuickCheckInModal can collect at save time
 export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }) {
@@ -33,17 +36,13 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
   });
 
   const visible = symptoms.
-  filter((s) => !s.is_archived && s.category === activeTab &&
+  filter((s) => !s.is_archived &&
+  (activeTab === "context" ? isContextItem(s) : s.category === activeTab && !isContextItem(s)) &&
   (s.label || "").toLowerCase().includes(search.toLowerCase())).
   sort((a, b) => {
-    // Context items (triggers/factors) group under their own divider at
-    // the bottom — they're logged the same way but scored differently.
-    const ctxDiff = (isContextItem(a) ? 1 : 0) - (isContextItem(b) ? 1 : 0);
-    if (ctxDiff !== 0) return ctxDiff;
     const cmp = (a.label || "").localeCompare(b.label || "");
     return sortAsc ? cmp : -cmp;
   });
-  const firstContextId = visible.find((s) => isContextItem(s))?.id;
 
   const getSession = (id) => activeSessions.find((s) => s.symptom_id === id) || null;
 
@@ -79,10 +78,15 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
     if (!newName.trim()) return;
     setAdding(true);
     try {
+      // The "context" tab is virtual — context items store as category
+      // "symptom" with kind "context" (they're triggers/factors, tracked
+      // for pattern-spotting, never scored like symptoms).
+      const isContextTab = activeTab === "context";
       await base44.entities.Symptom.create({
         label: newName.trim(),
-        category: activeTab,
-        type: newType,
+        category: isContextTab ? "symptom" : activeTab,
+        ...(isContextTab ? { kind: "context", direction: "higher_worse" } : {}),
+        type: isContextTab ? "boolean" : newType,
         is_positive: activeTab === "habit",
         is_default: false,
         is_archived: false,
@@ -138,11 +142,13 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
           onKeyDown={(e) => {if (e.key === "Enter") handleAddNew();if (e.key === "Escape") {setAddingNew(false);setNewName("");}}}
           placeholder={`New ${TAB_LABELS[activeTab].toLowerCase()} name...`}
           className="flex-1 px-3 py-1.5 text-sm bg-muted/40 border border-primary/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" />
-            <select value={newType} onChange={(e) => setNewType(e.target.value)}
+            {activeTab !== "context" &&
+          <select value={newType} onChange={(e) => setNewType(e.target.value)}
           className="px-2 py-1.5 text-xs bg-muted/40 border border-border/50 rounded-lg focus:outline-none">
               <option value="boolean">Yes/No</option>
               <option value="rating">Rating</option>
             </select>
+          }
           </div>
           <div className="flex gap-2">
             <button onClick={handleAddNew} disabled={adding}
@@ -163,19 +169,13 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
         <p className="text-xs text-muted-foreground text-center py-6">No {TAB_LABELS[activeTab].toLowerCase()} found</p> :
 
         visible.map((symptom) =>
-        <React.Fragment key={symptom.id}>
-          {symptom.id === firstContextId &&
-          <p className="text-[0.6875rem] uppercase tracking-wide text-muted-foreground pt-2 pb-0.5 px-1"
-            title="Context items log what was going on around you — they feed pattern-spotting but are never scored like symptoms.">
-              Context & triggers
-            </p>
-          }
-          <SymptomCardRow
-            symptom={symptom}
-            activeSession={getSession(symptom.id)}
-            state={cardStates[symptom.id]}
-            onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
-        </React.Fragment>
+        <SymptomCardRow
+          key={symptom.id}
+          symptom={symptom}
+          activeSession={getSession(symptom.id)}
+          state={cardStates[symptom.id]}
+          onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
+
         )
         }
       </div>

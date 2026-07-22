@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
 import BundlePicker from "@/components/symptoms/BundlePicker";
+import { isContextItem } from "@/lib/trackingModel";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
@@ -197,7 +198,7 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
   );
 }
 
-function SymptomTab({ category }) {
+function SymptomTab({ category, contextOnly = false }) {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
   const [showPresets, setShowPresets] = useState(false);
@@ -208,8 +209,11 @@ function SymptomTab({ category }) {
   });
 
   const filtered = useMemo(() =>
-    symptoms.filter(s => s.category === category && !s.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [symptoms, category]
+    symptoms
+      .filter(s => !s.is_archived &&
+        (contextOnly ? isContextItem(s) : s.category === category && !isContextItem(s)))
+      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [symptoms, category, contextOnly]
   );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["symptoms"] });
@@ -228,7 +232,9 @@ function SymptomTab({ category }) {
   };
 
   const handleAdd = async (data) => {
-    await base44.entities.Symptom.create(data);
+    // Context-tab additions store as kind "context" (category stays
+    // "symptom" for back-compat with the tab split elsewhere).
+    await base44.entities.Symptom.create(contextOnly ? { ...data, kind: "context" } : data);
     invalidate();
     setShowAdd(false);
     toast.success("✅ Added");
@@ -241,7 +247,7 @@ function SymptomTab({ category }) {
           📦 Browse presets
         </Button>
         <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Add {category === "symptom" ? "Symptom" : "Habit"}
+          <Plus className="w-3.5 h-3.5" /> Add {contextOnly ? "Context item" : category === "symptom" ? "Symptom" : "Habit"}
         </Button>
       </div>
 
@@ -250,9 +256,13 @@ function SymptomTab({ category }) {
 
       {filtered.length === 0 && !showAdd && (
         <div className="flex flex-col items-center py-10 text-center">
-          <div className="text-3xl mb-2">{category === "symptom" ? "💊" : "🌱"}</div>
-          <p className="text-sm font-medium text-foreground mb-1">No {category === "symptom" ? "symptoms" : "habits"} yet</p>
-          <p className="text-xs text-muted-foreground">Add your first {category === "symptom" ? "symptom" : "habit"} to track it in check-ins.</p>
+          <div className="text-3xl mb-2">{contextOnly ? "🌦️" : category === "symptom" ? "💊" : "🌱"}</div>
+          <p className="text-sm font-medium text-foreground mb-1">No {contextOnly ? "context items" : category === "symptom" ? "symptoms" : "habits"} yet</p>
+          <p className="text-xs text-muted-foreground">
+            {contextOnly
+              ? "Context items log what was going on around you (stress, routine breaks…) so patterns can be spotted — never scored like symptoms. Add one, or browse the Context & triggers preset pack."
+              : `Add your first ${category === "symptom" ? "symptom" : "habit"} to track it in check-ins.`}
+          </p>
         </div>
       )}
 
@@ -293,6 +303,7 @@ export default function ManageCheckIn() {
     { id: "sections", label: "Sections" },
     { id: "symptoms", label: "Symptoms" },
     { id: "habits", label: "Habits" },
+    { id: "context", label: "Context" },
     { id: "diary", label: "Diary card fields" },
   ];
 
@@ -320,6 +331,7 @@ export default function ManageCheckIn() {
       {tab === "sections" && <SectionsTab />}
       {tab === "symptoms" && <SymptomTab category="symptom" />}
       {tab === "habits" && <SymptomTab category="habit" />}
+      {tab === "context" && <SymptomTab category="symptom" contextOnly />}
       {tab === "diary" && <DiaryTemplateManager />}
     </motion.div>
   );

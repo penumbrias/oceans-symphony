@@ -10,6 +10,7 @@ import { Trash2, Pencil, Check, X, Heart, AlertCircle, ChevronDown } from "lucid
 import { toast } from "sonner";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { loadSystemDistressSet, saveSystemDistressSet } from "@/lib/emotionDistress";
+import { useEmotionCategoryLabels, EMOTION_CATEGORY_KEYS, DEFAULT_CATEGORY_LABELS } from "@/lib/emotionCategories";
 
 const db = isLocalMode() ? localEntities : base44.entities;
 
@@ -46,7 +47,7 @@ function SystemEmotionPill({ label, isDistressing, onToggle }) {
   );
 }
 
-function SystemGroup({ valenceKey, valenceData, distressSet, onToggle }) {
+function SystemGroup({ valenceKey, valenceData, distressSet, onToggle, labelOverride }) {
   const [expanded, setExpanded] = useState(valenceKey === "bad");
 
   const allEmotions = useMemo(() => {
@@ -70,7 +71,7 @@ function SystemGroup({ valenceKey, valenceData, distressSet, onToggle }) {
       >
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: valenceData.color }} />
-          <span className="text-sm font-medium">{valenceData.label}</span>
+          <span className="text-sm font-medium">{labelOverride || valenceData.label}</span>
           {distressCount > 0 && (
             <span className="text-xs text-red-500 font-medium">({distressCount} distressing)</span>
           )}
@@ -174,10 +175,86 @@ function EmotionRow({ emotion, onDelete, onUpdate }) {
   );
 }
 
+// Rename the four root categories ("Good" → "Positive", …). Structure is
+// fixed; names are the user's. Blank = back to the default.
+function CategoryNamesEditor() {
+  const queryClient = useQueryClient();
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => db.SystemSettings.list(),
+  });
+  const row = settingsList[0];
+  const overrides = row?.emotion_category_names || {};
+  const [draft, setDraft] = useState(null); // null = not editing
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () =>
+    setDraft(Object.fromEntries(EMOTION_CATEGORY_KEYS.map((k) => [k, overrides[k] || ""])));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const clean = {};
+      for (const k of EMOTION_CATEGORY_KEYS) {
+        const v = (draft[k] || "").trim();
+        if (v && v !== DEFAULT_CATEGORY_LABELS[k]) clean[k] = v;
+      }
+      if (row?.id) await db.SystemSettings.update(row.id, { emotion_category_names: clean });
+      else await db.SystemSettings.create({ emotion_category_names: clean });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success("Category names saved");
+      setDraft(null);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save names");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (draft === null) {
+    return (
+      <button type="button" onClick={startEdit} className="text-xs text-primary hover:underline">
+        <Pencil className="w-3 h-3 inline mr-1" />
+        Rename categories
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border/40 p-3 space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Rename the four groups to whatever fits — leave one blank to use its default name.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {EMOTION_CATEGORY_KEYS.map((k) => (
+          <div key={k}>
+            <label className="text-[0.6875rem] text-muted-foreground block mb-0.5">{DEFAULT_CATEGORY_LABELS[k]}</label>
+            <Input
+              value={draft[k]}
+              onChange={(e) => setDraft((p) => ({ ...p, [k]: e.target.value }))}
+              placeholder={DEFAULT_CATEGORY_LABELS[k]}
+              className="h-8 text-sm"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1">
+          <Check className="w-3 h-3" /> Save
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setDraft(null)} className="gap-1">
+          <X className="w-3 h-3" /> Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomEmotionsManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [systemDistress, setSystemDistress] = useState(() => loadSystemDistressSet());
+  const catLabels = useEmotionCategoryLabels();
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
@@ -251,6 +328,7 @@ export default function CustomEmotionsManager() {
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Built-in Emotions</p>
           <p className="text-xs text-muted-foreground">Tap an emotion to toggle whether it's distressing.</p>
+          <CategoryNamesEditor />
           <div className="space-y-1.5">
             {Object.entries(WHEEL).map(([key, data]) => (
               <SystemGroup
@@ -259,6 +337,7 @@ export default function CustomEmotionsManager() {
                 valenceData={data}
                 distressSet={systemDistress}
                 onToggle={toggleSystemDistress}
+                labelOverride={catLabels[key]}
               />
             ))}
           </div>
