@@ -10,6 +10,7 @@ import { base44 } from "@/api/base44Client";
 import { getLocalIdentity, FRIENDS_API_BASE, fetchFriendsList } from "@/lib/friendsApi";
 import { getPrivacyLevels, resolveVisibleAlters } from "@/lib/privacyLevels";
 import { encryptForRecipients, decryptEnvelope, isCryptoAvailable } from "@/lib/friendsCrypto";
+import { sanitizeSharedMember } from "@/lib/remoteSanitize";
 
 function stripHtml(html) {
   if (!html) return "";
@@ -108,6 +109,8 @@ export async function fetchFriendShare(friendUserId) {
     const json = await decryptEnvelope(envelope);
     if (!json) return null;
     const parsed = JSON.parse(json);
-    return Array.isArray(parsed) ? parsed : null;
+    // Receiver-side sanitation: E2E encryption authenticates the CHANNEL,
+    // not the content — a hostile peer client can still send anything.
+    return Array.isArray(parsed) ? parsed.slice(0, 200).map(sanitizeSharedMember) : null;
   } catch { return null; }
 }

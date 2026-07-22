@@ -18,7 +18,15 @@
 
 export const CHANGELOG = [
   {
+    date: "July 22, 2026",
+    changes: [
+      { type: "improve", text: "Security hardening: custom profile-page styles can no longer cover the app's own buttons or quietly load anything from the internet, and data arriving from friends is double-checked before it's shown." },
+      { type: "improve", text: "Password-protected data now uses a much stronger lock. Existing encrypted data upgrades itself automatically the next time you unlock." },
+    ],
+  },
+  {
     date: "July 16, 2026",
+    version: "0.82.10",
     changes: [
       { type: "improve", text: "Delete and discard confirmations are moving to the app's own styled pop-up instead of the plain browser one (first batch of screens done)." },
       { type: "improve", text: "A few plain alter dropdowns are now searchable, matching the rest of the app." },

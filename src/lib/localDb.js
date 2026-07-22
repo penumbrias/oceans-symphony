@@ -3,7 +3,7 @@
 // Falls back to migrating existing localStorage data on first run.
 
 import { openDB } from 'idb';
-import { encryptData, decryptData, generateSalt, deriveKey } from './localEncryption';
+import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
 
 const IDB_NAME = 'oceans_symphony';
@@ -166,7 +166,8 @@ export async function verifyPassword(password) {
   const salt = parsed.__salt || getEncSalt();
   if (!salt) return false;
   try {
-    const key = await deriveKey(password, salt);
+    const iterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+    const key = await deriveKey(password, salt, iterations);
     await decryptData(parsed.__encrypted, key);
     return true;
   } catch {
@@ -202,6 +203,10 @@ async function saveDb() {
       __encrypted: await encryptData(_db, _encKey),
       __salt: _activeSalt || getEncSalt(),
       __format_version: 2,
+      // Record the PBKDF2 strength this envelope's key was derived with.
+      // _encKey is always at KDF_ITERATIONS once init/enable completes
+      // (legacy blobs are re-keyed on first successful unlock).
+      __kdf_iterations: KDF_ITERATIONS,
     });
   } else {
     json = JSON.stringify(_db);
@@ -246,7 +251,7 @@ export async function initLocalDb(password) {
       let salt = getEncSalt();
       if (!salt) { salt = await generateSalt(); setEncSalt(salt); }
       _activeSalt = salt;
-      _encKey = await deriveKey(password, salt);
+      _encKey = await deriveKey(password, salt, KDF_ITERATIONS);
       setEncryptionEnabled(true);
       setSessionPassword(password);
     } else {
@@ -289,7 +294,8 @@ export async function initLocalDb(password) {
     setEncSalt(salt);
     setEncryptionEnabled(true);
     _activeSalt = salt;
-    const key = await deriveKey(password, salt);
+    const storedIterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+    const key = await deriveKey(password, salt, storedIterations);
     let decrypted;
     try {
       decrypted = await decryptData(parsed.__encrypted, key);
@@ -298,8 +304,24 @@ export async function initLocalDb(password) {
       _db = null;
       throw new Error('Incorrect password');
     }
-    _encKey = key;
-    _db = decrypted;
+    // KDF upgrade on unlock: if this blob was written at a lower PBKDF2
+    // strength, re-derive the session key at the current strength and
+    // re-save so the at-rest envelope upgrades. We hold the password only
+    // here, so this is the one safe moment to re-key. Failure to upgrade
+    // is non-fatal — the blob simply stays at its old strength and the
+    // key reverts to the one that matches it (never a mismatch).
+    if (storedIterations !== KDF_ITERATIONS) {
+      _encKey = await deriveKey(password, salt, KDF_ITERATIONS);
+      _db = decrypted;
+      try {
+        await saveDb();
+      } catch {
+        _encKey = key; // keep key + envelope consistent at the old strength
+      }
+    } else {
+      _encKey = key;
+      _db = decrypted;
+    }
     // Hold the password for this app session so switching to another encrypted
     // system auto-unlocks (one password for the whole app).
     setSessionPassword(password);
@@ -319,7 +341,7 @@ export async function enableEncryption(password) {
   let salt = getEncSalt();
   if (!salt) { salt = await generateSalt(); setEncSalt(salt); }
   _activeSalt = salt;
-  _encKey = await deriveKey(password, salt);
+  _encKey = await deriveKey(password, salt, KDF_ITERATIONS);
   setEncryptionEnabled(true);
   _db = db;
   await saveDb(); // encrypts the ACTIVE system's blob
@@ -336,10 +358,13 @@ export async function enableEncryption(password) {
 
 export async function disableEncryption(password) {
   await initLocalDb(password); // decrypts + loads the active system; _encKey set
-  // Decrypt every OTHER system's blob while we still hold the key.
+  // Decrypt every OTHER system's blob while we still hold the key. Pass the
+  // password too: sibling blobs may still be at a different (legacy) PBKDF2
+  // strength than the active session key, so the helper derives a matching
+  // key per blob from its own envelope metadata.
   try {
     const { decryptOtherSystemBlobs } = await import('./systems');
-    await decryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey });
+    await decryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey, password });
   } catch { /* a blob left encrypted is still openable with this password */ }
   _encKey = null;
   _activeSalt = null;
