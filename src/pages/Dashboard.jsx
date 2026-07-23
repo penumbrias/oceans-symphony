@@ -36,8 +36,13 @@ import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
 import TermsSetupWizard from "@/components/onboarding/TermsSetupWizard";
-import SetupHintCard from "@/components/onboarding/SetupHintCard";
-import GuidedSetupModal, { ONBOARDING_DONE_KEY } from "@/components/onboarding/GuidedSetupModal";
+
+// The setup steps that used to live in a separate wizard now live INSIDE
+// the Guide (TourModal) as inline pages, so first-run is: terms modal →
+// Guide (which walks through the setup + tour). This flag records that the
+// Guide has been run at least once, so re-opening the app just goes to the
+// dashboard.
+export const ONBOARDING_DONE_KEY = "symphony_onboarding_done_v1";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
@@ -57,17 +62,16 @@ export default function Dashboard() {
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const { setShowFeatureTour } = useOutletContext() || {};
-  // Setup is now three phases (v0.84.5):
-  //   1. TermsSetupWizard — required blocking modal, TourModal-styled,
-  //      terminology + medical-disclaimer ack.
-  //   2. SetupHintCard — small floating popup on the dashboard offering
-  //      the optional guided setup.
-  //   3. GuidedSetupModal — TourModal-styled wizard: check-in intro →
-  //      bundles → emotions → backups → alters + fronting merged.
-  // The `pending` flag is a one-shot set by "create new system" — a fresh
-  // system's settings/catalogue are empty even though the device-wide gate
-  // keys are already satisfied, so it gets the hint (and the option to run
-  // the guided flow) once too.
+  // Setup is now two phases (v0.84.6):
+  //   1. TermsSetupWizard — required blocking modal (terminology + medical
+  //      disclaimer ack).
+  //   2. TourModal (the Guide) — auto-opens once terms are done, with the
+  //      setup steps (choose what to track, emotions, backups) integrated
+  //      as inline pages of the Guide. Same modal is what the "Guide"
+  //      button on the dashboard re-opens.
+  // `pendingFromNewSystem` is a one-shot set by "create new system" — a
+  // fresh system's catalogue is empty even though the device-wide gate
+  // keys are already satisfied, so it gets the Guide once too.
   const [pendingFromNewSystem] = useState(() => {
     try {
       if (localStorage.getItem("symphony_onboarding_pending_v1")) {
@@ -80,19 +84,17 @@ export default function Dashboard() {
   const [showTermsWizard, setShowTermsWizard] = useState(() => {
     try { return !localStorage.getItem("terms_setup_done"); } catch { return false; }
   });
-  const [showHintCard, setShowHintCard] = useState(false);
-  const [showGuidedSetup, setShowGuidedSetup] = useState(false);
   useEffect(() => {
-    // Hint appears when terms are done AND guided setup hasn't been run/
-    // dismissed for this system — and the terms wizard isn't currently up.
-    if (showTermsWizard || showGuidedSetup) return;
+    // Once the terms wizard closes, auto-open the Guide for anyone who
+    // hasn't finished it yet (or the new-system one-shot). Not gated on
+    // being inside the wizard — it re-runs whenever terms complete.
+    if (showTermsWizard) return;
     try {
       const termsDone = !!localStorage.getItem("terms_setup_done");
       const guidedDone = !!localStorage.getItem(ONBOARDING_DONE_KEY);
-      const dismissed = !!localStorage.getItem("symphony_setup_hint_dismissed_v1");
-      setShowHintCard(termsDone && !guidedDone && (!dismissed || pendingFromNewSystem));
+      if (termsDone && (!guidedDone || pendingFromNewSystem)) setShowTour(true);
     } catch { /* storage off */ }
-  }, [showTermsWizard, showGuidedSetup, pendingFromNewSystem]);
+  }, [showTermsWizard, pendingFromNewSystem]);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
@@ -104,7 +106,13 @@ export default function Dashboard() {
   };
 
   const handleTourClose = () => {
-    localStorage.setItem("tour_seen", "1");
+    // The Guide now IS the setup, so finishing it (or skipping) records
+    // that setup is complete. Otherwise closing and re-opening the app
+    // would auto-reopen the Guide every time.
+    try {
+      localStorage.setItem("tour_seen", "1");
+      localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+    } catch { /* storage off */ }
     setShowTour(false);
   };
   const location = useLocation();
@@ -150,10 +158,11 @@ export default function Dashboard() {
     // Settings → About → "Re-run setup" replays the guided onboarding
     // (different alters may want to re-do it — it never overwrites data).
     if (onboardingParam === "replay") {
-      // "Re-run setup" reopens the guided flow. The blocking terms wizard
-      // only ever runs on a genuinely fresh system, so replay skips it.
-      try { localStorage.removeItem(ONBOARDING_DONE_KEY); localStorage.removeItem("symphony_setup_hint_dismissed_v1"); } catch { /* storage off */ }
-      setShowGuidedSetup(true);
+      // "Re-run setup" reopens the Guide (which is now also the setup
+      // flow). The blocking terms wizard only ever runs on a genuinely
+      // fresh system, so replay skips it and just reopens the Guide.
+      try { localStorage.removeItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
+      setShowTour(true);
     }
     params.delete("action");
     params.delete("onboarding");
@@ -899,31 +908,12 @@ export default function Dashboard() {
       })}
       </div>
 
-      {/* Setup, v0.84.5: required terminology + disclaimer modal, then a
-          small dashboard hint offering the optional guided setup. */}
+      {/* Setup, v0.84.6: required terminology + disclaimer modal, then the
+          Guide (which now includes the setup steps inline). */}
       <TermsSetupWizard
         open={showTermsWizard}
         existingSettingsId={settings[0]?.id || null}
         onFinish={() => setShowTermsWizard(false)}
-      />
-      {showHintCard && !showGuidedSetup && (
-        <SetupHintCard
-          onDiveIn={() => {
-            try { localStorage.setItem("symphony_setup_hint_dismissed_v1", "1"); localStorage.setItem(ONBOARDING_DONE_KEY, "1"); } catch { /* storage off */ }
-            setShowHintCard(false);
-          }}
-          onGuidedSetup={() => {
-            setShowHintCard(false);
-            setShowGuidedSetup(true);
-          }}
-        />
-      )}
-      <GuidedSetupModal
-        open={showGuidedSetup}
-        onFinish={() => {
-          try { localStorage.setItem(ONBOARDING_DONE_KEY, "1"); localStorage.setItem("symphony_setup_hint_dismissed_v1", "1"); } catch { /* storage off */ }
-          setShowGuidedSetup(false);
-        }}
       />
 
       <TourModal open={showTour} onClose={handleTourClose} />

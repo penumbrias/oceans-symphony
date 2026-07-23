@@ -1,13 +1,7 @@
 // The required first-run modal: terminology + medical-disclaimer
 // acknowledgement, in one TourModal-styled page. Closes to the dashboard,
-// which then shows the small SetupHintCard offering the optional guided
-// setup. Owner-specified structure (v0.84.5):
-//   "The first page should be the terminology, not about the quick check-in."
-//
-// The heavier welcome and Quick Check-In intro screens were removed; the
-// dashboard hint carries the "Dive in or run guided setup" choice. Legal
-// disclaimer stays but is inline as a required checkbox — quicker than a
-// separate blocking page while still meeting the not-a-medical-product bar.
+// which then auto-opens the Guide (TourModal) — that Guide now contains
+// the setup steps inline (v0.84.6), so setup and guide are one flow.
 
 import React, { useState } from "react";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";

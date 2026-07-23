@@ -255,10 +255,23 @@ export default function CustomEmotionsManager() {
   const [search, setSearch] = useState("");
   const [systemDistress, setSystemDistress] = useState(() => loadSystemDistressSet());
   const catLabels = useEmotionCategoryLabels();
+  // Add-new-emotion state (inline creator: name + category dropdown).
+  const [newLabel, setNewLabel] = useState("");
+  const [newCategory, setNewCategory] = useState("custom");
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
     queryFn: () => db.CustomEmotion.list(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: ({ label, category }) => db.CustomEmotion.create({ label, category }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+      toast.success("Custom emotion added");
+      setNewLabel("");
+    },
+    onError: (e) => toast.error(e?.message || "Failed to add emotion"),
   });
 
   const deleteMutation = useMutation({
@@ -278,6 +291,16 @@ export default function CustomEmotionsManager() {
     },
     onError: () => toast.error("Failed to update"),
   });
+
+  const handleAddEmotion = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    if (customEmotions.some((e) => e.label.toLowerCase() === label.toLowerCase())) {
+      toast.error("You already have that emotion");
+      return;
+    }
+    createMutation.mutate({ label, category: newCategory });
+  };
 
   const toggleSystemDistress = (label) => {
     setSystemDistress(prev => {
@@ -348,8 +371,43 @@ export default function CustomEmotionsManager() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Custom Emotions ({customEmotions.length})
           </p>
+          {/* Inline add: name + category dropdown + button, so users don't
+              have to go to the check-in picker just to create an emotion. */}
+          <div className="flex gap-1.5">
+            <Input
+              placeholder="Add a custom emotion..."
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddEmotion(); }}
+              className="h-8 text-sm flex-1 min-w-0"
+            />
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              aria-label="Category for the new emotion"
+              className="h-8 rounded-md bg-muted border border-border/50 text-xs text-muted-foreground px-1.5 max-w-[7rem] focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="custom">Uncategorized</option>
+              {Object.entries(WHEEL).map(([key, data]) => (
+                <optgroup key={key} label={catLabels[key] || data.label}>
+                  <option value={key}>{catLabels[key] || data.label}</option>
+                  {data.cores && Object.keys(data.cores).map((core) => (
+                    <option key={core} value={core}>{"↳ " + core}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              onClick={handleAddEmotion}
+              disabled={!newLabel.trim() || createMutation.isPending}
+              className="h-8 px-2 flex-shrink-0"
+            >
+              Add
+            </Button>
+          </div>
           {customEmotions.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No custom emotions yet. Add them from the check-in picker.</p>
+            <p className="text-sm text-muted-foreground italic">No custom emotions yet.</p>
           ) : (
             <>
               {customEmotions.length > 5 && (

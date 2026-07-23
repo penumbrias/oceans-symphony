@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Setup is now integrated into the Guide itself — welcome & disclaimer first, then the Guide walks you through your alters, the Quick Check-In (with a short list of its sections), choosing what to track, emotions, backups, and the rest of the app. Same Guide re-opens from the Home screen's Guide button any time." },
+      { type: "improve", text: "The Emotions step in the Guide (and Settings → Custom Emotions) now lets you add a new custom emotion and pick its category in one go, instead of having to go into the check-in picker." },
       { type: "improve", text: "Setup redesigned: terminology is the first thing you see, then the app itself appears with a small pop-up offering an optional guided setup. Everything is styled to match the app's Guide." },
       { type: "improve", text: "The guided setup ends on a merged \"Your alters & fronting\" step (after backups), where you can jump straight to the alters page." },
       { type: "fix", text: "You can now untick preset symptoms/habits you don't want — the picker no longer locks them in after adding, and unticking one already in your list quietly archives it (history stays)." },
