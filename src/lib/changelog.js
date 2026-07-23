@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "Emotions and symptoms in the Quick Check-In can now be assigned to specific alters — one alter can be anxious while another is excited. Everything still defaults to whoever's fronting." },
+      { type: "fix", text: "Symptom logs now record who they belong to, so per-alter symptom analytics finally show data (that section was silently always empty)." },
       { type: "improve", text: "Your distressing-emotion choices now ride along in backups and restores (they were stuck on one device before), and the default list finally covers the sad, angry, and shut-down emotions it was missing." },
       { type: "feature", text: "The four emotion categories can now be renamed — \"Good\" can become \"Positive\", or whatever fits. Settings → Tracking setup → Emotions → Rename categories." },
       { type: "improve", text: "Saying yes to the support prompt after a hard check-in now opens the grounding state check with your answers already selected — no re-answering what you just logged." },

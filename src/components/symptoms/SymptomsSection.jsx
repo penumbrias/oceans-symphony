@@ -4,6 +4,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
+import AlterAssignChip from "@/components/shared/AlterAssignChip";
 
 // "context" is a virtual tab: context-kind items live in category "symptom"
 // (legacy rows) but are triggers/factors, not symptoms — they get their own
@@ -11,8 +12,11 @@ import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY
 const TABS = ["symptom", "habit", "context"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits", context: "Context" };
 
-// Exported so QuickCheckInModal can collect at save time
-export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }) {
+// Exported so QuickCheckInModal can collect at save time.
+// alters + assignDefaultIds power per-item alter assignment: each checked
+// row can be assigned to specific alters (null = inherit the check-in's
+// fronters, resolved by the caller at save time).
+export default function SymptomsSection({ onCheckInsReady, initialChecked = [], alters = [], assignDefaultIds = [] }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("symptom");
   const [search, setSearch] = useState("");
@@ -21,7 +25,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("boolean");
   const [adding, setAdding] = useState(false);
-  // { [symptomId]: { checked: bool, severity: number|null } }
+  // { [symptomId]: { checked: bool, severity: number|null, alterIds: array|null } }
   const [cardStates, setCardStates] = useState({});
   const newInputRef = useRef(null);
 
@@ -46,15 +50,19 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
 
   const getSession = (id) => activeSessions.find((s) => s.symptom_id === id) || null;
 
-  const setCard = (id, checked, severity) =>
-  setCardStates((prev) => ({ ...prev, [id]: { checked, severity } }));
+  const setCard = (id, checked, severity, alterIds) =>
+  setCardStates((prev) => ({
+    ...prev,
+    [id]: { checked, severity, alterIds: alterIds !== undefined ? alterIds : prev[id]?.alterIds ?? null },
+  }));
 
-  // Provide getter to parent
+  // Provide getter to parent. alter_ids: null = inherit (caller resolves
+  // to the check-in's fronters at save time), array = explicit assignment.
   useEffect(() => {
     onCheckInsReady?.(() =>
     Object.entries(cardStates).
     filter(([, s]) => s.checked).
-    map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null }))
+    map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null, alter_ids: s.alterIds ?? null }))
     );
   });
 
@@ -67,7 +75,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
       const next = { ...prev };
       for (const sc of initialChecked) {
         if (!sc?.symptom_id) continue;
-        next[sc.symptom_id] = { checked: true, severity: sc.severity ?? null };
+        next[sc.symptom_id] = { checked: true, severity: sc.severity ?? null, alterIds: sc.alter_ids ?? null };
       }
       return next;
     });
@@ -174,7 +182,9 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
           symptom={symptom}
           activeSession={getSession(symptom.id)}
           state={cardStates[symptom.id]}
-          onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
+          alters={alters}
+          assignDefaultIds={assignDefaultIds}
+          onStateChange={(checked, severity, alterIds) => setCard(symptom.id, checked, severity, alterIds)} />
 
         )
         }
@@ -183,7 +193,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
 
 }
 
-function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
+function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alters = [], assignDefaultIds = [] }) {
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState(state.checked ?? !!activeSession);
   const [severity, setSeverity] = useState(state.severity ?? null);
@@ -275,14 +285,23 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
 
         {/* Label + severity */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">
-            {symptom.label}
-            {directionCue &&
-            <span className="ml-1 text-[0.5625rem] align-middle text-muted-foreground/70" title={directionCue.hint} aria-label={directionCue.hint}>
-                {directionCue.glyph}
-              </span>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {symptom.label}
+              {directionCue &&
+              <span className="ml-1 text-[0.5625rem] align-middle text-muted-foreground/70" title={directionCue.hint} aria-label={directionCue.hint}>
+                  {directionCue.glyph}
+                </span>
+              }
+            </p>
+            {checked && alters.length > 0 &&
+            <AlterAssignChip
+              alters={alters}
+              value={state.alterIds ?? null}
+              defaultIds={assignDefaultIds}
+              onChange={(ids) => onStateChange(checked, severity, ids)} />
             }
-          </p>
+          </div>
           {isRating &&
           <div className="flex gap-1 mt-1">
               {LABELS.map((lbl, idx) => {
