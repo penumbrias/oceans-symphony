@@ -112,7 +112,14 @@ export default function SystemSwitcherPanel() {
     try {
       const sys = await createSystem({ name: newName.trim() });
       await setActiveSystem(sys.id);
-      window.location.reload();
+      // A brand-new system deserves the guided setup (its settings and
+      // tracking catalogue start empty), but the onboarding gate keys are
+      // device-wide and already satisfied by the first system. One-shot
+      // flag → Dashboard shows the flow once after the reload.
+      try { localStorage.setItem("symphony_onboarding_pending_v1", "1"); } catch { /* storage off */ }
+      // Land on the dashboard (not wherever the switcher was opened from):
+      // it hosts the guided setup that consumes the pending flag.
+      window.location.href = "/";
     } catch {
       setBusy(false);
       toast.error(`Couldn't create the ${terms.system}.`);

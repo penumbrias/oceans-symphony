@@ -57,8 +57,15 @@ export default function Dashboard() {
   const { setShowFeatureTour } = useOutletContext() || {};
   // Phase-C guided onboarding replaces the old Disclaimer → TermsSetup →
   // auto-Tour modal chain. Legacy users (terms_setup_done set) never see it.
+  // The pending flag is a one-shot set by "create new system" — a fresh
+  // system's settings/catalogue are empty even though the device-wide gate
+  // keys are already satisfied, so it gets the guided setup once too.
   const [showOnboarding, setShowOnboarding] = useState(() => {
     try {
+      if (localStorage.getItem("symphony_onboarding_pending_v1")) {
+        localStorage.removeItem("symphony_onboarding_pending_v1");
+        return true;
+      }
       return !localStorage.getItem("terms_setup_done") && !localStorage.getItem(ONBOARDING_DONE_KEY);
     } catch { return false; }
   });

@@ -21,7 +21,7 @@
 
 import { openDB } from 'idb';
 import { getActiveStorageKey } from './localDb';
-import { LEGACY_STORAGE_KEY } from './systems';
+import { LEGACY_STORAGE_KEY, listSystems, storageKeyForSystem } from './systems';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
 
 const IDB_NAME = 'oceans_symphony';
@@ -161,10 +161,19 @@ function classifyBlob({ key, raw, source }, { skipEmpty, isActive = false }) {
 // Never throws for a per-key parse failure — a corrupted key is simply skipped.
 export async function scanForOrphanedData() {
   const activeKey = getActiveStorageKey();
+  // Blobs belonging to REGISTERED systems are siblings, not orphans — the
+  // multi-system registry accounts for them. Without this, creating a second
+  // system (fresh empty active slot) made the boot scan flag the FIRST
+  // system's data as endangered and blocked setup ("Other data was found…").
+  // When the registry itself is missing/wiped (Android cleaners — the real
+  // disaster this scanner exists for), listSystems() is empty and every blob
+  // stays a candidate, so the recovery net is unchanged.
+  const registeredKeys = new Set(listSystems().map((s) => storageKeyForSystem(s)));
   const blobs = await readAllBlobs();
   const candidates = [];
   for (const b of blobs) {
     if (b.key === activeKey) continue; // the empty slot that sent us here
+    if (registeredKeys.has(b.key)) continue; // a sibling system's data
     const c = classifyBlob(b, { skipEmpty: true });
     if (c) candidates.push(c);
   }
