@@ -879,6 +879,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "settings", sectionLabel: "Settings",
+      emoji: "🔁",
+      title: "Re-run Setup",
+      body: `The guided setup you saw on first launch (terminology, tracking packs, emotions, backups) can be replayed any time from Settings → About & help → Tour & onboarding. It never deletes or overwrites anything — useful when a different ${t.alter} wants to walk through it, or after things change.`,
+      route: "/settings", target: "rerun-setup",
+      look: `the highlighted "Re-run setup" button — expand About & help first if it's collapsed`, action: null,
+    },
+    {
+      section: "settings", sectionLabel: "Settings",
       emoji: "🔒",
       title: "Data & Privacy",
       body: `Oceans Symphony is private by design — by default, every record stays on this device only, in your browser's IndexedDB. Nothing is uploaded, synced, or sent to any server. The only ways data leaves this device are: exporting a backup yourself, or opting in to Friends mode (which only transmits your system name, display name, and current front status at the privacy level you choose — never any of your other local data). For an extra layer of security, optionally enable AES-256 password encryption to lock everything behind a passphrase (on-device only — not end-to-end). Export a full JSON backup of everything, or import one to restore. If file downloads are blocked (e.g. the Facebook or Instagram in-app browser), use the Copy/Paste Backup alternative right below the download button — it lets you split your data into text chunks you can paste anywhere safe. Your data is fully yours and always exportable.`,

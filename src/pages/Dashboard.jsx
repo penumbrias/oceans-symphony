@@ -35,8 +35,7 @@ import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
-import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
-import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
+import OnboardingFlow, { ONBOARDING_DONE_KEY } from "@/components/onboarding/OnboardingFlow";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
@@ -56,8 +55,13 @@ export default function Dashboard() {
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const { setShowFeatureTour } = useOutletContext() || {};
-  const [showDisclaimer, setShowDisclaimer] = useState(() => !localStorage.getItem(DISCLAIMER_ACK_KEY));
-  const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
+  // Phase-C guided onboarding replaces the old Disclaimer → TermsSetup →
+  // auto-Tour modal chain. Legacy users (terms_setup_done set) never see it.
+  const [showOnboarding, setShowOnboarding] = useState(() => {
+    try {
+      return !localStorage.getItem("terms_setup_done") && !localStorage.getItem(ONBOARDING_DONE_KEY);
+    } catch { return false; }
+  });
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
@@ -71,11 +75,6 @@ export default function Dashboard() {
   const handleTourClose = () => {
     localStorage.setItem("tour_seen", "1");
     setShowTour(false);
-  };
-
-  const handleTermsDone = () => {
-    setShowTermsSetup(false);
-    if (!localStorage.getItem("tour_seen")) setShowTour(true);
   };
   const location = useLocation();
   const navigate = useNavigate();
@@ -110,13 +109,18 @@ export default function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const action = params.get("action");
-    if (!action) return;
+    const onboardingParam = params.get("onboarding");
+    if (!action && !onboardingParam) return;
     if (action === "quick-checkin") {
       setShowEmotionModal(true);
     } else if (action === "set-front") {
       window.dispatchEvent(new CustomEvent("open-set-front"));
     }
+    // Settings → About → "Re-run setup" replays the guided onboarding
+    // (different alters may want to re-do it — it never overwrites data).
+    if (onboardingParam === "replay") setShowOnboarding(true);
     params.delete("action");
+    params.delete("onboarding");
     const newSearch = params.toString();
     navigate({ pathname: location.pathname, search: newSearch ? `?${newSearch}` : "" }, { replace: true });
   }, [location.search]);
@@ -859,17 +863,19 @@ export default function Dashboard() {
       })}
       </div>
 
-      {/* Legal/scope disclaimer — gates everything else on first run.
-          TermsSetup waits until the disclaimer is acknowledged. */}
-      {showDisclaimer && (
-        <DisclaimerModal onAcknowledge={() => setShowDisclaimer(false)} />
+      {/* Phase-C guided onboarding — welcome/trust (incl. the medical
+          disclaimer acknowledgement), check-in intro, terminology, Express/
+          Customize tracking setup, alters page, fronting-optional, backups.
+          Replayable from Settings → About via /?onboarding=replay. */}
+      {showOnboarding && (
+        <OnboardingFlow
+          onDone={({ openGuide } = {}) => {
+            setShowOnboarding(false);
+            if (openGuide) setShowTour(true);
+          }}
+        />
       )}
 
-      <TermsSetupModal
-        open={showTermsSetup && !showDisclaimer}
-        onClose={handleTermsDone}
-        existingSettingsId={settings[0]?.id || null} />
-      
       <TourModal open={showTour} onClose={handleTourClose} />
       <QuickCheckInModal
         isOpen={showEmotionModal}

@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "A new guided setup replaces the old first-run pop-ups: welcome & privacy, a Quick Check-In intro, terminology, an Express-or-Customize tracking setup (pick your packs and emotions), and backups — every step skippable." },
+      { type: "feature", text: "Setup can be replayed any time from Settings → About & help → \"Re-run setup\". It never deletes or changes existing data." },
+      { type: "fix", text: "\"Delete All Local Data\" now also resets the disclaimer acknowledgement, so a fresh start really starts fresh." },
       { type: "feature", text: "Emotions and symptoms in the Quick Check-In can now be assigned to specific alters — one alter can be anxious while another is excited. Everything still defaults to whoever's fronting." },
       { type: "fix", text: "Symptom logs now record who they belong to, so per-alter symptom analytics finally show data (that section was silently always empty)." },
       { type: "improve", text: "Your distressing-emotion choices now ride along in backups and restores (they were stuck on one device before), and the default list finally covers the sad, angry, and shut-down emotions it was missing." },

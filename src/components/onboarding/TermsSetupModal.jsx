@@ -13,7 +13,9 @@ const PRESETS = [
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 
-export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+// The terms step body — shared between the legacy standalone modal and the
+// Phase-C OnboardingFlow (which embeds it as its terminology step).
+export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue" }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(0);
   const [custom, setCustom] = useState({ system: "", alter: "", switch: "", front: "" });
@@ -38,12 +40,10 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
     localStorage.setItem("terms_setup_done", "1");
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
     setSaving(false);
-    onClose();
+    onSaved?.();
   };
 
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
         <div className="space-y-5">
           <div>
             <h2 className="text-xl font-semibold">Choose your language 💜</h2>
@@ -117,9 +117,17 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
           </div>
 
           <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "Saving..." : "Save & Continue"}
+            {saving ? "Saving..." : saveLabel}
           </Button>
         </div>
+  );
+}
+
+export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+  return (
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
+        <TermsSetupContent onSaved={onClose} existingSettingsId={existingSettingsId} />
       </DialogContent>
     </Dialog>
   );

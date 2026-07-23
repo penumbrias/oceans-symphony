@@ -72,6 +72,14 @@ const SYMPTOM_DEFAULTS = [
 
 let seeded = false;
 
+// Set once the onboarding flow has put the bundle choice in the user's
+// hands (Express or Customize — even "none of these"). When present, the
+// lazy auto-seed stands down: an explicitly-empty catalogue stays empty.
+export const BUNDLES_CHOSEN_KEY = "symphony_onboarding_bundles_chosen_v1";
+export function markBundlesChosen() {
+  try { localStorage.setItem(BUNDLES_CHOSEN_KEY, "1"); } catch { /* storage off */ }
+}
+
 export async function seedSymptomDefaults() {
   if (seeded) return;
   seeded = true;
@@ -83,14 +91,42 @@ export async function seedSymptomDefaults() {
       await healDuplicateDefaults(existing);
       return;
     }
-    // Fresh install → seed the default-on preset bundles (the research-
-    // grounded catalogue), not the legacy list. Onboarding (Phase C) will
-    // put this choice in the user's hands; until then Express defaults.
+    // The user already made an explicit choice in onboarding (possibly
+    // "nothing") — respect it, never re-seed over it.
+    try { if (localStorage.getItem(BUNDLES_CHOSEN_KEY)) return; } catch { /* storage off */ }
+    // Fresh install, no onboarding choice yet → seed the default-on preset
+    // bundles (the research-grounded catalogue), not the legacy list.
     await seedBundles(DEFAULT_ON_BUNDLE_IDS);
   } catch (e) {
     console.warn("Failed to seed symptom defaults:", e);
     seeded = false;
   }
+}
+
+// Create Symptom rows for an explicit picker selection (Set/array of
+// `${bundleId}:${itemIndex}` keys — the shape BundleList tracks). Terms
+// resolve at creation; duplicates (by resolved label + category) skipped.
+export async function createPresetItems(selectedKeys) {
+  const terms = await getSeedTerms();
+  const existing = await base44.entities.Symptom.list();
+  const have = new Set(
+    existing.map((s) => `${String(s.label || "").trim().toLowerCase()}::${s.category || "symptom"}`)
+  );
+  let created = 0;
+  for (const key of selectedKeys) {
+    const [bundleId, idxStr] = String(key).split(":");
+    const bundle = bundleById(bundleId);
+    const item = bundle?.items[Number(idxStr)];
+    if (!item) continue;
+    const fields = itemToSymptomFields(item, bundleId, Number(idxStr));
+    fields.label = applyTerms(fields.label, terms);
+    const dedupKey = `${fields.label.trim().toLowerCase()}::${fields.category}`;
+    if (have.has(dedupKey)) continue;
+    have.add(dedupKey);
+    await base44.entities.Symptom.create(fields);
+    created++;
+  }
+  return created;
 }
 
 // Create the Symptom rows for the given preset bundles. Term placeholders

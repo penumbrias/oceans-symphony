@@ -41,9 +41,12 @@ export default function StorageModeSettings() {
       // empty record the boot path treats as a returning user) so the
       // reload below lands on the first-run onboarding screen.
       await clearStoredData();
-      // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
+      // Clear all Symphony localStorage keys so the app re-runs first-time
+      // onboarding. disclaimer_acknowledged_v1 is included deliberately —
+      // it used to survive the wipe, so a fully-reset app skipped the
+      // disclaimer while re-showing everything else (inconsistent).
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen") {
+        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen" || key === "disclaimer_acknowledged_v1") {
           localStorage.removeItem(key);
         }
       });
