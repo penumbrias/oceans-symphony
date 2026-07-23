@@ -20,7 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
-      { type: "fix", text: "Guided setup no longer hides its Continue button under the phone's navigation bar." },
+      { type: "fix", text: "Guided setup no longer hides its Continue button under the phone's navigation bar or the app's own bottom bar." },
       { type: "fix", text: "Creating a second system works again — the data-protection guard no longer mistakes your existing system for endangered data, and brand-new systems now get the guided setup." },
       { type: "improve", text: "Analytics stay useful without fronting history: a new \"Symptoms by alter\" view builds from who each check-in was assigned to, and the Fronting tab now explains itself kindly instead of showing empty charts when there's no front data." },
       { type: "feature", text: "A new guided setup replaces the old first-run pop-ups: welcome & privacy, a Quick Check-In intro, terminology, an Express-or-Customize tracking setup (pick your packs and emotions), and backups — every step skippable." },

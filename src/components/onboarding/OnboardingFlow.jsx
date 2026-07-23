@@ -24,6 +24,7 @@
 // terms_setup_done, tour_seen) plus ONBOARDING_DONE_KEY.
 
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, Shield, Sparkles, Compass, Users, Package, Heart, CloudOff } from "lucide-react";
@@ -355,9 +356,13 @@ export default function OnboardingFlow({ onDone, replay = false }) {
   const selfAdvancing = step === "terms" || step === "configure" || step === "bundles";
   const nextDisabled = step === "welcome" && !ackChecked;
 
-  return (
+  // Portaled to document.body at z-[10000] (same as DisclaimerModal):
+  // mounted inline under Dashboard, an ancestor stacking context trapped
+  // the overlay's z-index and the AppLayout header / bottom nav / floating
+  // grounding bubble painted over the flow's footer (tester report).
+  return createPortal(
     <div
-      className="fixed inset-0 z-[95] bg-background flex flex-col"
+      className="fixed inset-0 z-[10000] bg-background flex flex-col"
       // Android runs edge-to-edge: without these insets the header hides
       // under the status bar and the footer's Continue button sits beneath
       // the gesture/navigation bar (tester report). Same pattern as
@@ -428,7 +433,8 @@ export default function OnboardingFlow({ onDone, replay = false }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
