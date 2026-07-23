@@ -3,22 +3,22 @@
 // separate wizard are now INTEGRATED into this Guide as inline pages, so
 // there's one flow the user sees on first launch and can replay any time.
 //
-// Structural changes vs the classic 17-slide guide:
-//   • Welcome slide (page 1): copy expanded to end with "The following
-//     pages will help you set up and learn about OS' features!"
-//   • "This app is your home" (page 2): unchanged.
-//   • "Your Alters" (page 3): unchanged copy + optional "take me to the
-//     alters page when finished" checkbox integrating the onboarding step.
-//   • "Fronting Tracker" (was page 4): REMOVED (per owner).
-//   • "System Map" (was page 5): REPLACED with a minimal Quick Check-In
-//     overview (a short list of QCM sections, not the emotion-only deep
-//     dive the onboarding intro used).
-//   • Choose what to track / Emotions / Backups: INSERTED as interactive
-//     pages after the Quick Check-In overview — the setup content the
-//     Guide replaces on first run.
-//   • Remaining classic slides (Check-In Log, Symptom Tracking, Journals,
-//     Timeline, Tasks, Bulletin, Reminders, Analytics, Support & Learn,
-//     Therapy Report, Privacy & Data, You're all set): kept in place.
+// Three phases (v0.84.8) so the honest "Setup · 3/3" only starts at the
+// actual setup pages, not the whole 20:
+//   • Welcome (4 pages): Welcome / This app is your home / Your Alters /
+//     The Quick Check-In. Informational orientation.
+//   • Setup (3 pages): Choose what to track / Emotions / Backups. The
+//     only actually-interactive setup portion.
+//   • About the app (13 pages): a "You're all set!" transition landing
+//     page with buttons to jump straight to the Alters page or the
+//     check-in manager, followed by the classic feature-intro slides
+//     (Check-In Log, Symptom Tracking, Journals, Timeline, Tasks &
+//     Habits, Bulletin, Reminders, Analytics, Support & Learn, Therapy
+//     Report, Privacy & Data, You're all set).
+//
+// The prior "Fronting Tracker" and "System Map" slides are gone; the
+// System Map slot became the minimal Quick Check-In overview inside the
+// Welcome phase.
 //
 // Interactive slides render via the shared SetupWizardShell's `render`
 // prop; passive slides are declared with body/features/tip.
@@ -75,10 +75,13 @@ export default function TourModal({ open, onClose }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  // ─── Interactive setup state (bundles + alters take-me-there) ──────────
+  // ─── Interactive setup state (bundle diff) ────────────────────────────
+  // The alters "take me there" and check-in-manager choices used to live
+  // as an inline checkbox on the Alters step; they moved to the "You're
+  // all set!" transition page (v0.84.8), where inline buttons close the
+  // guide and navigate directly.
   const [selected, setSelected] = useState(() => new Set());
   const [initialized, setInitialized] = useState(false);
-  const [goToAlters, setGoToAlters] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
@@ -112,7 +115,6 @@ export default function TourModal({ open, onClose }) {
     } else if (!open && initialized) {
       setInitialized(false);
       setSelected(new Set());
-      setGoToAlters(false);
     }
   }, [open, initialized, symptomByBundleKey]);
 
@@ -160,12 +162,12 @@ export default function TourModal({ open, onClose }) {
 
   const handleFinish = () => {
     onClose?.();
-    if (goToAlters) navigate("/Home");
   };
 
   // ─── Step declarations ─────────────────────────────────────────────────
   const steps = [
     {
+      phase: "Welcome",
       title: "Welcome to Oceans Symphony 💜",
       subtitle: "A companion app built for dissociative systems",
       icon: "🌊",
@@ -175,6 +177,7 @@ export default function TourModal({ open, onClose }) {
         `The following pages will help you set up and learn about OS' features!`,
     },
     {
+      phase: "Welcome",
       title: "This app is your home",
       subtitle: `There's no "right" way to use it`,
       icon: "🏡",
@@ -183,6 +186,7 @@ export default function TourModal({ open, onClose }) {
       tip: `Custom terminology lives in Settings → Profile → Terminology. Every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed to match how your ${t.system} talks about itself.`,
     },
     {
+      phase: "Welcome",
       title: `Your ${t.Alters}`,
       subtitle: `Every part of the ${t.system}, all in one place`,
       icon: <Users className="w-8 h-8" />,
@@ -196,20 +200,10 @@ export default function TourModal({ open, onClose }) {
         "Custom fields",
         "Import from other apps",
       ],
-      render: () => (
-        <label className="flex items-center gap-2 text-sm cursor-pointer rounded-lg border border-border/60 p-3">
-          <input
-            type="checkbox"
-            className="w-4 h-4 accent-[var(--color-primary)]"
-            checked={goToAlters}
-            onChange={(e) => setGoToAlters(e.target.checked)}
-          />
-          <span>Take me to the {t.Alters} page when this guide finishes</span>
-        </label>
-      ),
     },
     // Was System Map slot — now a minimal Quick Check-In overview.
     {
+      phase: "Welcome",
       title: "The Quick Check-In",
       subtitle: "The fastest way to log anything",
       icon: <Sparkles className="w-8 h-8" />,
@@ -227,6 +221,7 @@ export default function TourModal({ open, onClose }) {
       tip: "Every section is customizable — the next few pages walk you through choosing what to track, tuning emotions, and setting up backups.",
     },
     {
+      phase: "Setup",
       title: "Choose what to track",
       subtitle: "Packs of things some systems keep an eye on",
       icon: <Package className="w-8 h-8" />,
@@ -255,6 +250,7 @@ export default function TourModal({ open, onClose }) {
       onNext: applyBundlesDiff,
     },
     {
+      phase: "Setup",
       title: "Emotions",
       subtitle: "Distress-toggle, rename groups, add your own",
       icon: <Heart className="w-8 h-8" />,
@@ -272,21 +268,58 @@ export default function TourModal({ open, onClose }) {
       ),
     },
     {
+      phase: "Setup",
       title: "Backups",
       subtitle: "The one thing to know about local-only",
       icon: <CloudOff className="w-8 h-8" />,
       color: "from-slate-500/20 to-gray-500/20",
-      body: `Local also means no cloud copy. If this device's data is lost, it's lost for good — so export backups, especially before switching devices. Automatic backups can save a copy on a schedule.\n\nThat wraps up the setup portion — the following pages just introduce the app's features. Skip any time.`,
+      body: `Local also means no cloud copy. If this device's data is lost, it's lost for good — so export backups, especially before switching devices. Automatic backups can save a copy on a schedule.`,
       render: () => (
         <div className="pt-1">
           <AutoBackupSettings />
         </div>
       ),
-      // Setup ends here; the remaining slides are informational only.
-      phaseBreak: true,
+    },
+    // Transition — setup is done; user picks where to go next.
+    {
+      phase: "About the app",
+      title: "You're all set! 🎉",
+      subtitle: "Setup is done",
+      icon: "✨",
+      color: "from-violet-500/20 to-emerald-500/20",
+      body:
+        `The following pages give a brief written introduction to Oceans Symphony's various features. For an in-depth walk-through, view the in-app "Tour" or click the "Show me around" banner at the top of each page.`,
+      render: () => (
+        <div className="grid gap-2">
+          <button
+            type="button"
+            onClick={() => { onClose?.(); navigate("/Home"); }}
+            className="w-full text-left rounded-xl border border-border/60 p-3 hover:bg-muted/40 transition-colors"
+          >
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <Users className="w-4 h-4 text-primary" /> Go to the {t.Alters} page
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Add your first {t.alters}, or import from another app.</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => { onClose?.(); navigate("/manage-checkin"); }}
+            className="w-full text-left rounded-xl border border-border/60 p-3 hover:bg-muted/40 transition-colors"
+          >
+            <p className="text-sm font-semibold flex items-center gap-2">
+              <Package className="w-4 h-4 text-primary" /> Open the check-in manager
+            </p>
+            <p className="text-xs text-muted-foreground mt-0.5">Add or edit custom symptoms, habits, and diary fields.</p>
+          </button>
+          <p className="text-xs text-muted-foreground text-center pt-1">
+            Or hit <span className="font-medium text-foreground">Next</span> below to keep browsing the guide.
+          </p>
+        </div>
+      ),
     },
     // ─── Rest of the classic guide, unchanged ────────────────────────────
     {
+      phase: "About the app",
       title: "Check-In Log",
       subtitle: `Track how the ${t.system} is doing day to day`,
       icon: <Sparkles className="w-8 h-8" />,
@@ -302,6 +335,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Symptom Tracking",
       subtitle: "Log and monitor symptoms over time",
       icon: <Activity className="w-8 h-8" />,
@@ -317,6 +351,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Journals",
       subtitle: `Write, remember, and share across the ${t.system}`,
       icon: <BookOpen className="w-8 h-8" />,
@@ -332,6 +367,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Timeline",
       subtitle: `Your ${t.system}'s history, all in one view`,
       icon: <Clock className="w-8 h-8" />,
@@ -348,6 +384,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Tasks & Habits",
       subtitle: "Daily, weekly, monthly, and yearly tracking",
       icon: <CheckSquare className="w-8 h-8" />,
@@ -363,6 +400,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Bulletin Board",
       subtitle: "System-wide announcements and messages",
       icon: <MessageSquare className="w-8 h-8" />,
@@ -378,6 +416,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Reminders & Notifications",
       subtitle: "Stay on track between sessions",
       icon: <Zap className="w-8 h-8" />,
@@ -393,6 +432,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Analytics",
       subtitle: `Understand your ${t.system}'s patterns`,
       icon: <BarChart2 className="w-8 h-8" />,
@@ -408,6 +448,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Support & Learn",
       subtitle: "Grounding tools and trauma-informed skills",
       icon: <Shield className="w-8 h-8" />,
@@ -424,6 +465,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Therapy Report",
       subtitle: "Bridge the amnesia gap in therapy",
       icon: <FileText className="w-8 h-8" />,
@@ -439,6 +481,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "Privacy & Data",
       subtitle: "Your data, your control",
       icon: "🔒",
@@ -454,6 +497,7 @@ export default function TourModal({ open, onClose }) {
       ],
     },
     {
+      phase: "About the app",
       title: "You're all set 🎉",
       subtitle: `Welcome to the ${t.system}`,
       icon: "💜",

@@ -1190,8 +1190,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 <button
                   type="button"
                   onClick={() => { onClose(); navigate("/manage-checkin"); }}
-                  aria-label="Check-in settings — choose which sections show"
-                  title="Check-in settings"
+                  aria-label="Open check-in manager"
+                  title="Open check-in manager"
                   className="text-muted-foreground hover:text-foreground transition-colors mr-6"
                 >
                   <SlidersHorizontal className="w-4 h-4" />

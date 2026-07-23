@@ -7,7 +7,7 @@
 // a live interactive React node (bundle picker, emotions manager…). Pages
 // with `render` swap into the body wholesale.
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -16,9 +16,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 //   { title, subtitle?, body?, icon, color, tip?, features?,
 //     render?({goNext,goBack,busy,setBusy}) → ReactNode,
 //     nextLabel?, nextDisabled?, onNext?() → Promise|void, skipHidden?,
-//     phaseBreak?: boolean — when true, marks THIS step as the LAST of
-//       an initial "setup" phase; dots after it are visually separated
-//       and labelled "About the app" instead of "Setup".
+//     phase?: string — groups pages into named phases (e.g. "Welcome",
+//       "Setup", "About the app"). Consecutive pages with the same
+//       phase form a block; the dot nav visually separates blocks and
+//       the label below the dots reads "{phase} · {n}/{total-in-phase}".
+//       Steps without a phase inherit from the previous step.
 //   }
 export default function SetupWizardShell({
   open, onClose, onFinish, steps, ariaLabel = "Setup",
@@ -36,19 +38,36 @@ export default function SetupWizardShell({
   const isFirst = step === 0;
   const progress = steps.length ? ((step + 1) / steps.length) * 100 : 0;
 
-  // Setup ends AT (and including) the step flagged with phaseBreak. Anything
-  // beyond is the "about the app" phase — surfacing this in the dot nav +
-  // a phase label so users see the setup is only the first few pages, not
-  // all 19 (tester report: "it looks intimidating as if the setup is all
-  // of those pages").
-  const phaseBreakIndex = steps.findIndex((s) => s.phaseBreak);
-  const hasPhaseBreak = phaseBreakIndex >= 0;
-  const inSetupPhase = !hasPhaseBreak || step <= phaseBreakIndex;
-  const setupCount = hasPhaseBreak ? phaseBreakIndex + 1 : steps.length;
-  const infoCount = hasPhaseBreak ? steps.length - setupCount : 0;
-  const phaseLabel = inSetupPhase
-    ? `Setup · ${step + 1}/${setupCount}`
-    : `About the app · ${step - setupCount + 1}/${infoCount}`;
+  // Resolve each step's phase (inherit from previous when omitted) — used
+  // to group dots visually and to build the "{phase} · {n}/{total}" label.
+  // Multi-phase support means the wizard can honestly call the first few
+  // pages "Welcome" and only start counting "Setup" at the actual setup
+  // pages, instead of inflating a 3-page setup into a 7-page one (tester
+  // report v0.84.7: "Setup doesn't start until page 5/7, which makes it
+  // seem much longer than it actually is").
+  const phaseInfo = useMemo(() => {
+    let last = null;
+    const perStep = steps.map((s) => {
+      if (s.phase) last = s.phase;
+      return last;
+    });
+    const orderedPhases = [];
+    for (const p of perStep) if (p && !orderedPhases.includes(p)) orderedPhases.push(p);
+    return { perStep, orderedPhases };
+  }, [steps]);
+  const currentPhase = phaseInfo.perStep[step] || null;
+  const phaseTotal = currentPhase ? phaseInfo.perStep.filter((p) => p === currentPhase).length : 0;
+  const phasePosition = currentPhase
+    ? phaseInfo.perStep.slice(0, step + 1).filter((p) => p === currentPhase).length
+    : 0;
+  const phaseLabel = currentPhase && phaseTotal > 0
+    ? `${currentPhase} · ${phasePosition}/${phaseTotal}`
+    : null;
+  const phaseColorClass = (phase) => {
+    if (phase === "Setup") return "bg-primary/40 hover:bg-primary/60";
+    if (phase === "Welcome") return "bg-primary/20 hover:bg-primary/40";
+    return "bg-muted hover:bg-muted-foreground/30";
+  };
 
   const go = (dir) => {
     if (animating || busy) return;
@@ -79,20 +98,25 @@ export default function SetupWizardShell({
         className="max-w-md p-0 gap-0 border-border/50 flex flex-col max-h-[90vh] sm:max-h-[85vh]"
         aria-label={ariaLabel}
       >
-        {/* Progress bar — with a small notch marking where setup ends, so
-            users can see at a glance how short the setup portion is. */}
+        {/* Progress bar — with small notches marking where each phase
+            ends so users can see at a glance how short each part is. */}
         <div className="h-1 bg-muted flex-shrink-0 relative">
           <div
             className="h-full bg-primary transition-all duration-500 ease-out"
             style={{ width: `${progress}%` }}
           />
-          {hasPhaseBreak && (
-            <div
-              className="absolute top-0 h-1 w-px bg-background/70"
-              style={{ left: `${((phaseBreakIndex + 1) / steps.length) * 100}%` }}
-              aria-hidden
-            />
-          )}
+          {phaseInfo.perStep.map((phase, i) => {
+            if (i >= steps.length - 1) return null;
+            if (phase && phase === phaseInfo.perStep[i + 1]) return null;
+            return (
+              <div
+                key={i}
+                className="absolute top-0 h-1 w-px bg-background/70"
+                style={{ left: `${((i + 1) / steps.length) * 100}%` }}
+                aria-hidden
+              />
+            );
+          })}
         </div>
 
         {/* Scrollable region: gradient header + body */}
@@ -136,12 +160,12 @@ export default function SetupWizardShell({
 
         {/* Footer */}
         <div className="px-6 pb-6 pt-3 space-y-3 flex-shrink-0 border-t border-border/40 bg-background">
-          {/* Phase label — makes it obvious the setup is only the first
-              handful of pages, not all 19. */}
-          {hasPhaseBreak && (
+          {/* Phase label — flips per phase (Welcome / Setup / About the
+              app) so the setup portion doesn't feel like the whole guide. */}
+          {phaseLabel && (
             <p
               className={`text-[0.6875rem] uppercase tracking-wide text-center ${
-                inSetupPhase ? "text-primary/80 font-medium" : "text-muted-foreground/70"
+                currentPhase === "Setup" ? "text-primary font-semibold" : "text-muted-foreground/80"
               }`}
               aria-live="polite"
             >
@@ -150,28 +174,25 @@ export default function SetupWizardShell({
           )}
           <div className="flex items-center justify-center gap-1 flex-wrap">
             {steps.map((_, i) => {
-              const inSetup = !hasPhaseBreak || i <= phaseBreakIndex;
-              // A slim divider AFTER the last setup dot creates a visual
-              // gap between the two phases without adding real whitespace.
-              const showDivider = hasPhaseBreak && i === phaseBreakIndex + 1;
+              const phase = phaseInfo.perStep[i];
+              // Slim divider between two consecutive dots that belong to
+              // different phases.
+              const prevPhase = i > 0 ? phaseInfo.perStep[i - 1] : phase;
+              const showDivider = i > 0 && prevPhase !== phase;
+              const phaseName = phase ? ` (${phase})` : "";
               return (
                 <React.Fragment key={i}>
                   {showDivider && (
-                    <span
-                      className="w-px h-3 bg-border/70 mx-1 flex-shrink-0"
-                      aria-hidden
-                    />
+                    <span className="w-px h-3 bg-border/70 mx-1 flex-shrink-0" aria-hidden />
                   )}
                   <button
                     type="button"
                     onClick={() => !busy && !animating && setStep(i)}
-                    aria-label={`Go to step ${i + 1}${inSetup ? " (setup)" : " (about the app)"}`}
+                    aria-label={`Go to step ${i + 1}${phaseName}`}
                     className={`rounded-full transition-all ${
                       i === step
                         ? "w-4 h-2 bg-primary"
-                        : inSetup
-                          ? "w-2 h-2 bg-primary/30 hover:bg-primary/50"
-                          : "w-2 h-2 bg-muted hover:bg-muted-foreground/30"
+                        : `w-2 h-2 ${phaseColorClass(phase)}`
                     }`}
                   />
                 </React.Fragment>
