@@ -140,6 +140,10 @@ export default function EmotionWheelPicker({
   const [activeCore,    setActiveCore]    = useState(null);
   const [search,        setSearch]        = useState("");
   const [customInput,   setCustomInput]   = useState("");
+  // Category the bottom "Add custom emotion" input assigns to. Defaults to
+  // "custom" (uncategorized); the dropdown lets the user pick a specific
+  // core so new emotions land in the right place without a second edit trip.
+  const [customCategory, setCustomCategory] = useState("custom");
   // User-renamable root labels ("Good" → "Positive", …). Structure stays;
   // display AND the logged valence-mood string use the current name.
   const catLabels = useEmotionCategoryLabels();
@@ -229,7 +233,7 @@ export default function EmotionWheelPicker({
 
   const handleCustomSubmit = () => {
     if (!customInput.trim()) return;
-    onAddCustom?.(customInput.trim(), "custom");
+    onAddCustom?.(customInput.trim(), customCategory);
     setCustomInput("");
   };
 
@@ -478,18 +482,38 @@ export default function EmotionWheelPicker({
         </div>
       )}
 
-      {/* Add custom */}
+      {/* Add custom — with inline category picker so users don't have to
+          go into the emotions manager afterwards to assign a category.
+          Presents the four roots + every core, using the user's renamed
+          root labels where set (via catLabels). */}
       {!search && (
-        <div className="flex gap-2 pt-1 border-t border-border/50">
+        <div className="flex gap-1.5 pt-1 border-t border-border/50">
           <Input
             placeholder="Add custom emotion..."
             value={customInput}
             onChange={e => setCustomInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter") handleCustomSubmit(); }}
-            className="h-7 text-xs flex-1"
+            className="h-7 text-xs flex-1 min-w-0"
           />
+          <select
+            value={customCategory}
+            onChange={e => setCustomCategory(e.target.value)}
+            aria-label="Category for the new emotion"
+            className="h-7 rounded-md bg-muted border border-border/50 text-[0.6875rem] text-muted-foreground px-1.5 max-w-[6.5rem] focus:outline-none focus:ring-1 focus:ring-primary"
+          >
+            <option value="custom">Uncategorized</option>
+            {Object.entries(WHEEL).map(([key, data]) => (
+              <optgroup key={key} label={rootLabel(key)}>
+                <option value={key}>{rootLabel(key)}</option>
+                {data.cores && Object.keys(data.cores).map(core => (
+                  <option key={core} value={core}>{"↳ " + core}</option>
+                ))}
+              </optgroup>
+            ))}
+          </select>
           <button onClick={handleCustomSubmit} disabled={!customInput.trim()}
-            className="px-2 py-1 rounded-md bg-muted text-xs text-muted-foreground hover:bg-accent disabled:opacity-40 transition-colors">
+            aria-label="Add emotion"
+            className="px-2 py-1 rounded-md bg-muted text-xs text-muted-foreground hover:bg-accent disabled:opacity-40 transition-colors flex-shrink-0">
             <Plus className="w-3 h-3" />
           </button>
         </div>

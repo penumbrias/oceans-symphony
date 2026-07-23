@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Setup redesigned: terminology is the first thing you see, then the app itself appears with a small pop-up offering an optional guided setup. Everything is styled to match the app's Guide." },
+      { type: "improve", text: "The guided setup ends on a merged \"Your alters & fronting\" step (after backups), where you can jump straight to the alters page." },
+      { type: "fix", text: "You can now untick preset symptoms/habits you don't want — the picker no longer locks them in after adding, and unticking one already in your list quietly archives it (history stays)." },
+      { type: "improve", text: "Adding a custom emotion now lets you pick its category at the same time — no more two-step trip to the emotions manager." },
       { type: "fix", text: "Guided setup no longer hides its Continue button under the phone's navigation bar or the app's own bottom bar." },
       { type: "fix", text: "Creating a second system works again — the data-protection guard no longer mistakes your existing system for endangered data, and brand-new systems now get the guided setup." },
       { type: "improve", text: "Analytics stay useful without fronting history: a new \"Symptoms by alter\" view builds from who each check-in was assigned to, and the Fronting tab now explains itself kindly instead of showing empty charts when there's no front data." },

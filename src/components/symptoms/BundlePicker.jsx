@@ -9,7 +9,7 @@
 // Framing rule (research Part E): bundles are "things some people track" —
 // offered, never asserted. The safety pack carries its own gentle note.
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { X, ChevronDown, ChevronRight, Check, Plus, Loader2 } from "lucide-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -35,7 +35,13 @@ function TypeBadge({ item }) {
 }
 
 // The bundle list itself — reusable outside the modal (onboarding embeds
-// this directly). `selected` is a Set of `${bundleId}:${index}` keys.
+// this directly). `selected` is a Set of `${bundleId}:${index}` keys and
+// represents the DESIRED final state: items already in the catalogue are
+// pre-populated in `selected` by the caller (see BundlePicker below), so
+// unticking one queues it for archive at save. This replaces the earlier
+// "already-added items lock" behaviour that trapped users after they'd
+// ticked something ("I selected everything, and then went back and it
+// wouldn't let me deselect" — v0.84 tester report).
 export function BundleList({ existingKeys, selected, onToggleItem, onToggleBundle, terms }) {
   const [openBundles, setOpenBundles] = useState(() => new Set());
 
@@ -53,17 +59,16 @@ export function BundleList({ existingKeys, selected, onToggleItem, onToggleBundl
         const itemStates = bundle.items.map((item, i) => {
           const resolved = applyTerms(item.label, terms);
           const category = item.kind === "behaviour" ? "habit" : "symptom";
+          const key = `${bundle.id}:${i}`;
           return {
-            item,
-            i,
-            resolved,
-            key: `${bundle.id}:${i}`,
+            item, i, resolved, key,
             already: existingKeys.has(labelKey(resolved, category)),
+            checked: selected.has(key),
           };
         });
-        const addable = itemStates.filter((s) => !s.already);
-        const selectedCount = itemStates.filter((s) => selected.has(s.key)).length;
-        const allSelected = addable.length > 0 && addable.every((s) => selected.has(s.key));
+        const allKeys = itemStates.map((s) => s.key);
+        const selectedCount = itemStates.filter((s) => s.checked).length;
+        const allSelected = itemStates.length > 0 && itemStates.every((s) => s.checked);
 
         return (
           <div key={bundle.id} className="border border-border/60 rounded-xl overflow-hidden">
@@ -79,11 +84,9 @@ export function BundleList({ existingKeys, selected, onToggleItem, onToggleBundl
                 <span className="text-xs text-muted-foreground block truncate">{bundle.description}</span>
               </span>
               {selectedCount > 0 && (
-                <span className="text-xs text-primary font-medium flex-shrink-0">{selectedCount} picked</span>
+                <span className="text-xs text-primary font-medium flex-shrink-0">{selectedCount}</span>
               )}
-              {addable.length === 0 ? (
-                <span className="text-xs text-muted-foreground flex-shrink-0 flex items-center gap-0.5"><Check className="w-3 h-3" /> added</span>
-              ) : open ? (
+              {open ? (
                 <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" />
               ) : (
                 <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />
@@ -97,35 +100,35 @@ export function BundleList({ existingKeys, selected, onToggleItem, onToggleBundl
                     These are optional and gentle — logging one of the harder items offers the quick support prompt. No streaks, no scores against you.
                   </p>
                 )}
-                {addable.length > 1 && (
+                {itemStates.length > 1 && (
                   <button
                     type="button"
-                    onClick={() => onToggleBundle(bundle.id, addable.map((s) => s.key), !allSelected)}
+                    onClick={() => onToggleBundle(bundle.id, allKeys, !allSelected)}
                     className="text-xs text-primary hover:underline"
                   >
-                    {allSelected ? "Unselect all" : `Select all (${addable.length})`}
+                    {allSelected ? "Uncheck all" : `Check all (${itemStates.length})`}
                   </button>
                 )}
-                {itemStates.map(({ item, resolved, key, already }) => (
+                {itemStates.map(({ item, resolved, key, already, checked }) => (
                   <label
                     key={key}
-                    className={`flex items-center gap-2 py-1 px-1 rounded-lg ${already ? "opacity-50" : "cursor-pointer hover:bg-muted/40"}`}
+                    className="flex items-center gap-2 py-1 px-1 rounded-lg cursor-pointer hover:bg-muted/40"
                   >
                     <input
                       type="checkbox"
                       className="accent-[var(--color-primary)] w-3.5 h-3.5 flex-shrink-0"
-                      checked={already || selected.has(key)}
-                      disabled={already}
+                      checked={checked}
                       onChange={() => onToggleItem(key)}
-                      aria-label={already ? `${resolved} (already added)` : resolved}
+                      aria-label={resolved}
                     />
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: item.color }} aria-hidden />
                     <span className="flex-1 text-sm min-w-0 truncate">{resolved}</span>
-                    {already ? (
-                      <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0">added</span>
-                    ) : (
-                      <TypeBadge item={item} />
+                    {already && (
+                      <span className="text-[0.5625rem] uppercase tracking-wide text-muted-foreground flex-shrink-0" title="Already in your list — unticking removes it">
+                        in your list
+                      </span>
                     )}
+                    <TypeBadge item={item} />
                   </label>
                 ))}
               </div>
@@ -137,11 +140,29 @@ export function BundleList({ existingKeys, selected, onToggleItem, onToggleBundl
   );
 }
 
+// Map a Symptom row to its bundle key (if any) so we can pair archived rows
+// with their preset key on save. Match by resolved label + category — bundle_id
+// is stamped on new rows but not on legacy migrations.
+function bundleKeyForSymptom(sym, terms) {
+  for (const bundle of TRACKING_BUNDLES) {
+    for (let i = 0; i < bundle.items.length; i++) {
+      const item = bundle.items[i];
+      const resolvedLabel = applyTerms(item.label, terms);
+      const category = item.kind === "behaviour" ? "habit" : "symptom";
+      if (labelKey(resolvedLabel, category) === labelKey(sym.label, sym.category || "symptom")) {
+        return `${bundle.id}:${i}`;
+      }
+    }
+  }
+  return null;
+}
+
 export default function BundlePicker({ open, onClose, onAdded }) {
   const t = useTerms();
   const queryClient = useQueryClient();
   const [selected, setSelected] = useState(() => new Set());
-  const [adding, setAdding] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [initialized, setInitialized] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
@@ -153,6 +174,30 @@ export default function BundlePicker({ open, onClose, onAdded }) {
     () => new Set(symptoms.map((s) => labelKey(s.label, s.category || "symptom"))),
     [symptoms]
   );
+
+  // Map bundle-key → existing (non-archived) Symptom row, so unticking one
+  // knows which row to archive on save.
+  const symptomByBundleKey = useMemo(() => {
+    const map = new Map();
+    for (const s of symptoms) {
+      if (s.is_archived) continue;
+      const k = bundleKeyForSymptom(s, t);
+      if (k) map.set(k, s);
+    }
+    return map;
+  }, [symptoms, t]);
+
+  // Pre-populate `selected` with everything already in the catalogue when
+  // the picker opens (new semantic: selected = desired final state).
+  useEffect(() => {
+    if (open && !initialized) {
+      setSelected(new Set(symptomByBundleKey.keys()));
+      setInitialized(true);
+    } else if (!open && initialized) {
+      setInitialized(false);
+      setSelected(new Set());
+    }
+  }, [open, initialized, symptomByBundleKey]);
 
   const toggleItem = (key) =>
     setSelected((prev) => {
@@ -168,12 +213,15 @@ export default function BundlePicker({ open, onClose, onAdded }) {
       return next;
     });
 
-  const handleAdd = async () => {
-    if (selected.size === 0 || adding) return;
-    setAdding(true);
+  const handleSave = async () => {
+    if (saving) return;
+    setSaving(true);
     try {
       let created = 0;
+      let removed = 0;
+      // Create anything ticked that isn't already in the catalogue.
       for (const key of selected) {
+        if (symptomByBundleKey.has(key)) continue;
         const [bundleId, idxStr] = key.split(":");
         const bundle = TRACKING_BUNDLES.find((b) => b.id === bundleId);
         const item = bundle?.items[Number(idxStr)];
@@ -184,15 +232,25 @@ export default function BundlePicker({ open, onClose, onAdded }) {
         await base44.entities.Symptom.create(fields);
         created++;
       }
+      // Archive anything that was in the catalogue but got unticked. Archive
+      // (not hard delete) — history stays intact, matching the User Data
+      // Preservation invariant.
+      for (const [key, row] of symptomByBundleKey.entries()) {
+        if (selected.has(key)) continue;
+        await base44.entities.Symptom.update(row.id, { is_archived: true });
+        removed++;
+      }
       queryClient.invalidateQueries({ queryKey: ["symptoms"] });
-      toast.success(created > 0 ? `Added ${created} item${created === 1 ? "" : "s"}` : "Nothing new to add");
-      setSelected(new Set());
+      const parts = [];
+      if (created) parts.push(`added ${created}`);
+      if (removed) parts.push(`removed ${removed}`);
+      toast.success(parts.length ? `Presets updated (${parts.join(", ")})` : "No changes");
       onAdded?.(created);
       onClose?.();
     } catch (e) {
-      toast.error(e?.message || "Couldn't add presets");
+      toast.error(e?.message || "Couldn't save presets");
     } finally {
-      setAdding(false);
+      setSaving(false);
     }
   };
 
@@ -229,12 +287,12 @@ export default function BundlePicker({ open, onClose, onAdded }) {
           </button>
           <button
             type="button"
-            onClick={handleAdd}
-            disabled={selected.size === 0 || adding}
+            onClick={handleSave}
+            disabled={saving}
             className="flex-1 px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium flex items-center justify-center gap-1.5 disabled:opacity-50"
           >
-            {adding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
-            Add {selected.size > 0 ? selected.size : ""} selected
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Plus className="w-3.5 h-3.5" />}
+            Save
           </button>
         </div>
       </div>

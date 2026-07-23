@@ -35,7 +35,9 @@ import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
-import OnboardingFlow, { ONBOARDING_DONE_KEY } from "@/components/onboarding/OnboardingFlow";
+import TermsSetupWizard from "@/components/onboarding/TermsSetupWizard";
+import SetupHintCard from "@/components/onboarding/SetupHintCard";
+import GuidedSetupModal, { ONBOARDING_DONE_KEY } from "@/components/onboarding/GuidedSetupModal";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
@@ -55,20 +57,42 @@ export default function Dashboard() {
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
   const { setShowFeatureTour } = useOutletContext() || {};
-  // Phase-C guided onboarding replaces the old Disclaimer → TermsSetup →
-  // auto-Tour modal chain. Legacy users (terms_setup_done set) never see it.
-  // The pending flag is a one-shot set by "create new system" — a fresh
+  // Setup is now three phases (v0.84.5):
+  //   1. TermsSetupWizard — required blocking modal, TourModal-styled,
+  //      terminology + medical-disclaimer ack.
+  //   2. SetupHintCard — small floating popup on the dashboard offering
+  //      the optional guided setup.
+  //   3. GuidedSetupModal — TourModal-styled wizard: check-in intro →
+  //      bundles → emotions → backups → alters + fronting merged.
+  // The `pending` flag is a one-shot set by "create new system" — a fresh
   // system's settings/catalogue are empty even though the device-wide gate
-  // keys are already satisfied, so it gets the guided setup once too.
-  const [showOnboarding, setShowOnboarding] = useState(() => {
+  // keys are already satisfied, so it gets the hint (and the option to run
+  // the guided flow) once too.
+  const [pendingFromNewSystem] = useState(() => {
     try {
       if (localStorage.getItem("symphony_onboarding_pending_v1")) {
         localStorage.removeItem("symphony_onboarding_pending_v1");
         return true;
       }
-      return !localStorage.getItem("terms_setup_done") && !localStorage.getItem(ONBOARDING_DONE_KEY);
-    } catch { return false; }
+    } catch { /* storage off */ }
+    return false;
   });
+  const [showTermsWizard, setShowTermsWizard] = useState(() => {
+    try { return !localStorage.getItem("terms_setup_done"); } catch { return false; }
+  });
+  const [showHintCard, setShowHintCard] = useState(false);
+  const [showGuidedSetup, setShowGuidedSetup] = useState(false);
+  useEffect(() => {
+    // Hint appears when terms are done AND guided setup hasn't been run/
+    // dismissed for this system — and the terms wizard isn't currently up.
+    if (showTermsWizard || showGuidedSetup) return;
+    try {
+      const termsDone = !!localStorage.getItem("terms_setup_done");
+      const guidedDone = !!localStorage.getItem(ONBOARDING_DONE_KEY);
+      const dismissed = !!localStorage.getItem("symphony_setup_hint_dismissed_v1");
+      setShowHintCard(termsDone && !guidedDone && (!dismissed || pendingFromNewSystem));
+    } catch { /* storage off */ }
+  }, [showTermsWizard, showGuidedSetup, pendingFromNewSystem]);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
@@ -125,7 +149,12 @@ export default function Dashboard() {
     }
     // Settings → About → "Re-run setup" replays the guided onboarding
     // (different alters may want to re-do it — it never overwrites data).
-    if (onboardingParam === "replay") setShowOnboarding(true);
+    if (onboardingParam === "replay") {
+      // "Re-run setup" reopens the guided flow. The blocking terms wizard
+      // only ever runs on a genuinely fresh system, so replay skips it.
+      try { localStorage.removeItem(ONBOARDING_DONE_KEY); localStorage.removeItem("symphony_setup_hint_dismissed_v1"); } catch { /* storage off */ }
+      setShowGuidedSetup(true);
+    }
     params.delete("action");
     params.delete("onboarding");
     const newSearch = params.toString();
@@ -870,18 +899,32 @@ export default function Dashboard() {
       })}
       </div>
 
-      {/* Phase-C guided onboarding — welcome/trust (incl. the medical
-          disclaimer acknowledgement), check-in intro, terminology, Express/
-          Customize tracking setup, alters page, fronting-optional, backups.
-          Replayable from Settings → About via /?onboarding=replay. */}
-      {showOnboarding && (
-        <OnboardingFlow
-          onDone={({ openGuide } = {}) => {
-            setShowOnboarding(false);
-            if (openGuide) setShowTour(true);
+      {/* Setup, v0.84.5: required terminology + disclaimer modal, then a
+          small dashboard hint offering the optional guided setup. */}
+      <TermsSetupWizard
+        open={showTermsWizard}
+        existingSettingsId={settings[0]?.id || null}
+        onFinish={() => setShowTermsWizard(false)}
+      />
+      {showHintCard && !showGuidedSetup && (
+        <SetupHintCard
+          onDiveIn={() => {
+            try { localStorage.setItem("symphony_setup_hint_dismissed_v1", "1"); localStorage.setItem(ONBOARDING_DONE_KEY, "1"); } catch { /* storage off */ }
+            setShowHintCard(false);
+          }}
+          onGuidedSetup={() => {
+            setShowHintCard(false);
+            setShowGuidedSetup(true);
           }}
         />
       )}
+      <GuidedSetupModal
+        open={showGuidedSetup}
+        onFinish={() => {
+          try { localStorage.setItem(ONBOARDING_DONE_KEY, "1"); localStorage.setItem("symphony_setup_hint_dismissed_v1", "1"); } catch { /* storage off */ }
+          setShowGuidedSetup(false);
+        }}
+      />
 
       <TourModal open={showTour} onClose={handleTourClose} />
       <QuickCheckInModal
