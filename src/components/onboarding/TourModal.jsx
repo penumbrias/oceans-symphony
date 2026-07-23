@@ -276,12 +276,14 @@ export default function TourModal({ open, onClose }) {
       subtitle: "The one thing to know about local-only",
       icon: <CloudOff className="w-8 h-8" />,
       color: "from-slate-500/20 to-gray-500/20",
-      body: `Local also means no cloud copy. If this device's data is lost, it's lost for good — so export backups, especially before switching devices. Automatic backups can save a copy on a schedule.`,
+      body: `Local also means no cloud copy. If this device's data is lost, it's lost for good — so export backups, especially before switching devices. Automatic backups can save a copy on a schedule.\n\nThat wraps up the setup portion — the following pages just introduce the app's features. Skip any time.`,
       render: () => (
         <div className="pt-1">
           <AutoBackupSettings />
         </div>
       ),
+      // Setup ends here; the remaining slides are informational only.
+      phaseBreak: true,
     },
     // ─── Rest of the classic guide, unchanged ────────────────────────────
     {
