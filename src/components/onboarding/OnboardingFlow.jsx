@@ -356,7 +356,17 @@ export default function OnboardingFlow({ onDone, replay = false }) {
   const nextDisabled = step === "welcome" && !ackChecked;
 
   return (
-    <div className="fixed inset-0 z-[95] bg-background flex flex-col" role="dialog" aria-modal="true" aria-label="Oceans Symphony setup">
+    <div
+      className="fixed inset-0 z-[95] bg-background flex flex-col"
+      // Android runs edge-to-edge: without these insets the header hides
+      // under the status bar and the footer's Continue button sits beneath
+      // the gesture/navigation bar (tester report). Same pattern as
+      // DisclaimerModal / GroceryListPanel.
+      style={{
+        paddingTop: "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)",
+      }}
+      role="dialog" aria-modal="true" aria-label="Oceans Symphony setup">
       {/* Header: back + progress + set-up-later */}
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border/50 flex-shrink-0">
         {stepIndex > 0 ? (
