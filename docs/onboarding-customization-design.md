@@ -116,13 +116,29 @@ FeatureTour gets updated anchors/steps for the new surfaces (release rule).
 
 ---
 
-## Phase D — Front-tracking-optional + unified attribution
+## Phase D — Analytics value without front history *(DESCOPED per owner, July 2026)*
 
-1. **Master toggle** `SystemSettings.front_tracking_mode`: `"active"` (default) | `"passive"`. The existing "Infer presence" toggle + window move under it (passive implies inference on).
-2. **Unified resolver adoption**: route the ~15 inline attribution implementations through `attribution.js attributeRecord` (explicit → fronters → author → inference → none, source-tagged). Keep the standing principle: **fronting *time* analytics stay real-sessions-only**; inference attributes *content* only. Co-fronting stays real-only (no phantom co-fronting from window overlaps).
-3. **SymptomCheckIn gains `fronting_alter_ids`** at write time (defaulted like EmotionCheckIn) — fixes the dead `alterFingerprint` symptom branch and gives symptoms an explicit path at last.
-4. **Passive mode behaviour**: hide Fronting tab, timeline alter columns, CoFronting, switch-trigger UI, `switch_logged` daily task, and CurrentFronters widget (dashboard layout flag); attribution defaults flip to inference; chat default speaker falls back to last-used speaker (not fronter); chat private-channel unlock switches to an explicit per-channel setting (it currently keys off fronter membership — a hard dependency that must not silently lock users out); friends front-sync sends nothing (with a note in Friends UI).
-5. Onboarding step 6 + a Settings card explain the mode; switching modes later is lossless both ways (sessions are never deleted).
+**Owner correction:** there is no standalone "front tracking off" mode — removing the
+Current Fronters widget from the dashboard layout already *is* the feature. The goal is
+narrower: **users with little or no front history still get value from analytics.**
+
+What shipped (v0.84.1):
+1. **SymptomCheckIn `fronting_alter_ids`** landed in Phase B3 — symptoms carry explicit
+   attribution regardless of fronting.
+2. **"Symptoms by alter"** section in SymptomAnalytics — built purely from explicit
+   check-in attribution (per-item assignment or check-in fronters, legacy `alter_id`
+   honoured). Needs zero sessions.
+3. **Fronting-tab guidance banner** when the selected period has no {front} logs — calm,
+   non-shaming: explains those charts need front history while the rest of Analytics runs
+   on check-in attribution + authorship inference (which is on by default).
+4. Already-working fallbacks confirmed: EmotionAnalytics `inferAlters`, SymptomAnalytics
+   session-overlap vs real+inferred sessions, alterFingerprint explicit fields (B3),
+   AlterActivityMatrix.
+
+Explicitly NOT built: `front_tracking_mode` toggle, hiding fronting surfaces, chat
+private-channel changes, friends-sync suppression. The broader unified-resolver adoption
+(~15 inline attribution implementations → `attributeRecord`) remains an optional future
+refactor, not a user-facing need.
 
 ---
 

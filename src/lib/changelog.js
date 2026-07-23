@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Analytics stay useful without fronting history: a new \"Symptoms by alter\" view builds from who each check-in was assigned to, and the Fronting tab now explains itself kindly instead of showing empty charts when there's no front data." },
       { type: "feature", text: "A new guided setup replaces the old first-run pop-ups: welcome & privacy, a Quick Check-In intro, terminology, an Express-or-Customize tracking setup (pick your packs and emotions), and backups — every step skippable." },
       { type: "feature", text: "Setup can be replayed any time from Settings → About & help → \"Re-run setup\". It never deletes or changes existing data." },
       { type: "fix", text: "\"Delete All Local Data\" now also resets the disclaimer acknowledgement, so a fresh start really starts fresh." },
