@@ -10,7 +10,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2, CheckSquare, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { DEFAULT_TASK_TEMPLATES } from "@/lib/dailyTaskSystem";
+import { DEFAULT_TASK_TEMPLATES, applyTerms as applyTaskTerms } from "@/lib/dailyTaskSystem";
+import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -112,6 +113,9 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
   const [showImport, setShowImport] = useState(false);
   const [showActivityMenu, setShowActivityMenu] = useState(false);
   const [seedingTasks, setSeedingTasks] = useState(false);
+  const [showTaskManager, setShowTaskManager] = useState(false);
+  const [taskSelection, setTaskSelection] = useState({});
+  const [taskSelectionInit, setTaskSelectionInit] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -147,21 +151,48 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
     });
   }, [alters, activities, taskTemplates]);
 
+  // Titles of user's existing templates (lower-cased, term-resolved on both
+  // sides so a saved "System meeting" matches the "{{system}} meeting"
+  // default). The resolved title is what actually gets persisted.
+  const existingTitleSet = useMemo(() => {
+    return new Set(taskTemplates.map((tt) => String(applyTaskTerms(tt.title || "", t)).trim().toLowerCase()));
+  }, [taskTemplates, t]);
+
+  const resolveDefaultTitle = (def) => applyTaskTerms(def.title || "", t);
+  const isDefaultAlreadyAdded = (def) => existingTitleSet.has(String(resolveDefaultTitle(def)).trim().toLowerCase());
+
+  // Initialise selection once — every default pre-ticked EXCEPT ones already
+  // added (those show "Added" and don't count toward the batch). Re-init if
+  // the existing set changes after a batch add.
+  useEffect(() => {
+    const initial = {};
+    for (const def of DEFAULT_TASK_TEMPLATES) {
+      initial[def.title] = !isDefaultAlreadyAdded(def);
+    }
+    setTaskSelection(initial);
+    setTaskSelectionInit(true);
+  }, [existingTitleSet]);
+
+  const selectedDefaultCount = useMemo(() => {
+    return DEFAULT_TASK_TEMPLATES.filter((d) => taskSelection[d.title] && !isDefaultAlreadyAdded(d)).length;
+  }, [taskSelection, existingTitleSet]);
+
   const handleSeedDefaultTasks = async () => {
     if (seedingTasks) return;
     setSeedingTasks(true);
     try {
-      // DailyTaskTemplate dedup by title (case-insensitive) — skip any
-      // default whose title already exists to avoid duplicates on repeat.
-      const existingTitles = new Set(taskTemplates.map((tt) => String(tt.title || "").trim().toLowerCase()));
       let created = 0;
       for (const def of DEFAULT_TASK_TEMPLATES) {
-        if (existingTitles.has(String(def.title || "").trim().toLowerCase())) continue;
-        await base44.entities.DailyTaskTemplate.create({ ...def });
+        if (!taskSelection[def.title]) continue;
+        if (isDefaultAlreadyAdded(def)) continue;
+        // Persist term-resolved title so "{{system}} meeting" becomes the
+        // user's term at seed time (matches TaskTemplateManager's own save
+        // path which also resolves before writing).
+        await base44.entities.DailyTaskTemplate.create({ ...def, title: resolveDefaultTitle(def) });
         created++;
       }
       queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
-      toast.success(created > 0 ? `Added ${created} default task${created === 1 ? "" : "s"}` : "All defaults already present");
+      toast.success(created > 0 ? `Added ${created} default task${created === 1 ? "" : "s"}` : "Nothing selected to add");
     } catch (e) {
       toast.error(e?.message || "Couldn't add defaults");
     } finally {
@@ -291,22 +322,108 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
           <p className="text-xs text-muted-foreground">
             Daily tasks are lightweight recurring items that reset every day (or on a schedule you
             set). They're great for anchoring the day — a morning check-in, taking meds, brushing
-            teeth. You can pick from a curated default set now, or build your own later.
+            teeth. Tick the ones you'd like, or build your own below.
           </p>
           {taskTemplates.length > 0 && (
             <p className="text-xs text-emerald-500">
               ✓ You already have {taskTemplates.length} task template{taskTemplates.length === 1 ? "" : "s"}.
             </p>
           )}
+
+          <div className="space-y-1.5">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">
+              Suggested daily tasks
+            </p>
+            <div className="rounded-lg border border-border/50 divide-y divide-border/40 overflow-hidden">
+              {DEFAULT_TASK_TEMPLATES.map((def) => {
+                const already = isDefaultAlreadyAdded(def);
+                const checked = !!taskSelection[def.title] && !already;
+                const resolvedTitle = resolveDefaultTitle(def);
+                const resolvedDesc = applyTaskTerms(def.description || "", t);
+                return (
+                  <label
+                    key={def.title}
+                    className={`flex items-start gap-2 px-2.5 py-2 text-left cursor-pointer transition-colors ${
+                      already ? "opacity-60 cursor-not-allowed bg-muted/20" : "hover:bg-muted/30"
+                    }`}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={checked}
+                      disabled={already}
+                      onChange={() =>
+                        setTaskSelection((prev) => ({ ...prev, [def.title]: !prev[def.title] }))
+                      }
+                      className="mt-0.5 w-4 h-4 accent-primary flex-shrink-0"
+                    />
+                    <span className="flex-1 min-w-0">
+                      <span className="flex flex-wrap items-center gap-1.5">
+                        <span className="text-xs font-medium">{resolvedTitle}</span>
+                        <span
+                          className={`text-[0.5625rem] px-1 py-px rounded font-semibold uppercase tracking-wide ${
+                            def.mode === "AUTO"
+                              ? "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
+                              : "bg-muted text-muted-foreground"
+                          }`}
+                          title={def.mode === "AUTO" ? "Ticks itself when you do the thing" : "You tick this manually"}
+                        >
+                          {def.mode === "AUTO" ? "Auto" : "Manual"}
+                        </span>
+                        <span className="text-[0.5625rem] text-muted-foreground">+{def.points} XP</span>
+                        {already && (
+                          <span className="text-[0.5625rem] text-emerald-600 dark:text-emerald-400 font-semibold">
+                            ✓ Added
+                          </span>
+                        )}
+                      </span>
+                      <span className="text-[0.6875rem] text-muted-foreground block leading-snug">{resolvedDesc}</span>
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={handleSeedDefaultTasks} disabled={seedingTasks} className="text-xs gap-1">
+            <Button
+              size="sm"
+              onClick={handleSeedDefaultTasks}
+              disabled={seedingTasks || selectedDefaultCount === 0}
+              className="text-xs gap-1"
+            >
               {seedingTasks ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
-              Add default daily tasks
+              {selectedDefaultCount > 0 ? `Add ${selectedDefaultCount} selected` : "Add selected"}
             </Button>
-            <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/tasks"); }} className="text-xs gap-1">
-              Open task manager <ExternalLink className="w-3 h-3" />
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setShowTaskManager(true)}
+              className="text-xs gap-1"
+            >
+              <Settings2 className="w-3 h-3" /> Create / edit custom
+            </Button>
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => { onCloseGuide?.(); navigate("/tasks"); }}
+              className="text-xs gap-1"
+            >
+              Open task page <ExternalLink className="w-3 h-3" />
             </Button>
           </div>
+
+          {showTaskManager && (
+            <div className="fixed inset-0 z-[10001] bg-black/60 flex items-start justify-center p-4 overflow-y-auto" onClick={() => setShowTaskManager(false)}>
+              <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg my-8" onClick={(e) => e.stopPropagation()}>
+                <div className="p-4">
+                  <TaskTemplateManager templates={taskTemplates} onClose={() => {
+                    setShowTaskManager(false);
+                    queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
+                  }} />
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       ),
     },

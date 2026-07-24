@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "July 23, 2026",
+    changes: [
+      { type: "improve", text: "The Setup → Daily & recurring tasks step now lists every default task with its title, description, XP and Auto/Manual badge. Tick the ones you want and tap Add — already-added ones show \"✓ Added\". A \"Create / edit custom\" button opens the full task manager inline." },
+    ],
+  },
+  {
     date: "July 22, 2026",
     changes: [
       { type: "feature", text: "New \"Daily & recurring tasks\" item in the Setup checklist — one tap adds the default daily tasks, or open the full task manager." },
