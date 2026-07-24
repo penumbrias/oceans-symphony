@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 23, 2026",
     changes: [
+      { type: "feature", text: "New \"Update to the new preset packs?\" card on Manage Check-In (Symptoms / Habits / Context tabs) for users still on the older flat catalogue. Pick which preset packs to add, preview which of your existing items will be merged with the new equivalents (history preserved — the row keeps its id so every check-in still points at it), then Apply. Dismiss to keep the old list as-is." },
+      { type: "improve", text: "Renamed the Setup checklist's \"Continue to the guide\" button to \"Complete setup!\" — it marks the end of setup and starts the \"About the app\" walkthrough." },
       { type: "improve", text: "Renamed the top-right \"Guide\" pill to \"Setup\" — the modal it opens is the setup flow, and the neighbouring \"Tour\" pill is the actual walkthrough." },
       { type: "improve", text: "Renamed the tracking preset \"Thoughts or urges that don't feel like mine\" to \"'Not-me' urges / thoughts\" — shorter, less easily truncated in the picker. Existing installs get the rename applied automatically on next boot." },
       { type: "improve", text: "\"You're all set!\" page now highlights the Dive in button (it's the recommended path — setup is done) and renames Next → Read more so it's clearer that the rest of the guide is optional." },

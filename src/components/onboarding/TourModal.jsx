@@ -266,7 +266,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       // adjusted tracking selection but didn't click the section's own
       // "Save tracking selection" button.
       onNext: applyBundlesDiff,
-      nextLabel: "Continue to the guide",
+      nextLabel: "Complete setup!",
     },
     // Transition — setup is done. Alters/manager buttons removed per
     // owner (they're now inside the setup checklist above); this page is

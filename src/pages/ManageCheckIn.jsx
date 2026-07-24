@@ -13,6 +13,7 @@ import { isContextItem } from "@/lib/trackingModel";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
+import LegacyCatalogueMigrationCard from "@/components/settings/LegacyCatalogueMigrationCard";
 
 // Toggle which section pills appear in the Quick Check-In modal.
 function SectionsTab() {
@@ -349,6 +350,14 @@ export default function ManageCheckIn() {
           </button>
         ))}
       </div>
+
+      {/* Opt-in upgrade card for users on the legacy catalogue —
+          rendered once (not per-tab) since the migration touches every
+          category. Auto-hides when there's nothing to migrate or the
+          user dismissed it. */}
+      {(tab === "symptoms" || tab === "habits" || tab === "context") && (
+        <LegacyCatalogueMigrationCard />
+      )}
 
       {tab === "sections" && <SectionsTab />}
       {tab === "symptoms" && <SymptomTab category="symptom" />}
