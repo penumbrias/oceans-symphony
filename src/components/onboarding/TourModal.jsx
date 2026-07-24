@@ -74,7 +74,7 @@ function defaultBundleKeys() {
 
 // Callers wanting to jump straight to the Setup Checklist step (e.g. the
 // dashboard's "Continue setup" chip) pass openAt="checklist".
-const STEP_ID_INDEX = { checklist: 3 };
+const STEP_ID_INDEX = { checklist: 2 };
 export default function TourModal({ open, onClose, openAt = null }) {
   const t = useTerms();
   const navigate = useNavigate();
@@ -221,97 +221,58 @@ export default function TourModal({ open, onClose, openAt = null }) {
       },
     },
     {
-      phase: "Welcome",
+      phase: "Setup",
       title: "Set up your terminology",
       subtitle: "Everything else can be edited later, too",
       icon: "🗣️",
       color: "from-violet-500/20 to-fuchsia-500/20",
-      body: `First, pick the words your ${t.system} uses. Symphony adapts every screen to your terminology — you can change this any time in Settings → Profile → Terminology.`,
       render: () => (
         <TermsSetupContent
           existingSettingsId={settingsRow?.id || null}
           onSaved={() => setTermsSaved(true)}
           saveLabel={termsSaved ? "✓ Terms saved" : "Save terms"}
+          hideHeader
+          lead="First, select the in-app terminology. Pick a preset or define your own. You can change this any time in Settings → Profile → Terminology."
         />
       ),
       nextLabel: termsSaved ? "Continue" : "Skip terminology",
     },
     {
       phase: "Setup",
-      title: "Choose what to track",
-      subtitle: "Packs of things some systems keep an eye on",
-      icon: <Package className="w-8 h-8" />,
-      color: "from-violet-500/20 to-indigo-500/20",
-      render: () => (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            Oceans Symphony is designed to help you learn about and understand your {t.system}. The
-            following preset packages are categories of experiences and symptoms that can be
-            worthwhile for some to keep an eye on. Pick as many or as few as you would like — the
-            recommended packs are pre-checked; untick anything you don't want, and open the other
-            packs to add more.
-          </p>
-          <BundleList
-            existingKeys={existingKeys}
-            selected={selected}
-            onToggleItem={toggleItem}
-            onToggleBundle={toggleBundle}
-            terms={t}
-          />
-          <p className="text-xs text-muted-foreground">
-            Need something not on the list? You can add your own custom symptoms, habits, and
-            context items from Settings → Tracking setup → Check-in manager any time.
-          </p>
-        </div>
-      ),
-      nextLabel: "Save & continue",
-      onNext: applyBundlesDiff,
-    },
-    {
-      phase: "Setup",
-      title: "Set up the rest",
+      title: "Setup",
       subtitle: "Pick what fits — leave and come back any time",
       icon: <ClipboardList className="w-8 h-8" />,
       color: "from-emerald-500/20 to-teal-500/20",
-      render: () => <SetupChecklist onCloseGuide={onClose} />,
+      render: () => (
+        <SetupChecklist
+          onCloseGuide={onClose}
+          bundleProps={{
+            existingKeys, selected, onToggleItem: toggleItem, onToggleBundle: toggleBundle,
+            terms: t, applyBundlesDiff,
+          }}
+        />
+      ),
+      // Auto-save the bundle diff on advance too, in case the user
+      // adjusted tracking selection but didn't click the section's own
+      // "Save tracking selection" button.
+      onNext: applyBundlesDiff,
       nextLabel: "Continue to the guide",
     },
-    // Transition — setup is done; user picks where to go next.
+    // Transition — setup is done. Alters/manager buttons removed per
+    // owner (they're now inside the setup checklist above); this page is
+    // just a "you're all set!" moment with Dive in / Next options.
     {
       phase: "About the app",
       title: "You're all set! 🎉",
-      subtitle: "Setup is done",
+      subtitle: "",
       icon: "✨",
       color: "from-violet-500/20 to-emerald-500/20",
       body:
-        `The following pages give a brief written introduction to Oceans Symphony's various features. For an in-depth walk-through, view the in-app "Tour" or click the "Show me around" banner at the top of each page.`,
-      render: () => (
-        <div className="grid gap-2">
-          <button
-            type="button"
-            onClick={() => { onClose?.(); navigate("/Home"); }}
-            className="w-full text-left rounded-xl border border-border/60 p-3 hover:bg-muted/40 transition-colors"
-          >
-            <p className="text-sm font-semibold flex items-center gap-2">
-              <Users className="w-4 h-4 text-primary" /> Go to the {t.Alters} page
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Add your first {t.alters}, or import from another app.</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => { onClose?.(); navigate("/manage-checkin"); }}
-            className="w-full text-left rounded-xl border border-border/60 p-3 hover:bg-muted/40 transition-colors"
-          >
-            <p className="text-sm font-semibold flex items-center gap-2">
-              <Package className="w-4 h-4 text-primary" /> Open the check-in manager
-            </p>
-            <p className="text-xs text-muted-foreground mt-0.5">Add or edit custom symptoms, habits, and diary fields.</p>
-          </button>
-          <p className="text-xs text-muted-foreground text-center pt-1">
-            Or hit <span className="font-medium text-foreground">Next</span> below to keep browsing the guide.
-          </p>
-        </div>
-      ),
+        `Dive in, or press Next to read more about the app's features. Press the "Show me around" banner at the top of each page to get an in-depth walk through of each feature.`,
+      // Dive in = skip the rest of the guide.
+      nextLabel: "Next",
+      skipHidden: false,
+      extraAction: { label: "Dive in", onClick: () => onClose?.() },
     },
     {
       phase: "About the app",

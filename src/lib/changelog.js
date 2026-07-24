@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "improve", text: "Setup restructured again: one Welcome page, then Terminology, then a single Setup page (tracking, emotions, activities, backups & encryption all live inside). Backups is now highlighted as \"Important\" so it's harder to miss." },
+      { type: "improve", text: "Activity setup now lets you add activities and sub-activities right inside the Guide instead of only sending you to the tracker." },
+      { type: "improve", text: "Guide page dots now only show for the current phase — no more 20 dots in a row that hid the setup ones." },
+      { type: "improve", text: "Transition page simplified — just a \"you're all set\" moment with Dive in / Next; the go-to-alters and open-check-in-manager buttons moved into the Setup checklist where they belong." },
       { type: "improve", text: "Setup is now a checklist you can leave and come back to. After Choose what to track, the Guide shows a hub of the remaining setup (alters or import, tracking tuning, activity tracker, backups & encryption) — tick items in any order, and a small \"Continue setup\" chip on the dashboard lets you jump back in until they're done." },
       { type: "improve", text: "Terminology setup is now a page inside the Guide (page 2) instead of a separate pop-up before it, and the welcome page updates its copy." },
       { type: "improve", text: "Migraine/headache is now a rating-type symptom, so it can be logged with severity (and started as an active session) instead of just \"happened\"." },

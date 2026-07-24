@@ -15,7 +15,9 @@ const PRESETS = [
 
 // The terms step body — shared between the legacy standalone modal and the
 // Phase-C OnboardingFlow (which embeds it as its terminology step).
-export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue" }) {
+// `hideHeader` + `lead` let embedders (like the Guide) supply their own
+// context copy instead of the standalone-modal defaults.
+export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue", hideHeader = false, lead = null }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(0);
   const [custom, setCustom] = useState({ system: "", alter: "", switch: "", front: "" });
@@ -45,12 +47,17 @@ export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Sa
 
   return (
         <div className="space-y-5">
-          <div>
-            <h2 className="text-xl font-semibold">Choose your language 💜</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own.
-            </p>
-          </div>
+          {!hideHeader && (
+            <div>
+              <h2 className="text-xl font-semibold">Choose your language 💜</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {lead || "Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own."}
+              </p>
+            </div>
+          )}
+          {hideHeader && lead && (
+            <p className="text-sm text-muted-foreground">{lead}</p>
+          )}
 
           {/* Presets */}
           <div className="grid grid-cols-2 gap-2">

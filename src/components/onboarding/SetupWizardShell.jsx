@@ -21,6 +21,9 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 //       phase form a block; the dot nav visually separates blocks and
 //       the label below the dots reads "{phase} · {n}/{total-in-phase}".
 //       Steps without a phase inherit from the previous step.
+//     extraAction?: { label, onClick } — a secondary footer button next
+//       to Next (e.g. "Dive in" on the transition page). No busy/next
+//       side effects; just a plain callback.
 //   }
 export default function SetupWizardShell({
   open, onClose, onFinish, steps, ariaLabel = "Setup",
@@ -172,30 +175,28 @@ export default function SetupWizardShell({
               {phaseLabel}
             </p>
           )}
+          {/* Dots show only CURRENT-phase steps. Displaying all 20 in
+              one row was visually confusing (tester report: "the little
+              circles at the bottom … don't make sense. You can see all
+              the dots for the written guide, but none of the dots for
+              the section before"). Per-phase dots keep each phase feeling
+              bounded and honest with its count. */}
           <div className="flex items-center justify-center gap-1 flex-wrap">
             {steps.map((_, i) => {
               const phase = phaseInfo.perStep[i];
-              // Slim divider between two consecutive dots that belong to
-              // different phases.
-              const prevPhase = i > 0 ? phaseInfo.perStep[i - 1] : phase;
-              const showDivider = i > 0 && prevPhase !== phase;
-              const phaseName = phase ? ` (${phase})` : "";
+              if (phase !== currentPhase) return null;
               return (
-                <React.Fragment key={i}>
-                  {showDivider && (
-                    <span className="w-px h-3 bg-border/70 mx-1 flex-shrink-0" aria-hidden />
-                  )}
-                  <button
-                    type="button"
-                    onClick={() => !busy && !animating && setStep(i)}
-                    aria-label={`Go to step ${i + 1}${phaseName}`}
-                    className={`rounded-full transition-all ${
-                      i === step
-                        ? "w-4 h-2 bg-primary"
-                        : `w-2 h-2 ${phaseColorClass(phase)}`
-                    }`}
-                  />
-                </React.Fragment>
+                <button
+                  key={i}
+                  type="button"
+                  onClick={() => !busy && !animating && setStep(i)}
+                  aria-label={`Go to step ${i + 1}${phase ? ` (${phase})` : ""}`}
+                  className={`rounded-full transition-all ${
+                    i === step
+                      ? "w-4 h-2 bg-primary"
+                      : `w-2 h-2 ${phaseColorClass(phase)}`
+                  }`}
+                />
               );
             })}
           </div>
@@ -204,6 +205,17 @@ export default function SetupWizardShell({
             <Button variant="outline" size="sm" onClick={goBack} disabled={isFirst || busy || animating} className="flex-shrink-0">
               <ChevronLeft className="w-4 h-4" />
             </Button>
+            {current.extraAction && (
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={current.extraAction.onClick}
+                disabled={busy}
+                className="flex-1"
+              >
+                {current.extraAction.label}
+              </Button>
+            )}
             <Button
               size="sm"
               onClick={handleNext}
