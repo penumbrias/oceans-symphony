@@ -79,14 +79,46 @@ function SystemGroup({ valenceKey, valenceData, distressSet, onToggle, labelOver
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
       {expanded && (
-        <div className="px-3 py-2.5 flex flex-wrap gap-1.5 border-t border-border/30">
-          {allEmotions.map(e => (
-            <SystemEmotionPill
-              key={e}
-              label={e}
-              isDistressing={distressSet.has(e.toLowerCase())}
-              onToggle={onToggle}
-            />
+        <div className="px-3 py-2.5 space-y-3 border-t border-border/30">
+          {/* Sub-categories (cores) render as their own labeled sections
+              — otherwise the Good group in particular was a 27-emotion
+              flat wall with no structure (tester report v0.85). Each
+              core keeps its colour so subs group visually with their
+              parent. Non-cored valences (Neutral) still render flat. */}
+          {valenceData.flat && (
+            <div className="flex flex-wrap gap-1.5">
+              {valenceData.flat.map((e) => (
+                <SystemEmotionPill
+                  key={e}
+                  label={e}
+                  isDistressing={distressSet.has(e.toLowerCase())}
+                  onToggle={onToggle}
+                />
+              ))}
+            </div>
+          )}
+          {valenceData.cores && Object.entries(valenceData.cores).map(([core, { color, subs }]) => (
+            <div key={core} className="space-y-1.5">
+              <div className="flex items-center gap-1.5 pl-0.5">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} aria-hidden />
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{core}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <SystemEmotionPill
+                  label={core}
+                  isDistressing={distressSet.has(core.toLowerCase())}
+                  onToggle={onToggle}
+                />
+                {subs.map((e) => (
+                  <SystemEmotionPill
+                    key={e}
+                    label={e}
+                    isDistressing={distressSet.has(e.toLowerCase())}
+                    onToggle={onToggle}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
