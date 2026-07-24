@@ -18,6 +18,7 @@ import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
+import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
 
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
 export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "backup"];
@@ -78,7 +79,7 @@ function ChecklistItem({ id, icon: Icon, title, description, done, expanded, onT
         <Icon className="w-4 h-4 text-primary flex-shrink-0" />
         <span className="flex-1 min-w-0">
           <span className={`text-sm font-medium block ${done ? "line-through text-muted-foreground" : ""}`}>{title}</span>
-          <span className="text-xs text-muted-foreground block truncate">{description}</span>
+          <span className="text-xs text-muted-foreground block">{description}</span>
         </span>
         {expanded ? <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0" /> : <ChevronRight className="w-4 h-4 text-muted-foreground flex-shrink-0" />}
       </button>
@@ -246,17 +247,16 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
       id: "backup",
       icon: ShieldAlert,
       title: "Backups & optional encryption",
-      description: "Local means no cloud copy — please don't skip.",
+      description: "Local means no cloud copy — please don't skip. Set up automatic backups, and optionally lock everything behind a password.",
       highlight: true,
       content: (
-        <div className="space-y-3">
-          <p className="text-xs text-muted-foreground">
-            Automatic backups save a copy on a schedule (native only). Optional at-rest encryption
-            lives in Settings → Data & privacy → Storage & encryption.
-          </p>
+        <div className="space-y-4">
           <AutoBackupSettings />
+          <div className="border-t border-border/40 pt-3">
+            <InlineEncryptionSetup />
+          </div>
           <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/settings#data"); }} className="text-xs gap-1">
-            Open Data &amp; privacy <ExternalLink className="w-3 h-3" />
+            Open Data &amp; privacy for more <ExternalLink className="w-3 h-3" />
           </Button>
         </div>
       ),

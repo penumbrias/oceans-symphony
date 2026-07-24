@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "The Setup → Backups & optional encryption section can now enable password encryption right there — set a password inline instead of leaving the guide for Settings." },
+      { type: "fix", text: "Setup checklist descriptions no longer get truncated with \"…\" — full text wraps and is readable." },
       { type: "improve", text: "The built-in emotions list now groups by sub-category — Good splits into Happy / Strong / Peaceful, Bad into Sad / Angry / Fearful, Body & Nervous System into Calm / Flight / Fight / Freeze / Collapse — instead of one long flat wall of pills." },
       { type: "improve", text: "Setup restructured again: one Welcome page, then Terminology, then a single Setup page (tracking, emotions, activities, backups & encryption all live inside). Backups is now highlighted as \"Important\" so it's harder to miss." },
       { type: "improve", text: "Activity setup now lets you add activities and sub-activities right inside the Guide instead of only sending you to the tracker." },
