@@ -132,7 +132,7 @@ export const TRACKING_BUNDLES = [
       { label: "Fatigue", kind: "state", type: "rating", direction: "higher_worse", color: "#6B7280" },
       { label: "Crashed after overdoing it", kind: "event", type: "boolean", direction: "higher_worse", color: "#B45309" },
       { label: "Pain", kind: "state", type: "rating", direction: "higher_worse", color: "#DC2626" },
-      { label: "Headache / migraine", kind: "event", type: "boolean", direction: "higher_worse", color: "#9333EA" },
+      { label: "Headache / migraine", kind: "state", type: "rating", direction: "higher_worse", color: "#9333EA" },
       { label: "Functional seizure", kind: "event", type: "boolean", direction: "higher_worse", color: "#7C3AED" },
       { label: "Tremor / weakness / movement symptoms", kind: "state", type: "rating", direction: "higher_worse", color: "#8B5CF6" },
       { label: "Ate regularly today", kind: "behaviour", type: "boolean", direction: "higher_better", color: "#22C55E" },

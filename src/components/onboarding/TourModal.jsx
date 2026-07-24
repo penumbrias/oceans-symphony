@@ -27,22 +27,24 @@ import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
-  Users, Heart, BookOpen, BarChart2, Shield,
+  Users, BookOpen, BarChart2, Shield,
   FileText, Sparkles, Clock, CheckSquare, Activity,
-  MessageSquare, Zap, Package, CloudOff,
+  MessageSquare, Zap, Package, Bell, ClipboardList,
 } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import SetupWizardShell from "@/components/onboarding/SetupWizardShell";
 import { BundleList } from "@/components/symptoms/BundlePicker";
-import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
-import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import {
   TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, itemToSymptomFields,
 } from "@/lib/trackingPresets";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { markBundlesChosen } from "@/utils/symptomDefaults";
+import { TermsSetupContent } from "@/components/onboarding/TermsSetupModal";
+import { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
+import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
+import SetupChecklist from "@/components/onboarding/SetupChecklist";
 
 const labelKey = (label, category) =>
   `${String(label || "").trim().toLowerCase()}::${category}`;
@@ -70,18 +72,35 @@ function defaultBundleKeys() {
   return keys;
 }
 
-export default function TourModal({ open, onClose }) {
+// Callers wanting to jump straight to the Setup Checklist step (e.g. the
+// dashboard's "Continue setup" chip) pass openAt="checklist".
+const STEP_ID_INDEX = { checklist: 3 };
+export default function TourModal({ open, onClose, openAt = null }) {
   const t = useTerms();
   const navigate = useNavigate();
   const qc = useQueryClient();
 
-  // ─── Interactive setup state (bundle diff) ────────────────────────────
-  // The alters "take me there" and check-in-manager choices used to live
-  // as an inline checkbox on the Alters step; they moved to the "You're
-  // all set!" transition page (v0.84.8), where inline buttons close the
-  // guide and navigate directly.
+  // ─── Interactive state ─────────────────────────────────────────────────
+  // Bundle-diff state powers the "Choose what to track" step; the
+  // disclaimer checkbox gates the very first Welcome page; termsSaved
+  // relaxes the "Save terms" call-to-action once the user has saved.
   const [selected, setSelected] = useState(() => new Set());
   const [initialized, setInitialized] = useState(false);
+  const [ackChecked, setAckChecked] = useState(() => {
+    try { return !!localStorage.getItem(DISCLAIMER_ACK_KEY); } catch { return false; }
+  });
+  const [termsSaved, setTermsSaved] = useState(false);
+
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+    enabled: !!open,
+  });
+  const settingsRow = settingsList[0] || null;
+
+  useEffect(() => {
+    if (!open) setTermsSaved(false);
+  }, [open]);
 
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
@@ -168,57 +187,54 @@ export default function TourModal({ open, onClose }) {
   const steps = [
     {
       phase: "Welcome",
-      title: "Welcome to Oceans Symphony 💜",
+      title: "Welcome to Oceans Symphony",
       subtitle: "A companion app built for dissociative systems",
-      icon: "🌊",
+      icon: <Bell className="w-8 h-8" />,
       color: "from-violet-500/20 to-purple-500/20",
       body:
-        `Symphony is built intentionally for DID, OSDD, and other dissociative systems, and is free for anyone to use for any purpose. It is designed specifically to help track and manage dissociative and PTSD symptoms, help your ${t.system} stay connected, track experiences, and bridge the gaps that amnesia creates.\n\n` +
+        `Oceans Symphony is built by and for DID/dissociative ${t.systems}, and is completely free for anyone to use, for any purpose. It is designed specifically to help track and manage dissociative and PTSD symptoms, help your ${t.system} stay connected, track experiences, and bridge the gaps that amnesia creates; a local, private, life companion app.\n\n` +
         `The following pages will help you set up and learn about OS' features!`,
+      render: () => (
+        <div className="space-y-3 pt-1 border-t border-border/40">
+          <MedicalDisclaimer compact />
+          <label className="flex items-start gap-2 text-sm cursor-pointer rounded-lg border border-border/60 p-3">
+            <input
+              type="checkbox"
+              className="mt-0.5 w-4 h-4 accent-[var(--color-primary)]"
+              checked={ackChecked}
+              onChange={(e) => setAckChecked(e.target.checked)}
+            />
+            <span>
+              I understand Oceans Symphony is <strong>not a medical product</strong> — it doesn't
+              diagnose, treat, or replace care from a professional.
+            </span>
+          </label>
+        </div>
+      ),
+      nextDisabled: !ackChecked,
+      onNext: () => {
+        try {
+          if (ackChecked && !localStorage.getItem(DISCLAIMER_ACK_KEY)) {
+            localStorage.setItem(DISCLAIMER_ACK_KEY, new Date().toISOString());
+          }
+        } catch { /* storage off */ }
+      },
     },
     {
       phase: "Welcome",
-      title: "This app is your home",
-      subtitle: `There's no "right" way to use it`,
-      icon: "🏡",
-      color: "from-amber-500/20 to-rose-500/20",
-      body: `This is your space — use it however feels right for your ${t.system}. There aren't any rules to follow and nothing is being submitted anywhere; everything you log stays on your device as your own private record.\n\nExperiment with what you track. Skip what doesn't help. Come back to features later if they don't click yet. The app is meant to fit around your ${t.system} — not the other way around.`,
-      tip: `Custom terminology lives in Settings → Profile → Terminology. Every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed to match how your ${t.system} talks about itself.`,
-    },
-    {
-      phase: "Welcome",
-      title: `Your ${t.Alters}`,
-      subtitle: `Every part of the ${t.system}, all in one place`,
-      icon: <Users className="w-8 h-8" />,
-      color: "from-purple-500/20 to-pink-500/20",
-      body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other ${t.alters}, and their own journal entries. Add them one by one, or import from Simply Plural, PluralKit, and other apps (Settings → Data & Privacy → Import).`,
-      tip: `Press the thunder/active icon next to an ${t.alter} card to set their ${t.front} status; long press to set/remove as primary.`,
-      features: [
-        "Custom profiles with avatars",
-        "Pronouns and roles",
-        `Private ${t.alter} notes`,
-        "Custom fields",
-        "Import from other apps",
-      ],
-    },
-    // Was System Map slot — now a minimal Quick Check-In overview.
-    {
-      phase: "Welcome",
-      title: "The Quick Check-In",
-      subtitle: "The fastest way to log anything",
-      icon: <Sparkles className="w-8 h-8" />,
-      color: "from-amber-500/20 to-yellow-500/20",
-      body: `Open Quick Check-In from the dashboard any time and enter as much or as little as you'd like. It's built around several optional sections you can turn on/off from Settings → Tracking setup → Check-in manager.`,
-      features: [
-        "Feeling — emotions with a general → specific wheel",
-        `${t.Fronting} — set or change who's ${t.fronting}`,
-        "Activity — what you're doing",
-        "Symptoms / Habits / Context — tracked items",
-        "Diary — daily rating fields",
-        "Note — a free-text note (long ones become journals)",
-        "Company, Location — who's with you and where",
-      ],
-      tip: "Every section is customizable — the next few pages walk you through choosing what to track, tuning emotions, and setting up backups.",
+      title: "Set up your terminology",
+      subtitle: "Everything else can be edited later, too",
+      icon: "🗣️",
+      color: "from-violet-500/20 to-fuchsia-500/20",
+      body: `First, pick the words your ${t.system} uses. Symphony adapts every screen to your terminology — you can change this any time in Settings → Profile → Terminology.`,
+      render: () => (
+        <TermsSetupContent
+          existingSettingsId={settingsRow?.id || null}
+          onSaved={() => setTermsSaved(true)}
+          saveLabel={termsSaved ? "✓ Terms saved" : "Save terms"}
+        />
+      ),
+      nextLabel: termsSaved ? "Continue" : "Skip terminology",
     },
     {
       phase: "Setup",
@@ -229,9 +245,11 @@ export default function TourModal({ open, onClose }) {
       render: () => (
         <div className="space-y-3">
           <p className="text-sm text-muted-foreground">
-            Recommended packs are pre-checked. Untick anything you don't want, open the other packs
-            (Trauma responses, Focus, Sensory, Body &amp; sleep, Context, Safety…) to add more.
-            Nothing here is a diagnosis — it's just what you'd like to keep an eye on.
+            Oceans Symphony is designed to help you learn about and understand your {t.system}. The
+            following preset packages are categories of experiences and symptoms that can be
+            worthwhile for some to keep an eye on. Pick as many or as few as you would like — the
+            recommended packs are pre-checked; untick anything you don't want, and open the other
+            packs to add more.
           </p>
           <BundleList
             existingKeys={existingKeys}
@@ -251,34 +269,12 @@ export default function TourModal({ open, onClose }) {
     },
     {
       phase: "Setup",
-      title: "Emotions",
-      subtitle: "Distress-toggle, rename groups, add your own",
-      icon: <Heart className="w-8 h-8" />,
-      color: "from-rose-500/20 to-pink-500/20",
-      render: () => (
-        <div className="space-y-3">
-          <p className="text-sm text-muted-foreground">
-            When you log a <strong>distressing</strong> emotion, the app offers a quick support
-            prompt — one tap opens a grounding exercise, never automatic. Tap any emotion below
-            to change whether it's distressing, rename the four groups, or add your own emotion
-            with a category in one go.
-          </p>
-          <CustomEmotionsManager />
-        </div>
-      ),
-    },
-    {
-      phase: "Setup",
-      title: "Backups",
-      subtitle: "The one thing to know about local-only",
-      icon: <CloudOff className="w-8 h-8" />,
-      color: "from-slate-500/20 to-gray-500/20",
-      body: `Local also means no cloud copy. If this device's data is lost, it's lost for good — so export backups, especially before switching devices. Automatic backups can save a copy on a schedule.`,
-      render: () => (
-        <div className="pt-1">
-          <AutoBackupSettings />
-        </div>
-      ),
+      title: "Set up the rest",
+      subtitle: "Pick what fits — leave and come back any time",
+      icon: <ClipboardList className="w-8 h-8" />,
+      color: "from-emerald-500/20 to-teal-500/20",
+      render: () => <SetupChecklist onCloseGuide={onClose} />,
+      nextLabel: "Continue to the guide",
     },
     // Transition — setup is done; user picks where to go next.
     {
@@ -316,6 +312,50 @@ export default function TourModal({ open, onClose }) {
           </p>
         </div>
       ),
+    },
+    {
+      phase: "About the app",
+      title: "This app is your home",
+      subtitle: `There's no "right" way to use it`,
+      icon: "🏡",
+      color: "from-amber-500/20 to-rose-500/20",
+      body: `This is your space — use it however feels right for your ${t.system}. There aren't any rules to follow and nothing is being submitted anywhere; everything you log stays on your device as your own private record.\n\nExperiment with what you track. Skip what doesn't help. Come back to features later if they don't click yet. The app is meant to fit around your ${t.system} — not the other way around.`,
+      tip: `Custom terminology lives in Settings → Profile → Terminology. Every word the app uses — "${t.system}", "${t.alter}", "${t.fronting}", "${t.switch}" — can be changed to match how your ${t.system} talks about itself.`,
+    },
+    {
+      phase: "About the app",
+      title: `Your ${t.Alters}`,
+      subtitle: `Every part of the ${t.system}, all in one place`,
+      icon: <Users className="w-8 h-8" />,
+      color: "from-purple-500/20 to-pink-500/20",
+      body: `Create profiles for each ${t.alter} with their own name, pronouns, color, avatar, role, and bio. ${t.Alters} can have custom fields, notes from other ${t.alters}, and their own journal entries. Add them one by one, or import from Simply Plural, PluralKit, and other apps (Settings → Data & Privacy → Import).`,
+      tip: `Press the thunder/active icon next to an ${t.alter} card to set their ${t.front} status; long press to set/remove as primary.`,
+      features: [
+        "Custom profiles with avatars",
+        "Pronouns and roles",
+        `Private ${t.alter} notes`,
+        "Custom fields",
+        "Import from other apps",
+      ],
+    },
+    // Was System Map slot — now a minimal Quick Check-In overview.
+    {
+      phase: "About the app",
+      title: "The Quick Check-In",
+      subtitle: "The fastest way to log anything",
+      icon: <Sparkles className="w-8 h-8" />,
+      color: "from-amber-500/20 to-yellow-500/20",
+      body: `Open Quick Check-In from the dashboard any time and enter as much or as little as you'd like. It's built around several optional sections you can turn on/off from Settings → Tracking setup → Check-in manager.`,
+      features: [
+        "Feeling — emotions with a general → specific wheel",
+        `${t.Fronting} — set or change who's ${t.fronting}`,
+        "Activity — what you're doing",
+        "Symptoms / Habits / Context — tracked items",
+        "Diary — daily rating fields",
+        "Note — a free-text note (long ones become journals)",
+        "Company, Location — who's with you and where",
+      ],
+      tip: "Every section is customizable — the next few pages walk you through choosing what to track, tuning emotions, and setting up backups.",
     },
     // ─── Rest of the classic guide, unchanged ────────────────────────────
     {
@@ -518,6 +558,7 @@ export default function TourModal({ open, onClose }) {
       ariaLabel="Oceans Symphony guide"
       finishLabel="Start exploring 💜"
       skipLabel="Skip guide"
+      initialStep={openAt && STEP_ID_INDEX[openAt] != null ? STEP_ID_INDEX[openAt] : 0}
     />
   );
 }
