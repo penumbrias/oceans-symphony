@@ -6,7 +6,12 @@ import { Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils"
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-75 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] active:opacity-90 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
+  // `whitespace-nowrap` keeps short action labels ("Save", "Cancel") on one
+  // line, but the `[&_p]:*` overrides let descriptive `<p>` children wrap
+  // naturally so card-style buttons don't clip at large font sizes / long
+  // translations. Tester screenshot v0.86.3 showed "Save to device" and the
+  // "Share or send elsewhere" buttons clipping their descriptions on the right.
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all duration-75 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 active:scale-[0.97] active:opacity-90 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 [&_p]:whitespace-normal [&_p]:break-words",
   {
     variants: {
       variant: {

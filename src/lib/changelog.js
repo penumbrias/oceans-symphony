@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "fix", text: "Card-style buttons (\"Save to device\", \"Share or send elsewhere\", and similar rows across Settings, backup / export, and onboarding) no longer clip their descriptions off the right edge when the description is long or the app's font size is large. Descriptions now wrap onto multiple lines cleanly." },
       { type: "fix", text: "Fixed the backup crash: exporting a backup no longer freezes or force-closes the app on devices with lots of alter avatars. If your images and fonts are too big for one file, the app now automatically saves everything except them — a new \"Save data-only backup (safety net)\" button also lets you pick that path manually." },
     ],
   },
