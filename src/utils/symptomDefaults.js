@@ -86,6 +86,28 @@ export function bundlesChosen() {
   return !!_psGet(BUNDLES_CHOSEN_KEY);
 }
 
+// One-time label renames for default (seeded) rows. When we rename a preset
+// item in trackingPresets.js we also add its old → new mapping here so
+// existing users' catalogues pick up the new label on next boot — otherwise
+// only fresh installs see the change. Only touches is_default rows; custom
+// user-authored rows with the same label stay untouched. Matches
+// case-insensitively.
+const DEFAULT_LABEL_RENAMES = [
+  { from: "Thoughts or urges that don't feel like mine", to: "\"Not-me\" urges / thoughts" },
+];
+
+async function applyDefaultLabelRenames(allSymptoms) {
+  for (const { from, to } of DEFAULT_LABEL_RENAMES) {
+    const fromLower = from.trim().toLowerCase();
+    for (const s of allSymptoms) {
+      if (!s?.is_default) continue;
+      if (String(s.label || "").trim().toLowerCase() !== fromLower) continue;
+      if (s.label === to) continue;
+      try { await base44.entities.Symptom.update(s.id, { label: to }); s.label = to; } catch { /* skip */ }
+    }
+  }
+}
+
 export async function seedSymptomDefaults() {
   if (seeded) return;
   seeded = true;
@@ -94,6 +116,7 @@ export async function seedSymptomDefaults() {
     if (existing.length > 0) {
       // Existing users keep whatever they have (legacy list, bundles, or
       // custom) — seeding never touches a populated catalogue.
+      await applyDefaultLabelRenames(existing);
       await healDuplicateDefaults(existing);
       return;
     }

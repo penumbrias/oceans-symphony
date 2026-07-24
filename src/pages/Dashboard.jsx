@@ -746,8 +746,8 @@ export default function Dashboard() {
         <button
             onClick={() => setShowTour(true)}
             className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors whitespace-nowrap"
-            title="Open guide">
-          Guide
+            title="Open setup guide">
+          Setup
         </button>
         <button
             onClick={() => setShowFeatureTour(true)}

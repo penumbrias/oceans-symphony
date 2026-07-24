@@ -63,7 +63,7 @@ export const TRACKING_BUNDLES = [
       { label: "Spacey / zoned out", kind: "state", type: "rating", direction: "higher_worse", color: "#94A3B8" },
       { label: "Blending / blurry", kind: "state", type: "rating", direction: "neutral", color: "#A855F7" },
       { label: "Co-conscious", kind: "state", type: "boolean", direction: "neutral", color: "#0EA5E9" },
-      { label: "Thoughts or urges that don't feel like mine", kind: "state", type: "rating", direction: "higher_worse", color: "#DB2777" },
+      { label: "\"Not-me\" urges / thoughts", kind: "state", type: "rating", direction: "higher_worse", color: "#DB2777" },
       { label: "Loud inner world", kind: "state", type: "rating", direction: "higher_worse", color: "#C2410C" },
       { label: "{{Fronting}} feels exhausting", kind: "state", type: "rating", direction: "higher_worse", color: "#D97706" },
       { label: "Not sure who I am today", kind: "state", type: "rating", direction: "higher_worse", color: "#9333EA" },
