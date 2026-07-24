@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "July 24, 2026",
+    changes: [
+      { type: "fix", text: "Fixed the backup crash: exporting a backup no longer freezes or force-closes the app on devices with lots of alter avatars. If your images and fonts are too big for one file, the app now automatically saves everything except them — a new \"Save data-only backup (safety net)\" button also lets you pick that path manually." },
+    ],
+  },
+  {
     date: "July 23, 2026",
+    version: "0.86.2",
     changes: [
       { type: "feature", text: "Import from Plural Star — the unified importer now recognises Plural Star exports (.json and .zip). Brings in alters, groups (with subsystem hierarchy), custom fields, front history, current front, journal entries, noteboard messages, and relationships. Avatars from the .zip's media folder or the .json's inline data URIs are stored in local image storage. Auto-detected — just pick the file in Settings → Data & Privacy → Import." },
       { type: "feature", text: "The catalogue upgrade card also detects custom items you created that happen to match preset names (\"Anxiety\", \"Depression\", etc.) and offers to link each one to its preset equivalent — the row stays yours (label, colour, hides preserved, still marked custom) but gains preset features like bundle grouping and direction-aware charts. Each row has its own checkbox so you can keep any you deliberately want to stay free-form." },

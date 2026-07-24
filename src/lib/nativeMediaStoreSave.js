@@ -23,17 +23,37 @@ const MediaStoreSave = registerPlugin("MediaStoreSave");
 // Files app and clearer about which app produced them.
 const DEFAULT_SUBDIR = "Oceans Symphony";
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      const comma = String(dataUrl).indexOf(",");
-      resolve(comma >= 0 ? String(dataUrl).slice(comma + 1) : "");
-    };
-    reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
-    reader.readAsDataURL(blob);
-  });
+// Convert a Blob to a base64 string in a way that keeps peak JS heap low.
+// The old FileReader.readAsDataURL path held TWO copies of the data URL
+// simultaneously — reader.result (~1.37× blob) plus the .slice(...) copy —
+// which OOM'd the WebView on large backups (many alter avatars stored as
+// data URIs inflate __local_images into tens of MB) and killed the native
+// bridge before the JS try/catch could see it. Reproduced by testers who
+// suddenly could not back up at all past mid-July 2026 as their local
+// image store grew. Here we read as ArrayBuffer once, then base64-encode
+// in fixed slices, pushing to a chunk array (join at the end) so the
+// biggest transient buffer is one chunk's worth, not the whole payload.
+async function blobToBase64(blob) {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  // 0xC000 bytes → 48KB base64 chunk. Chosen so String.fromCharCode.apply
+  // stays under the argument-count limit on every JS engine we ship on.
+  const CHUNK_BYTES = 0xC000;
+  const parts = [];
+  for (let i = 0; i < bytes.length; i += CHUNK_BYTES) {
+    // subarray is a view — no copy of the underlying buffer.
+    const slice = bytes.subarray(i, Math.min(i + CHUNK_BYTES, bytes.length));
+    // Build a small binary string (chunk-sized) then base64-encode it.
+    // Small enough to be safe; big enough that we're not doing millions
+    // of btoa() calls for a multi-MB backup.
+    let binary = "";
+    // Loop instead of apply(null, …) so a stray huge chunk can't blow
+    // the argument stack. String concat here is bounded to CHUNK_BYTES
+    // characters so the quadratic worst case is negligible.
+    for (let j = 0; j < slice.length; j++) binary += String.fromCharCode(slice[j]);
+    parts.push(btoa(binary));
+  }
+  return parts.join("");
 }
 
 // Returns { result, uri?, location?, error? }

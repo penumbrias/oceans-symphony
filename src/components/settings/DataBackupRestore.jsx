@@ -52,9 +52,20 @@ export function externalKindFromJson(j) {
 function compressBackup(data) {
   const json = JSON.stringify(data);
   const compressed = pako.deflate(json);
-  let binary = "";
-  compressed.forEach(b => binary += String.fromCharCode(b));
-  return "SYMPHONYZ:" + btoa(binary);
+  // Chunked binary-string build + chunked btoa. The old
+  // `compressed.forEach(b => binary += String.fromCharCode(b))` was O(n²)
+  // — appending one char at a time to a string that keeps re-allocating —
+  // and blew up the WebView on any multi-MB backup. Now we build fixed
+  // slices, base64 each, and join once at the end.
+  const CHUNK_BYTES = 0xC000;
+  const parts = [];
+  for (let i = 0; i < compressed.length; i += CHUNK_BYTES) {
+    const slice = compressed.subarray(i, Math.min(i + CHUNK_BYTES, compressed.length));
+    let binary = "";
+    for (let j = 0; j < slice.length; j++) binary += String.fromCharCode(slice[j]);
+    parts.push(btoa(binary));
+  }
+  return "SYMPHONYZ:" + parts.join("");
 }
 
 // Decompress a SYMPHONYZ:-prefixed string back to the original JSON text.
@@ -558,13 +569,33 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
   const chunkRecoveryMsg = "Export failed — the app needs to reload to pick up the latest assets. Close and reopen the app, or pull-to-refresh, then try again.";
 
-  const runExport = async (mode = "save") => {
+  // Compose the "safety-net" category set: everything EXCEPT the ones
+  // whose payloads are huge base64 data URIs (images and custom fonts).
+  // On native, the Downloads-plugin bridge has to marshal the full
+  // backup as a single base64 string, and testers with 20+ alter avatars
+  // were hitting a WebView OOM there ("the app crashes on backup").
+  // Skipping images/fonts drops the payload from tens of MB back into
+  // the "always safe" range and keeps every entity intact — images can
+  // still be exported on their own via the selective grid.
+  const HEAVY_BLOB_CATS = new Set(["images", "fonts"]);
+  const catsWithoutHeavyBlobs = () => {
+    const next = new Set(selectedCats);
+    for (const id of HEAVY_BLOB_CATS) next.delete(id);
+    return next;
+  };
+  const hasHeavyBlobs = [...selectedCats].some(id => HEAVY_BLOB_CATS.has(id));
+
+  const runExport = async (mode = "save", { skipHeavyBlobs = false, tag = "" } = {}) => {
     setExportLoading(true);
     try {
-      const exportData = await buildExportData();
+      const overrideCats = skipHeavyBlobs ? catsWithoutHeavyBlobs() : undefined;
+      const exportData = await buildExportData(overrideCats);
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
-      const res = await downloadJson(exportData, `symphony-backup-${date}.${ext}`, exportFormat, mode);
+      // Data-only backups get their own filename suffix so users can
+      // spot them at a glance and don't confuse them with full backups.
+      const suffix = tag ? `-${tag}` : "";
+      const res = await downloadJson(exportData, `symphony-backup${suffix}-${date}.${ext}`, exportFormat, mode);
       if (res?.result === "failed") {
         if (isChunkLoadFailure(res.error)) {
           showStatus("error", chunkRecoveryMsg);
@@ -600,6 +631,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
   const handleExportFull  = () => runExport("save");
   const handleExportShare = () => runExport("share");
+  // Safety-net export — the "if the app crashes, try this" backstop.
+  // Same file format and same save/share destinations, but images and
+  // custom fonts are stripped before the payload crosses the native
+  // bridge. Users can still export images separately from the selective
+  // grid, but at least their entities always go through.
+  const handleExportSafeLite = () => runExport("save", { skipHeavyBlobs: true, tag: "data-only" });
 
   // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
@@ -1324,6 +1361,25 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                 <p className="font-medium">Share or send elsewhere</p>
                 <p className="text-xs text-muted-foreground font-normal">
                   Opens the share sheet — pick Drive, email, Send to PC, etc.
+                </p>
+              </div>
+            </Button>
+          )}
+
+          {/* Safety-net fallback — the crash-proof path for testers whose
+              regular backup dies mid-write. Images and custom fonts (the
+              only categories with multi-MB base64 payloads) are stripped
+              so the file is always small enough for the native bridge.
+              Rendered only when those heavy blobs would otherwise be
+              included; hidden if the user has already deselected them. */}
+          {isStdFormat && hasHeavyBlobs && (
+            <Button variant="outline" onClick={handleExportSafeLite} disabled={exportLoading}
+              className="w-full gap-2 justify-start h-auto py-2.5 border-amber-500/40 hover:border-amber-500/60">
+              {exportLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4 text-amber-600 dark:text-amber-400" />}
+              <div className="text-left min-w-0">
+                <p className="font-medium">Save data-only backup <span className="text-xs font-normal text-muted-foreground">(safety net)</span></p>
+                <p className="text-xs text-muted-foreground font-normal whitespace-normal">
+                  Use this if the regular backup crashes the app. Skips images and custom fonts; every other setting and record is included. Export images separately from Advanced ↑.
                 </p>
               </div>
             </Button>
