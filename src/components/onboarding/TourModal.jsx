@@ -23,7 +23,7 @@
 // Interactive slides render via the shared SetupWizardShell's `render`
 // prop; passive slides are declared with body/features/tip.
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -90,6 +90,10 @@ export default function TourModal({ open, onClose, openAt = null }) {
     try { return !!localStorage.getItem(DISCLAIMER_ACK_KEY); } catch { return false; }
   });
   const [termsSaved, setTermsSaved] = useState(false);
+  // The terminology step hides its own Save button and hands us its
+  // save function via this ref — the shell's Next button then either
+  // saves + advances (if not saved yet) or just advances.
+  const termsSaveRef = useRef(null);
 
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -230,12 +234,18 @@ export default function TourModal({ open, onClose, openAt = null }) {
         <TermsSetupContent
           existingSettingsId={settingsRow?.id || null}
           onSaved={() => setTermsSaved(true)}
-          saveLabel={termsSaved ? "✓ Terms saved" : "Save terms"}
           hideHeader
+          hideSaveButton
+          saveRef={termsSaveRef}
           lead="First, select the in-app terminology. Pick a preset or define your own. You can change this any time in Settings → Profile → Terminology."
         />
       ),
-      nextLabel: termsSaved ? "Continue" : "Skip terminology",
+      nextLabel: termsSaved ? "Continue" : "Save & continue",
+      onNext: async () => {
+        if (!termsSaved && termsSaveRef.current) {
+          await termsSaveRef.current();
+        }
+      },
     },
     {
       phase: "Setup",

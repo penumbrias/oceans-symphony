@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +17,11 @@ const PRESETS = [
 // Phase-C OnboardingFlow (which embeds it as its terminology step).
 // `hideHeader` + `lead` let embedders (like the Guide) supply their own
 // context copy instead of the standalone-modal defaults.
-export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue", hideHeader = false, lead = null }) {
+// `hideSaveButton` + `saveRef` let the Guide replace this component's
+// inline "Save & Continue" button with the shell's own Next button —
+// parent stashes the save handler on `saveRef.current` and invokes it
+// from its own onNext, so users see one clear action instead of two.
+export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue", hideHeader = false, lead = null, hideSaveButton = false, saveRef = null }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(0);
   const [custom, setCustom] = useState({ system: "", alter: "", switch: "", front: "" });
@@ -44,6 +48,14 @@ export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Sa
     setSaving(false);
     onSaved?.();
   };
+
+  // Expose the save handler to embedders (the Guide's Next button calls
+  // this so users see one primary action, not "Save terms" + "Skip
+  // terminology" side by side).
+  useEffect(() => {
+    if (saveRef) saveRef.current = handleSave;
+    return () => { if (saveRef) saveRef.current = null; };
+  });
 
   return (
         <div className="space-y-5">
@@ -123,9 +135,11 @@ export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Sa
             </p>
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "Saving..." : saveLabel}
-          </Button>
+          {!hideSaveButton && (
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? "Saving..." : saveLabel}
+            </Button>
+          )}
         </div>
   );
 }
