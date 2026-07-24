@@ -1,5 +1,35 @@
 import { base44 } from "@/api/base44Client";
+import { TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS, bundleById, itemToSymptomFields } from "@/lib/trackingPresets";
+import { DEFAULT_TERMS, gerund } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
+// Non-hook terms resolver for seeding contexts (no React tree available).
+// Mirrors useTerms' base + gerund-override logic for the forms preset
+// labels use ({{Fronting}} etc.).
+const cap = (w) => (w ? w.charAt(0).toUpperCase() + w.slice(1) : w);
+export async function getSeedTerms() {
+  let s = {};
+  try { s = (await base44.entities.SystemSettings.list())[0] || {}; } catch { /* defaults */ }
+  const safe = (v, f) => (v && String(v).trim() ? String(v).trim() : f);
+  const system = safe(s.term_system, DEFAULT_TERMS.system);
+  const alter = safe(s.term_alter, DEFAULT_TERMS.alter);
+  const front = safe(s.term_front, DEFAULT_TERMS.front);
+  const sw = safe(s.term_switch, DEFAULT_TERMS.switch);
+  const fronting = safe(s.term_fronting, gerund(front));
+  const switching = safe(s.term_switching, gerund(sw));
+  return {
+    system, System: cap(system),
+    alter, Alter: cap(alter),
+    front, Front: cap(front),
+    switch: sw, Switch: cap(sw),
+    fronting, Fronting: cap(fronting),
+    switching, Switching: cap(switching),
+  };
+}
+
+// LEGACY seed list (pre-bundle). Kept because existing users' rows match it
+// and healDuplicateDefaults reasons about it — but FRESH installs now seed
+// the default-on preset bundles (trackingPresets.js) instead.
 const SYMPTOM_DEFAULTS = [
   // Rating symptoms
   { label: "Overall mood", category: "symptom", type: "rating", is_positive: true, color: "#8B5CF6", order: 0 },
@@ -42,23 +72,122 @@ const SYMPTOM_DEFAULTS = [
 
 let seeded = false;
 
+// Set once the onboarding flow has put the bundle choice in the user's
+// hands (Express or Customize — even "none of these"). When present, the
+// lazy auto-seed stands down: an explicitly-empty catalogue stays empty.
+// Per-system-scoped since v0.85.6 so a fresh system gets its own auto-seed
+// gate instead of inheriting the first system's "already chose" flag.
+import { psGetItem as _psGet, psSetItem as _psSet } from "@/lib/perSystemStorage";
+export const BUNDLES_CHOSEN_KEY = "symphony_onboarding_bundles_chosen_v1";
+export function markBundlesChosen() {
+  _psSet(BUNDLES_CHOSEN_KEY, "1");
+}
+export function bundlesChosen() {
+  return !!_psGet(BUNDLES_CHOSEN_KEY);
+}
+
+// One-time label renames for default (seeded) rows. When we rename a preset
+// item in trackingPresets.js we also add its old → new mapping here so
+// existing users' catalogues pick up the new label on next boot — otherwise
+// only fresh installs see the change. Only touches is_default rows; custom
+// user-authored rows with the same label stay untouched. Matches
+// case-insensitively.
+const DEFAULT_LABEL_RENAMES = [
+  { from: "Thoughts or urges that don't feel like mine", to: "\"Not-me\" urges / thoughts" },
+];
+
+async function applyDefaultLabelRenames(allSymptoms) {
+  for (const { from, to } of DEFAULT_LABEL_RENAMES) {
+    const fromLower = from.trim().toLowerCase();
+    for (const s of allSymptoms) {
+      if (!s?.is_default) continue;
+      if (String(s.label || "").trim().toLowerCase() !== fromLower) continue;
+      if (s.label === to) continue;
+      try { await base44.entities.Symptom.update(s.id, { label: to }); s.label = to; } catch { /* skip */ }
+    }
+  }
+}
+
 export async function seedSymptomDefaults() {
   if (seeded) return;
   seeded = true;
   try {
     const existing = await base44.entities.Symptom.list();
     if (existing.length > 0) {
+      // Existing users keep whatever they have (legacy list, bundles, or
+      // custom) — seeding never touches a populated catalogue.
+      await applyDefaultLabelRenames(existing);
       await healDuplicateDefaults(existing);
       return;
     }
-    for (const def of SYMPTOM_DEFAULTS) {
-      await base44.entities.Symptom.create({ ...def, is_default: true, is_archived: false });
-    }
+    // The user already made an explicit choice in onboarding (possibly
+    // "nothing") — respect it, never re-seed over it.
+    if (bundlesChosen()) return;
+    // Fresh install, no onboarding choice yet → seed the default-on preset
+    // bundles (the research-grounded catalogue), not the legacy list.
+    await seedBundles(DEFAULT_ON_BUNDLE_IDS);
   } catch (e) {
     console.warn("Failed to seed symptom defaults:", e);
     seeded = false;
   }
 }
+
+// Create Symptom rows for an explicit picker selection (Set/array of
+// `${bundleId}:${itemIndex}` keys — the shape BundleList tracks). Terms
+// resolve at creation; duplicates (by resolved label + category) skipped.
+export async function createPresetItems(selectedKeys) {
+  const terms = await getSeedTerms();
+  const existing = await base44.entities.Symptom.list();
+  const have = new Set(
+    existing.map((s) => `${String(s.label || "").trim().toLowerCase()}::${s.category || "symptom"}`)
+  );
+  let created = 0;
+  for (const key of selectedKeys) {
+    const [bundleId, idxStr] = String(key).split(":");
+    const bundle = bundleById(bundleId);
+    const item = bundle?.items[Number(idxStr)];
+    if (!item) continue;
+    const fields = itemToSymptomFields(item, bundleId, Number(idxStr));
+    fields.label = applyTerms(fields.label, terms);
+    const dedupKey = `${fields.label.trim().toLowerCase()}::${fields.category}`;
+    if (have.has(dedupKey)) continue;
+    have.add(dedupKey);
+    await base44.entities.Symptom.create(fields);
+    created++;
+  }
+  return created;
+}
+
+// Create the Symptom rows for the given preset bundles. Term placeholders
+// ({{Fronting}} …) resolve to the user's terms at creation time — the label
+// becomes plain user data from then on. Skips any item whose (resolved)
+// label already exists in the same category (case-insensitive), so
+// re-adding a bundle never duplicates rows. Returns how many were created.
+export async function seedBundles(bundleIds) {
+  const terms = await getSeedTerms();
+  const existing = await base44.entities.Symptom.list();
+  const have = new Set(
+    existing.map((s) => `${String(s.label || "").trim().toLowerCase()}::${s.category || "symptom"}`)
+  );
+  let created = 0;
+  for (const bundleId of bundleIds) {
+    const bundle = bundleById(bundleId);
+    if (!bundle) continue;
+    for (let i = 0; i < bundle.items.length; i++) {
+      const item = bundle.items[i];
+      const fields = itemToSymptomFields(item, bundle.id, i);
+      fields.label = applyTerms(fields.label, terms);
+      const key = `${fields.label.trim().toLowerCase()}::${fields.category}`;
+      if (have.has(key)) continue;
+      have.add(key);
+      await base44.entities.Symptom.create(fields);
+      created++;
+    }
+  }
+  return created;
+}
+
+export { TRACKING_BUNDLES, DEFAULT_ON_BUNDLE_IDS };
 
 // Merge duplicate DEFAULT symptom/habit rows (same label + category, both
 // is_default). These crept in when a backup made after seeding was

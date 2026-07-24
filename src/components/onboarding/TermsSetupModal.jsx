@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,7 +13,15 @@ const PRESETS = [
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 
-export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+// The terms step body — shared between the legacy standalone modal and the
+// Phase-C OnboardingFlow (which embeds it as its terminology step).
+// `hideHeader` + `lead` let embedders (like the Guide) supply their own
+// context copy instead of the standalone-modal defaults.
+// `hideSaveButton` + `saveRef` let the Guide replace this component's
+// inline "Save & Continue" button with the shell's own Next button —
+// parent stashes the save handler on `saveRef.current` and invokes it
+// from its own onNext, so users see one clear action instead of two.
+export function TermsSetupContent({ onSaved, existingSettingsId, saveLabel = "Save & Continue", hideHeader = false, lead = null, hideSaveButton = false, saveRef = null }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(0);
   const [custom, setCustom] = useState({ system: "", alter: "", switch: "", front: "" });
@@ -38,19 +46,30 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
     localStorage.setItem("terms_setup_done", "1");
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
     setSaving(false);
-    onClose();
+    onSaved?.();
   };
 
+  // Expose the save handler to embedders (the Guide's Next button calls
+  // this so users see one primary action, not "Save terms" + "Skip
+  // terminology" side by side).
+  useEffect(() => {
+    if (saveRef) saveRef.current = handleSave;
+    return () => { if (saveRef) saveRef.current = null; };
+  });
+
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
         <div className="space-y-5">
-          <div>
-            <h2 className="text-xl font-semibold">Choose your language 💜</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own.
-            </p>
-          </div>
+          {!hideHeader && (
+            <div>
+              <h2 className="text-xl font-semibold">Choose your language 💜</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {lead || "Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own."}
+              </p>
+            </div>
+          )}
+          {hideHeader && lead && (
+            <p className="text-sm text-muted-foreground">{lead}</p>
+          )}
 
           {/* Presets */}
           <div className="grid grid-cols-2 gap-2">
@@ -116,10 +135,20 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
             </p>
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "Saving..." : "Save & Continue"}
-          </Button>
+          {!hideSaveButton && (
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? "Saving..." : saveLabel}
+            </Button>
+          )}
         </div>
+  );
+}
+
+export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+  return (
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
+        <TermsSetupContent onSaved={onClose} existingSettingsId={existingSettingsId} />
       </DialogContent>
     </Dialog>
   );

@@ -86,7 +86,14 @@ export default function EmotionAnalytics({ from, to }) {
       // doesn't track fronting), fall back to whoever authored something near
       // this time so the emotion still gets attributed.
       const explicit = Array.isArray(c.fronting_alter_ids) ? c.fronting_alter_ids.filter(Boolean) : [];
-      out.push({ ts, labels, alterIds: explicit.length ? explicit : inferAlters(ts) });
+      out.push({
+        ts, labels,
+        alterIds: explicit.length ? explicit : inferAlters(ts),
+        // Per-emotion assignment overrides ({ label: [alterIds] }) — used
+        // by the per-alter breakdown so "Anxious = Alex, Excited = Riley"
+        // attributes each emotion to its own alter(s).
+        emotionAlters: c.emotion_alters && typeof c.emotion_alters === "object" ? c.emotion_alters : null,
+      });
     }
     for (const s of sessions) {
       const labels = parseSessionEmotions(s.session_emotions);
@@ -114,9 +121,13 @@ export default function EmotionAnalytics({ from, to }) {
   const emotionsByAlter = useMemo(() => {
     const map = {};
     for (const e of events) {
-      for (const aid of e.alterIds) {
-        if (!map[aid]) map[aid] = {};
-        for (const l of e.labels) map[aid][l] = (map[aid][l] || 0) + 1;
+      for (const l of e.labels) {
+        const assigned = e.emotionAlters?.[l];
+        const ids = Array.isArray(assigned) && assigned.length > 0 ? assigned : e.alterIds;
+        for (const aid of ids) {
+          if (!map[aid]) map[aid] = {};
+          map[aid][l] = (map[aid][l] || 0) + 1;
+        }
       }
     }
     return Object.entries(map)

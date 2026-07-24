@@ -3,12 +3,20 @@ import { Search, Plus, ArrowDownAZ, ArrowUpAZ, Loader2, Minus } from "lucide-rea
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
+import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
+import AlterAssignChip from "@/components/shared/AlterAssignChip";
 
-const TABS = ["symptom", "habit"];
-const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
+// "context" is a virtual tab: context-kind items live in category "symptom"
+// (legacy rows) but are triggers/factors, not symptoms — they get their own
+// tab so the symptom list stays clean and their different scoring is clear.
+const TABS = ["symptom", "habit", "context"];
+const TAB_LABELS = { symptom: "Symptoms", habit: "Habits", context: "Context" };
 
-// Exported so QuickCheckInModal can collect at save time
-export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }) {
+// Exported so QuickCheckInModal can collect at save time.
+// alters + assignDefaultIds power per-item alter assignment: each checked
+// row can be assigned to specific alters (null = inherit the check-in's
+// fronters, resolved by the caller at save time).
+export default function SymptomsSection({ onCheckInsReady, initialChecked = [], alters = [], assignDefaultIds = [] }) {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("symptom");
   const [search, setSearch] = useState("");
@@ -17,7 +25,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
   const [newName, setNewName] = useState("");
   const [newType, setNewType] = useState("boolean");
   const [adding, setAdding] = useState(false);
-  // { [symptomId]: { checked: bool, severity: number|null } }
+  // { [symptomId]: { checked: bool, severity: number|null, alterIds: array|null } }
   const [cardStates, setCardStates] = useState({});
   const newInputRef = useRef(null);
 
@@ -32,7 +40,8 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
   });
 
   const visible = symptoms.
-  filter((s) => !s.is_archived && s.category === activeTab &&
+  filter((s) => !s.is_archived &&
+  (activeTab === "context" ? isContextItem(s) : s.category === activeTab && !isContextItem(s)) &&
   (s.label || "").toLowerCase().includes(search.toLowerCase())).
   sort((a, b) => {
     const cmp = (a.label || "").localeCompare(b.label || "");
@@ -41,15 +50,19 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
 
   const getSession = (id) => activeSessions.find((s) => s.symptom_id === id) || null;
 
-  const setCard = (id, checked, severity) =>
-  setCardStates((prev) => ({ ...prev, [id]: { checked, severity } }));
+  const setCard = (id, checked, severity, alterIds) =>
+  setCardStates((prev) => ({
+    ...prev,
+    [id]: { checked, severity, alterIds: alterIds !== undefined ? alterIds : prev[id]?.alterIds ?? null },
+  }));
 
-  // Provide getter to parent
+  // Provide getter to parent. alter_ids: null = inherit (caller resolves
+  // to the check-in's fronters at save time), array = explicit assignment.
   useEffect(() => {
     onCheckInsReady?.(() =>
     Object.entries(cardStates).
     filter(([, s]) => s.checked).
-    map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null }))
+    map(([symptom_id, s]) => ({ symptom_id, severity: s.severity ?? null, alter_ids: s.alterIds ?? null }))
     );
   });
 
@@ -62,7 +75,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
       const next = { ...prev };
       for (const sc of initialChecked) {
         if (!sc?.symptom_id) continue;
-        next[sc.symptom_id] = { checked: true, severity: sc.severity ?? null };
+        next[sc.symptom_id] = { checked: true, severity: sc.severity ?? null, alterIds: sc.alter_ids ?? null };
       }
       return next;
     });
@@ -73,10 +86,15 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
     if (!newName.trim()) return;
     setAdding(true);
     try {
+      // The "context" tab is virtual — context items store as category
+      // "symptom" with kind "context" (they're triggers/factors, tracked
+      // for pattern-spotting, never scored like symptoms).
+      const isContextTab = activeTab === "context";
       await base44.entities.Symptom.create({
         label: newName.trim(),
-        category: activeTab,
-        type: newType,
+        category: isContextTab ? "symptom" : activeTab,
+        ...(isContextTab ? { kind: "context", direction: "higher_worse" } : {}),
+        type: isContextTab ? "boolean" : newType,
         is_positive: activeTab === "habit",
         is_default: false,
         is_archived: false,
@@ -132,11 +150,13 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
           onKeyDown={(e) => {if (e.key === "Enter") handleAddNew();if (e.key === "Escape") {setAddingNew(false);setNewName("");}}}
           placeholder={`New ${TAB_LABELS[activeTab].toLowerCase()} name...`}
           className="flex-1 px-3 py-1.5 text-sm bg-muted/40 border border-primary/50 rounded-lg focus:outline-none focus:ring-1 focus:ring-primary" />
-            <select value={newType} onChange={(e) => setNewType(e.target.value)}
+            {activeTab !== "context" &&
+          <select value={newType} onChange={(e) => setNewType(e.target.value)}
           className="px-2 py-1.5 text-xs bg-muted/40 border border-border/50 rounded-lg focus:outline-none">
               <option value="boolean">Yes/No</option>
               <option value="rating">Rating</option>
             </select>
+          }
           </div>
           <div className="flex gap-2">
             <button onClick={handleAddNew} disabled={adding}
@@ -162,7 +182,9 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
           symptom={symptom}
           activeSession={getSession(symptom.id)}
           state={cardStates[symptom.id]}
-          onStateChange={(checked, severity) => setCard(symptom.id, checked, severity)} />
+          alters={alters}
+          assignDefaultIds={assignDefaultIds}
+          onStateChange={(checked, severity, alterIds) => setCard(symptom.id, checked, severity, alterIds)} />
 
         )
         }
@@ -171,7 +193,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [] }
 
 }
 
-function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
+function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alters = [], assignDefaultIds = [] }) {
   const queryClient = useQueryClient();
   const [checked, setChecked] = useState(state.checked ?? !!activeSession);
   const [severity, setSeverity] = useState(state.severity ?? null);
@@ -182,7 +204,15 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
   const color = symptom.color || "#8B5CF6";
   const isActive = !!activeSession;
   const isRating = symptom.type === "rating";
-  const LABELS = ["—", "0", "1", "2", "3", "4", "5"];
+  const bipolar = isBipolarScale(symptom);
+  // Bipolar constructs (mood, energy) get a two-ended scale with a real
+  // neutral midpoint — displayed −2..+2, stored 0..4. Unipolar stays 0–5.
+  const LABELS = bipolar ? ["—", ...BIPOLAR_DISPLAY] : ["—", "0", "1", "2", "3", "4", "5"];
+  const direction = deriveDirection(symptom);
+  const directionCue = !isRating || bipolar ? null
+    : direction === "higher_better" ? { glyph: "▲", hint: "Higher is better" }
+    : direction === "higher_worse" ? { glyph: "▼", hint: "Higher is worse" }
+    : null;
 
   const updateState = (c, s) => {
     setChecked(c);setSeverity(s);
@@ -255,14 +285,40 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange }) {
 
         {/* Label + severity */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{symptom.label}</p>
+          <div className="flex items-center gap-1.5 min-w-0">
+            <p className="text-sm font-medium truncate">
+              {symptom.label}
+              {directionCue &&
+              <span className="ml-1 text-[0.5625rem] align-middle text-muted-foreground/70" title={directionCue.hint} aria-label={directionCue.hint}>
+                  {directionCue.glyph}
+                </span>
+              }
+            </p>
+            {checked && alters.length > 0 &&
+            <AlterAssignChip
+              alters={alters}
+              value={state.alterIds ?? null}
+              defaultIds={assignDefaultIds}
+              onChange={(ids) => onStateChange(checked, severity, ids)} />
+            }
+          </div>
           {isRating &&
           <div className="flex gap-1 mt-1">
               {LABELS.map((lbl, idx) => {
               const sel = idx === 0 ? severity === null : severity === idx - 1;
+              // Anchor labels give the numbers a stable meaning ("3" drifts
+              // across days — and across alters — without them). 0 is an
+              // explicit "None": a real "checked, and it was absent" answer,
+              // distinct from "—" (skip / no answer, logs nothing).
+              const anchor = idx === 0 ? SEVERITY_SKIP_LABEL
+                : bipolar ? `${BIPOLAR_DISPLAY[idx - 1]} — ${BIPOLAR_ANCHORS[idx - 1]}`
+                : `${idx - 1} — ${SEVERITY_ANCHORS[idx - 1]}`;
               return (
                 <button key={idx} onClick={() => handleSeverity(idx)}
-                className="w-6 h-6 rounded text-xs font-medium transition-colors"
+                title={anchor}
+                aria-label={anchor}
+                aria-pressed={sel}
+                className={`${bipolar ? "w-7" : "w-6"} h-6 rounded text-xs font-medium transition-colors`}
                 style={{
                   backgroundColor: sel ? idx === 0 ? `${color}30` : color : "hsl(var(--muted))",
                   color: sel ? idx === 0 ? color : "#fff" : "hsl(var(--muted-foreground))"

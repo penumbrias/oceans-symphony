@@ -7,6 +7,8 @@ import {
 } from "recharts";
 import { format, parseISO, isWithinInterval } from "date-fns";
 import { useAuthoredPresence } from "@/hooks/useAuthoredPresence";
+import { useTerms } from "@/lib/useTerms";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 
 export default function SymptomAnalytics({ startDate, endDate, symptomSessions = null, symptomCheckIns = null, symptoms: propsSymptoms = null }) {
   // Use pre-fetched data if provided, otherwise fetch
@@ -97,6 +99,41 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
     })).filter(x => x.symptom);
   }, [filteredCheckIns, symptomsById]);
 
+  const terms = useTerms();
+  const formatAlter = useAlterLabel();
+
+  // 8.4a Symptoms by alter — from EXPLICIT check-in attribution
+  // (fronting_alter_ids written since v0.83.2, per-item assignment or the
+  // check-in's fronters; legacy alter_id honoured). This is the view that
+  // keeps per-alter symptom analytics useful for systems with little or no
+  // fronting history — it needs no sessions at all.
+  const byAlterData = useMemo(() => {
+    const map = {}; // alterId -> { symptomId: count }
+    filteredCheckIns.forEach((c) => {
+      const ids = Array.isArray(c.fronting_alter_ids) && c.fronting_alter_ids.length > 0
+        ? c.fronting_alter_ids
+        : (c.alter_id ? [c.alter_id] : []);
+      for (const aid of ids) {
+        if (!altersById[aid]) continue;
+        if (!map[aid]) map[aid] = {};
+        map[aid][c.symptom_id] = (map[aid][c.symptom_id] || 0) + 1;
+      }
+    });
+    return Object.entries(map)
+      .map(([aid, counts]) => ({
+        alter: altersById[aid],
+        total: Object.values(counts).reduce((s, n) => s + n, 0),
+        items: Object.entries(counts)
+          .map(([sid, count]) => ({ symptom: symptomsById[sid], count }))
+          .filter((x) => x.symptom)
+          .sort((a, b) => b.count - a.count)
+          .slice(0, 6),
+      }))
+      .filter((r) => r.items.length > 0)
+      .sort((a, b) => b.total - a.total)
+      .slice(0, 12);
+  }, [filteredCheckIns, altersById, symptomsById]);
+
   // 8.4 Correlation
   const correlationData = useMemo(() =>
     filteredSessions.filter(s => s.end_time).slice(0, 10).map(ss => {
@@ -174,6 +211,36 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
               </ResponsiveContainer>
             </div>
           ))}
+        </div>
+      )}
+
+      {/* 8.4a Symptoms by alter (explicit check-in attribution — works with
+          zero fronting history) */}
+      {byAlterData.length > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-sm">Symptoms by {terms.alter}</h3>
+          <div className="space-y-2">
+            {byAlterData.map(({ alter, items }) => (
+              <div key={alter.id} className="p-3 rounded-xl border border-border/50 bg-card space-y-1.5">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 border"
+                    style={{ backgroundColor: alter.color || "transparent", borderColor: alter.color || "hsl(var(--border))" }} aria-hidden />
+                  <p className="text-sm font-medium">{formatAlter(alter)}</p>
+                </div>
+                <div className="flex flex-wrap gap-1">
+                  {items.map(({ symptom, count }) => (
+                    <span key={symptom.id} className="text-xs px-1.5 py-0.5 rounded-full border text-foreground"
+                      style={{ backgroundColor: `${symptom.color || "#8B5CF6"}22`, borderColor: `${symptom.color || "#8B5CF6"}77` }}>
+                      {symptom.label}{count > 1 ? ` ×${count}` : ""}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            Built from who each check-in was assigned to — no {terms.fronting} history needed.
+          </p>
         </div>
       )}
 

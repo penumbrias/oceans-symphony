@@ -14,6 +14,7 @@ import { SymptomBar, SymptomDetailModal } from "@/components/timeline/SymptomBar
 import { SymptomSessionPopup } from "@/components/timeline/SymptomSessionPopup";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { getCategoryMeta } from "@/lib/locationCategories";
+import { effectiveSeverity, formatSeverityForSymptom } from "@/lib/trackingModel";
 
 const LABEL_WIDTH = 44;
 const DEFAULT_COL_WIDTHS = { activity: 52, eventCol: 56, emotionCol: 52, symptom: 48, alter: 32, locationCol: 44 };
@@ -651,7 +652,9 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, lane
   if (entry.type === "symptom_checkin") {
     const items = (entry.data.items || [])
       .slice()
-      .sort((a, b) => (b.checkIn.severity ?? -1) - (a.checkIn.severity ?? -1))
+      // Rank by effective severity: unrated counts as the scale midpoint
+      // (owner-decided semantics), an explicit 0 ("none") ranks lowest.
+      .sort((a, b) => (effectiveSeverity(b.checkIn, b.symptom) ?? -1) - (effectiveSeverity(a.checkIn, a.symptom) ?? -1))
       .slice(0, 3);
     return (
       <div className="absolute cursor-pointer z-10"
@@ -670,7 +673,7 @@ function EventEntry({ entry, topPx, onTap, onDoubleTap, colWidth, lane = 0, lane
                   style={{ width: 7, height: 7, backgroundColor: color }} />
                 <span className="font-medium truncate" style={{ fontSize: 9, color, lineHeight: "1.1", maxWidth: "100%" }}>
                   {symptom?.label || "?"}
-                  {checkIn.severity != null ? <span style={{ opacity: 0.7 }}> {checkIn.severity}</span> : null}
+                  {checkIn.severity != null ? <span style={{ opacity: 0.7 }}> {formatSeverityForSymptom(symptom, checkIn.severity)}</span> : null}
                 </span>
               </div>
             );
@@ -2073,7 +2076,7 @@ export default function InfiniteTimeline({
               <div className="space-y-1">
                 {(entry.data.items || []).map(({ symptom, checkIn }, i) => (
                   <p key={i} className="text-sm" style={{ color: symptom?.color || "#8b5cf6" }}>
-                    {symptom?.label || "?"}{checkIn.severity != null ? ` · severity ${checkIn.severity}` : ""}
+                    {symptom?.label || "?"}{checkIn.severity != null ? ` · ${formatSeverityForSymptom(symptom, checkIn.severity)}` : ""}
                   </p>
                 ))}
               </div>

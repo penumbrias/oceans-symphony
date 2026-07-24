@@ -41,9 +41,12 @@ export default function StorageModeSettings() {
       // empty record the boot path treats as a returning user) so the
       // reload below lands on the first-run onboarding screen.
       await clearStoredData();
-      // Clear all Symphony localStorage keys so the app re-runs first-time onboarding
+      // Clear all Symphony localStorage keys so the app re-runs first-time
+      // onboarding. disclaimer_acknowledged_v1 is included deliberately —
+      // it used to survive the wipe, so a fully-reset app skipped the
+      // disclaimer while re-showing everything else (inconsistent).
       Object.keys(localStorage).forEach(key => {
-        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen") {
+        if (key.startsWith("symphony_") || key === "terms_setup_done" || key === "tour_seen" || key === "disclaimer_acknowledged_v1") {
           localStorage.removeItem(key);
         }
       });
@@ -149,7 +152,7 @@ export default function StorageModeSettings() {
                 <span className="font-medium text-foreground">localStorage (always plaintext)</span> — small per-browser settings (theme, last-opened list ids, daily-task firing markers), native push registration IDs, the friends-server identity, and grocery lists you explicitly marked "available when locked". These stay on this device but are NOT covered by the encryption password.
               </p>
               <p>
-                <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (100,000 iterations). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
+                <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (600,000 iterations; data encrypted by older app versions upgrades automatically the next time it's unlocked). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
               </p>
               <p>
                 <span className="font-medium text-foreground">Never stored</span> — analytics, crash telemetry, usage tracking, advertising IDs. There's no Symphony account and no server-side copy of your data. Friends Mode (off until you set it up) only sends your system name, display name, and chosen front-share level to the friends relay — never journals, emotions, symptoms, plans, locations, or chat.

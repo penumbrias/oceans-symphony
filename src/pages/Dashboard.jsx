@@ -35,8 +35,19 @@ import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
-import TermsSetupModal from "@/components/onboarding/TermsSetupModal";
-import DisclaimerModal, { DISCLAIMER_ACK_KEY } from "@/components/onboarding/DisclaimerModal";
+import { loadChecklist, checklistComplete, checklistProgress, CHECKLIST_ITEMS } from "@/components/onboarding/SetupChecklist";
+import { ClipboardList, X } from "lucide-react";
+
+// v0.84.9: terminology moved INTO the Guide (page 2 of the Welcome phase)
+// so there's no more blocking pre-Guide modal — first-run is: Guide opens
+// with welcome+disclaimer, terms, choose what to track, checklist hub,
+// then the rest of the Guide.
+// Per-system-scoped since v0.85.6 — this key MUST be read/written through
+// psGetItem/psSetItem so a newly-created system starts fresh instead of
+// inheriting the first system's "onboarding done" flag.
+export const ONBOARDING_DONE_KEY = "symphony_onboarding_done_v1";
+export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
+import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
@@ -55,9 +66,50 @@ export default function Dashboard() {
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
+  const [tourOpenAt, setTourOpenAt] = useState(null); // "checklist" when jumped from the setup chip
   const { setShowFeatureTour } = useOutletContext() || {};
-  const [showDisclaimer, setShowDisclaimer] = useState(() => !localStorage.getItem(DISCLAIMER_ACK_KEY));
-  const [showTermsSetup, setShowTermsSetup] = useState(() => !localStorage.getItem("terms_setup_done"));
+  // Setup is now single-flow (v0.84.9): Guide (TourModal) auto-opens
+  // for anyone who hasn't finished it, terms+disclaimer live as steps
+  // inside it. `pendingFromNewSystem` is a one-shot set by "create new
+  // system" — a fresh system's catalogue is empty even though the
+  // device-wide gate keys may be satisfied, so it gets the Guide too.
+  const [pendingFromNewSystem] = useState(() => {
+    try {
+      if (localStorage.getItem("symphony_onboarding_pending_v1")) {
+        localStorage.removeItem("symphony_onboarding_pending_v1");
+        return true;
+      }
+    } catch { /* storage off */ }
+    return false;
+  });
+  const [checklistState, setChecklistState] = useState(() => loadChecklist());
+  const [checklistDismissed, setChecklistDismissed] = useState(() => {
+    try { return !!psGetItem(SETUP_CHIP_DISMISSED_KEY); } catch { return false; }
+  });
+  // Refresh checklist state on tab focus so returning from a sub-flow
+  // (e.g. added an alter on /Home) updates the dashboard chip.
+  useEffect(() => {
+    const refresh = () => setChecklistState(loadChecklist());
+    window.addEventListener("focus", refresh);
+    window.addEventListener("visibilitychange", refresh);
+    return () => {
+      window.removeEventListener("focus", refresh);
+      window.removeEventListener("visibilitychange", refresh);
+    };
+  }, []);
+  useEffect(() => {
+    try {
+      const guidedDone = !!psGetItem(ONBOARDING_DONE_KEY);
+      const termsDone = !!localStorage.getItem("terms_setup_done");
+      // Auto-open the Guide on first-run (nothing set yet) or after a
+      // new-system creation. Legacy users (terms already done + guide
+      // marked done) never see it — they'll open it via the Guide button.
+      if ((!guidedDone && !termsDone) || pendingFromNewSystem) setShowTour(true);
+    } catch { /* storage off */ }
+  }, [pendingFromNewSystem]);
+  const checklistIncomplete = !checklistComplete(checklistState);
+  const showSetupChip = checklistIncomplete && !checklistDismissed && !showTour;
+  const checklistPct = checklistProgress(checklistState);
   const [showPreview, setShowPreview] = useState(() => localStorage.getItem("preview_open") === "true");
 
 
@@ -69,13 +121,17 @@ export default function Dashboard() {
   };
 
   const handleTourClose = () => {
-    localStorage.setItem("tour_seen", "1");
+    // The Guide now IS the setup, so finishing it (or skipping) records
+    // that setup is complete. Otherwise closing and re-opening the app
+    // would auto-reopen the Guide every time.
+    try {
+      localStorage.setItem("tour_seen", "1");
+      psSetItem(ONBOARDING_DONE_KEY, "1");
+    } catch { /* storage off */ }
     setShowTour(false);
-  };
-
-  const handleTermsDone = () => {
-    setShowTermsSetup(false);
-    if (!localStorage.getItem("tour_seen")) setShowTour(true);
+    setTourOpenAt(null);
+    // Refresh checklist state — user may have marked items done in the guide.
+    setChecklistState(loadChecklist());
   };
   const location = useLocation();
   const navigate = useNavigate();
@@ -110,13 +166,24 @@ export default function Dashboard() {
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const action = params.get("action");
-    if (!action) return;
+    const onboardingParam = params.get("onboarding");
+    if (!action && !onboardingParam) return;
     if (action === "quick-checkin") {
       setShowEmotionModal(true);
     } else if (action === "set-front") {
       window.dispatchEvent(new CustomEvent("open-set-front"));
     }
+    // Settings → About → "Re-run setup" replays the guided onboarding
+    // (different alters may want to re-do it — it never overwrites data).
+    if (onboardingParam === "replay") {
+      // "Re-run setup" reopens the Guide (which is now also the setup
+      // flow). The blocking terms wizard only ever runs on a genuinely
+      // fresh system, so replay skips it and just reopens the Guide.
+      try { psRemoveItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
+      setShowTour(true);
+    }
     params.delete("action");
+    params.delete("onboarding");
     const newSearch = params.toString();
     navigate({ pathname: location.pathname, search: newSearch ? `?${newSearch}` : "" }, { replace: true });
   }, [location.search]);
@@ -679,8 +746,8 @@ export default function Dashboard() {
         <button
             onClick={() => setShowTour(true)}
             className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors whitespace-nowrap"
-            title="Open guide">
-          Guide
+            title="Open setup guide">
+          Setup
         </button>
         <button
             onClick={() => setShowFeatureTour(true)}
@@ -859,18 +926,45 @@ export default function Dashboard() {
       })}
       </div>
 
-      {/* Legal/scope disclaimer — gates everything else on first run.
-          TermsSetup waits until the disclaimer is acknowledged. */}
-      {showDisclaimer && (
-        <DisclaimerModal onAcknowledge={() => setShowDisclaimer(false)} />
+      {/* v0.84.9: no more blocking terms modal — the Guide (below)
+          includes terms as an inline step. A small "Continue setup"
+          chip appears here when the checklist is incomplete, so the
+          user can jump back into the Guide's checklist hub any time. */}
+      {showSetupChip && (
+        <div
+          className="fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)+16px+env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-xs"
+          role="status"
+          aria-label="Continue setup"
+        >
+          <div className="bg-card border border-primary/40 rounded-xl shadow-2xl p-3 flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-primary flex-shrink-0" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold">Continue setup</p>
+              <p className="text-[0.6875rem] text-muted-foreground">{checklistPct.done} of {checklistPct.total} items done</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => { setTourOpenAt("checklist"); setShowTour(true); }}
+              className="px-2.5 py-1 rounded-lg bg-primary text-primary-foreground text-xs font-medium"
+            >
+              Open
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                try { psSetItem(SETUP_CHIP_DISMISSED_KEY, "1"); } catch { /* storage off */ }
+                setChecklistDismissed(true);
+              }}
+              aria-label="Dismiss"
+              className="p-1 rounded-lg text-muted-foreground hover:bg-muted/50"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        </div>
       )}
 
-      <TermsSetupModal
-        open={showTermsSetup && !showDisclaimer}
-        onClose={handleTermsDone}
-        existingSettingsId={settings[0]?.id || null} />
-      
-      <TourModal open={showTour} onClose={handleTourClose} />
+      <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
       <QuickCheckInModal
         isOpen={showEmotionModal}
         onClose={() => { setShowEmotionModal(false); setEmotionModalInitialSection(null); }}

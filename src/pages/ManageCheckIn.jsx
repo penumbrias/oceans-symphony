@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { toast } from "sonner";
 import { useNavigate } from "react-router-dom";
 import DiaryTemplateManager from "@/components/settings/DiaryTemplateManager";
+import BundlePicker from "@/components/symptoms/BundlePicker";
+import { isContextItem } from "@/lib/trackingModel";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { Switch } from "@/components/ui/switch";
 import { QUICK_CHECKIN_SECTIONS, enabledCheckinSectionIds } from "@/lib/quickCheckinSections";
+import LegacyCatalogueMigrationCard from "@/components/settings/LegacyCatalogueMigrationCard";
 
 // Toggle which section pills appear in the Quick Check-In modal.
 function SectionsTab() {
@@ -128,10 +131,21 @@ function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, to
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id={`pos-${symptom.id}`} checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />
-            <label htmlFor={`pos-${symptom.id}`} className="text-xs text-muted-foreground cursor-pointer select-none">Higher values are better (e.g. joy, energy)</label>
-          </div>
+          {type === "rating" && (
+            <button
+              type="button"
+              onClick={() => setIsPositive((v) => !v)}
+              title="Toggle: higher values are better"
+              aria-pressed={isPositive}
+              className={`self-start text-xs px-2 py-0.5 rounded flex-shrink-0 transition-colors border ${
+                isPositive
+                  ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+                  : "text-muted-foreground bg-muted/50 border-border/50 hover:border-border"
+              }`}
+            >
+              {isPositive ? "↑ good" : "↑ bad"}
+            </button>
+          )}
           <div className="flex gap-2 pt-1">
             <Button size="sm" onClick={handleSave} className="gap-1"><Check className="w-3.5 h-3.5" /> Save</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}><X className="w-3.5 h-3.5" /></Button>
@@ -185,10 +199,21 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
           <ColorPickerModal color={color} onSave={c => setColor(c)} onClose={() => setShowColorPicker(false)} />
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="new-pos" checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />
-        <label htmlFor="new-pos" className="text-xs text-muted-foreground cursor-pointer select-none">Higher values are better</label>
-      </div>
+      {type === "rating" && (
+        <button
+          type="button"
+          onClick={() => setIsPositive((v) => !v)}
+          title="Toggle: higher values are better"
+          aria-pressed={isPositive}
+          className={`self-start text-xs px-2 py-0.5 rounded flex-shrink-0 transition-colors border ${
+            isPositive
+              ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+              : "text-muted-foreground bg-muted/50 border-border/50 hover:border-border"
+          }`}
+        >
+          {isPositive ? "↑ good" : "↑ bad"}
+        </button>
+      )}
       <div className="flex gap-2">
         <Button size="sm" onClick={handleAdd} disabled={!label.trim()} className="gap-1"><Check className="w-3.5 h-3.5" /> Add</Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>
@@ -197,9 +222,10 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
   );
 }
 
-function SymptomTab({ category }) {
+function SymptomTab({ category, contextOnly = false }) {
   const queryClient = useQueryClient();
   const [showAdd, setShowAdd] = useState(false);
+  const [showPresets, setShowPresets] = useState(false);
 
   const { data: symptoms = [] } = useQuery({
     queryKey: ["symptoms"],
@@ -207,8 +233,11 @@ function SymptomTab({ category }) {
   });
 
   const filtered = useMemo(() =>
-    symptoms.filter(s => s.category === category && !s.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0)),
-    [symptoms, category]
+    symptoms
+      .filter(s => !s.is_archived &&
+        (contextOnly ? isContextItem(s) : s.category === category && !isContextItem(s)))
+      .sort((a, b) => (a.order || 0) - (b.order || 0)),
+    [symptoms, category, contextOnly]
   );
 
   const invalidate = () => queryClient.invalidateQueries({ queryKey: ["symptoms"] });
@@ -227,7 +256,9 @@ function SymptomTab({ category }) {
   };
 
   const handleAdd = async (data) => {
-    await base44.entities.Symptom.create(data);
+    // Context-tab additions store as kind "context" (category stays
+    // "symptom" for back-compat with the tab split elsewhere).
+    await base44.entities.Symptom.create(contextOnly ? { ...data, kind: "context" } : data);
     invalidate();
     setShowAdd(false);
     toast.success("✅ Added");
@@ -235,19 +266,27 @@ function SymptomTab({ category }) {
 
   return (
     <div className="space-y-3">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        <Button size="sm" variant="outline" onClick={() => setShowPresets(true)} className="gap-1.5" data-tour="symptom-presets">
+          📦 Browse presets
+        </Button>
         <Button size="sm" onClick={() => setShowAdd(true)} className="gap-1.5">
-          <Plus className="w-3.5 h-3.5" /> Add {category === "symptom" ? "Symptom" : "Habit"}
+          <Plus className="w-3.5 h-3.5" /> Add {contextOnly ? "Context item" : category === "symptom" ? "Symptom" : "Habit"}
         </Button>
       </div>
 
       {showAdd && <AddSymptomForm category={category} onAdd={handleAdd} onCancel={() => setShowAdd(false)} />}
+      <BundlePicker open={showPresets} onClose={() => setShowPresets(false)} onAdded={invalidate} />
 
       {filtered.length === 0 && !showAdd && (
         <div className="flex flex-col items-center py-10 text-center">
-          <div className="text-3xl mb-2">{category === "symptom" ? "💊" : "🌱"}</div>
-          <p className="text-sm font-medium text-foreground mb-1">No {category === "symptom" ? "symptoms" : "habits"} yet</p>
-          <p className="text-xs text-muted-foreground">Add your first {category === "symptom" ? "symptom" : "habit"} to track it in check-ins.</p>
+          <div className="text-3xl mb-2">{contextOnly ? "🌦️" : category === "symptom" ? "💊" : "🌱"}</div>
+          <p className="text-sm font-medium text-foreground mb-1">No {contextOnly ? "context items" : category === "symptom" ? "symptoms" : "habits"} yet</p>
+          <p className="text-xs text-muted-foreground">
+            {contextOnly
+              ? "Context items log what was going on around you (stress, routine breaks…) so patterns can be spotted — never scored like symptoms. Add one, or browse the Context & triggers preset pack."
+              : `Add your first ${category === "symptom" ? "symptom" : "habit"} to track it in check-ins.`}
+          </p>
         </div>
       )}
 
@@ -288,6 +327,7 @@ export default function ManageCheckIn() {
     { id: "sections", label: "Sections" },
     { id: "symptoms", label: "Symptoms" },
     { id: "habits", label: "Habits" },
+    { id: "context", label: "Context" },
     { id: "diary", label: "Diary card fields" },
   ];
 
@@ -312,9 +352,18 @@ export default function ManageCheckIn() {
         ))}
       </div>
 
+      {/* Opt-in upgrade card for users on the legacy catalogue —
+          rendered once (not per-tab) since the migration touches every
+          category. Auto-hides when there's nothing to migrate or the
+          user dismissed it. */}
+      {(tab === "symptoms" || tab === "habits" || tab === "context") && (
+        <LegacyCatalogueMigrationCard />
+      )}
+
       {tab === "sections" && <SectionsTab />}
       {tab === "symptoms" && <SymptomTab category="symptom" />}
       {tab === "habits" && <SymptomTab category="habit" />}
+      {tab === "context" && <SymptomTab category="symptom" contextOnly />}
       {tab === "diary" && <DiaryTemplateManager />}
     </motion.div>
   );

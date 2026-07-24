@@ -37,6 +37,9 @@ const importLocalSettings = writeBackupLocalSettings;
 export function externalKindFromJson(j) {
   if (!j || typeof j !== "object" || Array.isArray(j)) return null;
   if (j.__format === "symphony_backup" || typeof j.__encrypted === "string") return null;
+  // Plural Star exports are the ONLY ones that stamp `_meta.app === "Plural Star"`.
+  // Detect before the generic members-array branch so PS never falls into "ask".
+  if (j._meta && typeof j._meta === "object" && String(j._meta.app || "").toLowerCase() === "plural star") return "pluralstar";
   if (Array.isArray(j.alters) && ("fronts" in j || "tags" in j || "user" in j)) return "octocon";
   if (Array.isArray(j.members)) {
     if (j.frontHistory !== undefined || j.channelCategories !== undefined || j.customFields !== undefined || j.chatMessages !== undefined) return "simplyplural";
@@ -892,11 +895,30 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         return;
       }
 
-      // OpenPlural .zip — binary (PK magic). Hand straight to the OpenPlural
-      // importer via the connector dispatcher; it can't be read as text.
+      // Zip export — could be OpenPlural (openplural.json inside) or Plural
+      // Star (manifest.json with app="Plural Star"). Peek inside to route
+      // correctly; default to openplural for back-compat when neither
+      // marker is present.
       const isZip = lname.endsWith(".zip") || hasMagic([0x50, 0x4b, 0x03, 0x04]); // "PK\x03\x04"
       if (onExternalFile && isZip) {
-        onExternalFile(file, "openplural");
+        let zipKind = "openplural";
+        try {
+          const fflate = await import("fflate");
+          const unzipped = await new Promise((resolve, reject) => {
+            fflate.unzip(bytes, (err, files) => (err ? reject(err) : resolve(files)));
+          });
+          const findByName = (n) => unzipped[n] || Object.values(
+            (() => { const k = Object.keys(unzipped).find((k) => k.replace(/^.*\//, "") === n); return k ? { [k]: unzipped[k] } : {}; })()
+          )[0];
+          const manifest = findByName("manifest.json");
+          if (manifest) {
+            try {
+              const m = JSON.parse(new TextDecoder("utf-8").decode(manifest));
+              if (String(m.app || "").toLowerCase() === "plural star") zipKind = "pluralstar";
+            } catch { /* fall through */ }
+          }
+        } catch { /* fall through — default openplural */ }
+        onExternalFile(file, zipKind);
         return;
       }
 
@@ -1511,7 +1533,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">

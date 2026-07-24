@@ -70,6 +70,7 @@ import {
 } from '@/lib/localDb';
 import { requestPersistentStorage, runAutoBackupIfDue } from '@/lib/autoBackup';
 import { refreshCustomFontFaces } from '@/lib/customFontFaces';
+import { reconcileDistressStore } from '@/lib/emotionDistress';
 import { initSystemsRegistry } from '@/lib/systems';
 import { scanForOrphanedData } from '@/lib/dataRecovery';
 import { initNativeShell, subscribeToNativeTap, pendingNativeTap, subscribeToNativeRoute, pendingNativeRoute } from '@/lib/nativeBootstrap';
@@ -408,6 +409,10 @@ function App() {
       // Best-effort; may pop in a beat after first paint, same as the
       // extra Google Fonts <link> loader.
       refreshCustomFontFaces().catch(() => {});
+      // Sync the distress-emotion set between localStorage (fast cache) and
+      // SystemSettings (backed-up copy) — adopts a restored backup's set on
+      // a fresh device, migrates pre-B2 device-local customisations up.
+      reconcileDistressStore().catch(() => {});
       // Skip auto-backup while preview mode is active — preview's
       // in-memory snapshot is not the user's real data, exporting it
       // would overwrite their last real backup file with junk.

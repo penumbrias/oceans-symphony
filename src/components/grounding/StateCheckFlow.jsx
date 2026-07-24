@@ -2,8 +2,10 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { EMOTIONAL_STATES } from "@/utils/groundingDefaults";
 
-export default function StateCheckFlow({ onComplete, onBack }) {
-  const [selected, setSelected] = useState([]);
+export default function StateCheckFlow({ onComplete, onBack, initialSelected = [] }) {
+  // initialSelected: pre-seeded states from a check-in deep link — the user
+  // sees their answers already ticked and can adjust before continuing.
+  const [selected, setSelected] = useState(initialSelected);
 
   const toggle = (id) => {
     setSelected(prev =>
