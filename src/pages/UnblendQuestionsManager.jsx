@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
@@ -166,7 +167,7 @@ export default function UnblendQuestionsManager() {
   };
 
   const deleteUserQuestion = async (id) => {
-    if (!window.confirm("Delete this question?")) return;
+    if (!(await confirm("Delete this question?"))) return;
     await localEntities.UnblendQuestion.delete(id);
     queryClient.invalidateQueries({ queryKey: ["unblendQuestions"] });
     toast.success("Question removed");
@@ -194,7 +195,7 @@ export default function UnblendQuestionsManager() {
   // dedicated local entity (HiddenUnblendQuestion) so the original
   // catalogue isn't mutated and the user can restore later.
   const hideBuiltIn = async (q) => {
-    if (!window.confirm("Hide this question from Help me unblend? You can restore it from the Hidden section below.")) return;
+    if (!(await confirm("Hide this question from Help me unblend? You can restore it from the Hidden section below."))) return;
     await localEntities.HiddenUnblendQuestion.create({ originalId: q.id, hiddenAt: new Date().toISOString() });
     queryClient.invalidateQueries({ queryKey: ["hiddenUnblendQuestions"] });
     toast.success("Question hidden");

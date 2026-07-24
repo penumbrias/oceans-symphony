@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Card } from "@/components/ui/card";
@@ -187,8 +188,8 @@ export default function ActivityGoalsPanel({ weekStart }) {
     },
   });
 
-  const handleDeleteGoal = (goal) => {
-    if (!window.confirm(`Delete the weekly goal for "${goal.category_name}"? Your activity history will not be affected.`)) return;
+  const handleDeleteGoal = async (goal) => {
+    if (!(await confirm(`Delete the weekly goal for "${goal.category_name}"? Your activity history will not be affected.`))) return;
     deleteGoalMutation.mutate(goal.id);
   };
 

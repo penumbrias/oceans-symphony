@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -107,8 +108,8 @@ export default function ToDoList() {
     setShowForm(true);
   };
 
-  const handleDelete = (taskId) => {
-    if (confirm("Delete this task and all subtasks?")) deleteMutation.mutate(taskId);
+  const handleDelete = async (taskId) => {
+    if ((await confirm("Delete this task and all subtasks?"))) deleteMutation.mutate(taskId);
   };
 
   const handleToggle = (taskId) => {

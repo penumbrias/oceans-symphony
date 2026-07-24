@@ -41,6 +41,8 @@ function FirstRunSetup({ onComplete }) {
   // their imported data already in place.
   const [showImportModal, setShowImportModal] = useState(false);
   const [showRescue, setShowRescue] = useState(false);
+  const [showLocalInfo, setShowLocalInfo] = useState(false);
+  const [showImport, setShowImport] = useState(false);
   const [externalImport, setExternalImport] = useState(null); // { file, type }
   const fileInputRef = useRef(null);
 
@@ -325,11 +327,22 @@ function FirstRunSetup({ onComplete }) {
           setTimeout(() => openImportPicker(), 50);
         }}
       />
-      <div className="flex items-center gap-3 p-3 rounded-xl bg-primary/5 border border-primary/20">
-        <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
-        <p className="text-sm text-muted-foreground leading-relaxed">
-          <span className="font-semibold">No account or sign-in needed.</span> Data is saved locally on your device. Optional at-rest password encryption available in settings. Export a backup in the settings menu to transfer data between devices.
-        </p>
+      <div className="rounded-xl bg-primary/5 border border-primary/20">
+        <button
+          type="button"
+          onClick={() => setShowLocalInfo((v) => !v)}
+          aria-expanded={showLocalInfo}
+          className="w-full flex items-center gap-3 p-3 text-left"
+        >
+          <ShieldCheck className="w-5 h-5 text-primary flex-shrink-0" />
+          <span className="text-sm font-semibold text-foreground flex-1">No account or sign-in needed</span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${showLocalInfo ? "rotate-180" : ""}`} />
+        </button>
+        {showLocalInfo && (
+          <p className="text-sm text-muted-foreground leading-relaxed px-3 pb-3 pl-11">
+            Data is saved locally on your device. Optional at-rest password encryption available in settings. Export a backup in the settings menu to transfer data between devices.
+          </p>
+        )}
       </div>
       <div className="pt-2">
         <Button onClick={handleLocalConfirm} disabled={loading || importing} className="w-full bg-primary hover:bg-primary/90">
@@ -348,17 +361,27 @@ function FirstRunSetup({ onComplete }) {
         {error && <p className="text-xs text-destructive text-center mt-1.5">{error}</p>}
       </div>
 
-      <div className="border-t border-border/40 pt-4 mt-2 space-y-2">
-        {/* Recovery-first: a user whose data vanished after an update should
-            look for it here BEFORE re-importing over the top (which is
-            destructive). Opens the same scan the boot path uses. */}
+      <div className="border-t border-border/40 pt-4 mt-2">
+        <button
+          type="button"
+          onClick={() => setShowImport((v) => !v)}
+          aria-expanded={showImport || !!externalImport}
+          className="w-full flex items-center gap-2 py-1 text-sm font-medium text-foreground"
+        >
+          <span className="flex-1 text-left">Data import + find</span>
+          <ChevronDown className={`w-4 h-4 text-muted-foreground flex-shrink-0 transition-transform ${(showImport || externalImport) ? "rotate-180" : ""}`} />
+        </button>
+        {(showImport || externalImport) && (
+        <div className="space-y-2 pt-3">
+        {/* Recovery-first: look for missing data here BEFORE re-importing over the
+            top (which is destructive). Opens the same scan the boot path uses. */}
         <button
           type="button"
           onClick={() => setShowRescue(true)}
           className="w-full text-left text-xs rounded-lg border border-amber-500/30 bg-amber-500/5 px-3 py-2 text-foreground hover:bg-amber-500/10"
         >
-          <span className="font-medium">Data missing after an update?</span>{" "}
-          <span className="text-muted-foreground">Tap to find it — don't import over the top yet.</span>
+          <span className="font-medium">Scan for missing data</span>{" "}
+          <span className="text-muted-foreground">Finds data from before an update — don't import over the top yet.</span>
         </button>
         <p className="text-xs font-medium text-foreground">Already have data elsewhere?</p>
         <input
@@ -469,6 +492,8 @@ function FirstRunSetup({ onComplete }) {
               </>
             )}
           </div>
+        )}
+        </div>
         )}
       </div>
 
@@ -581,7 +606,7 @@ export default function StorageModeSetup({ mode, onComplete }) {
 
   return (
     <div className="fixed inset-0 bg-background/95 backdrop-blur-sm z-[100] overflow-y-auto overscroll-contain">
-      <div className="min-h-full flex items-start sm:items-center justify-center p-4">
+      <div className="min-h-full flex items-start sm:items-center justify-center p-4 pb-24">
       <div className="w-full max-w-md bg-card border border-border rounded-2xl p-6 shadow-2xl my-auto">
 
         {/* Header — unlock is a simple lock prompt; first-run setup doubles as

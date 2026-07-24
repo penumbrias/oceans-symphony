@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useParams, useNavigate } from "react-router-dom";
@@ -250,7 +251,7 @@ function GroupProfileInner() {
   };
 
   const handleDelete = async () => {
-    if (!confirm(`Delete the group "${group.name}"? Members are not deleted — they just leave the group. This can't be undone.`)) return;
+    if (!(await confirm(`Delete the group "${group.name}"? Members are not deleted — they just leave the group. This can't be undone.`))) return;
     setDeleting(true);
     try {
       await base44.entities.Group.delete(group.id);
@@ -689,7 +690,7 @@ function GroupNotesTab({ groupId }) {
     finally { setSaving(false); }
   };
   const del = async (id) => {
-    if (!window.confirm("Delete this note?")) return;
+    if (!(await confirm("Delete this note?"))) return;
     try { await base44.entities.GroupNote.delete(id); qc.invalidateQueries({ queryKey: ["groupNotes", groupId] }); } catch (e) { toast.error(e?.message || "Couldn't delete"); }
   };
   return (

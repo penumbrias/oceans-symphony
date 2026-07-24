@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -331,7 +332,7 @@ export default function SystemCheckInPage() {
   };
 
   const handleDelete = async (id) => {
-    if (confirm("Delete this check-in?")) {
+    if ((await confirm("Delete this check-in?"))) {
       try {
         await base44.entities.SystemCheckIn.delete(id);
         queryClient.invalidateQueries({ queryKey: ["systemCheckIns"] });

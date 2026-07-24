@@ -84,7 +84,9 @@ export const CHANGELOG = [
     date: "July 16, 2026",
     version: "0.82.10",
     changes: [
-      { type: "improve", text: "Delete and discard confirmations are moving to the app's own styled pop-up instead of the plain browser one (first batch of screens done)." },
+      { type: "improve", text: "Every delete and discard confirmation now uses the app's own styled pop-up instead of the plain browser one." },
+      { type: "fix", text: "More \"front\" and \"switch\" wording now follows your custom terms (Set Fronters toasts, alter-card actions, and more)." },
+      { type: "fix", text: "Toggling a pinned daily task now reads the latest data first, avoiding a rare stale write." },
       { type: "improve", text: "A few plain alter dropdowns are now searchable, matching the rest of the app." },
       { type: "fix", text: "The app now tells you if a check-in or an image-folder rename couldn't fully save, instead of silently dropping data or falsely reporting success." },
       { type: "fix", text: "Small display fixes: task goal progress no longer shows \"NaN\", the activity tally now sorts by how often you do each activity, and weekly emotion charts start on Monday." },

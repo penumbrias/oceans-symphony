@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
@@ -234,14 +235,14 @@ export default function Chat() {
     .map((id) => { const a = alters.find((x) => x.id === id); return a ? (a.alias || a.name) : null; })
     .filter(Boolean).join(", ");
   const revealPrivate = (c) => setRevealedPrivate((prev) => new Set(prev).add(c.id));
-  const openPrivate = (c) => {
+  const openPrivate = async (c) => {
     if (privateVisible(c)) {
       setSearchParams({ channel: c.id }, { replace: true });
       setShowChannels(false);
       return;
     }
     const who = privateMemberNames(c) || `specific ${terms.alters || "alters"}`;
-    if (window.confirm(`This channel is private to ${who}. View anyway?`)) {
+    if ((await confirm(`This channel is private to ${who}. View anyway?`))) {
       revealPrivate(c);
       setSearchParams({ channel: c.id }, { replace: true });
       setShowChannels(false);
@@ -602,7 +603,7 @@ function ChannelView({ channel, alters, defaultAuthorId, frontingAlterIds = [], 
   // Soft-delete so reply-quotes still resolve to a placeholder
   // ("[message deleted]") instead of breaking the layout.
   const handleDelete = async (msg) => {
-    if (!window.confirm("Delete this message?")) return;
+    if (!(await confirm("Delete this message?"))) return;
     await localEntities.SystemChatMessage.update(msg.id, {
       content: "",
       deleted_at: new Date().toISOString(),
@@ -868,12 +869,12 @@ function ChannelDialog({ editChannel = null, editCategory = null, alters = [], o
     setBusy(true);
     try {
       if (editChannel) {
-        if (!window.confirm(`Delete #${editChannel.name} and every message in it? This cannot be undone.`)) { setBusy(false); return; }
+        if (!(await confirm(`Delete #${editChannel.name} and every message in it? This cannot be undone.`))) { setBusy(false); return; }
         const msgs = await localEntities.SystemChatMessage.filter({ channel_id: editChannel.id });
         for (const m of msgs) { try { await localEntities.SystemChatMessage.delete(m.id); } catch {} }
         await localEntities.SystemChatChannel.delete(editChannel.id);
       } else if (editCategory) {
-        if (!window.confirm(`Delete the "${editCategory.name}" category? Its channels and sub-categories move up a level — no channels or messages are deleted.`)) { setBusy(false); return; }
+        if (!(await confirm(`Delete the "${editCategory.name}" category? Its channels and sub-categories move up a level — no channels or messages are deleted.`))) { setBusy(false); return; }
         const up = editCategory.parent_category_id || null;
         for (const ch of allChannels.filter((c) => c.category_id === editCategory.id)) { try { await localEntities.SystemChatChannel.update(ch.id, { category_id: up }); } catch {} }
         for (const sub of categories.filter((c) => c.parent_category_id === editCategory.id)) { try { await localEntities.SystemChatCategory.update(sub.id, { parent_category_id: up }); } catch {} }

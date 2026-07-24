@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -343,7 +344,7 @@ export default function ActivityDetailsModal({ isOpen, onClose, activity, alters
       setPendingDeleteRecurring(target);
       return;
     }
-    if (!window.confirm("Delete this activity?")) return;
+    if (!(await confirm("Delete this activity?"))) return;
     setIsLoading(true);
     try {
       await base44.entities.Activity.delete(actId);

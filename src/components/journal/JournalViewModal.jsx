@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -223,8 +224,8 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
               variant="outline"
               size="sm"
               className="gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10 border-destructive/40"
-              onClick={() => {
-                if (!window.confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`)) return;
+              onClick={async () => {
+                if (!(await confirm(`Delete "${entry.title || "this entry"}"? This can't be undone.`))) return;
                 const target = entry;
                 handleClose();
                 onDelete(target);

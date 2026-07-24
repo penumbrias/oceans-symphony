@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -95,7 +96,7 @@ export default function SystemSwitcherPanel() {
 
   const switchTo = async (id) => {
     if (id === activeId || busy) return;
-    if (!window.confirm(`Switch ${terms.system}? The app will reload into that ${terms.system}'s data. Your current ${terms.system} stays exactly as it is.`)) return;
+    if (!(await confirm(`Switch ${terms.system}? The app will reload into that ${terms.system}'s data. Your current ${terms.system} stays exactly as it is.`))) return;
     setBusy(true);
     try {
       await setActiveSystem(id);
@@ -154,7 +155,7 @@ export default function SystemSwitcherPanel() {
   const handleDelete = async (s) => {
     if (s.id === activeId || busy) return;
     const name = displayName(s) || terms.system;
-    if (!window.confirm(`Delete "${name}"? This permanently removes that ${terms.system}'s data from this device. A backup file is saved first.`)) return;
+    if (!(await confirm(`Delete "${name}"? This permanently removes that ${terms.system}'s data from this device. A backup file is saved first.`))) return;
     setBusy(true);
     try {
       // Forced backup BEFORE destroying (data-loss invariant). A system that was

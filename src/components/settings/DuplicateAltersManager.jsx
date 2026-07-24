@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Copy, Loader2, Check, User } from "lucide-react";
@@ -84,11 +85,11 @@ export default function DuplicateAltersManager() {
 
   const handleRemove = async () => {
     if (totalLosers === 0) return;
-    if (!window.confirm(
+    if (!(await confirm(
       `Remove ${totalLosers} duplicate ${totalLosers === 1 ? t.alter : t.alters}? ` +
       `The most complete copy of each is kept and any ${t.fronting} history is moved onto it. ` +
       `This can't be undone — consider exporting a backup first (Settings → Backup & export).`
-    )) return;
+    ))) return;
 
     setWorking(true);
     try {

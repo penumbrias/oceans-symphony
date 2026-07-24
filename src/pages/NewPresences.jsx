@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { motion } from "framer-motion";
@@ -78,7 +79,7 @@ export default function NewPresences() {
   };
 
   const remove = async (presence) => {
-    if (!window.confirm("Delete this presence record? This can't be undone.")) return;
+    if (!(await confirm("Delete this presence record? This can't be undone."))) return;
     try {
       await base44.entities.Presence.delete(presence.id);
       qc.invalidateQueries({ queryKey: ["presences"] });
@@ -102,7 +103,7 @@ export default function NewPresences() {
   const mergeSelected = async () => {
     const items = presences.filter((p) => selected.has(p.id));
     if (items.length < 2) return;
-    if (!window.confirm(`Merge ${items.length} presences into one? Their sightings, links and notes are combined.`)) return;
+    if (!(await confirm(`Merge ${items.length} presences into one? Their sightings, links and notes are combined.`))) return;
     const primary = [...items].sort((a, b) => sightingsOf(b).length - sightingsOf(a).length)[0];
     const others = items.filter((p) => p.id !== primary.id);
     const allSightings = [...new Set(items.flatMap(sightingsOf))].sort();

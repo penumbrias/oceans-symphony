@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -248,7 +249,7 @@ function SymptomTab({ category, contextOnly = false }) {
   };
 
   const handleDelete = async (id) => {
-    if (!confirm("Remove this item?")) return;
+    if (!(await confirm("Remove this item?"))) return;
     await base44.entities.Symptom.update(id, { is_archived: true });
     invalidate();
     toast.success("🗑 Removed");

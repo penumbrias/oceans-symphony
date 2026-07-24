@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/lib/ThemeContext';
 import { HexColorPicker } from 'react-colorful';
@@ -1078,7 +1079,7 @@ export default function AdvancedAppearance() {
                     <button
                       type="button"
                       title="Delete preset"
-                      onClick={() => { if (confirm(`Delete preset "${name}"?`)) deleteUserPreset(name); }}
+                      onClick={async () => { if ((await confirm(`Delete preset "${name}"?`))) deleteUserPreset(name); }}
                       className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
