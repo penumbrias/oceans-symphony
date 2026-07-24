@@ -18,6 +18,7 @@ import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
 import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
+import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
 
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
@@ -225,15 +226,19 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
       title: "Activity tracker",
       description: "Add activities and sub-activities you'd like to track.",
       content: (
-        <div className="space-y-2">
+        <div className="space-y-3">
           <p className="text-xs text-muted-foreground">
             The Activity tracker records what you're doing throughout the day — logged retroactively
             or planned ahead, in nested categories (Self-care → Hygiene → Shower). It powers the
             timeline's activity column and "goals" progress bars.
           </p>
-          <div className="flex flex-wrap gap-2">
-            <Button size="sm" onClick={() => setShowActivityMenu(true)} className="text-xs gap-1">
-              <Settings2 className="w-3 h-3" /> Add activities &amp; sub-activities
+          <p className="text-xs text-muted-foreground">
+            Pick from these preset packs, or build your own from scratch.
+          </p>
+          <ActivityPackPicker />
+          <div className="flex flex-wrap gap-2 pt-1 border-t border-border/40">
+            <Button size="sm" variant="outline" onClick={() => setShowActivityMenu(true)} className="text-xs gap-1">
+              <Settings2 className="w-3 h-3" /> Add / edit manually
             </Button>
             <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/activities"); }} className="text-xs gap-1">
               Open full tracker <ExternalLink className="w-3 h-3" />

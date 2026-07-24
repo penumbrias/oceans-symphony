@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "The Activity setup step now offers preset packs: Productive → Work / Studying / Cleaning …, Recreation → Watching TV / Games / Reading …, Self-care, Movement, Social, Coping & wellness, Creative, Rest. Tick what fits, tap Add, and the categories + sub-activities are created for you." },
       { type: "feature", text: "The Setup → Backups & optional encryption section can now enable password encryption right there — set a password inline instead of leaving the guide for Settings." },
       { type: "fix", text: "Setup checklist descriptions no longer get truncated with \"…\" — full text wraps and is readable." },
       { type: "improve", text: "The built-in emotions list now groups by sub-category — Good splits into Happy / Strong / Peaceful, Bad into Sad / Angry / Fearful, Body & Nervous System into Calm / Flight / Fight / Freeze / Collapse — instead of one long flat wall of pills." },
