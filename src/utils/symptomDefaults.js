@@ -75,9 +75,15 @@ let seeded = false;
 // Set once the onboarding flow has put the bundle choice in the user's
 // hands (Express or Customize — even "none of these"). When present, the
 // lazy auto-seed stands down: an explicitly-empty catalogue stays empty.
+// Per-system-scoped since v0.85.6 so a fresh system gets its own auto-seed
+// gate instead of inheriting the first system's "already chose" flag.
+import { psGetItem as _psGet, psSetItem as _psSet } from "@/lib/perSystemStorage";
 export const BUNDLES_CHOSEN_KEY = "symphony_onboarding_bundles_chosen_v1";
 export function markBundlesChosen() {
-  try { localStorage.setItem(BUNDLES_CHOSEN_KEY, "1"); } catch { /* storage off */ }
+  _psSet(BUNDLES_CHOSEN_KEY, "1");
+}
+export function bundlesChosen() {
+  return !!_psGet(BUNDLES_CHOSEN_KEY);
 }
 
 export async function seedSymptomDefaults() {
@@ -93,7 +99,7 @@ export async function seedSymptomDefaults() {
     }
     // The user already made an explicit choice in onboarding (possibly
     // "nothing") — respect it, never re-seed over it.
-    try { if (localStorage.getItem(BUNDLES_CHOSEN_KEY)) return; } catch { /* storage off */ }
+    if (bundlesChosen()) return;
     // Fresh install, no onboarding choice yet → seed the default-on preset
     // bundles (the research-grounded catalogue), not the legacy list.
     await seedBundles(DEFAULT_ON_BUNDLE_IDS);

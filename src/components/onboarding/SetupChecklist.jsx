@@ -23,20 +23,25 @@ import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
+import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 
+// Per-system-scoped since v0.85.6 (tester report: a new system was
+// inheriting the previous system's half-finished checklist).
+// psGetItem falls back to the legacy unscoped key when the registry has
+// ≤1 system, so pre-existing single-system users' progress carries over.
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
 export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "tasks", "backup"];
 
 export function loadChecklist() {
   try {
-    const raw = localStorage.getItem(CHECKLIST_KEY);
+    const raw = psGetItem(CHECKLIST_KEY);
     if (!raw) return {};
     const parsed = JSON.parse(raw);
     return typeof parsed === "object" && parsed ? parsed : {};
   } catch { return {}; }
 }
 export function saveChecklist(state) {
-  try { localStorage.setItem(CHECKLIST_KEY, JSON.stringify(state || {})); } catch { /* storage off */ }
+  psSetItem(CHECKLIST_KEY, JSON.stringify(state || {}));
 }
 export function checklistComplete(state = loadChecklist()) {
   return CHECKLIST_ITEMS.every((k) => !!state[k]);

@@ -42,7 +42,12 @@ import { ClipboardList, X } from "lucide-react";
 // so there's no more blocking pre-Guide modal — first-run is: Guide opens
 // with welcome+disclaimer, terms, choose what to track, checklist hub,
 // then the rest of the Guide.
+// Per-system-scoped since v0.85.6 — this key MUST be read/written through
+// psGetItem/psSetItem so a newly-created system starts fresh instead of
+// inheriting the first system's "onboarding done" flag.
 export const ONBOARDING_DONE_KEY = "symphony_onboarding_done_v1";
+export const SETUP_CHIP_DISMISSED_KEY = "symphony_setup_chip_dismissed_v1";
+import { psGetItem, psSetItem, psRemoveItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
 import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
 import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
@@ -79,7 +84,7 @@ export default function Dashboard() {
   });
   const [checklistState, setChecklistState] = useState(() => loadChecklist());
   const [checklistDismissed, setChecklistDismissed] = useState(() => {
-    try { return !!localStorage.getItem("symphony_setup_chip_dismissed_v1"); } catch { return false; }
+    try { return !!psGetItem(SETUP_CHIP_DISMISSED_KEY); } catch { return false; }
   });
   // Refresh checklist state on tab focus so returning from a sub-flow
   // (e.g. added an alter on /Home) updates the dashboard chip.
@@ -94,7 +99,7 @@ export default function Dashboard() {
   }, []);
   useEffect(() => {
     try {
-      const guidedDone = !!localStorage.getItem(ONBOARDING_DONE_KEY);
+      const guidedDone = !!psGetItem(ONBOARDING_DONE_KEY);
       const termsDone = !!localStorage.getItem("terms_setup_done");
       // Auto-open the Guide on first-run (nothing set yet) or after a
       // new-system creation. Legacy users (terms already done + guide
@@ -121,7 +126,7 @@ export default function Dashboard() {
     // would auto-reopen the Guide every time.
     try {
       localStorage.setItem("tour_seen", "1");
-      localStorage.setItem(ONBOARDING_DONE_KEY, "1");
+      psSetItem(ONBOARDING_DONE_KEY, "1");
     } catch { /* storage off */ }
     setShowTour(false);
     setTourOpenAt(null);
@@ -174,7 +179,7 @@ export default function Dashboard() {
       // "Re-run setup" reopens the Guide (which is now also the setup
       // flow). The blocking terms wizard only ever runs on a genuinely
       // fresh system, so replay skips it and just reopens the Guide.
-      try { localStorage.removeItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
+      try { psRemoveItem(ONBOARDING_DONE_KEY); } catch { /* storage off */ }
       setShowTour(true);
     }
     params.delete("action");
@@ -947,7 +952,7 @@ export default function Dashboard() {
             <button
               type="button"
               onClick={() => {
-                try { localStorage.setItem("symphony_setup_chip_dismissed_v1", "1"); } catch { /* storage off */ }
+                try { psSetItem(SETUP_CHIP_DISMISSED_KEY, "1"); } catch { /* storage off */ }
                 setChecklistDismissed(true);
               }}
               aria-label="Dismiss"
