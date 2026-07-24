@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 23, 2026",
     changes: [
+      { type: "improve", text: "\"You're all set!\" page now highlights the Dive in button (it's the recommended path — setup is done) and renames Next → Read more so it's clearer that the rest of the guide is optional." },
       { type: "fix", text: "Manage Tasks now shows all four sections (Daily / Weekly / Monthly / Yearly) even when empty, so you can add tasks at any frequency. Previously only Daily rendered until a weekly/monthly/yearly task already existed." },
       { type: "fix", text: "Creating a new system no longer inherits the previous system's Setup progress — the setup checklist, \"onboarding done\" flag, dashboard \"Continue setup\" chip dismissal, and bundle-choice gate are now per-system, so each system starts its own onboarding from scratch." },
       { type: "improve", text: "The Setup → Daily & recurring tasks step now lists every default task with its title, description, XP and Auto/Manual badge. Tick the ones you want and tap Add — already-added ones show \"✓ Added\". A \"Create / edit custom\" button opens the full task manager inline." },

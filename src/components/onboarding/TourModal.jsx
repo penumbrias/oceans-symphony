@@ -278,11 +278,14 @@ export default function TourModal({ open, onClose, openAt = null }) {
       icon: "✨",
       color: "from-violet-500/20 to-emerald-500/20",
       body:
-        `Dive in, or press Next to read more about the app's features. Press the "Show me around" banner at the top of each page to get an in-depth walk through of each feature.`,
-      // Dive in = skip the rest of the guide.
-      nextLabel: "Next",
+        `Dive in, or press "Read more" to read more about the app's features. Press the "Show me around" banner at the top of each page to get an in-depth walk through of each feature.`,
+      // Dive in = skip the rest of the guide. It's the recommended action
+      // here (finish setup, actually start using the app), so it takes the
+      // primary/filled variant and "Read more" becomes secondary.
+      nextLabel: "Read more",
       skipHidden: false,
       extraAction: { label: "Dive in", onClick: () => onClose?.() },
+      extraActionPrimary: true,
     },
     {
       phase: "About the app",

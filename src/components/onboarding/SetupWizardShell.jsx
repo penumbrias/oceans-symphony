@@ -24,6 +24,11 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 //     extraAction?: { label, onClick } — a secondary footer button next
 //       to Next (e.g. "Dive in" on the transition page). No busy/next
 //       side effects; just a plain callback.
+//     extraActionPrimary?: bool — swap emphasis: extraAction gets the
+//       filled/primary variant and Next drops to outline. Use when the
+//       extra action is the recommended path (e.g. "Dive in" on the
+//       "You're all set" page, where the guide is over and reading more
+//       is optional).
 //   }
 export default function SetupWizardShell({
   open, onClose, onFinish, steps, ariaLabel = "Setup",
@@ -208,7 +213,7 @@ export default function SetupWizardShell({
             {current.extraAction && (
               <Button
                 size="sm"
-                variant="outline"
+                variant={current.extraActionPrimary ? "default" : "outline"}
                 onClick={current.extraAction.onClick}
                 disabled={busy}
                 className="flex-1"
@@ -218,6 +223,7 @@ export default function SetupWizardShell({
             )}
             <Button
               size="sm"
+              variant={current.extraAction && current.extraActionPrimary ? "outline" : "default"}
               onClick={handleNext}
               disabled={busy || current.nextDisabled}
               className="flex-1"
