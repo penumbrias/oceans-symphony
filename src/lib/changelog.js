@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 23, 2026",
     changes: [
+      { type: "feature", text: "The catalogue upgrade card also detects custom items you created that happen to match preset names (\"Anxiety\", \"Depression\", etc.) and offers to link each one to its preset equivalent — the row stays yours (label, colour, hides preserved, still marked custom) but gains preset features like bundle grouping and direction-aware charts. Each row has its own checkbox so you can keep any you deliberately want to stay free-form." },
       { type: "feature", text: "New \"Update to the new preset packs?\" card on Manage Check-In (Symptoms / Habits / Context tabs) for users still on the older flat catalogue. Pick which preset packs to add, preview which of your existing items will be merged with the new equivalents (history preserved — the row keeps its id so every check-in still points at it), then Apply. Dismiss to keep the old list as-is." },
       { type: "improve", text: "Renamed the Setup checklist's \"Continue to the guide\" button to \"Complete setup!\" — it marks the end of setup and starts the \"About the app\" walkthrough." },
       { type: "improve", text: "Renamed the top-right \"Guide\" pill to \"Setup\" — the modal it opens is the setup flow, and the neighbouring \"Tour\" pill is the actual walkthrough." },

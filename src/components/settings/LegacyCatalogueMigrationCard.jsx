@@ -11,7 +11,7 @@ import { Sparkles, X, Loader2, Check } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { TRACKING_BUNDLES } from "@/lib/trackingPresets";
-import { detectLegacyCatalogue, planModernization, applyModernization, LEGACY_TO_PRESET_EQUIVALENTS } from "@/lib/legacyCatalogueMigration";
+import { detectLegacyCatalogue, planModernization, applyModernization, findCustomOverlaps, LEGACY_TO_PRESET_EQUIVALENTS } from "@/lib/legacyCatalogueMigration";
 import { markBundlesChosen } from "@/utils/symptomDefaults";
 import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 import { useTerms } from "@/lib/useTerms";
@@ -36,6 +36,16 @@ export default function LegacyCatalogueMigrationCard() {
     symptoms.some((s) => (s.label || "").trim().toLowerCase() === e.legacy.trim().toLowerCase() && s.is_default && !s.bundle_id)
   ).length;
 
+  // Compose a short body line that mentions whichever upgrade paths apply.
+  const bits = [];
+  if (equivalentsPresent > 0) {
+    bits.push(`${equivalentsPresent} old preset item${equivalentsPresent === 1 ? "" : "s"} will be renamed to their new equivalents`);
+  }
+  if (detection.customOverlapCount > 0) {
+    bits.push(`${detection.customOverlapCount} of your own custom item${detection.customOverlapCount === 1 ? "" : "s"} match preset names and can be linked`);
+  }
+  const summaryBits = bits.length ? bits.join(" — and ") : "any exact-name overlaps will merge automatically";
+
   const dismiss = () => {
     psSetItem(DISMISS_KEY, "1");
     setDismissed(true);
@@ -47,14 +57,12 @@ export default function LegacyCatalogueMigrationCard() {
         <div className="flex items-start gap-2">
           <Sparkles className="w-4 h-4 text-primary flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-medium">Update to the new preset packs?</p>
+            <p className="text-sm font-medium">Update your check-in catalogue?</p>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Your check-in list is from the older preset. We've since redesigned tracking into
-              themed preset packs (mood, dissociation, trauma responses, body & sleep, and more).
-              You can add the new packs now — {equivalentsPresent > 0
-                ? `${equivalentsPresent} of your existing items will be renamed to their new equivalents (history preserved)`
-                : "any exact-name overlaps will merge automatically"}.
-              Your check-ins and everything you've logged stay put.
+              We've redesigned tracking into themed preset packs (mood, dissociation, trauma
+              responses, body & sleep, and more). You can add the new packs now, {summaryBits}.
+              Everything you've logged stays put — items get updated in place so their history
+              still points at them.
             </p>
             <div className="flex flex-wrap gap-2 mt-2">
               <Button size="sm" onClick={() => setModalOpen(true)} className="text-xs gap-1">
@@ -104,6 +112,11 @@ function MigrationModal({ symptoms, onClose, onDone }) {
     }
     return initial;
   });
+  const [customOverlaps, setCustomOverlaps] = useState([]);
+  // Set of custom row ids the user has opted in to sync. Defaults to
+  // "all opted in" once overlaps are found (they can uncheck any they
+  // deliberately want to keep as free-form customs).
+  const [customToSync, setCustomToSync] = useState(new Set());
   const [plan, setPlan] = useState(null);
   const [planLoading, setPlanLoading] = useState(false);
   const [applying, setApplying] = useState(false);
@@ -115,26 +128,56 @@ function MigrationModal({ symptoms, onClose, onDone }) {
       return next;
     });
   };
+  const toggleCustom = (id) => {
+    setCustomToSync((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  };
+
+  // Discover custom overlaps once on mount — the set is stable for the
+  // life of the modal (symptoms is a snapshot passed in from the card).
+  useEffect(() => {
+    let cancelled = false;
+    findCustomOverlaps(symptoms).then((rows) => {
+      if (cancelled) return;
+      setCustomOverlaps(rows);
+      // Auto-select every custom overlap so the safe default is "yes,
+      // link them all" — user can uncheck deliberately-different ones.
+      // Also auto-add the target bundle to the selected set so the
+      // sync actually executes (a sync only fires for a bundle whose
+      // items pass through planModernization's loop).
+      setCustomToSync(new Set(rows.map((r) => r.customId)));
+      setSelected((prev) => {
+        const next = new Set(prev);
+        for (const r of rows) next.add(r.bundleId);
+        return next;
+      });
+    }).catch(() => {});
+    return () => { cancelled = true; };
+  }, [symptoms]);
 
   // Recompute the plan whenever selection changes.
   useEffect(() => {
     let cancelled = false;
     setPlanLoading(true);
-    planModernization(symptoms, [...selected])
+    planModernization(symptoms, [...selected], customToSync)
       .then((p) => { if (!cancelled) setPlan(p); })
-      .catch(() => { if (!cancelled) setPlan({ toAdopt: [], toCreate: [], alreadyPresent: [] }); })
+      .catch(() => { if (!cancelled) setPlan({ toAdopt: [], toReconcile: [], toSyncCustom: [], toCreate: [], alreadyPresent: [] }); })
       .finally(() => { if (!cancelled) setPlanLoading(false); });
     return () => { cancelled = true; };
-  }, [selected, symptoms]);
+  }, [selected, symptoms, customToSync]);
 
   const apply = async () => {
     if (!plan || applying) return;
     setApplying(true);
     try {
-      const { adopted, reconciled, created } = await applyModernization(plan);
+      const { adopted, reconciled, syncedCustom, created } = await applyModernization(plan);
       const parts = [];
       if (adopted) parts.push(`${adopted} renamed`);
       if (reconciled) parts.push(`${reconciled} merged`);
+      if (syncedCustom) parts.push(`${syncedCustom} custom linked`);
       if (created) parts.push(`${created} added`);
       toast.success(parts.length ? `Updated: ${parts.join(", ")}` : "Nothing to change");
       onDone();
@@ -192,6 +235,43 @@ function MigrationModal({ symptoms, onClose, onDone }) {
             ))}
           </div>
 
+          {customOverlaps.length > 0 && (
+            <div className="rounded-lg border border-emerald-500/40 bg-emerald-500/5 p-3 space-y-2">
+              <p className="text-xs font-semibold flex items-center gap-1.5">
+                <Sparkles className="w-3 h-3 text-emerald-500" />
+                Link your custom items to presets
+              </p>
+              <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+                These items you created match preset names. Ticking one links it
+                — the row stays yours (label, colour, hides all preserved) but
+                gains preset features (bundle grouping, direction-aware charts,
+                the right kind & scale). Untick anything you deliberately want to
+                keep as a free-form custom.
+              </p>
+              <div className="space-y-1">
+                {customOverlaps.map((r) => (
+                  <label
+                    key={r.customId}
+                    className="flex items-start gap-2 px-2 py-1.5 rounded-md hover:bg-emerald-500/10 cursor-pointer transition-colors"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={customToSync.has(r.customId)}
+                      onChange={() => toggleCustom(r.customId)}
+                      className="mt-0.5 w-3.5 h-3.5 accent-emerald-500 flex-shrink-0"
+                    />
+                    <span className="flex-1 min-w-0 text-[0.6875rem] leading-snug">
+                      <span className="font-medium">{r.customLabel}</span>
+                      <span className="text-muted-foreground"> → </span>
+                      <span className="font-medium">{r.presetLabel}</span>
+                      <span className="text-muted-foreground"> ({r.bundleLabel})</span>
+                    </span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
+
           <div className="rounded-lg border border-border/50 bg-muted/20 p-3 text-xs space-y-1">
             <p className="font-semibold text-foreground flex items-center gap-1">
               {planLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3 text-emerald-500" />}
@@ -199,8 +279,9 @@ function MigrationModal({ symptoms, onClose, onDone }) {
             </p>
             {plan ? (
               <>
-                <p>• <span className="font-medium text-emerald-500">{plan.toAdopt.length}</span> existing item{plan.toAdopt.length === 1 ? "" : "s"} renamed & converted to preset form (history preserved).</p>
-                <p>• <span className="font-medium text-emerald-500">{plan.toReconcile.length}</span> duplicate{plan.toReconcile.length === 1 ? "" : "s"} of new preset items merged (history re-pointed, old row archived).</p>
+                <p>• <span className="font-medium text-emerald-500">{plan.toAdopt.length}</span> old preset item{plan.toAdopt.length === 1 ? "" : "s"} renamed & converted (history preserved).</p>
+                <p>• <span className="font-medium text-emerald-500">{plan.toReconcile.length}</span> duplicate{plan.toReconcile.length === 1 ? "" : "s"} merged (history re-pointed, old row archived).</p>
+                <p>• <span className="font-medium text-emerald-500">{(plan.toSyncCustom||[]).length}</span> custom item{(plan.toSyncCustom||[]).length === 1 ? "" : "s"} linked to their preset equivalent.</p>
                 <p>• <span className="font-medium text-primary">{plan.toCreate.length}</span> new item{plan.toCreate.length === 1 ? "" : "s"} added.</p>
                 <p>• <span className="font-medium text-muted-foreground">{plan.alreadyPresent.length}</span> already present, skipped.</p>
                 {(plan.toAdopt.length > 0 || plan.toReconcile.length > 0) && (
@@ -233,7 +314,7 @@ function MigrationModal({ symptoms, onClose, onDone }) {
           <Button
             size="sm"
             onClick={apply}
-            disabled={applying || planLoading || !plan || (plan.toAdopt.length === 0 && plan.toReconcile.length === 0 && plan.toCreate.length === 0)}
+            disabled={applying || planLoading || !plan || (plan.toAdopt.length === 0 && plan.toReconcile.length === 0 && (plan.toSyncCustom||[]).length === 0 && plan.toCreate.length === 0)}
             className="flex-1 gap-1"
           >
             {applying ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sparkles className="w-3 h-3" />}
