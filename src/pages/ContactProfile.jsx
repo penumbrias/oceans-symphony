@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useParams, useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -116,7 +117,7 @@ export default function ContactProfile() {
   };
 
   const handleDelete = async () => {
-    if (!window.confirm(`Permanently delete ${name}? This can't be undone. (Tip: "Archive" hides them without losing the record.)`)) return;
+    if (!(await confirm(`Permanently delete ${name}? This can't be undone. (Tip: "Archive" hides them without losing the record.)`))) return;
     try {
       await base44.entities.Contact.delete(contact.id);
       queryClient.invalidateQueries({ queryKey: ["contacts"] });

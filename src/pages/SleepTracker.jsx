@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -94,7 +95,7 @@ export default function SleepTracker() {
 
   const handleCancelInProgress = async () => {
     if (!inProgressSleep) return;
-    if (!confirm("Discard this in-progress sleep log? Bedtime will be removed; no record will be saved.")) return;
+    if (!(await confirm("Discard this in-progress sleep log? Bedtime will be removed; no record will be saved."))) return;
     try {
       await base44.entities.Sleep.delete(inProgressSleep.id);
       queryClient.invalidateQueries({ queryKey: ["sleep"] });

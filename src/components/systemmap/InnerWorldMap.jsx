@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -1003,7 +1004,7 @@ export default function InnerWorldMap({ alters: allAlters, relationships, onRefr
               className="w-full px-2 py-1 text-xs border border-border rounded bg-background resize-none" />
 
             <Button size="sm" variant="destructive" className="w-full h-7 text-xs"
-              onClick={() => { if (confirm("Delete this location?")) deleteLocation(editingLocation); }}>
+              onClick={async () => { if ((await confirm("Delete this location?"))) deleteLocation(editingLocation); }}>
               Delete Location
             </Button>
           </div>

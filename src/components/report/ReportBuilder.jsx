@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { addDays, format } from "date-fns";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -357,7 +358,7 @@ export default function ReportBuilder({ templates = [], onDeleteTemplate, onSave
                 {onDeleteTemplate && (
                   <button
                     type="button"
-                    onClick={() => { if (confirm(`Delete template "${tpl.name}"?`)) onDeleteTemplate(tpl.id); }}
+                    onClick={async () => { if ((await confirm(`Delete template "${tpl.name}"?`))) onDeleteTemplate(tpl.id); }}
                     className="p-1.5 rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors flex-shrink-0"
                     aria-label="Delete template"
                   >

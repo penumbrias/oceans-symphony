@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { motion } from "framer-motion";
@@ -178,7 +179,7 @@ export default function DiaryCards() {
   }, [searchParams, cards.length]);
 
   const handleDelete = async (cardId) => {
-    if (!confirm("Delete this daily log entry?")) return;
+    if (!(await confirm("Delete this daily log entry?"))) return;
     await base44.entities.DiaryCard.delete(cardId);
     toast.success("🗑 Entry deleted");
     queryClient.invalidateQueries({ queryKey: ["diaryCards"] });

@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { X, Trash2 } from "lucide-react";
@@ -103,7 +104,7 @@ export function SymptomSessionPopup({ symptom, session, onClose, onSave }) {
 
   const handleDelete = async () => {
     if (saving) return;
-    if (!window.confirm("Delete this symptom session? This can't be undone.")) return;
+    if (!(await confirm("Delete this symptom session? This can't be undone."))) return;
     setSaving(true);
     try {
       await base44.entities.SymptomSession.delete(session.id);

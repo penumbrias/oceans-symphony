@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useSearchParams } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -289,7 +290,7 @@ export default function AssetsLibrary() {
     try { await base44.entities.ImageAsset.update(item.asset.id, { folder: folder.trim() }); qc.invalidateQueries({ queryKey: ["imageAssets"] }); } catch (e) { toast.error(e?.message || "Failed"); }
   };
   const del = async (item) => {
-    if (!window.confirm("Permanently delete this image? If it's used as an avatar, background, or in a post, that will break. This can't be undone.")) return;
+    if (!(await confirm("Permanently delete this image? If it's used as an avatar, background, or in a post, that will break. This can't be undone."))) return;
     try {
       if (item.asset) await base44.entities.ImageAsset.delete(item.asset.id);
       const lid = isLocalImageUrl(item.url) ? getLocalImageId(item.url) : item.id;

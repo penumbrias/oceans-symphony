@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { HexColorPicker } from "react-colorful";
@@ -396,8 +397,8 @@ export default function HelpMeUnblend() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={() => {
-                  if (window.confirm("Delete this question?")) {
+                onClick={async () => {
+                  if ((await confirm("Delete this question?"))) {
                     deleteUserQuestion(currentQuestion.userId);
                     setQuestionIdx((i) => i + 1);
                   }

@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
@@ -294,8 +295,8 @@ export default function CustomEmotionsManager() {
                       <EmotionRow
                         key={e.id}
                         emotion={e}
-                        onDelete={(id) => {
-                          if (window.confirm(`Delete the custom emotion "${e.label}"? Past check-ins that recorded this emotion keep the label, but it will no longer appear in the picker. This cannot be undone.`)) {
+                        onDelete={async (id) => {
+                          if ((await confirm(`Delete the custom emotion "${e.label}"? Past check-ins that recorded this emotion keep the label, but it will no longer appear in the picker. This cannot be undone.`))) {
                             deleteMutation.mutate(id);
                           }
                         }}

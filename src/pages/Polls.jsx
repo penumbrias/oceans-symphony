@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -362,12 +363,12 @@ function EditPollModal({ open, onClose, poll }) {
     setOptions((prev) => [...prev, ""]);
     setOptionOrigin((prev) => [...prev, null]);
   };
-  const removeOption = (idx) => {
+  const removeOption = async (idx) => {
     if (options.length <= 2) return;
     const origin = optionOrigin[idx];
     const existingVotes = origin != null ? (poll.votes?.[String(origin)] || []) : [];
     if (existingVotes.length > 0) {
-      const ok = confirm(`Remove "${options[idx] || `Option ${idx + 1}`}"? That option has ${existingVotes.length} vote${existingVotes.length !== 1 ? "s" : ""} which will be lost.`);
+      const ok = (await confirm(`Remove "${options[idx] || `Option ${idx + 1}`}"? That option has ${existingVotes.length} vote${existingVotes.length !== 1 ? "s" : ""} which will be lost.`));
       if (!ok) return;
     }
     setOptions((prev) => prev.filter((_, i) => i !== idx));

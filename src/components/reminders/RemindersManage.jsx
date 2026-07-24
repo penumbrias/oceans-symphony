@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Plus, Pencil, Trash2, AlertTriangle, ChevronDown } from "lucide-react";
@@ -71,7 +72,7 @@ export default function RemindersManage() {
   };
 
   const handleDelete = async (r) => {
-    if (!confirm(`Delete "${r.title}"?`)) return;
+    if (!(await confirm(`Delete "${r.title}"?`))) return;
     // Cascade: end every ReminderInstance tied to this reminder so a
     // lingering "fired" instance doesn't keep the notification bell
     // badge lit after the parent reminder is gone.

@@ -466,7 +466,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
         {!controlled && (
           <button
             onClick={() => { setShowTrigger(v => !v); setShowEmotions(false); setShowSymptoms(false); }}
-            aria-label="Mark triggered switch"
+            aria-label={`Mark triggered ${terms.switch}`}
             aria-expanded={showTrigger}
             title={`Triggered ${terms.switch}`}
             className={`flex items-center justify-center min-w-[34px] h-[28px] px-2 rounded-full text-xs border whitespace-nowrap transition-all ${

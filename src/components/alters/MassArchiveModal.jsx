@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Archive, Loader2 } from "lucide-react";
@@ -35,9 +36,9 @@ export default function MassArchiveModal({ open, onClose }) {
     if (selected.size === 0) return;
     const n = selected.size;
     const word = n === 1 ? terms.alter : terms.alters;
-    if (typeof window !== "undefined" && !window.confirm(
+    if (typeof window !== "undefined" && !(await confirm(
       `Archive ${n} ${word}? They'll be hidden from lists but all their data is kept — restore anytime from Settings → ${terms.Alter} setup → Archived.`
-    )) return;
+    ))) return;
     setBusy(true);
     try {
       for (const id of selected) {
