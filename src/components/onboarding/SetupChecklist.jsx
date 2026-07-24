@@ -8,8 +8,10 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2 } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2, CheckSquare, Loader2 } from "lucide-react";
+import { toast } from "sonner";
+import { DEFAULT_TASK_TEMPLATES } from "@/lib/dailyTaskSystem";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { useTerms } from "@/lib/useTerms";
@@ -22,7 +24,7 @@ import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
 import InlineEncryptionSetup from "@/components/onboarding/InlineEncryptionSetup";
 
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
-export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "backup"];
+export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "tasks", "backup"];
 
 export function loadChecklist() {
   try {
@@ -104,10 +106,12 @@ function ChecklistItem({ id, icon: Icon, title, description, done, expanded, onT
 export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
   const t = useTerms();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [state, setState] = useState(() => loadChecklist());
   const [expanded, setExpanded] = useState(null);
   const [showImport, setShowImport] = useState(false);
   const [showActivityMenu, setShowActivityMenu] = useState(false);
+  const [seedingTasks, setSeedingTasks] = useState(false);
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -116,6 +120,10 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
   const { data: activities = [] } = useQuery({
     queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list("-timestamp", 5),
+  });
+  const { data: taskTemplates = [] } = useQuery({
+    queryKey: ["dailyTaskTemplates"],
+    queryFn: () => base44.entities.DailyTaskTemplate.list(),
   });
 
   // Auto-detect completion when the underlying data exists — respects the
@@ -131,10 +139,35 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
       if (activities.length > 0 && !prev.activityUserToggled && !prev.activity) {
         next.activity = true; changed = true;
       }
+      if (taskTemplates.length > 0 && !prev.tasksUserToggled && !prev.tasks) {
+        next.tasks = true; changed = true;
+      }
       if (changed) { saveChecklist(next); return next; }
       return prev;
     });
-  }, [alters, activities]);
+  }, [alters, activities, taskTemplates]);
+
+  const handleSeedDefaultTasks = async () => {
+    if (seedingTasks) return;
+    setSeedingTasks(true);
+    try {
+      // DailyTaskTemplate dedup by title (case-insensitive) — skip any
+      // default whose title already exists to avoid duplicates on repeat.
+      const existingTitles = new Set(taskTemplates.map((tt) => String(tt.title || "").trim().toLowerCase()));
+      let created = 0;
+      for (const def of DEFAULT_TASK_TEMPLATES) {
+        if (existingTitles.has(String(def.title || "").trim().toLowerCase())) continue;
+        await base44.entities.DailyTaskTemplate.create({ ...def });
+        created++;
+      }
+      queryClient.invalidateQueries({ queryKey: ["dailyTaskTemplates"] });
+      toast.success(created > 0 ? `Added ${created} default task${created === 1 ? "" : "s"}` : "All defaults already present");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't add defaults");
+    } finally {
+      setSeedingTasks(false);
+    }
+  };
 
   const toggle = (id) => {
     setState((prev) => {
@@ -245,6 +278,35 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
             </Button>
           </div>
           {showActivityMenu && <ActivityCustomizationMenu onClose={() => setShowActivityMenu(false)} />}
+        </div>
+      ),
+    },
+    {
+      id: "tasks",
+      icon: CheckSquare,
+      title: "Daily & recurring tasks",
+      description: "Little routines that repeat — check-ins, taking meds, journaling.",
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Daily tasks are lightweight recurring items that reset every day (or on a schedule you
+            set). They're great for anchoring the day — a morning check-in, taking meds, brushing
+            teeth. You can pick from a curated default set now, or build your own later.
+          </p>
+          {taskTemplates.length > 0 && (
+            <p className="text-xs text-emerald-500">
+              ✓ You already have {taskTemplates.length} task template{taskTemplates.length === 1 ? "" : "s"}.
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            <Button size="sm" onClick={handleSeedDefaultTasks} disabled={seedingTasks} className="text-xs gap-1">
+              {seedingTasks ? <Loader2 className="w-3 h-3 animate-spin" /> : <Plus className="w-3 h-3" />}
+              Add default daily tasks
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/tasks"); }} className="text-xs gap-1">
+              Open task manager <ExternalLink className="w-3 h-3" />
+            </Button>
+          </div>
         </div>
       ),
     },

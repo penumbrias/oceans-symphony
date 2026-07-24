@@ -176,15 +176,11 @@ function SortableGroupItem({ group, allGroups, onGroupEdit, onGroupDelete, onGro
                 />
               </div>
             )}
-            <label className="flex items-center gap-2 text-xs">
-              <input
-                type="checkbox"
-                checked={newFieldIsPositive}
-                onChange={e => setNewFieldIsPositive(e.target.checked)}
-                className="w-3 h-3 accent-primary"
-              />
-              <span className="text-muted-foreground">Higher values are better</span>
-            </label>
+            {/* Per-field ↑ good/bad toggle already lives on each field
+                row above (SortableFieldItem), so a duplicate checkbox
+                here in Add field was redundant (tester report). New
+                rating fields default to "↑ bad" and can be flipped
+                inline after adding. */}
             <Button size="sm" onClick={handleAddField} disabled={!newFieldLabel.trim()} className="w-full gap-1">
               <Plus className="w-3 h-3" /> Add field
             </Button>

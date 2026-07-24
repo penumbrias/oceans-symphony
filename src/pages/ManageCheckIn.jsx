@@ -129,10 +129,21 @@ function SymptomRow({ symptom, onSave, onDelete, onMoveUp, onMoveDown, index, to
               )}
             </div>
           </div>
-          <div className="flex items-center gap-2">
-            <input type="checkbox" id={`pos-${symptom.id}`} checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />
-            <label htmlFor={`pos-${symptom.id}`} className="text-xs text-muted-foreground cursor-pointer select-none">Higher values are better (e.g. joy, energy)</label>
-          </div>
+          {type === "rating" && (
+            <button
+              type="button"
+              onClick={() => setIsPositive((v) => !v)}
+              title="Toggle: higher values are better"
+              aria-pressed={isPositive}
+              className={`self-start text-xs px-2 py-0.5 rounded flex-shrink-0 transition-colors border ${
+                isPositive
+                  ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+                  : "text-muted-foreground bg-muted/50 border-border/50 hover:border-border"
+              }`}
+            >
+              {isPositive ? "↑ good" : "↑ bad"}
+            </button>
+          )}
           <div className="flex gap-2 pt-1">
             <Button size="sm" onClick={handleSave} className="gap-1"><Check className="w-3.5 h-3.5" /> Save</Button>
             <Button size="sm" variant="ghost" onClick={() => setEditing(false)}><X className="w-3.5 h-3.5" /></Button>
@@ -186,10 +197,21 @@ function AddSymptomForm({ category, onAdd, onCancel }) {
           <ColorPickerModal color={color} onSave={c => setColor(c)} onClose={() => setShowColorPicker(false)} />
         )}
       </div>
-      <div className="flex items-center gap-2">
-        <input type="checkbox" id="new-pos" checked={isPositive} onChange={e => setIsPositive(e.target.checked)} className="w-4 h-4 accent-primary" />
-        <label htmlFor="new-pos" className="text-xs text-muted-foreground cursor-pointer select-none">Higher values are better</label>
-      </div>
+      {type === "rating" && (
+        <button
+          type="button"
+          onClick={() => setIsPositive((v) => !v)}
+          title="Toggle: higher values are better"
+          aria-pressed={isPositive}
+          className={`self-start text-xs px-2 py-0.5 rounded flex-shrink-0 transition-colors border ${
+            isPositive
+              ? "text-green-700 bg-green-50 border-green-200 dark:text-green-400 dark:bg-green-900/20 dark:border-green-800"
+              : "text-muted-foreground bg-muted/50 border-border/50 hover:border-border"
+          }`}
+        >
+          {isPositive ? "↑ good" : "↑ bad"}
+        </button>
+      )}
       <div className="flex gap-2">
         <Button size="sm" onClick={handleAdd} disabled={!label.trim()} className="gap-1"><Check className="w-3.5 h-3.5" /> Add</Button>
         <Button size="sm" variant="ghost" onClick={onCancel}>Cancel</Button>

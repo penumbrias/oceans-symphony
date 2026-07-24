@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 22, 2026",
     changes: [
+      { type: "feature", text: "New \"Daily & recurring tasks\" item in the Setup checklist — one tap adds the default daily tasks, or open the full task manager." },
+      { type: "improve", text: "Symptom edit and Add-symptom forms now use the same ↑ good / ↑ bad toggle button as the Diary card fields — no more hidden checkbox. The redundant \"higher values are better\" checkbox in the Diary Add-field form is removed (each field already has its own toggle after adding)." },
       { type: "feature", text: "The Activity setup step now offers preset packs: Productive → Work / Studying / Cleaning …, Recreation → Watching TV / Games / Reading …, Self-care, Movement, Social, Coping & wellness, Creative, Rest. Tick what fits, tap Add, and the categories + sub-activities are created for you." },
       { type: "feature", text: "The Setup → Backups & optional encryption section can now enable password encryption right there — set a password inline instead of leaving the guide for Settings." },
       { type: "fix", text: "Setup checklist descriptions no longer get truncated with \"…\" — full text wraps and is readable." },
