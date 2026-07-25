@@ -6,7 +6,8 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Inbox, ChevronsUpDown, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays } from "lucide-react";
+import { Heart, Inbox, ChevronsUpDown, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays, HelpCircle, Sparkles, Compass } from "lucide-react";
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -742,20 +743,43 @@ export default function Dashboard() {
           </Dialog>
         </div>
         <div className="flex items-center gap-1">
-        <div className="flex flex-col items-end gap-0.5">
-        <button
-            onClick={() => setShowTour(true)}
-            className="text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded-lg hover:bg-muted/50 transition-colors whitespace-nowrap"
-            title="Open setup guide">
-          Setup
-        </button>
-        <button
-            onClick={() => setShowFeatureTour(true)}
-            className="text-xs text-primary hover:text-primary/80 px-2 py-1 rounded-lg hover:bg-primary/10 transition-colors font-medium whitespace-nowrap"
-            title="Interactive feature tour">
-          Tour
-        </button>
-        </div>
+        {/* v0.86.8: unified "help" button — the old side-by-side Setup /
+            Tour pills were too close together and touch-crowded (tester
+            report). One minimal icon opens a dropdown with the two
+            options; the small primary dot at top-right signals that
+            setup is still incomplete without needing a second visible
+            surface. */}
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              aria-label="Guide & tour"
+              title="Guide & tour"
+              className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <HelpCircle className="w-5 h-5" />
+              {checklistIncomplete && (
+                <span
+                  aria-hidden="true"
+                  title="Setup isn't finished"
+                  className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-primary"
+                />
+              )}
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-52">
+            <DropdownMenuItem onClick={() => setShowTour(true)} className="gap-2 cursor-pointer">
+              <Sparkles className="w-4 h-4 text-primary" />
+              <span className="flex-1">Setup guide</span>
+              {checklistIncomplete && (
+                <span className="text-[0.6875rem] text-primary font-medium">In progress</span>
+              )}
+            </DropdownMenuItem>
+            <DropdownMenuItem onClick={() => setShowFeatureTour(true)} className="gap-2 cursor-pointer">
+              <Compass className="w-4 h-4 text-muted-foreground" />
+              <span className="flex-1">Feature tour</span>
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
         <button
             onClick={() => setShowNotifHistory(true)}
             aria-label="Notification history"

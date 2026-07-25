@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "fix", text: "Importing a backup in \"Add new\" mode no longer changes who's currently fronting. Incoming active-front sessions come in as historical rows when you already have someone fronting, so an accidental/wrong-file import can't silently reassign your current front." },
+      { type: "improve", text: "Combined the top-right Setup and Tour pills into a single help icon (?) with a dropdown menu — less touch-crowded, and a small primary dot on the icon still signals when setup isn't finished." },
       { type: "improve", text: "\"Back up first\" on the storage-optimisation popup now opens the backup export panel directly on top of the popup, instead of navigating away to Settings — save your backup, close the panel, and \"Convert now\" is right there waiting." },
       { type: "feature", text: "Optimised image storage. Avatars, banners, and custom fonts are now stored as compact binary blobs instead of base64 text — about 25% less disk space, faster to read, and easier on memory (this is the underlying fix for the backup-crash class of bug). Existing installs will see a one-time \"Optimising image storage\" popup that explains the change, nudges you to save a fresh backup first, and runs the conversion with a progress bar." },
       { type: "fix", text: "Card-style buttons (\"Save to device\", \"Share or send elsewhere\", and similar rows across Settings, backup / export, and onboarding) no longer clip their descriptions off the right edge when the description is long or the app's font size is large. Descriptions now wrap onto multiple lines cleanly." },

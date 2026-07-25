@@ -653,11 +653,50 @@ const MERGE_CONTENT_KEYS = {
   ContactRelationshipType: (r) => String(r.label || "").trim().toLowerCase() || null,
 };
 
+// Entities whose "current state" flags must never be silently altered by an
+// Add-new import: FrontingSession's is_active / is_primary. If the local
+// system already has an active fronter, incoming active sessions come in as
+// HISTORICAL rows (is_active + is_primary flipped to false) so the user's
+// live front stays exactly as they left it. Without this, importing an
+// old / wrong backup silently reassigned who's fronting (tester report,
+// v0.86.7 → v0.86.8).
+function _hasActiveFrontingSession(existing) {
+  if (!existing || typeof existing !== "object") return false;
+  for (const row of Object.values(existing)) {
+    if (row && row.is_active === true) return true;
+  }
+  return false;
+}
+function _sanitizeIncomingFrontingSessions(incomingRecords, existingRecords) {
+  if (!_hasActiveFrontingSession(existingRecords)) return incomingRecords;
+  const out = {};
+  for (const [id, record] of Object.entries(incomingRecords || {})) {
+    if (!record || typeof record !== "object") { out[id] = record; continue; }
+    if (record.is_active === true || record.is_primary === true) {
+      // Historical import — set end_time so the session isn't ambiguous.
+      out[id] = {
+        ...record,
+        is_active: false,
+        is_primary: false,
+        end_time: record.end_time || record.start_time || new Date().toISOString(),
+      };
+    } else {
+      out[id] = record;
+    }
+  }
+  return out;
+}
+
 export async function mergeDbDump(dump) {
   if (!_db) _db = {};
-  for (const [entityName, records] of Object.entries(dump)) {
-    if (!records || typeof records !== "object") continue;
+  for (const [entityName, incoming] of Object.entries(dump)) {
+    if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
+
+    // Guard the current-front state before anything is written.
+    const records = entityName === "FrontingSession"
+      ? _sanitizeIncomingFrontingSessions(incoming, _db[entityName])
+      : incoming;
 
     if (entityName === "SystemSettings") {
       const localIds = Object.keys(_db[entityName]);
