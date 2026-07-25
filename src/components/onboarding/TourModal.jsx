@@ -233,6 +233,7 @@ export default function TourModal({ open, onClose, openAt = null }) {
       render: () => (
         <TermsSetupContent
           existingSettingsId={settingsRow?.id || null}
+          existingSettings={settingsRow || null}
           onSaved={() => setTermsSaved(true)}
           hideHeader
           hideSaveButton

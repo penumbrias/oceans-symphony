@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "feature", text: "The Setup guide's terminology step now has an \"Advanced word forms\" section — set custom Fronting / Fronter / Switching forms if the auto-generated plural or gerund looks off (matches the same fields Settings → Terminology exposes)." },
+      { type: "fix", text: "Terminology setup now surfaces an error toast if the save actually fails, and keeps you on the same step instead of silently advancing — the source of \"it doesn't save on my phone but works in the browser\" was silent throws that let the guide move on while the terms were never written." },
+      { type: "improve", text: "Re-opening the terminology step in the Setup guide now pre-fills the base terms + Advanced overrides from what you already saved, instead of showing a blank preset." },
       { type: "fix", text: "Importing a backup in \"Add new\" mode no longer changes who's currently fronting. Incoming active-front sessions come in as historical rows when you already have someone fronting, so an accidental/wrong-file import can't silently reassign your current front." },
       { type: "improve", text: "Combined the top-right Setup and Tour pills into a single help icon (?) with a dropdown menu — less touch-crowded, and a small primary dot on the icon still signals when setup isn't finished." },
       { type: "improve", text: "\"Back up first\" on the storage-optimisation popup now opens the backup export panel directly on top of the popup, instead of navigating away to Settings — save your backup, close the panel, and \"Convert now\" is right there waiting." },
