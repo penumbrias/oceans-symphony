@@ -1,11 +1,64 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { toast } from "sonner";
+import { Pencil, Check } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { pluralize, gerund, agent } from "@/lib/useTerms";
+
+// Small tap-to-edit span used inside the preview panel. Renders as plain
+// text out-of-edit-mode and when edit mode is off; in edit mode it
+// highlights + gets a border and becomes clickable. Clicking swaps in an
+// inline input; blur / Enter saves; Escape cancels. Empty save clears the
+// override (falls back to the auto-derived form).
+function InlineEditable({ value, autoValue, editable, editMode, onChange, ariaLabel }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || autoValue || "");
+  const inputRef = useRef(null);
+  useEffect(() => { setDraft(value || autoValue || ""); }, [value, autoValue]);
+  useEffect(() => { if (editing) inputRef.current?.focus?.(); }, [editing]);
+  const display = value || autoValue || "";
+  const commit = () => {
+    const trimmed = draft.trim();
+    // Empty draft → clear override so we fall back to auto-derived.
+    // Draft equal to auto-derived → also clear (nothing to persist).
+    if (!trimmed || trimmed === (autoValue || "")) onChange?.("");
+    else onChange?.(trimmed);
+    setEditing(false);
+  };
+  if (editable && editMode && editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          if (e.key === "Escape") { setDraft(value || autoValue || ""); setEditing(false); }
+        }}
+        className="inline-block w-24 px-1 py-0 h-5 text-xs bg-background border border-primary rounded outline-none"
+        aria-label={ariaLabel}
+      />
+    );
+  }
+  if (editable && editMode) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title="Tap to edit"
+        aria-label={`Edit ${ariaLabel || display}`}
+        className="inline text-foreground font-medium underline decoration-dotted decoration-primary/60 underline-offset-2 hover:decoration-primary hover:decoration-solid transition-colors"
+      >
+        {display}
+      </button>
+    );
+  }
+  return <span className={editable ? "text-foreground font-medium" : "text-foreground font-medium opacity-70"}>{display}</span>;
+}
 
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
@@ -42,7 +95,10 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
     switching: existingSettings.term_switching || "",
   } : { fronting: "", fronter: "", switching: "" };
   const [overrides, setOverrides] = useState(initialOverrides);
-  const [showAdvanced, setShowAdvanced] = useState(
+  // Preview panel has an ✏️ toggle — off by default, on when the user
+  // already has overrides so returning to the step surfaces them as
+  // tap-to-edit. Replaces the old "Advanced word forms" collapsible.
+  const [editMode, setEditMode] = useState(
     !!(initialOverrides.fronting || initialOverrides.fronter || initialOverrides.switching)
   );
   const [saving, setSaving] = useState(false);
@@ -164,76 +220,81 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
             </div>
           )}
 
-          {/* Advanced word-form overrides — only useful when the base term
-              isn't a regular verb (e.g. Front = "active" auto-derives
-              "activing" / "activer"; typing "activating" / "active fronter"
-              here fixes it). Kept collapsed to keep the default flow
-              simple; users who need it will look. Same three fields
-              Settings → Terminology already exposes so the two paths
-              save into identical SystemSettings columns. */}
-          <div>
+          {/* Preview — tap ✏️ to enter edit mode, then tap any highlighted
+              form to override the auto-derived plural/gerund/agent. Base
+              terms and their plurals are dimmed (edit those in Custom
+              terms above); the three overridable forms (switching,
+              fronting, fronter) are highlighted with a dotted primary
+              underline so it's clear what's tap-editable. */}
+          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs text-muted-foreground space-y-0.5 relative">
             <button
               type="button"
-              onClick={() => setShowAdvanced((v) => !v)}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              onClick={() => setEditMode((v) => !v)}
+              title={editMode ? "Done editing" : "Edit word forms"}
+              aria-label={editMode ? "Finish editing word forms" : "Edit word forms"}
+              className={`absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                editMode
+                  ? "bg-primary/15 text-primary hover:bg-primary/25"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
             >
-              {showAdvanced ? "▾" : "▸"} Advanced word forms (override if the auto-plural looks off)
+              {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
             </button>
-            {showAdvanced && (
-              <div className="mt-2 space-y-2">
-                <p className="text-[0.6875rem] text-muted-foreground leading-relaxed">
-                  Auto-generation assumes the base is a regular verb — e.g. Front = "active" becomes "activing" / "activer". Type the forms you want instead. Leave blank to keep the auto-generated form.
-                </p>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Fronting form</label>
-                    <Input
-                      value={overrides.fronting}
-                      onChange={(e) => setOverrides((p) => ({ ...p, fronting: e.target.value }))}
-                      placeholder={autoFronting}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Fronter form</label>
-                    <Input
-                      value={overrides.fronter}
-                      onChange={(e) => setOverrides((p) => ({ ...p, fronter: e.target.value }))}
-                      placeholder={autoFronter}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <label className="text-xs font-medium text-muted-foreground block mb-1">Switching form</label>
-                    <Input
-                      value={overrides.switching}
-                      onChange={(e) => setOverrides((p) => ({ ...p, switching: e.target.value }))}
-                      placeholder={autoSwitching}
-                      className="h-8 text-sm"
-                    />
-                  </div>
-                </div>
-              </div>
+            {editMode && (
+              <p className="text-[0.6875rem] text-primary mb-1 pr-8">
+                Tap the <span className="underline decoration-dotted decoration-primary/60">highlighted</span> words to change how they're spelled. Grey ones are edited in Custom terms above.
+              </p>
             )}
-          </div>
-
-          {/* Preview */}
-          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs text-muted-foreground space-y-0.5">
             <p>
               <span className="font-medium">System:</span>{" "}
-              <span className="text-foreground font-medium">{terms.system}</span> · <span className="text-foreground font-medium">{pluralize(terms.system)}</span>
+              <InlineEditable value={terms.system} autoValue={terms.system} editable={false} editMode={editMode} ariaLabel="system" />
+              {" · "}
+              <InlineEditable value={pluralize(terms.system)} autoValue={pluralize(terms.system)} editable={false} editMode={editMode} ariaLabel="systems" />
             </p>
             <p>
               <span className="font-medium">Alter:</span>{" "}
-              <span className="text-foreground font-medium">{terms.alter}</span> · <span className="text-foreground font-medium">{pluralize(terms.alter)}</span>
+              <InlineEditable value={terms.alter} autoValue={terms.alter} editable={false} editMode={editMode} ariaLabel="alter" />
+              {" · "}
+              <InlineEditable value={pluralize(terms.alter)} autoValue={pluralize(terms.alter)} editable={false} editMode={editMode} ariaLabel="alters" />
             </p>
             <p>
               <span className="font-medium">Switch:</span>{" "}
-              <span className="text-foreground font-medium">{terms.switch}</span> · <span className="text-foreground font-medium">{pluralize(terms.switch)}</span> · <span className="text-foreground font-medium">{overrides.switching.trim() || autoSwitching}</span>
+              <InlineEditable value={terms.switch} autoValue={terms.switch} editable={false} editMode={editMode} ariaLabel="switch" />
+              {" · "}
+              <InlineEditable value={pluralize(terms.switch)} autoValue={pluralize(terms.switch)} editable={false} editMode={editMode} ariaLabel="switches" />
+              {" · "}
+              <InlineEditable
+                value={overrides.switching}
+                autoValue={autoSwitching}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, switching: v }))}
+                ariaLabel="switching form"
+              />
             </p>
             <p>
               <span className="font-medium">Front:</span>{" "}
-              <span className="text-foreground font-medium">{terms.front}</span> · <span className="text-foreground font-medium">{pluralize(terms.front)}</span> · <span className="text-foreground font-medium">{overrides.fronting.trim() || autoFronting}</span> · <span className="text-foreground font-medium">{overrides.fronter.trim() || autoFronter}</span>
+              <InlineEditable value={terms.front} autoValue={terms.front} editable={false} editMode={editMode} ariaLabel="front" />
+              {" · "}
+              <InlineEditable value={pluralize(terms.front)} autoValue={pluralize(terms.front)} editable={false} editMode={editMode} ariaLabel="fronts" />
+              {" · "}
+              <InlineEditable
+                value={overrides.fronting}
+                autoValue={autoFronting}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronting: v }))}
+                ariaLabel="fronting form"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.fronter}
+                autoValue={autoFronter}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronter: v }))}
+                ariaLabel="fronter form"
+              />
             </p>
           </div>
 
