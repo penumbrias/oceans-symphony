@@ -85,17 +85,23 @@ async function shareNative(blob, filename, title, dialogTitle) {
   }
 }
 
-function blobToBase64(blob) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result; // "data:<mime>;base64,<payload>"
-      const comma = String(dataUrl).indexOf(",");
-      resolve(comma >= 0 ? String(dataUrl).slice(comma + 1) : "");
-    };
-    reader.onerror = () => reject(reader.error || new Error("FileReader failed"));
-    reader.readAsDataURL(blob);
-  });
+// Low-peak-memory base64 conversion. Same rationale as the copy in
+// nativeMediaStoreSave.js: FileReader.readAsDataURL held two full-sized
+// strings simultaneously, which OOM'd the native WebView on large
+// backups. Reading as ArrayBuffer + chunked btoa keeps only one small
+// slice in memory at a time.
+async function blobToBase64(blob) {
+  const buf = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buf);
+  const CHUNK_BYTES = 0xC000;
+  const parts = [];
+  for (let i = 0; i < bytes.length; i += CHUNK_BYTES) {
+    const slice = bytes.subarray(i, Math.min(i + CHUNK_BYTES, bytes.length));
+    let binary = "";
+    for (let j = 0; j < slice.length; j++) binary += String.fromCharCode(slice[j]);
+    parts.push(btoa(binary));
+  }
+  return parts.join("");
 }
 
 async function shareWeb(blob, filename, title, prefer = "share") {

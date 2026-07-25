@@ -965,16 +965,29 @@ function PageTutorialsControls() {
           }}
         />
       </div>
-      <Button
-        variant="outline"
-        size="sm"
-        onClick={() => {
-          clearAllPageTutorialsSeen();
-          toast.success("Page tutorials reset — banners will reappear on every page.");
-        }}
-      >
-        Replay all page tutorials
-      </Button>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => {
+            clearAllPageTutorialsSeen();
+            toast.success("Page tutorials reset — banners will reappear on every page.");
+          }}
+        >
+          Replay all page tutorials
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          data-tour="rerun-setup"
+          onClick={() => { window.location.href = "/?onboarding=replay"; }}
+        >
+          Re-run setup
+        </Button>
+      </div>
+      <p className="text-xs text-muted-foreground">
+        Re-run setup replays the guided welcome flow (terminology, tracking packs, emotions, backups). It never deletes or overwrites anything.
+      </p>
     </div>
   );
 }

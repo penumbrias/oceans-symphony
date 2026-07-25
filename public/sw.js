@@ -5,7 +5,7 @@
 // requests. Bumping CACHE_NAME forces the activate phase to delete
 // the old cache so users on a stale bundle pick up the new one.
 
-const CACHE_NAME = 'oceans-symphony-v5';
+const CACHE_NAME = 'oceans-symphony-v6';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
@@ -111,9 +111,22 @@ self.addEventListener('fetch', (event) => {
         .then((imageData) => {
           if (!imageData) return defaultAvatarResponse();
           if (typeof imageData === 'string' && imageData.startsWith('data:')) {
+            // Legacy pre-v0.86.5 data URI entry — still handled so users
+            // hit the SW between migration steps see their avatars.
             return dataUrlToResponse(imageData) || defaultAvatarResponse();
           }
-          // Already binary (ArrayBuffer / Uint8Array)
+          if (imageData instanceof Blob) {
+            // v0.86.5+: native Blob. Serve directly, preserving the blob's
+            // own MIME so PNG/GIF/WebP alphas + animation render correctly.
+            return new Response(imageData, {
+              status: 200,
+              headers: {
+                'Content-Type': imageData.type || 'image/jpeg',
+                'Cache-Control': 'private, max-age=86400',
+              },
+            });
+          }
+          // ArrayBuffer / Uint8Array — rare (native connectors) but valid.
           return new Response(imageData, {
             status: 200,
             headers: { 'Content-Type': 'image/jpeg', 'Cache-Control': 'private, max-age=86400' },

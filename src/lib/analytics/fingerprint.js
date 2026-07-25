@@ -64,18 +64,31 @@ export function alterFingerprint({
   }
 
   // ---- Emotions tagged to them ----
+  // Per-emotion assignment (emotion_alters: { label: [alterIds] }) wins
+  // over whole-record tagging: an emotion explicitly assigned to someone
+  // else doesn't count here even if this alter was fronting; one assigned
+  // to this alter counts even when they weren't in fronting_alter_ids.
   const emotionCounts = new Map();
   let distressCount = 0;
   let emotionN = 0;
   for (const c of emotionCheckIns) {
     const ms = toMs(c.timestamp || c.created_date);
     if (ms == null || !inRange(ms, range)) continue;
-    if (!taggedToAlter(c, alterId)) continue;
-    emotionN++;
-    if (c.is_distress) distressCount++;
+    const recordTagged = taggedToAlter(c, alterId);
+    let countedAny = false;
     for (const e of c.emotions || []) {
       if (!e) continue;
+      const assigned = c.emotion_alters?.[e];
+      const mine = Array.isArray(assigned) && assigned.length > 0
+        ? assigned.includes(alterId)
+        : recordTagged;
+      if (!mine) continue;
+      countedAny = true;
       emotionCounts.set(e, (emotionCounts.get(e) || 0) + 1);
+    }
+    if (countedAny || (recordTagged && (c.emotions || []).length === 0)) {
+      emotionN++;
+      if (c.is_distress) distressCount++;
     }
   }
   const topEmotions = [...emotionCounts.entries()]
@@ -84,11 +97,15 @@ export function alterFingerprint({
     .slice(0, 5);
 
   // ---- Symptoms tagged to them ----
+  // SymptomCheckIn rows now carry fronting_alter_ids (per-item assignment
+  // or the check-in's fronters at save time) — taggedToAlter covers both
+  // that and the legacy alter_id field, reviving this previously-dead
+  // branch (old rows had no attribution at all and simply don't match).
   const symptomCounts = new Map();
   for (const c of symptomCheckIns) {
     const ms = toMs(c.timestamp || c.created_date);
     if (ms == null || !inRange(ms, range)) continue;
-    if (c.alter_id !== alterId) continue;
+    if (!taggedToAlter(c, alterId)) continue;
     const id = c.symptom_id;
     if (!id) continue;
     if (!symptomCounts.has(id)) symptomCounts.set(id, { count: 0, sevSum: 0, sevN: 0 });

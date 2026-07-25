@@ -2,6 +2,7 @@
 // All logic is pure: takes raw entity arrays, returns structured data for the PDF generator.
 
 import { format, differenceInMinutes, parseISO, isWithinInterval } from "date-fns";
+import { effectiveSeverity, isContextItem, deriveDirection } from "./trackingModel";
 import {
   computeSymptomBaseline,
   computePreSwitchSignature,
@@ -234,7 +235,11 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
     if (!sym) return;
     if (!bySymptom[c.symptom_id]) bySymptom[c.symptom_id] = { label: sym.label, count: 0, severities: [], sessions: 0, sessionMs: 0 };
     bySymptom[c.symptom_id].count += 1;
-    if (c.severity != null) bySymptom[c.symptom_id].severities.push(c.severity);
+    // Context items (work stress etc.) are correlation FACTORS — their
+    // occurrences count, but they never contribute an intensity score.
+    // For real symptoms, checked-but-unrated imputes the scale midpoint
+    // (effectiveSeverity); an explicit 0 is an observed "none" and counts.
+    if (!isContextItem(sym)) bySymptom[c.symptom_id].severities.push(effectiveSeverity(c, sym));
   });
 
   sessions.forEach(s => {
@@ -268,6 +273,11 @@ export function buildSymptomsSection({ dateFrom, dateTo, symptoms, symptomCheckI
     if (c.severity == null) return;
     const sym = symptomMap[c.symptom_id];
     if (!sym) return;
+    if (isContextItem(sym)) return; // contexts are factors, never flagged as severity
+    // Neutral/bipolar items have no "bad end" — a high reading isn't a
+    // red flag by definition, so they never enter the noteworthy list.
+    const dir = deriveDirection(sym);
+    if (dir === "neutral" || dir === "bipolar") return;
     const isPositive = sym.is_positive;
     const lowThreshold = 6 - thresholds.symptom_severity_min; // e.g. threshold=4 → flag if ≤2
     const isNoteworthy = isPositive

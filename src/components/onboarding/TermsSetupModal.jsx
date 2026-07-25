@@ -1,10 +1,64 @@
-import React, { useState } from "react";
+import React, { useState, useEffect, useRef } from "react";
+import { toast } from "sonner";
+import { Pencil, Check } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { pluralize, gerund, agent } from "@/lib/useTerms";
+
+// Small tap-to-edit span used inside the preview panel. Renders as plain
+// text out-of-edit-mode and when edit mode is off; in edit mode it
+// highlights + gets a border and becomes clickable. Clicking swaps in an
+// inline input; blur / Enter saves; Escape cancels. Empty save clears the
+// override (falls back to the auto-derived form).
+function InlineEditable({ value, autoValue, editable, editMode, onChange, ariaLabel }) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value || autoValue || "");
+  const inputRef = useRef(null);
+  useEffect(() => { setDraft(value || autoValue || ""); }, [value, autoValue]);
+  useEffect(() => { if (editing) inputRef.current?.focus?.(); }, [editing]);
+  const display = value || autoValue || "";
+  const commit = () => {
+    const trimmed = draft.trim();
+    // Empty draft → clear override so we fall back to auto-derived.
+    // Draft equal to auto-derived → also clear (nothing to persist).
+    if (!trimmed || trimmed === (autoValue || "")) onChange?.("");
+    else onChange?.(trimmed);
+    setEditing(false);
+  };
+  if (editable && editMode && editing) {
+    return (
+      <input
+        ref={inputRef}
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") { e.preventDefault(); commit(); }
+          if (e.key === "Escape") { setDraft(value || autoValue || ""); setEditing(false); }
+        }}
+        className="inline-block w-24 px-1 py-0 h-5 text-xs bg-background border border-primary rounded outline-none"
+        aria-label={ariaLabel}
+      />
+    );
+  }
+  if (editable && editMode) {
+    return (
+      <button
+        type="button"
+        onClick={() => setEditing(true)}
+        title="Tap to edit"
+        aria-label={`Edit ${ariaLabel || display}`}
+        className="inline text-foreground font-medium underline decoration-dotted decoration-primary/60 underline-offset-2 hover:decoration-primary hover:decoration-solid transition-colors"
+      >
+        {display}
+      </button>
+    );
+  }
+  return <span className={editable ? "text-foreground font-medium" : "text-foreground font-medium opacity-70"}>{display}</span>;
+}
 
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
@@ -13,44 +67,150 @@ const PRESETS = [
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 
-export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+// The terms step body — shared between the legacy standalone modal and the
+// Phase-C OnboardingFlow (which embeds it as its terminology step).
+// `hideHeader` + `lead` let embedders (like the Guide) supply their own
+// context copy instead of the standalone-modal defaults.
+// `hideSaveButton` + `saveRef` let the Guide replace this component's
+// inline "Save & Continue" button with the shell's own Next button —
+// parent stashes the save handler on `saveRef.current` and invokes it
+// from its own onNext, so users see one clear action instead of two.
+export function TermsSetupContent({ onSaved, existingSettingsId, existingSettings = null, saveLabel = "Save & Continue", hideHeader = false, lead = null, hideSaveButton = false, saveRef = null }) {
   const qc = useQueryClient();
   const [selected, setSelected] = useState(0);
-  const [custom, setCustom] = useState({ system: "", alter: "", switch: "", front: "" });
-  const [useCustom, setUseCustom] = useState(false);
+  // Pre-fill from existingSettings so users returning to the terminology
+  // step see what they already saved rather than a blank preset selection.
+  const initialCustom = existingSettings ? {
+    system: existingSettings.term_system || "",
+    alter: existingSettings.term_alter || "",
+    switch: existingSettings.term_switch || "",
+    front: existingSettings.term_front || "",
+  } : { system: "", alter: "", switch: "", front: "" };
+  const initialHasBase = !!(existingSettings && (existingSettings.term_system || existingSettings.term_alter));
+  const [custom, setCustom] = useState(initialCustom);
+  const [useCustom, setUseCustom] = useState(initialHasBase);
+  const initialOverrides = existingSettings ? {
+    fronting: existingSettings.term_fronting || "",
+    fronter: existingSettings.term_fronter || "",
+    switching: existingSettings.term_switching || "",
+    // v0.87.2 plural overrides — for irregular plurals like child/children.
+    systems: existingSettings.term_systems || "",
+    alters: existingSettings.term_alters || "",
+    switches: existingSettings.term_switches || "",
+    fronts: existingSettings.term_fronts || "",
+  } : { fronting: "", fronter: "", switching: "", systems: "", alters: "", switches: "", fronts: "" };
+  const [overrides, setOverrides] = useState(initialOverrides);
+  // Preview panel has an ✏️ toggle — off by default, on when the user
+  // already has overrides so returning to the step surfaces them as
+  // tap-to-edit. Replaces the old "Advanced word forms" collapsible.
+  const [editMode, setEditMode] = useState(
+    !!(initialOverrides.fronting || initialOverrides.fronter || initialOverrides.switching || initialOverrides.systems || initialOverrides.alters || initialOverrides.switches || initialOverrides.fronts)
+  );
   const [saving, setSaving] = useState(false);
 
   const terms = useCustom ? custom : PRESETS[selected];
+  const autoFronting = gerund(terms.front || "front");
+  const autoFronter = agent(terms.front || "front");
+  const autoSwitching = gerund(terms.switch || "switch");
+
+  // Preview base-term edits are SURGICAL — changing "abc" → "bca" in the
+  // preview must leave the current plural "abcs" alone (don't regenerate
+  // to "bcas"). Do this by snapshotting the current auto-derived forms
+  // into overrides BEFORE flipping the base. Only the top-four Custom
+  // terms inputs regenerate downstream forms (that's the source-of-truth
+  // path). Tester rule, v0.87.3.
+  const snapshotDerivationsFor = (baseKey) => {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      if (baseKey === "system") {
+        if (!next.systems.trim()) next.systems = pluralize(terms.system || "system");
+      } else if (baseKey === "alter") {
+        if (!next.alters.trim()) next.alters = pluralize(terms.alter || "alter");
+      } else if (baseKey === "switch") {
+        if (!next.switches.trim()) next.switches = pluralize(terms.switch || "switch");
+        if (!next.switching.trim()) next.switching = autoSwitching;
+      } else if (baseKey === "front") {
+        if (!next.fronts.trim()) next.fronts = pluralize(terms.front || "front");
+        if (!next.fronting.trim()) next.fronting = autoFronting;
+        if (!next.fronter.trim()) next.fronter = autoFronter;
+      }
+      return next;
+    });
+  };
 
   const handleSave = async () => {
+    if (saving) return;
     setSaving(true);
     const data = {
       term_system: terms.system.trim() || "system",
       term_alter: terms.alter.trim() || "alter",
       term_switch: terms.switch.trim() || "switch",
       term_front: terms.front.trim() || "front",
+      // Only persist an override when the user typed something DIFFERENT
+      // from the auto-derived form — matches TermsSettings.jsx's rule so
+      // the two paths agree on what's an intentional override vs
+      // whitespace / accidental typing.
+      term_fronting: overrides.fronting.trim() && overrides.fronting.trim() !== autoFronting ? overrides.fronting.trim() : "",
+      term_fronter: overrides.fronter.trim() && overrides.fronter.trim() !== autoFronter ? overrides.fronter.trim() : "",
+      term_switching: overrides.switching.trim() && overrides.switching.trim() !== autoSwitching ? overrides.switching.trim() : "",
+      // Plural overrides — only persist when the user typed something
+      // different from the default pluralize() rule (append "s").
+      term_systems: overrides.systems.trim() && overrides.systems.trim() !== pluralize(terms.system || "system") ? overrides.systems.trim() : "",
+      term_alters: overrides.alters.trim() && overrides.alters.trim() !== pluralize(terms.alter || "alter") ? overrides.alters.trim() : "",
+      term_switches: overrides.switches.trim() && overrides.switches.trim() !== pluralize(terms.switch || "switch") ? overrides.switches.trim() : "",
+      term_fronts: overrides.fronts.trim() && overrides.fronts.trim() !== pluralize(terms.front || "front") ? overrides.fronts.trim() : "",
     };
-    if (existingSettingsId) {
-      await base44.entities.SystemSettings.update(existingSettingsId, data);
-    } else {
-      await base44.entities.SystemSettings.create(data);
+    try {
+      if (existingSettingsId) {
+        await base44.entities.SystemSettings.update(existingSettingsId, data);
+      } else {
+        await base44.entities.SystemSettings.create(data);
+      }
+      try { localStorage.setItem("terms_setup_done", "1"); } catch { /* storage off */ }
+      // Await the refetch (not just invalidate) so the next Guide step
+      // renders with the new terms already in the react-query cache.
+      // Previously the shell advanced synchronously and the checklist
+      // read STALE terms until an async refetch caught up — on native
+      // that lag was visible as "Headmates setup" (the pre-existing
+      // preset) when the user had just typed custom terms (tester
+      // screenshot v0.86.9).
+      await qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await qc.refetchQueries({ queryKey: ["systemSettings"], type: "active" });
+      onSaved?.();
+    } catch (e) {
+      // Silent failure here would let the guide advance while the terms
+      // were never actually written — exactly the "works on dev, not on
+      // phone" symptom the tester reported (native WebView storage /
+      // encryption edge cases can throw where the dev preview doesn't).
+      console.error("Terms save failed:", e);
+      toast.error(`Couldn't save terminology: ${e?.message || "unknown error"}`);
+      throw e; // re-throw so the shell keeps you on this step
+    } finally {
+      setSaving(false);
     }
-    localStorage.setItem("terms_setup_done", "1");
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
-    setSaving(false);
-    onClose();
   };
 
+  // Expose the save handler to embedders (the Guide's Next button calls
+  // this so users see one primary action, not "Save terms" + "Skip
+  // terminology" side by side).
+  useEffect(() => {
+    if (saveRef) saveRef.current = handleSave;
+    return () => { if (saveRef) saveRef.current = null; };
+  });
+
   return (
-    <Dialog open={open} onOpenChange={() => {}}>
-      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
         <div className="space-y-5">
-          <div>
-            <h2 className="text-xl font-semibold">Choose your language 💜</h2>
-            <p className="text-sm text-muted-foreground mt-1">
-              Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own.
-            </p>
-          </div>
+          {!hideHeader && (
+            <div>
+              <h2 className="text-xl font-semibold">Choose your language 💜</h2>
+              <p className="text-sm text-muted-foreground mt-1">
+                {lead || "Oceans Symphony adapts to the terminology your system prefers. Pick a preset or define your own."}
+              </p>
+            </div>
+          )}
+          {hideHeader && lead && (
+            <p className="text-sm text-muted-foreground">{lead}</p>
+          )}
 
           {/* Presets */}
           <div className="grid grid-cols-2 gap-2">
@@ -88,7 +248,23 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
                   <Input
                     placeholder={key}
                     value={custom[key]}
-                    onChange={(e) => setCustom((p) => ({ ...p, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      setCustom((p) => ({ ...p, [key]: e.target.value }));
+                      // Top-four inputs ARE the source of truth: typing
+                      // here clears the corresponding derivation overrides
+                      // so pluralize() / gerund() / agent() regenerate from
+                      // the new base. (Preview base-term taps use a
+                      // different path that PRESERVES current derivations —
+                      // see snapshotDerivationsFor.)
+                      setOverrides((prev) => {
+                        const next = { ...prev };
+                        if (key === "system") next.systems = "";
+                        if (key === "alter") next.alters = "";
+                        if (key === "switch") { next.switches = ""; next.switching = ""; }
+                        if (key === "front") { next.fronts = ""; next.fronting = ""; next.fronter = ""; }
+                        return next;
+                      });
+                    }}
                     className="h-8 text-sm"
                   />
                 </div>
@@ -96,30 +272,154 @@ export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
             </div>
           )}
 
-          {/* Preview */}
-          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs text-muted-foreground space-y-0.5">
+          {/* Preview — tap ✏️ to enter edit mode, then tap any highlighted
+              form to override the auto-derived plural/gerund/agent. Base
+              terms and their plurals are dimmed (edit those in Custom
+              terms above); the three overridable forms (switching,
+              fronting, fronter) are highlighted with a dotted primary
+              underline so it's clear what's tap-editable. */}
+          <div className="rounded-xl bg-muted/30 border border-border/40 p-3 text-xs text-muted-foreground space-y-0.5 relative">
+            <button
+              type="button"
+              onClick={() => setEditMode((v) => !v)}
+              title={editMode ? "Done editing" : "Edit word forms"}
+              aria-label={editMode ? "Finish editing word forms" : "Edit word forms"}
+              className={`absolute top-2 right-2 w-7 h-7 rounded-lg flex items-center justify-center transition-colors ${
+                editMode
+                  ? "bg-primary/15 text-primary hover:bg-primary/25"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted/60"
+              }`}
+            >
+              {editMode ? <Check className="w-3.5 h-3.5" /> : <Pencil className="w-3.5 h-3.5" />}
+            </button>
+            {editMode && (
+              <p className="text-[0.6875rem] text-primary mb-1 pr-8">
+                Tap any <span className="underline decoration-dotted decoration-primary/60">highlighted</span> word to spell it exactly how you want it — including irregular plurals like child → children.
+              </p>
+            )}
             <p>
               <span className="font-medium">System:</span>{" "}
-              <span className="text-foreground font-medium">{terms.system}</span> · <span className="text-foreground font-medium">{pluralize(terms.system)}</span>
+              <InlineEditable
+                value={terms.system}
+                autoValue={terms.system}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { snapshotDerivationsFor("system"); setCustom((p) => ({ ...terms, ...p, system: v })); setUseCustom(true); }}
+                ariaLabel="system"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.systems}
+                autoValue={pluralize(terms.system)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, systems: v }))}
+                ariaLabel="systems (plural)"
+              />
             </p>
             <p>
               <span className="font-medium">Alter:</span>{" "}
-              <span className="text-foreground font-medium">{terms.alter}</span> · <span className="text-foreground font-medium">{pluralize(terms.alter)}</span>
+              <InlineEditable
+                value={terms.alter}
+                autoValue={terms.alter}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { snapshotDerivationsFor("alter"); setCustom((p) => ({ ...terms, ...p, alter: v })); setUseCustom(true); }}
+                ariaLabel="alter"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.alters}
+                autoValue={pluralize(terms.alter)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, alters: v }))}
+                ariaLabel="alters (plural)"
+              />
             </p>
             <p>
               <span className="font-medium">Switch:</span>{" "}
-              <span className="text-foreground font-medium">{terms.switch}</span> · <span className="text-foreground font-medium">{pluralize(terms.switch)}</span> · <span className="text-foreground font-medium">{gerund(terms.switch)}</span>
+              <InlineEditable
+                value={terms.switch}
+                autoValue={terms.switch}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { snapshotDerivationsFor("switch"); setCustom((p) => ({ ...terms, ...p, switch: v })); setUseCustom(true); }}
+                ariaLabel="switch"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.switches}
+                autoValue={pluralize(terms.switch)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, switches: v }))}
+                ariaLabel="switches (plural)"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.switching}
+                autoValue={autoSwitching}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, switching: v }))}
+                ariaLabel="switching form"
+              />
             </p>
             <p>
               <span className="font-medium">Front:</span>{" "}
-              <span className="text-foreground font-medium">{terms.front}</span> · <span className="text-foreground font-medium">{pluralize(terms.front)}</span> · <span className="text-foreground font-medium">{gerund(terms.front)}</span> · <span className="text-foreground font-medium">{agent(terms.front)}</span>
+              <InlineEditable
+                value={terms.front}
+                autoValue={terms.front}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { snapshotDerivationsFor("front"); setCustom((p) => ({ ...terms, ...p, front: v })); setUseCustom(true); }}
+                ariaLabel="front"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.fronts}
+                autoValue={pluralize(terms.front)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronts: v }))}
+                ariaLabel="fronts (plural)"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.fronting}
+                autoValue={autoFronting}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronting: v }))}
+                ariaLabel="fronting form"
+              />
+              {" · "}
+              <InlineEditable
+                value={overrides.fronter}
+                autoValue={autoFronter}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronter: v }))}
+                ariaLabel="fronter form"
+              />
             </p>
           </div>
 
-          <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? "Saving..." : "Save & Continue"}
-          </Button>
+          {!hideSaveButton && (
+            <Button onClick={handleSave} disabled={saving} className="w-full">
+              {saving ? "Saving..." : saveLabel}
+            </Button>
+          )}
         </div>
+  );
+}
+
+export default function TermsSetupModal({ open, onClose, existingSettingsId }) {
+  return (
+    <Dialog open={open} onOpenChange={() => {}}>
+      <DialogContent className="max-w-md" onPointerDownOutside={(e) => e.preventDefault()} showCloseButton={false}>
+        <TermsSetupContent onSaved={onClose} existingSettingsId={existingSettingsId} />
       </DialogContent>
     </Dialog>
   );

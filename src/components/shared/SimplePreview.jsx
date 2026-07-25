@@ -4,7 +4,7 @@ import DOMPurify from "dompurify";
 import { blocksToHTML } from "@/components/shared/BlockEditor";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { spoilersToHtml } from "@/lib/renderBulletinContent";
-import { scopeBioStyles, bioHasStyle, rewriteInlineAnimations } from "@/lib/scopedBioStyle";
+import { scopeBioStyles, bioHasStyle, rewriteInlineAnimations, sanitizeInlineStyleAttrs } from "@/lib/scopedBioStyle";
 
 // Strip <style> blocks out of a single block's HTML — when scoping is active
 // their CSS is hoisted (scoped) into one injected <style> at the container.
@@ -28,7 +28,10 @@ function sanitizeBlockHtml(html) {
   // keyframes were gone). Allow <style>; DOMPurify still sanitises the CSS
   // (drops @import / expression() / javascript: url()), and arbitrary inline
   // styles — which can already restyle the page — are permitted anyway.
-  const clean = DOMPurify.sanitize(spoilersToHtml(html || ""), { ADD_ATTR: ["target", "data-log-type", "data-entity-id"], ADD_TAGS: ["style"] });
+  // sanitizeInlineStyleAttrs runs FIRST: inline style="" attributes bypass
+  // <style> scoping entirely, so their declarations get the same filter
+  // (no position:fixed/sticky overlays, z-index clamp, url() allowlist).
+  const clean = DOMPurify.sanitize(spoilersToHtml(sanitizeInlineStyleAttrs(html || "")), { ADD_ATTR: ["target", "data-log-type", "data-entity-id"], ADD_TAGS: ["style"] });
   // Make hard-coded px font sizes (common in pasted / imported bios) respond to
   // the accessibility Text size slider by converting them to rem — the same
   // visual size at the default scale, but now they grow/shrink with the slider.

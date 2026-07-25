@@ -11,6 +11,7 @@ import { Trash2, Pencil, Check, X, Heart, AlertCircle, ChevronDown } from "lucid
 import { toast } from "sonner";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
 import { loadSystemDistressSet, saveSystemDistressSet } from "@/lib/emotionDistress";
+import { useEmotionCategoryLabels, EMOTION_CATEGORY_KEYS, DEFAULT_CATEGORY_LABELS } from "@/lib/emotionCategories";
 
 const db = isLocalMode() ? localEntities : base44.entities;
 
@@ -47,7 +48,7 @@ function SystemEmotionPill({ label, isDistressing, onToggle }) {
   );
 }
 
-function SystemGroup({ valenceKey, valenceData, distressSet, onToggle }) {
+function SystemGroup({ valenceKey, valenceData, distressSet, onToggle, labelOverride }) {
   const [expanded, setExpanded] = useState(valenceKey === "bad");
 
   const allEmotions = useMemo(() => {
@@ -71,7 +72,7 @@ function SystemGroup({ valenceKey, valenceData, distressSet, onToggle }) {
       >
         <div className="flex items-center gap-2">
           <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: valenceData.color }} />
-          <span className="text-sm font-medium">{valenceData.label}</span>
+          <span className="text-sm font-medium">{labelOverride || valenceData.label}</span>
           {distressCount > 0 && (
             <span className="text-xs text-red-500 font-medium">({distressCount} distressing)</span>
           )}
@@ -79,14 +80,46 @@ function SystemGroup({ valenceKey, valenceData, distressSet, onToggle }) {
         <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${expanded ? "rotate-180" : ""}`} />
       </button>
       {expanded && (
-        <div className="px-3 py-2.5 flex flex-wrap gap-1.5 border-t border-border/30">
-          {allEmotions.map(e => (
-            <SystemEmotionPill
-              key={e}
-              label={e}
-              isDistressing={distressSet.has(e.toLowerCase())}
-              onToggle={onToggle}
-            />
+        <div className="px-3 py-2.5 space-y-3 border-t border-border/30">
+          {/* Sub-categories (cores) render as their own labeled sections
+              — otherwise the Good group in particular was a 27-emotion
+              flat wall with no structure (tester report v0.85). Each
+              core keeps its colour so subs group visually with their
+              parent. Non-cored valences (Neutral) still render flat. */}
+          {valenceData.flat && (
+            <div className="flex flex-wrap gap-1.5">
+              {valenceData.flat.map((e) => (
+                <SystemEmotionPill
+                  key={e}
+                  label={e}
+                  isDistressing={distressSet.has(e.toLowerCase())}
+                  onToggle={onToggle}
+                />
+              ))}
+            </div>
+          )}
+          {valenceData.cores && Object.entries(valenceData.cores).map(([core, { color, subs }]) => (
+            <div key={core} className="space-y-1.5">
+              <div className="flex items-center gap-1.5 pl-0.5">
+                <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: color }} aria-hidden />
+                <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{core}</span>
+              </div>
+              <div className="flex flex-wrap gap-1.5">
+                <SystemEmotionPill
+                  label={core}
+                  isDistressing={distressSet.has(core.toLowerCase())}
+                  onToggle={onToggle}
+                />
+                {subs.map((e) => (
+                  <SystemEmotionPill
+                    key={e}
+                    label={e}
+                    isDistressing={distressSet.has(e.toLowerCase())}
+                    onToggle={onToggle}
+                  />
+                ))}
+              </div>
+            </div>
           ))}
         </div>
       )}
@@ -175,14 +208,103 @@ function EmotionRow({ emotion, onDelete, onUpdate }) {
   );
 }
 
+// Rename the four root categories ("Good" → "Positive", …). Structure is
+// fixed; names are the user's. Blank = back to the default.
+function CategoryNamesEditor() {
+  const queryClient = useQueryClient();
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => db.SystemSettings.list(),
+  });
+  const row = settingsList[0];
+  const overrides = row?.emotion_category_names || {};
+  const [draft, setDraft] = useState(null); // null = not editing
+  const [saving, setSaving] = useState(false);
+
+  const startEdit = () =>
+    setDraft(Object.fromEntries(EMOTION_CATEGORY_KEYS.map((k) => [k, overrides[k] || ""])));
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const clean = {};
+      for (const k of EMOTION_CATEGORY_KEYS) {
+        const v = (draft[k] || "").trim();
+        if (v && v !== DEFAULT_CATEGORY_LABELS[k]) clean[k] = v;
+      }
+      if (row?.id) await db.SystemSettings.update(row.id, { emotion_category_names: clean });
+      else await db.SystemSettings.create({ emotion_category_names: clean });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success("Category names saved");
+      setDraft(null);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save names");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (draft === null) {
+    return (
+      <button type="button" onClick={startEdit} className="text-xs text-primary hover:underline">
+        <Pencil className="w-3 h-3 inline mr-1" />
+        Rename categories
+      </button>
+    );
+  }
+
+  return (
+    <div className="rounded-lg border border-border/40 p-3 space-y-2">
+      <p className="text-xs text-muted-foreground">
+        Rename the four groups to whatever fits — leave one blank to use its default name.
+      </p>
+      <div className="grid grid-cols-2 gap-2">
+        {EMOTION_CATEGORY_KEYS.map((k) => (
+          <div key={k}>
+            <label className="text-[0.6875rem] text-muted-foreground block mb-0.5">{DEFAULT_CATEGORY_LABELS[k]}</label>
+            <Input
+              value={draft[k]}
+              onChange={(e) => setDraft((p) => ({ ...p, [k]: e.target.value }))}
+              placeholder={DEFAULT_CATEGORY_LABELS[k]}
+              className="h-8 text-sm"
+            />
+          </div>
+        ))}
+      </div>
+      <div className="flex gap-2 pt-1">
+        <Button size="sm" onClick={handleSave} disabled={saving} className="gap-1">
+          <Check className="w-3 h-3" /> Save
+        </Button>
+        <Button size="sm" variant="outline" onClick={() => setDraft(null)} className="gap-1">
+          <X className="w-3 h-3" /> Cancel
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomEmotionsManager() {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [systemDistress, setSystemDistress] = useState(() => loadSystemDistressSet());
+  const catLabels = useEmotionCategoryLabels();
+  // Add-new-emotion state (inline creator: name + category dropdown).
+  const [newLabel, setNewLabel] = useState("");
+  const [newCategory, setNewCategory] = useState("custom");
 
   const { data: customEmotions = [] } = useQuery({
     queryKey: ["customEmotions"],
     queryFn: () => db.CustomEmotion.list(),
+  });
+
+  const createMutation = useMutation({
+    mutationFn: ({ label, category }) => db.CustomEmotion.create({ label, category }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["customEmotions"] });
+      toast.success("Custom emotion added");
+      setNewLabel("");
+    },
+    onError: (e) => toast.error(e?.message || "Failed to add emotion"),
   });
 
   const deleteMutation = useMutation({
@@ -202,6 +324,16 @@ export default function CustomEmotionsManager() {
     },
     onError: () => toast.error("Failed to update"),
   });
+
+  const handleAddEmotion = () => {
+    const label = newLabel.trim();
+    if (!label) return;
+    if (customEmotions.some((e) => e.label.toLowerCase() === label.toLowerCase())) {
+      toast.error("You already have that emotion");
+      return;
+    }
+    createMutation.mutate({ label, category: newCategory });
+  };
 
   const toggleSystemDistress = (label) => {
     setSystemDistress(prev => {
@@ -252,6 +384,7 @@ export default function CustomEmotionsManager() {
         <div className="space-y-2">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Built-in Emotions</p>
           <p className="text-xs text-muted-foreground">Tap an emotion to toggle whether it's distressing.</p>
+          <CategoryNamesEditor />
           <div className="space-y-1.5">
             {Object.entries(WHEEL).map(([key, data]) => (
               <SystemGroup
@@ -260,6 +393,7 @@ export default function CustomEmotionsManager() {
                 valenceData={data}
                 distressSet={systemDistress}
                 onToggle={toggleSystemDistress}
+                labelOverride={catLabels[key]}
               />
             ))}
           </div>
@@ -270,8 +404,43 @@ export default function CustomEmotionsManager() {
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">
             Custom Emotions ({customEmotions.length})
           </p>
+          {/* Inline add: name + category dropdown + button, so users don't
+              have to go to the check-in picker just to create an emotion. */}
+          <div className="flex gap-1.5">
+            <Input
+              placeholder="Add a custom emotion..."
+              value={newLabel}
+              onChange={(e) => setNewLabel(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") handleAddEmotion(); }}
+              className="h-8 text-sm flex-1 min-w-0"
+            />
+            <select
+              value={newCategory}
+              onChange={(e) => setNewCategory(e.target.value)}
+              aria-label="Category for the new emotion"
+              className="h-8 rounded-md bg-muted border border-border/50 text-xs text-muted-foreground px-1.5 max-w-[7rem] focus:outline-none focus:ring-1 focus:ring-primary"
+            >
+              <option value="custom">Uncategorized</option>
+              {Object.entries(WHEEL).map(([key, data]) => (
+                <optgroup key={key} label={catLabels[key] || data.label}>
+                  <option value={key}>{catLabels[key] || data.label}</option>
+                  {data.cores && Object.keys(data.cores).map((core) => (
+                    <option key={core} value={core}>{"↳ " + core}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <Button
+              size="sm"
+              onClick={handleAddEmotion}
+              disabled={!newLabel.trim() || createMutation.isPending}
+              className="h-8 px-2 flex-shrink-0"
+            >
+              Add
+            </Button>
+          </div>
           {customEmotions.length === 0 ? (
-            <p className="text-sm text-muted-foreground italic">No custom emotions yet. Add them from the check-in picker.</p>
+            <p className="text-sm text-muted-foreground italic">No custom emotions yet.</p>
           ) : (
             <>
               {customEmotions.length > 5 && (

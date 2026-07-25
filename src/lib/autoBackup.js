@@ -132,20 +132,55 @@ export function setBackupDestination(value) {
   catch { /* non-fatal */ }
 }
 
+// Above this many total bytes across images + fonts, the auto-backup
+// drops those heavy blobs from the payload — testers with dozens of
+// alter avatars were crossing the WebView OOM ceiling as the plugin
+// bridge tried to marshal the whole base64 string in one call, killing
+// the app mid-boot. Data (entities + settings) still ships, so the
+// user's real records are always safe; images can be re-exported by
+// hand from Settings → Data & privacy → Export → Advanced → Images.
+// 12 MB of raw base64 is roughly the ceiling we've seen the bridge
+// survive across Android WebView versions we ship on.
+const AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES = 12 * 1024 * 1024;
+
+function estimateBytes(obj) {
+  // JSON size upper bound without stringifying the whole thing (which
+  // would defeat the memory-savings point). Each data-URI string in
+  // localImages/localFonts is already a string, so summing string
+  // lengths is a good-enough estimate for the guard.
+  let n = 0;
+  try {
+    for (const v of Object.values(obj || {})) {
+      if (typeof v === "string") n += v.length;
+    }
+  } catch { /* estimate is best-effort — don't let it throw */ }
+  return n;
+}
+
 async function buildFullBackupPayload() {
   const dump = getFullDbDump();
   let images = {};
   try { images = await getAllLocalImages(); } catch { /* skip images on failure */ }
   let fonts = {};
   try { fonts = await getAllLocalFonts(); } catch { /* skip fonts on failure */ }
+  const heavyBytes = estimateBytes(images) + estimateBytes(fonts);
+  const skipHeavy = heavyBytes > AUTO_BACKUP_HEAVY_BLOB_LIMIT_BYTES;
+  if (skipHeavy) {
+    console.warn(
+      `[Auto-backup] payload too large (${Math.round(heavyBytes / 1024 / 1024)} MB of images/fonts) — writing data-only backup so the native bridge doesn't crash.`
+    );
+  }
   return {
     __format: "symphony_backup",
     __version: 1,
     __exported_at: new Date().toISOString(),
     __auto: true,
+    // A skip is recorded on the envelope so the user can see WHY their
+    // auto-backup is smaller than they expect when they open the file.
+    ...(skipHeavy ? { __skipped_heavy_blobs: true } : {}),
     data: dump,
-    __local_images: images,
-    __local_fonts: fonts,
+    __local_images: skipHeavy ? {} : images,
+    __local_fonts: skipHeavy ? {} : fonts,
     __local_settings: readBackupLocalSettings(),
   };
 }

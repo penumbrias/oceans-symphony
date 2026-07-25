@@ -18,6 +18,9 @@ import useFriendsLiveRefresh from "@/hooks/useFriendsLiveRefresh";
 import { useDailyCheckInOnOpen } from "@/hooks/useDailyCheckInOnOpen";
 import usePersistentNotifications from "@/hooks/usePersistentNotifications";
 import SidebarNav from "@/components/layout/SidebarNav";
+// Lazy: only pulled into the bundle for the users who need it (existing
+// installs with legacy data-URI images). Fresh installs never load it.
+const LazyBlobStorageMigrationModal = React.lazy(() => import("@/components/onboarding/BlobStorageMigrationModal"));
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useRemindersScheduler, usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { useFriendsFrontSync } from "@/lib/useFriendsFrontSync";
@@ -80,6 +83,23 @@ export default function AppLayout() {
       navigate("/settings#data");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // v0.86.5: probe for legacy string entries in the image store on boot.
+  // If any exist AND the user hasn't deferred / completed the migration,
+  // show the blob-storage migration modal. Cheap probe; runs once per
+  // session and short-circuits on the persisted `_blob_migration_v1` flag.
+  const [showBlobMigration, setShowBlobMigration] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const { shouldShowBlobMigration } = await import("@/components/onboarding/BlobStorageMigrationModal");
+        const need = await shouldShowBlobMigration();
+        if (!cancelled && need) setShowBlobMigration(true);
+      } catch { /* skip on error */ }
+    })();
+    return () => { cancelled = true; };
   }, []);
   // Whether the in-app Back button should be shown (vs the menu icon).
   // Was previously a manual increment-on-each-pathname-change counter,
@@ -765,6 +785,12 @@ const handleNotifClick = (mentionLog) => {
         </main>
 
       </div>
+
+      {showBlobMigration && (
+        <React.Suspense fallback={null}>
+          <LazyBlobStorageMigrationModal onClose={() => setShowBlobMigration(false)} />
+        </React.Suspense>
+      )}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

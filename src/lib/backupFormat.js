@@ -23,7 +23,7 @@
 // still the preferred long-term format because it also carries the
 // local images and the local UI settings.
 
-import { decryptData, deriveKey } from './localEncryption';
+import { decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 
 export const FORMAT_STANDARD = 'standard';
 export const FORMAT_RAW_PLAIN = 'raw_plain';
@@ -77,6 +77,7 @@ export function parseImportText(text) {
       format,
       ciphertext: parsed.__encrypted,
       salt: parsed.__salt || null,
+      iterations: parsed.__kdf_iterations || null,
     };
   }
   // FORMAT_RAW_PLAIN
@@ -86,16 +87,26 @@ export function parseImportText(text) {
 // Decrypts a raw encrypted import file. Throws Error('Incorrect password')
 // on bad password, Error('Encryption salt missing — cannot decrypt this
 // file') when the salt is absent.
-export async function decryptRawEncrypted({ ciphertext, salt }, password) {
+export async function decryptRawEncrypted({ ciphertext, salt, iterations = null }, password) {
   if (!salt) {
     throw new Error('Encryption salt missing — cannot decrypt this file. You will need a backup that included the salt.');
   }
-  const key = await deriveKey(password, salt);
-  try {
-    return await decryptData(ciphertext, key);
-  } catch {
-    throw new Error('Incorrect password');
+  // Envelopes record their PBKDF2 strength in __kdf_iterations; files that
+  // predate the field are legacy (100k). Try the recorded/likely strength
+  // first, then the other known strengths, so a raw file from any app
+  // version decrypts. Only after every strength fails is it a bad password.
+  const candidates = [...new Set([
+    ...(iterations ? [iterations] : []),
+    LEGACY_KDF_ITERATIONS,
+    KDF_ITERATIONS,
+  ])];
+  for (const iters of candidates) {
+    try {
+      const key = await deriveKey(password, salt, iters);
+      return await decryptData(ciphertext, key);
+    } catch { /* try next strength */ }
   }
+  throw new Error('Incorrect password');
 }
 
 // Wraps a plaintext entity dump in the standard backup envelope so it

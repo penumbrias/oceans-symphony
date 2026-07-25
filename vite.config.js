@@ -19,9 +19,50 @@ const copyWellKnownAssetlinks = () => ({
   },
 })
 
+// Content-Security-Policy, injected as a <meta> tag at BUILD time only (a
+// meta CSP in dev would break Vite's HMR websocket). The web deploy also gets
+// this policy as a real header via vercel.json (which additionally carries
+// frame-ancestors — meta CSP can't express it); the meta copy is what covers
+// the Capacitor native build, whose WebView serves the same dist/ assets.
+//
+// Notes on the broad-looking bits:
+// - style-src 'unsafe-inline': inline styles + runtime-injected <style> tags
+//   (theme vars, scoped bio CSS, custom fonts) are load-bearing app-wide.
+// - img/connect/media https:: the app deliberately fetches arbitrary remote
+//   images (avatar caching, Simply Plural CDN, HTTP-image migration), so
+//   these can't be pinned to a host list without breaking imports. Bio CSS
+//   is held to a far stricter local-only url() allowlist in scopedBioStyle.
+// - fonts.googleapis.com / fonts.gstatic.com: the OPT-IN "extra fonts" pack
+//   (Settings → Appearance) — the only remote stylesheet the app ever loads.
+const CSP_POLICY = [
+  "default-src 'self'",
+  "script-src 'self'",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "img-src 'self' data: blob: https:",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "connect-src 'self' https:",
+  "media-src 'self' blob: data: https:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-src 'self' blob:",
+  "worker-src 'self' blob:",
+].join('; ')
+
+const injectCspMeta = () => ({
+  name: 'inject-csp-meta',
+  apply: 'build',
+  transformIndexHtml(html) {
+    return html.replace(
+      '<meta charset="UTF-8" />',
+      `<meta charset="UTF-8" />\n    <meta http-equiv="Content-Security-Policy" content="${CSP_POLICY}" />`
+    )
+  },
+})
+
 export default defineConfig({
   logLevel: 'error',
-  plugins: [react(), copyWellKnownAssetlinks()],
+  plugins: [react(), copyWellKnownAssetlinks(), injectCspMeta()],
   resolve: {
     alias: {
       '@': path.resolve('./src'),

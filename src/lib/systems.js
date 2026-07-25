@@ -24,7 +24,7 @@
 
 import { openDB } from 'idb';
 import { setActiveStorageKey, isEncryptionActive, getActiveSalt, encryptWithActiveKey, decryptWithActiveKey } from './localDb';
-import { encryptData, decryptData } from './localEncryption';
+import { encryptData, decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
 
 const IDB_NAME = 'oceans_symphony';
@@ -504,7 +504,9 @@ export async function encryptOtherSystemBlobs({ activeStorageKey, key, salt }) {
       if (raw == null) continue;
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (parsed && typeof parsed === 'object' && parsed.__encrypted) continue;
-      const envelope = JSON.stringify({ __encrypted: await encryptData(parsed, key), __salt: salt, __format_version: 2 });
+      // `key` comes from localDb.enableEncryption, which always derives at
+      // KDF_ITERATIONS — stamp the envelope to match.
+      const envelope = JSON.stringify({ __encrypted: await encryptData(parsed, key), __salt: salt, __format_version: 2, __kdf_iterations: KDF_ITERATIONS });
       await idb.put(IDB_STORE, envelope, k);
       done++;
     } catch { failed++; }
@@ -514,9 +516,16 @@ export async function encryptOtherSystemBlobs({ activeStorageKey, key, salt }) {
 
 // Inverse: decrypt every NON-active system's blob back to plain JSON. A blob
 // that can't be decrypted is left as-is (still openable with the password).
-export async function decryptOtherSystemBlobs({ activeStorageKey, key }) {
+//
+// Sibling blobs can be at a DIFFERENT PBKDF2 strength than the active
+// session key (legacy 100k envelopes upgrade only when their system is next
+// unlocked), so when `password` is provided we derive a matching key per
+// blob from its own envelope salt + __kdf_iterations. The passed `key` is
+// kept as a fallback for callers that can't supply the password.
+export async function decryptOtherSystemBlobs({ activeStorageKey, key, password }) {
   const reg = await ensureRegistry();
   const idb = await getIdb();
+  const keyCache = new Map(); // `${salt}:${iterations}` → CryptoKey
   let done = 0, failed = 0;
   for (const s of reg.systems) {
     const k = storageKeyForSystem(s);
@@ -526,7 +535,16 @@ export async function decryptOtherSystemBlobs({ activeStorageKey, key }) {
       if (raw == null) continue;
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!parsed || typeof parsed !== 'object' || !parsed.__encrypted) continue;
-      const data = await decryptData(parsed.__encrypted, key);
+      let blobKey = key;
+      if (password && parsed.__salt) {
+        const iterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+        const cacheKey = `${parsed.__salt}:${iterations}`;
+        if (!keyCache.has(cacheKey)) {
+          keyCache.set(cacheKey, await deriveKey(password, parsed.__salt, iterations));
+        }
+        blobKey = keyCache.get(cacheKey);
+      }
+      const data = await decryptData(parsed.__encrypted, blobKey);
       await idb.put(IDB_STORE, JSON.stringify(data), k);
       done++;
     } catch { failed++; }

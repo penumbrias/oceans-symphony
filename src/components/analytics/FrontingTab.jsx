@@ -511,8 +511,40 @@ export default function FrontingTab({
     } catch { /* non-fatal — UI simply doesn't persist */ }
   }, [settings?.id, queryClient]);
 
+  // How many sessions actually start inside the selected range — the cheap
+  // signal for "is there enough front history for these charts to mean
+  // anything". With none, every card below is empty/100%-untracked noise,
+  // so lead with a calm explainer instead (front tracking is optional; the
+  // rest of Analytics runs on check-in attribution and authorship).
+  const trackedInRange = useMemo(() => {
+    if (!Array.isArray(sessions)) return 0;
+    const fromMs = range?.fromMs ?? range?.from ?? null;
+    const toMs = range?.toMs ?? range?.to ?? null;
+    return sessions.filter((s) => {
+      const t = +new Date(s.start_time);
+      if (!Number.isFinite(t)) return false;
+      if (fromMs != null && t < +fromMs) return false;
+      if (toMs != null && t > +toMs) return false;
+      return true;
+    }).length;
+  }, [sessions, range]);
+
   return (
     <div className="space-y-3">
+      {trackedInRange === 0 && (
+        <div className="flex items-start gap-2.5 p-3 rounded-xl border border-border/60 bg-muted/20 text-xs">
+          <span className="text-base flex-shrink-0" aria-hidden>🧭</span>
+          <div className="space-y-1 text-muted-foreground leading-relaxed">
+            <p className="text-foreground font-medium">No {terms.fronting} history in this period — and that's okay.</p>
+            <p>
+              Tracking {terms.fronting} is optional. The charts on this tab need {terms.front} logs,
+              but the rest of Analytics (emotions, symptoms, the {terms.Alters} tab) still works —
+              it uses who each check-in was assigned to, and who authored journals, chat, and posts.
+            </p>
+          </div>
+        </div>
+      )}
+
       {stale && stale.length > 0 && onReviewStale && (
         <button
           type="button"

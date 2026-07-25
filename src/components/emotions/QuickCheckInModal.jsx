@@ -21,9 +21,10 @@ import { format, formatDistanceToNow } from "date-fns";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import SymptomsSection from "@/components/symptoms/SymptomsSection";
+import AlterAssignChip from "@/components/shared/AlterAssignChip";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
-import { loadSystemDistressSet } from "@/lib/emotionDistress";
+import { loadSystemDistressSet, mapEmotionsToGroundingStates } from "@/lib/emotionDistress";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions from "@/hooks/useSwipeActions";
@@ -168,6 +169,9 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
   // Feeling
   const [selectedEmotions, setSelectedEmotions] = useState([]);
+  // Per-emotion alter assignment overrides: { [emotionLabel]: [alterIds] }.
+  // Emotions absent from the map inherit the check-in's fronters.
+  const [emotionAlters, setEmotionAlters] = useState({});
   // Fronting
   const [primaryId, setPrimaryId] = useState("");
   const [coFronterIds, setCoFronterIds] = useState([]);
@@ -277,7 +281,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     enabled: isOpen,
   });
   const ratingSymptoms = useMemo(
-    () => allSymptoms.filter((s) => s.type === "rating" && !s.is_archived),
+    // The slider is a 0–5 unipolar control — bipolar-scale items (mood,
+    // energy on the −2..+2 scale) can't ride it; they're rated in the
+    // Symptoms section with their own two-ended row.
+    () => allSymptoms.filter((s) => s.type === "rating" && !s.is_archived && s.scale !== "bipolar_2"),
     [allSymptoms]
   );
   // Default the slider to "Energy level"; fall back to any rating symptom.
@@ -363,6 +370,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       if (editingEntry) {
         setEntryTime(toDatetimeLocal(editingEntry.timestamp));
         setSelectedEmotions(editingEntry.emotions || []);
+        setEmotionAlters(editingEntry.emotion_alters && typeof editingEntry.emotion_alters === "object" ? editingEntry.emotion_alters : {});
         // If a long note was saved as a JournalEntry (note >50 words at
         // create-time), the EmotionCheckIn.note field only holds a
         // truncated preview ("first 300 chars…"). Load the JournalEntry
@@ -398,6 +406,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
             const list = (rows || []).map((r) => ({
               symptom_id: r.symptom_id,
               severity: typeof r.severity === "number" ? r.severity : null,
+              alter_ids: Array.isArray(r.fronting_alter_ids) ? r.fronting_alter_ids : null,
             }));
             setInitialSymptomChecks(list);
             if (list.length > 0) initial.add("symptoms");
@@ -469,6 +478,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
 
   const resetForm = () => {
     setSelectedEmotions([]);
+    setEmotionAlters({});
     setPrimaryId("");
     setCoFronterIds([]);
     setAlterSearch("");
@@ -512,10 +522,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     selectedActivityCategories, activityDetails,
     journalSwitch, isTriggeredSwitch, triggerCategory, triggerLabel,
     locationName, locationCategory, locationLat, locationLng,
-    entryTime,
+    entryTime, emotionAlters,
   }), [selectedEmotions, sliderValue, note, diaryData, selectedActivityCategories, activityDetails,
     journalSwitch, isTriggeredSwitch, triggerCategory, triggerLabel,
-    locationName, locationCategory, locationLat, locationLng, entryTime]);
+    locationName, locationCategory, locationLat, locationLng, entryTime, emotionAlters]);
   const { clearDraft } = useFormDraft("symphony_draft_quickcheckin_v1", draftSnapshot, {
     active: !!isOpen && !isEditing,
     isEmpty: (s) =>
@@ -528,6 +538,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
       !s.triggerLabel?.trim(),
     onRestore: (d) => {
       if (Array.isArray(d.selectedEmotions)) setSelectedEmotions(d.selectedEmotions);
+      if (d.emotionAlters && typeof d.emotionAlters === "object") setEmotionAlters(d.emotionAlters);
       if (d.sliderValue !== undefined) setSliderValue(d.sliderValue);
       if (typeof d.note === "string") setNote(d.note);
       if (d.diaryData && typeof d.diaryData === "object") setDiaryData(d.diaryData);
@@ -793,6 +804,13 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           timestamp: now,
           emotions: selectedEmotions,
           fronting_alter_ids: selectedAlters,
+          // Always write the map on edit (empty object clears removed
+          // overrides — an edit is an explicit re-statement of the record).
+          emotion_alters: Object.fromEntries(
+            Object.entries(emotionAlters).filter(([label, ids]) =>
+              selectedEmotions.includes(label) && Array.isArray(ids) && ids.length > 0
+            )
+          ),
           note: noteForCheckIn,
           journal_entry_id: journalEntryId,
         });
@@ -814,6 +832,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               await base44.entities.SymptomCheckIn.update(row.id, {
                 severity: sc.severity,
                 timestamp: now,
+                fronting_alter_ids: sc.alter_ids ?? selectedAlters,
               });
             }
           }
@@ -823,6 +842,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               symptom_id: sc.symptom_id,
               severity: sc.severity,
               timestamp: now,
+              fronting_alter_ids: sc.alter_ids ?? selectedAlters,
               check_in_id: editingEntry.id,
             });
           }
@@ -974,10 +994,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           });
           journalEntryId = entry.id;
         }
+        // Per-emotion assignment overrides (only for still-selected emotions
+        // with a non-empty explicit assignment — everything else inherits).
+        const cleanEmotionAlters = Object.fromEntries(
+          Object.entries(emotionAlters).filter(([label, ids]) =>
+            selectedEmotions.includes(label) && Array.isArray(ids) && ids.length > 0
+          )
+        );
         const checkIn = await base44.entities.EmotionCheckIn.create({
           timestamp: now,
           emotions: selectedEmotions,
           fronting_alter_ids: selectedAlters,
+          ...(Object.keys(cleanEmotionAlters).length > 0 ? { emotion_alters: cleanEmotionAlters } : {}),
           note: wordCount <= 50 ? note : note.substring(0, 300) + "...",
           journal_entry_id: journalEntryId
         });
@@ -985,12 +1013,16 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         queryClient.invalidateQueries({ queryKey: ["emotionCheckIns"] });
       }
 
-      // SymptomCheckIns
+      // SymptomCheckIns — each row records WHO it belongs to: the per-item
+      // assignment when set, else the check-in's fronters. (Previously
+      // symptom check-ins carried no attribution at all — the per-alter
+      // symptom analytics were silently empty.)
       for (const sc of symptomCheckIns) {
         await base44.entities.SymptomCheckIn.create({
           symptom_id: sc.symptom_id,
           timestamp: now,
           severity: sc.severity,
+          fronting_alter_ids: sc.alter_ids ?? selectedAlters,
           check_in_id: checkInId
         });
       }
@@ -1080,7 +1112,18 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <Button variant="outline" onClick={() => { setShowGroundingPrompt(false); onClose(); }} className="flex-1">
                 No thanks
               </Button>
-              <Button onClick={() => { setShowGroundingPrompt(false); onClose(); navigate("/grounding"); }} className="flex-1">
+              <Button onClick={() => {
+                setShowGroundingPrompt(false); onClose();
+                // Carry what was just logged into the grounding flow: the
+                // state check opens with matching states PRE-SELECTED
+                // instead of dumping the user at the entry screen to
+                // re-answer what they already told us.
+                const states = mapEmotionsToGroundingStates(
+                  selectedEmotions.filter((e) => isDistressingEmotion(e)),
+                  { triggeredSwitch: isTriggeredSwitch }
+                );
+                navigate(states.length ? `/grounding?states=${states.join(",")}` : "/grounding");
+              }} className="flex-1">
                 Yes, open grounding
               </Button>
             </div>
@@ -1147,8 +1190,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                 <button
                   type="button"
                   onClick={() => { onClose(); navigate("/manage-checkin"); }}
-                  aria-label="Check-in settings — choose which sections show"
-                  title="Check-in settings"
+                  aria-label="Open check-in manager"
+                  title="Open check-in manager"
                   className="text-muted-foreground hover:text-foreground transition-colors mr-6"
                 >
                   <SlidersHorizontal className="w-4 h-4" />
@@ -1216,6 +1259,31 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                   onToggle={(label) => setSelectedEmotions((prev) => prev.includes(label) ? prev.filter((e) => e !== label) : [...prev, label])}
                   customEmotions={customEmotions}
                   onAddCustom={(label, category) => addCustomEmotionMutation.mutate({ label, category })} />
+
+                  {/* Per-emotion alter assignment — each selected emotion can
+                      belong to specific alters (default: the whole check-in's
+                      fronters). "Anxious = one alter, Excited = another." */}
+                  {selectedEmotions.length > 0 && alters.length > 0 &&
+                  <div className="space-y-1 pt-1 border-t border-border/40">
+                      <p className="text-[0.6875rem] text-muted-foreground">Who feels what? (optional)</p>
+                      <div className="space-y-0.5">
+                        {selectedEmotions.map((label) =>
+                      <div key={label} className="flex items-center gap-2 min-w-0">
+                            <span className="text-xs flex-1 truncate">{label}</span>
+                            <AlterAssignChip
+                          alters={alters}
+                          value={emotionAlters[label] ?? null}
+                          defaultIds={selectedAlters}
+                          onChange={(ids) => setEmotionAlters((prev) => {
+                            const next = { ...prev };
+                            if (ids === null) delete next[label]; else next[label] = ids;
+                            return next;
+                          })} />
+                          </div>
+                      )}
+                      </div>
+                    </div>
+                  }
                 </div>
 
                 {/* Side rating slider — defaults to Energy level; tap the label
@@ -1449,6 +1517,8 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
               <SymptomsSection
                 onCheckInsReady={(getter) => {symptomGetterRef.current = getter;}}
                 initialChecked={initialSymptomChecks}
+                alters={alters}
+                assignDefaultIds={selectedAlters}
               />
             </div>
           }

@@ -10,8 +10,32 @@
 //   4. hand back the scoped CSS to inject once + the body HTML with <style>
 //      removed. The caller wraps the body in `.${scopeClass}`.
 //
+// Hardening (July 2026): selector scoping alone does NOT contain everything —
+// `position: fixed/sticky` still positions against the viewport (a bio could
+// overlay the app chrome), huge z-index stacks above real UI, and `url()`
+// values fire network requests (remote images/fonts leak the viewer's IP and
+// are the classic CSS-exfiltration channel). So every declaration is also
+// filtered: fixed/sticky dropped, z-index clamped, url() allowlisted to
+// local/bundled resources only, @import/@namespace dropped, oversized styles
+// stripped entirely. sanitizeInlineStyleAttrs() applies the same declaration
+// filter to inline style="" attributes (which bypass <style> scoping
+// completely) — SimplePreview runs it on every rendered block.
+//
 // Never throws — on any parse anomaly it falls back to stripping <style>
 // entirely (no leak, no animation) so a malformed bio can never brick a page.
+
+// Cap on the combined size of a bio's <style> CSS. Beyond this we strip
+// styles rather than risk performance bombs (the body still renders).
+const MAX_BIO_STYLE_BYTES = 65536;
+
+// Highest z-index a bio may use. App chrome (nav, modals, toasts) lives far
+// above this, so a bio can layer its own elements but never cover real UI.
+const MAX_BIO_Z_INDEX = 10;
+
+// url() targets a bio is allowed to reference: locally stored images (both
+// URL schemes), inline data images, and same-document SVG fragments. No
+// remote hosts — bios are offline-first and must not phone home.
+const ALLOWED_URL_RE = /^(\/local-image\/|local-image:\/\/|data:image\/|#)/i;
 
 function sanitizeIdent(id) {
   let s = String(id || "x").replace(/[^A-Za-z0-9_-]/g, "-");
@@ -71,13 +95,46 @@ function scopeSelectorList(prelude, scopeClass) {
     .join(", ");
 }
 
+// Neutralise every url() whose target isn't on the local allowlist by
+// replacing it with an empty url() (invalid → the browser drops that value).
+// Runs on the whole declaration body BEFORE any ";"-splitting, because URLs
+// legally contain semicolons (data:image/png;base64,…) and http URLs may too
+// — a per-fragment check could be smuggled past by a ";" inside the URL.
+function filterUrls(cssText) {
+  return cssText.replace(/url\(\s*(['"]?)([^)]*)\1\s*\)/gi, (full, _q, target) =>
+    ALLOWED_URL_RE.test(String(target).trim()) ? full : "url()"
+  );
+}
+
+// Per-declaration filter. `decl` is one ";"-separated fragment (URLs have
+// already been vetted at the body level by filterUrls).
+function declAllowed(decl) {
+  const v = decl.toLowerCase();
+  if (v.includes("javascript:") || v.includes("expression(")) return false;
+  const idx = decl.indexOf(":");
+  if (idx === -1) return true;
+  const prop = decl.slice(0, idx).trim().toLowerCase();
+  // Scoping a selector does not contain fixed/sticky positioning — it still
+  // anchors to the viewport, letting a bio overlay app chrome. Drop it.
+  if (prop === "position" && /\b(fixed|sticky)\b/i.test(decl.slice(idx + 1))) return false;
+  return true;
+}
+
+// Clamp z-index so bio content can self-layer but never stack above app UI.
+function clampZIndex(decl) {
+  const idx = decl.indexOf(":");
+  if (idx === -1) return decl;
+  if (decl.slice(0, idx).trim().toLowerCase() !== "z-index") return decl;
+  const n = parseInt(decl.slice(idx + 1), 10);
+  if (Number.isFinite(n) && n > MAX_BIO_Z_INDEX) return `${decl.slice(0, idx)}: ${MAX_BIO_Z_INDEX}`;
+  return decl;
+}
+
 function sanitizeDecls(body) {
-  return body
+  return filterUrls(body)
     .split(";")
-    .filter((d) => {
-      const v = d.toLowerCase();
-      return !(v.includes("javascript:") || v.includes("expression("));
-    })
+    .filter(declAllowed)
+    .map(clampZIndex)
     .join(";");
 }
 
@@ -102,9 +159,14 @@ function rewriteAnimations(body, renamed) {
     .join(";");
 }
 
+// At-rules whose body contains nested RULES (not declarations) — recurse so
+// the inner rules get scoped + sanitized instead of passing through raw.
+const CONTAINER_AT_RULE_RE = /^@(media|supports|document|container|layer|scope)\b/i;
+
 function transformRule(rule, scopeClass, renamed) {
   if (rule.statement) {
-    if (/^@import/i.test(rule.prelude)) return ""; // drop remote imports
+    // @import loads remote CSS; @namespace can warp selector matching.
+    if (/^@(import|namespace)/i.test(rule.prelude)) return "";
     return rule.prelude; // @charset etc.
   }
   const p = rule.prelude;
@@ -112,14 +174,25 @@ function transformRule(rule, scopeClass, renamed) {
     const nm = p.replace(/^@(-webkit-)?keyframes\s+/i, "").trim();
     const newName = renamed[nm] || nm;
     const prefix = /-webkit-/i.test(p) ? "@-webkit-keyframes" : "@keyframes";
-    return `${prefix} ${newName} {${rule.body}}`;
+    // Keyframe steps are declaration blocks — run them through the same
+    // declaration filter (url() allowlist etc.) via a nested pass.
+    const inner = splitRules(rule.body)
+      .map((r) => (r.statement ? r.prelude : `${r.prelude} {${sanitizeDecls(r.body)}}`))
+      .join("\n");
+    return `${prefix} ${newName} {${inner}}`;
   }
-  if (/^@(media|supports|document)/i.test(p)) {
+  if (CONTAINER_AT_RULE_RE.test(p)) {
     const inner = splitRules(rule.body).map((r) => transformRule(r, scopeClass, renamed)).filter(Boolean).join("\n");
     return `${p} {\n${inner}\n}`;
   }
-  if (/^@font-face/i.test(p)) return `${p} {${rule.body}}`;
-  if (p.startsWith("@")) return `${p} {${rule.body}}`; // unknown at-rule — keep verbatim
+  if (/^@font-face/i.test(p)) {
+    // Keep local (data:) font faces; the url() allowlist strips remote
+    // sources, leaving any remote-only @font-face inert.
+    return `${p} {${sanitizeDecls(rule.body)}}`;
+  }
+  // Unknown bodied at-rules (@property, @counter-style, @page, …) would
+  // bypass scoping entirely — drop them rather than leak.
+  if (p.startsWith("@")) return "";
   return `${scopeSelectorList(p, scopeClass)} {${rewriteAnimations(sanitizeDecls(rule.body), renamed)}}`;
 }
 
@@ -151,6 +224,26 @@ export function rewriteInlineAnimations(html, renamed) {
   });
 }
 
+// Apply the declaration filter (position:fixed/sticky, z-index clamp, url()
+// allowlist, javascript:/expression()) to every inline style="" attribute.
+// Inline styles never pass through <style> scoping, so without this a bio
+// could overlay app chrome or beacon out with a single style attribute.
+// Fail-closed: entity-encoded url targets won't match the allowlist and are
+// neutralised. Never throws.
+export function sanitizeInlineStyleAttrs(html) {
+  if (!html || typeof html !== "string" || !/style\s*=/i.test(html)) return html || "";
+  try {
+    return html.replace(/style\s*=\s*("([^"]*)"|'([^']*)')/gi, (full, _q, dq, sq) => {
+      const isDq = dq != null;
+      const val = isDq ? dq : sq;
+      const quote = isDq ? '"' : "'";
+      return `style=${quote}${sanitizeDecls(val)}${quote}`;
+    });
+  } catch {
+    return html;
+  }
+}
+
 // html + scopeId → { scopeClass, styleCss, bodyHtml, renamed }.
 // `renamed` is the @keyframes rename map so callers that render blocks
 // individually (e.g. SimplePreview) can rewrite each block's inline animation
@@ -163,6 +256,10 @@ export function scopeBioStyles(html, scopeId) {
   try {
     const { styles, bodyHtml } = extractStyles(html);
     const css = stripComments(styles.join("\n"));
+    if (css.length > MAX_BIO_STYLE_BYTES) {
+      // Style bomb — render the body, drop the styles.
+      return { scopeClass, styleCss: "", bodyHtml, renamed: {} };
+    }
     const renamed = buildRenameMap(css, scopeClass);
     const styleCss = scopeCss(css, scopeClass, renamed);
     return { scopeClass, styleCss, bodyHtml: rewriteInlineAnimations(bodyHtml, renamed), renamed };

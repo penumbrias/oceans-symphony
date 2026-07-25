@@ -5,6 +5,7 @@ import { getActivePushSubscription } from "@/lib/pushRegistration";
 import { isNative } from "@/lib/platform";
 import { markFriendAddedToday } from "@/lib/dailyTaskSystem";
 import { getSharedFriendIdentity, setSharedFriendIdentity, clearSharedFriendIdentity } from "@/lib/friendIdentityStore";
+import { sanitizeFriendsListResponse, sanitizeFrontBlob } from "@/lib/remoteSanitize";
 
 // On web/TWA the Friends API lives at /api/friends on the same origin
 // the page was served from — relative paths work. On the Capacitor
@@ -192,7 +193,9 @@ export async function fetchFriendsList() {
     // state with the last-known-good data intact, and it retries on its own.
     throw new Error(`friends/list failed (${res.status})`);
   }
-  return res.json();
+  // Receiver-side sanitation: names/colors from the server are untrusted
+  // (hostile peer client, or later a self-hosted relay we don't operate).
+  return sanitizeFriendsListResponse(await res.json());
 }
 
 // ─── Front status (single friend poll) ────────────────────────────────────────
@@ -205,7 +208,7 @@ export async function fetchFriendStatus(friendUserId) {
     `${BASE}/status?userId=${friendUserId}&viewerUserId=${identity.userId}&viewerSecret=${identity.secret}`
   );
   if (!res.ok) return null;
-  return res.json();
+  return sanitizeFrontBlob(await res.json());
 }
 
 // ─── Add / remove ─────────────────────────────────────────────────────────────

@@ -376,7 +376,10 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
       {FREQUENCY_ORDER.map((freq) => {
         const section = grouped[freq];
         const style = SECTION_STYLE[freq];
-        if (section.length === 0 && freq !== "daily") return null;
+        // v0.85.7: always render every frequency section (was: hide when
+        // empty). Otherwise users had no + button to add weekly/monthly/
+        // yearly tasks — tester report from the Setup checklist's inline
+        // "Create / edit custom" modal.
         return (
           <div key={freq}>
             {/* Section header */}
