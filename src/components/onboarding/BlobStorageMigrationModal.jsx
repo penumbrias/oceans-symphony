@@ -18,10 +18,10 @@
 // the intermediate state.
 
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
-import { Loader2, Sparkles, ShieldAlert, Check, X, Download } from "lucide-react";
+import { Loader2, Sparkles, Check, X, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import DataBackupRestore from "@/components/settings/DataBackupRestore";
 import {
   probeBlobMigrationStatus,
   migrateLegacyStringsToBlobs,
@@ -32,11 +32,11 @@ import { clearImageResolverCache } from "@/lib/imageUrlResolver";
 const DEFER_KEY = "symphony_blob_migration_deferred_until";
 
 export default function BlobStorageMigrationModal({ onClose }) {
-  const navigate = useNavigate();
   const [probe, setProbe] = useState(null);
   const [running, setRunning] = useState(false);
   const [progress, setProgress] = useState({ processed: 0, total: 0, converted: 0 });
   const [done, setDone] = useState(false);
+  const [showBackupPanel, setShowBackupPanel] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -70,16 +70,48 @@ export default function BlobStorageMigrationModal({ onClose }) {
   };
 
   const openBackup = () => {
-    // Settings is /settings with section hash anchors (matches the existing
-    // encryption redirect in AppLayout.jsx and the SetupChecklist backup link).
-    // Do NOT close the modal — the user comes back to finish the migration
-    // after making a backup, and defer/dismiss is intentional if they choose.
-    navigate("/settings#data");
+    // Open the backup UI ON TOP of this modal instead of navigating away —
+    // navigating to Settings landed the user behind the popup with no
+    // obvious way back (tester report). The nested overlay lets them save
+    // a backup and immediately return to "Convert now" without losing
+    // context or hitting the wrong route.
+    setShowBackupPanel(true);
   };
 
   const pct = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;
 
   return (
+    <>
+      {showBackupPanel && (
+        <div
+          className="fixed inset-0 z-[10002] bg-black/70 flex items-start justify-center p-4 overflow-y-auto"
+          onClick={() => setShowBackupPanel(false)}
+        >
+          <div
+            className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-lg my-8"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between p-4 border-b border-border/50 sticky top-0 bg-background rounded-t-xl">
+              <h3 className="font-semibold text-base flex items-center gap-2">
+                <Download className="w-4 h-4" /> Back up your data first
+              </h3>
+              <button
+                onClick={() => setShowBackupPanel(false)}
+                aria-label="Close backup panel"
+                className="text-muted-foreground hover:text-foreground"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <div className="p-4">
+              <p className="text-xs text-muted-foreground mb-3">
+                Save a fresh backup, then close this to return to the storage-optimisation prompt.
+              </p>
+              <DataBackupRestore section="export" />
+            </div>
+          </div>
+        </div>
+      )}
     <div className="fixed inset-0 z-[10001] bg-black/60 flex items-center justify-center p-4">
       <div className="bg-background border border-border rounded-xl shadow-2xl w-full max-w-md" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border/50">
@@ -183,6 +215,7 @@ export default function BlobStorageMigrationModal({ onClose }) {
         )}
       </div>
     </div>
+    </>
   );
 }
 
