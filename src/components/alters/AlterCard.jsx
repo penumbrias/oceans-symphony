@@ -166,7 +166,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const formatAlter = useAlterLabel();
   // Resolve through the hook so legacy `local-image://` avatars render
   // (a raw <img src="local-image://…"> can't be loaded by the browser).
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url, alter });
   const resolvedAvatar = useResolvedAvatarUrl(rotatingAvatarUrl);
   // Validate the saved value as a real CSS hex. `length > 3` used to
   // pass for invalid values like "#8b5c1" (5 hex digits — not a valid

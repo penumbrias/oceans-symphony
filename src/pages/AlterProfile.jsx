@@ -178,8 +178,8 @@ function AlterProfileInner() {
   // via the profile editors) instead of showing one fixed image — resolve
   // through useRotatingImageUrl first, which is a no-op passthrough of the
   // fixed value when rotation isn't turned on.
-  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url });
-  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[BG_ROTATION_KEY], fallbackUrl: alter?.custom_fields?.[BG_IMAGE_KEY] });
+  const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter?.id, role: "avatar", mode: alter?.avatar_rotation_mode, fallbackUrl: alter?.avatar_url, alter });
+  const rotatingBgUrl = useRotatingImageUrl({ alterId: alter?.id, role: "background", mode: alter?.custom_fields?.[BG_ROTATION_KEY], fallbackUrl: alter?.custom_fields?.[BG_IMAGE_KEY], alter });
 
   // Resolve avatar URL (local or external)
   useEffect(() => {

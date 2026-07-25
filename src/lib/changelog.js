@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "feature", text: "Avatar & background image pools can now be linked to an Asset Library folder — anything you add to that folder (from anywhere in the app) is instantly part of the pool. \"Pick from library\" is also available inside the pool manager itself, so you can pull in images you've already uploaded without re-uploading. Unlinked pools work exactly as before." },
       { type: "fix", text: "The setup checklist now shows your custom terminology immediately after you save it in the terminology step (e.g. \"Parts setup\" if you picked Parts, not a stale \"Headmates setup\" from a preset you tried earlier). The Guide now waits for the settings refetch to finish before advancing, so downstream steps read the new terms — not the old cache." },
       { type: "fix", text: "Edits made on a return visit to the Setup guide's terminology step now actually save. Previously, once you'd saved terms once, hitting \"Continue\" (the renamed Save button) short-circuited and just advanced — subsequent edits were silently discarded. Button is back to \"Save & continue\" every visit; a save always fires." },
       { type: "improve", text: "Preview base-term edits are now surgical — changing System from \"abc\" to \"bca\" leaves the plural \"abcs\" alone. Only edits in the top-four \"Custom terms\" inputs regenerate the plurals / gerunds / agents downstream." },
