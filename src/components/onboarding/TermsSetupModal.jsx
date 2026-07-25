@@ -113,6 +113,31 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
   const autoFronter = agent(terms.front || "front");
   const autoSwitching = gerund(terms.switch || "switch");
 
+  // Preview base-term edits are SURGICAL — changing "abc" → "bca" in the
+  // preview must leave the current plural "abcs" alone (don't regenerate
+  // to "bcas"). Do this by snapshotting the current auto-derived forms
+  // into overrides BEFORE flipping the base. Only the top-four Custom
+  // terms inputs regenerate downstream forms (that's the source-of-truth
+  // path). Tester rule, v0.87.3.
+  const snapshotDerivationsFor = (baseKey) => {
+    setOverrides((prev) => {
+      const next = { ...prev };
+      if (baseKey === "system") {
+        if (!next.systems.trim()) next.systems = pluralize(terms.system || "system");
+      } else if (baseKey === "alter") {
+        if (!next.alters.trim()) next.alters = pluralize(terms.alter || "alter");
+      } else if (baseKey === "switch") {
+        if (!next.switches.trim()) next.switches = pluralize(terms.switch || "switch");
+        if (!next.switching.trim()) next.switching = autoSwitching;
+      } else if (baseKey === "front") {
+        if (!next.fronts.trim()) next.fronts = pluralize(terms.front || "front");
+        if (!next.fronting.trim()) next.fronting = autoFronting;
+        if (!next.fronter.trim()) next.fronter = autoFronter;
+      }
+      return next;
+    });
+  };
+
   const handleSave = async () => {
     if (saving) return;
     setSaving(true);
@@ -223,7 +248,23 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                   <Input
                     placeholder={key}
                     value={custom[key]}
-                    onChange={(e) => setCustom((p) => ({ ...p, [key]: e.target.value }))}
+                    onChange={(e) => {
+                      setCustom((p) => ({ ...p, [key]: e.target.value }));
+                      // Top-four inputs ARE the source of truth: typing
+                      // here clears the corresponding derivation overrides
+                      // so pluralize() / gerund() / agent() regenerate from
+                      // the new base. (Preview base-term taps use a
+                      // different path that PRESERVES current derivations —
+                      // see snapshotDerivationsFor.)
+                      setOverrides((prev) => {
+                        const next = { ...prev };
+                        if (key === "system") next.systems = "";
+                        if (key === "alter") next.alters = "";
+                        if (key === "switch") { next.switches = ""; next.switching = ""; }
+                        if (key === "front") { next.fronts = ""; next.fronting = ""; next.fronter = ""; }
+                        return next;
+                      });
+                    }}
                     className="h-8 text-sm"
                   />
                 </div>
@@ -263,7 +304,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.system}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, system: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("system"); setCustom((p) => ({ ...terms, ...p, system: v })); setUseCustom(true); }}
                 ariaLabel="system"
               />
               {" · "}
@@ -283,7 +324,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.alter}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, alter: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("alter"); setCustom((p) => ({ ...terms, ...p, alter: v })); setUseCustom(true); }}
                 ariaLabel="alter"
               />
               {" · "}
@@ -303,7 +344,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.switch}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, switch: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("switch"); setCustom((p) => ({ ...terms, ...p, switch: v })); setUseCustom(true); }}
                 ariaLabel="switch"
               />
               {" · "}
@@ -332,7 +373,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.front}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, front: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("front"); setCustom((p) => ({ ...terms, ...p, front: v })); setUseCustom(true); }}
                 ariaLabel="front"
               />
               {" · "}
