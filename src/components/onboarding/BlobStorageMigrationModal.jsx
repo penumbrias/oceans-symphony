@@ -70,8 +70,11 @@ export default function BlobStorageMigrationModal({ onClose }) {
   };
 
   const openBackup = () => {
-    navigate("/settings/data-privacy");
-    // Keep the modal open behind the backup nav so the user comes back to it.
+    // Settings is /settings with section hash anchors (matches the existing
+    // encryption redirect in AppLayout.jsx and the SetupChecklist backup link).
+    // Do NOT close the modal — the user comes back to finish the migration
+    // after making a backup, and defer/dismiss is intentional if they choose.
+    navigate("/settings#data");
   };
 
   const pct = progress.total > 0 ? Math.round((progress.processed / progress.total) * 100) : 0;

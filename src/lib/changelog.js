@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "fix", text: "\"Back up first\" on the storage-optimisation popup now correctly opens Settings → Data & Privacy instead of hitting a 404 page." },
       { type: "feature", text: "Optimised image storage. Avatars, banners, and custom fonts are now stored as compact binary blobs instead of base64 text — about 25% less disk space, faster to read, and easier on memory (this is the underlying fix for the backup-crash class of bug). Existing installs will see a one-time \"Optimising image storage\" popup that explains the change, nudges you to save a fresh backup first, and runs the conversion with a progress bar." },
       { type: "fix", text: "Card-style buttons (\"Save to device\", \"Share or send elsewhere\", and similar rows across Settings, backup / export, and onboarding) no longer clip their descriptions off the right edge when the description is long or the app's font size is large. Descriptions now wrap onto multiple lines cleanly." },
       { type: "fix", text: "Fixed the backup crash: exporting a backup no longer freezes or force-closes the app on devices with lots of alter avatars. If your images and fonts are too big for one file, the app now automatically saves everything except them — a new \"Save data-only backup (safety net)\" button also lets you pick that path manually." },
