@@ -96,6 +96,13 @@ export function useTerms() {
   const frontingOverride = (s.term_fronting || "").trim();
   const fronterOverride = (s.term_fronter || "").trim();
   const switchingOverride = (s.term_switching || "").trim();
+  // v0.87.2: plural overrides too — pluralize() just sticks an "s" on the
+  // end which fails for irregular plurals (child → children, person →
+  // people, etc.). Blank → fall back to pluralize().
+  const systemsOverride = (s.term_systems || "").trim();
+  const altersOverride = (s.term_alters || "").trim();
+  const switchesOverride = (s.term_switches || "").trim();
+  const frontsOverride = (s.term_fronts || "").trim();
 
   // User-customisable signpost triggers (default "+" / "-"). Sync them into the
   // shared parser HERE — useTerms is called by every signpost composer, so by
@@ -110,19 +117,19 @@ export function useTerms() {
     // System variants
     const system_lower = sys;
     const System_cap = capitalize(sys);
-    const systems_lower = pluralize(sys);
+    const systems_lower = systemsOverride || pluralize(sys);
     const Systems_cap = capitalize(systems_lower);
 
     // Alter variants
     const alter_lower = alt;
     const Alter_cap = capitalize(alt);
-    const alters_lower = pluralize(alt);
+    const alters_lower = altersOverride || pluralize(alt);
     const Alters_cap = capitalize(alters_lower);
 
     // Switch variants
     const switch_lower = sw;
     const Switch_cap = capitalize(sw);
-    const switches_lower = pluralize(sw);
+    const switches_lower = switchesOverride || pluralize(sw);
     const Switches_cap = capitalize(switches_lower);
     const switching_lower = switchingOverride || gerund(sw);
     const Switching_cap = capitalize(switching_lower);
@@ -130,7 +137,7 @@ export function useTerms() {
     // Front variants
     const front_lower = fr;
     const Front_cap = capitalize(fr);
-    const fronts_lower = pluralize(fr);
+    const fronts_lower = frontsOverride || pluralize(fr);
     const Fronts_cap = capitalize(fronts_lower);
     const fronting_lower = frontingOverride || gerund(fr);
     const Fronting_cap = capitalize(fronting_lower);
@@ -197,7 +204,7 @@ export function useTerms() {
       _settingsId: s.id || null,
       _hasSettings: !!s.id,
     };
-  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, signpostAdd, signpostReplace, s.id]);
+  }, [sys, alt, sw, fr, frontingOverride, fronterOverride, switchingOverride, systemsOverride, altersOverride, switchesOverride, frontsOverride, signpostAdd, signpostReplace, s.id]);
 
   return terms;
 }

@@ -93,13 +93,18 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
     fronting: existingSettings.term_fronting || "",
     fronter: existingSettings.term_fronter || "",
     switching: existingSettings.term_switching || "",
-  } : { fronting: "", fronter: "", switching: "" };
+    // v0.87.2 plural overrides — for irregular plurals like child/children.
+    systems: existingSettings.term_systems || "",
+    alters: existingSettings.term_alters || "",
+    switches: existingSettings.term_switches || "",
+    fronts: existingSettings.term_fronts || "",
+  } : { fronting: "", fronter: "", switching: "", systems: "", alters: "", switches: "", fronts: "" };
   const [overrides, setOverrides] = useState(initialOverrides);
   // Preview panel has an ✏️ toggle — off by default, on when the user
   // already has overrides so returning to the step surfaces them as
   // tap-to-edit. Replaces the old "Advanced word forms" collapsible.
   const [editMode, setEditMode] = useState(
-    !!(initialOverrides.fronting || initialOverrides.fronter || initialOverrides.switching)
+    !!(initialOverrides.fronting || initialOverrides.fronter || initialOverrides.switching || initialOverrides.systems || initialOverrides.alters || initialOverrides.switches || initialOverrides.fronts)
   );
   const [saving, setSaving] = useState(false);
 
@@ -123,6 +128,12 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
       term_fronting: overrides.fronting.trim() && overrides.fronting.trim() !== autoFronting ? overrides.fronting.trim() : "",
       term_fronter: overrides.fronter.trim() && overrides.fronter.trim() !== autoFronter ? overrides.fronter.trim() : "",
       term_switching: overrides.switching.trim() && overrides.switching.trim() !== autoSwitching ? overrides.switching.trim() : "",
+      // Plural overrides — only persist when the user typed something
+      // different from the default pluralize() rule (append "s").
+      term_systems: overrides.systems.trim() && overrides.systems.trim() !== pluralize(terms.system || "system") ? overrides.systems.trim() : "",
+      term_alters: overrides.alters.trim() && overrides.alters.trim() !== pluralize(terms.alter || "alter") ? overrides.alters.trim() : "",
+      term_switches: overrides.switches.trim() && overrides.switches.trim() !== pluralize(terms.switch || "switch") ? overrides.switches.trim() : "",
+      term_fronts: overrides.fronts.trim() && overrides.fronts.trim() !== pluralize(terms.front || "front") ? overrides.fronts.trim() : "",
     };
     try {
       if (existingSettingsId) {
@@ -242,26 +253,68 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
             </button>
             {editMode && (
               <p className="text-[0.6875rem] text-primary mb-1 pr-8">
-                Tap the <span className="underline decoration-dotted decoration-primary/60">highlighted</span> words to change how they're spelled. Grey ones are edited in Custom terms above.
+                Tap any <span className="underline decoration-dotted decoration-primary/60">highlighted</span> word to spell it exactly how you want it — including irregular plurals like child → children.
               </p>
             )}
             <p>
               <span className="font-medium">System:</span>{" "}
-              <InlineEditable value={terms.system} autoValue={terms.system} editable={false} editMode={editMode} ariaLabel="system" />
+              <InlineEditable
+                value={terms.system}
+                autoValue={terms.system}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, system: v })); setUseCustom(true); }}
+                ariaLabel="system"
+              />
               {" · "}
-              <InlineEditable value={pluralize(terms.system)} autoValue={pluralize(terms.system)} editable={false} editMode={editMode} ariaLabel="systems" />
+              <InlineEditable
+                value={overrides.systems}
+                autoValue={pluralize(terms.system)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, systems: v }))}
+                ariaLabel="systems (plural)"
+              />
             </p>
             <p>
               <span className="font-medium">Alter:</span>{" "}
-              <InlineEditable value={terms.alter} autoValue={terms.alter} editable={false} editMode={editMode} ariaLabel="alter" />
+              <InlineEditable
+                value={terms.alter}
+                autoValue={terms.alter}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, alter: v })); setUseCustom(true); }}
+                ariaLabel="alter"
+              />
               {" · "}
-              <InlineEditable value={pluralize(terms.alter)} autoValue={pluralize(terms.alter)} editable={false} editMode={editMode} ariaLabel="alters" />
+              <InlineEditable
+                value={overrides.alters}
+                autoValue={pluralize(terms.alter)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, alters: v }))}
+                ariaLabel="alters (plural)"
+              />
             </p>
             <p>
               <span className="font-medium">Switch:</span>{" "}
-              <InlineEditable value={terms.switch} autoValue={terms.switch} editable={false} editMode={editMode} ariaLabel="switch" />
+              <InlineEditable
+                value={terms.switch}
+                autoValue={terms.switch}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, switch: v })); setUseCustom(true); }}
+                ariaLabel="switch"
+              />
               {" · "}
-              <InlineEditable value={pluralize(terms.switch)} autoValue={pluralize(terms.switch)} editable={false} editMode={editMode} ariaLabel="switches" />
+              <InlineEditable
+                value={overrides.switches}
+                autoValue={pluralize(terms.switch)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, switches: v }))}
+                ariaLabel="switches (plural)"
+              />
               {" · "}
               <InlineEditable
                 value={overrides.switching}
@@ -274,9 +327,23 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
             </p>
             <p>
               <span className="font-medium">Front:</span>{" "}
-              <InlineEditable value={terms.front} autoValue={terms.front} editable={false} editMode={editMode} ariaLabel="front" />
+              <InlineEditable
+                value={terms.front}
+                autoValue={terms.front}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => { setCustom((p) => ({ ...terms, ...p, front: v })); setUseCustom(true); }}
+                ariaLabel="front"
+              />
               {" · "}
-              <InlineEditable value={pluralize(terms.front)} autoValue={pluralize(terms.front)} editable={false} editMode={editMode} ariaLabel="fronts" />
+              <InlineEditable
+                value={overrides.fronts}
+                autoValue={pluralize(terms.front)}
+                editable={true}
+                editMode={editMode}
+                onChange={(v) => setOverrides((p) => ({ ...p, fronts: v }))}
+                ariaLabel="fronts (plural)"
+              />
               {" · "}
               <InlineEditable
                 value={overrides.fronting}
