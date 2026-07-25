@@ -75,7 +75,15 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
         await base44.entities.SystemSettings.create(data);
       }
       try { localStorage.setItem("terms_setup_done", "1"); } catch { /* storage off */ }
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      // Await the refetch (not just invalidate) so the next Guide step
+      // renders with the new terms already in the react-query cache.
+      // Previously the shell advanced synchronously and the checklist
+      // read STALE terms until an async refetch caught up — on native
+      // that lag was visible as "Headmates setup" (the pre-existing
+      // preset) when the user had just typed custom terms (tester
+      // screenshot v0.86.9).
+      await qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      await qc.refetchQueries({ queryKey: ["systemSettings"], type: "active" });
       onSaved?.();
     } catch (e) {
       // Silent failure here would let the guide advance while the terms
