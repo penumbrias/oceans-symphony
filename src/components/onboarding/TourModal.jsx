@@ -241,11 +241,16 @@ export default function TourModal({ open, onClose, openAt = null }) {
           lead="First, select the in-app terminology. Pick a preset or define your own. You can change this any time in Settings → Profile → Terminology."
         />
       ),
-      nextLabel: termsSaved ? "Continue" : "Save & continue",
+      // Always "Save & continue" — labelling it "Continue" after the first
+      // save (v0.86.x) was misleading because users editing terms on a
+      // return visit expected their edit to save when they hit Continue.
+      // Combined with the onNext short-circuit that skipped the save when
+      // termsSaved was already true, this made second-visit edits silently
+      // discarded (tester report v0.87.4). handleSave is a no-op write when
+      // nothing changed, so there's no cost to always calling it.
+      nextLabel: "Save & continue",
       onNext: async () => {
-        if (!termsSaved && termsSaveRef.current) {
-          await termsSaveRef.current();
-        }
+        if (termsSaveRef.current) await termsSaveRef.current();
       },
     },
     {
