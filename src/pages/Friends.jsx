@@ -28,8 +28,11 @@ import {
   saveFriendVisibility,
   setFriendVerified,
   deleteIdentity,
+  saveFronterShareMode,
   FRIENDS_API_BASE,
 } from "@/lib/friendsApi";
+import { PREF_LEVELS } from "@/lib/alterPreferences";
+import { PrefLevelIcon } from "@/components/alters/AlterPreferencesEditor";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
@@ -287,9 +290,35 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Primary" />
                         )}
                         {f.name}
+                        {f.pronouns && f.pronouns !== f.name && (
+                          <span className="opacity-60 font-normal">· {f.pronouns}</span>
+                        )}
                       </div>
                     ))}
                   </div>
+                  {/* Shared preferences/boundaries — pronouns.cc-style chips.
+                      Only present when the friend's share mode includes them. */}
+                  {fronters.some((f) => Array.isArray(f.preferences) && f.preferences.length > 0) && (
+                    <div className="mt-2 space-y-1.5">
+                      {fronters.filter((f) => Array.isArray(f.preferences) && f.preferences.length > 0).map((f, i) => (
+                        <div key={`prefs-${i}`} className="text-xs">
+                          <span className="text-muted-foreground">{f.name}:</span>{" "}
+                          <span className="inline-flex flex-wrap gap-1 align-middle">
+                            {[...f.preferences].sort((a, b) => (b.level || 3) - (a.level || 3)).map((p, j) => {
+                              const lvl = PREF_LEVELS[p.level] || PREF_LEVELS[3];
+                              return (
+                                <span key={j} title={lvl.label}
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[0.6875rem]"
+                                  style={{ borderColor: `${lvl.color}66`, backgroundColor: `${lvl.color}14` }}>
+                                  <PrefLevelIcon level={p.level} className="w-3 h-3" filled />{p.label}
+                                </span>
+                              );
+                            })}
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
@@ -616,6 +645,9 @@ function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
   const [displayName, setDisplayName] = useState(existing?.displayName || '');
   const [systemName, setSystemName] = useState(existing?.systemName || '');
   const [privacyLevel, setPrivacyLevel] = useState(existing?.privacyLevel || 'names');
+  // What rides along with each shared fronter ("name" keeps pre-feature
+  // behaviour; nothing new leaves the device without an explicit change).
+  const [fronterShareMode, setFronterShareMode] = useState(existing?.fronterShareMode || 'name');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [deleting, setDeleting] = useState(false);
@@ -657,6 +689,7 @@ function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
         },
         privacyLevel,
       });
+      await saveFronterShareMode(fronterShareMode);
       toast.success('Profile saved!');
       onSaved();
       onClose();
@@ -711,6 +744,24 @@ function ProfileSetupModal({ open, onClose, onSaved, existing, onDeleted }) {
             </Select>
             <p className="text-xs text-muted-foreground mt-1.5">
               Controls what friends can see when you update your front.
+            </p>
+          </div>
+          <div>
+            <label className="text-xs font-medium text-muted-foreground uppercase tracking-wide mb-1.5 block">
+              What each {terms.fronter} shares
+            </label>
+            <Select value={fronterShareMode} onValueChange={setFronterShareMode}>
+              <SelectTrigger>
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="name">Name only</SelectItem>
+                <SelectItem value="name_prefs">Name + pronouns &amp; preferences</SelectItem>
+                <SelectItem value="prefs_only">Pronouns &amp; preferences only (no name)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground mt-1.5">
+              Preferences are the comfort-rated pronouns / names / terms set on each {terms.alter}'s profile (Edit → Pronouns → Advanced). "No name" shows pronouns in place of the name.
             </p>
           </div>
           {error && (

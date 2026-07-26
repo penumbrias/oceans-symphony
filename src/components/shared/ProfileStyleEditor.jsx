@@ -382,7 +382,9 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
       {profileThemeCss("os-pf", cf) && <style>{profileThemeCss("os-pf", cf)}</style>}
       {profileSurfaceCss("os-pf", cf) && <style>{profileSurfaceCss("os-pf", cf)}</style>}
       {/* HEADER */}
-      <SubSection title="Header" defaultOpen={true}>
+      {/* Collapsed by default (tester: the expanded header section pushed
+          the actual profile fields below the fold on phones). */}
+      <SubSection title="Header" defaultOpen={false}>
         <div className="flex items-center justify-between gap-3">
           <Label htmlFor="ps-header-visible" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
             <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Show header on profile

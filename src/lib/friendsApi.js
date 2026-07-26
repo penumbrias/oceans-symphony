@@ -316,13 +316,34 @@ export async function toggleNotify(friendUserId, notifyOnChange) {
 
 // fronters may include an `id` field (local alter ID) used for per-friend filtering;
 // it is stripped before being sent to the server.
-export async function pushFrontStatus({ fronters, terms, systemName, displayName, privacyLevel }) {
+export async function pushFrontStatus({ fronters: rawFronters, terms, systemName, displayName, privacyLevel }) {
   const identity = await getLocalIdentity();
   // Never share fronting from a push-only identity (one auto-provisioned solely
   // for cloud reminder / FCM delivery). This is the single chokepoint for all
   // outgoing front data, so it protects every caller (Friends page + the
   // always-mounted useFriendsFrontSync hook).
   if (!identity || identity.push_only) return;
+
+  // v0.87.9: what rides along with each fronter, per the user's share mode
+  // (Friends page → sharing settings; stored locally on FriendIdentity):
+  //   "name"       (default) — name only; pronouns/preferences stripped.
+  //   "name_prefs"           — name + pronouns + preferences/boundaries.
+  //   "prefs_only"           — pronouns shown IN PLACE of the name; the
+  //                            name never leaves the device.
+  // Default is the pre-feature behaviour so nothing new is shared without
+  // an explicit opt-in.
+  const shareMode = identity.fronterShareMode || "name";
+  const fronters = (rawFronters || []).map((f) => {
+    const { pronouns, preferences, ...rest } = f;
+    if (shareMode === "name_prefs") {
+      return { ...rest, pronouns: pronouns || "", preferences: preferences || [] };
+    }
+    if (shareMode === "prefs_only") {
+      const display = (pronouns || "").trim() || "?";
+      return { ...rest, name: display, initial: display[0] || "?", pronouns: pronouns || "", preferences: preferences || [] };
+    }
+    return rest; // "name" — strip everything new
+  });
 
   // Compute per-friend fronter overrides from local visibility settings
   const perFriendVisibility = identity.perFriendVisibility || {};
@@ -368,6 +389,16 @@ export async function pushFrontStatus({ fronters, terms, systemName, displayName
       perFriendFronters,
     }),
   }).catch(() => {});  // fire and forget
+}
+
+// Persist the fronter share mode ("name" | "name_prefs" | "prefs_only") on
+// the local identity. Applied by pushFrontStatus on the next push; we also
+// re-push immediately so friends see the change without waiting for a switch.
+export async function saveFronterShareMode(mode) {
+  const identity = await getLocalIdentity();
+  if (!identity) return null;
+  await localEntities.FriendIdentity.update(identity.id, { fronterShareMode: mode });
+  return mode;
 }
 
 // ─── Per-friend visibility settings ───────────────────────────────────────────

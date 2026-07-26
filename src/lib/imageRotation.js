@@ -38,12 +38,26 @@ function pickForSession(cacheKey, pool, mode, alterId, role) {
   return picked;
 }
 
-export function useRotatingImageUrl({ alterId, role, mode, fallbackUrl }) {
+// Which Alter field holds the linked-folder name per role — mirrors
+// AlterImagePoolManager's ROLE_FOLDER_FIELD.
+const ROLE_FOLDER_FIELD = { avatar: "avatar_pool_folder", background: "background_pool_folder" };
+
+export function useRotatingImageUrl({ alterId, role, mode, fallbackUrl, alter = null }) {
   const rotationOn = (mode === "random" || mode === "sequential") && !!alterId && !!role;
 
+  // v0.87.5: honour folder-linked pools. When the alter has a folder name
+  // in the per-role pool_folder field, the pool is that folder's contents
+  // (any ImageAsset with `folder === X`). Falls back to owner-tagged rows
+  // when the field is empty (pre-link behaviour). Callers that already pass
+  // in `alter` get the folder check for free; the rest can also pass alter
+  // to enable it — no behaviour change if alter is not provided.
+  const linkedFolder = alter ? (alter[ROLE_FOLDER_FIELD[role]] || "").trim() : "";
+
   const { data: pool = [] } = useQuery({
-    queryKey: ["imageAssets", "pool", alterId, role],
-    queryFn: () => base44.entities.ImageAsset.filter({ owner_alter_id: alterId, owner_role: role }),
+    queryKey: ["imageAssets", "pool", alterId, role, linkedFolder || "own"],
+    queryFn: () => linkedFolder
+      ? base44.entities.ImageAsset.filter({ folder: linkedFolder })
+      : base44.entities.ImageAsset.filter({ owner_alter_id: alterId, owner_role: role }),
     enabled: rotationOn,
   });
 

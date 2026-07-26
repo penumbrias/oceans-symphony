@@ -55,6 +55,21 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
     queryFn: () => base44.entities.ImageAsset.list("-created_date"),
     enabled: open,
   });
+  // v0.88.1: pool images (owner_alter_id-tagged ImageAssets) synthesize
+  // into per-alter "👤 Name" folders — same convention as the Assets
+  // Library page — so an alter's avatar pool is directly pickable here
+  // (tester: "wanna choose avatar images directly from my avatar pool").
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => base44.entities.Alter.list(),
+    enabled: open,
+  });
+  const alterNameById = useMemo(
+    () => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])),
+    [alters]
+  );
+  const ownerFolderFor = (asset) =>
+    asset?.owner_alter_id ? `👤 ${alterNameById[asset.owner_alter_id] || "Unknown"}` : null;
 
   const loadImages = async () => { try { setRawImages(await getAllLocalImages()); } catch { setRawImages({}); } };
   useEffect(() => { if (open) loadImages(); }, [open]);
@@ -75,7 +90,7 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
         key: id,
         url: `/local-image/${encodeURIComponent(id)}`,
         name: asset?.name || id,
-        folder: (asset?.folder || "").trim() || autoFolderFor(id),
+        folder: ownerFolderFor(asset) || (asset?.folder || "").trim() || autoFolderFor(id),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
       });
     }
@@ -84,14 +99,24 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
       if (lid && rawImages[lid] !== undefined) continue;
       out.push({
         key: `asset-${a.id}`, url: a.image_url,
-        name: a.name || "Image", folder: (a.folder || "").trim() || "Library uploads", isGif: !!a.is_gif,
+        name: a.name || "Image",
+        folder: ownerFolderFor(a) || (a.folder || "").trim() || "Library uploads",
+        isGif: !!a.is_gif,
       });
     }
     return out;
-  }, [rawImages, assets, assetByImageId]);
+  }, [rawImages, assets, assetByImageId, alterNameById]);
 
+  // 👤 alter-pool folders first (most relevant when picking an avatar),
+  // then the rest alphabetically, Other last.
   const folders = useMemo(
-    () => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b))),
+    () => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort((a, b) => {
+      const aPool = a.startsWith("👤"), bPool = b.startsWith("👤");
+      if (aPool !== bPool) return aPool ? -1 : 1;
+      if (a === "Other") return 1;
+      if (b === "Other") return -1;
+      return a.localeCompare(b);
+    }),
     [items]
   );
   const filtered = useMemo(() => {
