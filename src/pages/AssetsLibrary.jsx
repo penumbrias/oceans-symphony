@@ -6,8 +6,9 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
   Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search,
-  ChevronDown, ChevronRight, ArrowUp, ArrowDown, X,
+  ChevronDown, ChevronRight, ArrowUp, ArrowDown, X, UserPlus2, Users,
 } from "lucide-react";
+import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import {
@@ -106,6 +107,24 @@ export default function AssetsLibrary() {
   const alterNameById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])), [alters]);
   const alterFolderName = (alterId) => `${ALTER_FOLDER_PREFIX}${alterNameById[alterId] || "Unknown alter"}`;
 
+  // v0.87.6: user-assigned folder ownership. AssetFolder is optional
+  // metadata attached to a folder by NAME; a folder only gets a record
+  // once the user explicitly assigns an owner (or otherwise adopts it).
+  // Auto folders and un-adopted user folders have no record and simply
+  // render without ownership chips. Backed up + restored via the
+  // ImageAsset export category.
+  const { data: assetFolders = [] } = useQuery({
+    queryKey: ["assetFolders"],
+    queryFn: () => base44.entities.AssetFolder.list(),
+  });
+  const assetFolderByName = useMemo(() => {
+    const m = {};
+    for (const f of assetFolders) m[(f.name || "").trim()] = f;
+    return m;
+  }, [assetFolders]);
+  const [ownerFilter, setOwnerFilter] = useState("all"); // "all" | alterId
+  const [ownershipDialog, setOwnershipDialog] = useState(null); // folder name or null
+
   // Deep link from an alter's edit screen (?alter=<id>) — default-open and
   // scroll to that alter's synthesized folder, then strip the param so a
   // refresh/back-nav doesn't re-fire.
@@ -193,8 +212,40 @@ export default function AssetsLibrary() {
       .filter((f) => AUTO_FOLDERS.has(f))
       .sort((a, b) => (a === "Other" ? 1 : b === "Other" ? -1 : a.localeCompare(b)));
 
-    return { byFolder: map, orderedFolders: [...userNames, ...alterFolderNames, ...autoNames] };
-  }, [filtered, folderOrder]);
+    let ordered = [...userNames, ...alterFolderNames, ...autoNames];
+    // Owner-filter narrows to just folders whose AssetFolder record lists
+    // the chosen alter (and the synthetic 👤 folder for that alter, which
+    // always belongs to them).
+    if (ownerFilter !== "all") {
+      const alterOwnedName = alterFolderName(ownerFilter);
+      ordered = ordered.filter((f) => {
+        if (f === alterOwnedName) return true;
+        const rec = assetFolderByName[f];
+        return rec && Array.isArray(rec.owner_alter_ids) && rec.owner_alter_ids.includes(ownerFilter);
+      });
+    }
+    return { byFolder: map, orderedFolders: ordered };
+  }, [filtered, folderOrder, ownerFilter, assetFolderByName]);
+
+  // Assign / update / clear the alter-owners set for a user folder. Creates
+  // an AssetFolder record on first assignment; deletes it when the user
+  // clears all owners (keeps the store tidy — no zombie zero-owner rows).
+  const saveOwners = async (folderName, ownerAlterIds) => {
+    const existing = assetFolderByName[folderName];
+    try {
+      if ((ownerAlterIds || []).length === 0) {
+        if (existing) await base44.entities.AssetFolder.delete(existing.id);
+      } else if (existing) {
+        await base44.entities.AssetFolder.update(existing.id, { owner_alter_ids: ownerAlterIds });
+      } else {
+        await base44.entities.AssetFolder.create({ name: folderName, owner_alter_ids: ownerAlterIds });
+      }
+      qc.invalidateQueries({ queryKey: ["assetFolders"] });
+      toast.success((ownerAlterIds || []).length === 0 ? "Ownership cleared" : "Ownership saved");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save ownership");
+    }
+  };
 
   const toggleCollapse = (name) => setCollapsed((s) => { const n = new Set(s); n.has(name) ? n.delete(name) : n.add(name); return n; });
   const isUser = (name) => !AUTO_FOLDERS.has(name) && !name.startsWith(ALTER_FOLDER_PREFIX);
@@ -220,6 +271,13 @@ export default function AssetsLibrary() {
       catch { failed += 1; }
     }
     setFolderOrder((o) => o.map((n) => (n === oldName ? next : n)).filter((n, i, arr) => arr.indexOf(n) === i));
+    // Also carry the ownership record over so a rename doesn't silently
+    // detach the alter-owner metadata from the folder.
+    const rec = assetFolderByName[oldName];
+    if (rec) {
+      try { await base44.entities.AssetFolder.update(rec.id, { name: next }); } catch { /* skip */ }
+      qc.invalidateQueries({ queryKey: ["assetFolders"] });
+    }
     qc.invalidateQueries({ queryKey: ["imageAssets"] });
     // Don't claim success when some items were left behind in the old folder.
     if (failed > 0) toast.error(`Renamed, but ${failed} item${failed === 1 ? "" : "s"} couldn't be moved.`);
@@ -325,6 +383,24 @@ export default function AssetsLibrary() {
           </button>
           <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleFiles} />
         </div>
+        {/* Owner filter — pick an alter to narrow visible folders to
+            just the ones they own (an alter's "mini asset library").
+            Only shown once at least one folder has been assigned an
+            owner, so it doesn't clutter the header for users who
+            haven't started using ownership yet. */}
+        {assetFolders.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 scrollbar-none">
+            <Users className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+            <button type="button" onClick={() => setOwnerFilter("all")}
+              className={`px-2.5 py-1 rounded-full text-xs font-medium border flex-shrink-0 ${ownerFilter === "all" ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>All owners</button>
+            {alters.filter((a) => !a.is_archived).map((a) => (
+              <button key={a.id} type="button" onClick={() => setOwnerFilter(a.id)}
+                className={`px-2.5 py-1 rounded-full text-xs font-medium border flex-shrink-0 max-w-[10rem] truncate ${ownerFilter === a.id ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                {a.name || "Unnamed"}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
       {loadingImages ? (
@@ -348,13 +424,41 @@ export default function AssetsLibrary() {
                     <span className="text-sm font-medium truncate">{folder}</span>
                     <span className="text-[0.625rem] text-muted-foreground flex-shrink-0">· {list.length}</span>
                   </button>
-                  {userFolder && (
-                    <div className="flex items-center gap-0.5 flex-shrink-0">
-                      <button type="button" onClick={() => moveFolder(folder, -1)} title="Move up" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowUp className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => moveFolder(folder, 1)} title="Move down" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowDown className="w-3.5 h-3.5" /></button>
-                      <button type="button" onClick={() => renameFolder(folder)} title="Rename folder" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><Pencil className="w-3.5 h-3.5" /></button>
-                    </div>
-                  )}
+                  {userFolder && (() => {
+                    const rec = assetFolderByName[folder];
+                    const ownerIds = (rec && Array.isArray(rec.owner_alter_ids)) ? rec.owner_alter_ids : [];
+                    const ownerLabels = ownerIds
+                      .map((id) => alterNameById[id])
+                      .filter(Boolean)
+                      .slice(0, 3);
+                    const extraCount = Math.max(0, ownerIds.length - ownerLabels.length);
+                    return (
+                      <div className="flex items-center gap-0.5 flex-shrink-0">
+                        {ownerLabels.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setOwnershipDialog(folder)}
+                            title="Change owners"
+                            className="hidden sm:flex items-center gap-1 text-[0.6875rem] px-2 py-0.5 rounded-full border border-primary/40 bg-primary/5 text-primary max-w-[12rem] truncate mr-1"
+                          >
+                            <Users className="w-3 h-3 flex-shrink-0" />
+                            <span className="truncate">{ownerLabels.join(", ")}{extraCount ? ` +${extraCount}` : ""}</span>
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setOwnershipDialog(folder)}
+                          title={ownerLabels.length ? "Change owners" : "Assign owner…"}
+                          className={`p-1 rounded hover:bg-muted/60 ${ownerLabels.length ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}
+                        >
+                          <UserPlus2 className="w-3.5 h-3.5" />
+                        </button>
+                        <button type="button" onClick={() => moveFolder(folder, -1)} title="Move up" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowUp className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => moveFolder(folder, 1)} title="Move down" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><ArrowDown className="w-3.5 h-3.5" /></button>
+                        <button type="button" onClick={() => renameFolder(folder)} title="Rename folder" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><Pencil className="w-3.5 h-3.5" /></button>
+                      </div>
+                    );
+                  })()}
                 </div>
                 {open && (
                   <div className="p-3">
@@ -382,6 +486,66 @@ export default function AssetsLibrary() {
           })}
         </div>
       )}
+
+      {ownershipDialog && (
+        <FolderOwnershipDialog
+          folderName={ownershipDialog}
+          alters={alters.filter((a) => !a.is_archived)}
+          initialOwnerIds={(assetFolderByName[ownershipDialog]?.owner_alter_ids) || []}
+          onCancel={() => setOwnershipDialog(null)}
+          onSave={async (ids) => { await saveOwners(ownershipDialog, ids); setOwnershipDialog(null); }}
+        />
+      )}
     </div>
+  );
+}
+
+function FolderOwnershipDialog({ folderName, alters, initialOwnerIds, onCancel, onSave }) {
+  const [selected, setSelected] = useState(() => new Set(initialOwnerIds || []));
+  const [search, setSearch] = useState("");
+  const toggle = (id) => setSelected((s) => { const n = new Set(s); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const q = search.trim().toLowerCase();
+  const filtered = q ? alters.filter((a) => (a.name || "").toLowerCase().includes(q)) : alters;
+  return (
+    <Dialog open onOpenChange={(o) => { if (!o) onCancel(); }}>
+      <DialogContent showCloseButton={false} style={{ zIndex: 120 }} className="max-w-sm p-0 gap-0 rounded-2xl overflow-hidden">
+        <div className="px-4 py-3 border-b border-border/50 flex items-center justify-between gap-2">
+          <DialogTitle className="font-semibold text-sm flex items-center gap-1.5">
+            <Users className="w-4 h-4" /> Folder owners
+          </DialogTitle>
+          <button type="button" onClick={onCancel} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="p-4 space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Pick who this folder belongs to. Once assigned, filter the top of the library to see just that alter's folders.
+          </p>
+          <div className="text-xs text-foreground">
+            Folder: <span className="font-medium">{folderName}</span>
+          </div>
+          <Input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search alters…" className="h-8 text-sm" />
+          <div className="max-h-64 overflow-y-auto rounded-lg border border-border/50 divide-y divide-border/40">
+            {filtered.length === 0 ? (
+              <p className="text-xs text-muted-foreground text-center py-4">No alters match.</p>
+            ) : (
+              filtered.map((a) => {
+                const checked = selected.has(a.id);
+                return (
+                  <label key={a.id} className="flex items-center gap-2 px-3 py-2 cursor-pointer hover:bg-muted/30 text-sm">
+                    <input type="checkbox" checked={checked} onChange={() => toggle(a.id)} className="w-4 h-4 accent-primary flex-shrink-0" />
+                    <span className="flex-1 min-w-0 truncate">{a.name || "Unnamed"}</span>
+                  </label>
+                );
+              })
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 p-4 border-t border-border/50">
+          <button type="button" onClick={onCancel} className="flex-1 h-8 rounded-lg border border-border text-xs font-medium">Cancel</button>
+          <button type="button" onClick={() => onSave([...selected])} className="flex-1 h-8 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+            {selected.size === 0 ? "Clear ownership" : `Assign ${selected.size} owner${selected.size === 1 ? "" : "s"}`}
+          </button>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
