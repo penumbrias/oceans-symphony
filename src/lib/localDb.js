@@ -687,6 +687,39 @@ function _sanitizeIncomingFrontingSessions(incomingRecords, existingRecords) {
   return out;
 }
 
+// Merge an incoming record into an existing SAME-ID local record.
+// This is what makes "Update & add new" actually UPDATE (tester report:
+// avatars/roles edited on desktop never propagated to the phone because
+// the old merge skipped every id that already existed locally — the
+// "update" in the label was a lie).
+//
+// Rules (data-safety first):
+//   - Incoming strictly NEWER (updated_date): incoming non-empty fields
+//     win — the desktop edit propagates. Incoming EMPTY fields never
+//     blank a local value (deletions don't propagate; conservative).
+//   - Incoming same-or-older: only fills local fields that are EMPTY
+//     (repairs half-imported records without touching user edits).
+//   - id / created_date never change; updated_date takes the newer.
+// Exported for the merge test harness.
+export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) {
+  if (!incoming || typeof incoming !== "object") return local;
+  if (!local || typeof local !== "object") return incoming;
+  const localTime = Date.parse(local.updated_date || "") || 0;
+  const incomingTime = Date.parse(incoming.updated_date || "") || 0;
+  const incomingNewer = newerWins && incomingTime > localTime;
+  const out = { ...local };
+  let changed = false;
+  for (const [field, value] of Object.entries(incoming)) {
+    if (field === "id" || field === "created_date" || field === "updated_date") continue;
+    if (isEmptyValue(value)) continue;
+    if (incomingNewer || isEmptyValue(out[field])) {
+      if (out[field] !== value) { out[field] = value; changed = true; }
+    }
+  }
+  if (incomingNewer && changed) out.updated_date = incoming.updated_date;
+  return out;
+}
+
 export async function mergeDbDump(dump) {
   if (!_db) _db = {};
   for (const [entityName, incoming] of Object.entries(dump)) {
@@ -735,7 +768,11 @@ export async function mergeDbDump(dump) {
         }
         for (const [id, record] of Object.entries(records)) {
           if (!record || typeof record !== "object") continue;
-          if (_db[entityName][id]) continue;
+          if (_db[entityName][id]) {
+            // Same id exists — update it in place (newer wins).
+            _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+            continue;
+          }
           const key = keyFn(record);
           if (key && seen.has(key)) continue;
           _db[entityName][id] = record;
@@ -749,6 +786,15 @@ export async function mergeDbDump(dump) {
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
         _db[entityName][id] = record;
+      } else if (entityName !== "FrontingSession") {
+        // Same id exists locally — merge instead of skipping, so edits
+        // made on another device (new avatar, changed role/tags/bio)
+        // actually arrive. FrontingSession same-id rows are left
+        // UNTOUCHED (pre-v0.88.3 behaviour): their is_active /
+        // is_primary / end_time are live state, and merging any of it
+        // (even fill-empty stamping an end_time onto a still-active
+        // local session) risks inconsistent current-front state.
+        _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
       }
     }
   }

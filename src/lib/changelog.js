@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "fix", text: "Importing a backup with \"Update & Add New\" (formerly \"Add New\") now actually updates existing records when the backup's copy is newer — avatars, roles, tags, and bios edited on your computer finally arrive on your phone. Your more-recent local edits always win, and nothing is ever deleted. (This was why pfps wouldn't transfer: the old merge silently skipped every record that already existed.)" },
       { type: "improve", text: "The preferences comfort scale now uses flat line icons (broken heart / thumbs down / dash / thumbs up / heart) tinted by level, instead of emojis — in the editor, on profiles, and on friends' shared chips." },
       { type: "improve", text: "Alter profile edit clean-up: the Profile style → Header section starts collapsed, the redundant \"Pin to the top\" checkbox is gone (the pin icon in the header does the same and saves instantly), Role and First appearance share a row, and the Advanced preferences drawer is now available in the profile's own edit mode too — not just the edit pop-up." },
       { type: "improve", text: "The image picker now shows each alter's avatar/background pool as a \"👤 Name\" folder — listed first — so you can pick an avatar straight from your pool." },

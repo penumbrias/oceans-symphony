@@ -1569,7 +1569,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           <div className="flex gap-2">
             <label className="flex items-center gap-2 flex-1 cursor-pointer">
               <input type="radio" name="importMode" value="add" checked={importMode === "add"} onChange={(e) => setImportMode(e.target.value)} className="w-4 h-4" />
-              <span className="text-xs font-medium">Add New</span>
+              <span className="text-xs font-medium">Update &amp; Add New</span>
             </label>
             <label className="flex items-center gap-2 flex-1 cursor-pointer">
               <input type="radio" name="importMode" value="replace" checked={importMode === "replace"} onChange={(e) => setImportMode(e.target.value)} className="w-4 h-4" />
@@ -1595,7 +1595,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
-              : "⚠️ Add New imports records — it does not replace existing data."}
+              : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything, and your more-recent local edits always win."}
           </p>
         </div>
         {/* Debug: View Local Data */}
