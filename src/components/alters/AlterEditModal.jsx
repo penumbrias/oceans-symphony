@@ -450,7 +450,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
           {prefsOpen && (
             <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
               <p className="text-xs text-muted-foreground">
-                Rate how each pronoun set, name, or term feels — from 💔 hate to ❤️ love. Shows on the profile, and can optionally be shared with friends so they know what to use (and what to avoid).
+                Rate how each pronoun set, name, or term feels — from hate to love. Shows on the profile, and can optionally be shared with friends so they know what to use (and what to avoid).
               </p>
               <AlterPreferencesEditor value={form.preferences} onChange={(next) => set("preferences", next)} />
             </div>

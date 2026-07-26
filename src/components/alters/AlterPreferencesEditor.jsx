@@ -5,9 +5,20 @@
 // save with the rest of the alter.
 
 import React, { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, HeartCrack, ThumbsDown, Minus, ThumbsUp, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { PREF_LEVELS, PREF_CATEGORIES, categoryMeta } from "@/lib/alterPreferences";
+
+// Flat (stroke) icons per level, replacing the coloured emoji (tester:
+// "make the emojis flat"). Tinted with the level colour when active /
+// displayed; muted otherwise. Exported so Friends.jsx renders shared
+// preference chips with the same visual language.
+const LEVEL_ICONS = { 1: HeartCrack, 2: ThumbsDown, 3: Minus, 4: ThumbsUp, 5: Heart };
+export function PrefLevelIcon({ level, className = "w-3.5 h-3.5", filled = false }) {
+  const Icon = LEVEL_ICONS[level] || Minus;
+  const meta = PREF_LEVELS[level] || PREF_LEVELS[3];
+  return <Icon className={className} style={{ color: meta.color }} fill={filled && (level === 5 || level === 1) ? meta.color : "none"} />;
+}
 
 function LevelPicker({ value, onChange, compact = false }) {
   return (
@@ -15,6 +26,7 @@ function LevelPicker({ value, onChange, compact = false }) {
       {Object.entries(PREF_LEVELS).map(([lvl, meta]) => {
         const n = Number(lvl);
         const active = value === n;
+        const Icon = LEVEL_ICONS[n] || Minus;
         return (
           <button
             key={lvl}
@@ -23,11 +35,16 @@ function LevelPicker({ value, onChange, compact = false }) {
             aria-checked={active}
             title={meta.label}
             onClick={() => onChange(n)}
-            className={`${compact ? "w-6 h-6 text-xs" : "w-7 h-7 text-sm"} rounded-md flex items-center justify-center transition-all ${
-              active ? "bg-primary/15 ring-1 ring-primary scale-110" : "opacity-45 hover:opacity-100"
+            className={`${compact ? "w-6 h-6" : "w-7 h-7"} rounded-md flex items-center justify-center transition-all ${
+              active ? "ring-1 scale-110" : "opacity-40 hover:opacity-100"
             }`}
+            style={active ? { backgroundColor: `${meta.color}1f`, boxShadow: `inset 0 0 0 1px ${meta.color}` } : undefined}
           >
-            {meta.emoji}
+            <Icon
+              className={compact ? "w-3.5 h-3.5" : "w-4 h-4"}
+              style={{ color: active ? meta.color : "currentColor" }}
+              fill={active && (n === 5 || n === 1) ? meta.color : "none"}
+            />
           </button>
         );
       })}
@@ -147,7 +164,7 @@ export function PreferencesDisplay({ preferences = [] }) {
                   className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs border"
                   style={{ borderColor: `${lvl.color}66`, backgroundColor: `${lvl.color}14` }}
                 >
-                  <span aria-hidden="true">{lvl.emoji}</span>
+                  <PrefLevelIcon level={p.level} className="w-3 h-3" filled />
                   <span>{p.label}</span>
                 </span>
               );

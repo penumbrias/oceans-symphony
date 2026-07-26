@@ -1018,7 +1018,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
       {prefsOpen && (
         <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2" data-pf-surface>
           <p className="text-xs text-muted-foreground">
-            Rate how each pronoun set, name, or term feels — from 💔 hate to ❤️ love. Shows on the profile, and can optionally be shared with friends.
+            Rate how each pronoun set, name, or term feels — from hate to love. Shows on the profile, and can optionally be shared with friends.
           </p>
           <AlterPreferencesEditor value={form.preferences || []} onChange={(next) => set("preferences", next)} />
         </div>

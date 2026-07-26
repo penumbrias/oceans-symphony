@@ -32,6 +32,7 @@ import {
   FRIENDS_API_BASE,
 } from "@/lib/friendsApi";
 import { PREF_LEVELS } from "@/lib/alterPreferences";
+import { PrefLevelIcon } from "@/components/alters/AlterPreferencesEditor";
 import { isPushEnabled, getActivePushSubscription } from "@/lib/pushRegistration";
 import { ensureKeyPair, publishPublicKey, safetyNumber, isCryptoAvailable } from "@/lib/friendsCrypto";
 import { pushAlterShares, fetchFriendShare } from "@/lib/friendsShare";
@@ -307,9 +308,9 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                               const lvl = PREF_LEVELS[p.level] || PREF_LEVELS[3];
                               return (
                                 <span key={j} title={lvl.label}
-                                  className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full border text-[0.6875rem]"
+                                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border text-[0.6875rem]"
                                   style={{ borderColor: `${lvl.color}66`, backgroundColor: `${lvl.color}14` }}>
-                                  <span aria-hidden="true">{lvl.emoji}</span>{p.label}
+                                  <PrefLevelIcon level={p.level} className="w-3 h-3" filled />{p.label}
                                 </span>
                               );
                             })}

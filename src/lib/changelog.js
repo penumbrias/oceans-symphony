@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "improve", text: "The preferences comfort scale now uses flat line icons (broken heart / thumbs down / dash / thumbs up / heart) tinted by level, instead of emojis — in the editor, on profiles, and on friends' shared chips." },
       { type: "improve", text: "Alter profile edit clean-up: the Profile style → Header section starts collapsed, the redundant \"Pin to the top\" checkbox is gone (the pin icon in the header does the same and saves instantly), Role and First appearance share a row, and the Advanced preferences drawer is now available in the profile's own edit mode too — not just the edit pop-up." },
       { type: "improve", text: "The image picker now shows each alter's avatar/background pool as a \"👤 Name\" folder — listed first — so you can pick an avatar straight from your pool." },
       { type: "feature", text: "Preferences & boundaries — a pronouns.cc-style advanced mode for each alter. Under Edit → Pronouns → Advanced, add pronoun sets, names/nicknames, and terms/compliments, each rated 💔 hate → ❤️ love. They show as comfort-tinted chips on the profile, and a new Friends setting lets each fronter share name only, name + pronouns & preferences, or pronouns & preferences instead of the name." },
