@@ -196,6 +196,36 @@ export async function getAllLocalImages() {
   }
 }
 
+// Raw-bytes view of the store for the "download images as .zip" export:
+// { [id]: { bytes: Uint8Array, mime } }. Streams entry-by-entry (same
+// peak-memory rationale as probeBlobMigrationStatus). Legacy data-URI
+// strings are decoded to bytes so the zip is uniform.
+export async function getAllLocalImageBlobs() {
+  try {
+    const idb = await getIdb();
+    const keys = await new Promise((resolve, reject) => {
+      const tx = idb.transaction([STORE_NAME], 'readonly');
+      const req = tx.objectStore(STORE_NAME).getAllKeys();
+      req.onerror = reject;
+      req.onsuccess = () => resolve(req.result || []);
+    });
+    const out = {};
+    for (const key of keys) {
+      const v = await getLocalImage(key);
+      if (v instanceof Blob) {
+        out[key] = { bytes: new Uint8Array(await v.arrayBuffer()), mime: v.type || 'application/octet-stream' };
+      } else if (typeof v === 'string' && v.startsWith('data:')) {
+        const blob = dataUrlToBlob(v);
+        if (blob) out[key] = { bytes: new Uint8Array(await blob.arrayBuffer()), mime: blob.type };
+      }
+    }
+    return out;
+  } catch (e) {
+    console.warn('getAllLocalImageBlobs: IDB unavailable:', e);
+    return {};
+  }
+}
+
 export async function restoreLocalImages(imagesMap) {
   try {
     for (const [id, imageData] of Object.entries(imagesMap || {})) {

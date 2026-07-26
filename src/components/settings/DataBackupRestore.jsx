@@ -585,10 +585,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
   const hasHeavyBlobs = [...selectedCats].some(id => HEAVY_BLOB_CATS.has(id));
 
-  const runExport = async (mode = "save", { skipHeavyBlobs = false, tag = "" } = {}) => {
+  const runExport = async (mode = "save", { skipHeavyBlobs = false, onlyCats = null, tag = "" } = {}) => {
     setExportLoading(true);
     try {
-      const overrideCats = skipHeavyBlobs ? catsWithoutHeavyBlobs() : undefined;
+      const overrideCats = onlyCats ?? (skipHeavyBlobs ? catsWithoutHeavyBlobs() : undefined);
       const exportData = await buildExportData(overrideCats);
       const date = new Date().toISOString().slice(0, 10);
       const ext = exportFormat === "compact" ? "txt" : "json";
@@ -631,6 +631,48 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
   const handleExportFull  = () => runExport("save");
   const handleExportShare = () => runExport("share");
+  // Images-only Symphony backup — importable on another device (pairs
+  // with the data-only safety net: data-only there, images-only here).
+  const handleExportImagesOnly = () => runExport("save", { onlyCats: new Set(["images"]), tag: "images-only" });
+
+  // Every stored image as a plain .zip of real files (avatar-….png etc.) —
+  // usable OUTSIDE the app, not just as a backup. fflate is already a dep
+  // (OpenPlural/Plural Star imports unzip with it).
+  const handleExportImagesZip = async () => {
+    setExportLoading(true);
+    try {
+      const { getAllLocalImageBlobs } = await import("@/lib/localImageStorage");
+      const blobs = await getAllLocalImageBlobs();
+      const ids = Object.keys(blobs);
+      if (ids.length === 0) { showStatus("error", "No images stored yet."); return; }
+      const extFor = (mime) => ({ "image/png": "png", "image/jpeg": "jpg", "image/gif": "gif", "image/webp": "webp", "image/svg+xml": "svg", "image/avif": "avif" }[mime] || "img");
+      const fflate = await import("fflate");
+      const entries = {};
+      for (const id of ids) {
+        const { bytes, mime } = blobs[id];
+        // Store (no re-compress) — images are already compressed formats;
+        // level 0 keeps peak memory + CPU low on phones.
+        entries[`${id}.${extFor(mime)}`] = [bytes, { level: 0 }];
+      }
+      const zipped = fflate.zipSync(entries);
+      const blob = new Blob([zipped], { type: "application/zip" });
+      const date = new Date().toISOString().slice(0, 10);
+      const { shareFile } = await import("@/lib/shareFile");
+      const res = await shareFile({
+        blob,
+        filename: `symphony-images-${date}.zip`,
+        title: "Oceans Symphony images",
+        dialogTitle: "Save or share your images",
+        prefer: isNative() ? "share" : "download",
+      });
+      if (res?.result === "failed") showStatus("error", `Images export failed${res.error ? `: ${res.error}` : ""}`);
+      else if (res?.result !== "cancelled") showStatus("success", `${ids.length} image${ids.length === 1 ? "" : "s"} zipped 📁`);
+    } catch (e) {
+      showStatus("error", `Images export failed: ${e.message}`);
+    } finally {
+      setExportLoading(false);
+    }
+  };
   // Safety-net export — the "if the app crashes, try this" backstop.
   // Same file format and same save/share destinations, but images and
   // custom fonts are stripped before the payload crosses the native
@@ -1292,6 +1334,24 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                       </div>
                     </label>
                   ))}
+                </div>
+
+                {/* One-tap image exports — tester report: "no way to export
+                    just images" (technically possible by unticking 19
+                    checkboxes, but effectively invisible). */}
+                <div className="border-t border-border/30 pt-2 space-y-1.5">
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Images only</p>
+                  <div className="flex flex-wrap gap-2">
+                    <Button size="sm" variant="outline" onClick={handleExportImagesOnly} disabled={exportLoading} className="text-xs gap-1.5">
+                      <Download className="w-3.5 h-3.5" /> Images-only backup
+                    </Button>
+                    <Button size="sm" variant="outline" onClick={handleExportImagesZip} disabled={exportLoading} className="text-xs gap-1.5">
+                      <Share2 className="w-3.5 h-3.5" /> Images as .zip
+                    </Button>
+                  </div>
+                  <p className="text-[0.6875rem] text-muted-foreground leading-snug">
+                    Backup = importable on another device (pairs with a data-only backup). Zip = plain image files you can open anywhere.
+                  </p>
                 </div>
               </div>
             )}
