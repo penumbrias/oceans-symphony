@@ -1070,6 +1070,10 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
         </>
       ) : (
         <>
+          {/* Hover-reveal is desktop-only chrome — phones have no hover, so
+              these buttons were effectively unreachable on mobile (tester
+              report: "no way to add an item as a favorite"). md+: keep the
+              tidy hover-reveal; below md: always visible. */}
           {showStar && (
             <button
               onClick={onToggleFavorite}
@@ -1078,7 +1082,7 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
               className={`p-1 transition-colors ${
                 isFavorite
                   ? "text-amber-500 hover:text-amber-600"
-                  : "text-neutral-400 hover:text-amber-500 opacity-0 group-hover:opacity-100"
+                  : "text-neutral-400 hover:text-amber-500 md:opacity-0 md:group-hover:opacity-100"
               }`}
             >
               <Star className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
@@ -1087,7 +1091,7 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
           <button
             onClick={onRemove}
             aria-label="Remove"
-            className="p-1 text-neutral-400 hover:text-red-500 opacity-0 group-hover:opacity-100 transition-opacity"
+            className="p-1 text-neutral-400 hover:text-red-500 md:opacity-0 md:group-hover:opacity-100 transition-opacity"
           >
             <Trash2 className="w-4 h-4" />
           </button>
