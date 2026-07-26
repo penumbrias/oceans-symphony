@@ -14,7 +14,7 @@ import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
 import { parsePreferences } from "@/lib/alterPreferences";
-import { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
+import AlterPreferencesEditor, { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
@@ -171,8 +171,12 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
     description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", emoji: "", use_emoji_as_alias: false, subsystems_icon: "",
     is_pinned: false,
     custom_fields: {},
+    preferences: [],
   });
   const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
+  // "Advanced — preferences & boundaries" drawer under Pronouns
+  // (pronouns.cc-style comfort levels). Mirrors AlterEditModal's drawer.
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showGroupPicker, setShowGroupPicker] = useState(false);
@@ -239,7 +243,9 @@ export default function ProfileTab({ alter, editMode, onEditModeChange, systemFi
       is_pinned: !!alter.is_pinned,
       subsystems_icon: alter.subsystems_icon || "",
       custom_fields: alter.custom_fields || {},
+      preferences: parsePreferences(alter),
     });
+    setPrefsOpen(parsePreferences(alter).length > 0);
   }, [alter]);
 
   const bgColor = form.custom_fields?.[BG_COLOR_KEY] || "";
@@ -950,18 +956,8 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
               The alias (or emoji) is a shorthand for @ mentions and - signposts.
             </p>
           </div>
-          {/* Pin to top — parity with the press-and-hold action on the
-              alters list. Rides through the save via {...form}. */}
-          <div className="space-y-1">
-            <button
-              type="button"
-              onClick={() => set("is_pinned", !form.is_pinned)}
-              className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground cursor-pointer"
-            >
-              <span className={`w-3.5 h-3.5 rounded border flex items-center justify-center text-[0.625rem] leading-none ${form.is_pinned ? "bg-primary border-primary text-primary-foreground" : "border-border"}`}>{form.is_pinned ? "✓" : ""}</span>
-              Pin to the top of {t.alters} lists
-            </button>
-          </div>
+          {/* Pin checkbox removed (v0.88.1, tester) — redundant with the
+              pin icon in the profile header, which saves immediately. */}
         </div>
         <div className="flex-shrink-0 w-[76px] flex flex-col items-center gap-1.5">
           <label className="text-[0.6875rem] uppercase tracking-wider text-muted-foreground font-medium">Avatar</label>
@@ -997,6 +993,14 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Pronouns</label>
           <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
+          <button
+            type="button"
+            onClick={() => setPrefsOpen((v) => !v)}
+            className="text-[0.6875rem] text-muted-foreground hover:text-primary transition-colors"
+          >
+            {prefsOpen ? "▾" : "▸"} Advanced — preferences &amp; boundaries
+            {(form.preferences || []).length > 0 ? ` (${form.preferences.length})` : ""}
+          </button>
         </div>
         <div className="space-y-1">
           <label className="text-xs text-muted-foreground font-medium">Color</label>
@@ -1009,22 +1013,34 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
         </div>
       </div>
 
-      {/* Role */}
-      <div className="space-y-1 rounded-2xl" data-pf-surface>
-        <label className="text-xs text-muted-foreground font-medium">Role</label>
-        <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
-      </div>
+      {/* Advanced preferences & boundaries — pronouns.cc-style comfort
+          levels; same drawer AlterEditModal has. */}
+      {prefsOpen && (
+        <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2" data-pf-surface>
+          <p className="text-xs text-muted-foreground">
+            Rate how each pronoun set, name, or term feels — from 💔 hate to ❤️ love. Shows on the profile, and can optionally be shared with friends.
+          </p>
+          <AlterPreferencesEditor value={form.preferences || []} onChange={(next) => set("preferences", next)} />
+        </div>
+      )}
 
-      {/* First appearance — one field feeding both the free-form display
-          and the integer origin_year (lineage/timeline). */}
-      <div className="space-y-1 rounded-2xl" data-pf-surface>
-        <label className="text-xs text-muted-foreground font-medium">First appearance</label>
-        <Input
-          value={form.birthday || ""}
-          onChange={(e) => setFirstAppearance(e.target.value)}
-          placeholder={`e.g. ${new Date().getFullYear() - 5}, March ${new Date().getFullYear() - 5}, or a full date`}
-        />
-        <p className="text-[0.6875rem] text-muted-foreground leading-snug">When this {t.alter} first appeared — just a year, or a specific month/day. Feeds the {t.Alter} History timeline.</p>
+      {/* Role + First appearance — paired on one row (v0.88.1 layout tidy;
+          they're both short single-line inputs). First appearance feeds
+          both the free-form display and the integer origin_year. */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 rounded-2xl" data-pf-surface>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">Role</label>
+          <Input value={form.role} onChange={(e) => set("role", e.target.value)} placeholder="Protector, host…" />
+        </div>
+        <div className="space-y-1">
+          <label className="text-xs text-muted-foreground font-medium">First appearance</label>
+          <Input
+            value={form.birthday || ""}
+            onChange={(e) => setFirstAppearance(e.target.value)}
+            placeholder={`e.g. ${new Date().getFullYear() - 5}, March ${new Date().getFullYear() - 5}, or a full date`}
+          />
+          <p className="text-[0.6875rem] text-muted-foreground leading-snug">Feeds the {t.Alter} History timeline — a year is enough.</p>
+        </div>
       </div>
 
       {/* Groups */}

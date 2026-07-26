@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "improve", text: "Alter profile edit clean-up: the Profile style → Header section starts collapsed, the redundant \"Pin to the top\" checkbox is gone (the pin icon in the header does the same and saves instantly), Role and First appearance share a row, and the Advanced preferences drawer is now available in the profile's own edit mode too — not just the edit pop-up." },
+      { type: "improve", text: "The image picker now shows each alter's avatar/background pool as a \"👤 Name\" folder — listed first — so you can pick an avatar straight from your pool." },
       { type: "feature", text: "Preferences & boundaries — a pronouns.cc-style advanced mode for each alter. Under Edit → Pronouns → Advanced, add pronoun sets, names/nicknames, and terms/compliments, each rated 💔 hate → ❤️ love. They show as comfort-tinted chips on the profile, and a new Friends setting lets each fronter share name only, name + pronouns & preferences, or pronouns & preferences instead of the name." },
       { type: "fix", text: "The star (save as frequent item) and delete buttons on shopping-list rows are now always visible on phones — they were hidden behind a mouse-hover effect that touch screens can't trigger. Desktop keeps the tidy hover-reveal." },
       { type: "feature", text: "The Grocery List grew into a general list tool. Lists now have a type — 🛒 Shopping (the full purchased / ran-out / frequent-items behaviour), 🎁 Wishlist, or 📋 Checklist (simple check-offs) — and encrypted lists can optionally belong to someone, so each alter can keep their own wishlist. The list switcher shows each list's type and owner at a glance." },
