@@ -287,6 +287,7 @@ additive** — every web-only code path stays untouched unless a runtime
 | Web PWA | `npm run build` → Vercel | `oceans-symphony.app` (canonical) / `oceans-symphony.vercel.app` (staging) | No |
 | Bubblewrap TWA | Existing Bubblewrap pipeline against the Vercel deploy | Existing Play Store listing | No |
 | Capacitor native (Android) | `npm run build && npx cap sync android && npx cap open android` | Shipped as an UPDATE to the existing TWA Play listing (`app.oceans_symphony.twa`) — see migration note below | Yes (Phase 3+) |
+| Capacitor native (iOS) | `npm run build && npx cap sync ios && npx cap open ios` (macOS + Xcode; SPM, no CocoaPods) | App Store / TestFlight under bundle id `app.oceans-symphony.ios` (Apple forbids underscores, so the Android id can't be reused) — see `docs/ios-setup.md` | Yes (BGTaskScheduler — opportunistic, not interval-guaranteed) |
 
 Rules for keeping the targets healthy:
 
