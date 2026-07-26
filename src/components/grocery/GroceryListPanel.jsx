@@ -9,6 +9,21 @@ import { isEncryptionEnabled } from "@/lib/storageMode";
 import { clearSession, verifyPassword, isDbInitialized } from "@/lib/localDb";
 import useKeyboardInset from "@/hooks/useKeyboardInset";
 import GroceryPanicTapsSettings from "@/components/settings/GroceryPanicTapsSettings";
+import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
+
+// v0.87.7: list types — the panel is now a general list tool, not just
+// groceries. "shopping" keeps the full purchased/ran-out/frequent-items
+// semantics; "wishlist" and "checklist" are simple two-state check-offs.
+// DELIBERATELY neutral wording throughout (no system/alter terminology
+// leaks) — this panel doubles as the privacy cover, so its copy must
+// read like any mundane list app. Owner names are shown only where the
+// user explicitly assigned one.
+const LIST_TYPES = {
+  shopping: { emoji: "🛒", label: "Shopping", doneHeader: "purchased" },
+  wishlist: { emoji: "🎁", label: "Wishlist", doneHeader: "got it" },
+  checklist: { emoji: "📋", label: "Checklist", doneHeader: "done" },
+};
+const typeOf = (list) => LIST_TYPES[list?.list_type] ? list.list_type : "shopping";
 import {
   listUnlockedLists,
   createUnlockedList,
@@ -111,8 +126,12 @@ export default function GroceryListPanel({ lockedMode = false }) {
   const [createListOpen, setCreateListOpen] = useState(false);
   const [newListName, setNewListName] = useState("");
   const [newListUnlocked, setNewListUnlocked] = useState(false);
+  const [newListType, setNewListType] = useState("shopping");
+  const [newListOwner, setNewListOwner] = useState(null); // alter id or null
   const [editingList, setEditingList] = useState(null); // { id, name, source, unlocked }
   const [editingListName, setEditingListName] = useState("");
+  const [editingListType, setEditingListType] = useState("shopping");
+  const [editingListOwner, setEditingListOwner] = useState(null);
 
   useEffect(() => {
     if (!open) { setInteractBlocked(false); return; }
@@ -141,6 +160,19 @@ export default function GroceryListPanel({ lockedMode = false }) {
     queryFn: () => localEntities.GroceryFavorite.list("name"),
     enabled: idbAvailable,
   });
+  // For the optional per-list owner ("wishlist for X"). Only queried when
+  // the encrypted store is reachable — plaintext (always-unlocked) lists
+  // never carry an owner, so lockedMode never needs this.
+  const { data: alters = [] } = useQuery({
+    queryKey: ["alters"],
+    queryFn: () => localEntities.Alter.list(),
+    enabled: idbAvailable,
+  });
+  const alterNameById = useMemo(
+    () => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])),
+    [alters]
+  );
+  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
 
   // ── Unlocked-store snapshot. Subscribe to changes so updates
   // (including from another panel instance) refresh this one.
@@ -370,10 +402,14 @@ export default function GroceryListPanel({ lockedMode = false }) {
   const toggle = async (item) => {
     const state = getState(item);
     const nowISO = new Date().toISOString();
+    // Non-shopping lists (wishlist / checklist) are a simple two-state
+    // check-off — no "ran out" third state in the cycle.
+    const shopping = typeOf(activeList) === "shopping";
     if (state === "to_buy") {
       await patchItem(item, { checked: true, purchased_at: nowISO, ran_out_at: null });
     } else if (state === "in_stock") {
-      await patchItem(item, { ran_out_at: nowISO });
+      if (shopping) await patchItem(item, { ran_out_at: nowISO });
+      else await patchItem(item, { checked: false, purchased_at: null, ran_out_at: null });
     } else {
       await patchItem(item, { ran_out_at: null });
     }
@@ -410,10 +446,15 @@ export default function GroceryListPanel({ lockedMode = false }) {
     if (!name) return;
     let created;
     if (newListUnlocked) {
+      // Plaintext store — no type/owner metadata by design (it must stay
+      // a mundane-looking grocery list, and alter names must never land
+      // in unencrypted storage).
       created = createUnlockedList(name);
     } else {
       created = await localEntities.GroceryList.create({
         name,
+        list_type: newListType,
+        owner_alter_id: newListOwner || null,
         created_date: new Date().toISOString(),
       });
       qc.invalidateQueries({ queryKey: ["groceryLists"] });
@@ -426,6 +467,8 @@ export default function GroceryListPanel({ lockedMode = false }) {
     }
     setNewListName("");
     setNewListUnlocked(false);
+    setNewListType("shopping");
+    setNewListOwner(null);
     setCreateListOpen(false);
   };
 
@@ -435,7 +478,11 @@ export default function GroceryListPanel({ lockedMode = false }) {
     if (editingList.source === "local") {
       renameUnlockedList(editingList.id, next);
     } else {
-      await localEntities.GroceryList.update(editingList.id, { name: next });
+      await localEntities.GroceryList.update(editingList.id, {
+        name: next,
+        list_type: editingListType,
+        owner_alter_id: editingListOwner || null,
+      });
       qc.invalidateQueries({ queryKey: ["groceryLists"] });
     }
     setEditingList(null);
@@ -574,15 +621,26 @@ export default function GroceryListPanel({ lockedMode = false }) {
                     className="flex-1 text-left flex items-center gap-2 min-w-0"
                   >
                     <span className={`w-4 h-4 rounded-full border-2 flex-shrink-0 ${isActive ? "bg-emerald-500 border-emerald-500" : "border-neutral-300 dark:border-neutral-700"}`} />
+                    <span className="flex-shrink-0 text-sm" aria-hidden="true">{LIST_TYPES[typeOf(list)].emoji}</span>
                     <span className="truncate text-sm">{list.name}</span>
+                    {list.owner_alter_id && alterNameById[list.owner_alter_id] && (
+                      <span className="flex-shrink-0 text-[11px] px-1.5 py-0.5 rounded-full bg-neutral-100 dark:bg-neutral-800 text-neutral-500 max-w-[7rem] truncate">
+                        {alterNameById[list.owner_alter_id]}
+                      </span>
+                    )}
                     {list.unlocked && (
                       <Unlock className="w-3 h-3 text-emerald-500 flex-shrink-0" aria-label="Available when locked" />
                     )}
                   </button>
                   <button
                     type="button"
-                    onClick={() => { setEditingList(list); setEditingListName(list.name); }}
-                    aria-label={`Rename ${list.name}`}
+                    onClick={() => {
+                      setEditingList(list);
+                      setEditingListName(list.name);
+                      setEditingListType(typeOf(list));
+                      setEditingListOwner(list.owner_alter_id || null);
+                    }}
+                    aria-label={`Edit ${list.name}`}
                     className="p-1 text-neutral-400 hover:text-neutral-900 dark:hover:text-neutral-100"
                   >
                     <Pencil className="w-3.5 h-3.5" />
@@ -629,8 +687,9 @@ export default function GroceryListPanel({ lockedMode = false }) {
         </div>
       )}
 
-      {/* Quick-add chips */}
-      {!switcherOpen && availableFavs.length > 0 && activeList && (
+      {/* Quick-add chips — frequent-purchase memory is a shopping concept;
+          wishlists / checklists don't surface it. */}
+      {!switcherOpen && availableFavs.length > 0 && activeList && typeOf(activeList) === "shopping" && (
         <div className="px-4 py-2 border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50/60 dark:bg-neutral-900/60">
           <p className="text-[11px] uppercase tracking-wide text-neutral-500 mb-1.5">Frequent items</p>
           <div className="flex flex-wrap gap-1.5">
@@ -674,6 +733,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
                     onToggleFavorite={() => toggleFavorite(item.name)}
                     onRemove={() => remove(item.id)}
                     onRestore={() => restoreToBuy(item)}
+                    showStar={typeOf(activeList) === "shopping"}
                   />
                 ))}
               </ul>
@@ -682,7 +742,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
             {dateGroups.map((group) => (
               <section key={group.key} className="mt-4 first:mt-0">
                 <h2 className="text-[11px] uppercase tracking-wide text-neutral-500 px-1 mb-1">
-                  {headerLabel(group.date)} · purchased
+                  {headerLabel(group.date)} · {LIST_TYPES[typeOf(activeList)].doneHeader}
                 </h2>
                 <ul className="space-y-1">
                   {group.items.map((item) => (
@@ -695,6 +755,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
                       onToggleFavorite={() => toggleFavorite(item.name)}
                       onRemove={() => remove(item.id)}
                       onRestore={() => restoreToBuy(item)}
+                      showStar={typeOf(activeList) === "shopping"}
                     />
                   ))}
                 </ul>
@@ -752,7 +813,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
                 You just opened the <strong>Grocery List</strong> — a quick-access <strong>privacy screen</strong>. Tapping the screen a few times in a row covers Oceans Symphony with a real-looking grocery list, so a glance reveals nothing about your system.
               </p>
               <p className="text-sm text-neutral-600 dark:text-neutral-300 leading-relaxed">
-                It's also a fully <strong>functioning inventory tracker</strong> — add items, mark what you've bought, star frequent buys, and keep multiple lists. Nothing here is fake.
+                It's also a fully <strong>functioning list tool</strong> — shopping lists, wishlists, and checklists. Add items, mark what you've bought or got, star frequent buys, and keep as many lists as you like. Nothing here is fake.
               </p>
             </div>
             <div className="rounded-xl border border-neutral-200 dark:border-neutral-800 p-3">
@@ -785,6 +846,20 @@ export default function GroceryListPanel({ lockedMode = false }) {
               autoFocus
               className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             />
+            <ListTypePicker value={newListType} onChange={setNewListType} />
+            {!newListUnlocked && activeAlters.length > 0 && (
+              <div>
+                <p className="text-xs text-neutral-500 mb-1">For (optional)</p>
+                <AlterSearchSelect
+                  alters={activeAlters}
+                  value={newListOwner}
+                  onChange={setNewListOwner}
+                  placeholder="No one — shared"
+                  noneLabel="No one — shared"
+                  zIndex={10002}
+                />
+              </div>
+            )}
             <label className="flex items-start gap-2 text-sm cursor-pointer select-none">
               <input
                 type="checkbox"
@@ -802,7 +877,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
             </label>
             <div className="flex justify-end gap-2 pt-1">
               <button
-                onClick={() => { setCreateListOpen(false); setNewListName(""); setNewListUnlocked(false); }}
+                onClick={() => { setCreateListOpen(false); setNewListName(""); setNewListUnlocked(false); setNewListType("shopping"); setNewListOwner(null); }}
                 className="px-3 py-1.5 text-sm rounded-lg text-neutral-600 dark:text-neutral-300 hover:bg-neutral-100 dark:hover:bg-neutral-800"
               >
                 Cancel
@@ -823,7 +898,7 @@ export default function GroceryListPanel({ lockedMode = false }) {
       {editingList && (
         <div className="absolute inset-0 z-[10001] flex items-center justify-center bg-black/40 px-6">
           <div className="w-full max-w-xs rounded-2xl bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-5 shadow-2xl space-y-3">
-            <h2 className="text-base font-semibold">Rename list</h2>
+            <h2 className="text-base font-semibold">Edit list</h2>
             <input
               value={editingListName}
               onChange={(e) => setEditingListName(e.target.value)}
@@ -831,6 +906,24 @@ export default function GroceryListPanel({ lockedMode = false }) {
               autoFocus
               className="w-full px-3 py-2.5 rounded-lg border border-neutral-300 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800 text-base focus:outline-none focus:ring-2 focus:ring-emerald-500/40"
             />
+            {editingList.source !== "local" && (
+              <>
+                <ListTypePicker value={editingListType} onChange={setEditingListType} />
+                {activeAlters.length > 0 && (
+                  <div>
+                    <p className="text-xs text-neutral-500 mb-1">For (optional)</p>
+                    <AlterSearchSelect
+                      alters={activeAlters}
+                      value={editingListOwner}
+                      onChange={setEditingListOwner}
+                      placeholder="No one — shared"
+                      noneLabel="No one — shared"
+                      zIndex={10002}
+                    />
+                  </div>
+                )}
+              </>
+            )}
             <p className="text-xs text-neutral-500">
               {editingList.unlocked
                 ? "This list is available even when the app is locked."
@@ -897,7 +990,30 @@ export default function GroceryListPanel({ lockedMode = false }) {
   );
 }
 
-function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore }) {
+// Three-way type selector used by the create + edit dialogs. Neutral copy —
+// no plural-terminology leakage (see the LIST_TYPES comment).
+function ListTypePicker({ value, onChange }) {
+  return (
+    <div className="flex gap-1.5">
+      {Object.entries(LIST_TYPES).map(([key, meta]) => (
+        <button
+          key={key}
+          type="button"
+          onClick={() => onChange(key)}
+          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-all flex items-center justify-center gap-1 ${
+            value === key
+              ? "bg-emerald-500 text-white border-emerald-500"
+              : "bg-neutral-50 dark:bg-neutral-800 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-neutral-300 hover:border-emerald-500/50"
+          }`}
+        >
+          <span aria-hidden="true">{meta.emoji}</span> {meta.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRemove, onRestore, showStar = true }) {
   const inStock = state === "in_stock";
   const ranOut = state === "ran_out";
   const toBuy = state === "to_buy";
@@ -954,18 +1070,20 @@ function GroceryRow({ item, state, isFavorite, onToggle, onToggleFavorite, onRem
         </>
       ) : (
         <>
-          <button
-            onClick={onToggleFavorite}
-            aria-label={isFavorite ? "Remove from frequent items" : "Save as a frequent item"}
-            title={isFavorite ? "Frequent item — tap to forget" : "Save as a frequent item to re-add later"}
-            className={`p-1 transition-colors ${
-              isFavorite
-                ? "text-amber-500 hover:text-amber-600"
-                : "text-neutral-400 hover:text-amber-500 opacity-0 group-hover:opacity-100"
-            }`}
-          >
-            <Star className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
-          </button>
+          {showStar && (
+            <button
+              onClick={onToggleFavorite}
+              aria-label={isFavorite ? "Remove from frequent items" : "Save as a frequent item"}
+              title={isFavorite ? "Frequent item — tap to forget" : "Save as a frequent item to re-add later"}
+              className={`p-1 transition-colors ${
+                isFavorite
+                  ? "text-amber-500 hover:text-amber-600"
+                  : "text-neutral-400 hover:text-amber-500 opacity-0 group-hover:opacity-100"
+              }`}
+            >
+              <Star className={`w-4 h-4 ${isFavorite ? "fill-current" : ""}`} />
+            </button>
+          )}
           <button
             onClick={onRemove}
             aria-label="Remove"
