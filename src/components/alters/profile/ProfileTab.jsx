@@ -13,6 +13,8 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
+import { parsePreferences } from "@/lib/alterPreferences";
+import { PreferencesDisplay } from "@/components/alters/AlterPreferencesEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { colorWithAlpha, readProfileBg, headerThemeStyleVars } from "@/lib/profileStyle";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
@@ -689,6 +691,19 @@ useEffect(() => {
             </div>
           </div>
         )}
+
+        {/* Preferences & boundaries — pronouns.cc-style comfort chips.
+            Renders only when the alter has entries (edit them in the
+            Edit modal, under Pronouns → Advanced). */}
+        {(() => {
+          const prefs = parsePreferences(alter);
+          if (prefs.length === 0) return null;
+          return (
+            <div className="bg-muted/20 rounded-xl p-4 border border-border/40" style={sectionCardStyle}>
+              <PreferencesDisplay preferences={prefs} />
+            </div>
+          );
+        })()}
 
         {alter.description ? (() => {
           const blocks = htmlToBlocks(alter.description);

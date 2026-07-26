@@ -23,6 +23,8 @@ import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
+import AlterPreferencesEditor from "@/components/alters/AlterPreferencesEditor";
+import { parsePreferences } from "@/lib/alterPreferences";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import { useNavigate } from "react-router-dom";
 
@@ -87,8 +89,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "", avatar_rotation_mode: "off",
     birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false,
-    custom_fields: {},
+    custom_fields: {}, preferences: [],
   });
+  // "Advanced" pronouns/preferences drawer (pronouns.cc-style comfort
+  // levels). Auto-opens when the alter already has entries.
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const [avatarPoolOpen, setAvatarPoolOpen] = useState(false);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -129,16 +134,19 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
       // text itself has no parseable year (e.g. legacy "Age 7").
       const birthday = alter.birthday || (alter.origin_year ? String(alter.origin_year) : "");
       const origin_year = extractYear(birthday) || (alter.origin_year ? String(alter.origin_year) : "");
+      const preferences = parsePreferences(alter);
       setForm({
         name: alter.name || "", alias: alter.alias || "",
         pronouns: alter.pronouns || "", role: alter.role || "",
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "", avatar_rotation_mode: alter.avatar_rotation_mode || "off",
         birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "", use_emoji_as_alias: !!alter.use_emoji_as_alias,
-        custom_fields: alter.custom_fields || {},
+        custom_fields: alter.custom_fields || {}, preferences,
       });
+      setPrefsOpen(preferences.length > 0);
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {} });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [] });
+      setPrefsOpen(false);
     }
     setShowAvatarUrl(false);
   }, [alter, open, isNew]);
@@ -411,6 +419,14 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             <div className="space-y-1.5">
               <Label>Pronouns</Label>
               <Input value={form.pronouns} onChange={(e) => set("pronouns", e.target.value)} placeholder="they/them" />
+              <button
+                type="button"
+                onClick={() => setPrefsOpen((v) => !v)}
+                className="text-[0.6875rem] text-muted-foreground hover:text-primary transition-colors"
+              >
+                {prefsOpen ? "▾" : "▸"} Advanced — preferences &amp; boundaries
+                {form.preferences.length > 0 ? ` (${form.preferences.length})` : ""}
+              </button>
             </div>
             <div className="space-y-1.5">
               <Label>Color</Label>
@@ -427,6 +443,18 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               </div>
             </div>
           </div>
+
+          {/* Advanced preferences & boundaries — pronouns.cc-style comfort
+              levels for pronouns, names, terms. Stored on the alter and
+              shareable with friends (opt-in, Friends page settings). */}
+          {prefsOpen && (
+            <div className="rounded-xl border border-border/50 bg-muted/10 p-3 space-y-2">
+              <p className="text-xs text-muted-foreground">
+                Rate how each pronoun set, name, or term feels — from 💔 hate to ❤️ love. Shows on the profile, and can optionally be shared with friends so they know what to use (and what to avoid).
+              </p>
+              <AlterPreferencesEditor value={form.preferences} onChange={(next) => set("preferences", next)} />
+            </div>
+          )}
 
           <div className="space-y-1.5">
             <Label>Role</Label>

@@ -5,6 +5,7 @@ import { useTerms } from "@/lib/useTerms";
 import { pushFrontStatus } from "@/lib/friendsApi";
 import { isPreviewActive } from "@/lib/previewMode";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
+import { sharedPreferences } from "@/lib/alterPreferences";
 
 // Whenever the local front state changes — regardless of WHICH UI mutated it
 // (Set Fronters modal, dashboard chip swipe, Alters page long-press, etc.) —
@@ -89,12 +90,19 @@ export function useFriendsFrontSync() {
         color: alter.color || null,
         isPrimary: alter.id === primaryId,
         isCofronter: alter.id !== primaryId,
+        // Included in the payload only when the identity's share mode says
+        // so — pushFrontStatus is the single chokepoint that strips or
+        // keeps these per the user's Friends-page setting.
+        pronouns: alter.pronouns || "",
+        preferences: sharedPreferences(alter),
       }));
 
-    // Deterministic signature so we only push when the front actually changed.
+    // Deterministic signature so we only push when the front actually
+    // changed. Pronouns + preferences are part of the signature so editing
+    // them re-pushes on the next evaluation instead of waiting for a switch.
     const sig = JSON.stringify(
       fronters
-        .map((f) => [f.id, f.isPrimary])
+        .map((f) => [f.id, f.isPrimary, f.pronouns, f.preferences])
         .sort((a, b) => String(a[0]).localeCompare(String(b[0])))
     );
     if (sig === lastSigRef.current) return;
