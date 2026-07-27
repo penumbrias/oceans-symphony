@@ -1,7 +1,7 @@
 import React, { useState, useRef, useCallback, useEffect } from "react";
 import {
   Plus, Trash2, ChevronUp, ChevronDown, Image, AlignLeft, AlignRight,
-  LayoutGrid, Minus, Type, Eye, X, Upload, Loader2, GripVertical, Crop
+  LayoutGrid, Minus, Type, X, Upload, Loader2, GripVertical, Crop
 } from "lucide-react";
 import { toast } from "sonner";
 import { MiniToolbar, useTextareaInsert } from "@/components/shared/MiniToolbar";
@@ -18,7 +18,9 @@ function useResolvedSrc(src) {
   const [resolved, setResolved] = useState(null);
   useEffect(() => {
     if (!src) { setResolved(null); return; }
-    if (!src.startsWith("local-image://")) { setResolved(src); return; }
+    // Both local forms need resolving — the /local-image/ SW path 404s on
+    // iOS native (no service worker there), so never render it raw.
+    if (!src.startsWith("local-image://") && !src.startsWith("/local-image/")) { setResolved(src); return; }
     import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
       resolveImageUrl(src).then(r => setResolved(r || null)).catch(() => setResolved(null));
     });
@@ -31,6 +33,9 @@ export function blocksToHTML(blocks) {
     if (!src) return src;
     if (src.startsWith("data:")) return "__local_img__";
     if (src.startsWith("local-image://")) return `__local_img_id__:${src.replace("local-image://", "")}`;
+    // SW-path form serialises to the same placeholder (parse restores the
+    // scheme form, which resolves on every platform).
+    if (src.startsWith("/local-image/")) return `__local_img_id__:${decodeURIComponent(src.slice("/local-image/".length))}`;
     return src;
   };
 
