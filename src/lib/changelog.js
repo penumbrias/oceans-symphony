@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "improve", text: "Activity Tracker header clean-up: a new Today button jumps back to the current week/month/year, the date arrows + view switcher share one calendar toolbar below the tabs, Log Activity is now the highlighted primary action, and Manage Activities became a small gear icon next to the page title." },
       { type: "feature", text: "Typing a plan title that matches one of your activities (e.g. \"work\") now offers a one-tap \"Use activity 'work' instead\" suggestion — or dismiss it with the ✕ to keep the word as a plain title." },
       { type: "feature", text: "New \"Notifications & reminders\" step in the Setup checklist — allow notification permission, turn on plan reminders, and jump to the Reminders page, all in one place." },
       { type: "improve", text: "The Plan Activity modal can now turn plan reminders on right there (it also asks for notification permission) — no more detour to Settings when they're off." },
