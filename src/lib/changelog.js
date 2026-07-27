@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "July 27, 2026",
+    changes: [
+      { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
+    ],
+  },
+  {
     date: "July 24, 2026",
+    version: "0.88.4",
     changes: [
       { type: "feature", text: "Two one-tap image exports under Advanced → \"Images only\": an images-only backup (importable on another device — pairs with the data-only safety net) and \"Images as .zip\" (every stored image as plain files you can open anywhere)." },
       { type: "fix", text: "Importing a backup with \"Update & Add New\" (formerly \"Add New\") now actually updates existing records when the backup's copy is newer — avatars, roles, tags, and bios edited on your computer finally arrive on your phone. Your more-recent local edits always win, and nothing is ever deleted. (This was why pfps wouldn't transfer: the old merge silently skipped every record that already existed.)" },
