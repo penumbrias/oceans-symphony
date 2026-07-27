@@ -21,7 +21,9 @@ import {
   PLAN_REMINDER_OFFSETS,
   readPlanRemindersEnabled,
   readPlanRemindersDefaultOffset,
+  writePlanRemindersEnabled,
 } from "@/lib/planReminderScheduler";
+import { isNative } from "@/lib/platform";
 import {
   RECURRENCE_BRANCHES,
   membersForBranch,
@@ -157,13 +159,60 @@ export default function ActivityPlanModal({
   // on — otherwise scheduling a per-plan override would silently
   // produce no notifications.
   const [reminderOffset, setReminderOffset] = useState(null);
-  const planRemindersEnabledGlobal = readPlanRemindersEnabled();
+
+  // v0.88.5 layout revamp: optional fields (location / to-do link / who /
+  // notes) hide behind "+ chips" until used, so the default modal is a
+  // third the height. Purely presentational — expanded automatically
+  // whenever the field HAS a value (editing an existing plan), so nothing
+  // is ever hidden-while-set.
+  const [showLocationField, setShowLocationField] = useState(false);
+  const [showTodoField, setShowTodoField] = useState(false);
+  const [showWhoField, setShowWhoField] = useState(false);
+  const [showNotesField, setShowNotesField] = useState(false);
+  const locationOpen = showLocationField || !!location;
+  const todoOpen = showTodoField || !!selectedTaskId || createTodo;
+  const whoOpen = showWhoField || selectedAlters.length > 0;
+  const notesOpen = showNotesField || !!notes;
+  // v0.88.6: state (not a bare read) so the inline "Turn on" button can
+  // flip the global setting without leaving the modal (tester: "why have
+  // to go to the settings page?").
+  const [planRemindersEnabledGlobal, setPlanRemindersEnabledGlobal] = useState(() => readPlanRemindersEnabled());
   const planRemindersDefault = readPlanRemindersDefaultOffset();
+  const enablePlanRemindersInline = async () => {
+    writePlanRemindersEnabled(true);
+    setPlanRemindersEnabledGlobal(true);
+    // Best-effort permission ask right away — a granted permission is the
+    // other half of actually receiving the notification.
+    try {
+      if (isNative()) {
+        const { requestNativePermission } = await import("@/lib/nativeNotifications");
+        await requestNativePermission();
+      } else if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    } catch { /* permission ask is best-effort */ }
+    toast.success("Plan reminders on — set the lead time below");
+  };
 
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
+
+  // v0.88.6: title ↔ activity auto-detect. When the typed title exactly
+  // matches an activity category (case-insensitive) that isn't already
+  // selected, offer a one-tap "use the activity instead" suggestion.
+  // NON-FORCING: dismissing it (or ignoring it) keeps the word as a plain
+  // title — for the "I want to title it 'work' without logging the Work
+  // activity" case.
+  const [dismissedTitleSuggestion, setDismissedTitleSuggestion] = useState("");
+  const titleActivityMatch = useMemo(() => {
+    const q = title.trim().toLowerCase();
+    if (!q || q === dismissedTitleSuggestion) return null;
+    return activityCategories.find(
+      (c) => (c.name || "").trim().toLowerCase() === q && !selectedActivityCategories.includes(c.id)
+    ) || null;
+  }, [title, dismissedTitleSuggestion, activityCategories, selectedActivityCategories]);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
@@ -588,190 +637,320 @@ export default function ActivityPlanModal({
           <DialogTitle>{editingPlan ? "Edit Plan" : "Plan Activity"}</DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-5">
           {branchBadge}
 
-          {/* Date pickers */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">Date</label>
-              <input
-                type="date"
-                value={datePicked}
-                onChange={(e) => {
-                  setDatePicked(e.target.value);
-                  if (!endDatePicked || endDatePicked < e.target.value) setEndDatePicked(e.target.value);
-                }}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium block mb-1">
-                End date <span className="text-xs text-muted-foreground">(optional)</span>
-              </label>
-              <input
-                type="date"
-                value={endDatePicked}
-                min={datePicked}
-                onChange={(e) => setEndDatePicked(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-          </div>
-
-          {/* Quick plan toggle — when on, hides the time inputs.
-              Quick plans render as pills above the day column on the
-              grid instead of in a specific time row. Useful for
-              "I want to do X today but don't care when". */}
-          <label className="flex items-center gap-2 cursor-pointer select-none rounded-lg border border-border/40 px-3 py-2 hover:bg-muted/20 transition-colors">
-            <input
-              type="checkbox"
-              checked={isQuickPlan}
-              onChange={(e) => {
-                const checked = e.target.checked;
-                setIsQuickPlan(checked);
-                // Flipping quick-plan on snaps the date to today. The
-                // default start that gets used for timed plans is the
-                // next free hour slot, which on late evenings rolls
-                // into tomorrow — not what a user wants when they're
-                // saying "I want to do this today". Also applies when
-                // editing — converting a future plan to a quick plan
-                // is implicitly "make this today's quick plan".
-                if (checked) {
-                  const todayStr = format(new Date(), "yyyy-MM-dd");
-                  setDatePicked(todayStr);
-                  setEndDatePicked(todayStr);
-                }
-              }}
-              className="accent-primary"
-            />
-            <span className="text-sm font-medium">Quick plan (date only, no specific time)</span>
-          </label>
-
-          {/* Start / end time — hidden for quick plans */}
-          {!isQuickPlan && (
-          <div className="flex gap-3 items-end">
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
-                <span>Time</span>
-                <button type="button" onClick={() => { const n = new Date(); setDatePicked(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
-                  className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
-              </label>
-              <input
-                type="time"
-                value={startTime}
-                onChange={(e) => setStartTime(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            <div className="flex-1">
-              <label className="text-sm font-medium mb-1 flex items-center justify-between gap-2">
-                <span>
-                  End time
-                  {isCrossDay && endDate && (
-                    <span className="ml-1 text-xs text-primary font-normal">{format(endDate, "MMM d")}</span>
-                  )}
-                </span>
-                <button type="button" onClick={() => { const n = new Date(); setEndDatePicked(format(n, "yyyy-MM-dd")); setEndTime(format(n, "HH:mm")); }}
-                  className="text-[0.6875rem] text-primary hover:underline font-normal">Now</button>
-              </label>
-              <input
-                type="time"
-                value={endTime}
-                onChange={(e) => setEndTime(e.target.value)}
-                className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm"
-              />
-            </div>
-            {durationMinutes > 0 && (
-              <div className="text-xs text-muted-foreground pb-2 whitespace-nowrap">
-                {durationMinutes >= 60
-                  ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
-                  : `${durationMinutes}m`}
-              </div>
-            )}
-          </div>
-          )}
-
-          {/* Title */}
+          {/* ── Title first (calendar-app convention) — borderless, large,
+                 so the modal opens on "what is this plan" not on plumbing. */}
           <div>
-            <label className="text-sm font-medium block mb-1">Title</label>
-            <Input
+            <input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
-              placeholder="Doctor's appointment, school pickup, etc."
-              className="text-sm"
+              placeholder="Add a title…"
+              className="w-full bg-transparent border-0 border-b border-border/60 focus:border-primary rounded-none px-0 py-1.5 text-base font-medium focus:outline-none placeholder:text-muted-foreground/60 placeholder:font-normal transition-colors"
             />
-            <p className="text-xs text-muted-foreground mt-1">
-              Optional — you only need <strong>one</strong> of: a title, an activity category (below), or a linked to-do. Combine them however you like.
-            </p>
+            {titleActivityMatch ? (
+              /* Title matches an activity category — offer to use the
+                 activity instead (one tap), or dismiss to keep the word
+                 as a plain title. */
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedActivityCategories((prev) => [...prev, titleActivityMatch.id]);
+                    setTitle("");
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-all flex items-center gap-1.5"
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: titleActivityMatch.color || "#8b5cf6" }} />
+                  Use activity “{titleActivityMatch.name}” instead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedTitleSuggestion(title.trim().toLowerCase())}
+                  aria-label="Keep as a plain title"
+                  title="Keep as a plain title"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                Optional — a title, an activity (below), or a linked to-do is enough.
+              </p>
+            )}
           </div>
 
-          {/* Link a to-do */}
-          <div>
-            <label className="text-sm font-medium block mb-1">
-              Link to a to-do <span className="text-xs text-muted-foreground">(optional)</span>
-            </label>
-            <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer select-none">
-              <input
-                type="checkbox"
-                checked={createTodo}
-                onChange={(e) => {
-                  const next = e.target.checked;
-                  setCreateTodo(next);
-                  // Picking "create new" and picking an existing one
-                  // are mutually exclusive — flipping this on clears
-                  // any existing selection so the save flow doesn't
-                  // have to choose between two task_ids.
-                  if (next) setSelectedTaskId(null);
+          {/* ── WHEN ─────────────────────────────────────────────── */}
+          <section className="space-y-2.5">
+            <div className="flex items-center justify-between">
+              <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">When</h3>
+              {/* Quick plan = "date only, no time" — a small pill toggle
+                  instead of the old full-width checkbox row. */}
+              <button
+                type="button"
+                onClick={() => {
+                  const checked = !isQuickPlan;
+                  setIsQuickPlan(checked);
+                  // Flipping quick-plan on snaps the date to today (the
+                  // timed-plan default rolls into tomorrow late at night,
+                  // which isn't what "do X today, whenever" means).
+                  if (checked) {
+                    const todayStr = format(new Date(), "yyyy-MM-dd");
+                    setDatePicked(todayStr);
+                    setEndDatePicked(todayStr);
+                  }
                 }}
-                className="w-4 h-4 accent-primary"
-              />
-              <span>Create a new to-do from this plan</span>
-            </label>
-            <select
-              value={selectedTaskId || ""}
-              onChange={(e) => {
-                const v = e.target.value || null;
-                setSelectedTaskId(v);
-                if (v) setCreateTodo(false);
-                if (v && !title.trim()) {
-                  const t = tasks.find((x) => x.id === v);
-                  if (t?.title) setTitle(t.title);
-                }
-              }}
-              disabled={createTodo}
-              className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm disabled:opacity-50"
-            >
-              <option value="">— No to-do linked —</option>
-              {tasks.filter((t) => !t.completed).map((t) => (
-                <option key={t.id} value={t.id}>{t.title}</option>
-              ))}
-            </select>
-            <p className="text-xs text-muted-foreground mt-1">
-              {createTodo
-                ? "A new to-do will be created with this plan's title and due date, then linked here."
-                : "Pick an existing to-do to schedule it for this time. Its due date will update to match."}
-            </p>
-          </div>
+                aria-pressed={isQuickPlan}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${isQuickPlan ? "border-primary/50 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:bg-muted/50"}`}
+              >
+                No specific time
+              </button>
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground block mb-1">Date</label>
+                <input
+                  type="date"
+                  value={datePicked}
+                  onChange={(e) => {
+                    setDatePicked(e.target.value);
+                    if (!endDatePicked || endDatePicked < e.target.value) setEndDatePicked(e.target.value);
+                  }}
+                  className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm"
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-xs text-muted-foreground block mb-1">End date</label>
+                <input
+                  type="date"
+                  value={endDatePicked}
+                  min={datePicked}
+                  onChange={(e) => setEndDatePicked(e.target.value)}
+                  className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm"
+                />
+              </div>
+            </div>
+            {!isQuickPlan && (
+              <div className="flex gap-2 items-end">
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 flex items-center justify-between gap-2">
+                    <span>Start</span>
+                    <button type="button" onClick={() => { const n = new Date(); setDatePicked(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
+                      className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                  </label>
+                  <input
+                    type="time"
+                    value={startTime}
+                    onChange={(e) => setStartTime(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
+                <div className="flex-1">
+                  <label className="text-xs text-muted-foreground mb-1 flex items-center justify-between gap-2">
+                    <span>
+                      End
+                      {isCrossDay && endDate && (
+                        <span className="ml-1 text-primary">{format(endDate, "MMM d")}</span>
+                      )}
+                    </span>
+                    <button type="button" onClick={() => { const n = new Date(); setEndDatePicked(format(n, "yyyy-MM-dd")); setEndTime(format(n, "HH:mm")); }}
+                      className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                  </label>
+                  <input
+                    type="time"
+                    value={endTime}
+                    onChange={(e) => setEndTime(e.target.value)}
+                    className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm"
+                  />
+                </div>
+                {durationMinutes > 0 && (
+                  <div className="text-xs text-muted-foreground pb-2.5 whitespace-nowrap tabular-nums">
+                    {durationMinutes >= 60
+                      ? `${Math.floor(durationMinutes / 60)}h ${durationMinutes % 60 > 0 ? durationMinutes % 60 + "m" : ""}`
+                      : `${durationMinutes}m`}
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
 
-          {/* Location */}
-          <div>
-            <label className="text-sm font-medium flex items-center gap-1 mb-1">
-              <MapPin className="w-3.5 h-3.5" /> Location <span className="text-xs text-muted-foreground">(optional)</span>
-            </label>
-            <Input
-              value={location}
-              onChange={(e) => setLocation(e.target.value)}
-              placeholder="Westside Clinic, kitchen, anywhere"
-              className="text-sm"
+          {/* ── WHAT ─────────────────────────────────────────────── */}
+          <section className="space-y-2.5">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">What</h3>
+            <ActivityPillSelector
+              selectedActivities={selectedActivityCategories}
+              onActivityChange={setSelectedActivityCategories}
+              allowCreate={false}
             />
-          </div>
+            {showNewActivity ? (
+              <div className="space-y-2">
+                <Input
+                  placeholder="Activity name..."
+                  value={newActivityName}
+                  onChange={(e) => setNewActivityName(e.target.value)}
+                  className="text-sm"
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <Button size="sm" variant="outline"
+                    onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
+                    className="flex-1">Cancel</Button>
+                  <Button size="sm" onClick={handleCreateNewActivity}
+                    disabled={!newActivityName.trim()} className="flex-1">Add</Button>
+                </div>
+              </div>
+            ) : (
+              <button
+                onClick={() => setShowNewActivity(true)}
+                className="w-full px-3 py-1.5 text-xs rounded-lg border border-dashed border-border/60 text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1"
+              >
+                <Plus className="w-3.5 h-3.5" /> Create new activity
+              </button>
+            )}
+          </section>
 
+          {/* ── DETAILS — optional fields behind "+ chips" so the default
+                 modal stays short. A field auto-expands whenever it holds a
+                 value (editing), so nothing set is ever hidden. */}
+          <section className="space-y-2.5">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Details</h3>
+            {!(locationOpen && todoOpen && whoOpen && notesOpen) && (
+              <div className="flex flex-wrap gap-1.5">
+                {!locationOpen && (
+                  <button type="button" onClick={() => setShowLocationField(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Location
+                  </button>
+                )}
+                {!todoOpen && (
+                  <button type="button" onClick={() => setShowTodoField(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Link a to-do
+                  </button>
+                )}
+                {!whoOpen && (
+                  <button type="button" onClick={() => setShowWhoField(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Who's it for
+                  </button>
+                )}
+                {!notesOpen && (
+                  <button type="button" onClick={() => setShowNotesField(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:bg-muted/50 hover:text-foreground transition-all flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> Notes
+                  </button>
+                )}
+              </div>
+            )}
+
+            {locationOpen && (
+              <div>
+                <label className="text-xs text-muted-foreground flex items-center gap-1 mb-1">
+                  <MapPin className="w-3 h-3" /> Location
+                </label>
+                <Input
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  placeholder="Westside Clinic, kitchen, anywhere"
+                  className="text-sm"
+                />
+              </div>
+            )}
+
+            {todoOpen && (
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Link to a to-do</label>
+                <label className="flex items-center gap-2 mb-2 text-sm cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={createTodo}
+                    onChange={(e) => {
+                      const next = e.target.checked;
+                      setCreateTodo(next);
+                      // Mutually exclusive with picking an existing to-do.
+                      if (next) setSelectedTaskId(null);
+                    }}
+                    className="w-4 h-4 accent-primary"
+                  />
+                  <span>Create a new to-do from this plan</span>
+                </label>
+                <select
+                  value={selectedTaskId || ""}
+                  onChange={(e) => {
+                    const v = e.target.value || null;
+                    setSelectedTaskId(v);
+                    if (v) setCreateTodo(false);
+                    if (v && !title.trim()) {
+                      const t = tasks.find((x) => x.id === v);
+                      if (t?.title) setTitle(t.title);
+                    }
+                  }}
+                  disabled={createTodo}
+                  className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm disabled:opacity-50"
+                >
+                  <option value="">— No to-do linked —</option>
+                  {tasks.filter((t) => !t.completed).map((t) => (
+                    <option key={t.id} value={t.id}>{t.title}</option>
+                  ))}
+                </select>
+                <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                  {createTodo
+                    ? "A new to-do will be created with this plan's title and due date, then linked here."
+                    : "Pick an existing to-do to schedule it for this time. Its due date will update to match."}
+                </p>
+              </div>
+            )}
+
+            {whoOpen && (
+              <div>
+                <label className="text-xs text-muted-foreground mb-1 block">
+                  Who's this for?
+                  {selectedAlters.length > 0 && (
+                    <span className="ml-1.5">({selectedAlters.length} selected)</span>
+                  )}
+                </label>
+                <Button type="button" size="sm" variant="outline" onClick={() => setFronterPickerOpen(true)} className="w-full gap-2 text-xs">
+                  <UserPlus className="w-3.5 h-3.5" />
+                  {selectedAlters.length > 0 ? `Add or remove ${terms.alters}` : `Choose ${terms.alters}…`}
+                </Button>
+                {selectedAlters.length > 0 && (
+                  <div className="flex flex-wrap gap-1.5 mt-2">
+                    {selectedAlters.map((id) => {
+                      const a = altersById[id];
+                      if (!a) return null;
+                      return <SelectedFronterChip key={id} alter={a} label={formatAlter(a)} onRemove={() => setSelectedAlters((prev) => prev.filter((x) => x !== id))} />;
+                    })}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {notesOpen && (
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Notes</label>
+                <MentionTextarea
+                  value={notes}
+                  onChange={setNotes}
+                  alters={alters || []}
+                  placeholder="Extra context… @ to mention, /w @name [secret] to whisper"
+                  className="h-20"
+                />
+              </div>
+            )}
+          </section>
+
+          {/* ── OPTIONS — repeat / reminder / critical as flat rows in one
+                 container (was: three separately-boxed cards). */}
+          <section className="space-y-2.5">
+            <h3 className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Options</h3>
+            <div className="rounded-xl border border-border/50 divide-y divide-border/40">
           {/* Recurrence — create-time only; editing one instance of a series
               doesn't change cadence. The branch chooser handles series scope
               before we get here. */}
           {!editingPlan && (
-            <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+            <div className="p-3 space-y-2">
               <div className="flex items-center gap-1.5 text-sm font-medium">
                 <Repeat className={`w-4 h-4 ${recurrenceInterval !== "none" ? "text-primary" : "text-muted-foreground"}`} />
                 <span>Repeat</span>
@@ -818,7 +997,7 @@ export default function ActivityPlanModal({
           )}
 
           {/* Reminder */}
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+          <div className="p-3 space-y-2">
             <div className="flex items-center gap-1.5 text-sm font-medium">
               <Bell className={`w-4 h-4 ${reminderOffset != null ? "text-primary" : "text-muted-foreground"}`} />
               <span>Reminder</span>
@@ -852,14 +1031,19 @@ export default function ActivityPlanModal({
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Plan reminders are off globally. Turn them on in Settings → Reminders to get a notification before this plan starts.
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Plan reminders are off. Turn them on to get a notification before this plan starts.
+                </p>
+                <Button size="sm" variant="outline" onClick={enablePlanRemindersInline} className="text-xs gap-1.5">
+                  <Bell className="w-3.5 h-3.5" /> Turn on plan reminders
+                </Button>
+              </div>
             )}
           </div>
 
           {/* Critical + lead-steps */}
-          <div className="rounded-lg border border-border/60 bg-muted/20 p-3 space-y-2">
+          <div className="p-3 space-y-2">
             <button
               type="button"
               onClick={() => setIsCritical((v) => !v)}
@@ -894,80 +1078,10 @@ export default function ActivityPlanModal({
               </div>
             )}
           </div>
-
-          {/* Activities */}
-          <ActivityPillSelector
-            selectedActivities={selectedActivityCategories}
-            onActivityChange={setSelectedActivityCategories}
-            allowCreate={false}
-          />
-
-          {showNewActivity ? (
-            <div className="space-y-2">
-              <Input
-                placeholder="Activity name..."
-                value={newActivityName}
-                onChange={(e) => setNewActivityName(e.target.value)}
-                className="text-sm"
-                autoFocus
-              />
-              <div className="flex gap-2">
-                <Button size="sm" variant="outline"
-                  onClick={() => { setShowNewActivity(false); setNewActivityName(""); }}
-                  className="flex-1">Cancel</Button>
-                <Button size="sm" onClick={handleCreateNewActivity}
-                  disabled={!newActivityName.trim()} className="flex-1">Add</Button>
-              </div>
             </div>
-          ) : (
-            <button
-              onClick={() => setShowNewActivity(true)}
-              className="w-full px-3 py-2 text-sm rounded-lg border border-dashed border-border text-muted-foreground hover:text-foreground hover:border-primary transition-colors flex items-center justify-center gap-1"
-            >
-              <Plus className="w-4 h-4" /> Create new activity
-            </button>
-          )}
+          </section>
 
-          {/* Who's this plan for — reuses the standard Set Fronters modal in
-              selection mode (same searchable picker as the Log Activity modal
-              and system meetings), with removable chips below. */}
-          <div>
-            <label className="text-sm font-medium text-foreground mb-2 block">
-              Who's this for?
-              {selectedAlters.length > 0 && (
-                <span className="text-xs font-normal text-muted-foreground ml-2">
-                  ({selectedAlters.length} selected)
-                </span>
-              )}
-            </label>
-            <Button type="button" variant="outline" onClick={() => setFronterPickerOpen(true)} className="w-full gap-2">
-              <UserPlus className="w-4 h-4" />
-              {selectedAlters.length > 0 ? `Add or remove ${terms.alters}` : `Choose ${terms.alters}…`}
-            </Button>
-            {selectedAlters.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 mt-2">
-                {selectedAlters.map((id) => {
-                  const a = altersById[id];
-                  if (!a) return null;
-                  return <SelectedFronterChip key={id} alter={a} label={formatAlter(a)} onRemove={() => setSelectedAlters((prev) => prev.filter((x) => x !== id))} />;
-                })}
-              </div>
-            )}
-          </div>
-
-          {/* Notes */}
-          <div>
-            <label className="text-sm font-medium text-foreground">Description / notes — Optional</label>
-            <MentionTextarea
-              value={notes}
-              onChange={setNotes}
-              alters={alters || []}
-              placeholder="Extra context… @ to mention, /w @name [secret] to whisper"
-              className="mt-1 h-20"
-            />
-          </div>
-
-          <div className="flex gap-2 justify-end">
+          <div className="flex gap-2 justify-end pt-1 border-t border-border/40">
             <Button variant="outline" onClick={onClose}>Cancel</Button>
             <Button onClick={handleSave} disabled={isLoading}>
               {isLoading ? "Saving..." : "Save Plan"}
