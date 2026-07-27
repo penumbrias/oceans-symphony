@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "fix", text: "The sidebar now opens from the menu button on tablets in portrait. The slide-in drawer was hidden above phone width while the menu button stayed visible up to desktop width, so portrait tablets had a button that opened an invisible drawer." },
       { type: "fix", text: "Editing a base term in the terminology preview while a preset was selected no longer blanks the other terms (e.g. changing Front on the Parts preset wiped System/Alter/Switch from the display). The Parts (IFS) preset also now uses \"influence\" properly — influencing / influencer / influences all spell correctly instead of the old \"influenc\" stub." },
       { type: "improve", text: "Activity Tracker header clean-up: a new Today button jumps back to the current week/month/year, the date arrows + view switcher share one calendar toolbar below the tabs, Log Activity is now the highlighted primary action, and Manage Activities became a small gear icon next to the page title." },
       { type: "feature", text: "Typing a plan title that matches one of your activities (e.g. \"work\") now offers a one-tap \"Use activity 'work' instead\" suggestion — or dismiss it with the ✕ to keep the word as a plain title." },
