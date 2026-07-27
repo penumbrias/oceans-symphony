@@ -92,7 +92,11 @@ export default function SidebarNav({ open, onClose }) {
       {/* Backdrop */}
       <div
         className={cn(
-          "fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm sm:hidden transition-opacity duration-300",
+          // lg:hidden (not sm:) — must match the hamburger's own breakpoint.
+          // The mobile header (and its menu button) shows below lg (1024px),
+          // but this drawer was hidden above sm (640px), so portrait tablets
+          // had a button that opened an invisible drawer (tester report).
+          "fixed inset-0 z-[100] bg-background/60 backdrop-blur-sm lg:hidden transition-opacity duration-300",
           open ? "opacity-100 pointer-events-auto" : "opacity-0 pointer-events-none"
         )}
         onClick={onClose}
@@ -105,7 +109,7 @@ export default function SidebarNav({ open, onClose }) {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "fixed top-0 left-0 h-full z-[101] w-72 bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-in-out sm:hidden",
+          "fixed top-0 left-0 h-full z-[101] w-72 bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-in-out lg:hidden",
           open ? "translate-x-0" : "-translate-x-full"
         )}
       >

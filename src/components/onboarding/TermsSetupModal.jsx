@@ -63,7 +63,9 @@ function InlineEditable({ value, autoValue, editable, editMode, onChange, ariaLa
 const PRESETS = [
   { label: "DID / OSDD (default)", system: "system", alter: "alter", switch: "switch", front: "front" },
   { label: "Headmates", system: "system", alter: "headmate", switch: "switch", front: "front" },
-  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influenc" },
+  // "influence" — gerund()/agent() drop the silent e correctly
+  // (influencing / influencer), so no truncated-root hack needed.
+  { label: "Parts (IFS)", system: "system", alter: "part", switch: "shift", front: "influence" },
   { label: "Collective", system: "collective", alter: "member", switch: "switch", front: "front" },
 ];
 
@@ -112,6 +114,19 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
   const autoFronting = gerund(terms.front || "front");
   const autoFronter = agent(terms.front || "front");
   const autoSwitching = gerund(terms.switch || "switch");
+
+  // Seed the custom object from whatever's currently VISIBLE before a
+  // preview base-term edit flips useCustom on. The naive spread
+  // ({ ...terms, ...p }) let p's EMPTY strings clobber the preset values
+  // — editing "front" while on the Parts preset blanked System/Alter/
+  // Switch entirely (tester screenshot, v0.88.8). Only take p's fields
+  // when they actually hold text.
+  const seedCustomFrom = (p) => ({
+    system: p.system.trim() ? p.system : terms.system,
+    alter: p.alter.trim() ? p.alter : terms.alter,
+    switch: p.switch.trim() ? p.switch : terms.switch,
+    front: p.front.trim() ? p.front : terms.front,
+  });
 
   // Preview base-term edits are SURGICAL — changing "abc" → "bca" in the
   // preview must leave the current plural "abcs" alone (don't regenerate
@@ -225,7 +240,9 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 }`}
               >
                 <p className="font-medium text-xs mb-1">{p.label}</p>
-                <p className="text-[0.6875rem] opacity-70">{p.alter} · {p.front}ing</p>
+                {/* gerund(), not naive +"ing" — "influence" must read
+                    "influencing", not "influenceing". */}
+                <p className="text-[0.6875rem] opacity-70">{p.alter} · {gerund(p.front)}</p>
               </button>
             ))}
           </div>
@@ -304,7 +321,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.system}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { snapshotDerivationsFor("system"); setCustom((p) => ({ ...terms, ...p, system: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("system"); setCustom((p) => ({ ...seedCustomFrom(p), system: v || terms.system })); setUseCustom(true); }}
                 ariaLabel="system"
               />
               {" · "}
@@ -324,7 +341,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.alter}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { snapshotDerivationsFor("alter"); setCustom((p) => ({ ...terms, ...p, alter: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("alter"); setCustom((p) => ({ ...seedCustomFrom(p), alter: v || terms.alter })); setUseCustom(true); }}
                 ariaLabel="alter"
               />
               {" · "}
@@ -344,7 +361,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.switch}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { snapshotDerivationsFor("switch"); setCustom((p) => ({ ...terms, ...p, switch: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("switch"); setCustom((p) => ({ ...seedCustomFrom(p), switch: v || terms.switch })); setUseCustom(true); }}
                 ariaLabel="switch"
               />
               {" · "}
@@ -373,7 +390,7 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
                 autoValue={terms.front}
                 editable={true}
                 editMode={editMode}
-                onChange={(v) => { snapshotDerivationsFor("front"); setCustom((p) => ({ ...terms, ...p, front: v })); setUseCustom(true); }}
+                onChange={(v) => { snapshotDerivationsFor("front"); setCustom((p) => ({ ...seedCustomFrom(p), front: v || terms.front })); setUseCustom(true); }}
                 ariaLabel="front"
               />
               {" · "}

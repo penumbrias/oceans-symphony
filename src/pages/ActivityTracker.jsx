@@ -309,54 +309,30 @@ export default function ActivityTracker() {
             view chooser, not a primary action. */}
         <div className="flex items-center justify-between mb-2 gap-2">
           <h1 className="font-display text-3xl font-semibold text-foreground">Activity Tracker</h1>
-          {tab === "logged" && (
-            <div className="flex gap-0.5 p-0.5 bg-muted/30 rounded-lg">
-              {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (
-                <button
-                  key={v.id}
-                  type="button"
-                  onClick={() => setViewMode(v.id)}
-                  className={`px-2 py-0.5 rounded-md text-[0.6875rem] font-medium transition-colors ${
-                    viewMode === v.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
-                  }`}
-                >{v.label}</button>
-              ))}
-            </div>
-          )}
+          {/* Manage Activities — page config, not a daily action; lives
+              here as a quiet icon instead of a third button in the
+              actions row. View-mode pills moved into the calendar
+              toolbar below (v0.88.7). */}
+          <Button
+            size="icon"
+            variant="ghost"
+            onClick={() => setShowCustomMenu(true)}
+            title="Manage activities"
+            aria-label="Manage activities"
+            className="text-muted-foreground hover:text-foreground"
+          >
+            <SettingsIcon className="w-4 h-4" />
+          </Button>
         </div>
 
         {/* In-progress activity timers (started via the Log modal's "Active"
             toggle) — same pills/menu as the dashboard "Active activities". */}
         {tab === "logged" && <CurrentActivities />}
 
-        {/* Date range nav — kept on its own row so the chevrons stay
-            big enough to tap comfortably on a phone. */}
-        {tab === "logged" && (
-          <div className="flex items-center gap-2 mb-3">
-            <Button variant="outline" size="icon" onClick={() => {
-              if (viewMode === "year") setCurrentDate(addYears(currentDate, -1));
-              else if (viewMode === "month") setCurrentDate(addMonths(currentDate, -1));
-              else setCurrentDate(addDays(currentDate, -7));
-            }}>
-              <ChevronLeft className="w-4 h-4" />
-            </Button>
-            <span className="text-sm font-medium min-w-fit">
-              {viewMode === "year" && format(currentDate, "yyyy")}
-              {viewMode === "month" && format(currentDate, "MMMM yyyy")}
-              {viewMode === "week" && `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
-            </span>
-            <Button variant="outline" size="icon" onClick={() => {
-              if (viewMode === "year") setCurrentDate(addYears(currentDate, 1));
-              else if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
-              else setCurrentDate(addDays(currentDate, 7));
-            }}>
-              <ChevronRight className="w-4 h-4" />
-            </Button>
-          </div>
-        )}
-
         {/* Logged / Planned / Plan tracker tabs — the page's primary
-            structure, kept right where users expect it. */}
+            structure, now ABOVE the calendar toolbar they control
+            (previously the date nav rendered above the tabs, inverting
+            the hierarchy). */}
         <div className="flex items-center justify-between gap-2 mb-3 flex-wrap">
           <div className="flex gap-1 p-1 bg-muted/30 rounded-xl w-fit" data-tour="activities-tabs">
             {[
@@ -378,27 +354,70 @@ export default function ActivityTracker() {
           </div>
         </div>
 
-        {/* Primary actions — New Plan / Log Activity / Manage Activities
-            collapsed onto a single row. Previously these were spread
-            across three separate rows (Plan Activity on its own row, the
-            grid's Add button two rows below, Manage Activities on yet
-            another row), which ate roughly half the screen before the
-            grid even rendered. */}
+        {/* One calendar toolbar: ‹ date › + Today on the left, the
+            Week/Month/Year switcher on the right (was two separate rows
+            plus pills floating in the title row). "Today" is new — a
+            standard calendar affordance that was missing entirely. */}
+        {tab === "logged" && (
+          <div className="flex items-center justify-between gap-2 mb-2 flex-wrap">
+            <div className="flex items-center gap-1.5">
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {
+                if (viewMode === "year") setCurrentDate(addYears(currentDate, -1));
+                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, -1));
+                else setCurrentDate(addDays(currentDate, -7));
+              }}>
+                <ChevronLeft className="w-4 h-4" />
+              </Button>
+              <span className="text-sm font-medium min-w-fit tabular-nums px-0.5">
+                {viewMode === "year" && format(currentDate, "yyyy")}
+                {viewMode === "month" && format(currentDate, "MMMM yyyy")}
+                {viewMode === "week" && `${format(weekStart, "MMM d")} – ${format(addDays(weekStart, 6), "MMM d, yyyy")}`}
+              </span>
+              <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => {
+                if (viewMode === "year") setCurrentDate(addYears(currentDate, 1));
+                else if (viewMode === "month") setCurrentDate(addMonths(currentDate, 1));
+                else setCurrentDate(addDays(currentDate, 7));
+              }}>
+                <ChevronRight className="w-4 h-4" />
+              </Button>
+              <button
+                type="button"
+                onClick={() => setCurrentDate(new Date())}
+                className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition-all"
+              >
+                Today
+              </button>
+            </div>
+            <div className="flex gap-0.5 p-0.5 bg-muted/30 rounded-lg">
+              {[{ id: "week", label: "Week" }, { id: "month", label: "Month" }, { id: "year", label: "Year" }].map(v => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setViewMode(v.id)}
+                  className={`px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                    viewMode === v.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground"
+                  }`}
+                >{v.label}</button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Actions — Log Activity is THE primary action of the page and
+            gets the filled style; New Plan stays outline; Manage moved
+            up to the title row as an icon. */}
         <div className="flex items-center gap-2 mb-3 flex-wrap">
-          <Button size="sm" variant="outline" onClick={() => {
-            clearSelectedRange();
-            setPlanModalOpen(true);
-          }} className="gap-1.5 h-8">
-            <CalendarPlus className="w-3.5 h-3.5" /> New Plan
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => {
+          <Button size="sm" onClick={() => {
             clearSelectedRange();
             setIsModalOpen(true);
           }} className="gap-1.5 h-8">
             <Plus className="w-3.5 h-3.5" /> Log Activity
           </Button>
-          <Button size="sm" variant="outline" onClick={() => setShowCustomMenu(true)} className="gap-1.5 h-8">
-            <SettingsIcon className="w-3.5 h-3.5" /> Manage Activities
+          <Button size="sm" variant="outline" onClick={() => {
+            clearSelectedRange();
+            setPlanModalOpen(true);
+          }} className="gap-1.5 h-8">
+            <CalendarPlus className="w-3.5 h-3.5" /> New Plan
           </Button>
         </div>
 
