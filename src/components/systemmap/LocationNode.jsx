@@ -14,7 +14,9 @@ export default function LocationNode({ location, isSelected, onSelect, onDoubleS
   const [resolvedBgUrl, setResolvedBgUrl] = useState(background_image_url || null);
   useEffect(() => {
     if (!background_image_url) { setResolvedBgUrl(null); return; }
-    if (!background_image_url.startsWith("local-image://")) { setResolvedBgUrl(background_image_url); return; }
+    // Both local forms need resolving — the /local-image/ SW path 404s on
+    // iOS native (no service worker there), so never render it raw.
+    if (!background_image_url.startsWith("local-image://") && !background_image_url.startsWith("/local-image/")) { setResolvedBgUrl(background_image_url); return; }
     import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
       resolveImageUrl(background_image_url).then(url => setResolvedBgUrl(url || background_image_url));
     });

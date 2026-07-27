@@ -47,12 +47,16 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false,
   // Map of local-image:// URL -> resolved data URL for rendering
   const [resolvedImages, setResolvedImages] = useState({});
 
+  // Both local forms need resolving — the /local-image/ SW path 404s on iOS
+  // native (no service worker there), so never render it raw.
+  const isLocalSrc = (s) => s?.startsWith("local-image://") || s?.startsWith("/local-image/");
+
   useEffect(() => {
     // Collect all image srcs from blocks that need resolution
     const srcs = new Set();
     for (const block of blocks) {
-      if (block.src?.startsWith("local-image://")) srcs.add(block.src);
-      if (block.images) block.images.forEach(i => { if (i.src?.startsWith("local-image://")) srcs.add(i.src); });
+      if (isLocalSrc(block.src)) srcs.add(block.src);
+      if (block.images) block.images.forEach(i => { if (isLocalSrc(i.src)) srcs.add(i.src); });
     }
     if (!srcs.size) return;
     let cancelled = false;
@@ -71,7 +75,7 @@ export default function SimplePreview({ blocks, onBlockChange, readOnly = false,
   }, [blocks]);
 
   // Resolve a src for rendering (falls back to original if not yet resolved)
-  const resolveSrc = (src) => (src?.startsWith("local-image://") ? resolvedImages[src] || "" : src);
+  const resolveSrc = (src) => (isLocalSrc(src) ? resolvedImages[src] || "" : src);
 
   // Per-profile CSS scoping. Any <style> in a bio's blocks is extracted, its
   // selectors prefixed with `.${scopeClass}` and its @keyframes renamed per
