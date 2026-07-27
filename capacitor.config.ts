@@ -40,6 +40,13 @@ const config: CapacitorConfig = {
   // Chrome-storage-scoped data does NOT transfer — first-launch
   // modal in src/components/onboarding/TwaToNativeMigrationModal.jsx
   // warns the user to import a backup.
+  //
+  // iOS NOTE: this id is Android-only in practice. Apple forbids
+  // underscores in bundle identifiers, so the iOS app uses
+  // `app.oceans-symphony.ios`, set directly as
+  // PRODUCT_BUNDLE_IDENTIFIER in ios/App/App.xcodeproj (Capacitor only
+  // reads appId at `cap add` time; the Xcode project owns it after
+  // that). See docs/ios-setup.md.
   appId: 'app.oceans_symphony.twa',
   appName: 'Oceans Symphony',
   webDir: 'dist',

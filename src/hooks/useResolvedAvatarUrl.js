@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react';
-import { resolveImageUrl } from '@/lib/imageUrlResolver';
+import { resolveImageUrl, swServesLocalImages } from '@/lib/imageUrlResolver';
 
 export function useResolvedAvatarUrl(avatarUrl) {
   const [resolvedUrl, setResolvedUrl] = useState(() => {
-    // /local-image/ URLs are served by the SW — no async resolution needed
-    if (avatarUrl?.startsWith('/local-image/')) return avatarUrl;
+    // /local-image/ URLs need no async resolution when a SW controls the
+    // page. Without one (iOS native — WKWebView has no SW), fall through
+    // to the async IDB path below or the <img> hits a 404.
+    if (avatarUrl?.startsWith('/local-image/') && swServesLocalImages()) return avatarUrl;
     return null;
   });
 
   useEffect(() => {
     if (!avatarUrl) { setResolvedUrl(null); return; }
 
-    // Fast path: SW handles these synchronously
-    if (avatarUrl.startsWith('/local-image/')) {
+    // Fast path: SW serves these — no IDB roundtrip needed
+    if (avatarUrl.startsWith('/local-image/') && swServesLocalImages()) {
       setResolvedUrl(avatarUrl);
       return;
     }
