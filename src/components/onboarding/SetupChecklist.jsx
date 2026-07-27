@@ -8,7 +8,9 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2, CheckSquare, Loader2 } from "lucide-react";
+import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2, CheckSquare, Loader2, Bell } from "lucide-react";
+import { readPlanRemindersEnabled, writePlanRemindersEnabled } from "@/lib/planReminderScheduler";
+import { isNative } from "@/lib/platform";
 import { toast } from "sonner";
 import { DEFAULT_TASK_TEMPLATES, applyTerms as applyTaskTerms } from "@/lib/dailyTaskSystem";
 import TaskTemplateManager from "@/components/tasks/TaskTemplateManager";
@@ -30,7 +32,7 @@ import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 // psGetItem falls back to the legacy unscoped key when the registry has
 // ≤1 system, so pre-existing single-system users' progress carries over.
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
-export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "tasks", "backup"];
+export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "tasks", "reminders", "backup"];
 
 export function loadChecklist() {
   try {
@@ -118,6 +120,29 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
   const [showImport, setShowImport] = useState(false);
   const [showActivityMenu, setShowActivityMenu] = useState(false);
   const [seedingTasks, setSeedingTasks] = useState(false);
+  // Reminders step state (v0.88.6): plan-reminders global flag + a coarse
+  // notification-permission indicator (re-checked after each request).
+  const [planRemindersOn, setPlanRemindersOn] = useState(() => readPlanRemindersEnabled());
+  const [notifPermission, setNotifPermission] = useState(() => {
+    try { return typeof Notification !== "undefined" ? Notification.permission : "unknown"; } catch { return "unknown"; }
+  });
+  const requestNotifPermission = async () => {
+    try {
+      if (isNative()) {
+        const { requestNativePermission } = await import("@/lib/nativeNotifications");
+        const res = await requestNativePermission();
+        setNotifPermission(res?.display === "granted" ? "granted" : "denied");
+      } else if (typeof Notification !== "undefined") {
+        const res = await Notification.requestPermission();
+        setNotifPermission(res);
+      }
+    } catch { /* best-effort */ }
+  };
+  const enablePlanReminders = () => {
+    writePlanRemindersEnabled(true);
+    setPlanRemindersOn(true);
+    toast.success("Plan reminders on");
+  };
   const [showTaskManager, setShowTaskManager] = useState(false);
   const [taskSelection, setTaskSelection] = useState({});
   const [taskSelectionInit, setTaskSelectionInit] = useState(false);
@@ -151,10 +176,13 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
       if (taskTemplates.length > 0 && !prev.tasksUserToggled && !prev.tasks) {
         next.tasks = true; changed = true;
       }
+      if (planRemindersOn && !prev.remindersUserToggled && !prev.reminders) {
+        next.reminders = true; changed = true;
+      }
       if (changed) { saveChecklist(next); return next; }
       return prev;
     });
-  }, [alters, activities, taskTemplates]);
+  }, [alters, activities, taskTemplates, planRemindersOn]);
 
   // Titles of user's existing templates (lower-cased, term-resolved on both
   // sides so a saved "System meeting" matches the "{{system}} meeting"
@@ -428,6 +456,49 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
                 </div>
               </div>
             </div>
+          )}
+        </div>
+      ),
+    },
+    {
+      id: "reminders",
+      icon: Bell,
+      title: "Notifications & reminders",
+      description: "Get nudged before plans start, and for your own reminders.",
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            Two pieces: your device has to <strong>allow notifications</strong> from the app, and the
+            reminders you want have to be turned on. Plan reminders nudge you before a scheduled
+            activity; the Reminders page lets you build your own one-off and recurring ones.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              onClick={requestNotifPermission}
+              disabled={notifPermission === "granted"}
+              className="text-xs gap-1.5"
+            >
+              <Bell className="w-3 h-3" />
+              {notifPermission === "granted" ? "Notifications allowed ✓" : "Allow notifications"}
+            </Button>
+            <Button
+              size="sm"
+              variant={planRemindersOn ? "outline" : "default"}
+              onClick={enablePlanReminders}
+              disabled={planRemindersOn}
+              className="text-xs gap-1.5"
+            >
+              {planRemindersOn ? "Plan reminders on ✓" : "Turn on plan reminders"}
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => { onCloseGuide?.(); navigate("/reminders"); }} className="text-xs gap-1">
+              Open Reminders <ExternalLink className="w-3 h-3" />
+            </Button>
+          </div>
+          {notifPermission === "denied" && (
+            <p className="text-[0.6875rem] text-amber-600 dark:text-amber-400">
+              Notifications are blocked for this app — enable them in your device's app settings, then come back.
+            </p>
           )}
         </div>
       ),

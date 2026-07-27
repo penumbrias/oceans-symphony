@@ -21,7 +21,9 @@ import {
   PLAN_REMINDER_OFFSETS,
   readPlanRemindersEnabled,
   readPlanRemindersDefaultOffset,
+  writePlanRemindersEnabled,
 } from "@/lib/planReminderScheduler";
+import { isNative } from "@/lib/platform";
 import {
   RECURRENCE_BRANCHES,
   membersForBranch,
@@ -171,13 +173,46 @@ export default function ActivityPlanModal({
   const todoOpen = showTodoField || !!selectedTaskId || createTodo;
   const whoOpen = showWhoField || selectedAlters.length > 0;
   const notesOpen = showNotesField || !!notes;
-  const planRemindersEnabledGlobal = readPlanRemindersEnabled();
+  // v0.88.6: state (not a bare read) so the inline "Turn on" button can
+  // flip the global setting without leaving the modal (tester: "why have
+  // to go to the settings page?").
+  const [planRemindersEnabledGlobal, setPlanRemindersEnabledGlobal] = useState(() => readPlanRemindersEnabled());
   const planRemindersDefault = readPlanRemindersDefaultOffset();
+  const enablePlanRemindersInline = async () => {
+    writePlanRemindersEnabled(true);
+    setPlanRemindersEnabledGlobal(true);
+    // Best-effort permission ask right away — a granted permission is the
+    // other half of actually receiving the notification.
+    try {
+      if (isNative()) {
+        const { requestNativePermission } = await import("@/lib/nativeNotifications");
+        await requestNativePermission();
+      } else if (typeof Notification !== "undefined" && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    } catch { /* permission ask is best-effort */ }
+    toast.success("Plan reminders on — set the lead time below");
+  };
 
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
     queryFn: () => base44.entities.ActivityCategory.list(),
   });
+
+  // v0.88.6: title ↔ activity auto-detect. When the typed title exactly
+  // matches an activity category (case-insensitive) that isn't already
+  // selected, offer a one-tap "use the activity instead" suggestion.
+  // NON-FORCING: dismissing it (or ignoring it) keeps the word as a plain
+  // title — for the "I want to title it 'work' without logging the Work
+  // activity" case.
+  const [dismissedTitleSuggestion, setDismissedTitleSuggestion] = useState("");
+  const titleActivityMatch = useMemo(() => {
+    const q = title.trim().toLowerCase();
+    if (!q || q === dismissedTitleSuggestion) return null;
+    return activityCategories.find(
+      (c) => (c.name || "").trim().toLowerCase() === q && !selectedActivityCategories.includes(c.id)
+    ) || null;
+  }, [title, dismissedTitleSuggestion, activityCategories, selectedActivityCategories]);
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
@@ -614,9 +649,37 @@ export default function ActivityPlanModal({
               placeholder="Add a title…"
               className="w-full bg-transparent border-0 border-b border-border/60 focus:border-primary rounded-none px-0 py-1.5 text-base font-medium focus:outline-none placeholder:text-muted-foreground/60 placeholder:font-normal transition-colors"
             />
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">
-              Optional — a title, an activity (below), or a linked to-do is enough.
-            </p>
+            {titleActivityMatch ? (
+              /* Title matches an activity category — offer to use the
+                 activity instead (one tap), or dismiss to keep the word
+                 as a plain title. */
+              <div className="flex items-center gap-1.5 mt-1.5">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setSelectedActivityCategories((prev) => [...prev, titleActivityMatch.id]);
+                    setTitle("");
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border border-primary/50 bg-primary/10 text-primary hover:bg-primary/20 transition-all flex items-center gap-1.5"
+                >
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: titleActivityMatch.color || "#8b5cf6" }} />
+                  Use activity “{titleActivityMatch.name}” instead
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDismissedTitleSuggestion(title.trim().toLowerCase())}
+                  aria-label="Keep as a plain title"
+                  title="Keep as a plain title"
+                  className="p-1 rounded text-muted-foreground hover:text-foreground"
+                >
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ) : (
+              <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                Optional — a title, an activity (below), or a linked to-do is enough.
+              </p>
+            )}
           </div>
 
           {/* ── WHEN ─────────────────────────────────────────────── */}
@@ -968,9 +1031,14 @@ export default function ActivityPlanModal({
                 </div>
               </>
             ) : (
-              <p className="text-xs text-muted-foreground">
-                Plan reminders are off globally. Turn them on in Settings → Reminders to get a notification before this plan starts.
-              </p>
+              <div className="space-y-2">
+                <p className="text-xs text-muted-foreground">
+                  Plan reminders are off. Turn them on to get a notification before this plan starts.
+                </p>
+                <Button size="sm" variant="outline" onClick={enablePlanRemindersInline} className="text-xs gap-1.5">
+                  <Bell className="w-3.5 h-3.5" /> Turn on plan reminders
+                </Button>
+              </div>
             )}
           </div>
 
