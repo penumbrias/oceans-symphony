@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 27, 2026",
     changes: [
+      { type: "fix", text: "Sidebar menu: the bottom entries (like System Map) no longer get cut off behind the home indicator on iPhone/iPad." },
       { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
     ],
   },
