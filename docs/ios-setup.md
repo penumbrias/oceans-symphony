@@ -32,7 +32,7 @@ have SPM support and are already wired into
 ## First build on the Mac
 
 ```bash
-git clone <repo> && cd oceans-symphony
+git clone https://github.com/penumbrias/oceans-symphony.git && cd oceans-symphony
 npm ci
 npm run build
 npx cap sync ios
