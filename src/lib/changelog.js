@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 24, 2026",
     changes: [
+      { type: "improve", text: "The Plan Activity modal got a clean-up: title first, grouped When / What / Details / Options sections, and rarely-used fields (location, to-do link, who it's for, notes) tucked behind small \"+\" chips until you need them — the default modal is about a third of its old height. \"Quick plan\" is now a compact \"No specific time\" toggle next to the When header. Everything works exactly as before." },
       { type: "feature", text: "Two one-tap image exports under Advanced → \"Images only\": an images-only backup (importable on another device — pairs with the data-only safety net) and \"Images as .zip\" (every stored image as plain files you can open anywhere)." },
       { type: "fix", text: "Importing a backup with \"Update & Add New\" (formerly \"Add New\") now actually updates existing records when the backup's copy is newer — avatars, roles, tags, and bios edited on your computer finally arrive on your phone. Your more-recent local edits always win, and nothing is ever deleted. (This was why pfps wouldn't transfer: the old merge silently skipped every record that already existed.)" },
       { type: "improve", text: "The preferences comfort scale now uses flat line icons (broken heart / thumbs down / dash / thumbs up / heart) tinted by level, instead of emojis — in the editor, on profiles, and on friends' shared chips." },
