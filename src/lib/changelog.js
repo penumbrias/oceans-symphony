@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "July 29, 2026",
+    changes: [
+      { type: "improve", text: "iOS app: real app icon and splash screen (made from the app logo) instead of the placeholder art." },
+    ],
+  },
+  {
     date: "July 27, 2026",
+    version: "0.89.2",
     changes: [
       { type: "fix", text: "iOS app: images on the inner world map (location backgrounds, map images) and in profile bios now display." },
       { type: "fix", text: "Sidebar menu: the bottom entries (like System Map) no longer get cut off behind the home indicator on iPhone/iPad." },
