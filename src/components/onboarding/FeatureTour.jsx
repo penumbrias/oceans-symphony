@@ -108,6 +108,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     },
     {
       section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "🧪",
+      title: "Experimental homescreen",
+      body: `There's an optional phone-style homescreen you can try: placeable widgets, an app drawer, and a persistent quick-action bar. Turn it on from the "Try it" banner here, or in Settings → Appearance → Dashboard layout. Your classic dashboard stays saved, and you can switch back any time.`,
+      route: "/", target: null,
+      look: `the "Try the experimental homescreen?" banner near the top of the dashboard (if you haven't dismissed it)`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
       emoji: "📥",
       title: "Notifications Inbox",
       body: `The inbox icon (📥) in the top-right of the header opens your notifications — @ mentions from bulletins, messages, and other ${t.alters}, plus any reminder alerts that have fired. It's deliberately a different icon from the bell used for reminders elsewhere so the two don't get confused. A coloured dot appears when there are unread items; tap any notification in the panel to jump directly to its source.`,

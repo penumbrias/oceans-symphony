@@ -1,0 +1,308 @@
+// Widget registry for the experimental homescreen — one entry per widget,
+// wrapping the SAME self-fetching components the classic dashboard renders
+// (no rewrites; the homescreen is a second renderer over the same parts).
+//
+// Entry shape:
+//   { label, description, icon, category,
+//     render({ mode, settings, instanceId, api }) → JSX,
+//     supportsModes, supportsMultiInstance,
+//     defaultSpan, minSpan, maxSpan }
+//
+// `api` is the HomeApi bundle provided by ExperimentalDashboard (handlers
+// hosted in Dashboard.jsx — modal openers, hold gesture, notification
+// state) so chrome widgets and quick-action buttons work without every
+// widget re-implementing Dashboard's plumbing.
+
+import React from "react";
+import {
+  Users, Heart, ClipboardList, Zap, MessageSquare, Pin, Sparkles, Clock,
+  Inbox, HelpCircle, LayoutGrid, Bell, StickyNote, Activity as ActivityIcon,
+  Contact, CalendarDays, ListTodo, Megaphone, Lightbulb,
+} from "lucide-react";
+
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
+import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
+import StatusNoteCard from "@/components/dashboard/StatusNoteCard";
+import DashboardPins from "@/components/dashboard/DashboardPins";
+import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidget";
+import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
+import CurrentActivities from "@/components/activities/CurrentActivities";
+import CurrentContacts from "@/components/contacts/CurrentContacts";
+import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
+import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
+import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
+import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
+import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
+
+// Generic minimal-mode shell — gives every widget a "minimal" rendering
+// for free: icon + label (+ the widget can still be tapped via settings
+// later). Widgets that implement richer minimal modes can opt out by
+// listing "minimal" in supportsModes and handling it in render().
+function MinimalShell({ icon: Icon, label }) {
+  return (
+    <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-sm">
+      {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
+      <span className="truncate font-medium">{label}</span>
+    </div>
+  );
+}
+
+// Wrap a plain component: normal/expanded/detailed all render the real
+// component (deeper modes are opt-in improvements over time); minimal
+// renders the shell.
+function simple(label, icon, Component, extraProps = {}) {
+  return ({ mode }) =>
+    mode === "minimal" ? <MinimalShell icon={icon} label={label} /> : <Component {...extraProps} />;
+}
+
+export const WIDGET_REGISTRY = {
+  // ── Chrome (formerly fixed header) ─────────────────────────────
+  system_header: {
+    label: "System name & date", description: "Your system's name, the date, and the live clock.",
+    icon: Sparkles, category: "chrome",
+    render: ({ mode, api }) => <SystemHeaderCard mode={mode} api={api} />,
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  clock: {
+    label: "Clock", description: "Just the time and date — place as many as you like.",
+    icon: Clock, category: "chrome",
+    render: ({ mode }) => <ClockWidget mode={mode} />,
+    supportsModes: ["minimal", "normal", "expanded"],
+    supportsMultiInstance: true,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 3, rows: 2 },
+  },
+  help_button: {
+    label: "Setup & tour", description: "The guide/tour button, as a placeable tile.",
+    icon: HelpCircle, category: "chrome",
+    render: ({ api }) => (
+      <button
+        type="button"
+        onClick={() => api?.openTour?.()}
+        className="w-full h-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-border/40 bg-card/50 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <HelpCircle className="w-4 h-4" /> Setup & tour
+        {api?.checklistIncomplete && <span className="w-2 h-2 rounded-full bg-primary" aria-hidden="true" />}
+      </button>
+    ),
+    supportsModes: ["normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 1 },
+  },
+  notification_inbox: {
+    label: "Notifications", description: "The notification-history button, as a placeable tile.",
+    icon: Inbox, category: "chrome",
+    render: ({ api }) => (
+      <button
+        type="button"
+        onClick={() => api?.openNotifHistory?.()}
+        className="relative w-full h-full min-h-[44px] flex items-center justify-center gap-2 rounded-xl border border-border/40 bg-card/50 text-sm text-muted-foreground hover:text-foreground transition-colors"
+      >
+        <Inbox className="w-4 h-4" /> Notifications
+        {api?.hasUnreadMentions && <span className="absolute top-2 right-2 w-2 h-2 bg-primary rounded-full" aria-hidden="true" />}
+      </button>
+    ),
+    supportsModes: ["normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 1 },
+  },
+
+  // ── Quick actions ──────────────────────────────────────────────
+  quick_checkin: {
+    label: "Quick action buttons", description: "Quick Check-In plus the start/quick buttons.",
+    icon: Heart, category: "actions",
+    render: ({ api }) => (
+      <QuickCheckinButtons
+        hold={api?.hold || {}}
+        holdProgress={api?.holdProgress || 0}
+        holdActive={api?.holdActive || false}
+        show={{ start_activity: true, start_symptom: true, quick_task: true, quick_plan: true }}
+        on={api?.quickOn || {}}
+        quickActionsSlot={api?.quickActionsSlot || null}
+      />
+    ),
+    supportsModes: ["normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+
+  // ── System ─────────────────────────────────────────────────────
+  current_fronters: {
+    label: "Current fronters", description: "Who's fronting right now, with per-alter panels.",
+    icon: Users, category: "system",
+    render: ({ mode, api }) =>
+      mode === "minimal"
+        ? <MinimalShell icon={Users} label="Current fronters" />
+        : <CurrentFronters alters={api?.alters || []} hideStatusNote={api?.statusNotePlaced ?? true} />,
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 4 },
+  },
+  pinned_alters: {
+    label: "Pinned alters", description: "The pinned-alters gallery.",
+    icon: Pin, category: "system",
+    render: simple("Pinned alters", Pin, PinnedAltersGallery),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+  },
+  status_note: {
+    label: "Status note", description: "Set a new status; shows the latest one.",
+    icon: StickyNote, category: "system",
+    render: simple("Status note", StickyNote, StatusNoteCard),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  bulletin_board: {
+    label: "Bulletin board", description: "System-wide posts, comments, and polls.",
+    icon: Megaphone, category: "system",
+    render: ({ mode, api }) =>
+      mode === "minimal"
+        ? <MinimalShell icon={Megaphone} label="Bulletin board" />
+        : (
+          <BulletinBoard
+            alters={api?.alters || []}
+            currentAlterId={api?.currentAlterId || null}
+            frontingAlterIds={api?.frontingAlterIds || []}
+            highlightBulletinId={api?.highlightBulletinId || null}
+          />
+        ),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 6 },
+  },
+
+  // ── Tracking ───────────────────────────────────────────────────
+  current_symptoms: {
+    label: "Active symptoms", description: "Symptom sessions currently running.",
+    icon: ActivityIcon, category: "tracking",
+    render: simple("Active symptoms", ActivityIcon, CurrentSymptoms),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  current_activities: {
+    label: "Active activities", description: "Activity timers currently running.",
+    icon: Zap, category: "tracking",
+    render: simple("Active activities", Zap, CurrentActivities),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  current_contacts: {
+    label: "Currently with", description: "Contacts you're currently with.",
+    icon: Contact, category: "tracking",
+    render: simple("Currently with", Contact, CurrentContacts),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  upcoming_top: {
+    label: "Upcoming plans", description: "Scheduled activities coming up.",
+    icon: CalendarDays, category: "tracking",
+    render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_top" }),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+  },
+  upcoming_bottom: {
+    label: "Upcoming plans (secondary)", description: "A second upcoming-plans surface.",
+    icon: CalendarDays, category: "tracking",
+    render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_bottom" }),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+  },
+  pinned_daily_tasks: {
+    label: "Daily tasks", description: "Pinned daily tasks with check-off.",
+    icon: ListTodo, category: "tracking",
+    render: simple("Daily tasks", ListTodo, PinnedDailyTasksWidget),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 4 },
+  },
+  dashboard_pins: {
+    label: "Pinned items", description: "Bulletins and notes pinned to the dashboard.",
+    icon: Pin, category: "tracking",
+    render: simple("Pinned items", Pin, DashboardPins),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+  },
+
+  // ── Meta / nav ─────────────────────────────────────────────────
+  quick_nav_menu: {
+    label: "App grid & search", description: "The full navigation grid with global search.",
+    icon: LayoutGrid, category: "nav",
+    render: simple("App grid & search", LayoutGrid, QuickNavMenu),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 6 },
+  },
+  new_features_bar: {
+    label: "What's new", description: "The latest changelog entries.",
+    icon: Bell, category: "meta",
+    render: simple("What's new", Bell, NewFeaturesBar),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+  insight_spotlight: {
+    label: "Insight spotlight", description: "A rotating insight from your data.",
+    icon: Lightbulb, category: "meta",
+    render: simple("Insight spotlight", Lightbulb, InsightSpotlight),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+  },
+};
+
+// Classic dashboard_layout element id → widget id (identity for everything
+// that exists in both worlds; the sub-toggle button ids intentionally have
+// no widget — they live on the action bar instead).
+export const CLASSIC_TO_WIDGET = Object.fromEntries(
+  [
+    "upcoming_top", "current_fronters", "pinned_alters", "status_note",
+    "dashboard_pins", "current_symptoms", "current_activities", "current_contacts",
+    "quick_checkin", "pinned_daily_tasks", "new_features_bar", "insight_spotlight",
+    "quick_nav_menu", "bulletin_board", "upcoming_bottom",
+  ].map((id) => [id, id])
+);
+
+export const WIDGET_CATEGORIES = [
+  { id: "chrome", label: "Header & chrome" },
+  { id: "actions", label: "Quick actions" },
+  { id: "system", label: "System" },
+  { id: "tracking", label: "Tracking" },
+  { id: "nav", label: "Navigation" },
+  { id: "meta", label: "App" },
+];
+
+// Standalone clock (multi-instance chrome widget).
+function ClockWidget({ mode }) {
+  const [now, setNow] = React.useState(() => new Date());
+  React.useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30_000);
+    return () => clearInterval(t);
+  }, []);
+  if (mode === "minimal") {
+    return (
+      <div className="flex items-center justify-center h-full rounded-xl border border-border/40 bg-card/50 px-2 py-1.5 text-sm font-medium tabular-nums">
+        {now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}
+      </div>
+    );
+  }
+  return (
+    <div className="flex flex-col items-center justify-center h-full rounded-xl border border-border/40 bg-card/50 px-3 py-2">
+      <span className="text-xl font-semibold tabular-nums">{now.toLocaleTimeString([], { hour: "numeric", minute: "2-digit" })}</span>
+      <span className="text-xs text-muted-foreground">{now.toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" })}</span>
+      {mode === "expanded" && (
+        <span className="text-[0.6875rem] text-muted-foreground mt-0.5">{now.toLocaleDateString([], { year: "numeric" })}</span>
+      )}
+    </div>
+  );
+}

@@ -12,7 +12,7 @@ import { DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSe
 import { SortableContext, useSortable, arrayMove, rectSortingStrategy } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
 
-function buildNavGroups(altersLabel, systemLabel) {
+export function buildNavGroups(altersLabel, systemLabel) {
   return {
     [systemLabel]: [
       { id: "alters",   label: altersLabel,            icon: Users,         path: "/Home" },
@@ -52,7 +52,7 @@ function buildNavGroups(altersLabel, systemLabel) {
   };
 }
 
-function buildGridItems(altersLabel, systemLabel) {
+export function buildGridItems(altersLabel, systemLabel) {
   return [
     { id: "reminders",       label: "Reminders",              icon: Bell,          path: "/reminders",        color: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
     { id: "alters",          label: altersLabel,              icon: Users,         path: "/Home",             color: "bg-purple-500/15 text-purple-600 dark:text-purple-400" },

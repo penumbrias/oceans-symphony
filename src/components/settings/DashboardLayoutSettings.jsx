@@ -248,8 +248,44 @@ export default function DashboardLayoutSettings() {
     setBatchSizeLocal(clamped);
   };
 
+  // Experimental homescreen toggle (v0.90.0). Enabling seeds the widget
+  // layout from the classic dashboard (only the first time); disabling
+  // keeps the built layout for later. Classic dashboard_layout is never
+  // touched by the experimental view.
+  const experimentalOn = record?.experimental_home?.enabled === true;
+  const toggleExperimental = async (on) => {
+    try {
+      const { seedFromClassic } = await import("@/lib/experimentalHome");
+      const { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } = await import("@/lib/widgetRegistry");
+      const existing = record?.experimental_home;
+      const next = on
+        ? (existing && Array.isArray(existing.pages) && existing.pages.some((p) => (p.widgets || []).length > 0)
+            ? { ...existing, enabled: true }
+            : seedFromClassic(record?.dashboard_layout, WIDGET_REGISTRY, CLASSIC_TO_WIDGET))
+        : { ...(existing || {}), enabled: false };
+      if (record?.id) await base44.entities.SystemSettings.update(record.id, { experimental_home: next });
+      else await base44.entities.SystemSettings.create({ experimental_home: next });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(on ? "Experimental homescreen on" : "Back to the classic dashboard");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch");
+    }
+  };
+
   return (
     <section className="space-y-3 border-t border-border/30 pt-4">
+      <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
+        <div className="min-w-0">
+          <span className="text-sm font-medium flex items-center gap-1.5">
+            🧪 Experimental homescreen
+          </span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            A phone-style home: placeable widgets, an app drawer, and a quick-action bar. Your classic dashboard stays saved — switch back any time.
+          </p>
+        </div>
+        <Switch checked={experimentalOn} onCheckedChange={toggleExperimental} />
+      </label>
+
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-base font-semibold flex items-center gap-2">
