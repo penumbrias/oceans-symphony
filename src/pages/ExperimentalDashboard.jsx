@@ -22,9 +22,10 @@ import React, { useMemo, useState, useCallback } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import {
   Pencil, Check, X, Minus, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2,
+  Undo2, Grid2x2, Star, Trash2,
 } from "lucide-react";
 import {
   DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
@@ -35,7 +36,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY } from "@/lib/widgetRegistry";
 import {
-  resolveExperimentalHome, effectiveMode, newInstanceId, HOME_MODES,
+  resolveExperimentalHome, effectiveMode, newInstanceId, newPageId, HOME_MODES,
   ACTION_BAR_BUTTONS,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
@@ -152,8 +153,21 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     () => resolveExperimentalHome(settingsRow?.experimental_home, WIDGET_REGISTRY),
     [settingsRow?.experimental_home]
   );
-  // Phase 1: single page — always the default page.
-  const page = home.pages.find((p) => p.id === home.defaultPageId) || home.pages[0];
+  // Phase 2: multiple pages. activePageId is transient (each visit starts
+  // on the default page); the pages themselves live in experimental_home.
+  const [activePageId, setActivePageId] = useState(null);
+  const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
+  const page =
+    home.pages.find((p) => p.id === activePageId) ||
+    home.pages.find((p) => p.id === home.defaultPageId) ||
+    home.pages[0];
+  const pageIdx = home.pages.findIndex((p) => p.id === page.id);
+
+  const goToPage = useCallback((idx) => {
+    if (idx < 0 || idx >= home.pages.length || home.pages[idx].id === page.id) return;
+    setSwipeDir(idx > pageIdx ? 1 : -1);
+    setActivePageId(home.pages[idx].id);
+  }, [home.pages, page.id, pageIdx]);
 
   const persist = useCallback(async (nextHome) => {
     try {
@@ -189,20 +203,50 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       if (i === -1 || j < 0 || j >= ws.length) return ws;
       return arrayMove(ws, i, j);
     });
-  const handleAddWidget = (widgetId) => {
+  const handleAddWidget = (widgetId, settings = {}, { edit = true } = {}) => {
     const def = WIDGET_REGISTRY[widgetId];
     if (!def) return;
-    if (!def.supportsMultiInstance && page.widgets.some((w) => w.widgetId === widgetId)) {
+    // Single-instance widgets are unique across ALL pages, not just this one.
+    if (!def.supportsMultiInstance && home.pages.some((p) => p.widgets.some((w) => w.widgetId === widgetId))) {
       toast.info("Already on the homescreen");
       return;
     }
     updatePageWidgets((ws) => [
       ...ws,
-      { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 2, rows: 1 }) }, mode: "normal", settings: {} },
+      { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 2, rows: 1 }) }, mode: "normal", settings },
     ]);
     toast.success(`${def.label} added`);
     setDrawerOpen(false);
-    setEditMode(true);
+    if (edit) setEditMode(true);
+  };
+
+  // ── Page operations (Phase 2) ──────────────────────────────────
+  const handleAddPage = () => {
+    const id = newPageId();
+    persist({ ...home, pages: [...home.pages, { id, label: `Page ${home.pages.length + 1}`, widgets: [] }] });
+    setSwipeDir(1);
+    setActivePageId(id);
+  };
+  const handleRenamePage = (label) => {
+    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, label } : p)) });
+  };
+  const handleSetDefaultPage = () => persist({ ...home, defaultPageId: page.id });
+  const handleDeletePage = () => {
+    if (home.pages.length <= 1) return;
+    const remaining = home.pages.filter((p) => p.id !== page.id);
+    // Never drop widgets with the page — move them to the first remaining
+    // page so nothing the user configured silently disappears.
+    if (page.widgets.length > 0) {
+      remaining[0] = { ...remaining[0], widgets: [...remaining[0].widgets, ...page.widgets] };
+      toast.info(`Widgets moved to "${remaining[0].label || "Page 1"}"`);
+    }
+    persist({
+      ...home,
+      pages: remaining,
+      defaultPageId: home.defaultPageId === page.id ? remaining[0].id : home.defaultPageId,
+    });
+    setSwipeDir(-1);
+    setActivePageId(remaining[0].id);
   };
   const handleBackToClassic = () => persist({ ...home, enabled: false });
   const toggleActionBarButton = (id) => {
@@ -316,6 +360,83 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         </button>
       </div>
 
+      {/* Page dots — tappable; edit mode adds a "+" for a new page. */}
+      {(home.pages.length > 1 || editMode) && (
+        <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
+          {home.pages.map((p, i) => (
+            <button
+              key={p.id}
+              type="button"
+              role="tab"
+              aria-selected={p.id === page.id}
+              aria-label={p.label || `Page ${i + 1}`}
+              title={p.label || `Page ${i + 1}`}
+              onClick={() => goToPage(i)}
+              className="min-w-[24px] min-h-[24px] flex items-center justify-center"
+            >
+              <span
+                className={`rounded-full transition-all ${
+                  p.id === page.id ? "w-2.5 h-2.5 bg-primary" : "w-2 h-2 bg-muted-foreground/70"
+                }`}
+              />
+            </button>
+          ))}
+          {editMode && (
+            <button
+              type="button"
+              onClick={handleAddPage}
+              aria-label="Add page"
+              title="Add page"
+              className="min-w-[24px] min-h-[24px] flex items-center justify-center rounded-full text-muted-foreground hover:text-primary"
+            >
+              <Plus className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Page name / default / delete — edit mode only. */}
+      {editMode && (
+        <div className="flex items-center justify-center gap-1.5 mb-3">
+          <input
+            key={page.id}
+            defaultValue={page.label}
+            placeholder={`Page ${pageIdx + 1}`}
+            aria-label="Page name"
+            onBlur={(e) => {
+              const v = e.target.value.trim();
+              if (v !== page.label) handleRenamePage(v);
+            }}
+            className="h-7 w-32 px-2 rounded-lg border border-border/50 bg-background text-xs text-center focus:outline-none focus:ring-1 focus:ring-ring"
+          />
+          <button
+            type="button"
+            onClick={handleSetDefaultPage}
+            aria-pressed={home.defaultPageId === page.id}
+            aria-label="Make this the default page"
+            title={home.defaultPageId === page.id ? "Default page" : "Make this the default page"}
+            className={`min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg transition-colors ${
+              home.defaultPageId === page.id
+                ? "text-amber-500 bg-amber-500/10"
+                : "text-muted-foreground hover:text-amber-500 hover:bg-amber-500/10"
+            }`}
+          >
+            <Star className="w-3.5 h-3.5" fill={home.defaultPageId === page.id ? "currentColor" : "none"} />
+          </button>
+          {home.pages.length > 1 && (
+            <button
+              type="button"
+              onClick={handleDeletePage}
+              aria-label="Delete this page"
+              title="Delete this page (widgets move to the first page)"
+              className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
       {widgets.length === 0 && (
         <button
           type="button"
@@ -323,12 +444,40 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
           className="w-full py-16 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors flex flex-col items-center gap-2"
         >
           <Grid2x2 className="w-8 h-8" />
-          <span className="text-sm font-medium">Empty homescreen — tap to add widgets</span>
+          <span className="text-sm font-medium">
+            {home.pages.length > 1 ? "Empty page — tap to add widgets" : "Empty homescreen — tap to add widgets"}
+          </span>
         </button>
       )}
 
-      {a11yStack || !editMode ? (
+      {a11yStack ? (
         canvas
+      ) : !editMode ? (
+        // Swipe between pages (finger drag or trackpad); the key remount
+        // plays a directional slide when the page changes via dots too.
+        <motion.div
+          key={page.id}
+          // min-height so swipes register on the empty space of sparse pages,
+          // not just on the widgets themselves.
+          className={home.pages.length > 1 ? "min-h-[55vh]" : undefined}
+          initial={swipeDir === 0 ? false : { x: swipeDir * 72, opacity: 0 }}
+          animate={{ x: 0, opacity: 1 }}
+          transition={{ duration: 0.18, ease: "easeOut" }}
+          {...(home.pages.length > 1
+            ? {
+                drag: "x",
+                dragDirectionLock: true,
+                dragConstraints: { left: 0, right: 0 },
+                dragElastic: 0.12,
+                onDragEnd: (_e, info) => {
+                  if (info.offset.x < -60 || info.velocity.x < -500) goToPage(pageIdx + 1);
+                  else if (info.offset.x > 60 || info.velocity.x > 500) goToPage(pageIdx - 1);
+                },
+              }
+            : {})}
+        >
+          {canvas}
+        </motion.div>
       ) : (
         <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
           <SortableContext items={widgets.map((w) => w.instanceId)} strategy={rectSortingStrategy}>
@@ -369,8 +518,9 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       <AppDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        placedWidgetIds={widgets.map((w) => w.widgetId)}
+        placedWidgetIds={home.pages.flatMap((p) => p.widgets.map((w) => w.widgetId))}
         onAddWidget={handleAddWidget}
+        onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
       />
     </div>
   );

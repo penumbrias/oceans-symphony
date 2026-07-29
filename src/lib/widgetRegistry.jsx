@@ -14,11 +14,14 @@
 // widget re-implementing Dashboard's plumbing.
 
 import React from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Users, Heart, ClipboardList, Zap, MessageSquare, Pin, Sparkles, Clock,
   Inbox, HelpCircle, LayoutGrid, Bell, StickyNote, Activity as ActivityIcon,
-  Contact, CalendarDays, ListTodo, Megaphone, Lightbulb,
+  Contact, CalendarDays, ListTodo, Megaphone, Lightbulb, Rocket,
 } from "lucide-react";
+import { useTerms } from "@/lib/useTerms";
+import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -46,6 +49,42 @@ function MinimalShell({ icon: Icon, label }) {
       {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
       <span className="truncate font-medium">{label}</span>
     </div>
+  );
+}
+
+// Phone-style app shortcut tile — settings.targetId points at an entry in
+// the shared nav catalogue (navCatalogue.js), so icon/colour/label always
+// match the app drawer and quick-nav grid. Multi-instance: pin as many
+// apps to the homescreen as you like.
+function AppShortcutWidget({ mode, settings }) {
+  const t = useTerms();
+  const navigate = useNavigate();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const item = findGridItem(items, settings?.targetId);
+  if (!item) {
+    return (
+      <div className="w-full h-full min-h-[44px] flex items-center justify-center rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground px-2 text-center">
+        Missing shortcut — remove me
+      </div>
+    );
+  }
+  const Icon = item.icon;
+  return (
+    <button
+      type="button"
+      onClick={() => navigate(item.path)}
+      title={item.label}
+      className="w-full h-full min-h-[56px] flex flex-col items-center justify-center gap-1 rounded-xl hover:bg-muted/40 transition-colors py-1.5"
+    >
+      <span className={`w-11 h-11 rounded-2xl flex items-center justify-center ${item.color}`}>
+        <Icon className="w-5 h-5" />
+      </span>
+      {mode !== "minimal" && (
+        <span className="text-[0.6875rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
+          {item.label}
+        </span>
+      )}
+    </button>
   );
 }
 
@@ -235,6 +274,17 @@ export const WIDGET_REGISTRY = {
   },
 
   // ── Meta / nav ─────────────────────────────────────────────────
+  app_shortcut: {
+    label: "App shortcut", description: "A phone-style icon that opens one app page. Pin apps from the drawer's Apps tab.",
+    icon: Rocket, category: "nav",
+    render: ({ mode, settings }) => <AppShortcutWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: true,
+    // Added via the pin button on the drawer's Apps tab (needs a targetId),
+    // so it's hidden from the generic Add-widget list.
+    hiddenFromDrawer: true,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 2 },
+  },
   quick_nav_menu: {
     label: "App grid & search", description: "The full navigation grid with global search.",
     icon: LayoutGrid, category: "nav",

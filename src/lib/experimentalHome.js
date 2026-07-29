@@ -49,6 +49,11 @@ export function newInstanceId() {
   return `w_${Date.now().toString(36)}_${_idCounter.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
 
+export function newPageId() {
+  _idCounter += 1;
+  return `p_${Date.now().toString(36)}_${_idCounter.toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+}
+
 function clampInt(v, min, max, fallback) {
   const n = parseInt(v, 10);
   if (!Number.isFinite(n)) return fallback;

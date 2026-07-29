@@ -8,12 +8,12 @@
 
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, LayoutGrid, PlusSquare, Check } from "lucide-react";
+import { X, LayoutGrid, PlusSquare, Check, Plus } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
-import { buildGridItems } from "@/components/dashboard/QuickNavMenu";
+import { buildGridItems } from "@/lib/navCatalogue";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES } from "@/lib/widgetRegistry";
 
-export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWidget }) {
+export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut }) {
   const t = useTerms();
   const navigate = useNavigate();
   const [tab, setTab] = useState("apps");
@@ -65,19 +65,31 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
                 {filteredApps.map((app) => {
                   const Icon = app.icon;
                   return (
-                    <button
-                      key={app.id}
-                      type="button"
-                      onClick={() => { onClose(); navigate(app.path); }}
-                      className="flex flex-col items-center gap-1.5 group"
-                    >
-                      <span className={`w-12 h-12 rounded-2xl flex items-center justify-center ${app.color} group-hover:scale-105 transition-transform`}>
-                        <Icon className="w-5 h-5" />
-                      </span>
-                      <span className="text-[0.6875rem] text-center leading-tight text-muted-foreground group-hover:text-foreground line-clamp-2">
-                        {app.label}
-                      </span>
-                    </button>
+                    <div key={app.id} className="relative">
+                      <button
+                        type="button"
+                        onClick={() => { onClose(); navigate(app.path); }}
+                        className="w-full flex flex-col items-center gap-1.5 group"
+                      >
+                        <span className={`w-12 h-12 rounded-2xl flex items-center justify-center ${app.color} group-hover:scale-105 transition-transform`}>
+                          <Icon className="w-5 h-5" />
+                        </span>
+                        <span className="text-[0.6875rem] text-center leading-tight text-muted-foreground group-hover:text-foreground line-clamp-2">
+                          {app.label}
+                        </span>
+                      </button>
+                      {onAddShortcut && (
+                        <button
+                          type="button"
+                          aria-label={`Pin ${app.label} to the homescreen`}
+                          title="Pin to homescreen"
+                          onClick={(e) => { e.stopPropagation(); onAddShortcut(app.id); }}
+                          className="absolute -top-1.5 -right-0.5 w-5 h-5 rounded-full bg-background border border-border shadow-sm flex items-center justify-center text-muted-foreground hover:text-primary hover:border-primary/60"
+                        >
+                          <Plus className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -85,7 +97,7 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
           ) : (
             <div className="space-y-4">
               {WIDGET_CATEGORIES.map((cat) => {
-                const widgets = Object.entries(WIDGET_REGISTRY).filter(([, d]) => d.category === cat.id);
+                const widgets = Object.entries(WIDGET_REGISTRY).filter(([, d]) => d.category === cat.id && !d.hiddenFromDrawer);
                 if (widgets.length === 0) return null;
                 return (
                   <div key={cat.id}>
