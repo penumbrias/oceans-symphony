@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "July 29, 2026",
+    changes: [
+      { type: "improve", text: "The Log Activity modal got the same clean-up as Plan Activity: grouped When / What / Details sections, the live \"Active — end later\" timer as a compact pill next to When, and fronting / company / notes tucked behind small \"+\" chips until needed. Everything works exactly as before." },
+      { type: "improve", text: "The editor toolbar's web-link button now asks for display text along with the URL — no more links that can only show the raw address. Works everywhere the toolbar appears (bios, bulletins, comments, chat, journals)." },
+      { type: "fix", text: "Landscape mode: the bottom bar now caps its height on short screens so the app's chrome doesn't swallow the view. Your bar-height setting still applies fully in portrait." },
+    ],
+  },
+  {
     date: "July 27, 2026",
+    version: "0.89.0",
     changes: [
       { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
     ],

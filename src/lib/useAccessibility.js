@@ -138,7 +138,16 @@ function applyLargeTouch(value) {
 
 function applyNavHeight(value) {
   const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
-  document.documentElement.style.setProperty("--bottom-nav-height", h);
+  // Write the USER's choice to its own variable; the stylesheet derives
+  // the effective --bottom-nav-height from it. This indirection is what
+  // lets a media query CAP the height in short-landscape viewports —
+  // an inline --bottom-nav-height would always beat stylesheet rules,
+  // making the landscape cap impossible (tester: bars cover too much of
+  // the screen in horizontal mode). See index.css.
+  document.documentElement.style.setProperty("--bottom-nav-height-user", h);
+  // Clear any direct inline value (written by pre-v0.89.1 builds) — it
+  // would override the stylesheet's derived/capped value.
+  document.documentElement.style.removeProperty("--bottom-nav-height");
 }
 
 function applyFontFamily(value) {
