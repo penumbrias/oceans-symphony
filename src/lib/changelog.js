@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 29, 2026",
     changes: [
+      { type: "fix", text: "🧪 Homescreen widget names and descriptions now use your custom terminology." },
       { type: "feature", text: "🧪 Nine homescreen styles — Current, Glass, Social feed, Toybox, Old forum, Terminal, Spreadsheet, Aero, and Barebones — picked from a new style sheet in edit mode. Any widget can override the page style individually." },
       { type: "feature", text: "🧪 Every widget now has a gear menu: rename it, change its display mode and style, and give app shortcuts a custom image icon from your assets." },
       { type: "feature", text: "🧪 App folders — organize the drawer's apps into folders (Organize button while editing); folder tiles show mini icon previews." },

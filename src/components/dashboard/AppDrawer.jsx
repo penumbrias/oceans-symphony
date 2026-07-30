@@ -11,7 +11,8 @@ import { useNavigate } from "react-router-dom";
 import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, ChevronLeft, Trash2, Pencil } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
-import { WIDGET_REGISTRY, WIDGET_CATEGORIES } from "@/lib/widgetRegistry";
+import { WIDGET_REGISTRY, WIDGET_CATEGORIES, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 // One app tile (icon + label + optional pin badge) — shared between the
 // folder view and the main grid.
@@ -317,7 +318,7 @@ export default function AppDrawer({
                 if (widgets.length === 0) return null;
                 return (
                   <div key={cat.id}>
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{cat.label}</p>
+                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{applyTerms(cat.label, t)}</p>
                     <div className="space-y-1">
                       {widgets.map(([id, def]) => {
                         const Icon = def.icon;
@@ -336,8 +337,8 @@ export default function AppDrawer({
                           >
                             {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
                             <span className="flex-1 min-w-0">
-                              <span className="text-sm font-medium block">{def.label}</span>
-                              <span className="text-xs text-muted-foreground block truncate">{def.description}</span>
+                              <span className="text-sm font-medium block">{widgetLabel(def, t)}</span>
+                              <span className="text-xs text-muted-foreground block truncate">{widgetDescription(def, t)}</span>
                             </span>
                             {already && (
                               <span className="text-[0.6875rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">

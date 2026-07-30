@@ -16,6 +16,8 @@ import {
 import { HOME_MODES, effectiveMode } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useTerms } from "@/lib/useTerms";
+import { widgetLabel } from "@/lib/widgetRegistry";
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
@@ -31,8 +33,10 @@ export default function WidgetConfigSheet({
   const open = !!widget && !!def;
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
+  const t = useTerms();
   if (!open) return null;
 
+  const defLabel = widgetLabel(def, t);
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
@@ -41,7 +45,7 @@ export default function WidgetConfigSheet({
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DrawerContent className="max-h-[85vh]">
         <DrawerHeader className="pb-1">
-          <DrawerTitle className="text-base">{settings.label || def.label}</DrawerTitle>
+          <DrawerTitle className="text-base">{settings.label || defLabel}</DrawerTitle>
           <DrawerDescription className="text-xs">Widget options</DrawerDescription>
         </DrawerHeader>
         <div
@@ -56,7 +60,7 @@ export default function WidgetConfigSheet({
             <input
               key={widget.instanceId}
               defaultValue={settings.label || ""}
-              placeholder={def.label}
+              placeholder={defLabel}
               maxLength={60}
               onBlur={(e) => {
                 const v = e.target.value.trim();

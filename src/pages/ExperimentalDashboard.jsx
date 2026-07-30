@@ -34,7 +34,7 @@ import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { WIDGET_REGISTRY } from "@/lib/widgetRegistry";
+import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, ACTION_BAR_BUTTONS,
@@ -77,6 +77,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     id: widget.instanceId,
     disabled: !editMode || a11yStack,
   });
+  const t = useTerms();
+  const defLabel = widgetLabel(def, t);
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 4, gridCols);
   const spanRows = widget.span?.rows || def.defaultSpan?.rows || 1;
@@ -114,7 +116,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           {/* Widget options (rename / mode / style / icon) */}
           <button
             type="button"
-            aria-label={`Configure ${widget.settings?.label || def.label}`}
+            aria-label={`Configure ${widget.settings?.label || defLabel}`}
             onClick={() => onConfigure(widget.instanceId)}
             className="w-6 h-6 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground flex items-center justify-center shadow-sm"
           >
@@ -131,7 +133,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           )}
           <button
             type="button"
-            aria-label={`Remove ${def.label}`}
+            aria-label={`Remove ${defLabel}`}
             onClick={() => onRemove(widget.instanceId)}
             className="w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-sm"
           >
@@ -164,7 +166,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
       >
         {editMode && (
           <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none truncate max-w-[70%]">
-            {(widget.settings?.label || def.label).slice(0, 60)}
+            {(widget.settings?.label || defLabel).slice(0, 60)}
           </span>
         )}
         {def.render({ mode, settings: widget.settings || {}, instanceId: widget.instanceId, api })}
@@ -294,7 +296,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       ...ws,
       { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: "normal", settings },
     ]);
-    toast.success(`${def.label} added`);
+    toast.success(`${widgetLabel(def, t)} added`);
     if (edit) {
       setDrawerOpen(false);
       setEditMode(true);

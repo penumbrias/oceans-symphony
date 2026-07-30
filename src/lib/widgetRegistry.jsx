@@ -8,6 +8,12 @@
 //     supportsModes, supportsMultiInstance,
 //     defaultSpan, minSpan, maxSpan }
 //
+// Labels/descriptions may contain {{term}} tokens ({{fronters}}, {{Alters}},
+// …) — the registry is a static module and can't call useTerms(), so
+// consumers resolve them via widgetLabel(def, t) / widgetDescription(def, t)
+// below (same pattern as AUTO_TRIGGER_LABELS in dailyTaskSystem.js). Never
+// render def.label / def.description raw.
+//
 // `api` is the HomeApi bundle provided by ExperimentalDashboard (handlers
 // hosted in Dashboard.jsx — modal openers, hold gesture, notification
 // state) so chrome widgets and quick-action buttons work without every
@@ -21,6 +27,7 @@ import {
   Contact, CalendarDays, ListTodo, Megaphone, Lightbulb, Rocket,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { getFrequentPages } from "@/lib/pageVisitTracker";
 import { useCurrentFocus } from "@/lib/currentFocus";
@@ -53,12 +60,22 @@ import SystemHeaderCard from "@/components/dashboard/SystemHeaderCard";
 // later). Widgets that implement richer minimal modes can opt out by
 // listing "minimal" in supportsModes and handling it in render().
 function MinimalShell({ icon: Icon, label }) {
+  const t = useTerms();
   return (
     <div className="flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-sm">
       {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
-      <span className="truncate font-medium">{label}</span>
+      <span className="truncate font-medium">{applyTerms(label, t)}</span>
     </div>
   );
+}
+
+// Resolve a registry entry's {{term}} tokens with the user's terminology.
+// Every surface that shows def.label / def.description goes through these.
+export function widgetLabel(def, terms) {
+  return applyTerms(def?.label || "", terms);
+}
+export function widgetDescription(def, terms) {
+  return applyTerms(def?.description || "", terms);
 }
 
 // Phone-style app shortcut tile — settings.targetId points at an entry in
@@ -310,7 +327,7 @@ function simple(label, icon, Component, extraProps = {}) {
 export const WIDGET_REGISTRY = {
   // ── Chrome (formerly fixed header) ─────────────────────────────
   system_header: {
-    label: "Header (name, date & time)", description: "Your system's name with the live date and time.",
+    label: "Header (name, date & time)", description: "Your {{system}}'s name with the live date and time.",
     icon: Sparkles, category: "chrome",
     render: ({ mode, api }) => <SystemHeaderCard mode={mode} api={api} />,
     supportsModes: ["minimal", "normal"],
@@ -381,20 +398,20 @@ export const WIDGET_REGISTRY = {
 
   // ── System ─────────────────────────────────────────────────────
   current_fronters: {
-    label: "Current fronters", description: "Who's fronting right now, with per-alter panels.",
+    label: "Current {{fronters}}", description: "Who's {{fronting}} right now, with per-{{alter}} panels.",
     icon: Users, category: "system",
     render: ({ mode, api }) =>
       mode === "minimal"
-        ? <MinimalShell icon={Users} label="Current fronters" />
+        ? <MinimalShell icon={Users} label="Current {{fronters}}" />
         : <CurrentFronters alters={api?.alters || []} hideStatusNote={api?.statusNotePlaced ?? true} />,
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   pinned_alters: {
-    label: "Pinned alters", description: "The pinned-alters gallery.",
+    label: "Pinned {{alters}}", description: "The pinned-{{alters}} gallery.",
     icon: Pin, category: "system",
-    render: simple("Pinned alters", Pin, PinnedAltersGallery),
+    render: simple("Pinned {{alters}}", Pin, PinnedAltersGallery),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
@@ -408,7 +425,7 @@ export const WIDGET_REGISTRY = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   bulletin_board: {
-    label: "Bulletin board", description: "System-wide posts, comments, and polls.",
+    label: "Bulletin board", description: "{{System}}-wide posts, comments, and polls.",
     icon: Megaphone, category: "system",
     render: ({ mode, api }) =>
       mode === "minimal"
@@ -486,7 +503,7 @@ export const WIDGET_REGISTRY = {
 
   // ── Meta / nav ─────────────────────────────────────────────────
   fronting_leaders: {
-    label: "Fronting leaders", description: "Most frequent fronters and co-fronting pairs this week or month.",
+    label: "{{Fronting}} leaders", description: "Most frequent {{fronters}} and {{cofronting}} pairs this week or month.",
     icon: Users, category: "meta",
     render: ({ mode, settings, instanceId, api }) => (
       <FrontingLeadersWidget mode={mode} settings={settings} instanceId={instanceId} api={api} />
@@ -496,7 +513,7 @@ export const WIDGET_REGISTRY = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   current_focus: {
-    label: "Current focus", description: "What's going on right now — fronting, running timers, active symptoms, today's status.",
+    label: "Current focus", description: "What's going on right now — {{fronting}}, running timers, active symptoms, today's status.",
     icon: Lightbulb, category: "meta",
     render: ({ mode }) => <CurrentFocusWidget mode={mode} />,
     supportsModes: ["minimal", "normal"],
@@ -563,7 +580,7 @@ export const CLASSIC_TO_WIDGET = Object.fromEntries(
 export const WIDGET_CATEGORIES = [
   { id: "chrome", label: "Header & chrome" },
   { id: "actions", label: "Quick actions" },
-  { id: "system", label: "System" },
+  { id: "system", label: "{{System}}" },
   { id: "tracking", label: "Tracking" },
   { id: "nav", label: "Navigation" },
   { id: "meta", label: "App" },
