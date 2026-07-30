@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Pencil, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon,
+  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
@@ -36,12 +36,17 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY } from "@/lib/widgetRegistry";
 import {
-  resolveExperimentalHome, effectiveMode, newInstanceId, newPageId, HOME_MODES,
-  ACTION_BAR_BUTTONS,
+  resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
+  HOME_STYLE_IDS, ACTION_BAR_BUTTONS,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
+import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
+import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+} from "@/components/ui/drawer";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
@@ -67,9 +72,7 @@ function useGridCols(phoneCols = 4) {
   return cols;
 }
 
-const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
-
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, styleMode = "current" }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, onConfigure, styleMode = "current" }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack,
@@ -108,23 +111,15 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     <div ref={setNodeRef} style={style} className="relative min-w-0">
       {editMode && (
         <div className="absolute -top-2 -right-2 z-30 flex items-center gap-1">
-          {/* Mode cycle */}
-          {def.supportsModes.length > 1 && (
-            <button
-              type="button"
-              onClick={() => {
-                const idx = HOME_MODES.indexOf(mode);
-                for (let i = 1; i <= HOME_MODES.length; i++) {
-                  const next = HOME_MODES[(idx + i) % HOME_MODES.length];
-                  if (def.supportsModes.includes(next)) { onMode(widget.instanceId, next); return; }
-                }
-              }}
-              title={`Display mode: ${MODE_LABEL[mode]} (tap to change)`}
-              className="h-6 px-1.5 rounded-full bg-background border border-border text-[0.625rem] font-medium text-muted-foreground hover:text-foreground shadow-sm"
-            >
-              {MODE_LABEL[mode]}
-            </button>
-          )}
+          {/* Widget options (rename / mode / style / icon) */}
+          <button
+            type="button"
+            aria-label={`Configure ${widget.settings?.label || def.label}`}
+            onClick={() => onConfigure(widget.instanceId)}
+            className="w-6 h-6 rounded-full bg-background border border-border text-muted-foreground hover:text-foreground flex items-center justify-center shadow-sm"
+          >
+            <Settings2 className="w-3 h-3" />
+          </button>
           {/* A11y-stack reorder buttons */}
           {a11yStack && (
             <span className="h-6 flex items-center rounded-full bg-background border border-border shadow-sm overflow-hidden">
@@ -148,10 +143,11 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         {...(editMode && !a11yStack ? { ...attributes, ...listeners } : {})}
         onContextMenu={editMode ? (e) => e.preventDefault() : undefined}
         className={[
-          // "phone" style: every widget sits in a translucent launcher-style
-          // card (pairs well with a wallpaper). "barebones"/"current" add no
-          // shell — components keep their own chrome.
-          styleMode === "phone" ? "rounded-2xl bg-card/45 backdrop-blur-sm border border-border/30 p-2 h-full" : "",
+          // Style shell (homeStyles.js) — per-widget override beats the
+          // page style; "current"/"barebones" add no shell.
+          getStyleShell(
+            HOME_STYLE_IDS.includes(widget.settings?.style) ? widget.settings.style : styleMode
+          ),
           editMode ? "relative select-none rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
         ].join(" ").trim() || undefined}
         style={editMode ? {
@@ -167,8 +163,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         } : undefined}
       >
         {editMode && (
-          <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none">
-            {def.label}
+          <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none truncate max-w-[70%]">
+            {(widget.settings?.label || def.label).slice(0, 60)}
           </span>
         )}
         {def.render({ mode, settings: widget.settings || {}, instanceId: widget.instanceId, api })}
@@ -219,7 +215,11 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
-  const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
+  // One AssetPickerModal serves wallpaper AND per-widget icon overrides:
+  // null | "wallpaper" | { icon: instanceId }
+  const [assetPickerFor, setAssetPickerFor] = useState(null);
+  const [configId, setConfigId] = useState(null);
+  const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const gridRef = React.useRef(null);
 
   const home = useMemo(
@@ -270,6 +270,10 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, span: { ...w.span, ...patch } } : w)));
   const handleMode = (instanceId, mode) =>
     updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, mode } : w)));
+  const handleSettings = (instanceId, patch) =>
+    updatePageWidgets((ws) =>
+      ws.map((w) => (w.instanceId === instanceId ? { ...w, settings: { ...w.settings, ...patch } } : w))
+    );
   const handleMove = (instanceId, dir) =>
     updatePageWidgets((ws) => {
       const i = ws.findIndex((w) => w.instanceId === instanceId);
@@ -299,15 +303,12 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     // in a row.
   };
 
-  // Current → phone → barebones → current.
-  const cycleStyleMode = () => {
-    const order = ["current", "phone", "barebones"];
-    const next = order[(order.indexOf(home.styleMode) + 1) % order.length];
-    persist({ ...home, styleMode: next });
-  };
-  const setWallpaper = (url) => {
-    persist({ ...home, wallpaper: { url: url || "" } });
-    setWallpaperPickerOpen(false);
+  const setWallpaper = (url) => persist({ ...home, wallpaper: { url: url || "" } });
+  // Route the shared AssetPickerModal's selection to whatever asked for it.
+  const handleAssetSelected = (url) => {
+    if (assetPickerFor === "wallpaper") setWallpaper(url);
+    else if (assetPickerFor?.icon) handleSettings(assetPickerFor.icon, { iconUrl: url || "" });
+    setAssetPickerFor(null);
   };
 
   // Off → bottom → top → off.
@@ -415,6 +416,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
           onSpan={handleSpan}
           onMode={handleMode}
           onMove={handleMove}
+          onConfigure={setConfigId}
           styleMode={home.styleMode}
         />
       ))}
@@ -470,16 +472,16 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
             </button>
             <button
               type="button"
-              onClick={cycleStyleMode}
-              title="Widget style: current / phone / barebones"
+              onClick={() => setStylePickerOpen(true)}
+              title="Choose a widget style for this homescreen"
               className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
             >
-              Style: {home.styleMode === "phone" ? "Phone" : home.styleMode === "barebones" ? "Barebones" : "Current"}
+              Style: {HOME_STYLES.find((s) => s.id === home.styleMode)?.label || "Current"}
             </button>
             <span className="flex items-center rounded-full border border-border/40 overflow-hidden">
               <button
                 type="button"
-                onClick={() => setWallpaperPickerOpen(true)}
+                onClick={() => setAssetPickerFor("wallpaper")}
                 title="Choose a wallpaper from your assets"
                 className={`text-[0.625rem] pl-2 pr-1.5 py-1 flex items-center gap-1 whitespace-nowrap transition-all ${
                   home.wallpaper?.url ? "text-primary" : "text-muted-foreground hover:text-foreground"
@@ -722,13 +724,58 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         onAddWidget={handleAddWidget}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
+        folders={home.drawer.folders}
+        onSaveFolders={(folders) => persist({ ...home, drawer: { folders } })}
       />
 
       <AssetPickerModal
-        open={wallpaperPickerOpen}
-        onClose={() => setWallpaperPickerOpen(false)}
-        onSelect={setWallpaper}
+        open={!!assetPickerFor}
+        onClose={() => setAssetPickerFor(null)}
+        onSelect={handleAssetSelected}
       />
+
+      {/* Per-widget options sheet — derived live from home state. */}
+      <WidgetConfigSheet
+        widget={widgets.find((w) => w.instanceId === configId) || null}
+        def={WIDGET_REGISTRY[widgets.find((w) => w.instanceId === configId)?.widgetId]}
+        pageStyleId={home.styleMode}
+        onClose={() => setConfigId(null)}
+        onMode={handleMode}
+        onSettings={handleSettings}
+        onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
+      />
+
+      {/* Page style picker */}
+      <Drawer open={stylePickerOpen} onOpenChange={(v) => { if (!v) setStylePickerOpen(false); }}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="pb-1">
+            <DrawerTitle className="text-base">Homescreen style</DrawerTitle>
+            <DrawerDescription className="text-xs">
+              Applies to every widget on the homescreen. Individual widgets can override it from their gear menu.
+            </DrawerDescription>
+          </DrawerHeader>
+          <div
+            className="px-4 pb-6 space-y-1 overflow-y-auto overscroll-contain"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
+          >
+            {HOME_STYLES.map((s) => (
+              <button
+                key={s.id}
+                type="button"
+                onClick={() => { persist({ ...home, styleMode: s.id }); setStylePickerOpen(false); }}
+                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
+                  home.styleMode === s.id
+                    ? "border-primary/60 bg-primary/10"
+                    : "border-border/40 hover:border-border"
+                }`}
+              >
+                <span className="font-medium">{s.label}</span>
+                <span className="text-xs text-muted-foreground block">{s.description}</span>
+              </button>
+            ))}
+          </div>
+        </DrawerContent>
+      </Drawer>
     </div>
   );
 }

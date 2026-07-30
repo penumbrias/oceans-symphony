@@ -21,6 +21,14 @@ import { resolveLayout, isElementEnabled } from "@/lib/dashboardLayout";
 
 export const HOME_MODES = ["minimal", "normal", "expanded", "detailed"];
 
+// Widget/page style ids — the single source of truth for the style system.
+// Visual definitions (shell classes, labels) live in src/lib/homeStyles.js;
+// this list stays here so the sanitizer never imports JSX-adjacent modules.
+// "phone" was renamed to "glass" in v0.94.0 (sanitizer maps the legacy id).
+export const HOME_STYLE_IDS = [
+  "current", "glass", "social", "toybox", "forum", "terminal", "spreadsheet", "aero", "barebones",
+];
+
 // Quick-action buttons available on the persistent action bar. The ids
 // match what QuickCheckinButtons renders; "quick_checkin" is the anchor
 // and always first when enabled.
@@ -52,6 +60,8 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   // Grid density — phones can opt into 5 columns (default 4). Larger
   // breakpoints stay 8/12.
   grid: { phoneCols: 4 },
+  // App-drawer folders: [{ id, label, appIds: [navCatalogue ids] }].
+  drawer: { folders: [] },
   pages: [{ id: "p1", label: "Home", widgets: [] }],
 };
 
@@ -84,7 +94,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
   const out = {
     version: 2,
     enabled: src.enabled === true,
-    styleMode: ["barebones", "current", "phone"].includes(src.styleMode) ? src.styleMode : "current",
+    styleMode: HOME_STYLE_IDS.includes(src.styleMode)
+      ? src.styleMode
+      : src.styleMode === "phone" ? "glass" : "current",
     actionBar: {
       enabled: src.actionBar?.enabled !== false,
       buttonIds: Array.isArray(src.actionBar?.buttonIds)
@@ -97,6 +109,15 @@ export function resolveExperimentalHome(stored, registry = {}) {
     },
     wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
     grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
+    drawer: {
+      folders: (Array.isArray(src.drawer?.folders) ? src.drawer.folders : [])
+        .filter((f) => f && typeof f === "object" && typeof f.id === "string" && f.id)
+        .map((f) => ({
+          id: f.id,
+          label: typeof f.label === "string" ? f.label.slice(0, 40) : "",
+          appIds: Array.isArray(f.appIds) ? f.appIds.filter((a) => typeof a === "string") : [],
+        })),
+    },
     pages: [],
     defaultPageId: null,
   };

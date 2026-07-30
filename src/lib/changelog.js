@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "July 29, 2026",
     changes: [
+      { type: "feature", text: "🧪 Nine homescreen styles — Current, Glass, Social feed, Toybox, Old forum, Terminal, Spreadsheet, Aero, and Barebones — picked from a new style sheet in edit mode. Any widget can override the page style individually." },
+      { type: "feature", text: "🧪 Every widget now has a gear menu: rename it, change its display mode and style, and give app shortcuts a custom image icon from your assets." },
+      { type: "feature", text: "🧪 App folders — organize the drawer's apps into folders (Organize button while editing); folder tiles show mini icon previews." },
+      { type: "feature", text: "🧪 New \"Fronting leaders\" widget: your most frequent fronters and co-fronting pairs over the last week or month." },
       { type: "improve", text: "🧪 Editing the homescreen got a full rework: scrolling now works normally in edit mode — hold a widget still for a moment to move it, or hold an edge/corner and drag to resize its width AND height. The +/- size buttons are gone." },
       { type: "fix", text: "🧪 The page can no longer be dragged sideways off-screen while editing." },
       { type: "fix", text: "🧪 The same widget can now be added to more than one page." },

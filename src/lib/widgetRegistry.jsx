@@ -24,6 +24,13 @@ import { useTerms } from "@/lib/useTerms";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { getFrequentPages } from "@/lib/pageVisitTracker";
 import { useCurrentFocus } from "@/lib/currentFocus";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import { frontShare, coFrontingPairs } from "@/lib/analytics/fronting";
+import { lastNDays } from "@/lib/analytics/range";
+import { useAlterLabel } from "@/lib/useAlterLabel";
+import AlterAvatar from "@/components/shared/AlterAvatar";
 
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -63,6 +70,8 @@ function AppShortcutWidget({ mode, settings }) {
   const navigate = useNavigate();
   const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
   const item = findGridItem(items, settings?.targetId);
+  // Custom icon/name from the widget's advanced config (gear menu).
+  const customIcon = useResolvedAvatarUrl(settings?.iconUrl || "");
   if (!item) {
     return (
       <div className="w-full h-full min-h-[44px] flex items-center justify-center rounded-xl border border-dashed border-border/50 text-xs text-muted-foreground px-2 text-center">
@@ -71,19 +80,24 @@ function AppShortcutWidget({ mode, settings }) {
     );
   }
   const Icon = item.icon;
+  const label = (settings?.label || item.label).slice(0, 60);
   return (
     <button
       type="button"
       onClick={() => navigate(item.path)}
-      title={item.label}
+      title={label}
       className="w-full h-full min-h-[56px] flex flex-col items-center justify-center gap-1 rounded-xl hover:bg-muted/40 transition-colors py-1.5"
     >
-      <span className={`w-11 h-11 rounded-2xl flex items-center justify-center ${item.color}`}>
-        <Icon className="w-5 h-5" />
-      </span>
+      {customIcon ? (
+        <img src={customIcon} alt="" className="w-11 h-11 rounded-2xl object-cover" />
+      ) : (
+        <span className={`w-11 h-11 rounded-2xl flex items-center justify-center ${item.color}`}>
+          <Icon className="w-5 h-5" />
+        </span>
+      )}
       {mode !== "minimal" && (
         <span className="text-[0.6875rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
-          {item.label}
+          {label}
         </span>
       )}
     </button>
@@ -134,6 +148,97 @@ function FrequentlyOpenedWidget({ mode }) {
           </button>
         );
       })}
+    </div>
+  );
+}
+
+// "Fronting leaders" — top fronters by time (frontShare) and top
+// co-fronting pairs (coFrontingPairs) over the last week or month.
+// settings.window: "week" | "month" (configurable via the gear menu is
+// future work — the widget itself offers a small toggle).
+function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
+  const t = useTerms();
+  const formatAlter = useAlterLabel();
+  const [windowSel, setWindowSel] = React.useState(settings?.window === "month" ? "month" : "week");
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["frontingSessions"],
+    queryFn: () => base44.entities.FrontingSession.list(),
+  });
+  const alters = api?.alters || [];
+  const altersById = React.useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
+
+  const { top, pairs } = React.useMemo(() => {
+    const range = lastNDays(windowSel === "month" ? 30 : 7);
+    const share = frontShare({ sessions, range });
+    const top = [...share.perAlterMs.entries()]
+      .map(([id, ms]) => ({ alter: altersById[id], ms }))
+      .filter((x) => x.alter && !x.alter.is_archived)
+      .sort((a, b) => b.ms - a.ms)
+      .slice(0, 5);
+    const pairs = coFrontingPairs({ sessions, range })
+      .map((p) => ({ ...p, a: altersById[p.alterIdA], b: altersById[p.alterIdB] }))
+      .filter((p) => p.a && p.b)
+      .slice(0, 3);
+    return { top, pairs };
+  }, [sessions, altersById, windowSel]);
+
+  const fmtH = (ms) => {
+    const h = ms / 3600000;
+    return h >= 10 ? `${Math.round(h)}h` : h >= 1 ? `${h.toFixed(1)}h` : `${Math.round(ms / 60000)}m`;
+  };
+
+  if (top.length === 0) {
+    return (
+      <div className="px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-xs text-muted-foreground">
+        No {t.fronting} data in the last {windowSel === "month" ? "month" : "week"} yet.
+      </div>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/50 px-3 py-2">
+      <div className="flex items-center justify-between mb-1.5">
+        <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground">
+          {t.Fronting} leaders
+        </p>
+        <button
+          type="button"
+          onClick={() => setWindowSel((w) => (w === "week" ? "month" : "week"))}
+          className="text-[0.625rem] px-1.5 py-0.5 rounded-full border border-border/40 text-muted-foreground hover:text-foreground"
+        >
+          {windowSel === "month" ? "30d" : "7d"}
+        </button>
+      </div>
+      <div className="space-y-1">
+        {(mode === "minimal" ? top.slice(0, 3) : top).map(({ alter, ms }, i) => (
+          <div key={alter.id} className="flex items-center gap-2">
+            <span className="text-[0.625rem] text-muted-foreground w-3 text-right tabular-nums">{i + 1}</span>
+            <AlterAvatar alter={alter} size="xs" />
+            <span className="text-xs truncate flex-1">{formatAlter(alter)}</span>
+            <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{fmtH(ms)}</span>
+          </div>
+        ))}
+      </div>
+      {mode !== "minimal" && pairs.length > 0 && (
+        <>
+          <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground mt-2 mb-1">
+            Top {t.cofronting || "co-fronting"} pairs
+          </p>
+          <div className="space-y-1">
+            {pairs.map((p) => (
+              <div key={`${p.alterIdA}--${p.alterIdB}`} className="flex items-center gap-1.5">
+                <span className="flex -space-x-1.5">
+                  <AlterAvatar alter={p.a} size="xs" />
+                  <AlterAvatar alter={p.b} size="xs" />
+                </span>
+                <span className="text-xs truncate flex-1">
+                  {formatAlter(p.a)} + {formatAlter(p.b)}
+                </span>
+                <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{fmtH(p.totalOverlap)}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
     </div>
   );
 }
@@ -380,6 +485,16 @@ export const WIDGET_REGISTRY = {
   },
 
   // ── Meta / nav ─────────────────────────────────────────────────
+  fronting_leaders: {
+    label: "Fronting leaders", description: "Most frequent fronters and co-fronting pairs this week or month.",
+    icon: Users, category: "meta",
+    render: ({ mode, settings, instanceId, api }) => (
+      <FrontingLeadersWidget mode={mode} settings={settings} instanceId={instanceId} api={api} />
+    ),
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
   current_focus: {
     label: "Current focus", description: "What's going on right now — fronting, running timers, active symptoms, today's status.",
     icon: Lightbulb, category: "meta",
