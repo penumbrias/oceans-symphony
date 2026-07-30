@@ -205,7 +205,7 @@ function simple(label, icon, Component, extraProps = {}) {
 export const WIDGET_REGISTRY = {
   // ── Chrome (formerly fixed header) ─────────────────────────────
   system_header: {
-    label: "System name & date", description: "Your system's name, the date, and the live clock.",
+    label: "Header (name, date & time)", description: "Your system's name with the live date and time.",
     icon: Sparkles, category: "chrome",
     render: ({ mode, api }) => <SystemHeaderCard mode={mode} api={api} />,
     supportsModes: ["minimal", "normal"],
@@ -328,7 +328,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Active symptoms", ActivityIcon, CurrentSymptoms),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   current_activities: {
     label: "Active activities", description: "Activity timers currently running.",
@@ -336,7 +336,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Active activities", Zap, CurrentActivities),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   current_contacts: {
     label: "Currently with", description: "Contacts you're currently with.",
@@ -344,7 +344,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Currently with", Contact, CurrentContacts),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   upcoming_top: {
     label: "Upcoming plans", description: "Scheduled activities coming up.",

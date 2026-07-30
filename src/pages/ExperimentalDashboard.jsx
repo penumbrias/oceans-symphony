@@ -24,11 +24,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
-  Pencil, Check, X, Minus, Plus, LayoutGrid, ArrowUp, ArrowDown,
+  Pencil, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Image as ImageIcon,
 } from "lucide-react";
 import {
-  DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
+  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
 } from "@dnd-kit/core";
 import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
@@ -41,29 +41,35 @@ import {
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
+import { useEdgeResize } from "@/hooks/useEdgeResize";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function useGridCols() {
+function useGridCols(phoneCols = 4) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
   // icons can be quarter-width on phones; stored v1 spans are doubled on
   // read (see resolveExperimentalHome) so layouts keep their proportions.
-  const calc = () => (typeof window === "undefined" ? 4 : window.innerWidth >= 1024 ? 12 : window.innerWidth >= 640 ? 8 : 4);
+  // Phones can opt into 5 columns (home.grid.phoneCols).
+  const calc = React.useCallback(
+    () => (typeof window === "undefined" ? phoneCols : window.innerWidth >= 1024 ? 12 : window.innerWidth >= 640 ? 8 : phoneCols),
+    [phoneCols]
+  );
   const [cols, setCols] = useState(calc);
   React.useEffect(() => {
+    setCols(calc());
     const onResize = () => setCols(calc());
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, []);
+  }, [calc]);
   return cols;
 }
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
-function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan, onMode, a11yStack, onMove, styleMode = "current" }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, styleMode = "current" }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack,
@@ -71,11 +77,25 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 4, gridCols);
   const spanRows = widget.span?.rows || def.defaultSpan?.rows || 1;
+
+  // Edge-resize (hold an edge 0.15s, then drag; snaps to grid cols / 80px
+  // rows). Preview applies straight onto gridColumn/minHeight below.
+  const resize = useEdgeResize({
+    gridRef,
+    gridCols,
+    span: { cols: spanCols, rows: spanRows },
+    min: def.minSpan,
+    max: def.maxSpan,
+    onCommit: (next) => onSpan(widget.instanceId, next),
+  });
+  const shownCols = resize.preview?.cols ?? spanCols;
+  const shownRows = resize.preview?.rows ?? spanRows;
+
   const style = a11yStack
     ? {}
     : {
-        gridColumn: `span ${spanCols}`,
-        minHeight: spanRows > 1 ? spanRows * 80 : undefined,
+        gridColumn: `span ${shownCols}`,
+        minHeight: shownRows > 1 ? shownRows * 80 : undefined,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
@@ -105,18 +125,6 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
               {MODE_LABEL[mode]}
             </button>
           )}
-          {/* Width steppers (grid-span) */}
-          {!a11yStack && (
-            <span className="h-6 flex items-center rounded-full bg-background border border-border shadow-sm overflow-hidden">
-              <button type="button" aria-label="Narrower" onClick={() => onSpan(widget.instanceId, { cols: spanCols - 1 })}
-                disabled={spanCols <= (def.minSpan?.cols ?? 1)}
-                className="px-1 h-full text-muted-foreground hover:text-foreground disabled:opacity-30"><Minus className="w-3 h-3" /></button>
-              <span className="text-[0.625rem] px-0.5 text-muted-foreground tabular-nums">{spanCols}w</span>
-              <button type="button" aria-label="Wider" onClick={() => onSpan(widget.instanceId, { cols: spanCols + 1 })}
-                disabled={spanCols >= Math.min(def.maxSpan?.cols ?? 6, gridCols)}
-                className="px-1 h-full text-muted-foreground hover:text-foreground disabled:opacity-30"><Plus className="w-3 h-3" /></button>
-            </span>
-          )}
           {/* A11y-stack reorder buttons */}
           {a11yStack && (
             <span className="h-6 flex items-center rounded-full bg-background border border-border shadow-sm overflow-hidden">
@@ -138,14 +146,25 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
       )}
       <div
         {...(editMode && !a11yStack ? { ...attributes, ...listeners } : {})}
+        onContextMenu={editMode ? (e) => e.preventDefault() : undefined}
         className={[
           // "phone" style: every widget sits in a translucent launcher-style
           // card (pairs well with a wallpaper). "barebones"/"current" add no
           // shell — components keep their own chrome.
           styleMode === "phone" ? "rounded-2xl bg-card/45 backdrop-blur-sm border border-border/30 p-2 h-full" : "",
-          editMode ? "relative rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
+          editMode ? "relative select-none rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
         ].join(" ").trim() || undefined}
-        style={editMode ? { touchAction: "none", minHeight: 56, paddingTop: 18 } : undefined}
+        style={editMode ? {
+          // pan-y: vertical scrolling passes through; the 300ms hold-still
+          // sensors lift the widget instead. Callout/user-select suppression
+          // stops iOS's long-press magnifier from eating the hold.
+          touchAction: "pan-y",
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+          minHeight: 56,
+          paddingTop: 18,
+        } : undefined}
       >
         {editMode && (
           <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none">
@@ -154,6 +173,42 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
         )}
         {def.render({ mode, settings: widget.settings || {}, instanceId: widget.instanceId, api })}
       </div>
+
+      {/* Edge-resize handles — siblings of the drag wrapper so dnd-kit's
+          listeners never see their pointer events. Hold 0.15s, then drag. */}
+      {editMode && !a11yStack && !isDragging && (
+        <>
+          <div
+            {...resize.getHandleProps("x")}
+            aria-hidden="true"
+            className="absolute -right-1.5 inset-y-3 w-5 z-20 flex items-center justify-center cursor-ew-resize"
+          >
+            <span className="w-1 h-8 rounded-full bg-border" />
+          </div>
+          <div
+            {...resize.getHandleProps("y")}
+            aria-hidden="true"
+            className="absolute -bottom-1.5 inset-x-3 h-5 z-20 flex items-center justify-center cursor-ns-resize"
+          >
+            <span className="h-1 w-8 rounded-full bg-border" />
+          </div>
+          <div
+            {...resize.getHandleProps("xy")}
+            aria-hidden="true"
+            className="absolute -bottom-1.5 -right-1.5 w-6 h-6 z-20 flex items-center justify-center cursor-nwse-resize"
+          >
+            <span className="w-2 h-2 rounded-sm border-b-2 border-r-2 border-muted-foreground/70" />
+          </div>
+        </>
+      )}
+      {/* Live size badge while resizing */}
+      {resize.preview && (
+        <span className="absolute inset-0 z-30 grid place-items-center pointer-events-none">
+          <span className="px-2 py-1 rounded-lg bg-background/90 border border-border text-xs font-medium tabular-nums shadow-sm">
+            {shownCols} × {shownRows}
+          </span>
+        </span>
+      )}
     </div>
   );
 }
@@ -161,16 +216,17 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
 export default function ExperimentalDashboard({ settingsRow, api }) {
   const qc = useQueryClient();
   const t = useTerms();
-  const gridCols = useGridCols();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
+  const gridRef = React.useRef(null);
 
   const home = useMemo(
     () => resolveExperimentalHome(settingsRow?.experimental_home, WIDGET_REGISTRY),
     [settingsRow?.experimental_home]
   );
+  const gridCols = useGridCols(home.grid?.phoneCols || 4);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
   // on the default page); the pages themselves live in experimental_home.
   const [activePageId, setActivePageId] = useState(null);
@@ -224,9 +280,10 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const handleAddWidget = (widgetId, settings = {}, { edit = true } = {}) => {
     const def = WIDGET_REGISTRY[widgetId];
     if (!def) return;
-    // Single-instance widgets are unique across ALL pages, not just this one.
-    if (!def.supportsMultiInstance && home.pages.some((p) => p.widgets.some((w) => w.widgetId === widgetId))) {
-      toast.info("Already on the homescreen");
+    // Single-instance is per PAGE — the same widget CAN live on several
+    // pages (v0.91.0 over-tightened this to all-pages; tester wants per-page).
+    if (!def.supportsMultiInstance && page.widgets.some((w) => w.widgetId === widgetId)) {
+      toast.info("Already on this page");
       return;
     }
     updatePageWidgets((ws) => [
@@ -304,9 +361,13 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     });
   };
 
+  // Hold-still-to-lift (owner spec): 0.3s stationary hold starts a move;
+  // tolerance cancels activation if the pointer moves during the delay, so
+  // a scroll gesture can never lift a widget. MouseSensor + TouchSensor
+  // (NOT PointerSensor — mixing it with TouchSensor double-handles a touch).
   const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
-    useSensor(TouchSensor, { activationConstraint: { delay: 200, tolerance: 5 } })
+    useSensor(MouseSensor, { activationConstraint: { delay: 300, tolerance: 5 } }),
+    useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 6 } })
   );
   const handleDragEnd = ({ active, over }) => {
     if (!over || active.id === over.id) return;
@@ -336,6 +397,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
 
   const canvas = (
     <div
+      ref={gridRef}
       style={a11yStack ? undefined : { display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`, gap: home.styleMode === "barebones" ? "0.375rem" : "0.75rem", alignItems: "start" }}
       className={a11yStack ? "space-y-3" : undefined}
     >
@@ -346,6 +408,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
           def={WIDGET_REGISTRY[w.widgetId]}
           editMode={editMode}
           gridCols={gridCols}
+          gridRef={gridRef}
           api={widgetApi}
           a11yStack={a11yStack}
           onRemove={handleRemove}
@@ -359,7 +422,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   );
 
   return (
-    <div className="pt-1 relative isolate" data-tour="experimental-home" data-home-style={home.styleMode}>
+    <div className="pt-1 relative isolate overflow-x-clip" data-tour="experimental-home" data-home-style={home.styleMode}>
       {/* Wallpaper — fixed under everything in this stacking context; the
           isolate on the root keeps the negative z-index from escaping. */}
       {wallpaperUrl && (
@@ -397,6 +460,14 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={() => persist({ ...home, grid: { phoneCols: home.grid.phoneCols === 5 ? 4 : 5 } })}
+              title="Phone grid columns (4 or 5 across)"
+              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
+            >
+              Cols: {home.grid.phoneCols}
+            </button>
             <button
               type="button"
               onClick={cycleStyleMode}
@@ -647,7 +718,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       <AppDrawer
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        placedWidgetIds={home.pages.flatMap((p) => p.widgets.map((w) => w.widgetId))}
+        placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         onAddWidget={handleAddWidget}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}

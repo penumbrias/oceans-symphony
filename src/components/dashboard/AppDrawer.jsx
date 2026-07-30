@@ -42,22 +42,29 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
         style={{ maxHeight: "80vh", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
       >
         <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-border/40">
-          <div className="flex gap-1 p-0.5 bg-muted/30 rounded-lg flex-1">
-            <button type="button" onClick={() => setTab("apps")}
-              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${tab === "apps" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
-              <LayoutGrid className="w-4 h-4" /> Apps
-            </button>
-            <button type="button" onClick={() => setTab("widgets")}
-              className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${tab === "widgets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
-              <PlusSquare className="w-4 h-4" /> Add widget
-            </button>
-          </div>
+          {/* Outside edit mode this is a plain app drawer — no widget tab. */}
+          {pinOnTap ? (
+            <div className="flex gap-1 p-0.5 bg-muted/30 rounded-lg flex-1">
+              <button type="button" onClick={() => setTab("apps")}
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${tab === "apps" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                <LayoutGrid className="w-4 h-4" /> Apps
+              </button>
+              <button type="button" onClick={() => setTab("widgets")}
+                className={`flex-1 py-1.5 rounded-md text-sm font-medium transition-colors flex items-center justify-center gap-1.5 ${tab === "widgets" ? "bg-background text-foreground shadow-sm" : "text-muted-foreground"}`}>
+                <PlusSquare className="w-4 h-4" /> Add widget
+              </button>
+            </div>
+          ) : (
+            <p className="flex-1 text-sm font-medium flex items-center gap-1.5 px-1">
+              <LayoutGrid className="w-4 h-4 text-muted-foreground" /> Apps
+            </p>
+          )}
           <button type="button" onClick={onClose} aria-label="Close"
             className="p-2 text-muted-foreground hover:text-foreground"><X className="w-5 h-5" /></button>
         </div>
 
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4" style={{ WebkitOverflowScrolling: "touch" }}>
-          {tab === "apps" ? (
+          {tab === "apps" || !pinOnTap ? (
             <>
               <input
                 value={search}
@@ -91,7 +98,7 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
                           {app.label}
                         </span>
                       </button>
-                      {onAddShortcut && (
+                      {pinOnTap && onAddShortcut && (
                         <button
                           type="button"
                           aria-label={`Pin ${app.label} to the homescreen`}

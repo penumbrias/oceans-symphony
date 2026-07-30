@@ -49,6 +49,9 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   // Homescreen background image — a local-image:// or https URL picked from
   // the asset library. Empty string = no wallpaper.
   wallpaper: { url: "" },
+  // Grid density — phones can opt into 5 columns (default 4). Larger
+  // breakpoints stay 8/12.
+  grid: { phoneCols: 4 },
   pages: [{ id: "p1", label: "Home", widgets: [] }],
 };
 
@@ -93,6 +96,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
       position: src.altersBar?.position === "top" ? "top" : "bottom",
     },
     wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
+    grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
     pages: [],
     defaultPageId: null,
   };

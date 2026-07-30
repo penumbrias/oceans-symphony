@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "July 29, 2026",
     changes: [
+      { type: "improve", text: "🧪 Editing the homescreen got a full rework: scrolling now works normally in edit mode — hold a widget still for a moment to move it, or hold an edge/corner and drag to resize its width AND height. The +/- size buttons are gone." },
+      { type: "fix", text: "🧪 The page can no longer be dragged sideways off-screen while editing." },
+      { type: "fix", text: "🧪 The same widget can now be added to more than one page." },
+      { type: "improve", text: "🧪 Outside edit mode the drawer is a plain app drawer; the Add-widget tab and pin buttons only appear while editing. Active symptoms / activities / contacts widgets now default smaller so they can share one row. New option for a 5-across phone grid (Cols chip in edit mode)." },
+      { type: "fix", text: "Completing a to-do from a dashboard pin now records the completion time, so it counts for daily-task triggers, the timeline, and analytics." },
       { type: "feature", text: "🧪 Wallpapers and widget styles — pick a homescreen background from your asset library, and switch the widget look between Current, Phone (translucent cards), and Barebones in edit mode." },
       { type: "feature", text: "🧪 \"Frequently opened\" widget — your most-visited pages as a row of quick icons, learned automatically and fading over time." },
       { type: "feature", text: "🧪 \"Current focus\" widget — one glance at what's happening now: who's fronting, running timers, active symptoms, and today's status." },

@@ -110,7 +110,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "🧪",
       title: "Experimental homescreen",
-      body: `There's an optional phone-style homescreen you can try: placeable widgets, multiple pages you can swipe between, app shortcuts pinned like phone icons, an app drawer, and a persistent quick-action bar. Turn it on from the "Try it" banner here, or in Settings → Appearance → Dashboard layout. Your classic dashboard stays saved, and you can switch back any time.`,
+      body: `There's an optional phone-style homescreen you can try: placeable widgets, multiple pages you can swipe between, app shortcuts pinned like phone icons, an app drawer, and a persistent quick-action bar. In edit mode, hold a widget still for a moment to move it, or hold an edge and drag to resize it. Turn it on from the "Try it" banner here, or in Settings → Appearance → Dashboard layout. Your classic dashboard stays saved, and you can switch back any time.`,
       route: "/", target: null,
       look: `the "Try the experimental homescreen?" banner near the top of the dashboard (if you haven't dismissed it)`, action: null,
     },
