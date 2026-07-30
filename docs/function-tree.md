@@ -283,8 +283,12 @@ Reading notes for the optimization work that follows:
   them must remain customizable and exportable as it evolves.
 - The current UI's surfaces are NOT nodes here on purpose. Mapping leaves →
   surfaces is the next design step, done fresh from this tree.
-- Known structural debt is marked in place (4.6); redundant *views* of the
-  same function (three views of the day's record; six upcoming-plan
-  surfaces) are view-level, not function-level, and collapse naturally when
-  surfaces are re-derived from this tree.
+- Known structural debt is marked in place (4.6).
+- The three day-views are INTENTIONAL, not redundant (owner, July 30):
+  the chronological overlap view shows concurrency and cause→effect at
+  specific times; the planner view is for scheduling/time-blocking
+  (hobonichi-style); the day log is for going to a specific day and
+  reading full detail and summaries ("what happened days 3–6"). All three
+  stay as first-class views of branch 3.3/9.1. Only creation-path and
+  completion-sync debt (4.6) is up for consolidation.
 ```

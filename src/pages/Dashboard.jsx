@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
+import HomeV2 from "@/v2/pages/HomeV2";
 import { seedFromClassic } from "@/lib/experimentalHome";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
@@ -740,7 +741,10 @@ export default function Dashboard() {
   // backed up, and preset-able. This component's hooks all run in both
   // modes (branching happens in JSX only), so deep links / quick actions
   // keep working regardless of which homescreen is active.
-  const experimentalOn = settings[0]?.experimental_home?.enabled === true;
+  const uiV2On = settings[0]?.ui_v2?.enabled === true;
+  // v2 Home replaces both classic and experimental renderings when the
+  // shell is on; all modals/handlers below stay hosted here unchanged.
+  const experimentalOn = !uiV2On && settings[0]?.experimental_home?.enabled === true;
   const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
   const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
   const enableExperimentalHome = async () => {
@@ -811,7 +815,7 @@ export default function Dashboard() {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
 
-      {!experimentalOn && (
+      {!uiV2On && !experimentalOn && (
       <div className="mb-3 flex items-start justify-between">
         <div>
           {multiSystem ? (
@@ -911,13 +915,16 @@ export default function Dashboard() {
         onNotifClick={handleNotifClick}
       />
 
+      {/* ── UI v2 Home (new shell, designed from the function tree) ── */}
+      {uiV2On && <HomeV2 />}
+
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (
         <ExperimentalDashboard settingsRow={settings[0] || null} api={homeApi} />
       )}
 
       {/* "Try it" banner — classic only, dismissible per system. */}
-      {!experimentalOn && !expBannerDismissed && (
+      {!uiV2On && !experimentalOn && !expBannerDismissed && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
           <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-xs flex-1 min-w-0">
@@ -939,7 +946,7 @@ export default function Dashboard() {
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
-      {!experimentalOn && (
+      {!uiV2On && !experimentalOn && (
       <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;

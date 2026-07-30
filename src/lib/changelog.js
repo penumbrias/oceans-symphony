@@ -21,6 +21,7 @@ export const CHANGELOG = [
     date: "July 30, 2026",
     changes: [
       { type: "feature", text: "🧪 UI v2 begins: an opt-in new navigation (Settings → Appearance → Dashboard layout) — eight always-visible sections replace buried menus, a quick-action row with a Support button rides along on every screen, and Display options adjust sizes, colors, spacing, and widths. Every page keeps working inside it; switch back any time." },
+      { type: "feature", text: "🧪 UI v2 Home: with the new navigation on, the home screen is now a minimal three-section page — Now (who's fronting, what's running), Today (plans and due tasks, unresolved count), Recent (latest note, last check-in). First page rebuilt from the ground up; more to follow one page at a time." },
       { type: "feature", text: "🧪 New \"Note\" quick action: save a status note on the spot, or jump straight into a new journal entry or board post." },
       { type: "fix", text: "🧪 Display options now actually apply: text size uses the app-wide setting, and each control says exactly what it affects." },
       { type: "fix", text: "Safety Plan: the Warning Signs section can be expanded again (it was stuck closed)." },
