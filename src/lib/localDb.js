@@ -211,6 +211,39 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+// ── Deletion tombstones (v0.95.3 — device sync) ────────────────────
+// Every entity delete records { entity, record_id, deleted_at } in the
+// DeletionLog table (exported with backups). Without tombstones a merge
+// can't distinguish "deleted on device A" from "never existed on A", so
+// records deleted on one device resurrect from the other's backup.
+// Tombstones are only ACTED ON when the user explicitly opts into
+// deletion-sync at import time — a plain "Add new" import stays purely
+// additive so old backups can still be used to recover deleted data.
+const TOMBSTONE_SKIP = new Set(["DeletionLog", "FriendIdentity", "PushSubscription"]);
+const TOMBSTONE_MAX = 2000;
+const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 3600 * 1000;
+
+function recordDeletionTombstone(entityName, id) {
+  try {
+    if (TOMBSTONE_SKIP.has(entityName) || _previewDb !== null) return;
+    const db = getDb();
+    if (!db.DeletionLog) db.DeletionLog = {};
+    const key = `${entityName}:${id}`;
+    db.DeletionLog[key] = { id: key, entity: entityName, record_id: id, deleted_at: new Date().toISOString() };
+    // Prune: drop tombstones past the age cap, then oldest beyond the
+    // count cap — sync only needs the recent-history window.
+    const rows = Object.values(db.DeletionLog);
+    if (rows.length > TOMBSTONE_MAX) {
+      const cutoff = Date.now() - TOMBSTONE_MAX_AGE_MS;
+      const sorted = rows.sort((a, b) => new Date(a.deleted_at) - new Date(b.deleted_at));
+      const excess = sorted.length - TOMBSTONE_MAX;
+      sorted.forEach((r, i) => {
+        if (i < excess || new Date(r.deleted_at).getTime() < cutoff) delete db.DeletionLog[r.id];
+      });
+    }
+  } catch { /* tombstones are best-effort — never block a delete */ }
+}
+
 function getDb() {
   if (_previewDb !== null) return _previewDb;
   if (_db !== null) return _db;
@@ -508,6 +541,7 @@ export function createLocalDbEntities() {
         delete: async (id) => {
           const col = getCollection(entityName);
           delete col[id];
+          recordDeletionTombstone(entityName, id);
           await saveDb();
           emit(entityName, { type: 'delete', id });
         },
@@ -788,6 +822,20 @@ export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) 
 export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
   const sanitized = sanitizeIncomingDump(dump, options);
+  const applyDeletions = options.applyDeletions === true;
+  // Local tombstones — used (only in deletion-sync mode) to stop records
+  // this device deliberately deleted from resurrecting out of the other
+  // device's backup. A record edited on the other device AFTER our
+  // deletion (updated_date > deleted_at) still comes back — the newer
+  // intent wins.
+  const localTombstones = applyDeletions ? { ...( _db.DeletionLog || {}) } : {};
+  const tombstoneBlocks = (entityName, id, record) => {
+    if (!applyDeletions) return false;
+    const t = localTombstones[`${entityName}:${id}`];
+    if (!t) return false;
+    const recTime = Date.parse(record?.updated_date || record?.created_date || "") || 0;
+    return (Date.parse(t.deleted_at || "") || 0) > recTime;
+  };
   for (const [entityName, incoming] of Object.entries(sanitized)) {
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
@@ -805,16 +853,16 @@ export async function mergeDbDump(dump, options = {}) {
       // second record alongside.
       if (localIds.length > 0 && incomingIds.length > 0) {
         const targetId = localIds[0];
-        const target = { ..._db[entityName][targetId] };
+        let target = { ..._db[entityName][targetId] };
         for (const incomingId of incomingIds) {
           const incoming = records[incomingId];
           if (!incoming || typeof incoming !== "object") continue;
-          for (const [field, value] of Object.entries(incoming)) {
-            if (field === "id" || field === "created_date" || field === "updated_date") continue;
-            if (isEmptyValue(target[field]) && !isEmptyValue(value)) {
-              target[field] = value;
-            }
-          }
+          // v0.95.3: newer-wins fold (was blank-fill-only, which meant
+          // settings changed on another device could NEVER arrive here —
+          // system name/bio/terms edits silently lost on sync). The
+          // singleton stays a single row; mergeExistingRecord keeps the
+          // local value whenever it is the newer edit.
+          target = mergeExistingRecord(target, incoming);
         }
         _db[entityName][targetId] = target;
         continue;
@@ -841,6 +889,7 @@ export async function mergeDbDump(dump, options = {}) {
           }
           const key = keyFn(record);
           if (key && seen.has(key)) continue;
+          if (tombstoneBlocks(entityName, id, record)) continue;
           _db[entityName][id] = record;
           if (key) seen.add(key);
         }
@@ -851,16 +900,39 @@ export async function mergeDbDump(dump, options = {}) {
 
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
+        if (tombstoneBlocks(entityName, id, record)) continue;
         _db[entityName][id] = record;
       } else if (entityName !== "FrontingSession") {
         // Same id exists locally — merge instead of skipping, so edits
         // made on another device (new avatar, changed role/tags/bio)
-        // actually arrive. FrontingSession same-id rows are left
-        // UNTOUCHED (pre-v0.88.3 behaviour): their is_active /
-        // is_primary / end_time are live state, and merging any of it
-        // (even fill-empty stamping an end_time onto a still-active
-        // local session) risks inconsistent current-front state.
+        // actually arrive.
         _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+      } else if (_db[entityName][id].is_active !== true && record.is_active !== true) {
+        // FrontingSession (v0.95.3): CLOSED sessions now merge newer-wins
+        // so post-hoc edits (notes, per-member entries, trigger flags)
+        // made on another device arrive. Live state stays protected:
+        // any session that is active on EITHER side is left untouched
+        // (the active-session sanitizer above already demoted incoming
+        // actives when a local front is running).
+        _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+      }
+    }
+  }
+
+  // Deletion-sync: apply the OTHER device's tombstones. A local record is
+  // removed only when the tombstone is NEWER than the record's last edit —
+  // an edit made here after the other device's delete survives (and will
+  // re-add the record over there on the return sync).
+  if (applyDeletions && sanitized.DeletionLog) {
+    for (const t of Object.values(sanitized.DeletionLog)) {
+      if (!t || !t.entity || !t.record_id || TOMBSTONE_SKIP.has(t.entity)) continue;
+      const col = _db[t.entity];
+      const local = col?.[t.record_id];
+      if (!local) continue;
+      if (t.entity === "FrontingSession" && local.is_active === true) continue; // never delete live state
+      const localTime = Date.parse(local.updated_date || local.created_date || "") || 0;
+      if ((Date.parse(t.deleted_at || "") || 0) > localTime) {
+        delete col[t.record_id];
       }
     }
   }

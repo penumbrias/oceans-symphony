@@ -884,6 +884,7 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | Bulletin | base44 | System-wide / friend posts | `content`, `timestamp`, `author_alter_id`, `is_pinned` | BulletinBoard, Dashboard |
 | BulletinComment | base44 | Comments on bulletins | `bulletin_id`, `content`, `timestamp` | BulletinCommentThread |
 | CustomEmotion | base44 | User-defined emotions for the wheel | `name`, `color`, `category` | EmotionWheelPicker, CustomEmotionsManager |
+| DeletionLog | local | Deletion tombstones for device sync (v0.95.3) — written by the entity Proxy's `delete()`, keyed `${entity}:${id}`, pruned at 2000 rows/180 days; applied on merge-import ONLY when the user opts into "Also sync deletions" | `entity`, `record_id`, `deleted_at` | localDb delete/mergeDbDump, DataBackupRestore |
 | CustomField | base44 / local | System-wide custom-field definitions | `name`, `type` | CustomFieldsManager, AlterEditModal |
 | DailyProgress | base44 | Per-day daily-task completion record | `date`, `completed_template_ids` | DailyTasks, dailyTaskSystem |
 | DailyTaskTemplate | base44 | Recurring task definitions | `title`, `description`, `points`, `frequency` (daily/weekly/monthly/yearly), `mode` (`AUTO`/`MANUAL`), `auto_trigger` (key from `AUTO_TRIGGER_LABELS` when AUTO), `nav_path` (when MANUAL), `is_active`, `sort_order` | DailyTasks, TaskTemplateManager |

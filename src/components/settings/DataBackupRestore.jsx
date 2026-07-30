@@ -127,7 +127,7 @@ const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
   "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
   "Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn",
-  "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
+  "SystemSettings", "SystemCheckIn", "EmotionCheckIn", "DeletionLog",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
   "AlterRelationship", "RelationshipType", "InnerWorldLocation",
@@ -172,7 +172,7 @@ export const EXPORT_CATEGORIES = [
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport"],                                   desc: "Report templates and exports" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion", "DeletionLog"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions, deletion history (for device sync)" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog", "GroupNote"],             desc: "Notes, DMs, mentions, group notes" },
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
@@ -400,6 +400,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState("add");
+  // Deletion-sync opt-in (v0.95.3): when merging a backup from the user's
+  // OTHER device, also apply its recorded deletions so removed records
+  // don't resurrect. OFF by default — a plain additive import must stay
+  // usable for recovering deleted data from old backups.
+  const [applyDeletions, setApplyDeletions] = useState(false);
   // Multi-system "Replace all": when the backup doesn't include some systems the
   // user currently has, park the pending import here and show a keep/clear
   // prompt. `replaceResolveRef` holds the promise resolver `processImport`
@@ -764,7 +769,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       } catch { /* no current DB to preserve from — nothing to carry forward */ }
       await loadDbDump({ ...stripDeviceBound(data), ...preserved }, { allowDeviceBound: true });
     } else {
-      await mergeDbDump(data); // strips device-bound internally
+      await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
     }
 
     // Media + preferences after the records are safe on disk.
@@ -1795,8 +1800,22 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
-              : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything, and your more-recent local edits always win."}
+              : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything unless you turn on deletion sync below, and your more-recent local edits always win."}
           </p>
+          {importMode !== "replace" && (
+            <label className="flex items-start gap-2.5 py-1.5 px-1 rounded-lg hover:bg-muted/20 cursor-pointer">
+              <input type="checkbox" checked={applyDeletions} onChange={() => setApplyDeletions(v => !v)}
+                className="w-4 h-4 mt-0.5 rounded accent-primary flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium">Also sync deletions (device sync)</span>
+                <p className="text-xs text-muted-foreground">
+                  For keeping two of your own devices in step: records you deleted on the other device are removed here
+                  too (unless your copy was edited more recently). Leave OFF when importing an old backup to recover
+                  deleted data. To fully sync two devices, import in both directions: phone → computer, then computer → phone.
+                </p>
+              </div>
+            </label>
+          )}
         </div>
         {/* Debug: View Local Data */}
         <div className="space-y-2 pt-1 border-t border-border/40">

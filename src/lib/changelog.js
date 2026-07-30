@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
+      { type: "feature", text: "Two-device sync via backups: edits made on both your phone AND computer now merge cleanly — newer edits win per record, and a new \"Also sync deletions\" option (in the import mode picker) removes records you deleted on the other device instead of resurrecting them. To fully sync, import in both directions. Recovering old data still works: leave the deletion option off." },
+      { type: "fix", text: "Sync: settings and closed session edits from another device now actually arrive on import (they were previously always ignored in favor of the local copy)." },
       { type: "fix", text: "Backups: importing a backup now brings everything over in ONE pass. Several silent failure paths (images aborting partway, data written after media, out-of-order saves, settings from newer app versions being dropped) meant the same file could need multiple imports — all fixed, and the import now tells you exactly what was restored and what failed instead of always claiming success." },
       { type: "feature", text: "Friends can move with you to a new device: a new opt-in checkbox in Advanced export includes your Friends identity and encryption keys, and importing it shows a confirmation naming whose identity it is before anything is applied. Treat that file like a password." },
       { type: "fix", text: "Privacy: automatic backups no longer include your Friends sign-in secret, and importing any backup that contains one (including old files) now asks before using it — it can never be adopted silently." },
