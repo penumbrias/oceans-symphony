@@ -200,21 +200,34 @@ has one obvious primary action; old routes 301 into the new structure so
 nothing breaks; search and notifications are global chrome, not space
 citizens.
 
-## 5. Design directions (to be mocked before choosing)
+## 5. The default chassis (SUPERSEDES the earlier "design directions")
 
-- **A. Companion** — a warm, quiet notebook-that-knows-you. Content-first,
-  generous space, soft depth, serif voice for headings, calm color drawn from
-  the user's theme. UI recedes; words and people lead.
-- **B. Console** — the launcher idea taken to its conclusion: the app as the
-  system's OS. Dense, glanceable, widget-native everywhere (not just home),
-  dock + spaces, chrome minimal, power-user gestures, skins as first-class.
-- **C. Scrapbook** — the geocities soul with modern bones: expressive panels,
-  texture and personality, chunky headers, decorated edges, every surface
-  themable per-member; playful without sacrificing legibility.
+*Owner decision (July 30): aesthetics are the LAST priority. Because deep
+customization is the core tenet, the default UI is a neutral chassis —
+basic architecture in service of function, usability, and accessibility.
+The reference point is an instrument (the Fallout wrist computer): a
+swiss-army-knife resource guide you operate, not a personified companion
+app. Personality is delivered entirely by the customization layer (Atlas
+F13); the chassis itself has none.*
 
-All three mock the same four screens with the same sample data: **Now**,
-**Capture (emotion check-in)**, **System (members)**, **Write (journals)** —
-so the comparison is soul, not content.
+Chassis principles:
+- **Function density over whitespace theatre.** Screens are registers of an
+  instrument: summaries before detail, state encoded in form (pills, LEDs,
+  counts), everything glanceable, nothing decorative.
+- **Neutral by construction.** System font stacks, the user's theme tokens,
+  no display typography, no mood. If a default screen has an identifiable
+  "style", it's wrong.
+- **Operable, not narrated.** Controls say what they do; the instrument
+  never talks *at* the user. Power operations (gestures, commands, the
+  inline log-command language) are first-class, with visible equivalents
+  for every gesture (a11y).
+- **Accessibility is the floor, not a mode.** The chassis meets WCAG at
+  default; a11y mode only simplifies structure further.
+- **Latency-critical paths win.** Crisis set and capture grammar are
+  measured in taps; chrome exists to keep them ≤2 gestures away.
+- **The atlas is the checklist.** `docs/function-atlas.md` §II–§IV is the
+  authoritative inventory the chassis must expose; §III's grammars are
+  non-negotiable behaviors.
 
 ## 6. Delivery architecture
 

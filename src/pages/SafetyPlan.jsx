@@ -101,12 +101,12 @@ export default function SafetyPlan() {
             </div>
             <ChevronDown
               className={`w-5 h-5 text-muted-foreground transition-transform ${
-                expandedSections.warningSignals ? "rotate-180" : ""
+                expandedSections.warningSigns ? "rotate-180" : ""
               }`}
             />
           </button>
 
-          {expandedSections.warningSignals && (
+          {expandedSections.warningSigns && (
             <div className="px-6 pb-6 space-y-4 border-t border-border/30">
               {/* Earliest signs */}
               <div>

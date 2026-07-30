@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "July 30, 2026",
+    changes: [
+      { type: "fix", text: "Safety Plan: the Warning Signs section can be expanded again (it was stuck closed)." },
+    ],
+  },
+  {
     date: "July 29, 2026",
+    version: "0.94.1",
     changes: [
       { type: "fix", text: "🧪 Homescreen widget names and descriptions now use your custom terminology." },
       { type: "feature", text: "🧪 Nine homescreen styles — Current, Glass, Social feed, Toybox, Old forum, Terminal, Spreadsheet, Aero, and Barebones — picked from a new style sheet in edit mode. Any widget can override the page style individually." },
