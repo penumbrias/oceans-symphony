@@ -39,7 +39,7 @@ export async function getLocalIdentity() {
 // the active system's identity up after any change; syncSharedFriendIdentity()
 // pulls it back into the active system on each app load so every system uses the
 // same identity. (Device-bound — never enters backups.)
-async function mirrorIdentityToShared() {
+export async function mirrorIdentityToShared() {
   try {
     const local = await getLocalIdentity();
     if (local) await setSharedFriendIdentity(local);

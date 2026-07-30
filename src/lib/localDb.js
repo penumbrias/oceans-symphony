@@ -74,6 +74,12 @@ function getIdb() {
 // Throws StorageReadError ONLY when IDB itself errored AND localStorage had
 // nothing to fall back on — in that case the caller must surface a recovery
 // UI instead of treating an empty DB as "user is new".
+// Split-brain guard (v0.95.2): when an IDB write fails and the blob falls
+// back to localStorage, this flag records that localStorage holds the
+// NEWER copy — otherwise the next boot would prefer the stale IDB blob
+// and the write (e.g. a whole import) would silently revert.
+const lsAuthorityKey = () => `symphony_ls_authoritative:${_storageKey}`;
+
 async function loadFromStorage() {
   let idbValue = undefined;
   let idbError = null;
@@ -83,6 +89,24 @@ async function loadFromStorage() {
   } catch (e) {
     idbError = e;
   }
+  // Honour the fallback-write flag: localStorage is newer than IDB.
+  try {
+    if (localStorage.getItem(lsAuthorityKey())) {
+      const ls = localStorage.getItem(_storageKey);
+      if (ls) {
+        // Best-effort re-home into IDB so the stores reconverge.
+        if (!idbError) {
+          try {
+            const idb = await getIdb();
+            await idb.put(IDB_STORE, ls, _storageKey);
+            localStorage.removeItem(lsAuthorityKey());
+          } catch { /* keep the flag — localStorage stays authoritative */ }
+        }
+        return ls;
+      }
+      localStorage.removeItem(lsAuthorityKey());
+    }
+  } catch { /* storage off — fall through to IDB value */ }
   if (idbValue !== undefined) return idbValue;
 
   // One-time migration from localStorage to IndexedDB (if IDB is healthy).
@@ -106,8 +130,15 @@ async function saveToStorage(value) {
   try {
     const idb = await getIdb();
     await idb.put(IDB_STORE, value, _storageKey);
+    // Successful IDB write supersedes any earlier fallback copy.
+    try { localStorage.removeItem(lsAuthorityKey()); } catch { /* ok */ }
   } catch {
+    // IDB write failed — localStorage now holds the newest copy, and the
+    // authority flag makes loadFromStorage prefer it over the stale IDB
+    // blob (otherwise this save — possibly a whole import — silently
+    // reverts on the next boot).
     localStorage.setItem(_storageKey, value);
+    try { localStorage.setItem(lsAuthorityKey(), String(Date.now())); } catch { /* ok */ }
   }
 }
 
@@ -190,7 +221,24 @@ function getDb() {
   throw new Error('localDb accessed before initLocalDb completed');
 }
 
-async function saveDb() {
+// Serialize saves (v0.95.2). saveDb used to snapshot _db synchronously and
+// then await encryption + the IDB put with NO ordering guarantee — a slow
+// save (encryption does an expensive encode on big blobs) that started
+// BEFORE a big write like an import could land AFTER it and clobber the
+// whole import with pre-import state. The queue makes saves strictly
+// sequential AND makes each queued save serialize the LATEST _db at its
+// turn, so a stale snapshot can never win. Callers still just await saveDb().
+let _saveQueue = Promise.resolve();
+
+function saveDb() {
+  const run = _saveQueue.then(() => doSaveDb());
+  // Keep the chain alive even if a save fails; the failure still
+  // propagates to this call's awaiter.
+  _saveQueue = run.catch(() => {});
+  return run;
+}
+
+async function doSaveDb() {
   // Preview-mode writes stay purely in memory and never reach IndexedDB.
   if (_previewDb !== null) return;
   let json;
@@ -585,8 +633,25 @@ export async function migrateLocalImageUrlScheme() {
   return migrated;
 }
 
-export async function loadDbDump(dump) {
-  _db = dump;
+// Device-bound entities never arrive via a general import. FriendIdentity
+// carries a permanent bearer secret + the E2E private key — a dump from
+// another person (or an old auto-backup, which leaked these before
+// v0.95.2) must not silently make this device BECOME that identity.
+// Adoption happens only through the explicit consent flow, which passes
+// { allowDeviceBound: true } after the user confirms whose identity it is.
+const DEVICE_BOUND_IMPORT_BLOCK = ["FriendIdentity", "PushSubscription"];
+function sanitizeIncomingDump(dump, { allowDeviceBound = false } = {}) {
+  if (!dump || typeof dump !== "object" || allowDeviceBound) return dump;
+  const out = { ...dump };
+  for (const name of DEVICE_BOUND_IMPORT_BLOCK) delete out[name];
+  return out;
+}
+
+// NOTE: preserving THIS device's identity across a replace-import is the
+// caller's job (DataBackupRestore already carries it forward explicitly);
+// wipe flows (loadDbDump({})) genuinely mean "everything gone".
+export async function loadDbDump(dump, options = {}) {
+  _db = sanitizeIncomingDump(dump, options);
   await saveDb();
 }
 
@@ -720,9 +785,10 @@ export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) 
   return out;
 }
 
-export async function mergeDbDump(dump) {
+export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
-  for (const [entityName, incoming] of Object.entries(dump)) {
+  const sanitized = sanitizeIncomingDump(dump, options);
+  for (const [entityName, incoming] of Object.entries(sanitized)) {
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
 

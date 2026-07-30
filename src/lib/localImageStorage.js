@@ -91,23 +91,35 @@ async function getIdb() {
   });
 }
 
+function putImage(idb, id, toWrite) {
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.put(toWrite, id);
+    req.onerror = () => reject(req.error || new Error('Failed to save image'));
+    req.onsuccess = () => resolve();
+  });
+}
+
 export async function saveLocalImage(id, imageData, mimeHint) {
+  // Normalise: Blob preferred, everything else converted. If the caller
+  // passed a data URI (common — every legacy caller does), we transparently
+  // convert to a Blob so the on-disk shape stays canonical.
+  const toWrite = toBlob(imageData, mimeHint) || imageData;
   try {
-    // Normalise: Blob preferred, everything else converted. If the caller
-    // passed a data URI (common — every legacy caller does), we transparently
-    // convert to a Blob so the on-disk shape stays canonical.
-    const toWrite = toBlob(imageData, mimeHint) || imageData;
     const idb = await getIdb();
-    return new Promise((resolve, reject) => {
-      const tx = idb.transaction([STORE_NAME], 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put(toWrite, id);
-      req.onerror = () => reject(new Error('Failed to save image'));
-      req.onsuccess = () => resolve();
-    });
+    return await putImage(idb, id, toWrite);
   } catch (e) {
-    console.warn('saveLocalImage: IDB unavailable:', e);
-    return Promise.resolve();
+    // The cached connection can die mid-session (versionchange, storage
+    // pressure, WebView renderer restarts) — transaction() then throws
+    // synchronously. Pre-v0.95.2 this path RESOLVED as if the image saved,
+    // silently dropping every image for the rest of the page lifetime
+    // (the top cause of "had to import my backup several times").
+    // Reopen once and retry; if it still fails, REJECT so callers can
+    // count and report the failure honestly.
+    _db = null;
+    const idb = await getIdb();
+    return await putImage(idb, id, toWrite);
   }
 }
 
@@ -226,15 +238,26 @@ export async function getAllLocalImageBlobs() {
   }
 }
 
+// Restore images from a backup. Each image is isolated — one failure
+// (quota, dead handle, corrupt entry) never aborts the rest (pre-v0.95.2
+// one failure silently skipped every remaining image, which is why
+// re-importing the same file used to "find" more images each pass).
+// Returns { total, restored, failed: [id...] } so callers can tell the
+// user the truth instead of a blanket success.
 export async function restoreLocalImages(imagesMap) {
-  try {
-    for (const [id, imageData] of Object.entries(imagesMap || {})) {
+  const entries = Object.entries(imagesMap || {});
+  const result = { total: entries.length, restored: 0, failed: [] };
+  for (const [id, imageData] of entries) {
+    try {
       // saveLocalImage auto-converts data URIs → Blobs.
       await saveLocalImage(id, imageData);
+      result.restored += 1;
+    } catch (e) {
+      console.warn(`restoreLocalImages: failed for ${id}:`, e);
+      result.failed.push(id);
     }
-  } catch (e) {
-    console.warn('restoreLocalImages failed:', e);
   }
+  return result;
 }
 
 // Probe the store for legacy string entries. Returns { total, legacy }.

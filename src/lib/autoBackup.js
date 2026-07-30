@@ -20,6 +20,7 @@
 // inside the WebView's sandbox, so it survives all of the cases listed.
 
 import { getFullDbDump } from "@/lib/localDb";
+import { stripDeviceBound } from "@/lib/backupPolicy";
 import { getAllLocalImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts } from "@/lib/localFontStorage";
 import { readBackupLocalSettings } from "@/lib/backupKeys";
@@ -158,7 +159,13 @@ function estimateBytes(obj) {
 }
 
 async function buildFullBackupPayload() {
-  const dump = getFullDbDump();
+  // Device-bound entities (friends credential + E2E private key, push
+  // registration) must never ride in a general backup — see backupPolicy.
+  // Manual exports already stripped them; auto-backups did NOT until
+  // v0.95.2, which meant a plain-JSON file in Downloads carried the
+  // friends secret. The identity moves only via the explicit opt-in
+  // bundle in the manual export flow.
+  const dump = stripDeviceBound(getFullDbDump());
   let images = {};
   try { images = await getAllLocalImages(); } catch { /* skip images on failure */ }
   let fonts = {};
