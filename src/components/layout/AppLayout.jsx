@@ -37,6 +37,7 @@ import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
+import { recordPageVisit } from "@/lib/pageVisitTracker";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -300,6 +301,12 @@ const routeAnnouncement = useMemo(() => {
   const match = ALL_PAGES.find(pg => pg.path && pg.path !== "/" && p.startsWith(pg.path));
   return match ? (termMap[match.id] || match.label) : "";
 }, [location.pathname, termMap]);
+
+// Feed the experimental homescreen's "Frequently opened" widget — one
+// count per route change, decayed weekly (see pageVisitTracker.js).
+useEffect(() => {
+  recordPageVisit(location.pathname);
+}, [location.pathname]);
 
 const { data: pendingReminders = [] } = usePendingReminderInstances();
 const pendingCount = pendingReminders.filter(i => i.status === "fired").length;

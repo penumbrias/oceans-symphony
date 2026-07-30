@@ -22,6 +22,8 @@ import {
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
+import { getFrequentPages } from "@/lib/pageVisitTracker";
+import { useCurrentFocus } from "@/lib/currentFocus";
 
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
@@ -85,6 +87,110 @@ function AppShortcutWidget({ mode, settings }) {
         </span>
       )}
     </button>
+  );
+}
+
+// "Frequently opened" — the top visited pages (weekly-decayed counts from
+// pageVisitTracker), rendered as a row of app icons. Only pages that exist
+// in the nav catalogue are shown; the dashboard itself is excluded.
+function FrequentlyOpenedWidget({ mode }) {
+  const t = useTerms();
+  const navigate = useNavigate();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const byPath = React.useMemo(() => new Map(items.map((i) => [i.path, i])), [items]);
+  // Visit data only changes on navigation, so a per-render read is fresh
+  // enough — no state/subscription needed.
+  const top = getFrequentPages(24)
+    .map((v) => byPath.get(v.path))
+    .filter((i) => i && i.path !== "/")
+    .slice(0, mode === "expanded" ? 8 : 4);
+  if (top.length === 0) {
+    return (
+      <div className="px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-xs text-muted-foreground">
+        Frequently opened — appears once you've used the app a little.
+      </div>
+    );
+  }
+  return (
+    <div className="flex items-start justify-around gap-1 py-1">
+      {top.map((item) => {
+        const Icon = item.icon;
+        return (
+          <button
+            key={item.id}
+            type="button"
+            onClick={() => navigate(item.path)}
+            title={item.label}
+            className="flex flex-col items-center gap-1 min-w-0 flex-1 rounded-xl hover:bg-muted/40 transition-colors py-1"
+          >
+            <span className={`w-10 h-10 rounded-2xl flex items-center justify-center ${item.color}`}>
+              <Icon className="w-4.5 h-4.5" />
+            </span>
+            {mode !== "minimal" && (
+              <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5 w-full">
+                {item.label}
+              </span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+const FOCUS_DOT = {
+  fronting: "bg-green-500",
+  activity: "bg-amber-500",
+  sleep: "bg-indigo-500",
+  symptom: "bg-violet-500",
+  status: "bg-sky-500",
+};
+
+// "Current Focus" — what's going on right now, in one glance. minimal =
+// one-line banner; normal = tappable list.
+function CurrentFocusWidget({ mode }) {
+  const navigate = useNavigate();
+  const { items } = useCurrentFocus();
+  if (items.length === 0) {
+    return (
+      <div className="px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-xs text-muted-foreground">
+        Nothing in focus right now.
+      </div>
+    );
+  }
+  if (mode === "minimal") {
+    const first = items[0];
+    return (
+      <button
+        type="button"
+        onClick={() => navigate(first.path)}
+        className="w-full flex items-center gap-2 px-3 py-2 rounded-xl border border-border/40 bg-card/50 text-sm text-left hover:bg-muted/40 transition-colors"
+      >
+        <span className={`w-2 h-2 rounded-full animate-pulse flex-shrink-0 ${FOCUS_DOT[first.type] || "bg-primary"}`} />
+        <span className="truncate">{first.label}</span>
+        {items.length > 1 && (
+          <span className="ml-auto text-[0.6875rem] text-muted-foreground flex-shrink-0">+{items.length - 1}</span>
+        )}
+      </button>
+    );
+  }
+  return (
+    <div className="rounded-xl border border-border/40 bg-card/50 px-3 py-2">
+      <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Current focus</p>
+      <div className="space-y-1">
+        {items.slice(0, 6).map((it, i) => (
+          <button
+            key={`${it.type}_${i}`}
+            type="button"
+            onClick={() => navigate(it.path)}
+            className="w-full flex items-center gap-2 text-sm text-left rounded-lg px-1.5 py-1 hover:bg-muted/40 transition-colors"
+          >
+            <span className={`w-2 h-2 rounded-full flex-shrink-0 ${FOCUS_DOT[it.type] || "bg-primary"}`} />
+            <span className="truncate">{it.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
@@ -274,6 +380,22 @@ export const WIDGET_REGISTRY = {
   },
 
   // ── Meta / nav ─────────────────────────────────────────────────
+  current_focus: {
+    label: "Current focus", description: "What's going on right now — fronting, running timers, active symptoms, today's status.",
+    icon: Lightbulb, category: "meta",
+    render: ({ mode }) => <CurrentFocusWidget mode={mode} />,
+    supportsModes: ["minimal", "normal"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+  },
+  frequently_opened: {
+    label: "Frequently opened", description: "Your most-visited pages as quick icons (learned automatically, fades weekly).",
+    icon: Zap, category: "nav",
+    render: ({ mode }) => <FrequentlyOpenedWidget mode={mode} />,
+    supportsModes: ["minimal", "normal", "expanded"],
+    supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+  },
   app_shortcut: {
     label: "App shortcut", description: "A phone-style icon that opens one app page. Pin apps from the drawer's Apps tab.",
     icon: Rocket, category: "nav",

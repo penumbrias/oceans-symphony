@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import {
   Pencil, Check, X, Minus, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2, Star, Trash2,
+  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon,
 } from "lucide-react";
 import {
   DndContext, PointerSensor, TouchSensor, useSensor, useSensors, closestCenter,
@@ -44,6 +44,8 @@ import { useTerms } from "@/lib/useTerms";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 function useGridCols() {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -61,7 +63,7 @@ function useGridCols() {
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
-function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan, onMode, a11yStack, onMove }) {
+function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan, onMode, a11yStack, onMove, styleMode = "current" }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack,
@@ -136,7 +138,13 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
       )}
       <div
         {...(editMode && !a11yStack ? { ...attributes, ...listeners } : {})}
-        className={editMode ? "relative rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : undefined}
+        className={[
+          // "phone" style: every widget sits in a translucent launcher-style
+          // card (pairs well with a wallpaper). "barebones"/"current" add no
+          // shell — components keep their own chrome.
+          styleMode === "phone" ? "rounded-2xl bg-card/45 backdrop-blur-sm border border-border/30 p-2 h-full" : "",
+          editMode ? "relative rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
+        ].join(" ").trim() || undefined}
         style={editMode ? { touchAction: "none", minHeight: 56, paddingTop: 18 } : undefined}
       >
         {editMode && (
@@ -157,6 +165,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [wallpaperPickerOpen, setWallpaperPickerOpen] = useState(false);
 
   const home = useMemo(
     () => resolveExperimentalHome(settingsRow?.experimental_home, WIDGET_REGISTRY),
@@ -233,6 +242,17 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     // in a row.
   };
 
+  // Current → phone → barebones → current.
+  const cycleStyleMode = () => {
+    const order = ["current", "phone", "barebones"];
+    const next = order[(order.indexOf(home.styleMode) + 1) % order.length];
+    persist({ ...home, styleMode: next });
+  };
+  const setWallpaper = (url) => {
+    persist({ ...home, wallpaper: { url: url || "" } });
+    setWallpaperPickerOpen(false);
+  };
+
   // Off → bottom → top → off.
   const cycleAltersBar = () => {
     const cur = home.altersBar;
@@ -298,6 +318,8 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     });
   };
 
+  const wallpaperUrl = useResolvedAvatarUrl(home.wallpaper?.url || "");
+
   const barIds = home.actionBar.enabled ? home.actionBar.buttonIds : [];
   // PinnedAltersGallery renders null with no pins — hide the bar chrome too
   // so an empty strip doesn't sit there (but keep it visible in edit mode so
@@ -314,7 +336,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
 
   const canvas = (
     <div
-      style={a11yStack ? undefined : { display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`, gap: "0.75rem", alignItems: "start" }}
+      style={a11yStack ? undefined : { display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`, gap: home.styleMode === "barebones" ? "0.375rem" : "0.75rem", alignItems: "start" }}
       className={a11yStack ? "space-y-3" : undefined}
     >
       {widgets.map((w) => (
@@ -330,13 +352,22 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
           onSpan={handleSpan}
           onMode={handleMode}
           onMove={handleMove}
+          styleMode={home.styleMode}
         />
       ))}
     </div>
   );
 
   return (
-    <div className="pt-1" data-tour="experimental-home">
+    <div className="pt-1 relative isolate" data-tour="experimental-home" data-home-style={home.styleMode}>
+      {/* Wallpaper — fixed under everything in this stacking context; the
+          isolate on the root keeps the negative z-index from escaping. */}
+      {wallpaperUrl && (
+        <div className="fixed inset-0 -z-10 pointer-events-none" aria-hidden="true">
+          <img src={wallpaperUrl} alt="" className="w-full h-full object-cover" />
+          <div className="absolute inset-0 bg-background/55" />
+        </div>
+      )}
       {/* Edit-mode toolbar */}
       <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">
         {editMode && (
@@ -366,6 +397,37 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={cycleStyleMode}
+              title="Widget style: current / phone / barebones"
+              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
+            >
+              Style: {home.styleMode === "phone" ? "Phone" : home.styleMode === "barebones" ? "Barebones" : "Current"}
+            </button>
+            <span className="flex items-center rounded-full border border-border/40 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setWallpaperPickerOpen(true)}
+                title="Choose a wallpaper from your assets"
+                className={`text-[0.625rem] pl-2 pr-1.5 py-1 flex items-center gap-1 whitespace-nowrap transition-all ${
+                  home.wallpaper?.url ? "text-primary" : "text-muted-foreground hover:text-foreground"
+                }`}
+              >
+                <ImageIcon className="w-3 h-3" /> Wallpaper
+              </button>
+              {home.wallpaper?.url && (
+                <button
+                  type="button"
+                  onClick={() => setWallpaper("")}
+                  aria-label="Remove wallpaper"
+                  title="Remove wallpaper"
+                  className="px-1.5 py-1 text-muted-foreground hover:text-destructive"
+                >
+                  <X className="w-3 h-3" />
+                </button>
+              )}
+            </span>
             <button
               type="button"
               onClick={cycleAltersBar}
@@ -589,6 +651,12 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         onAddWidget={handleAddWidget}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
+      />
+
+      <AssetPickerModal
+        open={wallpaperPickerOpen}
+        onClose={() => setWallpaperPickerOpen(false)}
+        onSelect={setWallpaper}
       />
     </div>
   );

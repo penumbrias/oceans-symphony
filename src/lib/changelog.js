@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "July 29, 2026",
     changes: [
+      { type: "feature", text: "🧪 Wallpapers and widget styles — pick a homescreen background from your asset library, and switch the widget look between Current, Phone (translucent cards), and Barebones in edit mode." },
+      { type: "feature", text: "🧪 \"Frequently opened\" widget — your most-visited pages as a row of quick icons, learned automatically and fading over time." },
+      { type: "feature", text: "🧪 \"Current focus\" widget — one glance at what's happening now: who's fronting, running timers, active symptoms, and today's status." },
       { type: "improve", text: "🧪 Widgets can now be sized much more finely — app shortcuts fit four across on a phone instead of two. Existing layouts keep their proportions." },
       { type: "feature", text: "🧪 Pinned alters bar on the experimental homescreen — toggle it in edit mode and choose top or bottom; it stays put while you swipe between pages." },
       { type: "improve", text: "🧪 While editing the homescreen, tapping an app in the drawer now pins it to the page (instead of opening it), and the drawer stays open so you can pin several." },

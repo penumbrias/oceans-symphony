@@ -46,6 +46,9 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   styleMode: "current",
   actionBar: DEFAULT_ACTION_BAR,
   altersBar: DEFAULT_ALTERS_BAR,
+  // Homescreen background image — a local-image:// or https URL picked from
+  // the asset library. Empty string = no wallpaper.
+  wallpaper: { url: "" },
   pages: [{ id: "p1", label: "Home", widgets: [] }],
 };
 
@@ -89,6 +92,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
       enabled: src.altersBar?.enabled === true,
       position: src.altersBar?.position === "top" ? "top" : "bottom",
     },
+    wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
     pages: [],
     defaultPageId: null,
   };
