@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "July 29, 2026",
     changes: [
+      { type: "improve", text: "🧪 Widgets can now be sized much more finely — app shortcuts fit four across on a phone instead of two. Existing layouts keep their proportions." },
+      { type: "feature", text: "🧪 Pinned alters bar on the experimental homescreen — toggle it in edit mode and choose top or bottom; it stays put while you swipe between pages." },
+      { type: "improve", text: "🧪 While editing the homescreen, tapping an app in the drawer now pins it to the page (instead of opening it), and the drawer stays open so you can pin several." },
+      { type: "fix", text: "🧪 The quick-action bar stays on one row and scrolls sideways instead of stacking." },
+      { type: "fix", text: "🧪 Widgets no longer stretch weirdly while being dragged in edit mode." },
       { type: "feature", text: "🧪 Experimental homescreen: multiple pages! Swipe between pages (or tap the dots), add and name pages in edit mode, and star one as your default. The quick-action bar stays put while you swipe." },
       { type: "feature", text: "🧪 App shortcuts — pin any app page to the experimental homescreen as a phone-style icon from the drawer's Apps tab (tap the little +)." },
       { type: "feature", text: "🧪 Experimental homescreen (opt-in) — a phone-style dashboard with placeable, resizable widgets for every dashboard feature, an app drawer with every page plus a widget picker, per-widget display modes, and a persistent quick-action bar (Quick Check-In, Start Activity, and friends). Turn it on from the dashboard banner or Settings → Appearance → Dashboard layout; your classic dashboard stays saved and you can switch back any time." },

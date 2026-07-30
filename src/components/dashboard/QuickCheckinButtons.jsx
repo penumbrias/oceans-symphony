@@ -31,10 +31,12 @@ export default function QuickCheckinButtons({
   showCheckin = true,
 }) {
   const btnBase = dense
-    ? "px-3 text-xs font-medium text-center rounded-lg inline-flex items-center gap-1.5 min-h-[38px] transition-colors"
+    ? "px-3 text-xs font-medium text-center rounded-lg inline-flex items-center gap-1.5 min-h-[38px] whitespace-nowrap flex-shrink-0 transition-colors"
     : "px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] transition-colors";
   return (
-    <div className={dense ? "relative flex flex-wrap items-center gap-1.5" : "relative flex flex-wrap items-center gap-2 mt-3 mb-3"}>
+    // dense (action bar): a single row, never wraps — the bar's container
+    // scrolls horizontally if the buttons overflow.
+    <div className={dense ? "relative flex flex-nowrap items-center gap-1.5 w-max" : "relative flex flex-wrap items-center gap-2 mt-3 mb-3"}>
       {showCheckin && (
       <button
         data-tour="quick-checkin"
@@ -46,7 +48,7 @@ export default function QuickCheckinButtons({
         onContextMenu={(e) => e.preventDefault()}
         style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "manipulation" }}
         aria-label="Quick emotional check-in"
-        className={`bg-destructive/10 text-destructive ${dense ? "px-3.5" : "px-5"} ${dense ? "text-xs min-h-[38px]" : "text-sm min-h-[44px]"} font-medium text-center rounded-lg inline-flex items-center gap-2 hover:bg-destructive/20 transition-colors relative overflow-hidden${holdActive ? " ring-2 ring-destructive/30" : ""}`}
+        className={`bg-destructive/10 text-destructive ${dense ? "px-3.5 text-xs min-h-[38px] whitespace-nowrap flex-shrink-0" : "px-5 text-sm min-h-[44px]"} font-medium text-center rounded-lg inline-flex items-center gap-2 hover:bg-destructive/20 transition-colors relative overflow-hidden${holdActive ? " ring-2 ring-destructive/30" : ""}`}
       >
         <Heart className="w-4 h-4 relative z-10" />
         <span className="relative z-10">Quick Check-In</span>

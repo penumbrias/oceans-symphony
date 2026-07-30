@@ -13,7 +13,11 @@ import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES } from "@/lib/widgetRegistry";
 
-export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut }) {
+// pinOnTap: while the homescreen is in edit mode, tapping an app on the
+// Apps tab PINS it to the page instead of navigating (the little + does the
+// same either way). The drawer stays open so several apps can be pinned in
+// a row.
+export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut, pinOnTap = false }) {
   const t = useTerms();
   const navigate = useNavigate();
   const [tab, setTab] = useState("apps");
@@ -61,6 +65,11 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
                 placeholder="Search apps…"
                 className="w-full h-9 px-3 mb-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
               />
+              {pinOnTap && (
+                <p className="mb-3 -mt-1 text-[0.6875rem] text-center text-primary/90">
+                  Editing — tap an app to pin it to the page
+                </p>
+              )}
               <div className="grid grid-cols-4 sm:grid-cols-5 gap-3">
                 {filteredApps.map((app) => {
                   const Icon = app.icon;
@@ -68,7 +77,11 @@ export default function AppDrawer({ open, onClose, placedWidgetIds = [], onAddWi
                     <div key={app.id} className="relative">
                       <button
                         type="button"
-                        onClick={() => { onClose(); navigate(app.path); }}
+                        onClick={() => {
+                          if (pinOnTap && onAddShortcut) { onAddShortcut(app.id); return; }
+                          onClose();
+                          navigate(app.path);
+                        }}
                         className="w-full flex flex-col items-center gap-1.5 group"
                       >
                         <span className={`w-12 h-12 rounded-2xl flex items-center justify-center ${app.color} group-hover:scale-105 transition-transform`}>

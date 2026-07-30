@@ -40,11 +40,16 @@ import {
   ACTION_BAR_BUTTONS,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
+import { useTerms } from "@/lib/useTerms";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
+import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 
 function useGridCols() {
-  const calc = () => (typeof window === "undefined" ? 2 : window.innerWidth >= 1024 ? 6 : window.innerWidth >= 640 ? 4 : 2);
+  // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
+  // icons can be quarter-width on phones; stored v1 spans are doubled on
+  // read (see resolveExperimentalHome) so layouts keep their proportions.
+  const calc = () => (typeof window === "undefined" ? 4 : window.innerWidth >= 1024 ? 12 : window.innerWidth >= 640 ? 8 : 4);
   const [cols, setCols] = useState(calc);
   React.useEffect(() => {
     const onResize = () => setCols(calc());
@@ -62,14 +67,17 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
     disabled: !editMode || a11yStack,
   });
   const mode = effectiveMode(widget.mode, def.supportsModes);
-  const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 2, gridCols);
+  const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 4, gridCols);
   const spanRows = widget.span?.rows || def.defaultSpan?.rows || 1;
   const style = a11yStack
     ? {}
     : {
         gridColumn: `span ${spanCols}`,
         minHeight: spanRows > 1 ? spanRows * 80 : undefined,
-        transform: CSS.Transform.toString(transform),
+        // rectSortingStrategy assumes equal-size tiles and adds scale to its
+        // transforms — with mixed spans that stretches widgets mid-drag.
+        // Position-only transforms fix the "expands in weird ways" glitch.
+        transform: CSS.Transform.toString(transform ? { ...transform, scaleX: 1, scaleY: 1 } : transform),
         transition,
         zIndex: isDragging ? 40 : undefined,
         opacity: isDragging ? 0.85 : undefined,
@@ -144,6 +152,7 @@ function SortableWidget({ widget, def, editMode, gridCols, api, onRemove, onSpan
 
 export default function ExperimentalDashboard({ settingsRow, api }) {
   const qc = useQueryClient();
+  const t = useTerms();
   const gridCols = useGridCols();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
@@ -213,11 +222,26 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
     }
     updatePageWidgets((ws) => [
       ...ws,
-      { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 2, rows: 1 }) }, mode: "normal", settings },
+      { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: "normal", settings },
     ]);
     toast.success(`${def.label} added`);
-    setDrawerOpen(false);
-    if (edit) setEditMode(true);
+    if (edit) {
+      setDrawerOpen(false);
+      setEditMode(true);
+    }
+    // Pin-while-editing keeps the drawer open so several apps can be pinned
+    // in a row.
+  };
+
+  // Off → bottom → top → off.
+  const cycleAltersBar = () => {
+    const cur = home.altersBar;
+    const next = !cur.enabled
+      ? { enabled: true, position: "bottom" }
+      : cur.position === "bottom"
+        ? { enabled: true, position: "top" }
+        : { enabled: false, position: "bottom" };
+    persist({ ...home, altersBar: next });
   };
 
   // ── Page operations (Phase 2) ──────────────────────────────────
@@ -275,6 +299,13 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   };
 
   const barIds = home.actionBar.enabled ? home.actionBar.buttonIds : [];
+  // PinnedAltersGallery renders null with no pins — hide the bar chrome too
+  // so an empty strip doesn't sit there (but keep it visible in edit mode so
+  // the toggle has visible feedback).
+  const hasPinnedAlters = (api?.alters || []).some((a) => a.is_pinned && !a.is_archived);
+  const altersBarOn = home.altersBar.enabled && (hasPinnedAlters || editMode);
+  const altersTop = altersBarOn && home.altersBar.position === "top";
+  const altersBottom = altersBarOn && home.altersBar.position === "bottom";
   const widgets = page.widgets.filter((w) => WIDGET_REGISTRY[w.widgetId]);
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
@@ -335,6 +366,18 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={cycleAltersBar}
+              title={`Pinned ${t.alters} bar: off / bottom / top`}
+              className={`text-[0.625rem] px-2 py-1 rounded-full border whitespace-nowrap transition-all ${
+                home.altersBar.enabled
+                  ? "border-primary/50 bg-primary/10 text-primary"
+                  : "border-border/40 text-muted-foreground"
+              }`}
+            >
+              {t.Alters} bar: {home.altersBar.enabled ? (home.altersBar.position === "top" ? "Top" : "Bottom") : "Off"}
+            </button>
           </>
         )}
         <button
@@ -359,6 +402,13 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
           {editMode ? <Check className="w-5 h-5" /> : <Pencil className="w-4 h-4" />}
         </button>
       </div>
+
+      {/* Pinned-alters bar (top position) — persists across page swipes. */}
+      {altersTop && (
+        <div className="mb-2 rounded-2xl border border-border/40 bg-card/50 px-2 py-1.5">
+          <PinnedAltersGallery showHeader={false} />
+        </div>
+      )}
 
       {/* Page dots — tappable; edit mode adds a "+" for a new page. */}
       {(home.pages.length > 1 || editMode) && (
@@ -486,34 +536,51 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         </DndContext>
       )}
 
-      {/* Persistent quick-action bar — floats above the bottom nav and (in
-          later phases) stays put while swiping between pages. */}
-      {barIds.length > 0 && (
+      {/* Persistent bottom stack — pinned-alters bar (bottom position) above
+          the quick-action bar; both float above the bottom nav and stay put
+          while swiping between pages. */}
+      {(barIds.length > 0 || altersBottom) && (
         <div
-          className="fixed left-0 right-0 z-40 flex justify-center pointer-events-none"
+          className="fixed left-0 right-0 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
         >
-          <div className="pointer-events-auto max-w-full overflow-x-auto px-3 py-1.5 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
-            <QuickCheckinButtons
-              dense
-              showCheckin={barIds.includes("quick_checkin")}
-              hold={api?.hold || {}}
-              holdProgress={api?.holdProgress || 0}
-              holdActive={api?.holdActive || false}
-              show={{
-                start_activity: barIds.includes("start_activity"),
-                start_symptom: barIds.includes("start_symptom"),
-                quick_task: barIds.includes("quick_task"),
-                quick_plan: barIds.includes("quick_plan"),
-              }}
-              on={api?.quickOn || {}}
-              quickActionsSlot={api?.quickActionsSlot || null}
-            />
-          </div>
+          {altersBottom && (
+            <div className="pointer-events-auto max-w-full overflow-x-auto px-2 py-1 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
+              <PinnedAltersGallery showHeader={false} />
+            </div>
+          )}
+          {barIds.length > 0 && (
+            <div className="pointer-events-auto max-w-full overflow-x-auto px-3 py-1.5 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
+              <QuickCheckinButtons
+                dense
+                showCheckin={barIds.includes("quick_checkin")}
+                hold={api?.hold || {}}
+                holdProgress={api?.holdProgress || 0}
+                holdActive={api?.holdActive || false}
+                show={{
+                  start_activity: barIds.includes("start_activity"),
+                  start_symptom: barIds.includes("start_symptom"),
+                  quick_task: barIds.includes("quick_task"),
+                  quick_plan: barIds.includes("quick_plan"),
+                }}
+                on={api?.quickOn || {}}
+                quickActionsSlot={api?.quickActionsSlot || null}
+              />
+            </div>
+          )}
         </div>
       )}
-      {/* Reserve space so the action bar doesn't cover the last widgets. */}
-      {barIds.length > 0 && <div style={{ height: 68 }} aria-hidden="true" />}
+      {/* Reserve space so the fixed bars don't cover the last widgets. */}
+      {(barIds.length > 0 || altersBottom) && (
+        <div
+          style={{
+            height:
+              (barIds.length > 0 ? 68 : 0) +
+              (altersBottom ? 96 : 0),
+          }}
+          aria-hidden="true"
+        />
+      )}
 
       <AppDrawer
         open={drawerOpen}
@@ -521,6 +588,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         placedWidgetIds={home.pages.flatMap((p) => p.widgets.map((w) => w.widgetId))}
         onAddWidget={handleAddWidget}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
+        pinOnTap={editMode}
       />
     </div>
   );

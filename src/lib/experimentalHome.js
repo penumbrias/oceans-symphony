@@ -34,12 +34,18 @@ export const ACTION_BAR_BUTTONS = [
 
 const DEFAULT_ACTION_BAR = { enabled: true, buttonIds: ["quick_checkin", "start_activity", "quick_task"] };
 
+// Persistent pinned-alters strip — like the action bar, it stays put while
+// swiping between pages. position: "top" (above the canvas) | "bottom"
+// (stacked above the action bar).
+const DEFAULT_ALTERS_BAR = { enabled: false, position: "bottom" };
+
 export const DEFAULT_EXPERIMENTAL_HOME = {
-  version: 1,
+  version: 2,
   enabled: false,
   defaultPageId: "p1",
   styleMode: "current",
   actionBar: DEFAULT_ACTION_BAR,
+  altersBar: DEFAULT_ALTERS_BAR,
   pages: [{ id: "p1", label: "Home", widgets: [] }],
 };
 
@@ -65,8 +71,12 @@ function clampInt(v, min, max, fallback) {
 // it stays testable and cheap to load.
 export function resolveExperimentalHome(stored, registry = {}) {
   const src = stored && typeof stored === "object" ? stored : {};
+  // v1 → v2: the grid got twice as dense (phone 2→4 cols etc.) so app icons
+  // can be quarter-width. Doubling stored spans keeps v1 layouts looking
+  // pixel-identical. Applied on read; persisting writes version 2.
+  const spanScale = src.version >= 2 ? 1 : 2;
   const out = {
-    version: 1,
+    version: 2,
     enabled: src.enabled === true,
     styleMode: ["barebones", "current", "phone"].includes(src.styleMode) ? src.styleMode : "current",
     actionBar: {
@@ -74,6 +84,10 @@ export function resolveExperimentalHome(stored, registry = {}) {
       buttonIds: Array.isArray(src.actionBar?.buttonIds)
         ? src.actionBar.buttonIds.filter((id) => ACTION_BAR_BUTTONS.some((b) => b.id === id))
         : [...DEFAULT_ACTION_BAR.buttonIds],
+    },
+    altersBar: {
+      enabled: src.altersBar?.enabled === true,
+      position: src.altersBar?.position === "top" ? "top" : "bottom",
     },
     pages: [],
     defaultPageId: null,
@@ -93,13 +107,14 @@ export function resolveExperimentalHome(stored, registry = {}) {
       let instanceId = typeof w.instanceId === "string" && w.instanceId ? w.instanceId : newInstanceId();
       if (seenInstance.has(instanceId)) instanceId = newInstanceId();
       seenInstance.add(instanceId);
-      const minC = def.minSpan?.cols ?? 1, maxC = def.maxSpan?.cols ?? 6;
+      const minC = def.minSpan?.cols ?? 1, maxC = def.maxSpan?.cols ?? 12;
       const minR = def.minSpan?.rows ?? 1, maxR = def.maxSpan?.rows ?? 8;
+      const rawCols = parseInt(w.span?.cols, 10);
       widgets.push({
         instanceId,
         widgetId: w.widgetId,
         span: {
-          cols: clampInt(w.span?.cols, minC, maxC, def.defaultSpan?.cols ?? 2),
+          cols: clampInt(Number.isFinite(rawCols) ? rawCols * spanScale : NaN, minC, maxC, def.defaultSpan?.cols ?? 4),
           rows: clampInt(w.span?.rows, minR, maxR, def.defaultSpan?.rows ?? 1),
         },
         mode: HOME_MODES.includes(w.mode) ? w.mode : "normal",
@@ -149,7 +164,7 @@ export function seedFromClassic(dashboardLayoutStored, registry, classicToWidget
     widgets.push({
       instanceId: newInstanceId(),
       widgetId,
-      span: { ...(def.defaultSpan || { cols: 2, rows: 1 }) },
+      span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) },
       mode: "normal",
       settings: {},
     });

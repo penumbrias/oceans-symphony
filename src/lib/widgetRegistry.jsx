@@ -104,7 +104,7 @@ export const WIDGET_REGISTRY = {
     render: ({ mode, api }) => <SystemHeaderCard mode={mode} api={api} />,
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   clock: {
     label: "Clock", description: "Just the time and date — place as many as you like.",
@@ -112,7 +112,7 @@ export const WIDGET_REGISTRY = {
     render: ({ mode }) => <ClockWidget mode={mode} />,
     supportsModes: ["minimal", "normal", "expanded"],
     supportsMultiInstance: true,
-    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 3, rows: 2 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
   },
   help_button: {
     label: "Setup & tour", description: "The guide/tour button, as a placeable tile.",
@@ -129,7 +129,7 @@ export const WIDGET_REGISTRY = {
     ),
     supportsModes: ["normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 1 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 1 },
   },
   notification_inbox: {
     label: "Notifications", description: "The notification-history button, as a placeable tile.",
@@ -146,7 +146,7 @@ export const WIDGET_REGISTRY = {
     ),
     supportsModes: ["normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 1 },
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 1 },
   },
 
   // ── Quick actions ──────────────────────────────────────────────
@@ -165,7 +165,7 @@ export const WIDGET_REGISTRY = {
     ),
     supportsModes: ["normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
 
   // ── System ─────────────────────────────────────────────────────
@@ -178,7 +178,7 @@ export const WIDGET_REGISTRY = {
         : <CurrentFronters alters={api?.alters || []} hideStatusNote={api?.statusNotePlaced ?? true} />,
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 4 },
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   pinned_alters: {
     label: "Pinned alters", description: "The pinned-alters gallery.",
@@ -186,7 +186,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Pinned alters", Pin, PinnedAltersGallery),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   status_note: {
     label: "Status note", description: "Set a new status; shows the latest one.",
@@ -194,7 +194,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Status note", StickyNote, StatusNoteCard),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   bulletin_board: {
     label: "Bulletin board", description: "System-wide posts, comments, and polls.",
@@ -212,7 +212,7 @@ export const WIDGET_REGISTRY = {
         ),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 6 },
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
 
   // ── Tracking ───────────────────────────────────────────────────
@@ -222,7 +222,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Active symptoms", ActivityIcon, CurrentSymptoms),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   current_activities: {
     label: "Active activities", description: "Activity timers currently running.",
@@ -230,7 +230,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Active activities", Zap, CurrentActivities),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   current_contacts: {
     label: "Currently with", description: "Contacts you're currently with.",
@@ -238,7 +238,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Currently with", Contact, CurrentContacts),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   upcoming_top: {
     label: "Upcoming plans", description: "Scheduled activities coming up.",
@@ -246,7 +246,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_top" }),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   upcoming_bottom: {
     label: "Upcoming plans (secondary)", description: "A second upcoming-plans surface.",
@@ -254,7 +254,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Upcoming plans", CalendarDays, UpcomingPlans, { placement: "home_bottom" }),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   pinned_daily_tasks: {
     label: "Daily tasks", description: "Pinned daily tasks with check-off.",
@@ -262,7 +262,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Daily tasks", ListTodo, PinnedDailyTasksWidget),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 4 },
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   dashboard_pins: {
     label: "Pinned items", description: "Bulletins and notes pinned to the dashboard.",
@@ -270,7 +270,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Pinned items", Pin, DashboardPins),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
 
   // ── Meta / nav ─────────────────────────────────────────────────
@@ -283,7 +283,7 @@ export const WIDGET_REGISTRY = {
     // Added via the pin button on the drawer's Apps tab (needs a targetId),
     // so it's hidden from the generic Add-widget list.
     hiddenFromDrawer: true,
-    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 2, rows: 2 },
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 2 },
   },
   quick_nav_menu: {
     label: "App grid & search", description: "The full navigation grid with global search.",
@@ -291,7 +291,7 @@ export const WIDGET_REGISTRY = {
     render: simple("App grid & search", LayoutGrid, QuickNavMenu),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 6 },
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   new_features_bar: {
     label: "What's new", description: "The latest changelog entries.",
@@ -299,7 +299,7 @@ export const WIDGET_REGISTRY = {
     render: simple("What's new", Bell, NewFeaturesBar),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   insight_spotlight: {
     label: "Insight spotlight", description: "A rotating insight from your data.",
@@ -307,7 +307,7 @@ export const WIDGET_REGISTRY = {
     render: simple("Insight spotlight", Lightbulb, InsightSpotlight),
     supportsModes: ["minimal", "normal"],
     supportsMultiInstance: false,
-    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
 };
 
