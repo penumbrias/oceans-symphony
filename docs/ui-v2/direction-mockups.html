@@ -1,0 +1,587 @@
+<title>Oceans Symphony — UI v2 directions</title>
+<style>
+  :root{
+    --bg:#eef0f2; --panel:#ffffff; --ink:#22282e; --sub:#5a646d; --line:#d8dde1; --acc:#2a7f78;
+  }
+  @media (prefers-color-scheme: dark){
+    :root{ --bg:#14181c; --panel:#1b2126; --ink:#e8ecef; --sub:#98a3ab; --line:#2b333a; --acc:#4fc2b8; }
+  }
+  :root[data-theme="dark"]{ --bg:#14181c; --panel:#1b2126; --ink:#e8ecef; --sub:#98a3ab; --line:#2b333a; --acc:#4fc2b8; }
+  :root[data-theme="light"]{ --bg:#eef0f2; --panel:#ffffff; --ink:#22282e; --sub:#5a646d; --line:#d8dde1; --acc:#2a7f78; }
+
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.55 system-ui,-apple-system,"Segoe UI",sans-serif;}
+  .wrap{max-width:520px;margin:0 auto;padding:20px 14px 60px}
+  header.top h1{font-size:1.35rem;margin:0 0 4px;text-wrap:balance}
+  header.top p{margin:0;color:var(--sub);font-size:.85rem;max-width:60ch}
+  .dirtabs{display:flex;gap:6px;margin:16px 0 20px;position:sticky;top:8px;z-index:50}
+  .dirtabs button{flex:1;padding:10px 6px;border-radius:10px;border:1px solid var(--line);background:var(--panel);color:var(--sub);font:600 .8rem/1.2 system-ui;cursor:pointer;letter-spacing:.02em}
+  .dirtabs button.on{color:var(--ink);border-color:var(--acc);box-shadow:0 0 0 1px var(--acc)}
+  .dirtabs .k{display:block;font-size:.65rem;font-weight:500;margin-top:2px;opacity:.75}
+  .dir{display:none}
+  .dir.on{display:block}
+  .brief{margin:14px 2px 0;font-size:.85rem;color:var(--sub)}
+  .brief b{color:var(--ink)}
+  .brief ul{margin:6px 0 0;padding-left:18px}
+  .brief li{margin:3px 0}
+  footer{margin-top:28px;padding-top:14px;border-top:1px solid var(--line);color:var(--sub);font-size:.8rem}
+  button:focus-visible,[tabindex]:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+
+  /* ---------- phone frame ---------- */
+  .phone{border:1px solid var(--line);border-radius:26px;background:var(--panel);overflow:hidden;box-shadow:0 12px 40px rgba(0,0,0,.14)}
+  .screens{position:relative;height:640px;overflow:hidden}
+  .scr{position:absolute;inset:0;overflow-y:auto;display:none;padding:18px 16px 74px}
+  .scr.on{display:block}
+  .dock{display:flex;border-top:1px solid var(--line)}
+  .dock button{flex:1;padding:10px 2px 12px;border:0;background:transparent;color:inherit;cursor:pointer;font:600 .62rem/1.2 system-ui;letter-spacing:.04em;opacity:.55}
+  .dock button.on{opacity:1}
+  .dock .g{display:block;font-size:1.05rem;margin-bottom:2px}
+  @media (prefers-reduced-motion: no-preference){ .scr.on{animation:in .18s ease-out} @keyframes in{from{opacity:.4;transform:translateY(4px)}to{opacity:1;transform:none}} }
+
+  /* =========================================================
+     A · COMPANION — sea-glass paper, serif voice, quiet depth
+     ========================================================= */
+  .d-a{--paper:#f2f3ee;--card:#faf9f5;--ink2:#26323a;--mut:#6d7a80;--teal:#20716b;--lav:#8d80bc;--edge:#dde0d7;
+       --serif:"Charter","Iowan Old Style",Georgia,"Times New Roman",serif}
+  .d-a .phone{background:var(--paper);color:var(--ink2)}
+  .d-a .scr{padding-top:22px}
+  .d-a h2{font:400 1.45rem/1.25 var(--serif);margin:0 0 2px;letter-spacing:.01em}
+  .d-a .date{font-size:.72rem;color:var(--mut);letter-spacing:.14em;text-transform:uppercase;margin-bottom:18px}
+  .d-a .card{background:var(--card);border:1px solid var(--edge);border-radius:14px;padding:14px;margin-bottom:12px}
+  .d-a .whis{font-size:.72rem;color:var(--mut);letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+  .d-a .row{display:flex;align-items:center;gap:10px}
+  .d-a .av{width:34px;height:34px;border-radius:50%;display:grid;place-items:center;color:#fff;font:600 .8rem var(--serif);flex-shrink:0}
+  .d-a .who{font:500 1.02rem var(--serif)}
+  .d-a .sub{font-size:.76rem;color:var(--mut)}
+  .d-a .star{color:var(--lav);font-size:.72rem}
+  .d-a .ask{display:block;width:100%;text-align:left;background:transparent;border:0;border-bottom:1px solid var(--edge);
+            font:italic 400 1.02rem var(--serif);color:var(--mut);padding:10px 2px;cursor:text}
+  .d-a .today li{display:flex;gap:10px;align-items:baseline;padding:7px 0;border-bottom:1px dotted var(--edge);font-size:.9rem;list-style:none}
+  .d-a .today{margin:0;padding:0}
+  .d-a .tick{width:16px;height:16px;border:1.5px solid var(--teal);border-radius:50%;flex-shrink:0;align-self:center}
+  .d-a .done .tick{background:var(--teal)}
+  .d-a .done span{color:var(--mut);text-decoration:line-through}
+  .d-a .when{margin-left:auto;font-size:.72rem;color:var(--mut)}
+  .d-a .gentle{font:italic 400 .9rem var(--serif);color:var(--mut);padding:4px 2px}
+  .d-a .gentle b{color:var(--lav);font-style:normal;font-weight:500}
+  .d-a .chip{display:inline-block;border:1px solid var(--edge);border-radius:999px;padding:6px 13px;margin:0 6px 8px 0;font:400 .88rem var(--serif);background:var(--card);cursor:pointer}
+  .d-a .chip.sel{border-color:var(--teal);background:#e7efec;color:var(--teal)}
+  .d-a .dots{display:flex;gap:10px;padding:6px 2px 2px}
+  .d-a .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--teal);cursor:pointer}
+  .d-a .dot.f{background:var(--teal)}
+  .d-a .save{width:100%;padding:13px;border:0;border-radius:12px;background:var(--teal);color:#f4f7f5;font:500 .95rem var(--serif);cursor:pointer;margin-top:6px}
+  .d-a .breathe{display:block;text-align:center;margin-top:12px;font:italic .82rem var(--serif);color:var(--lav)}
+  .d-a .mrow{display:flex;gap:12px;align-items:center;padding:10px 2px;border-bottom:1px solid var(--edge)}
+  .d-a .mname{font:500 1rem var(--serif)}
+  .d-a .mrole{font-size:.72rem;color:var(--mut)}
+  .d-a .mlast{margin-left:auto;font:italic .72rem var(--serif);color:var(--mut);text-align:right}
+  .d-a .ghead{font:italic 400 .95rem var(--serif);color:var(--lav);margin:16px 0 2px}
+  .d-a .fol{display:flex;align-items:baseline;gap:8px;padding:8px 2px;border-bottom:1px dotted var(--edge);font:400 .95rem var(--serif)}
+  .d-a .fol .n{margin-left:auto;font-size:.72rem;color:var(--mut)}
+  .d-a .entry{padding:12px 2px;border-bottom:1px solid var(--edge)}
+  .d-a .etitle{font:500 1.02rem var(--serif)}
+  .d-a .epreview{font-size:.84rem;color:var(--mut);margin:2px 0 4px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+  .d-a .eby{font-size:.72rem;color:var(--teal)}
+  .d-a .dock{background:var(--paper);border-top:1px solid var(--edge);color:var(--ink2)}
+  .d-a .dock button.on{color:var(--teal)}
+
+  /* =========================================================
+     B · CONSOLE — the system's OS: abyss, phosphor, dock
+     ========================================================= */
+  .d-b{--abyss:#0a1118;--panel2:#101b24;--grid:#1d2b36;--pho:#57e3ce;--amb:#f5b455;--txt:#d7e4e2;--dim:#6e8791;
+       --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",monospace}
+  .d-b .phone{background:var(--abyss);color:var(--txt);border-color:#223240}
+  .d-b .bar{display:flex;justify-content:space-between;font:600 .68rem var(--mono);color:var(--dim);letter-spacing:.08em;margin-bottom:14px}
+  .d-b .bar b{color:var(--pho);font-weight:600}
+  .d-b .panel{background:var(--panel2);border:1px solid var(--grid);border-radius:10px;padding:12px;margin-bottom:10px}
+  .d-b .lab{font:600 .62rem var(--mono);letter-spacing:.14em;color:var(--dim);margin-bottom:8px}
+  .d-b .lab i{color:var(--pho);font-style:normal}
+  .d-b .fr{display:flex;align-items:center;gap:9px;padding:5px 0}
+  .d-b .led{width:8px;height:8px;border-radius:50%;background:var(--pho);box-shadow:0 0 6px var(--pho)}
+  .d-b .led.off{background:#31434e;box-shadow:none}
+  .d-b .fname{font:600 .92rem var(--mono)}
+  .d-b .ftag{font:600 .6rem var(--mono);color:var(--abyss);background:var(--pho);border-radius:3px;padding:1px 5px;letter-spacing:.08em}
+  .d-b .ftime{margin-left:auto;font:400 .72rem var(--mono);color:var(--dim)}
+  .d-b .tiles{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+  .d-b .tile{background:var(--panel2);border:1px solid var(--grid);border-radius:10px;padding:10px 10px 8px}
+  .d-b .tv{font:600 1.3rem/1 var(--mono);font-variant-numeric:tabular-nums}
+  .d-b .tv.warn{color:var(--amb)}
+  .d-b .tk{font:600 .58rem var(--mono);letter-spacing:.12em;color:var(--dim);margin-top:4px}
+  .d-b .cmds{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .d-b .cmd{border:1px solid var(--pho);border-radius:8px;background:transparent;color:var(--pho);
+            font:600 .72rem var(--mono);letter-spacing:.1em;padding:11px 4px;cursor:pointer}
+  .d-b .cmd.sec{border-color:var(--grid);color:var(--txt)}
+  .d-b .tick2{font:400 .72rem var(--mono);color:var(--amb);margin-top:10px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .d-b .egrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px}
+  .d-b .ecell{border:1px solid var(--grid);border-radius:7px;padding:9px 4px;text-align:center;font:500 .78rem var(--mono);cursor:pointer;color:var(--txt)}
+  .d-b .ecell.sel{border-color:var(--pho);color:var(--pho);background:rgba(87,227,206,.07)}
+  .d-b .step{display:flex;align-items:center;gap:12px;font:600 1rem var(--mono);padding:6px 0}
+  .d-b .step button{width:32px;height:32px;border:1px solid var(--grid);background:transparent;color:var(--pho);border-radius:7px;font-size:1rem;cursor:pointer}
+  .d-b .meter{flex:1;height:6px;background:var(--grid);border-radius:3px;overflow:hidden}
+  .d-b .meter i{display:block;height:100%;width:60%;background:var(--pho)}
+  .d-b .att{display:flex;gap:6px;flex-wrap:wrap}
+  .d-b .att button{border:1px solid var(--grid);background:transparent;color:var(--txt);border-radius:6px;font:600 .7rem var(--mono);padding:6px 9px;cursor:pointer}
+  .d-b .att button.sel{border-color:var(--pho);color:var(--pho)}
+  .d-b textarea{width:100%;background:var(--abyss);border:1px solid var(--grid);border-radius:7px;color:var(--txt);font:400 .8rem var(--mono);padding:8px;resize:none}
+  .d-b .commit{width:100%;margin-top:8px;padding:12px;border:0;border-radius:8px;background:var(--pho);color:var(--abyss);font:700 .8rem var(--mono);letter-spacing:.12em;cursor:pointer}
+  .d-b .warnrow{display:flex;align-items:center;gap:8px;font:600 .68rem var(--mono);color:var(--amb);margin-top:10px;letter-spacing:.06em}
+  .d-b .sw{width:30px;height:16px;border:1px solid var(--amb);border-radius:9px;position:relative;flex-shrink:0}
+  .d-b .sw i{position:absolute;left:2px;top:2px;width:10px;height:10px;border-radius:50%;background:var(--amb)}
+  .d-b .filts{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap}
+  .d-b .filts button{border:1px solid var(--grid);background:transparent;color:var(--dim);border-radius:999px;font:600 .62rem var(--mono);letter-spacing:.08em;padding:4px 10px;cursor:pointer}
+  .d-b .filts button.sel{border-color:var(--pho);color:var(--pho)}
+  .d-b .mr{display:flex;align-items:center;gap:9px;padding:8px 0;border-bottom:1px solid var(--grid)}
+  .d-b .sq{width:26px;height:26px;border-radius:6px;display:grid;place-items:center;font:700 .7rem var(--mono);color:var(--abyss);flex-shrink:0}
+  .d-b .mrn{font:600 .88rem var(--mono)}
+  .d-b .mrr{font:400 .64rem var(--mono);color:var(--dim)}
+  .d-b .mrt{margin-left:auto;font:400 .66rem var(--mono);color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+  .d-b .tree{font:400 .84rem var(--mono)}
+  .d-b .tree .d{padding:7px 0;border-bottom:1px solid var(--grid);color:var(--txt);cursor:pointer}
+  .d-b .tree .d b{color:var(--pho);font-weight:600}
+  .d-b .tree .n{color:var(--dim);float:right;font-variant-numeric:tabular-nums}
+  .d-b .er{padding:8px 0;border-bottom:1px solid var(--grid)}
+  .d-b .ert{font:600 .84rem var(--mono)}
+  .d-b .erm{font:400 .66rem var(--mono);color:var(--dim);margin-top:2px}
+  .d-b .erm b{color:var(--pho);font-weight:600}
+  .d-b .dock{background:var(--abyss);border-top:1px solid var(--grid);color:var(--dim)}
+  .d-b .dock button{font-family:var(--mono);letter-spacing:.1em}
+  .d-b .dock button.on{color:var(--pho)}
+
+  /* =========================================================
+     C · SCRAPBOOK — geocities soul, modern bones
+     ========================================================= */
+  .d-c{--page:#fff8ef;--mk:#33261f;--bub:#f86fb9;--sun:#ffc93d;--sky:#5fb8f5;--grape:#8a63e8;--mint:#5ed6a2;
+       --disp:system-ui,-apple-system,sans-serif}
+  .d-c .phone{background:var(--page);color:var(--mk);border-color:#e8d9c8}
+  .d-c h2{font:900 1.5rem/1.15 var(--disp);letter-spacing:-.02em;margin:0 0 2px}
+  .d-c h2 .w{color:var(--bub)}
+  .d-c .datec{font:700 .68rem var(--disp);letter-spacing:.1em;color:#9b8672;text-transform:uppercase;margin-bottom:16px}
+  .d-c .stick{border:2.5px solid var(--mk);border-radius:14px;background:#fff;padding:12px;margin-bottom:14px;
+              box-shadow:4px 4px 0 rgba(51,38,31,.9)}
+  .d-c .stick.tilt1{transform:rotate(-.7deg)} .d-c .stick.tilt2{transform:rotate(.6deg)}
+  .d-c .slab{display:inline-block;font:800 .62rem var(--disp);letter-spacing:.1em;text-transform:uppercase;
+             background:var(--sun);border:2px solid var(--mk);border-radius:999px;padding:2px 10px;margin-bottom:8px}
+  .d-c .slab.pink{background:var(--bub);color:#fff}
+  .d-c .slab.sky{background:var(--sky);color:#fff}
+  .d-c .slab.grape{background:var(--grape);color:#fff}
+  .d-c .prow{display:flex;gap:10px;align-items:center}
+  .d-c .pav{width:38px;height:38px;border-radius:12px;border:2.5px solid var(--mk);display:grid;place-items:center;color:#fff;font:800 .9rem var(--disp);flex-shrink:0}
+  .d-c .pname{font:800 1.05rem var(--disp)}
+  .d-c .psub{font:600 .72rem var(--disp);color:#9b8672}
+  .d-c .heart{margin-left:auto;font-size:1.1rem}
+  .d-c .task{display:flex;align-items:center;gap:10px;padding:7px 0;font:600 .9rem var(--disp)}
+  .d-c .box{width:19px;height:19px;border:2.5px solid var(--mk);border-radius:6px;flex-shrink:0;display:grid;place-items:center;font:800 .75rem var(--disp)}
+  .d-c .task.dn .box{background:var(--mint)}
+  .d-c .task.dn span{text-decoration:line-through;color:#9b8672}
+  .d-c .doodle{text-align:center;color:var(--bub);letter-spacing:.4em;font-size:.8rem;margin:4px 0 14px}
+  .d-c .moodpill{display:inline-block;border:2.5px solid var(--mk);border-radius:999px;padding:7px 14px;margin:0 7px 9px 0;
+                 font:800 .85rem var(--disp);cursor:pointer;background:#fff;box-shadow:2.5px 2.5px 0 rgba(51,38,31,.85)}
+  .d-c .moodpill.p1{background:var(--sky);color:#fff}.d-c .moodpill.p2{background:#fff}
+  .d-c .moodpill.sel{background:var(--bub);color:#fff}
+  .d-c .stars{font-size:1.5rem;letter-spacing:.12em;padding:2px 0 6px;cursor:pointer}
+  .d-c .stars .lit{color:var(--sun);-webkit-text-stroke:1.5px var(--mk)}
+  .d-c .stars .dim2{color:#efe4d5;-webkit-text-stroke:1.5px #c9b8a4}
+  .d-c .pola{display:inline-flex;flex-direction:column;align-items:center;border:2.5px solid var(--mk);background:#fff;
+             border-radius:8px;padding:5px 7px 3px;margin:0 7px 8px 0;cursor:pointer;box-shadow:2.5px 2.5px 0 rgba(51,38,31,.85)}
+  .d-c .pola .pv{width:30px;height:30px;border-radius:7px;border:2px solid var(--mk);display:grid;place-items:center;color:#fff;font:800 .75rem var(--disp)}
+  .d-c .pola .pl{font:800 .62rem var(--disp);margin-top:3px}
+  .d-c .pola.sel{outline:3px solid var(--bub);outline-offset:1.5px}
+  .d-c .gob{width:100%;padding:13px;border:2.5px solid var(--mk);border-radius:999px;background:var(--sun);
+            font:900 .95rem var(--disp);letter-spacing:.02em;cursor:pointer;box-shadow:4px 4px 0 rgba(51,38,31,.9);margin-top:6px}
+  .d-c .cards{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .d-c .tcard{border:2.5px solid var(--mk);border-radius:14px;background:#fff;overflow:hidden;box-shadow:4px 4px 0 rgba(51,38,31,.9)}
+  .d-c .tcap{height:44px;display:grid;place-items:center;color:#fff;font:900 1.15rem var(--disp);border-bottom:2.5px solid var(--mk)}
+  .d-c .tbody{padding:8px 9px 10px}
+  .d-c .tn{font:800 .92rem var(--disp)}
+  .d-c .tr2{font:600 .68rem var(--disp);color:#9b8672}
+  .d-c .covers{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:14px}
+  .d-c .cover{border:2.5px solid var(--mk);border-radius:12px;height:78px;position:relative;color:#fff;
+              display:flex;align-items:flex-end;padding:8px;font:800 .9rem var(--disp);cursor:pointer;box-shadow:4px 4px 0 rgba(51,38,31,.9)}
+  .d-c .tape{position:absolute;top:-8px;left:50%;transform:translateX(-50%) rotate(-2deg);width:52px;height:16px;
+             background:rgba(255,255,255,.65);border:1.5px solid rgba(51,38,31,.35);border-radius:2px}
+  .d-c .torn{border-bottom:2.5px dashed #d9c6ae;padding:10px 2px}
+  .d-c .tt{font:800 .95rem var(--disp)}
+  .d-c .tp{font:600 .76rem var(--disp);color:#9b8672;margin-top:2px}
+  .d-c .tby{display:inline-block;font:800 .62rem var(--disp);color:#fff;border:2px solid var(--mk);border-radius:999px;padding:1px 8px;margin-top:5px}
+  .d-c .dock{background:#fff;border-top:2.5px solid var(--mk);color:var(--mk)}
+  .d-c .dock button{font-weight:800}
+  .d-c .dock button.on{color:var(--bub)}
+</style>
+
+<div class="wrap">
+  <header class="top">
+    <h1>Oceans Symphony — three souls for UI v2</h1>
+    <p>Same app, same four screens, same sample system (“The Tidepool Collective”, five members) — three different design directions. Tap the bottom bar inside the phone to move between screens. Words like “alters/fronting” follow your custom terms in the real app.</p>
+  </header>
+
+  <div class="dirtabs" role="tablist" aria-label="Design directions">
+    <button class="on" data-dir="a" role="tab" aria-selected="true">A · Companion<span class="k">a quiet notebook that knows you</span></button>
+    <button data-dir="b" role="tab" aria-selected="false">B · Console<span class="k">the system’s operating system</span></button>
+    <button data-dir="c" role="tab" aria-selected="false">C · Scrapbook<span class="k">geocities soul, modern bones</span></button>
+  </div>
+
+  <!-- ================= A · COMPANION ================= -->
+  <section class="dir d-a on" data-dir="a">
+    <div class="phone">
+      <div class="screens">
+        <div class="scr on" data-scr="now">
+          <h2>Good evening, Tidepool</h2>
+          <div class="date">Wednesday · July 30</div>
+          <div class="card">
+            <div class="whis">Here right now</div>
+            <div class="row" style="margin-bottom:8px">
+              <span class="av" style="background:#8d80bc">M</span>
+              <div><div class="who">Mara <span class="star">✶ primary</span></div><div class="sub">since 4:12 pm · calm</div></div>
+            </div>
+            <div class="row">
+              <span class="av" style="background:#20716b">J</span>
+              <div><div class="who">Juniper</div><div class="sub">since 5:40 pm</div></div>
+            </div>
+          </div>
+          <button class="ask">How is it in there right now?</button>
+          <div class="card" style="margin-top:12px">
+            <div class="whis">Today</div>
+            <ul class="today">
+              <li class="done"><span class="tick"></span><span>Morning meds</span><span class="when">9:00</span></li>
+              <li><span class="tick"></span><span>Therapy — bring the sleep log</span><span class="when">3:00</span></li>
+              <li><span class="tick"></span><span>Water the balcony plants</span><span class="when">evening</span></li>
+            </ul>
+          </div>
+          <p class="gentle">It’s been <b>12 days</b> since Kit was here. Maybe leave them a note?</p>
+        </div>
+
+        <div class="scr" data-scr="capture">
+          <h2>What’s here right now?</h2>
+          <div class="date">Emotion check-in</div>
+          <div class="whis" style="margin-top:6px">Heavier</div>
+          <div>
+            <button class="chip sel">anxious</button><button class="chip">overwhelmed</button><button class="chip">foggy</button><button class="chip">grief</button>
+          </div>
+          <div class="whis" style="margin-top:10px">Steadier</div>
+          <div>
+            <button class="chip">okay</button><button class="chip sel">tired</button><button class="chip">tender</button>
+          </div>
+          <div class="whis" style="margin-top:10px">Lighter</div>
+          <div>
+            <button class="chip">grateful</button><button class="chip">cozy</button><button class="chip">proud</button>
+          </div>
+          <div class="card" style="margin-top:14px">
+            <div class="whis">How strongly</div>
+            <div class="dots"><span class="dot f"></span><span class="dot f"></span><span class="dot f"></span><span class="dot"></span><span class="dot"></span></div>
+          </div>
+          <div class="card">
+            <div class="whis">Who’s feeling it</div>
+            <button class="chip sel">Mara</button><button class="chip">Juniper</button><button class="chip">whole system</button>
+          </div>
+          <button class="save">Keep this moment</button>
+          <a class="breathe" href="#">feeling like too much? breathe with me →</a>
+        </div>
+
+        <div class="scr" data-scr="system">
+          <h2>The Tidepool Collective</h2>
+          <div class="date">Five of us · two here now</div>
+          <div class="mrow">
+            <span class="av" style="background:#8d80bc">M</span>
+            <div><div class="mname">Mara</div><div class="mrole">she/her · host</div></div>
+            <div class="mlast">here now</div>
+          </div>
+          <div class="mrow">
+            <span class="av" style="background:#20716b">J</span>
+            <div><div class="mname">Juniper</div><div class="mrole">they/them · caretaker</div></div>
+            <div class="mlast">here now</div>
+          </div>
+          <div class="mrow">
+            <span class="av" style="background:#c98a4b">A</span>
+            <div><div class="mname">Ash</div><div class="mrole">he/him · protector</div></div>
+            <div class="mlast">this morning</div>
+          </div>
+          <div class="ghead">The little ones</div>
+          <div class="mrow">
+            <span class="av" style="background:#d77fa8">K</span>
+            <div><div class="mname">Kit</div><div class="mrole">they/them · little, 7</div></div>
+            <div class="mlast">12 days ago</div>
+          </div>
+          <div class="ghead">Night shift</div>
+          <div class="mrow" style="border-bottom:0">
+            <span class="av" style="background:#4a5a8a">V</span>
+            <div><div class="mname">Vesper</div><div class="mrole">she/they · night guard</div></div>
+            <div class="mlast">last night</div>
+          </div>
+        </div>
+
+        <div class="scr" data-scr="write">
+          <h2>Words</h2>
+          <div class="date">Journals · diary cards · reflections</div>
+          <div class="fol"><span>🌙</span> Dreams <span class="n">14 entries</span></div>
+          <div class="fol"><span>✉️</span> Letters between us <span class="n">9</span></div>
+          <div class="fol"><span>🫧</span> Unsorted <span class="n">31</span></div>
+          <div class="whis" style="margin-top:18px">Recent</div>
+          <div class="entry">
+            <div class="etitle">The lighthouse dream again</div>
+            <div class="epreview">Third time this month. The stairs were longer this time, and someone was humming in the lantern room…</div>
+            <div class="eby">Vesper · last night · in Dreams</div>
+          </div>
+          <div class="entry">
+            <div class="etitle">For Kit, whenever you read this</div>
+            <div class="epreview">We saved the shells from the aquarium trip. They’re in the blue tin. Nobody is mad about the juice…</div>
+            <div class="eby">Mara &amp; Juniper · Tuesday · in Letters</div>
+          </div>
+          <div class="entry" style="border-bottom:0">
+            <div class="etitle">therapy notes 7/28</div>
+            <div class="epreview">Talked about the sleep thing. She suggested we try the wind-down routine before Vesper takes over…</div>
+            <div class="eby">Mara · Monday</div>
+          </div>
+        </div>
+      </div>
+      <nav class="dock" aria-label="Companion screens">
+        <button class="on" data-go="now"><span class="g">☼</span>Now</button>
+        <button data-go="capture"><span class="g">✎</span>Capture</button>
+        <button data-go="system"><span class="g">❋</span>System</button>
+        <button data-go="write"><span class="g">✉</span>Write</button>
+      </nav>
+    </div>
+    <div class="brief">
+      <b>Companion</b> — the UI recedes; people and words lead. Serif voice, paper ground, one accent from your theme.
+      <ul>
+        <li>Optimizes calm, low-stimulation days and long reading (journals, letters).</li>
+        <li>Presence and prompts are written as sentences, not widgets.</li>
+        <li>Risk: power users may find it slow; density comes from progressive disclosure.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= B · CONSOLE ================= -->
+  <section class="dir d-b" data-dir="b">
+    <div class="phone">
+      <div class="screens">
+        <div class="scr on" data-scr="now">
+          <div class="bar"><span><b>TIDEPOOL</b>·OS</span><span>19:42</span></div>
+          <div class="panel">
+            <div class="lab"><i>FRONT</i> — 2 ACTIVE</div>
+            <div class="fr"><span class="led"></span><span class="fname">MARA</span><span class="ftag">PRI</span><span class="ftime">3h 30m</span></div>
+            <div class="fr"><span class="led"></span><span class="fname">JUNIPER</span><span class="ftime">2h 02m</span></div>
+          </div>
+          <div class="tiles">
+            <div class="tile"><div class="tv">3/5</div><div class="tk">TASKS</div></div>
+            <div class="tile"><div class="tv warn">2</div><div class="tk">SYMPTOMS</div></div>
+            <div class="tile"><div class="tv">7d</div><div class="tk">STREAK</div></div>
+          </div>
+          <div class="panel">
+            <div class="lab"><i>RUN</i></div>
+            <div class="cmds">
+              <button class="cmd">+ CHECK-IN</button>
+              <button class="cmd">▶ ACTIVITY</button>
+              <button class="cmd sec">+ TASK</button>
+              <button class="cmd sec">+ STATUS</button>
+            </div>
+          </div>
+          <div class="tick2">▲ KIT last front 12d — reconnection suggested</div>
+        </div>
+
+        <div class="scr" data-scr="capture">
+          <div class="bar"><span><b>LOG</b>://EMOTION</span><span>19:42</span></div>
+          <div class="panel">
+            <div class="lab"><i>SELECT</i> — MULTI OK</div>
+            <div class="egrid">
+              <button class="ecell sel">anxious</button><button class="ecell">overwhelmed</button><button class="ecell">foggy</button>
+              <button class="ecell sel">tired</button><button class="ecell">okay</button><button class="ecell">tender</button>
+              <button class="ecell">grateful</button><button class="ecell">cozy</button><button class="ecell">proud</button>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="lab"><i>INTENSITY</i></div>
+            <div class="step"><button>−</button><div class="meter"><i></i></div><span>3/5</span><button>+</button></div>
+          </div>
+          <div class="panel">
+            <div class="lab"><i>ATTRIB</i></div>
+            <div class="att"><button class="sel">MARA</button><button>JUNIPER</button><button>SYSTEM</button><button>+</button></div>
+          </div>
+          <div class="panel">
+            <div class="lab"><i>NOTE</i> — OPTIONAL</div>
+            <textarea rows="2" placeholder="context…"></textarea>
+          </div>
+          <button class="commit">COMMIT ENTRY</button>
+          <div class="warnrow"><span class="sw"><i></i></span> DISTRESS FLAG → OFFERS GROUNDING</div>
+        </div>
+
+        <div class="scr" data-scr="system">
+          <div class="bar"><span><b>ROSTER</b> 5</span><span>2 ACTIVE</span></div>
+          <div class="filts">
+            <button class="sel">ALL</button><button>LITTLES</button><button>NIGHT</button><button>ARCHIVED</button>
+          </div>
+          <div class="mr"><span class="led"></span><span class="sq" style="background:#8d80bc">M</span>
+            <div><div class="mrn">MARA</div><div class="mrr">she/her · HOST</div></div><div class="mrt">NOW</div></div>
+          <div class="mr"><span class="led"></span><span class="sq" style="background:#2ea89b">J</span>
+            <div><div class="mrn">JUNIPER</div><div class="mrr">they/them · CARETAKER</div></div><div class="mrt">NOW</div></div>
+          <div class="mr"><span class="led off"></span><span class="sq" style="background:#c98a4b">A</span>
+            <div><div class="mrn">ASH</div><div class="mrr">he/him · PROTECTOR</div></div><div class="mrt">−10h</div></div>
+          <div class="mr"><span class="led off"></span><span class="sq" style="background:#d77fa8">K</span>
+            <div><div class="mrn">KIT</div><div class="mrr">they/them · LITTLE·7</div></div><div class="mrt">−12d</div></div>
+          <div class="mr" style="border-bottom:0"><span class="led off"></span><span class="sq" style="background:#4a5a8a">V</span>
+            <div><div class="mrn">VESPER</div><div class="mrr">she/they · NIGHT GUARD</div></div><div class="mrt">−19h</div></div>
+        </div>
+
+        <div class="scr" data-scr="write">
+          <div class="bar"><span><b>FS</b>://JOURNALS</span><span>54 ENTRIES</span></div>
+          <div class="panel">
+            <div class="tree">
+              <div class="d"><b>▸ dreams/</b><span class="n">14</span></div>
+              <div class="d"><b>▸ letters/</b><span class="n">9</span></div>
+              <div class="d" style="border-bottom:0"><b>▸ unsorted/</b><span class="n">31</span></div>
+            </div>
+          </div>
+          <div class="panel">
+            <div class="lab"><i>RECENT</i></div>
+            <div class="er"><div class="ert">The lighthouse dream again</div><div class="erm"><b>VESPER</b> · 03:12 · dreams/</div></div>
+            <div class="er"><div class="ert">For Kit, whenever you read this</div><div class="erm"><b>MARA+JUNIPER</b> · TUE · letters/</div></div>
+            <div class="er" style="border-bottom:0"><div class="ert">therapy notes 7/28</div><div class="erm"><b>MARA</b> · MON</div></div>
+          </div>
+          <button class="commit">+ NEW ENTRY</button>
+        </div>
+      </div>
+      <nav class="dock" aria-label="Console screens">
+        <button class="on" data-go="now"><span class="g">◉</span>NOW</button>
+        <button data-go="capture"><span class="g">⊕</span>LOG</button>
+        <button data-go="system"><span class="g">⬡</span>SYS</button>
+        <button data-go="write"><span class="g">▤</span>TXT</button>
+      </nav>
+    </div>
+    <div class="brief">
+      <b>Console</b> — the launcher idea taken to its conclusion: dense, glanceable, widget-native everywhere, skins as first-class.
+      <ul>
+        <li>Optimizes speed, at-a-glance state, and power users; everything is one tap from Now.</li>
+        <li>Extends the experimental homescreen you already have — widgets/styles carry over.</li>
+        <li>Risk: reads intense on hard days; needs a great “calm skin” to soften.</li>
+      </ul>
+    </div>
+  </section>
+
+  <!-- ================= C · SCRAPBOOK ================= -->
+  <section class="dir d-c" data-dir="c">
+    <div class="phone">
+      <div class="screens">
+        <div class="scr on" data-scr="now">
+          <h2>hi, tidepool<span class="w">!</span> ☆</h2>
+          <div class="datec">wed · july 30 · evening</div>
+          <div class="stick tilt1">
+            <span class="slab pink">who’s here</span>
+            <div class="prow" style="margin-bottom:8px">
+              <span class="pav" style="background:#8a63e8">M</span>
+              <div><div class="pname">Mara ⭐</div><div class="psub">since 4:12 · doing ok!</div></div>
+              <span class="heart">💜</span>
+            </div>
+            <div class="prow">
+              <span class="pav" style="background:#5ed6a2">J</span>
+              <div><div class="pname">Juniper</div><div class="psub">since 5:40</div></div>
+              <span class="heart">🌿</span>
+            </div>
+          </div>
+          <div class="stick tilt2">
+            <span class="slab">today’s page</span>
+            <div class="task dn"><span class="box">✓</span><span>morning meds</span></div>
+            <div class="task"><span class="box"></span><span>therapy @ 3 — bring sleep log!</span></div>
+            <div class="task"><span class="box"></span><span>water the plants 🌱</span></div>
+          </div>
+          <div class="doodle">· ♡ · ♡ · ♡ ·</div>
+          <div class="stick">
+            <span class="slab sky">psst</span>
+            <div style="font:700 .9rem var(--disp)">kit hasn’t visited in 12 days… leave them a sticker? 🐚</div>
+          </div>
+        </div>
+
+        <div class="scr" data-scr="capture">
+          <h2>mood o’meter<span class="w">!</span></h2>
+          <div class="datec">tap everything that fits</div>
+          <div>
+            <button class="moodpill sel">anxious 🌀</button><button class="moodpill p2">overwhelmed</button>
+            <button class="moodpill p1">foggy ☁️</button><button class="moodpill sel">tired 🥱</button>
+            <button class="moodpill p2">okay</button><button class="moodpill p2">tender 🫧</button>
+            <button class="moodpill p1">cozy 🧦</button><button class="moodpill p2">proud ✨</button>
+          </div>
+          <div class="stick tilt1" style="margin-top:12px">
+            <span class="slab">how big?</span>
+            <div class="stars"><span class="lit">★★★</span><span class="dim2">★★</span></div>
+          </div>
+          <div class="stick tilt2">
+            <span class="slab grape">whose mood?</span>
+            <div>
+              <span class="pola sel"><span class="pv" style="background:#8a63e8">M</span><span class="pl">mara</span></span>
+              <span class="pola"><span class="pv" style="background:#5ed6a2">J</span><span class="pl">juni</span></span>
+              <span class="pola"><span class="pv" style="background:#f86fb9">☁</span><span class="pl">all of us</span></span>
+            </div>
+          </div>
+          <button class="gob">stick it in the book! 📖</button>
+        </div>
+
+        <div class="scr" data-scr="system">
+          <h2>the crew <span class="w">✂</span></h2>
+          <div class="datec">5 of us · trading cards</div>
+          <div class="cards">
+            <div class="tcard"><div class="tcap" style="background:#8a63e8">M</div>
+              <div class="tbody"><div class="tn">Mara</div><div class="tr2">she/her · host</div><span class="slab pink" style="margin:6px 0 0">here now</span></div></div>
+            <div class="tcard"><div class="tcap" style="background:#5ed6a2">J</div>
+              <div class="tbody"><div class="tn">Juniper</div><div class="tr2">they/them · caretaker</div><span class="slab pink" style="margin:6px 0 0">here now</span></div></div>
+            <div class="tcard"><div class="tcap" style="background:#ffb054">A</div>
+              <div class="tbody"><div class="tn">Ash</div><div class="tr2">he/him · protector</div><span class="slab" style="margin:6px 0 0">this am</span></div></div>
+            <div class="tcard"><div class="tcap" style="background:#f86fb9">K</div>
+              <div class="tbody"><div class="tn">Kit</div><div class="tr2">they/them · little, 7</div><span class="slab sky" style="margin:6px 0 0">12d ago</span></div></div>
+            <div class="tcard"><div class="tcap" style="background:#5c6fd6">V</div>
+              <div class="tbody"><div class="tn">Vesper</div><div class="tr2">she/they · night guard</div><span class="slab grape" style="margin:6px 0 0">last night</span></div></div>
+          </div>
+        </div>
+
+        <div class="scr" data-scr="write">
+          <h2>our notebooks <span class="w">✏</span></h2>
+          <div class="datec">pick a book or start a page</div>
+          <div class="covers">
+            <div class="cover" style="background:#5c6fd6"><span class="tape"></span>dreams 🌙</div>
+            <div class="cover" style="background:#f86fb9"><span class="tape"></span>letters ✉</div>
+            <div class="cover" style="background:#5ed6a2"><span class="tape"></span>therapy 📎</div>
+            <div class="cover" style="background:#ffb054"><span class="tape"></span>everything ✨</div>
+          </div>
+          <span class="slab">fresh pages</span>
+          <div class="torn"><div class="tt">The lighthouse dream again</div><div class="tp">the stairs were longer this time…</div>
+            <span class="tby" style="background:#5c6fd6">vesper</span></div>
+          <div class="torn"><div class="tt">For Kit, whenever you read this</div><div class="tp">we saved the shells from the aquarium trip…</div>
+            <span class="tby" style="background:#8a63e8">mara</span> <span class="tby" style="background:#5ed6a2">juni</span></div>
+        </div>
+      </div>
+      <nav class="dock" aria-label="Scrapbook screens">
+        <button class="on" data-go="now"><span class="g">🏠</span>home</button>
+        <button data-go="capture"><span class="g">🎨</span>mood</button>
+        <button data-go="system"><span class="g">🃏</span>crew</button>
+        <button data-go="write"><span class="g">📖</span>books</button>
+      </nav>
+    </div>
+    <div class="brief">
+      <b>Scrapbook</b> — expressive and personal; every surface decoratable, per-member style, personality forward.
+      <ul>
+        <li>Optimizes joy, littles-friendly warmth, and the geocities-depth customization vision.</li>
+        <li>Stickers/covers become real customization surfaces (per-member frames, tapes, badges).</li>
+        <li>Risk: needs a disciplined base so playfulness never costs legibility or a11y.</li>
+      </ul>
+    </div>
+  </section>
+
+  <footer>
+    These are souls, not final designs — pick one, or point at pieces (“Console’s Now, Companion’s journals, Scrapbook’s member cards”). The winner becomes the design-system spec (tokens, primitives, motion, voice), then the v2 shell ships behind a toggle with the Now space first. All three keep every pillar: your terms, your themes, a11y mode, and the calm-crisis path are non-negotiable in any direction.
+  </footer>
+</div>
+
+<script>
+  document.querySelectorAll(".dirtabs button").forEach(function(btn){
+    btn.addEventListener("click", function(){
+      document.querySelectorAll(".dirtabs button").forEach(function(b){ b.classList.toggle("on", b===btn); b.setAttribute("aria-selected", b===btn ? "true" : "false"); });
+      document.querySelectorAll(".dir").forEach(function(d){ d.classList.toggle("on", d.dataset.dir===btn.dataset.dir); });
+    });
+  });
+  document.querySelectorAll(".dock").forEach(function(dock){
+    dock.querySelectorAll("button").forEach(function(btn){
+      btn.addEventListener("click", function(){
+        var phone = dock.closest(".phone");
+        dock.querySelectorAll("button").forEach(function(b){ b.classList.toggle("on", b===btn); });
+        phone.querySelectorAll(".scr").forEach(function(s){ s.classList.toggle("on", s.dataset.scr===btn.dataset.go); });
+      });
+    });
+  });
+</script>
