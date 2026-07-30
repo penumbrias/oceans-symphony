@@ -149,13 +149,18 @@ export default function Dashboard() {
     const open = () => setShowEmotionModal(true);
     const close = () => setShowEmotionModal(false);
     const openLayout = () => setShowDashLayout(true);
+    // The UI-v2 status line's notification LED opens the inbox from any
+    // register — the modal is hosted here.
+    const openNotif = () => setShowNotifHistory(true);
     window.addEventListener("open-quick-checkin", open);
     window.addEventListener("open-quick-checkin-close", close);
     window.addEventListener("symphony-open-dashboard-layout", openLayout);
+    window.addEventListener("open-notification-history", openNotif);
     return () => {
       window.removeEventListener("open-quick-checkin", open);
       window.removeEventListener("open-quick-checkin-close", close);
       window.removeEventListener("symphony-open-dashboard-layout", openLayout);
+      window.removeEventListener("open-notification-history", openNotif);
     };
   }, []);
 
@@ -180,6 +185,18 @@ export default function Dashboard() {
       setShowEmotionModal(true);
     } else if (action === "set-front") {
       window.dispatchEvent(new CustomEvent("open-set-front"));
+    } else if (action === "start-activity") {
+      // The UI-v2 command strip's capture keys arrive via these params —
+      // capture modals are hosted here, so keys navigate-with-param.
+      setShowStartActivity(true);
+    } else if (action === "start-symptom") {
+      setShowStartSymptom(true);
+    } else if (action === "quick-task") {
+      setShowQuickTask(true);
+    } else if (action === "quick-plan") {
+      setShowQuickPlan(true);
+    } else if (action === "notifications") {
+      setShowNotifHistory(true);
     }
     // Settings → About → "Re-run setup" replays the guided onboarding
     // (different alters may want to re-do it — it never overwrites data).

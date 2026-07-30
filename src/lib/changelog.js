@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
+      { type: "feature", text: "🧪 UI v2 begins: an opt-in \"instrument shell\" (Settings → Appearance → Dashboard layout) — eight always-visible registers replace buried menus, a capture command strip and Aid key ride along on every screen, and a live tuning panel adjusts sizes, colors, density, and widths granularly. Every page keeps working inside it; switch back any time." },
       { type: "fix", text: "Safety Plan: the Warning Signs section can be expanded again (it was stuck closed)." },
     ],
   },
