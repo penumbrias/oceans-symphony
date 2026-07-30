@@ -522,8 +522,9 @@ const handleNotifClick = (mentionLog) => {
         ...uiV2Vars,
         // Frame height feeds the shared clearance var so fixed elements
         // (grounding bubble, action bars, sheets) clear the v2 chrome.
+        // (Text size is handled by the app-wide accessibility engine, not
+        // a v2 token — a container font-size can't reach rem-based text.)
         "--bottom-nav-height": "calc(var(--v2-strip-h) + var(--v2-cmd-size) + var(--v2-space) * 3)",
-        fontSize: "calc(1rem * var(--v2-font-scale))",
       } : undefined}
     >
       {/* Skip link — the first focusable element; lets keyboard / switch users

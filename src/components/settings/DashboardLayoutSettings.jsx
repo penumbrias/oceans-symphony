@@ -293,10 +293,10 @@ export default function DashboardLayoutSettings() {
       <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
         <div className="min-w-0">
           <span className="text-sm font-medium flex items-center gap-1.5">
-            🧪 UI v2 — instrument shell (very early)
+            🧪 UI v2 — new navigation (very early)
           </span>
           <p className="text-xs text-muted-foreground mt-0.5">
-            The ground-up redesign's frame: eight always-visible registers, a capture command strip, an Aid key, and live tuning (sizes, colors, density, widths). Every page keeps working inside it. Switch back any time.
+            The redesign's frame: eight always-visible sections, a quick-action row with a Support button on every screen, and adjustable display options (sizes, colors, spacing, widths). Every page keeps working inside it. Switch back any time.
           </p>
         </div>
         <Switch checked={uiV2On} onCheckedChange={toggleUiV2} />

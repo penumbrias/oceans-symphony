@@ -8,32 +8,38 @@
 // them live. Colors default to the user's existing theme variables, so the
 // chassis inherits whatever theme/preset the user already runs.
 
+import {
+  Home, ClipboardList, CalendarDays, Users, MessageSquare, BookOpen,
+  BarChart2, Settings,
+} from "lucide-react";
+
 export const DEFAULT_UI_V2 = {
   version: 1,
   enabled: false,
   registerOrder: null, // null = catalogue order
-  commandKeys: ["quick_checkin", "start_activity", "start_symptom", "quick_task"],
+  commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task"],
   tokens: {}, // { [tokenId]: value } — only overrides are stored
 };
 
-// ── Registers ──────────────────────────────────────────────────────
-// The eight registers (atlas §IA). `match` prefixes map every existing
-// route into a register so v1 pages render inside the v2 frame today and
-// migrate to native register views incrementally. Labels are chassis-
-// neutral words (no term-vocabulary inside them); user renaming is a
-// planned CONFIG option.
+// ── Sections (bottom bar tabs) ─────────────────────────────────────
+// Eight sections, all visible. `match` prefixes map every existing route
+// into a section so v1 pages render inside the v2 frame today and migrate
+// to native section views incrementally. NAMING POLICY (owner mandate):
+// plain, accurate, non-thematic words only. Ids stay stable for stored
+// order; labels are display-only. `labelTermKey` defers to the user's own
+// terminology (resolveLabel pattern — this file can't call hooks).
 export const V2_REGISTERS = [
-  { id: "status",  label: "Status",  path: "/",            match: [] },
-  { id: "log",     label: "Log",     path: "/checkin-log", match: ["/checkin-log", "/location-history", "/sleep", "/system-checkin", "/diary"] },
-  { id: "plan",    label: "Plan",    path: "/activities",  match: ["/activities", "/todo", "/tasks"] },
-  { id: "roster",  label: "Roster",  path: "/Home",        match: ["/Home", "/alter", "/groups", "/group", "/system-map", "/system-history", "/presences", "/unblend", "/get-to-know-me", "/contacts", "/location"] },
-  { id: "comms",   label: "Comms",   path: "/chat",        match: ["/chat", "/bulletins", "/bulletin", "/polls", "/friends"] },
-  { id: "archive", label: "Archive", path: "/journals",    match: ["/journals", "/assets"] },
-  { id: "data",    label: "Data",    path: "/timeline",    match: ["/timeline", "/analytics", "/therapy-report"] },
-  { id: "config",  label: "Config",  path: "/settings",    match: ["/settings", "/manage-checkin"] },
+  { id: "status",  label: "Home",      icon: Home,          path: "/",            match: [] },
+  { id: "log",     label: "Records",   icon: ClipboardList, path: "/checkin-log", match: ["/checkin-log", "/location-history", "/sleep", "/system-checkin", "/diary"] },
+  { id: "plan",    label: "Planner",   icon: CalendarDays,  path: "/activities",  match: ["/activities", "/todo", "/tasks"] },
+  { id: "roster",  labelTermKey: "Alters", icon: Users,     path: "/Home",        match: ["/Home", "/alter", "/groups", "/group", "/system-map", "/system-history", "/presences", "/unblend", "/get-to-know-me", "/contacts", "/location"] },
+  { id: "comms",   label: "Social",    icon: MessageSquare, path: "/chat",        match: ["/chat", "/bulletins", "/bulletin", "/polls", "/friends"] },
+  { id: "archive", label: "Journal",   icon: BookOpen,      path: "/journals",    match: ["/journals", "/assets"] },
+  { id: "data",    label: "Analytics", icon: BarChart2,     path: "/timeline",    match: ["/timeline", "/analytics", "/therapy-report"] },
+  { id: "config",  label: "Settings",  icon: Settings,      path: "/settings",    match: ["/settings", "/manage-checkin"] },
 ];
 
-// AID overlay routes — not a register; the AID key lights up on them.
+// Support overlay routes — not a section; the Support key lights on them.
 export const AID_ROUTES = ["/grounding", "/safety-plan"];
 
 export function registerForPath(pathname) {
@@ -46,11 +52,14 @@ export function registerForPath(pathname) {
   return "status"; // "/" and anything unmapped
 }
 
-// ── Command strip keys ─────────────────────────────────────────────
+// ── Quick-action keys (the row above the section labels) ───────────
 // Capture keys navigate with a param the Dashboard's action effect
 // handles (capture modals are hosted there). ≤2 gestures from anywhere.
+// "quick_note" opens a chooser instead (status note / journal entry /
+// board post) — handled in the frame component.
 export const V2_COMMAND_KEYS = [
   { id: "quick_checkin",  target: "/?action=quick-checkin",  label: "Check-in" },
+  { id: "quick_note",     target: null,                      label: "Note" },
   { id: "start_activity", target: "/?action=start-activity", label: "Activity" },
   { id: "start_symptom",  target: "/?action=start-symptom",  label: "Symptom" },
   { id: "quick_task",     target: "/?action=quick-task",     label: "Task" },
@@ -63,18 +72,20 @@ export const V2_COMMAND_KEYS = [
 // "select". Every chassis primitive styles itself ONLY through the
 // emitted CSS vars, so every one of these is user-tunable, and new
 // primitives must add their knobs here rather than hardcoding.
+// Grouped so the options sheet can label honestly what each knob affects.
+// (Text size is NOT a token here — the sheet drives the existing app-wide
+// accessibility font-size engine so it actually applies everywhere.)
 export const V2_TOKEN_DEFS = [
-  { id: "accent",    label: "Accent color",        type: "color",  cssVar: "--v2-accent",    default: "" }, // "" → theme primary
-  { id: "fontScale", label: "Text size",           type: "range",  cssVar: "--v2-font-scale", default: 100, min: 80, max: 130, step: 5, unit: "%" },
-  { id: "density",   label: "Density",             type: "select", cssVar: "--v2-space",
-    options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Cozy", css: "6px" }, { v: "roomy", label: "Roomy", css: "9px" }],
+  { id: "contentW",  group: "app",  label: "Content width",          type: "range",  cssVar: "--v2-content-w", default: 0,  min: 0, max: 1400, step: 40, unit: "px" }, // 0 = full width
+  { id: "accent",    group: "bars", label: "Highlight color",        type: "color",  cssVar: "--v2-accent",    default: "" }, // "" → theme primary
+  { id: "density",   group: "bars", label: "Spacing",                type: "select", cssVar: "--v2-space",
+    options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Medium", css: "6px" }, { v: "roomy", label: "Wide", css: "9px" }],
     default: "cozy" },
-  { id: "radius",    label: "Corner radius",       type: "range",  cssVar: "--v2-radius",    default: 8,  min: 0, max: 20, step: 1, unit: "px" },
-  { id: "borderW",   label: "Border width",        type: "range",  cssVar: "--v2-border-w",  default: 1,  min: 0, max: 3,  step: 1, unit: "px" },
-  { id: "stripH",    label: "Register bar height", type: "range",  cssVar: "--v2-strip-h",   default: 46, min: 36, max: 64, step: 2, unit: "px" },
-  { id: "cmdSize",   label: "Command key size",    type: "range",  cssVar: "--v2-cmd-size",  default: 42, min: 34, max: 60, step: 2, unit: "px" },
-  { id: "contentW",  label: "Content width",       type: "range",  cssVar: "--v2-content-w", default: 0,  min: 0, max: 1400, step: 40, unit: "px" }, // 0 = full width
-  { id: "statusH",   label: "Status line height",  type: "range",  cssVar: "--v2-status-h",  default: 38, min: 30, max: 56, step: 2, unit: "px" },
+  { id: "radius",    group: "bars", label: "Button corner radius",   type: "range",  cssVar: "--v2-radius",    default: 8,  min: 0, max: 20, step: 1, unit: "px" },
+  { id: "borderW",   group: "bars", label: "Border width",           type: "range",  cssVar: "--v2-border-w",  default: 1,  min: 0, max: 3,  step: 1, unit: "px" },
+  { id: "stripH",    group: "bars", label: "Bottom tab height",      type: "range",  cssVar: "--v2-strip-h",   default: 52, min: 40, max: 68, step: 2, unit: "px" },
+  { id: "cmdSize",   group: "bars", label: "Quick-action size",      type: "range",  cssVar: "--v2-cmd-size",  default: 42, min: 34, max: 60, step: 2, unit: "px" },
+  { id: "statusH",   group: "bars", label: "Top bar height",         type: "range",  cssVar: "--v2-status-h",  default: 38, min: 30, max: 56, step: 2, unit: "px" },
 ];
 
 export function resolveUiV2(stored) {
@@ -120,8 +131,7 @@ export function buildTokenVars(uiV2) {
   for (const def of V2_TOKEN_DEFS) {
     const v = uiV2.tokens[def.id] ?? def.default;
     if (def.type === "range") {
-      if (def.id === "fontScale") vars[def.cssVar] = `${v / 100}`;
-      else if (def.id === "contentW" && (!v || v === 0)) vars[def.cssVar] = "100%";
+      if (def.id === "contentW" && (!v || v === 0)) vars[def.cssVar] = "100%";
       else vars[def.cssVar] = `${v}${def.unit || "px"}`;
     } else if (def.type === "select") {
       const opt = def.options.find((o) => o.v === v) || def.options[0];
