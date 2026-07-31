@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
+      { type: "feature", text: "Importing now shows an \"Overlapping records\" review when a record differs between this device and the backup: see both versions with their edit times, keep the automatic pick (newer wins) or flip any record to the other version — including restoring things a deletion-sync removed." },
+      { type: "feature", text: "🧪 UI v2: the top bar, quick-action row, and section tabs can each be hidden in Display options; a small corner button always stays reachable so you can bring them back." },
       { type: "feature", text: "Two-device sync via backups: edits made on both your phone AND computer now merge cleanly — newer edits win per record, and a new \"Also sync deletions\" option (in the import mode picker) removes records you deleted on the other device instead of resurrecting them. To fully sync, import in both directions. Recovering old data still works: leave the deletion option off." },
       { type: "fix", text: "Sync: settings and closed session edits from another device now actually arrive on import (they were previously always ignored in favor of the local copy)." },
       { type: "fix", text: "Backups: importing a backup now brings everything over in ONE pass. Several silent failure paths (images aborting partway, data written after media, out-of-order saves, settings from newer app versions being dropped) meant the same file could need multiple imports — all fixed, and the import now tells you exactly what was restored and what failed instead of always claiming success." },

@@ -819,10 +819,59 @@ export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) 
   return out;
 }
 
+// Fields ignored when deciding whether two versions of a record actually
+// differ (metadata that always differs harmlessly).
+const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by"]);
+function recordsMateriallyDiffer(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const k of keys) {
+    if (CONFLICT_META.has(k)) continue;
+    if (JSON.stringify(a?.[k]) !== JSON.stringify(b?.[k])) return true;
+  }
+  return false;
+}
+
+// Restore/overwrite one record EXACTLY as given (id preserved, timestamps
+// untouched) — used by the import conflict-review UI when the user picks
+// the version that lost the automatic merge.
+export async function restoreRecord(entityName, record) {
+  if (!record?.id) return;
+  if (!_db[entityName]) _db[entityName] = {};
+  _db[entityName][record.id] = record;
+  await saveDb();
+  emit(entityName, { type: 'update', id: record.id, data: record });
+}
+
+export async function deleteRecordRaw(entityName, id) {
+  if (_db[entityName]?.[id] === undefined) return;
+  delete _db[entityName][id];
+  recordDeletionTombstone(entityName, id);
+  await saveDb();
+  emit(entityName, { type: 'delete', id });
+}
+
 export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
   const sanitized = sanitizeIncomingDump(dump, options);
   const applyDeletions = options.applyDeletions === true;
+  // Conflict collection (v0.95.4): every place the merge had to CHOOSE
+  // between two real versions is recorded so the import UI can offer the
+  // user the losing version. `kept` names the side the automatic rule
+  // applied; both full snapshots ride along for the review sheet.
+  const conflicts = [];
+  const noteEditConflict = (entityName, id, local, incoming) => {
+    if (!local || !incoming) return;
+    const lt = Date.parse(local.updated_date || "") || 0;
+    const it = Date.parse(incoming.updated_date || "") || 0;
+    if (lt === it) return; // same edit generation — merge is a no-op or pure fill
+    if (!recordsMateriallyDiffer(local, incoming)) return;
+    conflicts.push({
+      entity: entityName, id,
+      local: { ...local }, incoming: { ...incoming },
+      kept: it > lt ? "incoming" : "local",
+      reason: "edit",
+    });
+  };
   // Local tombstones — used (only in deletion-sync mode) to stop records
   // this device deliberately deleted from resurrecting out of the other
   // device's backup. A record edited on the other device AFTER our
@@ -884,12 +933,16 @@ export async function mergeDbDump(dump, options = {}) {
           if (!record || typeof record !== "object") continue;
           if (_db[entityName][id]) {
             // Same id exists — update it in place (newer wins).
+            noteEditConflict(entityName, id, _db[entityName][id], record);
             _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
             continue;
           }
           const key = keyFn(record);
           if (key && seen.has(key)) continue;
-          if (tombstoneBlocks(entityName, id, record)) continue;
+          if (tombstoneBlocks(entityName, id, record)) {
+            conflicts.push({ entity: entityName, id, local: null, incoming: { ...record }, kept: "deleted", reason: "deletion" });
+            continue;
+          }
           _db[entityName][id] = record;
           if (key) seen.add(key);
         }
@@ -900,12 +953,16 @@ export async function mergeDbDump(dump, options = {}) {
 
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
-        if (tombstoneBlocks(entityName, id, record)) continue;
+        if (tombstoneBlocks(entityName, id, record)) {
+          conflicts.push({ entity: entityName, id, local: null, incoming: { ...record }, kept: "deleted", reason: "deletion" });
+          continue;
+        }
         _db[entityName][id] = record;
       } else if (entityName !== "FrontingSession") {
         // Same id exists locally — merge instead of skipping, so edits
         // made on another device (new avatar, changed role/tags/bio)
         // actually arrive.
+        noteEditConflict(entityName, id, _db[entityName][id], record);
         _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
       } else if (_db[entityName][id].is_active !== true && record.is_active !== true) {
         // FrontingSession (v0.95.3): CLOSED sessions now merge newer-wins
@@ -914,6 +971,7 @@ export async function mergeDbDump(dump, options = {}) {
         // any session that is active on EITHER side is left untouched
         // (the active-session sanitizer above already demoted incoming
         // actives when a local front is running).
+        noteEditConflict(entityName, id, _db[entityName][id], record);
         _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
       }
     }
@@ -932,11 +990,13 @@ export async function mergeDbDump(dump, options = {}) {
       if (t.entity === "FrontingSession" && local.is_active === true) continue; // never delete live state
       const localTime = Date.parse(local.updated_date || local.created_date || "") || 0;
       if ((Date.parse(t.deleted_at || "") || 0) > localTime) {
+        conflicts.push({ entity: t.entity, id: t.record_id, local: { ...local }, incoming: null, kept: "deleted", reason: "deletion" });
         delete col[t.record_id];
       }
     }
   }
   await saveDb();
+  return { conflicts };
 }
 
 // Recursively dedupe string arrays that ended up holding `id` more than once

@@ -19,6 +19,9 @@ export const DEFAULT_UI_V2 = {
   registerOrder: null, // null = catalogue order
   commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task"],
   tokens: {}, // { [tokenId]: value } — only overrides are stored
+  // Per-bar visibility. When the top bar is off, a small floating button
+  // keeps Display options reachable so no combination can strand the user.
+  bars: { top: true, actions: true, tabs: true },
 };
 
 // ── Sections (bottom bar tabs) ─────────────────────────────────────
@@ -114,6 +117,11 @@ export function resolveUiV2(stored) {
       ? src.commandKeys.filter((id) => V2_COMMAND_KEYS.some((k) => k.id === id))
       : [...DEFAULT_UI_V2.commandKeys],
     tokens,
+    bars: {
+      top: src.bars?.top !== false,
+      actions: src.bars?.actions !== false,
+      tabs: src.bars?.tabs !== false,
+    },
   };
 }
 

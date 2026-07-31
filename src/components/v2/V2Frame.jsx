@@ -56,7 +56,13 @@ function useClock() {
 }
 
 // ── Display options sheet ──────────────────────────────────────────
-function OptionsSheet({ open, onClose, uiV2, onToken }) {
+const BAR_TOGGLES = [
+  { id: "top",     label: "Top bar (name, time, notifications)" },
+  { id: "actions", label: "Quick-action row" },
+  { id: "tabs",    label: "Section tabs" },
+];
+
+function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
   const [fontIdx, setFontIdx] = useState(() =>
     Math.max(0, FONT_STEPS.indexOf(getAccessibilitySettings().fontSize || "default"))
   );
@@ -115,7 +121,19 @@ function OptionsSheet({ open, onClose, uiV2, onToken }) {
         <div className="px-4 space-y-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
 
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">App-wide</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Show / hide</p>
+          {BAR_TOGGLES.map((b) => (
+            <label key={b.id} className="flex items-center justify-between gap-3 text-xs font-medium cursor-pointer">
+              <span>{b.label}</span>
+              <input type="checkbox" checked={uiV2.bars[b.id]} onChange={(e) => onBar(b.id, e.target.checked)}
+                className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
+            </label>
+          ))}
+          {!uiV2.bars.top && (
+            <p className="text-[0.6875rem] text-muted-foreground">With the top bar hidden, a small ⚙ button stays in the corner so you can always get back here.</p>
+          )}
+
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">App-wide</p>
           <div>
             <label className="flex items-center justify-between text-xs font-medium mb-1">
               <span>Text size</span>
@@ -206,19 +224,19 @@ function QuickNoteSheet({ open, onClose }) {
   );
 }
 
-function usePersistToken(settingsRow) {
+function usePersistUiV2(settingsRow) {
   const qc = useQueryClient();
-  return async (id, value) => {
+  const write = async (patch) => {
     try {
       if (!settingsRow?.id) return;
-      const next = {
-        ...(settingsRow.ui_v2 || {}),
-        enabled: true,
-        tokens: { ...(settingsRow.ui_v2?.tokens || {}), [id]: value },
-      };
+      const next = { ...(settingsRow.ui_v2 || {}), enabled: true, ...patch };
       await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: next });
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch { /* best-effort live */ }
+  };
+  return {
+    setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
+    setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
   };
 }
 
@@ -230,7 +248,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const formatAlter = useAlterLabel();
   const clock = useClock();
   const [optionsOpen, setOptionsOpen] = useState(false);
-  const persistToken = usePersistToken(settingsRow);
+  const { setToken, setBar } = usePersistUiV2(settingsRow);
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -256,6 +274,21 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
       ? formatAlter(fronters[0].alter)
       : `${formatAlter(fronters[0].alter)} +${fronters.length - 1}`;
   const hasUnread = mentionLogs.some((m) => m.is_active !== false && !m.seen && !m.read);
+
+  if (!uiV2.bars.top) {
+    // Bar hidden — keep Display options reachable via a small corner
+    // button so no visibility combination can strand the user.
+    return (
+      <>
+        <button type="button" aria-label="Display options" onClick={() => setOptionsOpen(true)}
+          className="fixed z-50 flex items-center justify-center text-muted-foreground/70 hover:text-foreground bg-background/60 backdrop-blur rounded-full"
+          style={{ top: "calc(env(safe-area-inset-top, 0px) + 6px)", right: "6px", width: 28, height: 28 }}>
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+        </button>
+        <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={setToken} onBar={setBar} />
+      </>
+    );
+  }
 
   return (
     <header
@@ -299,7 +332,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground">
         <SlidersHorizontal className="w-4 h-4" />
       </button>
-      <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={persistToken} />
+      <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={setToken} onBar={setBar} />
     </header>
   );
 }
@@ -311,6 +344,7 @@ export function V2BottomChrome({ uiV2 }) {
   const t = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
   const activeRegister = registerForPath(location.pathname);
+  if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
   const registers = orderedRegisters(uiV2);
   const keys = uiV2.commandKeys
     .map((id) => V2_COMMAND_KEYS.find((k) => k.id === id))
@@ -329,6 +363,7 @@ export function V2BottomChrome({ uiV2 }) {
       aria-label="App navigation and quick actions"
     >
       {/* Quick actions */}
+      {uiV2.bars.actions && (
       <div className="flex items-center justify-center overflow-x-auto px-2"
         style={{ gap: "calc(var(--v2-space) * 1.5)", paddingTop: "var(--v2-space)", paddingBottom: "var(--v2-space)" }}>
         {keys.map((k) => {
@@ -361,8 +396,10 @@ export function V2BottomChrome({ uiV2 }) {
           <LifeBuoy style={{ width: "45%", height: "45%" }} />
         </button>
       </div>
+      )}
 
       {/* Section tabs — icon above label, all visible */}
+      {uiV2.bars.tabs && (
       <div className="flex items-stretch overflow-x-auto" style={{ height: "var(--v2-strip-h)" }} role="tablist" aria-label="Sections">
         {registers.map((reg) => {
           const on = activeRegister === reg.id;
@@ -382,6 +419,7 @@ export function V2BottomChrome({ uiV2 }) {
           );
         })}
       </div>
+      )}
 
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </nav>

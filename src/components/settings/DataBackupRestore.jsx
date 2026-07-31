@@ -3,7 +3,7 @@ import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2 } from "lucide-react";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
 import { localEntities } from "@/api/base44Client";
@@ -769,7 +769,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       } catch { /* no current DB to preserve from — nothing to carry forward */ }
       await loadDbDump({ ...stripDeviceBound(data), ...preserved }, { allowDeviceBound: true });
     } else {
-      await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
+      const res = await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
+      // Overlap review (v0.95.4): every record where the merge had to pick
+      // between two real versions is shown for the user to confirm or
+      // flip. Skipped when there were no genuine overlaps.
+      if (res?.conflicts?.length) {
+        await reviewMergeConflicts(res.conflicts);
+      }
     }
 
     // Media + preferences after the records are safe on disk.
@@ -811,6 +817,38 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // applied. We park the parsed envelope here and surface a small prompt
   // modal; the modal's submit calls applyImportPayload once decrypted.
   const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+
+  // ── Merge overlap review (v0.95.4) ──
+  // Promise-modal: shows every record where the merge chose between two
+  // real versions (both-edited, or deletion vs existing copy) and lets the
+  // user flip any of them. Confirming applies only the flipped rows —
+  // everything else already has the automatic (newer-wins) result.
+  const conflictResolveRef = useRef(null);
+  const [conflictReview, setConflictReview] = useState(null); // { conflicts, choices: {idx: "local"|"incoming"|"deleted"} }
+  const reviewMergeConflicts = (conflicts) => new Promise((resolve) => {
+    conflictResolveRef.current = resolve;
+    setConflictReview({ conflicts, choices: {} }); // empty choice = keep the automatic result
+  });
+  const finishConflictReview = async (apply) => {
+    const review = conflictReview;
+    const resolve = conflictResolveRef.current;
+    conflictResolveRef.current = null;
+    setConflictReview(null);
+    if (apply && review) {
+      for (const [idxStr, choice] of Object.entries(review.choices)) {
+        const c = review.conflicts[Number(idxStr)];
+        if (!c || choice === c.kept) continue;
+        try {
+          if (choice === "local" && c.local) await restoreRecord(c.entity, c.local);
+          else if (choice === "incoming" && c.incoming) await restoreRecord(c.entity, c.incoming);
+          else if (choice === "deleted") await deleteRecordRaw(c.entity, c.id);
+        } catch (e) { console.warn("conflict apply failed", c.entity, c.id, e); }
+      }
+    }
+    if (resolve) resolve();
+  };
+  const setConflictChoice = (idx, choice) => setConflictReview((r) =>
+    r ? { ...r, choices: { ...r.choices, [idx]: choice } } : r);
 
   // ── Friends identity adoption (consent-gated, v0.95.2) ──
   // Promise-modal like promptKeepClearSystems: resolves true (adopt) /
@@ -1921,6 +1959,75 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             <div className="p-3 border-t border-border/60 flex items-center justify-end gap-2">
               <button type="button" onClick={() => resolveReplacePrompt(null)} className="px-3 py-2 text-sm rounded-xl border border-border/50 hover:bg-muted/40">Cancel</button>
               <button type="button" onClick={() => resolveReplacePrompt(replaceSystemsPrompt.keepIds)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">Continue import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Merge overlap review — pick the winner per overlapping record. */}
+      {conflictReview && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-label="Review overlapping records">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-md max-h-[85vh] bg-background border border-border/60 rounded-2xl shadow-2xl flex flex-col">
+            <div className="p-4 pb-2">
+              <h3 className="text-base font-semibold">Overlapping records</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                These records differed between this device and the backup. The newer version was kept automatically —
+                review and flip any where the other version should win.
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-2 space-y-2">
+              {conflictReview.conflicts.slice(0, 150).map((c, idx) => {
+                const rec = c.incoming || c.local || {};
+                const label = String(rec.name || rec.title || rec.label || rec.activity_name || rec.question || rec.note || rec.content || c.id).replace(/<[^>]+>/g, "").slice(0, 64);
+                const sel = conflictReview.choices[idx] ?? c.kept;
+                const t = (r) => r?.updated_date ? new Date(r.updated_date).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "unknown time";
+                const Option = ({ value, children }) => (
+                  <button type="button" onClick={() => setConflictChoice(idx, value)}
+                    className={`flex-1 min-w-0 text-left text-xs px-2 py-1.5 rounded-lg border transition-all ${
+                      sel === value ? "border-primary/60 bg-primary/10" : "border-border/40 text-muted-foreground hover:border-border"
+                    }`}>
+                    {children}
+                  </button>
+                );
+                return (
+                  <div key={`${c.entity}:${c.id}`} className="rounded-xl border border-border/50 p-2.5">
+                    <p className="text-xs font-medium truncate">{label}</p>
+                    <p className="text-[0.6875rem] text-muted-foreground mb-1.5">{c.entity}{c.reason === "deletion" ? " · deletion" : ""}</p>
+                    <div className="flex gap-1.5">
+                      {c.reason === "edit" ? (
+                        <>
+                          <Option value="incoming">From backup<span className="block text-muted-foreground">{t(c.incoming)}</span></Option>
+                          <Option value="local">This device<span className="block text-muted-foreground">{t(c.local)}</span></Option>
+                        </>
+                      ) : c.local ? (
+                        <>
+                          <Option value="deleted">Stay deleted</Option>
+                          <Option value="local">Restore this device's copy</Option>
+                        </>
+                      ) : (
+                        <>
+                          <Option value="deleted">Stay deleted</Option>
+                          <Option value="incoming">Add the backup's copy</Option>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {conflictReview.conflicts.length > 150 && (
+                <p className="text-xs text-muted-foreground text-center py-1">
+                  Showing the first 150 of {conflictReview.conflicts.length} — the rest kept the automatic (newer) version.
+                </p>
+              )}
+            </div>
+            <div className="p-3 border-t border-border/60 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => finishConflictReview(false)} className="px-3 py-2 text-sm rounded-xl border border-border/50 hover:bg-muted/40">
+                Keep all automatic picks
+              </button>
+              <button type="button" onClick={() => finishConflictReview(true)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">
+                Apply my choices
+              </button>
             </div>
           </div>
         </div>
