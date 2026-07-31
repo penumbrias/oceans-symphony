@@ -13,6 +13,7 @@ import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { seedFromClassic } from "@/lib/experimentalHome";
+import { EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
 
@@ -740,7 +741,10 @@ export default function Dashboard() {
   // backed up, and preset-able. This component's hooks all run in both
   // modes (branching happens in JSX only), so deep links / quick actions
   // keep working regardless of which homescreen is active.
-  const experimentalOn = settings[0]?.experimental_home?.enabled === true;
+  // EXPERIMENTAL_HOME_ENABLED gates the whole feature at build time. When
+  // false, anyone who previously enabled it falls back to the classic
+  // dashboard (their saved layout is untouched and returns if re-enabled).
+  const experimentalOn = EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
   const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
   const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
   const enableExperimentalHome = async () => {
@@ -917,7 +921,7 @@ export default function Dashboard() {
       )}
 
       {/* "Try it" banner — classic only, dismissible per system. */}
-      {!experimentalOn && !expBannerDismissed && (
+      {EXPERIMENTAL_HOME_ENABLED && !experimentalOn && !expBannerDismissed && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
           <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-xs flex-1 min-w-0">

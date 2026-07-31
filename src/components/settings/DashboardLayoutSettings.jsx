@@ -28,6 +28,7 @@ import {
   DEFAULT_BATCH,
 } from "@/lib/bulletinLimit";
 import { toast } from "sonner";
+import { EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
 
 // Drag/drop pill row. Whole row is the drag handle when grabbed from
 // the GripVertical icon — using a dedicated handle keeps the toggle
@@ -275,6 +276,7 @@ export default function DashboardLayoutSettings() {
   return (
     <section className="space-y-3 border-t border-border/30 pt-4">
 
+      {EXPERIMENTAL_HOME_ENABLED && (
       <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
         <div className="min-w-0">
           <span className="text-sm font-medium flex items-center gap-1.5">
@@ -286,6 +288,7 @@ export default function DashboardLayoutSettings() {
         </div>
         <Switch checked={experimentalOn} onCheckedChange={toggleExperimental} />
       </label>
+      )}
 
       <div className="flex items-start justify-between gap-3">
         <div>
