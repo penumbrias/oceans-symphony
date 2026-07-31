@@ -64,7 +64,6 @@
     --bottom-nav-height: 56px;
   }
 
-
   .dark {
     --color-bg: #0A0E17;
     --color-surface: #101820;
@@ -584,15 +583,3 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
   border-radius: 0 !important;
 }
 
-
-/* ── UI v2 instrument shell (docs/ui-v2-instrument-ia.md) ──
-   When the v2 frame is on, the classic chrome (headers, sidebar, bottom
-   tab bar) hides; the frame's own chrome replaces it. The --v2-* variables
-   are the granular-customization token substrate — emitted from
-   src/lib/uiV2.js onto the AppLayout root and edited live by the tuning
-   sheet. Chassis primitives style themselves ONLY through these. */
-[data-ui-v2="1"] .os-classic-chrome { display: none !important; }
-[data-ui-v2="1"] main.app-content-main {
-  max-width: var(--v2-content-w, 100%);
-  margin-inline: auto;
-}

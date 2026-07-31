@@ -139,11 +139,6 @@ function applyLargeTouch(value) {
 function applyNavHeight(value) {
   const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
   document.documentElement.style.setProperty("--bottom-nav-height", h);
-  // NOTE: the short-landscape height cap was pulled from the classic UI so
-  // this release ships the data fix with zero chrome changes. UI v2's
-  // Display options already expose bar heights directly; bring the cap
-  // back there (or behind the toggle) rather than here.
-  document.documentElement.style.removeProperty("--bottom-nav-height-user");
 }
 
 function applyFontFamily(value) {

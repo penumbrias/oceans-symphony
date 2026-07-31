@@ -272,35 +272,8 @@ export default function DashboardLayoutSettings() {
     }
   };
 
-  // UI v2 instrument shell toggle (docs/ui-v2-instrument-ia.md). App-wide
-  // frame: status line + command strip + register strip. Classic chrome is
-  // untouched underneath — flipping back restores it exactly.
-  const uiV2On = record?.ui_v2?.enabled === true;
-  const toggleUiV2 = async (on) => {
-    try {
-      const next = { ...(record?.ui_v2 || {}), enabled: on };
-      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
-      else await base44.entities.SystemSettings.create({ ui_v2: next });
-      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
-      toast.success(on ? "Instrument shell on" : "Classic navigation restored");
-    } catch (e) {
-      toast.error(e?.message || "Couldn't switch");
-    }
-  };
-
   return (
     <section className="space-y-3 border-t border-border/30 pt-4">
-      <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
-        <div className="min-w-0">
-          <span className="text-sm font-medium flex items-center gap-1.5">
-            🧪 UI v2 — new navigation (very early)
-          </span>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            The redesign's frame: eight always-visible sections, a quick-action row with a Support button on every screen, and adjustable display options (sizes, colors, spacing, widths). Every page keeps working inside it. Switch back any time.
-          </p>
-        </div>
-        <Switch checked={uiV2On} onCheckedChange={toggleUiV2} />
-      </label>
 
       <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
         <div className="min-w-0">

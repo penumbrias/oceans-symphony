@@ -20,18 +20,14 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
-      { type: "fix", text: "The bottom bar height in landscape is back to how it was — that tweak moved into the opt-in new-navigation preview so this update changes nothing about the normal app." },
       { type: "feature", text: "Importing now shows an \"Overlapping records\" review when a record differs between this device and the backup: see both versions with their edit times, keep the automatic pick (newer wins) or flip any record to the other version — including restoring things a deletion-sync removed." },
-      { type: "feature", text: "🧪 UI v2: the top bar, quick-action row, and section tabs can each be hidden in Display options; a small corner button always stays reachable so you can bring them back." },
       { type: "feature", text: "Two-device sync via backups: edits made on both your phone AND computer now merge cleanly — newer edits win per record, and a new \"Also sync deletions\" option (in the import mode picker) removes records you deleted on the other device instead of resurrecting them. To fully sync, import in both directions. Recovering old data still works: leave the deletion option off." },
       { type: "fix", text: "Sync: settings and closed session edits from another device now actually arrive on import (they were previously always ignored in favor of the local copy)." },
       { type: "fix", text: "Backups: importing a backup now brings everything over in ONE pass. Several silent failure paths (images aborting partway, data written after media, out-of-order saves, settings from newer app versions being dropped) meant the same file could need multiple imports — all fixed, and the import now tells you exactly what was restored and what failed instead of always claiming success." },
       { type: "feature", text: "Friends can move with you to a new device: a new opt-in checkbox in Advanced export includes your Friends identity and encryption keys, and importing it shows a confirmation naming whose identity it is before anything is applied. Treat that file like a password." },
       { type: "fix", text: "Privacy: automatic backups no longer include your Friends sign-in secret, and importing any backup that contains one (including old files) now asks before using it — it can never be adopted silently." },
       { type: "fix", text: "Backups: the image library's names, folders, and owners now export with manual backups (previously only the images themselves transferred, so the library came back empty)." },
-      { type: "feature", text: "🧪 UI v2 begins: an opt-in new navigation (Settings → Appearance → Dashboard layout) — eight always-visible sections replace buried menus, a quick-action row with a Support button rides along on every screen, and Display options adjust sizes, colors, spacing, and widths. Every page keeps working inside it; switch back any time." },
       { type: "feature", text: "🧪 New \"Note\" quick action: save a status note on the spot, or jump straight into a new journal entry or board post." },
-      { type: "fix", text: "🧪 Display options now actually apply: text size uses the app-wide setting, and each control says exactly what it affects." },
       { type: "fix", text: "Safety Plan: the Warning Signs section can be expanded again (it was stuck closed)." },
     ],
   },
