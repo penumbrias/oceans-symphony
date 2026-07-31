@@ -19,7 +19,7 @@
 // in-app explainer for the plain-language + precise versions.
 
 import { localEntities } from "@/api/base44Client";
-import { getLocalIdentity, FRIENDS_API_BASE } from "@/lib/friendsApi";
+import { getLocalIdentity, FRIENDS_API_BASE, mirrorIdentityToShared } from "@/lib/friendsApi";
 
 const ECDH = { name: "ECDH", namedCurve: "P-256" };
 
@@ -53,6 +53,11 @@ export async function ensureKeyPair() {
   const publicKeyJwk = await crypto.subtle.exportKey("jwk", kp.publicKey);
   const privateKeyJwk = await crypto.subtle.exportKey("jwk", kp.privateKey);
   await localEntities.FriendIdentity.update(id.id, { publicKeyJwk, privateKeyJwk });
+  // Mirror immediately — without this, a second system booting before the
+  // next unrelated mirror adopts a KEYLESS shared identity, mints its own
+  // keypair under the same userId, and clobbers this one on publish
+  // (breaking every friend's safety number and stored envelopes).
+  await mirrorIdentityToShared();
   return { publicKeyJwk, privateKeyJwk };
 }
 

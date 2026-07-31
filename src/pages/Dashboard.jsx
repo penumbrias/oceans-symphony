@@ -10,6 +10,14 @@ import { Heart, Inbox, ChevronsUpDown, Zap, Activity as ActivityIcon, CheckSquar
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
+import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
+import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
+import { seedFromClassic } from "@/lib/experimentalHome";
+import { EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
+import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
+import { Grid2x2 } from "lucide-react";
+
+const EXP_HOME_BANNER_KEY = "symphony_exp_home_banner_dismissed_v1";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -142,13 +150,18 @@ export default function Dashboard() {
     const open = () => setShowEmotionModal(true);
     const close = () => setShowEmotionModal(false);
     const openLayout = () => setShowDashLayout(true);
+    // The UI-v2 status line's notification LED opens the inbox from any
+    // register — the modal is hosted here.
+    const openNotif = () => setShowNotifHistory(true);
     window.addEventListener("open-quick-checkin", open);
     window.addEventListener("open-quick-checkin-close", close);
     window.addEventListener("symphony-open-dashboard-layout", openLayout);
+    window.addEventListener("open-notification-history", openNotif);
     return () => {
       window.removeEventListener("open-quick-checkin", open);
       window.removeEventListener("open-quick-checkin-close", close);
       window.removeEventListener("symphony-open-dashboard-layout", openLayout);
+      window.removeEventListener("open-notification-history", openNotif);
     };
   }, []);
 
@@ -173,6 +186,18 @@ export default function Dashboard() {
       setShowEmotionModal(true);
     } else if (action === "set-front") {
       window.dispatchEvent(new CustomEvent("open-set-front"));
+    } else if (action === "start-activity") {
+      // The UI-v2 command strip's capture keys arrive via these params —
+      // capture modals are hosted here, so keys navigate-with-param.
+      setShowStartActivity(true);
+    } else if (action === "start-symptom") {
+      setShowStartSymptom(true);
+    } else if (action === "quick-task") {
+      setShowQuickTask(true);
+    } else if (action === "quick-plan") {
+      setShowQuickPlan(true);
+    } else if (action === "notifications") {
+      setShowNotifHistory(true);
     }
     // Settings → About → "Re-run setup" replays the guided onboarding
     // (different alters may want to re-do it — it never overwrites data).
@@ -711,10 +736,86 @@ export default function Dashboard() {
     executeQuickAction(qa);
   }, [quickActionsRaw, location.search]);
 
+  // ── Experimental homescreen (v0.90.0, Phase 1) ──────────────────
+  // The flag lives on SystemSettings.experimental_home so it's synced,
+  // backed up, and preset-able. This component's hooks all run in both
+  // modes (branching happens in JSX only), so deep links / quick actions
+  // keep working regardless of which homescreen is active.
+  // EXPERIMENTAL_HOME_ENABLED gates the whole feature at build time. When
+  // false, anyone who previously enabled it falls back to the classic
+  // dashboard (their saved layout is untouched and returns if re-enabled).
+  const experimentalOn = EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
+  const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
+  const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
+  const enableExperimentalHome = async () => {
+    try {
+      // First enable seeds the homescreen from the classic layout so it
+      // opens familiar; re-enabling keeps whatever the user built.
+      const existing = settings[0]?.experimental_home;
+      const next = existing && Array.isArray(existing.pages) && existing.pages.some((p) => (p.widgets || []).length > 0)
+        ? { ...existing, enabled: true }
+        : seedFromClassic(settings[0]?.dashboard_layout, WIDGET_REGISTRY, CLASSIC_TO_WIDGET);
+      if (settings[0]?.id) {
+        await base44.entities.SystemSettings.update(settings[0].id, { experimental_home: next });
+      } else {
+        await base44.entities.SystemSettings.create({ experimental_home: next });
+      }
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success("Experimental homescreen on — tap ✏️ to arrange it");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't enable the homescreen");
+    }
+  };
+
+  const hasUnreadMentions = mentionLogs.some(m =>
+    m.log_type !== "authored" &&
+    (m.mentioned_alter_id || m.alter_id) &&
+    frontingAlterIds.includes(m.mentioned_alter_id || m.alter_id) &&
+    !(m.dismissed_by_alter_ids || []).includes(m.mentioned_alter_id || m.alter_id) &&
+    m.is_read !== true
+  );
+
+  // Handler/data bundle handed to the experimental view + its widgets, so
+  // chrome widgets and the action bar reuse Dashboard's plumbing (the
+  // modals they open are all hosted below in this component).
+  const homeApi = {
+    systemName,
+    multiSystem,
+    openSystemSwitcher: () => setShowSystemSwitcher(true),
+    openTour: () => setShowTour(true),
+    openNotifHistory: () => setShowNotifHistory(true),
+    checklistIncomplete,
+    hasUnreadMentions,
+    alters,
+    currentAlterId,
+    frontingAlterIds,
+    highlightBulletinId,
+    hold: { onPointerDown: startHold, onPointerMove: moveHold, onPointerUp: endHold },
+    holdProgress,
+    holdActive: showQuickActions,
+    quickOn: {
+      startActivity: () => setShowStartActivity(true),
+      startSymptom: () => setShowStartSymptom(true),
+      quickTask: () => setShowQuickTask(true),
+      quickPlan: () => setShowQuickPlan(true),
+    },
+    quickActionsSlot: (
+      <AnimatePresence>
+        {showQuickActions && (
+          <QuickActionsMenu
+            actions={sortedQuickActions}
+            onAction={executeQuickAction}
+            onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
+          />
+        )}
+      </AnimatePresence>
+    ),
+  };
+
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
-      
-      
+
+      {!experimentalOn && (
       <div className="mb-3 flex items-start justify-between">
         <div>
           {multiSystem ? (
@@ -799,7 +900,11 @@ export default function Dashboard() {
         </button>
         </div>
       </div>
+      )}
 
+      {/* Critical/unresolved plans + the notification modal are SHARED
+          between the classic and experimental views — safety surfaces
+          shouldn't depend on which homescreen is active. */}
       <CriticalPinnedPlans />
       <UnresolvedPlansCard />
       <NotificationHistoryModal
@@ -810,10 +915,35 @@ export default function Dashboard() {
         onNotifClick={handleNotifClick}
       />
 
+      {/* ── Experimental phone-like homescreen (opt-in) ── */}
+      {experimentalOn && (
+        <ExperimentalDashboard settingsRow={settings[0] || null} api={homeApi} />
+      )}
+
+      {/* "Try it" banner — classic only, dismissible per system. */}
+      {EXPERIMENTAL_HOME_ENABLED && !experimentalOn && !expBannerDismissed && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
+          <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
+          <p className="text-xs flex-1 min-w-0">
+            <span className="font-medium">Try the experimental homescreen?</span>{" "}
+            <span className="text-muted-foreground">Widgets, an app drawer, and a quick-action bar. Switch back any time.</span>
+          </p>
+          <button type="button" onClick={enableExperimentalHome}
+            className="text-xs px-2.5 py-1 rounded-lg bg-primary text-primary-foreground font-medium flex-shrink-0">
+            Try it
+          </button>
+          <button type="button" aria-label="Dismiss" onClick={dismissExpBanner}
+            className="p-1 text-muted-foreground hover:text-foreground flex-shrink-0">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+
       {/* Layout-driven element rendering. Order + enabled state come
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
+      {!experimentalOn && (
       <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;
@@ -848,83 +978,39 @@ export default function Dashboard() {
             return <CurrentContacts key="current_contacts" />;
           case "quick_checkin":
             return (
-              // mt-3 + mb-3 gives the Quick Check-In button breathing
-              // room from the Active Symptoms pill row above it (which
-              // can grow tall when several symptoms are running) and
-              // from whatever sits below.
-              <div key="quick_checkin" className="relative flex flex-wrap items-center gap-2 mt-3 mb-3">
-                <button
-                  data-tour="quick-checkin"
-                  onPointerDown={startHold}
-                  onPointerMove={moveHold}
-                  onPointerUp={endHold}
-                  onPointerLeave={endHold}
-                  onPointerCancel={endHold}
-                  onContextMenu={(e) => e.preventDefault()}
-                  style={{ userSelect: "none", WebkitUserSelect: "none", touchAction: "manipulation" }}
-                  aria-label="Quick emotional check-in"
-                  className={`bg-destructive/10 text-destructive px-5 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-destructive/20 transition-colors relative overflow-hidden${showQuickActions ? " ring-2 ring-destructive/30" : ""}`}
-                >
-                  <Heart className="w-4 h-4 relative z-10" />
-                  <span className="relative z-10">Quick Check-In</span>
-                  {holdProgress > 0 && (
-                    <span
-                      aria-hidden="true"
-                      className="absolute inset-y-0 left-0 bg-destructive/20 pointer-events-none"
-                      style={{ width: `${holdProgress}%` }}
-                    />
-                  )}
-                </button>
-                {layoutEnabled.start_activity_button && (
-                  <button
-                    data-tour="start-activity-button"
-                    onClick={() => setShowStartActivity(true)}
-                    className="bg-amber-500/10 text-amber-600 dark:text-amber-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-amber-500/20 transition-colors"
-                  >
-                    <Zap className="w-4 h-4" />
-                    <span>Start Activity</span>
-                  </button>
-                )}
-                {layoutEnabled.start_symptom_button && (
-                  <button
-                    data-tour="start-symptom-button"
-                    onClick={() => setShowStartSymptom(true)}
-                    className="bg-violet-500/10 text-violet-600 dark:text-violet-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-violet-500/20 transition-colors"
-                  >
-                    <ActivityIcon className="w-4 h-4" />
-                    <span>Start Symptom</span>
-                  </button>
-                )}
-                {layoutEnabled.quick_task_button && (
-                  <button
-                    data-tour="quick-task-button"
-                    onClick={() => setShowQuickTask(true)}
-                    className="bg-blue-500/10 text-blue-600 dark:text-blue-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-blue-500/20 transition-colors"
-                  >
-                    <CheckSquare className="w-4 h-4" />
-                    <span>Quick Task</span>
-                  </button>
-                )}
-                {layoutEnabled.quick_plan_button && (
-                  <button
-                    data-tour="quick-plan-button"
-                    onClick={() => setShowQuickPlan(true)}
-                    className="bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 px-4 text-sm font-medium text-center rounded-lg inline-flex items-center gap-2 min-h-[44px] hover:bg-emerald-500/20 transition-colors"
-                  >
-                    <CalendarDays className="w-4 h-4" />
-                    <span>Quick Plan</span>
-                  </button>
-                )}
-                <AnimatePresence>
-                  {showQuickActions && (
-                    <QuickActionsMenu
-                      actions={sortedQuickActions}
-                      onAction={executeQuickAction}
-                      onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
-                    />
-                  )}
-                </AnimatePresence>
-              </div>
+              // Extracted to QuickCheckinButtons (v0.90.0) so the classic
+              // dashboard, the experimental homescreen widget, and the
+              // experimental action bar share one source. All behaviour
+              // (hold gesture, modal openers, quick actions) stays here.
+              <QuickCheckinButtons
+                key="quick_checkin"
+                hold={{ onPointerDown: startHold, onPointerMove: moveHold, onPointerUp: endHold }}
+                holdProgress={holdProgress}
+                holdActive={showQuickActions}
+                show={{
+                  start_activity: layoutEnabled.start_activity_button,
+                  start_symptom: layoutEnabled.start_symptom_button,
+                  quick_task: layoutEnabled.quick_task_button,
+                  quick_plan: layoutEnabled.quick_plan_button,
+                }}
+                on={{
+                  startActivity: () => setShowStartActivity(true),
+                  startSymptom: () => setShowStartSymptom(true),
+                  quickTask: () => setShowQuickTask(true),
+                  quickPlan: () => setShowQuickPlan(true),
+                }}
+                quickActionsSlot={
+                  <AnimatePresence>
+                    {showQuickActions && (
+                      <QuickActionsMenu
+                        actions={sortedQuickActions}
+                        onAction={executeQuickAction}
+                        onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
+                      />
+                    )}
+                  </AnimatePresence>
+                }
+              />
             );
           case "new_features_bar":
             return <NewFeaturesBar key="new_features_bar" />;
@@ -949,6 +1035,7 @@ export default function Dashboard() {
         }
       })}
       </div>
+      )}
 
       {/* v0.84.9: no more blocking terms modal — the Guide (below)
           includes terms as an inline step. A small "Continue setup"

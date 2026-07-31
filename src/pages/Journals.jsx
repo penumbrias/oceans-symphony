@@ -204,6 +204,19 @@ export default function Journals() {
     if (pendingFolder != null) setViewingFolder(pendingFolder || null);
   }, [pendingFolder]);
 
+  // ?compose=1 — open the editor for a new entry straight away (used by
+  // the UI-v2 quick-note key; optionally combined with ?folder=). Param is
+  // stripped so back/refresh doesn't reopen the editor.
+  useEffect(() => {
+    if (searchParams.get("compose") === "1") {
+      openNew(pendingFolder || null);
+      const params = new URLSearchParams(window.location.search);
+      params.delete("compose");
+      window.history.replaceState({}, "", `${window.location.pathname}${params.toString() ? `?${params}` : ""}`);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useMentionHighlight("id", entries.length > 0);
 
   const handleCreateFolder = () => {

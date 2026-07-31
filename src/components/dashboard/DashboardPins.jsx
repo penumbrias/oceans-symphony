@@ -125,7 +125,13 @@ function PinnedTaskRow({ task }) {
     if (toggling) return;
     setToggling(true);
     try {
-      await base44.entities.Task.update(task.id, { completed: !task.completed });
+      // completed_date must move with completed (matches ToDoList.jsx) —
+      // without it the todo_completed daily trigger, Timeline, and analytics
+      // never see completions made from this pin.
+      await base44.entities.Task.update(task.id, {
+        completed: !task.completed,
+        completed_date: !task.completed ? new Date().toISOString() : null,
+      });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["pinnedTasks"] });
     } catch (err) {

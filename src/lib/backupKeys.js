@@ -63,9 +63,16 @@ export function readBackupLocalSettings() {
 
 export function writeBackupLocalSettings(settings) {
   if (!settings || typeof settings !== "object") return;
-  for (const key of BACKUP_LS_KEYS) {
-    if (settings[key] != null) {
-      try { localStorage.setItem(key, settings[key]); }
+  // Iterate the FILE's keys, not this build's allow-list (v0.95.2): a
+  // backup from a newer app version can carry preference keys this build
+  // doesn't know yet — dropping them silently meant "import the same file
+  // again after updating found more settings". The allow-list still gates
+  // what gets EXPORTED; on import the file is trusted (its keys were
+  // allow-listed by the exporting build). Matches RecoveryScreen /
+  // StorageModeSetup, which already restore all keys.
+  for (const [key, value] of Object.entries(settings)) {
+    if (value != null) {
+      try { localStorage.setItem(key, value); }
       catch { /* quota / disabled — skip */ }
     }
   }

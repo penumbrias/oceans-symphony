@@ -70,6 +70,9 @@ export function parseImportText(text) {
       localImages: parsed.__local_images || null,
       localFonts: parsed.__local_fonts || null,
       localSettings: parsed.__local_settings || null,
+      // Opt-in Friends identity bundle (v0.95.2) — the import flow shows
+      // an explicit adoption prompt; it is never applied automatically.
+      friendBundle: parsed.__friend_identity || null,
     };
   }
   if (format === FORMAT_RAW_ENCRYPTED) {
@@ -80,8 +83,18 @@ export function parseImportText(text) {
       iterations: parsed.__kdf_iterations || null,
     };
   }
-  // FORMAT_RAW_PLAIN
-  return { format, data: parsed };
+  // FORMAT_RAW_PLAIN — old auto-backups/recovery files carried the
+  // FriendIdentity entity raw (leak fixed in v0.95.2). The import path
+  // strips it from the data; surface it as a bundle so the consent
+  // prompt can offer adoption instead of it silently applying.
+  let rawFriendBundle = null;
+  const fiTable = parsed?.FriendIdentity;
+  if (fiTable && typeof fiTable === 'object') {
+    const rows = Array.isArray(fiTable) ? fiTable : Object.values(fiTable);
+    const row = rows.find((r) => r && r.userId && r.secret);
+    if (row) rawFriendBundle = row;
+  }
+  return { format, data: parsed, friendBundle: rawFriendBundle };
 }
 
 // Decrypts a raw encrypted import file. Throws Error('Incorrect password')

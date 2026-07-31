@@ -45,9 +45,16 @@ export async function encryptData(data, key) {
   const combined = new Uint8Array(iv.length + encrypted.byteLength);
   combined.set(iv, 0);
   combined.set(new Uint8Array(encrypted), iv.length);
-  // Fix: use loop instead of spread
+  // Chunked byte→binary-string conversion (v0.95.2). The previous
+  // per-byte `binary += String.fromCharCode(b)` was O(n²) on multi-MB
+  // blobs — every encrypted save stalled for seconds, which widened the
+  // window where a stale pre-import save could land after an import.
+  // Same chunked pattern as nativeMediaStoreSave.js.
   let binary = "";
-  combined.forEach(b => binary += String.fromCharCode(b));
+  const CHUNK = 0x8000;
+  for (let i = 0; i < combined.length; i += CHUNK) {
+    binary += String.fromCharCode.apply(null, combined.subarray(i, i + CHUNK));
+  }
   return btoa(binary);
 }
 

@@ -3,7 +3,10 @@ import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2 } from "lucide-react";
-import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump } from "@/lib/localDb";
+import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
+import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
+import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
+import { localEntities } from "@/api/base44Client";
 import { getAllLocalImages, restoreLocalImages, recompressAllStoredImages } from "@/lib/localImageStorage";
 import { getAllLocalFonts, restoreLocalFonts } from "@/lib/localFontStorage";
 import {
@@ -124,7 +127,7 @@ const ENTITY_NAMES = [
   "Alter", "FrontingSession", "Bulletin", "BulletinComment", "JournalEntry",
   "DiaryCard", "DailyProgress", "CustomField", "AlterNote", "AlterMessage",
   "Symptom", "SymptomDefinition", "SymptomSession", "SymptomCheckIn",
-  "SystemSettings", "SystemCheckIn", "EmotionCheckIn",
+  "SystemSettings", "SystemCheckIn", "EmotionCheckIn", "DeletionLog",
   "Activity", "Sleep", "Task", "CustomEmotion", "ActivityCategory",
   "MentionLog", "ActivityGoal", "Group", "DailyTaskTemplate",
   "AlterRelationship", "RelationshipType", "InnerWorldLocation",
@@ -169,7 +172,7 @@ export const EXPORT_CATEGORIES = [
   { id: "reminders",     label: "Reminders",                entities: ["Reminder", "ReminderInstance"],                                     desc: "Reminders and scheduled instances" },
   { id: "reports",       label: "Therapy Reports",          entities: ["ReportTemplate", "ReportExport"],                                   desc: "Report templates and exports" },
   { id: "learning",      label: "Learning Progress",        entities: ["LearningProgress"],                                                 desc: "Learning module progress" },
-  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions" },
+  { id: "settings",      label: "Settings & Custom",        entities: ["SystemSettings", "CustomEmotion", "ActivityCategory", "TriggerType", "QuickAction", "UnblendQuestion", "HiddenUnblendQuestion", "DeletionLog"], desc: "App settings, custom emotions, trigger types, quick actions, unblend questions, deletion history (for device sync)" },
   { id: "notes",         label: "Notes & Messages",         entities: ["AlterNote", "AlterMessage", "MentionLog", "GroupNote"],             desc: "Notes, DMs, mentions, group notes" },
   { id: "statuses",     label: "Custom Statuses",           entities: ["StatusNote"],                                                          desc: "Timeline status notes" },
   { id: "locations",    label: "Location History",          entities: ["Location"],                                                            desc: "Location log entries" },
@@ -290,7 +293,13 @@ async function downloadJson(data, filename, format = "json", mode = "save") {
 function filterDump(dump, activeCats) {
   const out = {};
   for (const cat of EXPORT_CATEGORIES) {
-    if (cat.isImages || !activeCats.has(cat.id)) continue;
+    if (!activeCats.has(cat.id)) continue;
+    // NOTE (v0.95.2): the images category's ENTITIES (ImageAsset,
+    // AssetFolder — the library's names/folders/ownership records) DO
+    // export here; only the binary blobs travel separately as
+    // __local_images. The old `cat.isImages || …` skip silently dropped
+    // both entities from every manual export, so restored libraries came
+    // back empty even though the image blobs arrived.
     for (const e of cat.entities) {
       if (dump[e] === undefined) continue;
       if (e === "GroundingTechnique") {
@@ -391,12 +400,21 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
   const [importMode, setImportMode] = useState("add");
+  // Deletion-sync opt-in (v0.95.3): when merging a backup from the user's
+  // OTHER device, also apply its recorded deletions so removed records
+  // don't resurrect. OFF by default — a plain additive import must stay
+  // usable for recovering deleted data from old backups.
+  const [applyDeletions, setApplyDeletions] = useState(false);
   // Multi-system "Replace all": when the backup doesn't include some systems the
   // user currently has, park the pending import here and show a keep/clear
   // prompt. `replaceResolveRef` holds the promise resolver `processImport`
   // awaits — called with the Set of system ids to KEEP (or null to cancel).
   const [replaceSystemsPrompt, setReplaceSystemsPrompt] = useState(null);
   const replaceResolveRef = useRef(null);
+  // Opt-in: attach the Friends identity (secret + E2E keys) to a manual
+  // export for moving to the user's OWN new device. Default OFF, resets
+  // per mount — never a sticky preference.
+  const [includeFriendIdentity, setIncludeFriendIdentity] = useState(false);
   const [cachingUrls, setCachingUrls] = useState(false);
   const [cacheUrlResult, setCacheUrlResult] = useState(null);
   const [cacheUrlProgress, setCacheUrlProgress] = useState(null);
@@ -444,16 +462,23 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const fullFontsRef = useRef(null);
 
   const fetchFullDump = useCallback(async () => {
-    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current };
+    if (fullDumpRef.current) return { dump: fullDumpRef.current, images: fullImagesRef.current, fonts: fullFontsRef.current, imagesFailed: false };
     const dump = getFullDbDump();
     let images = {};
-    try { images = await getAllLocalImages(); } catch {}
+    let imagesFailed = false;
+    // A failed image read must NOT be cached — pre-v0.95.2 one bad read
+    // poisoned every export for the rest of the session, silently
+    // producing image-less backups behind a success toast.
+    try { images = await getAllLocalImages(); } catch { imagesFailed = true; }
     let fonts = {};
-    try { fonts = await getAllLocalFonts(); } catch {}
-    fullDumpRef.current = dump;
-    fullImagesRef.current = images;
-    fullFontsRef.current = fonts;
-    return { dump, images, fonts };
+    let fontsFailed = false;
+    try { fonts = await getAllLocalFonts(); } catch { fontsFailed = true; }
+    if (!imagesFailed && !fontsFailed) {
+      fullDumpRef.current = dump;
+      fullImagesRef.current = images;
+      fullFontsRef.current = fonts;
+    }
+    return { dump, images, fonts, imagesFailed };
   }, []);
 
   const computeCatSizes = useCallback(async () => {
@@ -493,7 +518,22 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
 
   const buildExportData = async (overrideSelectedCats) => {
     const activeCats = overrideSelectedCats ?? selectedCats;
-    const { dump, images, fonts } = await fetchFullDump();
+    const { dump, images, fonts, imagesFailed } = await fetchFullDump();
+    // Never ship a silently image-less backup — the user selected images
+    // and deserves to know the export would be missing them.
+    if (imagesFailed && activeCats.has("images")) {
+      throw new Error("Your stored images couldn't be read, so this backup would be missing them. Reload the app and try again — or deselect the Images category to export without them.");
+    }
+    // Opt-in Friends identity bundle (device move). Contains the friends
+    // secret + encryption keys — only attached when the checkbox is on.
+    let friendBundle = null;
+    if (includeFriendIdentity) {
+      try {
+        const identity = await getLocalIdentity();
+        friendBundle = buildFriendIdentityBundle(identity);
+      } catch { friendBundle = null; }
+    }
+    const bundleExtra = friendBundle ? { __friend_identity: friendBundle } : {};
     const imagesExport = activeCats.has("images") ? images : {};
     const fontsExport = activeCats.has("fonts") ? fonts : {};
     const nowIso = new Date().toISOString();
@@ -521,6 +561,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           __local_images: imagesExport,
           __local_fonts: fontsExport,
           __local_settings: exportLocalSettings(),
+          ...bundleExtra,
         };
       }
       // "merged" — flatten every system into one, each becoming a group.
@@ -532,6 +573,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         __local_images: imagesExport,
         __local_fonts: fontsExport,
         __local_settings: exportLocalSettings(),
+        ...bundleExtra,
       };
     }
 
@@ -544,6 +586,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       __local_images: imagesExport,
       __local_fonts: fontsExport,
       __local_settings: exportLocalSettings(),
+      ...bundleExtra,
     };
   };
 
@@ -683,7 +726,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // Applies an already-parsed { data, localImages?, localFonts?, localSettings? }
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
-  const applyImportPayload = async ({ data, localImages, localFonts, localSettings }) => {
+  const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle }) => {
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
     // multi-system flow so "Replace all" doesn't silently leave them behind (or
@@ -698,19 +741,11 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         clearOtherSystemIds = others.filter((s) => !keepSet.has(s.id)).map((s) => s.id);
       }
     }
-    if (localImages) {
-      try { await restoreLocalImages(localImages); } catch (e) {
-        console.warn("Failed to restore local images:", e);
-      }
-    }
-    if (localFonts) {
-      try { await restoreLocalFonts(localFonts); } catch (e) {
-        console.warn("Failed to restore local fonts:", e);
-      }
-    }
-    if (localSettings) {
-      importLocalSettings(localSettings);
-    }
+    // ── ORDER MATTERS (v0.95.2): entity data is written FIRST. It used to
+    // be written LAST, after the multi-MB image/font restore — so a crash
+    // or tab kill mid-images lost the ENTIRE import while each retry
+    // persisted a few more images (the "had to import several times" bug).
+    // Now a mid-import failure can only cost media, never records.
     if (importMode === "replace") {
       // Remove the other systems the user chose to clear (all non-active, so
       // deleteSystem is safe). Kept ones are left untouched.
@@ -719,15 +754,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           try { await deleteSystem(id); } catch (e) { console.warn("delete system failed", e); }
         }
       }
-      // Device-bound entities (FriendIdentity, PushSubscription) are
-      // deliberately excluded from backups so they can't be restored onto a
-      // DIFFERENT device and impersonate the user. But a Replace-All restore
-      // must still PRESERVE them on THIS device — wiping the FriendIdentity
-      // deletes the user's Friends profile, forcing a re-register that mints
-      // a brand-new server userId and leaves a duplicate "ghost" profile on
-      // every friend's list (reported bug). Carry the current device's copies
-      // forward into the replacement dump. (RecoveryScreen's intentional
-      // "fresh start" still wipes everything — it calls loadDbDump directly.)
+      // Device-bound entities (FriendIdentity, PushSubscription) never come
+      // FROM a backup (stripDeviceBound below kills any that snuck into old
+      // files) — but a Replace-All restore must PRESERVE this device's own:
+      // wiping the FriendIdentity forces a re-register that mints a new
+      // server userId and leaves a ghost profile on every friend's list.
+      // allowDeviceBound applies only to the copies we carried forward.
       const preserved = {};
       try {
         const current = getFullDbDump();
@@ -735,19 +767,127 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           if (current[name]) preserved[name] = current[name];
         }
       } catch { /* no current DB to preserve from — nothing to carry forward */ }
-      await loadDbDump({ ...data, ...preserved });
-      showStatus("success", "Data replaced! The app will reload.");
+      await loadDbDump({ ...stripDeviceBound(data), ...preserved }, { allowDeviceBound: true });
     } else {
-      await mergeDbDump(data);
-      showStatus("success", "New records added (existing data preserved)! The app will reload.");
+      const res = await mergeDbDump(data, { applyDeletions }); // strips device-bound internally
+      // Overlap review (v0.95.4): every record where the merge had to pick
+      // between two real versions is shown for the user to confirm or
+      // flip. Skipped when there were no genuine overlaps.
+      if (res?.conflicts?.length) {
+        await reviewMergeConflicts(res.conflicts);
+      }
     }
-    setTimeout(() => window.location.reload(), 1200);
+
+    // Media + preferences after the records are safe on disk.
+    if (localSettings) {
+      importLocalSettings(localSettings);
+    }
+    let imageResult = null;
+    let fontResult = null;
+    if (localImages) imageResult = await restoreLocalImages(localImages);
+    if (localFonts) fontResult = await restoreLocalFonts(localFonts);
+
+    // Friends identity adoption — NEVER automatic. The bundle (or a
+    // FriendIdentity found inside an old raw file) is offered through an
+    // explicit prompt naming whose identity it is; declining changes
+    // nothing. See backupPolicy.js for why this is consent-gated.
+    if (friendBundle) {
+      await maybeAdoptFriendIdentity(friendBundle);
+    }
+
+    const failures = [];
+    if (imageResult?.failed?.length) failures.push(`${imageResult.failed.length} of ${imageResult.total} images`);
+    if (fontResult?.failed?.length) failures.push(`${fontResult.failed.length} of ${fontResult.total} fonts`);
+    const base = importMode === "replace"
+      ? "Data replaced!"
+      : "New records added (existing data preserved)!";
+    if (failures.length > 0) {
+      // Be honest and give the retry instruction — a re-import only
+      // re-attempts what's missing (existing images just overwrite).
+      showStatus("error", `${base} But ${failures.join(" and ")} could not be saved (likely storage space). Free some space and import the same file again — records won't duplicate. Reloading shortly…`);
+      setTimeout(() => window.location.reload(), 6000);
+    } else {
+      const media = imageResult?.total ? ` ${imageResult.restored} images restored.` : "";
+      showStatus("success", `${base}${media} The app will reload.`);
+      setTimeout(() => window.location.reload(), 1200);
+    }
   };
 
   // Encrypted raw imports need a password to decrypt before they can be
   // applied. We park the parsed envelope here and surface a small prompt
   // modal; the modal's submit calls applyImportPayload once decrypted.
   const [pendingEncryptedImport, setPendingEncryptedImport] = useState(null);
+
+  // ── Merge overlap review (v0.95.4) ──
+  // Promise-modal: shows every record where the merge chose between two
+  // real versions (both-edited, or deletion vs existing copy) and lets the
+  // user flip any of them. Confirming applies only the flipped rows —
+  // everything else already has the automatic (newer-wins) result.
+  const conflictResolveRef = useRef(null);
+  const [conflictReview, setConflictReview] = useState(null); // { conflicts, choices: {idx: "local"|"incoming"|"deleted"} }
+  const reviewMergeConflicts = (conflicts) => new Promise((resolve) => {
+    conflictResolveRef.current = resolve;
+    setConflictReview({ conflicts, choices: {} }); // empty choice = keep the automatic result
+  });
+  const finishConflictReview = async (apply) => {
+    const review = conflictReview;
+    const resolve = conflictResolveRef.current;
+    conflictResolveRef.current = null;
+    setConflictReview(null);
+    if (apply && review) {
+      for (const [idxStr, choice] of Object.entries(review.choices)) {
+        const c = review.conflicts[Number(idxStr)];
+        if (!c || choice === c.kept) continue;
+        try {
+          if (choice === "local" && c.local) await restoreRecord(c.entity, c.local);
+          else if (choice === "incoming" && c.incoming) await restoreRecord(c.entity, c.incoming);
+          else if (choice === "deleted") await deleteRecordRaw(c.entity, c.id);
+        } catch (e) { console.warn("conflict apply failed", c.entity, c.id, e); }
+      }
+    }
+    if (resolve) resolve();
+  };
+  const setConflictChoice = (idx, choice) => setConflictReview((r) =>
+    r ? { ...r, choices: { ...r.choices, [idx]: choice } } : r);
+
+  // ── Friends identity adoption (consent-gated, v0.95.2) ──
+  // Promise-modal like promptKeepClearSystems: resolves true (adopt) /
+  // false (skip). Never auto-applies; declining is the default action.
+  const friendAdoptResolveRef = useRef(null);
+  const [friendAdoptPrompt, setFriendAdoptPrompt] = useState(null); // { desc, hasExisting }
+  const resolveFriendAdopt = (adopt) => {
+    const resolve = friendAdoptResolveRef.current;
+    friendAdoptResolveRef.current = null;
+    setFriendAdoptPrompt(null);
+    if (resolve) resolve(adopt === true);
+  };
+  const maybeAdoptFriendIdentity = async (bundleRaw) => {
+    try {
+      const bundle = buildFriendIdentityBundle(bundleRaw);
+      const desc = describeFriendBundle(bundle);
+      if (!desc) return; // no usable credential — nothing to offer
+      let existing = null;
+      try { existing = await getLocalIdentity(); } catch { /* none */ }
+      // Identical identity already on this device — nothing to do.
+      if (existing?.userId === bundle.userId) return;
+      const adopt = await new Promise((resolve) => {
+        friendAdoptResolveRef.current = resolve;
+        setFriendAdoptPrompt({ desc, hasExisting: !!existing?.userId, existingName: existing?.displayName || existing?.friendCode || "" });
+      });
+      if (!adopt) return;
+      // Replace any existing identity rows, then create the bundle fresh.
+      try {
+        const rows = await localEntities.FriendIdentity.list();
+        for (const r of rows) { try { await localEntities.FriendIdentity.delete(r.id); } catch { /* continue */ } }
+      } catch { /* none to clear */ }
+      await localEntities.FriendIdentity.create(bundle);
+      await mirrorIdentityToShared();
+      showStatus("success", "Friends identity moved to this device. Open Friends to re-enable notifications here — and stop using Friends on the old device.");
+    } catch (e) {
+      console.warn("friend identity adoption failed", e);
+      showStatus("error", "Couldn't apply the Friends identity from this backup. Your data import itself succeeded.");
+    }
+  };
 
   // Show the keep/clear prompt for existing systems a Replace-all backup doesn't
   // include. Resolves to a Set of system ids to KEEP, or null if cancelled.
@@ -810,9 +950,21 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       try {
         const importedSystems = maybe.systems.filter((s) => s && s.data);
         if (!importedSystems.length) { showStatus("error", "No systems found in the archive."); return; }
-        if (maybe.__local_images) { try { await restoreLocalImages(maybe.__local_images); } catch (e) { console.warn("restore images failed", e); } }
-        if (maybe.__local_fonts) { try { await restoreLocalFonts(maybe.__local_fonts); } catch (e) { console.warn("restore fonts failed", e); } }
-        if (maybe.__local_settings) { try { importLocalSettings(maybe.__local_settings); } catch (e) { console.warn("restore settings failed", e); } }
+        // Media/settings restore moved AFTER system creation (records
+        // first — same ordering fix as the single-system path).
+        const restoreMultiMedia = async () => {
+          let msg = "";
+          if (maybe.__local_settings) { try { importLocalSettings(maybe.__local_settings); } catch (e) { console.warn("restore settings failed", e); } }
+          if (maybe.__local_images) {
+            const r = await restoreLocalImages(maybe.__local_images);
+            if (r.failed.length) msg += ` ${r.failed.length} of ${r.total} images could not be saved — free storage space and import the same file again.`;
+          }
+          if (maybe.__local_fonts) {
+            const r = await restoreLocalFonts(maybe.__local_fonts);
+            if (r.failed.length) msg += ` ${r.failed.length} of ${r.total} fonts could not be saved.`;
+          }
+          return msg;
+        };
 
         if (importMode === "replace") {
           // Ask about existing systems the backup doesn't include before wiping.
@@ -824,16 +976,18 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             keepIds = decision;
           }
           const created = await executeMultiSystemReplace(importedSystems, keepIds);
-          showStatus("success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}! The app will reload.`);
-          setTimeout(() => window.location.reload(), 1200);
+          const mediaMsg = await restoreMultiMedia();
+          showStatus(mediaMsg ? "error" : "success", `Replaced with ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg} The app will reload.`);
+          setTimeout(() => window.location.reload(), mediaMsg ? 6000 : 1200);
           return;
         }
 
         // Add New — additive; existing systems untouched.
         let created = 0;
         for (const s of importedSystems) { await createSystemWithData(s.name, s.data); created++; }
-        showStatus("success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}! The app will reload.`);
-        setTimeout(() => window.location.reload(), 1200);
+        const mediaMsg = await restoreMultiMedia();
+        showStatus(mediaMsg ? "error" : "success", `Imported ${created} ${created === 1 ? terms.system : terms.systems}!${mediaMsg} The app will reload.`);
+        setTimeout(() => window.location.reload(), mediaMsg ? 6000 : 1200);
         return;
       } catch (e) {
         showStatus("error", e?.message || "Import failed");
@@ -848,11 +1002,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         localImages: parsed.localImages,
         localFonts: parsed.localFonts,
         localSettings: parsed.localSettings,
+        friendBundle: parsed.friendBundle,
       });
       return;
     }
     if (parsed.format === FORMAT_RAW_PLAIN) {
-      await applyImportPayload({ data: parsed.data });
+      await applyImportPayload({ data: parsed.data, friendBundle: parsed.friendBundle });
       return;
     }
     if (parsed.format === FORMAT_RAW_ENCRYPTED) {
@@ -1171,7 +1326,9 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       return;
     }
     for (let i = 0; i < multiPartTotal; i++) {
-      if (!multiPartChunks[i]) {
+      if (multiPartChunks[i] === undefined) {
+        // (=== undefined, not falsy — a legitimately empty trailing slice
+        // from a high part count on a small backup is still "present".)
         showStatus("error", `Missing part ${i + 1} of ${multiPartTotal}.`);
         return;
       }
@@ -1199,7 +1356,15 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     try {
       const data = await decryptRawEncrypted(pendingEncryptedImport, password);
       setPendingEncryptedImport(null);
-      await applyImportPayload({ data });
+      // Old encrypted raw files can carry a FriendIdentity table — route
+      // it through the same consent prompt as every other path.
+      let rawBundle = null;
+      const fiTable = data?.FriendIdentity;
+      if (fiTable && typeof fiTable === "object") {
+        const rows = Array.isArray(fiTable) ? fiTable : Object.values(fiTable);
+        rawBundle = rows.find((r) => r && r.userId && r.secret) || null;
+      }
+      await applyImportPayload({ data, friendBundle: rawBundle });
     } catch (e) {
       showStatus("error", `Decrypt failed: ${e.message}`);
     } finally {
@@ -1334,6 +1499,24 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                       </div>
                     </label>
                   ))}
+                </div>
+
+                {/* Opt-in Friends identity for device moves. Not a category —
+                    it's a credential, so it gets its own deliberate,
+                    warning-labelled toggle that resets every visit. */}
+                <div className="border-t border-border/30 pt-2">
+                  <label className="flex items-start gap-2.5 py-1.5 px-1 rounded-lg hover:bg-muted/20 cursor-pointer">
+                    <input type="checkbox" checked={includeFriendIdentity} onChange={() => setIncludeFriendIdentity(v => !v)}
+                      className="w-4 h-4 mt-0.5 rounded accent-primary flex-shrink-0" />
+                    <div className="flex-1 min-w-0">
+                      <span className="text-xs font-medium">Include Friends identity (moving to a new device)</span>
+                      <p className="text-xs text-muted-foreground">
+                        Adds your Friends sign-in and encryption keys so your friends list and verifications survive the move.
+                        Anyone with this file can act as you on Friends — treat it like a password, import it only on your own
+                        new device, and stop using Friends on the old one.
+                      </p>
+                    </div>
+                  </label>
                 </div>
 
                 {/* One-tap image exports — tester report: "no way to export
@@ -1655,8 +1838,22 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           <p className="text-xs text-muted-foreground">
             {importMode === "replace"
               ? "⚠️ Replace All will delete existing data and import from backup."
-              : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything, and your more-recent local edits always win."}
+              : "Update & Add New imports new records, and updates existing ones when the backup's copy is newer (e.g. avatars or bios edited on another device). It never deletes anything unless you turn on deletion sync below, and your more-recent local edits always win."}
           </p>
+          {importMode !== "replace" && (
+            <label className="flex items-start gap-2.5 py-1.5 px-1 rounded-lg hover:bg-muted/20 cursor-pointer">
+              <input type="checkbox" checked={applyDeletions} onChange={() => setApplyDeletions(v => !v)}
+                className="w-4 h-4 mt-0.5 rounded accent-primary flex-shrink-0" />
+              <div className="flex-1 min-w-0">
+                <span className="text-xs font-medium">Also sync deletions (device sync)</span>
+                <p className="text-xs text-muted-foreground">
+                  For keeping two of your own devices in step: records you deleted on the other device are removed here
+                  too (unless your copy was edited more recently). Leave OFF when importing an old backup to recover
+                  deleted data. To fully sync two devices, import in both directions: phone → computer, then computer → phone.
+                </p>
+              </div>
+            </label>
+          )}
         </div>
         {/* Debug: View Local Data */}
         <div className="space-y-2 pt-1 border-t border-border/40">
@@ -1762,6 +1959,117 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             <div className="p-3 border-t border-border/60 flex items-center justify-end gap-2">
               <button type="button" onClick={() => resolveReplacePrompt(null)} className="px-3 py-2 text-sm rounded-xl border border-border/50 hover:bg-muted/40">Cancel</button>
               <button type="button" onClick={() => resolveReplacePrompt(replaceSystemsPrompt.keepIds)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">Continue import</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Merge overlap review — pick the winner per overlapping record. */}
+      {conflictReview && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-label="Review overlapping records">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-md max-h-[85vh] bg-background border border-border/60 rounded-2xl shadow-2xl flex flex-col">
+            <div className="p-4 pb-2">
+              <h3 className="text-base font-semibold">Overlapping records</h3>
+              <p className="text-xs text-muted-foreground mt-1">
+                These records differed between this device and the backup. The newer version was kept automatically —
+                review and flip any where the other version should win.
+              </p>
+            </div>
+            <div className="flex-1 overflow-y-auto overscroll-contain px-3 pb-2 space-y-2">
+              {conflictReview.conflicts.slice(0, 150).map((c, idx) => {
+                const rec = c.incoming || c.local || {};
+                const label = String(rec.name || rec.title || rec.label || rec.activity_name || rec.question || rec.note || rec.content || c.id).replace(/<[^>]+>/g, "").slice(0, 64);
+                const sel = conflictReview.choices[idx] ?? c.kept;
+                const t = (r) => r?.updated_date ? new Date(r.updated_date).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" }) : "unknown time";
+                const Option = ({ value, children }) => (
+                  <button type="button" onClick={() => setConflictChoice(idx, value)}
+                    className={`flex-1 min-w-0 text-left text-xs px-2 py-1.5 rounded-lg border transition-all ${
+                      sel === value ? "border-primary/60 bg-primary/10" : "border-border/40 text-muted-foreground hover:border-border"
+                    }`}>
+                    {children}
+                  </button>
+                );
+                return (
+                  <div key={`${c.entity}:${c.id}`} className="rounded-xl border border-border/50 p-2.5">
+                    <p className="text-xs font-medium truncate">{label}</p>
+                    <p className="text-[0.6875rem] text-muted-foreground mb-1.5">{c.entity}{c.reason === "deletion" ? " · deletion" : ""}</p>
+                    <div className="flex gap-1.5">
+                      {c.reason === "edit" ? (
+                        <>
+                          <Option value="incoming">From backup<span className="block text-muted-foreground">{t(c.incoming)}</span></Option>
+                          <Option value="local">This device<span className="block text-muted-foreground">{t(c.local)}</span></Option>
+                        </>
+                      ) : c.local ? (
+                        <>
+                          <Option value="deleted">Stay deleted</Option>
+                          <Option value="local">Restore this device's copy</Option>
+                        </>
+                      ) : (
+                        <>
+                          <Option value="deleted">Stay deleted</Option>
+                          <Option value="incoming">Add the backup's copy</Option>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+              {conflictReview.conflicts.length > 150 && (
+                <p className="text-xs text-muted-foreground text-center py-1">
+                  Showing the first 150 of {conflictReview.conflicts.length} — the rest kept the automatic (newer) version.
+                </p>
+              )}
+            </div>
+            <div className="p-3 border-t border-border/60 flex items-center justify-end gap-2">
+              <button type="button" onClick={() => finishConflictReview(false)} className="px-3 py-2 text-sm rounded-xl border border-border/50 hover:bg-muted/40">
+                Keep all automatic picks
+              </button>
+              <button type="button" onClick={() => finishConflictReview(true)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">
+                Apply my choices
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Friends identity adoption — explicit consent, never automatic. */}
+      {friendAdoptPrompt && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center p-4" role="dialog" aria-label="Friends identity found in backup">
+          <div className="absolute inset-0 bg-black/60" />
+          <div className="relative w-full max-w-sm bg-background border border-border/60 rounded-2xl shadow-2xl p-4 space-y-3">
+            <h3 className="text-base font-semibold">This backup contains a Friends identity</h3>
+            <div className="text-sm space-y-1">
+              <p><span className="text-muted-foreground">Friend code:</span> <span className="font-mono">{friendAdoptPrompt.desc.friendCode}</span></p>
+              <p><span className="text-muted-foreground">Display name:</span> {friendAdoptPrompt.desc.displayName}</p>
+              {friendAdoptPrompt.desc.systemName && (
+                <p><span className="text-muted-foreground">{terms.System} name:</span> {friendAdoptPrompt.desc.systemName}</p>
+              )}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Only use it if this is YOUR identity and you're moving to this device. Whoever uses it can act as this
+              person on Friends. It will apply to every {terms.system} on this device, and the old device should stop
+              using Friends.
+            </p>
+            {friendAdoptPrompt.hasExisting && (
+              <p className="text-xs text-destructive font-medium">
+                This device already has a Friends identity{friendAdoptPrompt.existingName ? ` (${friendAdoptPrompt.existingName})` : ""} — using the one
+                from the backup will replace it.
+              </p>
+            )}
+            {!friendAdoptPrompt.desc.hasKeys && (
+              <p className="text-xs text-amber-600 dark:text-amber-400">
+                This backup has the sign-in but not the encryption keys, so new keys will be created — friends will see
+                your safety number change and shared member lists will need to refresh.
+              </p>
+            )}
+            <div className="flex items-center justify-end gap-2 pt-1">
+              <button type="button" onClick={() => resolveFriendAdopt(false)} className="px-4 py-2 text-sm rounded-xl bg-primary text-primary-foreground font-medium">
+                Don't use it
+              </button>
+              <button type="button" onClick={() => resolveFriendAdopt(true)} className="px-3 py-2 text-sm rounded-xl border border-destructive/50 text-destructive hover:bg-destructive/10">
+                Use this identity here
+              </button>
             </div>
           </div>
         </div>

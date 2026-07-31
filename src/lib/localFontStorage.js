@@ -96,14 +96,21 @@ export async function getAllLocalFonts() {
   }
 }
 
+// Per-item isolation + honest result, matching restoreLocalImages — one
+// bad font must not abort the rest, and callers report the counts.
 export async function restoreLocalFonts(fontsMap) {
-  try {
-    for (const [id, dataUrl] of Object.entries(fontsMap || {})) {
+  const entries = Object.entries(fontsMap || {});
+  const result = { total: entries.length, restored: 0, failed: [] };
+  for (const [id, dataUrl] of entries) {
+    try {
       await saveLocalFont(id, dataUrl);
+      result.restored += 1;
+    } catch (e) {
+      console.warn(`restoreLocalFonts: failed for ${id}:`, e);
+      result.failed.push(id);
     }
-  } catch (e) {
-    console.warn('restoreLocalFonts failed:', e);
   }
+  return result;
 }
 
 // Read a File/Blob to a data-URL string.

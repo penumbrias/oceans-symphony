@@ -41,6 +41,38 @@ export function frontShare({ sessions, range, mode = "flat" }) {
   return { perAlterMs, trackedMs, untrackedMs, windowMs, mode };
 }
 
+// ---- Co-fronting pairs --------------------------------------------------
+//
+// Every multi-alter slice contributes its overlap duration + one occurrence
+// to each pair of alters active in it. Extracted verbatim from
+// CoFrontingAnalytics.jsx's inline useMemo (v0.94.0) so the fronting-leaders
+// homescreen widget and the analytics tab share one implementation.
+// Returns [{ alterIdA, alterIdB, totalOverlap, occurrences }] sorted by
+// totalOverlap desc (ids sorted within each pair).
+export function coFrontingPairs({ sessions, range }) {
+  const now = range.now;
+  const normalized = normalizeSessions(sessions || [], now);
+  const inWin = sessionsInRange(normalized, range.fromMs, range.toMs, now);
+  const slices = sliceByOverlap(inWin, range.fromMs, range.toMs, now);
+
+  const pairs = {};
+  for (const slice of slices) {
+    const ids = [...slice.aliveAlterIds];
+    const dur = slice.endMs - slice.startMs;
+    if (dur <= 0 || ids.length < 2) continue;
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const sorted = [ids[i], ids[j]].sort();
+        const key = sorted.join("--");
+        if (!pairs[key]) pairs[key] = { alterIdA: sorted[0], alterIdB: sorted[1], totalOverlap: 0, occurrences: 0 };
+        pairs[key].totalOverlap += dur;
+        pairs[key].occurrences += 1;
+      }
+    }
+  }
+  return Object.values(pairs).sort((a, b) => b.totalOverlap - a.totalOverlap);
+}
+
 // ---- Front history strip ------------------------------------------------
 //
 // Sessions clipped to the window, newest first, with the fields the

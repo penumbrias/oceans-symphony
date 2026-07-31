@@ -74,6 +74,12 @@ function getIdb() {
 // Throws StorageReadError ONLY when IDB itself errored AND localStorage had
 // nothing to fall back on — in that case the caller must surface a recovery
 // UI instead of treating an empty DB as "user is new".
+// Split-brain guard (v0.95.2): when an IDB write fails and the blob falls
+// back to localStorage, this flag records that localStorage holds the
+// NEWER copy — otherwise the next boot would prefer the stale IDB blob
+// and the write (e.g. a whole import) would silently revert.
+const lsAuthorityKey = () => `symphony_ls_authoritative:${_storageKey}`;
+
 async function loadFromStorage() {
   let idbValue = undefined;
   let idbError = null;
@@ -83,6 +89,24 @@ async function loadFromStorage() {
   } catch (e) {
     idbError = e;
   }
+  // Honour the fallback-write flag: localStorage is newer than IDB.
+  try {
+    if (localStorage.getItem(lsAuthorityKey())) {
+      const ls = localStorage.getItem(_storageKey);
+      if (ls) {
+        // Best-effort re-home into IDB so the stores reconverge.
+        if (!idbError) {
+          try {
+            const idb = await getIdb();
+            await idb.put(IDB_STORE, ls, _storageKey);
+            localStorage.removeItem(lsAuthorityKey());
+          } catch { /* keep the flag — localStorage stays authoritative */ }
+        }
+        return ls;
+      }
+      localStorage.removeItem(lsAuthorityKey());
+    }
+  } catch { /* storage off — fall through to IDB value */ }
   if (idbValue !== undefined) return idbValue;
 
   // One-time migration from localStorage to IndexedDB (if IDB is healthy).
@@ -106,8 +130,15 @@ async function saveToStorage(value) {
   try {
     const idb = await getIdb();
     await idb.put(IDB_STORE, value, _storageKey);
+    // Successful IDB write supersedes any earlier fallback copy.
+    try { localStorage.removeItem(lsAuthorityKey()); } catch { /* ok */ }
   } catch {
+    // IDB write failed — localStorage now holds the newest copy, and the
+    // authority flag makes loadFromStorage prefer it over the stale IDB
+    // blob (otherwise this save — possibly a whole import — silently
+    // reverts on the next boot).
     localStorage.setItem(_storageKey, value);
+    try { localStorage.setItem(lsAuthorityKey(), String(Date.now())); } catch { /* ok */ }
   }
 }
 
@@ -180,6 +211,39 @@ function generateId() {
   return Date.now().toString(36) + Math.random().toString(36).slice(2);
 }
 
+// ── Deletion tombstones (v0.95.3 — device sync) ────────────────────
+// Every entity delete records { entity, record_id, deleted_at } in the
+// DeletionLog table (exported with backups). Without tombstones a merge
+// can't distinguish "deleted on device A" from "never existed on A", so
+// records deleted on one device resurrect from the other's backup.
+// Tombstones are only ACTED ON when the user explicitly opts into
+// deletion-sync at import time — a plain "Add new" import stays purely
+// additive so old backups can still be used to recover deleted data.
+const TOMBSTONE_SKIP = new Set(["DeletionLog", "FriendIdentity", "PushSubscription"]);
+const TOMBSTONE_MAX = 2000;
+const TOMBSTONE_MAX_AGE_MS = 180 * 24 * 3600 * 1000;
+
+function recordDeletionTombstone(entityName, id) {
+  try {
+    if (TOMBSTONE_SKIP.has(entityName) || _previewDb !== null) return;
+    const db = getDb();
+    if (!db.DeletionLog) db.DeletionLog = {};
+    const key = `${entityName}:${id}`;
+    db.DeletionLog[key] = { id: key, entity: entityName, record_id: id, deleted_at: new Date().toISOString() };
+    // Prune: drop tombstones past the age cap, then oldest beyond the
+    // count cap — sync only needs the recent-history window.
+    const rows = Object.values(db.DeletionLog);
+    if (rows.length > TOMBSTONE_MAX) {
+      const cutoff = Date.now() - TOMBSTONE_MAX_AGE_MS;
+      const sorted = rows.sort((a, b) => new Date(a.deleted_at) - new Date(b.deleted_at));
+      const excess = sorted.length - TOMBSTONE_MAX;
+      sorted.forEach((r, i) => {
+        if (i < excess || new Date(r.deleted_at).getTime() < cutoff) delete db.DeletionLog[r.id];
+      });
+    }
+  } catch { /* tombstones are best-effort — never block a delete */ }
+}
+
 function getDb() {
   if (_previewDb !== null) return _previewDb;
   if (_db !== null) return _db;
@@ -190,7 +254,24 @@ function getDb() {
   throw new Error('localDb accessed before initLocalDb completed');
 }
 
-async function saveDb() {
+// Serialize saves (v0.95.2). saveDb used to snapshot _db synchronously and
+// then await encryption + the IDB put with NO ordering guarantee — a slow
+// save (encryption does an expensive encode on big blobs) that started
+// BEFORE a big write like an import could land AFTER it and clobber the
+// whole import with pre-import state. The queue makes saves strictly
+// sequential AND makes each queued save serialize the LATEST _db at its
+// turn, so a stale snapshot can never win. Callers still just await saveDb().
+let _saveQueue = Promise.resolve();
+
+function saveDb() {
+  const run = _saveQueue.then(() => doSaveDb());
+  // Keep the chain alive even if a save fails; the failure still
+  // propagates to this call's awaiter.
+  _saveQueue = run.catch(() => {});
+  return run;
+}
+
+async function doSaveDb() {
   // Preview-mode writes stay purely in memory and never reach IndexedDB.
   if (_previewDb !== null) return;
   let json;
@@ -460,6 +541,7 @@ export function createLocalDbEntities() {
         delete: async (id) => {
           const col = getCollection(entityName);
           delete col[id];
+          recordDeletionTombstone(entityName, id);
           await saveDb();
           emit(entityName, { type: 'delete', id });
         },
@@ -585,8 +667,25 @@ export async function migrateLocalImageUrlScheme() {
   return migrated;
 }
 
-export async function loadDbDump(dump) {
-  _db = dump;
+// Device-bound entities never arrive via a general import. FriendIdentity
+// carries a permanent bearer secret + the E2E private key — a dump from
+// another person (or an old auto-backup, which leaked these before
+// v0.95.2) must not silently make this device BECOME that identity.
+// Adoption happens only through the explicit consent flow, which passes
+// { allowDeviceBound: true } after the user confirms whose identity it is.
+const DEVICE_BOUND_IMPORT_BLOCK = ["FriendIdentity", "PushSubscription"];
+function sanitizeIncomingDump(dump, { allowDeviceBound = false } = {}) {
+  if (!dump || typeof dump !== "object" || allowDeviceBound) return dump;
+  const out = { ...dump };
+  for (const name of DEVICE_BOUND_IMPORT_BLOCK) delete out[name];
+  return out;
+}
+
+// NOTE: preserving THIS device's identity across a replace-import is the
+// caller's job (DataBackupRestore already carries it forward explicitly);
+// wipe flows (loadDbDump({})) genuinely mean "everything gone".
+export async function loadDbDump(dump, options = {}) {
+  _db = sanitizeIncomingDump(dump, options);
   await saveDb();
 }
 
@@ -720,9 +819,73 @@ export function mergeExistingRecord(local, incoming, { newerWins = true } = {}) 
   return out;
 }
 
-export async function mergeDbDump(dump) {
+// Fields ignored when deciding whether two versions of a record actually
+// differ (metadata that always differs harmlessly).
+const CONFLICT_META = new Set(["id", "created_date", "updated_date", "created_by"]);
+function recordsMateriallyDiffer(a, b) {
+  const keys = new Set([...Object.keys(a || {}), ...Object.keys(b || {})]);
+  for (const k of keys) {
+    if (CONFLICT_META.has(k)) continue;
+    if (JSON.stringify(a?.[k]) !== JSON.stringify(b?.[k])) return true;
+  }
+  return false;
+}
+
+// Restore/overwrite one record EXACTLY as given (id preserved, timestamps
+// untouched) — used by the import conflict-review UI when the user picks
+// the version that lost the automatic merge.
+export async function restoreRecord(entityName, record) {
+  if (!record?.id) return;
+  if (!_db[entityName]) _db[entityName] = {};
+  _db[entityName][record.id] = record;
+  await saveDb();
+  emit(entityName, { type: 'update', id: record.id, data: record });
+}
+
+export async function deleteRecordRaw(entityName, id) {
+  if (_db[entityName]?.[id] === undefined) return;
+  delete _db[entityName][id];
+  recordDeletionTombstone(entityName, id);
+  await saveDb();
+  emit(entityName, { type: 'delete', id });
+}
+
+export async function mergeDbDump(dump, options = {}) {
   if (!_db) _db = {};
-  for (const [entityName, incoming] of Object.entries(dump)) {
+  const sanitized = sanitizeIncomingDump(dump, options);
+  const applyDeletions = options.applyDeletions === true;
+  // Conflict collection (v0.95.4): every place the merge had to CHOOSE
+  // between two real versions is recorded so the import UI can offer the
+  // user the losing version. `kept` names the side the automatic rule
+  // applied; both full snapshots ride along for the review sheet.
+  const conflicts = [];
+  const noteEditConflict = (entityName, id, local, incoming) => {
+    if (!local || !incoming) return;
+    const lt = Date.parse(local.updated_date || "") || 0;
+    const it = Date.parse(incoming.updated_date || "") || 0;
+    if (lt === it) return; // same edit generation — merge is a no-op or pure fill
+    if (!recordsMateriallyDiffer(local, incoming)) return;
+    conflicts.push({
+      entity: entityName, id,
+      local: { ...local }, incoming: { ...incoming },
+      kept: it > lt ? "incoming" : "local",
+      reason: "edit",
+    });
+  };
+  // Local tombstones — used (only in deletion-sync mode) to stop records
+  // this device deliberately deleted from resurrecting out of the other
+  // device's backup. A record edited on the other device AFTER our
+  // deletion (updated_date > deleted_at) still comes back — the newer
+  // intent wins.
+  const localTombstones = applyDeletions ? { ...( _db.DeletionLog || {}) } : {};
+  const tombstoneBlocks = (entityName, id, record) => {
+    if (!applyDeletions) return false;
+    const t = localTombstones[`${entityName}:${id}`];
+    if (!t) return false;
+    const recTime = Date.parse(record?.updated_date || record?.created_date || "") || 0;
+    return (Date.parse(t.deleted_at || "") || 0) > recTime;
+  };
+  for (const [entityName, incoming] of Object.entries(sanitized)) {
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
 
@@ -739,16 +902,16 @@ export async function mergeDbDump(dump) {
       // second record alongside.
       if (localIds.length > 0 && incomingIds.length > 0) {
         const targetId = localIds[0];
-        const target = { ..._db[entityName][targetId] };
+        let target = { ..._db[entityName][targetId] };
         for (const incomingId of incomingIds) {
           const incoming = records[incomingId];
           if (!incoming || typeof incoming !== "object") continue;
-          for (const [field, value] of Object.entries(incoming)) {
-            if (field === "id" || field === "created_date" || field === "updated_date") continue;
-            if (isEmptyValue(target[field]) && !isEmptyValue(value)) {
-              target[field] = value;
-            }
-          }
+          // v0.95.3: newer-wins fold (was blank-fill-only, which meant
+          // settings changed on another device could NEVER arrive here —
+          // system name/bio/terms edits silently lost on sync). The
+          // singleton stays a single row; mergeExistingRecord keeps the
+          // local value whenever it is the newer edit.
+          target = mergeExistingRecord(target, incoming);
         }
         _db[entityName][targetId] = target;
         continue;
@@ -770,11 +933,16 @@ export async function mergeDbDump(dump) {
           if (!record || typeof record !== "object") continue;
           if (_db[entityName][id]) {
             // Same id exists — update it in place (newer wins).
+            noteEditConflict(entityName, id, _db[entityName][id], record);
             _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
             continue;
           }
           const key = keyFn(record);
           if (key && seen.has(key)) continue;
+          if (tombstoneBlocks(entityName, id, record)) {
+            conflicts.push({ entity: entityName, id, local: null, incoming: { ...record }, kept: "deleted", reason: "deletion" });
+            continue;
+          }
           _db[entityName][id] = record;
           if (key) seen.add(key);
         }
@@ -785,20 +953,50 @@ export async function mergeDbDump(dump) {
 
     for (const [id, record] of Object.entries(records)) {
       if (!_db[entityName][id]) {
+        if (tombstoneBlocks(entityName, id, record)) {
+          conflicts.push({ entity: entityName, id, local: null, incoming: { ...record }, kept: "deleted", reason: "deletion" });
+          continue;
+        }
         _db[entityName][id] = record;
       } else if (entityName !== "FrontingSession") {
         // Same id exists locally — merge instead of skipping, so edits
         // made on another device (new avatar, changed role/tags/bio)
-        // actually arrive. FrontingSession same-id rows are left
-        // UNTOUCHED (pre-v0.88.3 behaviour): their is_active /
-        // is_primary / end_time are live state, and merging any of it
-        // (even fill-empty stamping an end_time onto a still-active
-        // local session) risks inconsistent current-front state.
+        // actually arrive.
+        noteEditConflict(entityName, id, _db[entityName][id], record);
+        _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
+      } else if (_db[entityName][id].is_active !== true && record.is_active !== true) {
+        // FrontingSession (v0.95.3): CLOSED sessions now merge newer-wins
+        // so post-hoc edits (notes, per-member entries, trigger flags)
+        // made on another device arrive. Live state stays protected:
+        // any session that is active on EITHER side is left untouched
+        // (the active-session sanitizer above already demoted incoming
+        // actives when a local front is running).
+        noteEditConflict(entityName, id, _db[entityName][id], record);
         _db[entityName][id] = mergeExistingRecord(_db[entityName][id], record);
       }
     }
   }
+
+  // Deletion-sync: apply the OTHER device's tombstones. A local record is
+  // removed only when the tombstone is NEWER than the record's last edit —
+  // an edit made here after the other device's delete survives (and will
+  // re-add the record over there on the return sync).
+  if (applyDeletions && sanitized.DeletionLog) {
+    for (const t of Object.values(sanitized.DeletionLog)) {
+      if (!t || !t.entity || !t.record_id || TOMBSTONE_SKIP.has(t.entity)) continue;
+      const col = _db[t.entity];
+      const local = col?.[t.record_id];
+      if (!local) continue;
+      if (t.entity === "FrontingSession" && local.is_active === true) continue; // never delete live state
+      const localTime = Date.parse(local.updated_date || local.created_date || "") || 0;
+      if ((Date.parse(t.deleted_at || "") || 0) > localTime) {
+        conflicts.push({ entity: t.entity, id: t.record_id, local: { ...local }, incoming: null, kept: "deleted", reason: "deletion" });
+        delete col[t.record_id];
+      }
+    }
+  }
   await saveDb();
+  return { conflicts };
 }
 
 // Recursively dedupe string arrays that ended up holding `id` more than once

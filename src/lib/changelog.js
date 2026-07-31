@@ -18,9 +18,26 @@
 
 export const CHANGELOG = [
   {
+    date: "July 30, 2026",
+    changes: [
+      { type: "feature", text: "Importing now shows an \"Overlapping records\" review when a record differs between this device and the backup: see both versions with their edit times, keep the automatic pick (newer wins) or flip any record to the other version — including restoring things a deletion-sync removed." },
+      { type: "feature", text: "Two-device sync via backups: edits made on both your phone AND computer now merge cleanly — newer edits win per record, and a new \"Also sync deletions\" option (in the import mode picker) removes records you deleted on the other device instead of resurrecting them. To fully sync, import in both directions. Recovering old data still works: leave the deletion option off." },
+      { type: "fix", text: "Sync: settings and closed session edits from another device now actually arrive on import (they were previously always ignored in favor of the local copy)." },
+      { type: "fix", text: "Backups: importing a backup now brings everything over in ONE pass. Several silent failure paths (images aborting partway, data written after media, out-of-order saves, settings from newer app versions being dropped) meant the same file could need multiple imports — all fixed, and the import now tells you exactly what was restored and what failed instead of always claiming success." },
+      { type: "feature", text: "Friends can move with you to a new device: a new opt-in checkbox in Advanced export includes your Friends identity and encryption keys, and importing it shows a confirmation naming whose identity it is before anything is applied. Treat that file like a password." },
+      { type: "fix", text: "Privacy: automatic backups no longer include your Friends sign-in secret, and importing any backup that contains one (including old files) now asks before using it — it can never be adopted silently." },
+      { type: "fix", text: "Backups: the image library's names, folders, and owners now export with manual backups (previously only the images themselves transferred, so the library came back empty)." },
+      { type: "fix", text: "Safety Plan: the Warning Signs section can be expanded again (it was stuck closed)." },
+    ],
+  },
+  {
     date: "July 29, 2026",
+    version: "0.94.1",
     changes: [
       { type: "improve", text: "iOS app: real app icon and splash screen (made from the app logo) instead of the placeholder art." },
+      { type: "fix", text: "Completing a to-do from a dashboard pin now records the completion time, so it counts for daily-task triggers, the timeline, and analytics." },
+      { type: "improve", text: "The Log Activity modal got the same clean-up as Plan Activity: grouped When / What / Details sections, the live \"Active — end later\" timer as a compact pill next to When, and fronting / company / notes tucked behind small \"+\" chips until needed. Everything works exactly as before." },
+      { type: "improve", text: "The editor toolbar's web-link button now asks for display text along with the URL — no more links that can only show the raw address. Works everywhere the toolbar appears (bios, bulletins, comments, chat, journals)." },
     ],
   },
   {
@@ -29,6 +46,7 @@ export const CHANGELOG = [
     changes: [
       { type: "fix", text: "iOS app: images on the inner world map (location backgrounds, map images) and in profile bios now display." },
       { type: "fix", text: "Sidebar menu: the bottom entries (like System Map) no longer get cut off behind the home indicator on iPhone/iPad." },
+      { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
       { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
     ],
   },

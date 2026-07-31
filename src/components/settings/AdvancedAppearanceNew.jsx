@@ -678,6 +678,7 @@ export default function AdvancedAppearance() {
     if (preset?.cornerMode) settingsPatch.corner_mode = preset.cornerMode;
     if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
     if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
+    if (preset?.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
     // System banner config — only re-apply when the preset captured it.
@@ -765,6 +766,7 @@ export default function AdvancedAppearance() {
     if (presetParts.corner) payload.cornerMode = systemSettings?.corner_mode;
     if (presetParts.dashboard) {
       payload.dashboardLayout = systemSettings?.dashboard_layout;
+      payload.experimentalHome = systemSettings?.experimental_home;
       payload.upcomingPlansSurfaces = systemSettings?.upcoming_plans_surfaces;
     }
     if (presetParts.navigation) payload.navigationConfig = systemSettings?.navigation_config;

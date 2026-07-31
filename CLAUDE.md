@@ -136,7 +136,7 @@ InfiniteTimeline uses absolute positioning. Column order (left to right):
 
 **Two arrays must be updated together — getting only one wrong silently drops the entity from exports:**
 
-1. `ENTITY_NAMES` — the raw allow-list (gates which entities `getFullDbDump` will read).
+1. `ENTITY_NAMES` — the documented allow-list. (CORRECTION v0.95.2: it never actually gated `getFullDbDump` — that returns the raw DB. Device-bound stripping is enforced by `src/lib/backupPolicy.js` (`stripDeviceBound`, used by auto-backup) + `filterDump`/`EXPORT_CATEGORIES` on manual export, and the IMPORT side strips `FriendIdentity`/`PushSubscription` in `loadDbDump`/`mergeDbDump` unless the consent flow passes `allowDeviceBound`. Friends identity moves between the user's own devices ONLY via the opt-in export checkbox + the explicit adoption prompt.)
 2. `EXPORT_CATEGORIES` — the user-facing checkbox grid. **The export iterator walks `EXPORT_CATEGORIES[].entities`, NOT `ENTITY_NAMES`.** An entity that's only in `ENTITY_NAMES` will never be exported. (This is exactly what happened with `GroceryItem` pre-v0.9.1 — registered but uncategorized, so user grocery lists were silently dropped from backups for months.)
 
 If the entity doesn't fit an existing category, add a new `EXPORT_CATEGORIES` entry rather than lumping unrelated things together.
@@ -884,6 +884,7 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 | Bulletin | base44 | System-wide / friend posts | `content`, `timestamp`, `author_alter_id`, `is_pinned` | BulletinBoard, Dashboard |
 | BulletinComment | base44 | Comments on bulletins | `bulletin_id`, `content`, `timestamp` | BulletinCommentThread |
 | CustomEmotion | base44 | User-defined emotions for the wheel | `name`, `color`, `category` | EmotionWheelPicker, CustomEmotionsManager |
+| DeletionLog | local | Deletion tombstones for device sync (v0.95.3) — written by the entity Proxy's `delete()`, keyed `${entity}:${id}`, pruned at 2000 rows/180 days; applied on merge-import ONLY when the user opts into "Also sync deletions" | `entity`, `record_id`, `deleted_at` | localDb delete/mergeDbDump, DataBackupRestore |
 | CustomField | base44 / local | System-wide custom-field definitions | `name`, `type` | CustomFieldsManager, AlterEditModal |
 | DailyProgress | base44 | Per-day daily-task completion record | `date`, `completed_template_ids` | DailyTasks, dailyTaskSystem |
 | DailyTaskTemplate | base44 | Recurring task definitions | `title`, `description`, `points`, `frequency` (daily/weekly/monthly/yearly), `mode` (`AUTO`/`MANUAL`), `auto_trigger` (key from `AUTO_TRIGGER_LABELS` when AUTO), `nav_path` (when MANUAL), `is_active`, `sort_order` | DailyTasks, TaskTemplateManager |

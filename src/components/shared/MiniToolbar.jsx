@@ -199,7 +199,11 @@ function escapeHtmlText(s) {
 // URL and the caller inserts a proper anchor.
 function LinkPromptModal({ onApply, onClose }) {
   const [url, setUrl] = useState("");
-  const submit = () => { if (url.trim()) onApply(url); };
+  // v0.89.1: display text alongside the URL (tester: raw URLs already
+  // auto-link when typed, so a URL-only prompt made the button useless —
+  // the whole point of the dialog is naming the link).
+  const [text, setText] = useState("");
+  const submit = () => { if (url.trim()) onApply(url, text); };
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[90] p-4" onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-xl p-5 space-y-3 max-w-xs w-full shadow-2xl" onClick={e => e.stopPropagation()}>
@@ -214,7 +218,14 @@ function LinkPromptModal({ onApply, onClose }) {
           placeholder="example.com or https://…"
           className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
         />
-        <p className="text-[0.6875rem] text-muted-foreground leading-snug">Tip: select text first to use it as the link label — otherwise the address itself is shown.</p>
+        <input
+          type="text" value={text}
+          onChange={e => setText(e.target.value)}
+          onKeyDown={e => { if (e.key === "Enter") { e.preventDefault(); submit(); } }}
+          placeholder="Display text (optional)"
+          className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+        />
+        <p className="text-[0.6875rem] text-muted-foreground leading-snug">Leave the text empty to use your selected text, or the address itself.</p>
         <div className="flex gap-2">
           <button type="button" onClick={onClose} className="flex-1 px-4 py-2 rounded-xl bg-muted text-muted-foreground text-sm font-medium">Cancel</button>
           <button type="button" onClick={submit} disabled={!url.trim()} className="flex-1 px-4 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium disabled:opacity-50">Add link</button>
@@ -362,20 +373,26 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
     setShowLinkPrompt(true);
   };
 
-  // Insert a real anchor for the typed URL. Wraps the selection as the link
-  // label when there is one; otherwise the address itself becomes the label.
-  // Works on both hosts: execCommand on a contentEditable editor (preserves the
-  // selection), tag-wrapping on a textarea.
-  const applyLink = (rawUrl) => {
+  // Insert a real anchor for the typed URL. Label precedence: explicit
+  // display text from the dialog > wrapped selection > the address itself.
+  // Works on both hosts: execCommand on a contentEditable editor (preserves
+  // the selection), tag-wrapping on a textarea. When explicit text is given
+  // WITH a selection, the typed text wins (insertHTML replaces the selection)
+  // — the user just told us what the link should say.
+  const applyLink = (rawUrl, rawText = "") => {
     const url = normalizeUrl(rawUrl);
     if (!url) { setShowLinkPrompt(false); savedSelection.current = null; return; }
     const safeUrl = url.replace(/"/g, "%22");
+    const label = (rawText || "").trim();
     restoreSel();
     const s = savedSelection.current;
     const hasSel = !!s && ((s.kind === "input" && s.start !== s.end) || (s.kind === "range" && s.range && !s.range.collapsed));
     if (onCommand) {
-      if (hasSel) onCommand("createLink", url);
+      if (label) onCommand("insertHTML", `<a href="${safeUrl}">${escapeHtmlText(label)}</a>`);
+      else if (hasSel) onCommand("createLink", url);
       else onCommand("insertHTML", `<a href="${safeUrl}">${escapeHtmlText(url)}</a>`);
+    } else if (label) {
+      onInsert(`<a href="${safeUrl}">${escapeHtmlText(label)}`, `</a>`);
     } else if (hasSel) {
       onInsert(`<a href="${safeUrl}">`, `</a>`);
     } else {
