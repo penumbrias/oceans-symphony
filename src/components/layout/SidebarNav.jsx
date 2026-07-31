@@ -155,8 +155,15 @@ export default function SidebarNav({ open, onClose }) {
           </div>
         </div>
 
-        {/* Scrollable nav list */}
-        <div className="flex-1 overflow-y-auto px-3 py-4 space-y-5">
+        {/* Scrollable nav list. Bottom padding must include the safe-area
+            inset: with edge-to-edge rendering (iOS home indicator, Android
+            gesture pill) the drawer extends behind the system UI, and
+            without the inset the last rows (System Map) could never scroll
+            clear of it. */}
+        <div
+          className="flex-1 overflow-y-auto overscroll-contain px-3 pt-4 space-y-5"
+          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
+        >
           {groups.map(({ label, items }) => (
             <div key={label}>
               <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground px-2 mb-1.5">

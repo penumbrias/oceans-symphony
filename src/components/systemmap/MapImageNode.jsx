@@ -21,7 +21,9 @@ export default function MapImageNode({ image, isSelected, selectable = true, loc
 
   useEffect(() => {
     if (!image_url) { setResolvedUrl(null); return; }
-    if (!image_url.startsWith("local-image://")) { setResolvedUrl(image_url); return; }
+    // Both local forms need resolving — the /local-image/ SW path 404s on
+    // iOS native (no service worker there), so never render it raw.
+    if (!image_url.startsWith("local-image://") && !image_url.startsWith("/local-image/")) { setResolvedUrl(image_url); return; }
     import("@/lib/imageUrlResolver").then(({ resolveImageUrl }) => {
       resolveImageUrl(image_url).then((u) => setResolvedUrl(u || image_url));
     });

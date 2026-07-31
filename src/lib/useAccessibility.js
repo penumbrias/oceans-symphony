@@ -138,16 +138,12 @@ function applyLargeTouch(value) {
 
 function applyNavHeight(value) {
   const h = NAV_HEIGHTS[value] || NAV_HEIGHTS.default;
-  // Write the USER's choice to its own variable; the stylesheet derives
-  // the effective --bottom-nav-height from it. This indirection is what
-  // lets a media query CAP the height in short-landscape viewports —
-  // an inline --bottom-nav-height would always beat stylesheet rules,
-  // making the landscape cap impossible (tester: bars cover too much of
-  // the screen in horizontal mode). See index.css.
-  document.documentElement.style.setProperty("--bottom-nav-height-user", h);
-  // Clear any direct inline value (written by pre-v0.89.1 builds) — it
-  // would override the stylesheet's derived/capped value.
-  document.documentElement.style.removeProperty("--bottom-nav-height");
+  document.documentElement.style.setProperty("--bottom-nav-height", h);
+  // NOTE: the short-landscape height cap was pulled from the classic UI so
+  // this release ships the data fix with zero chrome changes. UI v2's
+  // Display options already expose bar heights directly; bring the cap
+  // back there (or behind the toggle) rather than here.
+  document.documentElement.style.removeProperty("--bottom-nav-height-user");
 }
 
 function applyFontFamily(value) {

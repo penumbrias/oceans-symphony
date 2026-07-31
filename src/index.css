@@ -61,21 +61,9 @@
     --color-text-secondary: #64748B;
 
     --radius: 0.75rem;
-    /* Effective bottom-nav height, derived from the user's Settings choice
-       (useAccessibility writes --bottom-nav-height-user inline). Derived
-       rather than written directly so the short-landscape media query
-       below can CAP it — an inline value would beat any stylesheet rule. */
-    --bottom-nav-height: var(--bottom-nav-height-user, 56px);
+    --bottom-nav-height: 56px;
   }
 
-  /* Short landscape viewports (phones held sideways): chrome must not eat
-     the view. Caps — never overrides — the user's nav-height choice, and
-     the mobile header row is already 44px in landscape (AppLayout). */
-  @media (orientation: landscape) and (max-height: 520px) {
-    :root {
-      --bottom-nav-height: min(var(--bottom-nav-height-user, 56px), 44px);
-    }
-  }
 
   .dark {
     --color-bg: #0A0E17;

@@ -38,6 +38,7 @@ export const CHANGELOG = [
     date: "July 29, 2026",
     version: "0.94.1",
     changes: [
+      { type: "improve", text: "iOS app: real app icon and splash screen (made from the app logo) instead of the placeholder art." },
       { type: "fix", text: "🧪 Homescreen widget names and descriptions now use your custom terminology." },
       { type: "feature", text: "🧪 Nine homescreen styles — Current, Glass, Social feed, Toybox, Old forum, Terminal, Spreadsheet, Aero, and Barebones — picked from a new style sheet in edit mode. Any widget can override the page style individually." },
       { type: "feature", text: "🧪 Every widget now has a gear menu: rename it, change its display mode and style, and give app shortcuts a custom image icon from your assets." },
@@ -61,13 +62,15 @@ export const CHANGELOG = [
       { type: "feature", text: "🧪 Experimental homescreen (opt-in) — a phone-style dashboard with placeable, resizable widgets for every dashboard feature, an app drawer with every page plus a widget picker, per-widget display modes, and a persistent quick-action bar (Quick Check-In, Start Activity, and friends). Turn it on from the dashboard banner or Settings → Appearance → Dashboard layout; your classic dashboard stays saved and you can switch back any time." },
       { type: "improve", text: "The Log Activity modal got the same clean-up as Plan Activity: grouped When / What / Details sections, the live \"Active — end later\" timer as a compact pill next to When, and fronting / company / notes tucked behind small \"+\" chips until needed. Everything works exactly as before." },
       { type: "improve", text: "The editor toolbar's web-link button now asks for display text along with the URL — no more links that can only show the raw address. Works everywhere the toolbar appears (bios, bulletins, comments, chat, journals)." },
-      { type: "fix", text: "Landscape mode: the bottom bar now caps its height on short screens so the app's chrome doesn't swallow the view. Your bar-height setting still applies fully in portrait." },
     ],
   },
   {
     date: "July 27, 2026",
-    version: "0.89.0",
+    version: "0.89.2",
     changes: [
+      { type: "fix", text: "iOS app: images on the inner world map (location backgrounds, map images) and in profile bios now display." },
+      { type: "fix", text: "Sidebar menu: the bottom entries (like System Map) no longer get cut off behind the home indicator on iPhone/iPad." },
+      { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
       { type: "fix", text: "iOS app: avatars and saved images now show up instead of broken-image placeholders." },
     ],
   },
