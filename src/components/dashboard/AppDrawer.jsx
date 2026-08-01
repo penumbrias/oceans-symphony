@@ -173,6 +173,7 @@ function OrganizeFolders({ apps, folders, onSave, onClose }) {
 // a row. Folders come from experimental_home.drawer.folders via props.
 export default function AppDrawer({
   open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut, pinOnTap = false,
+  registry = WIDGET_REGISTRY,
   folders = [], onSaveFolders,
 }) {
   const t = useTerms();
@@ -314,7 +315,7 @@ export default function AppDrawer({
           ) : (
             <div className="space-y-4">
               {WIDGET_CATEGORIES.map((cat) => {
-                const widgets = Object.entries(WIDGET_REGISTRY).filter(([, d]) => d.category === cat.id && !d.hiddenFromDrawer);
+                const widgets = Object.entries(registry).filter(([, d]) => d.category === cat.id && !d.hiddenFromDrawer);
                 if (widgets.length === 0) return null;
                 return (
                   <div key={cat.id}>

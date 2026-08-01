@@ -211,7 +211,15 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
   );
 }
 
-export default function ExperimentalDashboard({ settingsRow, api }) {
+// `registry` and `settingsField` are injected so UI v2 can reuse this
+// canvas (grid, drag/resize, pages, edit mode) with its own redesigned
+// widget set and its own saved layout, without forking the mechanics.
+export default function ExperimentalDashboard({
+  settingsRow,
+  api,
+  registry = WIDGET_REGISTRY,
+  settingsField = "experimental_home",
+}) {
   const qc = useQueryClient();
   const t = useTerms();
   const a11yStack = !!getAccessibilitySettings().a11yMode;
@@ -225,8 +233,8 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const gridRef = React.useRef(null);
 
   const home = useMemo(
-    () => resolveExperimentalHome(settingsRow?.experimental_home, WIDGET_REGISTRY),
-    [settingsRow?.experimental_home]
+    () => resolveExperimentalHome(settingsRow?.[settingsField], registry),
+    [settingsRow, settingsField, registry]
   );
   const gridCols = useGridCols(home.grid?.phoneCols || 4);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
@@ -248,15 +256,15 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const persist = useCallback(async (nextHome) => {
     try {
       if (settingsRow?.id) {
-        await base44.entities.SystemSettings.update(settingsRow.id, { experimental_home: nextHome });
+        await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
       } else {
-        await base44.entities.SystemSettings.create({ experimental_home: nextHome });
+        await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
       }
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch (e) {
       toast.error(e?.message || "Couldn't save the homescreen");
     }
-  }, [settingsRow?.id, qc]);
+  }, [settingsRow?.id, qc, settingsField]);
 
   const updatePageWidgets = useCallback((mutate) => {
     const next = {
@@ -284,7 +292,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       return arrayMove(ws, i, j);
     });
   const handleAddWidget = (widgetId, settings = {}, { edit = true } = {}) => {
-    const def = WIDGET_REGISTRY[widgetId];
+    const def = registry[widgetId];
     if (!def) return;
     // Single-instance is per PAGE — the same widget CAN live on several
     // pages (v0.91.0 over-tightened this to all-pages; tester wants per-page).
@@ -392,7 +400,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
   const altersBarOn = home.altersBar.enabled && (hasPinnedAlters || editMode);
   const altersTop = altersBarOn && home.altersBar.position === "top";
   const altersBottom = altersBarOn && home.altersBar.position === "bottom";
-  const widgets = page.widgets.filter((w) => WIDGET_REGISTRY[w.widgetId]);
+  const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
   // status_note widget is on the page (mirrors classic layoutEnabled logic).
@@ -408,7 +416,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         <SortableWidget
           key={w.instanceId}
           widget={w}
-          def={WIDGET_REGISTRY[w.widgetId]}
+          def={registry[w.widgetId]}
           editMode={editMode}
           gridCols={gridCols}
           gridRef={gridRef}
@@ -723,6 +731,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
+        registry={registry}
         onAddWidget={handleAddWidget}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
@@ -739,7 +748,7 @@ export default function ExperimentalDashboard({ settingsRow, api }) {
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
         widget={widgets.find((w) => w.instanceId === configId) || null}
-        def={WIDGET_REGISTRY[widgets.find((w) => w.instanceId === configId)?.widgetId]}
+        def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}
         onClose={() => setConfigId(null)}
         onMode={handleMode}

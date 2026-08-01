@@ -919,7 +919,7 @@ export default function Dashboard() {
       />
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
-      {uiV2On && <HomeV2 />}
+      {uiV2On && <HomeV2 settingsRow={settings[0] || null} api={homeApi} />}
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (

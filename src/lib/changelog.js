@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: the home screen is a customizable widget board again — arrange, resize and page it exactly like before — but the widgets themselves are rebuilt in the new design. Its layout is stored separately, so your old experimental homescreen arrangement is untouched." },
       { type: "fix", text: "The \"Continue setup\" chip no longer hides behind the bottom tab bar or under the floating support bubble — its Open and dismiss buttons are reachable again on phones and tablets." },
       { type: "feature", text: "🧪 A rebuilt UI is in progress behind an opt-in toggle (Settings → Appearance → Dashboard layout → \"New UI\"). It is early and changes often — the normal app is untouched unless you switch it on, and switching back is instant." },
       { type: "feature", text: "Importing now shows an \"Overlapping records\" review when a record differs between this device and the backup: see both versions with their edit times, keep the automatic pick (newer wins) or flip any record to the other version — including restoring things a deletion-sync removed." },
