@@ -13,7 +13,8 @@ import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { seedFromClassic } from "@/lib/experimentalHome";
-import { EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
+import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
+import HomeV2 from "@/v2/pages/HomeV2";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
 
@@ -744,7 +745,8 @@ export default function Dashboard() {
   // EXPERIMENTAL_HOME_ENABLED gates the whole feature at build time. When
   // false, anyone who previously enabled it falls back to the classic
   // dashboard (their saved layout is untouched and returns if re-enabled).
-  const experimentalOn = EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
+  const uiV2On = UI_V2_ENABLED && settings[0]?.ui_v2?.enabled === true;
+  const experimentalOn = !uiV2On && EXPERIMENTAL_HOME_ENABLED && settings[0]?.experimental_home?.enabled === true;
   const [expBannerDismissed, setExpBannerDismissed] = useState(() => !!psGetItem(EXP_HOME_BANNER_KEY));
   const dismissExpBanner = () => { psSetItem(EXP_HOME_BANNER_KEY, "1"); setExpBannerDismissed(true); };
   const enableExperimentalHome = async () => {
@@ -815,7 +817,7 @@ export default function Dashboard() {
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
 
-      {!experimentalOn && (
+      {!uiV2On && !experimentalOn && (
       <div className="mb-3 flex items-start justify-between">
         <div>
           {multiSystem ? (
@@ -915,13 +917,16 @@ export default function Dashboard() {
         onNotifClick={handleNotifClick}
       />
 
+      {/* ── UI v2 Home (rebuilt from the function tree) ── */}
+      {uiV2On && <HomeV2 />}
+
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (
         <ExperimentalDashboard settingsRow={settings[0] || null} api={homeApi} />
       )}
 
       {/* "Try it" banner — classic only, dismissible per system. */}
-      {EXPERIMENTAL_HOME_ENABLED && !experimentalOn && !expBannerDismissed && (
+      {EXPERIMENTAL_HOME_ENABLED && !uiV2On && !experimentalOn && !expBannerDismissed && (
         <div className="mb-3 flex items-center gap-2 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2">
           <Grid2x2 className="w-4 h-4 text-primary flex-shrink-0" />
           <p className="text-xs flex-1 min-w-0">
@@ -943,7 +948,7 @@ export default function Dashboard() {
           from SystemSettings.dashboard_layout via the Appearance
           settings panel. New elements that ship later get backfilled
           at their default position by resolveLayout. */}
-      {!experimentalOn && (
+      {!uiV2On && !experimentalOn && (
       <div className="os-dash-cols">
       {dashboardLayout.map((entry) => {
         if (!layoutEnabled[entry.id]) return null;

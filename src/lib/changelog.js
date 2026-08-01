@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 30, 2026",
     changes: [
+      { type: "feature", text: "🧪 A rebuilt UI is in progress behind an opt-in toggle (Settings → Appearance → Dashboard layout → \"New UI\"). It is early and changes often — the normal app is untouched unless you switch it on, and switching back is instant." },
       { type: "feature", text: "Importing now shows an \"Overlapping records\" review when a record differs between this device and the backup: see both versions with their edit times, keep the automatic pick (newer wins) or flip any record to the other version — including restoring things a deletion-sync removed." },
       { type: "feature", text: "Two-device sync via backups: edits made on both your phone AND computer now merge cleanly — newer edits win per record, and a new \"Also sync deletions\" option (in the import mode picker) removes records you deleted on the other device instead of resurrecting them. To fully sync, import in both directions. Recovering old data still works: leave the deletion option off." },
       { type: "fix", text: "Sync: settings and closed session edits from another device now actually arrive on import (they were previously always ignored in favor of the local copy)." },

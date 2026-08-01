@@ -37,6 +37,9 @@ import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
+import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
+import { V2StatusLine, V2BottomChrome } from "@/components/v2/V2Frame";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 
 const TAB_ROOTS = ["/", "/Home", "/system-checkin", "/journals", "/tasks"];
@@ -254,6 +257,14 @@ const navConfig = useMemo(() => {
 // "all", or "off" (default home). Height + image vertical position are
 // configurable in Settings → System Profile.
 const settings0 = systemSettings?.[0];
+
+// ── UI v2 (opt-in rebuild) ──
+// UI_V2_ENABLED is the build-time kill switch; ui_v2.enabled is the
+// user's own toggle. Both must be true for any v2 chrome to render, so a
+// release can ship with zero UI changes by flipping the flag alone.
+const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
+const uiV2On = UI_V2_ENABLED && uiV2.enabled;
+const uiV2Vars = useMemo(() => (uiV2On ? buildTokenVars(uiV2) : null), [uiV2On, uiV2]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -495,7 +506,16 @@ const handleNotifClick = (mentionLog) => {
     // viewport when content overflows, which makes the body scroll
     // and drags the "sticky" header up with it in some Capacitor
     // WebView versions.
-    <div className="flex flex-col h-screen bg-background overflow-hidden">
+    <div
+      className="flex flex-col h-screen bg-background overflow-hidden"
+      data-ui-v2={uiV2On ? "1" : undefined}
+      style={uiV2On ? {
+        ...uiV2Vars,
+        // Clearance for fixed elements (grounding bubble, sheets), derived
+        // from whichever v2 bars are visible.
+        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions ? "var(--v2-cmd-size) + var(--v2-space) * 2" : "0px"} + var(--v2-space))`,
+      } : undefined}
+    >
       {/* Skip link — the first focusable element; lets keyboard / switch users
           jump straight to the page content, past the header + nav (WCAG 2.4.1).
           Visually hidden until focused. */}
@@ -509,6 +529,8 @@ const handleNotifClick = (mentionLog) => {
           each navigation (SPA route changes are otherwise silent). */}
       <div aria-live="polite" role="status" className="sr-only">{routeAnnouncement}</div>
 
+      {uiV2On && <V2StatusLine settingsRow={settings0} uiV2={uiV2} />}
+
       {/* ── Desktop top header (hidden on mobile) ──
           The inner row spans the full viewport width so the logo + name
           sit flush to the left edge and the nav buttons sit flush to the
@@ -519,7 +541,7 @@ const handleNotifClick = (mentionLog) => {
           web/TWA these envs evaluate to 0 and the header looks the
           same as before. */}
       <header
-        className="sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
+        className="os-classic-chrome sticky top-0 z-50 bg-background/85 backdrop-blur-xl hidden lg:block border-b border-border/50"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -589,7 +611,7 @@ const handleNotifClick = (mentionLog) => {
           The wave's bottom edge crosses through the centre of the
           title and the icons, like a horizon line. */}
       <header
-        className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
+        className="os-classic-chrome sticky top-0 z-50 bg-background/90 backdrop-blur-xl lg:hidden flex flex-col border-b border-border/50"
         style={{
           paddingTop: 'env(safe-area-inset-top, 0px)',
           paddingLeft: 'env(safe-area-inset-left, 0px)',
@@ -668,7 +690,7 @@ const handleNotifClick = (mentionLog) => {
             header) even when a page paints a full-viewport `fixed inset-0`
             background — e.g. an alter/group profile with a custom theme, whose
             background otherwise painted over the sidebar and made it vanish. */}
-        <aside className="hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
+        <aside className="os-classic-chrome hidden lg:flex flex-col w-52 shrink-0 border-r border-border/40 overflow-y-auto overscroll-contain sticky top-16 self-start h-[calc(100vh-4rem)] z-30 bg-background/85 backdrop-blur-xl">
           <nav className="px-2 py-4 space-y-5" aria-label="Sidebar navigation">
             {[
               {
@@ -792,9 +814,11 @@ const handleNotifClick = (mentionLog) => {
         </React.Suspense>
       )}
 
+      {uiV2On && <V2BottomChrome uiV2={uiV2} />}
+
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav
-        className="a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
+        className="os-classic-chrome a11y-bottom-nav lg:hidden fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t border-border/50"
         style={{
           height: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))",
           paddingBottom: "env(safe-area-inset-bottom, 0px)",

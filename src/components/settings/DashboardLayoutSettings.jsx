@@ -28,7 +28,7 @@ import {
   DEFAULT_BATCH,
 } from "@/lib/bulletinLimit";
 import { toast } from "sonner";
-import { EXPERIMENTAL_HOME_ENABLED } from "@/lib/featureFlags";
+import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 
 // Drag/drop pill row. Whole row is the drag handle when grabbed from
 // the GripVertical icon — using a dedicated handle keeps the toggle
@@ -273,8 +273,35 @@ export default function DashboardLayoutSettings() {
     }
   };
 
+  // UI v2 opt-in toggle (build-gated by UI_V2_ENABLED).
+  const uiV2On = record?.ui_v2?.enabled === true;
+  const toggleUiV2 = async (on) => {
+    try {
+      const next = { ...(record?.ui_v2 || {}), enabled: on };
+      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: next });
+      else await base44.entities.SystemSettings.create({ ui_v2: next });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(on ? "New UI on" : "Classic navigation restored");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch");
+    }
+  };
+
   return (
     <section className="space-y-3 border-t border-border/30 pt-4">
+      {UI_V2_ENABLED && (
+        <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
+          <div className="min-w-0">
+            <span className="text-sm font-medium flex items-center gap-1.5">
+              🧪 New UI (in progress)
+            </span>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              The rebuilt navigation and pages, still being built. Everything you have keeps working underneath — switch back any time.
+            </p>
+          </div>
+          <Switch checked={uiV2On} onCheckedChange={toggleUiV2} />
+        </label>
+      )}
 
       {EXPERIMENTAL_HOME_ENABLED && (
       <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">

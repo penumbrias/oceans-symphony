@@ -583,3 +583,12 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
   border-radius: 0 !important;
 }
 
+
+/* ── UI v2 (opt-in rebuild) ──
+   Hides the classic chrome only when the user has switched v2 on; the
+   --v2-* variables are the customization tokens emitted by uiV2.js. */
+[data-ui-v2="1"] .os-classic-chrome { display: none !important; }
+[data-ui-v2="1"] main.app-content-main {
+  max-width: var(--v2-content-w, 100%);
+  margin-inline: auto;
+}

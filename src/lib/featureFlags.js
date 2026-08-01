@@ -14,3 +14,11 @@
 // v0.95.x data-integrity releases. Re-enable by setting this to true —
 // no other change needed.
 export const EXPERIMENTAL_HOME_ENABLED = false;
+
+// UI v2 — the from-scratch UI rebuild (frame + rebuilt pages), in active
+// development. When true, an opt-in toggle appears in Settings →
+// Appearance → Dashboard layout; the UI itself still only renders for
+// users who switch it on (SystemSettings.ui_v2.enabled, default false).
+// Set to false for any release that must ship with zero UI changes — that
+// hides the toggle AND forces the UI off, so nobody is stranded in it.
+export const UI_V2_ENABLED = true;
