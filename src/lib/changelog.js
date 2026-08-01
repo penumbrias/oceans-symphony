@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "July 31, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: folders on the page — a tile that holds any set of apps and opens to show them. Add it from Add widget → Navigation, then pick its apps in the widget's options." },
+      { type: "fix", text: "🧪 Free layout: widgets no longer spill over each other. Each one is sized to what it holds, and anything that still doesn't fit scrolls inside its own box. Resize one yourself and it keeps the size you gave it." },
       { type: "fix", text: "🧪 New UI: widgets on a free-layout page no longer sit on top of each other — move or grow one and the others step down out of its way, keeping their own size and column. Layouts that were already overlapping are untangled on open." },
       { type: "feature", text: "🧪 New UI: free layout — switch a page to \"Free\" in edit mode and put each widget exactly where you want it, gaps and all, instead of having them pack together." },
       { type: "improve", text: "🧪 New UI: the corner-radius slider now curves the whole app, and any single widget can override the look on its own — font, corners, border, text size, highlight colour." },

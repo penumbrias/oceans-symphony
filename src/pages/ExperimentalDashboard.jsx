@@ -137,7 +137,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     span: { cols: spanCols, rows: spanRows },
     min: def.minSpan,
     max: def.maxSpan,
-    onCommit: (next) => onSpan(widget.instanceId, next),
+    onCommit: (next) => onSpan(widget.instanceId, next, { manual: true }),
   });
   const shownCols = resize.preview?.cols ?? spanCols;
   const shownRows = resize.preview?.rows ?? spanRows;
@@ -164,6 +164,11 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           transform: move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : undefined,
           zIndex: move.dragging ? 45 : undefined,
           opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
+          // The cell is the widget's boundary. Without this, anything taller
+          // than its rows paints straight over its neighbour — which is the
+          // overlap you see even when the coordinates are fine.
+          overflow: "hidden",
+          height: "100%",
         }
       : {
         gridColumn: `span ${shownCols}`,
@@ -212,6 +217,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         </div>
       )}
       <div
+        data-widget-content="1"
         {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         onContextMenu={editMode ? (e) => e.preventDefault() : undefined}
         className={[
@@ -224,6 +230,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         ].join(" ").trim() || undefined}
         style={{
           ...widgetStyleVars(widget.settings),
+          ...(free ? { height: "100%", overflowY: "auto", overscrollBehavior: "contain" } : null),
           ...(editMode ? {
             // pan-y: vertical scrolling passes through; the 300ms hold-still
             // sensors lift the widget instead. Callout/user-select suppression
@@ -352,9 +359,16 @@ export default function ExperimentalDashboard({
   // ── Edit operations ────────────────────────────────────────────
   const handleRemove = (instanceId) => updatePageWidgets((ws) => ws.filter((w) => w.instanceId !== instanceId));
   const pageIsFree = page.layoutMode === "free";
-  const handleSpan = (instanceId, patch) =>
+  const handleSpan = (instanceId, patch, opts = {}) =>
     updatePageWidgets((ws) => {
-      const next = ws.map((w) => (w.instanceId === instanceId ? { ...w, span: { ...w.span, ...patch } } : w));
+      const next = ws.map((w) => (w.instanceId === instanceId
+        ? {
+            ...w,
+            span: { ...w.span, ...patch },
+            // Size it by hand and it stays that size; content scrolls inside.
+            settings: opts.manual ? { ...w.settings, autoFit: false } : w.settings,
+          }
+        : w));
       return pageIsFree ? resolveOverlaps(next, gridCols, instanceId) : next;
     });
   const handleMode = (instanceId, mode) =>
@@ -379,10 +393,13 @@ export default function ExperimentalDashboard({
       toast.info("Already on this page");
       return;
     }
-    updatePageWidgets((ws) => [
-      ...ws,
-      { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: "normal", settings },
-    ]);
+    updatePageWidgets((ws) => {
+      const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: "normal", settings };
+      const next = [...ws, added];
+      // On a free page a new widget needs a cell of its own, or it lands on
+      // top of whatever is at the origin.
+      return pageIsFree ? resolveOverlaps(next.map((w) => (w.pos ? w : { ...w, pos: { x: 0, y: 0 } })), gridCols, null) : next;
+    });
     toast.success(`${widgetLabel(def, t)} added`);
     if (edit) {
       setDrawerOpen(false);
@@ -516,18 +533,37 @@ export default function ExperimentalDashboard({
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
 
-  // A layout can arrive overlapping: saved before widgets kept out of each
-  // other's way, or arranged at one width and opened at a narrower one.
-  // Untangle it once, quietly.
-  const repaired = React.useRef("");
+  // One pass, per page and width: give every widget the rows its content
+  // actually needs, then untangle. Done centrally and written once —
+  // per-widget writes raced each other and walked the layout down the page.
+  // Runs again only when the page or the column count changes.
+  const fitted = React.useRef("");
   React.useEffect(() => {
-    if (!freeMode || !settingsRow?.id) return;
+    if (!freeMode || !settingsRow?.id || !gridRef.current) return undefined;
     const stamp = `${page.id}:${gridCols}`;
-    if (repaired.current === stamp) return;
-    if (!hasOverlaps(page.widgets, gridCols)) return;
-    repaired.current = stamp;
-    updatePageWidgets((ws) => resolveOverlaps(ws, gridCols));
-  }, [freeMode, page.id, page.widgets, gridCols, settingsRow?.id, updatePageWidgets]);
+    if (fitted.current === stamp) return undefined;
+    const id = setTimeout(() => {
+      const grid = gridRef.current;
+      if (!grid) return;
+      const needed = {};
+      for (const node of grid.querySelectorAll("[data-widget-id]")) {
+        const content = node.querySelector("[data-widget-content]");
+        if (!content) continue;
+        needed[node.dataset.widgetId] = Math.max(1, Math.ceil((content.scrollHeight + 12) / 92));
+      }
+      const grown = page.widgets.map((w) => {
+        if (w.settings?.autoFit === false) return w;
+        const def = registry[w.widgetId];
+        const want = Math.min(def?.maxSpan?.rows ?? 8, needed[w.instanceId] || 1);
+        return want > (w.span?.rows || 1) ? { ...w, span: { ...w.span, rows: want } } : w;
+      });
+      const changed = grown.some((w, i) => w.span?.rows !== page.widgets[i].span?.rows);
+      if (!changed && !hasOverlaps(page.widgets, gridCols)) { fitted.current = stamp; return; }
+      fitted.current = stamp;
+      updatePageWidgets(() => resolveOverlaps(grown, gridCols));
+    }, 120);
+    return () => clearTimeout(id);
+  }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);
   // Enough rows to hold everything plus room to move things down into.
   const freeRows = freeMode
     ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) + (w.span?.rows || 1))) + (editMode ? 4 : 0)

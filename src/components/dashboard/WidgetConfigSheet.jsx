@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check } from "lucide-react";
 import { APP_FONT_OPTIONS } from "@/lib/useAccessibility";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
@@ -27,6 +27,7 @@ import { HOME_MODES, effectiveMode } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { buildGridItems } from "@/lib/navCatalogue";
 import { widgetLabel } from "@/lib/widgetRegistry";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
@@ -67,6 +68,37 @@ function DebouncedText({ value, onCommit, multiline, rows, maxLength, placeholde
     onBlur: flush,
   };
   return multiline ? <textarea {...props} rows={rows || 3} /> : <input {...props} />;
+}
+
+function AppListField({ value = [], onChange, terms }) {
+  const [q, setQ] = React.useState("");
+  const items = React.useMemo(() => buildGridItems(terms.Alters, terms.System), [terms.Alters, terms.System]);
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? items.filter((i) => i.label.toLowerCase().includes(needle)) : items;
+  const toggle = (id) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
+  return (
+    <div className="space-y-2">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search apps…"
+        className="w-full h-9 px-3 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+      <div className="max-h-56 overflow-y-auto overscroll-contain space-y-0.5 pr-1">
+        {shown.map((i) => {
+          const on = value.includes(i.id);
+          const Icon = i.icon;
+          return (
+            <button key={i.id} type="button" onClick={() => toggle(i.id)}
+              className={`w-full flex items-center gap-2.5 px-2.5 py-2 rounded-lg border text-left text-sm ${
+                on ? "border-primary/60 bg-primary/10" : "border-transparent hover:bg-muted/40"
+              }`}>
+              <Icon className="w-4 h-4 flex-shrink-0 text-muted-foreground" />
+              <span className="truncate flex-1">{i.label}</span>
+              {on && <Check className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+            </button>
+          );
+        })}
+        {shown.length === 0 && <p className="text-xs text-muted-foreground px-1 py-2">No apps match that.</p>}
+      </div>
+    </div>
+  );
 }
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
@@ -189,6 +221,10 @@ export default function WidgetConfigSheet({
                       </button>
                     ))}
                   </div>
+                )}
+                {f.type === "apps" && (
+                  <AppListField value={Array.isArray(val) ? val : []}
+                    onChange={(next) => commit(next)} terms={t} />
                 )}
                 {f.type === "number" && (
                   <input type="number" key={`${widget.instanceId}:${f.key}`} defaultValue={val}

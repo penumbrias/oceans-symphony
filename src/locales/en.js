@@ -131,6 +131,10 @@ export default {
   "widget.reminders.empty": "Nothing coming up.",
   "widget.reminders.item": "Reminder",
 
+  "widget.folder.label": "Folder",
+  "widget.folder.empty": "Nothing in here yet — add apps in this widget's options.",
+  "widget.folder.count": "{count} apps",
+
   "widget.app.missing": "Missing shortcut — remove me",
 
   // ── Shared ──

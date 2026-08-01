@@ -22,7 +22,7 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
-  Moon, Megaphone, Bell,
+  Moon, Megaphone, Bell, FolderOpen,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -32,6 +32,9 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
+import {
+  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
+} from "@/components/ui/drawer";
 import { useT } from "@/lib/i18n";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 
@@ -508,20 +511,96 @@ function RemindersWidget({ settings }) {
   );
 }
 
+
+// ── Folder ─────────────────────────────────────────────────────────
+// A folder that lives ON the page, phone-homescreen style: a tile showing
+// what's inside, which opens to the full list. Its contents are chosen in
+// the widget's own options (Apps in this folder).
+function FolderWidget({ settings, mode }) {
+  const tr = useT();
+  const t = useTerms();
+  const navigate = useNavigate();
+  const [open, setOpen] = React.useState(false);
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const apps = (settings?.appIds || []).map((id) => findGridItem(items, id)).filter(Boolean);
+  const label = settings?.label || tr("widget.folder.label");
+
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(true)}
+        className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
+        style={{ borderRadius: "var(--v2-radius)" }}>
+        {/* The tile previews what's inside — the first four, in a 2×2, the
+            way a phone folder does. */}
+        <span className="grid grid-cols-2 gap-0.5 p-1 flex-shrink-0"
+          style={{
+            borderRadius: "var(--v2-radius)",
+            border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+          }}>
+          {apps.slice(0, 4).map((a) => {
+            const Icon = a.icon;
+            return <Icon key={a.id} className="w-3.5 h-3.5 text-muted-foreground" />;
+          })}
+          {apps.length === 0 && <FolderOpen className="w-3.5 h-3.5 text-muted-foreground col-span-2" />}
+        </span>
+        {mode !== "minimal" && (
+          <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
+            {label}
+          </span>
+        )}
+      </button>
+
+      <Drawer open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
+        <DrawerContent className="max-h-[70vh]">
+          <DrawerHeader className="pb-1">
+            <DrawerTitle className="text-base">{label}</DrawerTitle>
+            <DrawerDescription className="text-xs">
+              {apps.length ? tr("widget.folder.count", { count: apps.length }) : tr("widget.folder.empty")}
+            </DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4 grid grid-cols-4 sm:grid-cols-6 gap-3"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            {apps.map((a) => {
+              const Icon = a.icon;
+              return (
+                <button key={a.id} type="button"
+                  onClick={() => { setOpen(false); navigate(a.path); }}
+                  className="flex flex-col items-center gap-1 py-2 hover:bg-muted/40"
+                  style={{ borderRadius: "var(--v2-radius)" }}>
+                  <span className="w-10 h-10 flex items-center justify-center"
+                    style={{
+                      borderRadius: "var(--v2-radius)",
+                      border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+                    }}>
+                    <Icon className="w-4 h-4" />
+                  </span>
+                  <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">
+                    {a.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </DrawerContent>
+      </Drawer>
+    </>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
     icon: Users, category: "system",
     render: ({ mode, api }) => <PresenceWidget mode={mode} api={api} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   running: {
     label: "Running", description: "Activity timers, symptom episodes and sleep in progress.",
     icon: Timer, category: "tracking",
     render: ({ api }) => <RunningWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
     label: "Today", description: "Plans and tasks due today, plus anything unresolved.",
@@ -535,7 +614,7 @@ export const V2_WIDGETS = {
     icon: StickyNote, category: "system",
     render: () => <StatusWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   recent: {
     label: "Recent check-ins", description: "Your most recent check-ins.",
@@ -549,14 +628,14 @@ export const V2_WIDGETS = {
     icon: Heart, category: "actions",
     render: ({ api }) => <CaptureWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   system_identity: {
     label: "{{System}} header", description: "Your {{system}}'s picture, name and description.",
     icon: IdCard, category: "system",
     render: ({ mode, api }) => <SystemIdentityWidget mode={mode} api={api} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   alters_list: {
     label: "{{Alters}} list", description: "A list of {{alters}} that opens their profiles.",
@@ -591,7 +670,7 @@ export const V2_WIDGETS = {
     icon: Moon, category: "tracking",
     render: () => <SleepWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   board: {
     label: "Board", description: "The latest posts on the bulletin board.",
@@ -624,7 +703,7 @@ export const V2_WIDGETS = {
       { key: "align", type: "select", label: "Alignment", default: "left",
         options: [{ value: "left", label: "Left" }, { value: "center", label: "Centre" }, { value: "right", label: "Right" }] },
     ],
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   text: {
     label: "Text", description: "A paragraph of your own — notes, reminders to yourself, anything.",
@@ -655,6 +734,17 @@ export const V2_WIDGETS = {
     render: () => <SpacerWidget />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  folder: {
+    label: "Folder", description: "A folder on the page that holds apps — tap to open it.",
+    icon: FolderOpen, category: "nav",
+    render: ({ mode, settings }) => <FolderWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "label", type: "text", label: "Folder name", placeholder: "Folder" },
+      { key: "appIds", type: "apps", label: "Apps in this folder" },
+    ],
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 2 },
   },
   app_shortcut: {
     label: "App shortcut", description: "An icon that opens one page. Pin apps from the drawer's Apps tab.",
