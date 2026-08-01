@@ -38,7 +38,7 @@ import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
-import { V2StatusLine, V2BottomChrome } from "@/components/v2/V2Frame";
+import { V2StatusLine, V2BottomChrome, V2SideRail } from "@/components/v2/V2Frame";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 
@@ -516,6 +516,9 @@ const handleNotifClick = (mentionLog) => {
         // Quick actions are collapsed behind an 18px handle by default,
         // so reserve the handle — not the whole row.
         "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions ? "18px" : "0px"} + var(--v2-space))`,
+        // Desktop rail clearance — 0 when the rail is off, and the media
+        // query in index.css keeps it from applying on phones.
+        "--v2-rail-pad": uiV2.bars.rail ? "var(--v2-rail-w)" : "0px",
       } : undefined}
     >
       {/* Skip link — the first focusable element; lets keyboard / switch users
@@ -817,6 +820,7 @@ const handleNotifClick = (mentionLog) => {
       )}
 
       {uiV2On && <V2BottomChrome uiV2={uiV2} settingsRow={settings0} />}
+      {uiV2On && <V2SideRail uiV2={uiV2} settingsRow={settings0} />}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

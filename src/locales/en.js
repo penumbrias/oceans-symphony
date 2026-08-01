@@ -17,6 +17,7 @@ export default {
   "nav.hideQuickActions": "Hide quick actions",
   "nav.appNav": "App navigation",
   "nav.customize": "Customize",
+  "nav.everythingElse": "Everything else",
 
   // ── Top bar ──
   "top.search": "Search",
@@ -36,8 +37,13 @@ export default {
   "options.topBar": "Top bar",
   "options.quickActionRow": "Quick-action row",
   "options.sectionTabs": "Bottom buttons",
+  "options.sideRail": "Side rail (wide screens)",
   "options.waveHeader": "Wave animation in the header",
+  "options.everythingElse": "Everything else",
+  "options.everythingElseHint": "Themes, colours, fonts, sizes and navigation.",
   "options.recoveryHint": "With the top bar hidden, a small button stays in the corner so you can always get back here.",
+
+  "search.subtitle": "Searches everything — {{alters}}, journals, plans, notes and more.",
 
   // ── Quick note ──
   "note.title": "Quick note",
@@ -96,6 +102,36 @@ export default {
   "widget.capture.label": "Capture",
   "widget.capture.desc": "One-tap buttons for the things you log most.",
 
+  "widget.identity.count": "{count} {{alters}}",
+  "widget.identity.open": "Open",
+
+  "widget.alters.label": "{{Alters}}",
+  "widget.alters.empty": "No {{alters}} yet.",
+
+  "widget.journal.label": "Journal",
+  "widget.journal.empty": "No entries yet.",
+  "widget.journal.untitled": "Untitled entry",
+  "widget.journal.new": "New",
+
+  "widget.tasks.label": "To-dos",
+  "widget.tasks.empty": "Nothing open.",
+
+  "widget.sleep.label": "Sleep",
+  "widget.sleep.empty": "No sleep logged yet.",
+  "widget.sleep.inProgress": "Sleeping since",
+  "widget.sleep.lastNight": "{hours}h last night",
+
+  "widget.board.label": "Board",
+  "widget.board.empty": "No posts yet.",
+  "widget.board.item": "Post",
+
+  "widget.reminders.label": "Reminders",
+  "widget.reminders.empty": "Nothing coming up.",
+  "widget.reminders.item": "Reminder",
+
+  "widget.app.missing": "Missing shortcut — remove me",
+
   // ── Shared ──
   "common.switch": "{{Switch}}",
+  "common.loading": "Loading…",
 };

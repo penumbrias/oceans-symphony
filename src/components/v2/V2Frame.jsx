@@ -38,6 +38,14 @@ import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
+import GlobalSearch from "@/components/dashboard/GlobalSearch";
+
+// The full classic Appearance body — themes, palettes, fonts, corner style,
+// UI/touch/nav sizes, navigation config. Display options embeds it rather
+// than re-implementing it, so v2 can never be LESS customizable than
+// classic. Lazy so its colour-picker/font machinery only loads when the
+// sheet is actually opened.
+const AdvancedAppearance = React.lazy(() => import("@/components/settings/AdvancedAppearanceNew"));
 
 const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
@@ -69,12 +77,14 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
     Math.max(0, FONT_STEPS.indexOf(getAccessibilitySettings().fontSize || "default"))
   );
   const [locale, setLocaleState] = useState(getLocale());
+  const [moreOpen, setMoreOpen] = useState(false);
 
   const BAR_TOGGLES = [
     { id: "top", label: t("options.topBar") },
     { id: "actions", label: t("options.quickActionRow") },
     { id: "tabs", label: t("options.sectionTabs") },
     { id: "wave", label: t("options.waveHeader") },
+    { id: "rail", label: t("options.sideRail") },
   ];
 
   const renderToken = (def) => {
@@ -176,6 +186,22 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
 
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{t("options.bars")}</p>
           {V2_TOKEN_DEFS.filter((d) => d.group === "bars").map(renderToken)}
+
+          {/* Everything the classic Appearance settings can do, in place —
+              same components, so the two can never drift apart. */}
+          <div className="pt-2 border-t border-border/50">
+            <button type="button" onClick={() => setMoreOpen((v) => !v)}
+              className="w-full flex items-center justify-between py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+              <span>{t("options.everythingElse")}</span>
+              <ChevronUp className="w-3.5 h-3.5" style={{ transform: moreOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+            </button>
+            {!moreOpen && <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.everythingElseHint")}</p>}
+            {moreOpen && (
+              <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">{t("common.loading")}</p>}>
+                <AdvancedAppearance />
+              </React.Suspense>
+            )}
+          </div>
         </div>
       </DrawerContent>
     </Drawer>
@@ -237,6 +263,28 @@ function QuickNoteSheet({ open, onClose }) {
   );
 }
 
+// Search opens as its own sheet so the whole index is reachable from the
+// top bar on every page — not just the dashboard.
+function SearchSheet({ open, onClose }) {
+  const t = useT();
+  const terms = useTerms();
+  return (
+    <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DrawerContent className="max-h-[85vh]">
+        <DrawerHeader className="pb-1">
+          <DrawerTitle className="text-base">{t("top.search")}</DrawerTitle>
+          <DrawerDescription className="text-xs">{applyTerms(t("search.subtitle"), terms)}</DrawerDescription>
+        </DrawerHeader>
+        {/* The results panel hangs below the input, so the row itself must
+            stay input-height — the sheet reserves the space instead. */}
+        <div className="px-4" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)", minHeight: "62vh" }}>
+          <div className="flex">{open && <GlobalSearch autoFocus onNavigate={onClose} />}</div>
+        </div>
+      </DrawerContent>
+    </Drawer>
+  );
+}
+
 function usePersistUiV2(settingsRow) {
   const qc = useQueryClient();
   const write = async (patch) => {
@@ -262,6 +310,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const formatAlter = useAlterLabel();
   const clock = useClock();
   const [optionsOpen, setOptionsOpen] = useState(false);
+  const [searchOpen, setSearchOpen] = useState(false);
   const { setToken, setBar } = usePersistUiV2(settingsRow);
 
   const { data: activeSessions = [] } = useQuery({
@@ -328,7 +377,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           <span className="truncate">{presenceText}</span>
         </button>
         <span className="ml-auto text-xs tabular-nums text-muted-foreground">{clock}</span>
-        <button type="button" onClick={() => navigate("/")} aria-label={t("top.search")}
+        <button type="button" onClick={() => setSearchOpen(true)} aria-label={t("top.search")}
           className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground">
           <Search className="w-4 h-4" />
         </button>
@@ -347,15 +396,141 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         </button>
       </div>
       {options}
+      <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
     </header>
+  );
+}
+
+// The user's own nav list, resolved once: the SAME
+// navigation_config.bottomBar the classic bar uses, so configuring it in
+// Settings → Appearance → Navigation drives both UIs and nobody has to set
+// their tabs up twice.
+function useNavItems(settingsRow) {
+  const terms = useTerms();
+  const navConfig = settingsRow?.navigation_config || DEFAULT_CONFIG;
+  const termMap = useMemo(() => ({
+    alters: terms.Alters,
+    checkin: `${terms.System} Meeting`,
+    "system-map": `${terms.System} Map`,
+    "system-history": `${terms.System} History`,
+  }), [terms]);
+  const resolve = (ids) => (ids || [])
+    .map((id) => ALL_PAGES.find((p) => p.id === id))
+    .filter(Boolean)
+    .map((p) => ({ ...p, label: termMap[p.id] || p.label }));
+  const primaryIds = navConfig.bottomBar || DEFAULT_CONFIG.bottomBar;
+  const primary = useMemo(() => resolve(primaryIds), [primaryIds, termMap]);
+  // The rail has room the bottom bar doesn't — everything else the user has
+  // chosen for their dashboard goes underneath, so desktop isn't limited to
+  // five destinations.
+  const secondary = useMemo(
+    () => resolve((navConfig.dashboardGrid || DEFAULT_CONFIG.dashboardGrid).filter((id) => !primaryIds.includes(id))),
+    [navConfig.dashboardGrid, primaryIds, termMap]
+  );
+  return { primary, secondary };
+}
+
+function useIsActive() {
+  const location = useLocation();
+  return (path) =>
+    path === "/" ? location.pathname === "/"
+      : path === "/Home" ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
+      : location.pathname.startsWith(path);
+}
+
+// ── Desktop side rail ──────────────────────────────────────────────
+// A phone's bottom bar makes no sense on a wide screen: five destinations
+// across 1400px, with the content squeezed under it. At ≥1024px the rail
+// takes over — same pages, plus everything else that didn't fit, always
+// visible, and the quick actions stack instead of hiding behind a handle.
+export function V2SideRail({ uiV2, settingsRow }) {
+  const navigate = useNavigate();
+  const t = useT();
+  const terms = useTerms();
+  const isActive = useIsActive();
+  const { primary, secondary } = useNavItems(settingsRow);
+  const [noteOpen, setNoteOpen] = useState(false);
+  if (!uiV2.bars.rail) return null;
+
+  const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+
+  const NavButton = ({ item, dim }) => {
+    const on = isActive(item.path);
+    const Icon = item.icon;
+    return (
+      <button type="button" onClick={() => navigate(item.path)} aria-current={on ? "page" : undefined}
+        className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left ${dim ? "text-xs" : "text-sm"} hover:bg-muted/40`}
+        style={{
+          borderRadius: "var(--v2-radius)",
+          color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
+          boxShadow: on ? "inset 2px 0 0 var(--v2-accent)" : "none",
+        }}>
+        {Icon && <Icon style={{ width: dim ? 14 : 16, height: dim ? 14 : 16, flexShrink: 0 }} />}
+        <span className="truncate">{item.label}</span>
+      </button>
+    );
+  };
+
+  return (
+    <nav
+      aria-label={t("nav.appNav")}
+      className="hidden lg:flex flex-col fixed left-0 bottom-0 z-40 bg-background/95 backdrop-blur-xl border-r overflow-y-auto overscroll-contain"
+      style={{
+        top: uiV2.bars.top ? "calc(var(--v2-status-h) + env(safe-area-inset-top, 0px))" : 0,
+        width: "var(--v2-rail-w)",
+        paddingLeft: "env(safe-area-inset-left, 0px)",
+        borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+        borderRightWidth: "var(--v2-border-w)",
+      }}
+    >
+      <div className="p-2 space-y-0.5">
+        {primary.map((item) => <NavButton key={item.id} item={item} />)}
+      </div>
+
+      {uiV2.bars.actions && keys.length > 0 && (
+        <div className="px-2 pb-2 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
+          <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("nav.quickActions")}
+          </p>
+          {keys.map((k) => {
+            const Icon = KEY_ICONS[k.id] || Heart;
+            const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+            return (
+              <button key={k.id} type="button"
+                onClick={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
+                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                style={{ borderRadius: "var(--v2-radius)" }}>
+                <Icon className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
+              </button>
+            );
+          })}
+          <button type="button" onClick={() => navigate("/grounding")}
+            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs hover:bg-muted/40"
+            style={{ borderRadius: "var(--v2-radius)", color: "var(--v2-accent)" }}>
+            <LifeBuoy className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{t("capture.support")}</span>
+          </button>
+        </div>
+      )}
+
+      {secondary.length > 0 && (
+        <div className="px-2 pb-4 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
+          <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+            {t("nav.everythingElse")}
+          </p>
+          {secondary.map((item) => <NavButton key={item.id} item={item} dim />)}
+        </div>
+      )}
+
+      <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+    </nav>
   );
 }
 
 // ── Bottom chrome ──────────────────────────────────────────────────
 export function V2BottomChrome({ uiV2, settingsRow }) {
   const navigate = useNavigate();
-  const location = useLocation();
   const t = useT();
+  const isActive = useIsActive();
   const terms = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
   // Quick actions live behind a pull handle; the open state is a device
@@ -371,33 +546,17 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     try { localStorage.setItem(QA_OPEN_KEY, next ? "1" : "0"); } catch { /* storage off */ }
   };
 
-  // The bottom buttons are the user's own choice — the SAME
-  // navigation_config.bottomBar the classic bar uses, so configuring it in
-  // Settings → Appearance → Navigation drives both UIs and nobody has to
-  // set their tabs up twice.
-  const navConfig = settingsRow?.navigation_config || DEFAULT_CONFIG;
-  const termMap = useMemo(() => ({
-    alters: terms.Alters,
-    checkin: `${terms.System} Meeting`,
-    "system-map": `${terms.System} Map`,
-    "system-history": `${terms.System} History`,
-  }), [terms]);
-  const items = useMemo(() => (navConfig.bottomBar || DEFAULT_CONFIG.bottomBar)
-    .map((id) => ALL_PAGES.find((p) => p.id === id))
-    .filter(Boolean)
-    .map((p) => ({ ...p, label: termMap[p.id] || p.label })), [navConfig.bottomBar, termMap]);
+  const { primary: items } = useNavItems(settingsRow);
 
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
   if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
 
-  const isActive = (path) =>
-    path === "/" ? location.pathname === "/"
-      : path === "/Home" ? location.pathname === "/Home" || location.pathname.startsWith("/alter")
-      : location.pathname.startsWith(path);
 
   return (
     <nav
-      className="fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t"
+      // The rail takes over on wide screens; a bottom bar there is just a
+      // phone habit stretched across a monitor.
+      className={`fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",

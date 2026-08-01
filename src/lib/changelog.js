@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "July 31, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: wide screens get a proper desktop view — a side rail with all your pages instead of a stretched phone bar, and the home screen keeps a separate arrangement for desktop." },
+      { type: "feature", text: "🧪 New UI: lots of new widgets — a header for your own name and picture, a member list, journal, to-dos, sleep, board and reminders — plus headings, text, dividers and spacers so you can lay pages out yourself." },
+      { type: "improve", text: "🧪 New UI: Display options now contains everything Appearance does — themes, colours, fonts, sizes and navigation — in one place." },
+      { type: "fix", text: "🧪 New UI: the search button in the top bar opens search again." },
+      { type: "fix", text: "Widget options: text you type into a widget's options is saved even if you close the panel with Escape." },
       { type: "feature", text: "🧪 New UI: the wave animation is back in the header." },
       { type: "feature", text: "🧪 New UI: quick actions now sit behind a slim handle above the bottom buttons — tap or swipe it up to show them, down to hide." },
       { type: "improve", text: "🧪 New UI: the bottom buttons are yours to choose — they follow the same Settings → Appearance → Navigation setup as the classic bar." },

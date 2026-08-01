@@ -592,3 +592,8 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
   max-width: var(--v2-content-w, 100%);
   margin-inline: auto;
 }
+/* Desktop: the fixed side rail sits outside the flow, so the shell is
+   inset by its width. Phones keep the bottom bar and no inset. */
+@media (min-width: 1024px) {
+  [data-ui-v2="1"] { padding-left: var(--v2-rail-pad, 0px); }
+}

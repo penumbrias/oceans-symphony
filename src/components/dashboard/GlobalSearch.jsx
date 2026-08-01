@@ -92,7 +92,9 @@ function highlightMatch(text, query) {
   );
 }
 
-export default function GlobalSearch() {
+// autoFocus: used when the search is opened as its own sheet (UI v2 top
+// bar), where the user has already declared intent by tapping search.
+export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const TYPE_LABELS = useMemo(() => getTypeLabels(terms), [terms]);
@@ -332,6 +334,7 @@ export default function GlobalSearch() {
     navigate(path);
     setQuery("");
     setSearchFocused(false);
+    onNavigate?.(path);
   };
 
   const TYPE_ORDER = [
@@ -348,6 +351,7 @@ export default function GlobalSearch() {
         value={query}
         onChange={(e) => setQuery(e.target.value)}
         onFocus={() => setSearchFocused(true)}
+        autoFocus={autoFocus}
         className="pl-9 pr-9"
       />
       {query && (

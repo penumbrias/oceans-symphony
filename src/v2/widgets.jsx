@@ -21,7 +21,11 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare,
+  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
+  Moon, Megaphone, Bell,
 } from "lucide-react";
+import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
@@ -240,6 +244,249 @@ function CaptureWidget({ api }) {
   );
 }
 
+
+// ── System identity ────────────────────────────────────────────────
+// The system's own header: picture, name, description. Modes decide how
+// much of it shows, so a page can open with just a name or with a full
+// profile block.
+function SystemIdentityWidget({ mode = "normal", api }) {
+  const tr = useT();
+  const t = useTerms();
+  const navigate = useNavigate();
+  const settings = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data?.[0];
+  const alters = useList("alters", "Alter");
+  const avatar = useResolvedAvatarUrl(settings?.system_avatar_url || settings?.system_avatar || "");
+  const name = settings?.system_name || `${t.Your || "Your"} ${t.system}`.trim();
+  const desc = settings?.system_description || settings?.system_bio || "";
+  const count = alters.filter((a) => !a.is_archived).length;
+
+  const avatarEl = avatar
+    ? <img src={avatar} alt="" className="rounded-full object-cover flex-shrink-0"
+        style={{ width: mode === "expanded" ? 56 : 36, height: mode === "expanded" ? 56 : 36 }} />
+    : null;
+
+  if (mode === "minimal") {
+    return <Section><h2 className="font-display font-semibold text-lg truncate">{name}</h2></Section>;
+  }
+
+  return (
+    <Section>
+      <div className="flex items-center gap-3 min-w-0">
+        {avatarEl}
+        <div className="min-w-0 flex-1">
+          <h2 className="font-display font-semibold text-lg truncate">{name}</h2>
+          <Muted>{applyTerms(tr("widget.identity.count", { count }), t)}</Muted>
+        </div>
+        <TextAction onClick={() => navigate("/Home")}>{applyTerms(tr("widget.identity.open"), t)}</TextAction>
+      </div>
+      {mode === "expanded" && desc && (
+        <p className="text-xs text-muted-foreground whitespace-pre-line line-clamp-6">{desc}</p>
+      )}
+    </Section>
+  );
+}
+
+// ── Page-design elements ───────────────────────────────────────────
+// These hold no data — they exist so a page can be composed: a heading,
+// a paragraph, a rule, a gap. The text lives in the layout itself.
+function HeadingWidget({ settings }) {
+  const size = settings?.size || "lg";
+  const cls = size === "sm" ? "text-xs font-semibold uppercase tracking-wide text-muted-foreground"
+    : size === "md" ? "text-base font-semibold"
+    : "font-display text-2xl font-semibold";
+  const align = settings?.align || "left";
+  return <p className={cls} style={{ textAlign: align }}>{settings?.text || settings?.label || "Heading"}</p>;
+}
+
+function TextWidget({ settings }) {
+  const align = settings?.align || "left";
+  return (
+    <p className="text-sm text-muted-foreground whitespace-pre-line" style={{ textAlign: align }}>
+      {settings?.text || ""}
+    </p>
+  );
+}
+
+function DividerWidget({ settings }) {
+  return (
+    <div className="w-full flex items-center" style={{ minHeight: 16 }}>
+      <span className="w-full" style={{
+        borderTopWidth: `${settings?.thickness || 1}px`,
+        borderTopStyle: settings?.dashed ? "dashed" : "solid",
+        borderColor: "color-mix(in srgb, var(--v2-accent) 35%, transparent)",
+      }} />
+    </div>
+  );
+}
+
+function SpacerWidget() { return <div aria-hidden="true" className="w-full h-full" />; }
+
+// A single app tile. Mirrors the classic shortcut's data (nav catalogue +
+// optional custom icon) with v2's flatter treatment.
+function AppTileWidget({ mode, settings }) {
+  const tr = useT();
+  const t = useTerms();
+  const navigate = useNavigate();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const item = findGridItem(items, settings?.targetId);
+  const customIcon = useResolvedAvatarUrl(settings?.iconUrl || "");
+  if (!item) return <Muted>{tr("widget.app.missing")}</Muted>;
+  const Icon = item.icon;
+  const label = (settings?.label || item.label).slice(0, 60);
+  return (
+    <button type="button" onClick={() => navigate(item.path)} title={label}
+      className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
+      style={{ borderRadius: "var(--v2-radius)" }}>
+      {customIcon
+        ? <img src={customIcon} alt="" className="w-9 h-9 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
+        : <span className="w-9 h-9 flex items-center justify-center"
+            style={{ borderRadius: "var(--v2-radius)", border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)" }}>
+            <Icon className="w-4 h-4" />
+          </span>}
+      {mode !== "minimal" && (
+        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
+      )}
+    </button>
+  );
+}
+
+// ── Content lists ──────────────────────────────────────────────────
+function AltersListWidget({ settings, api }) {
+  const tr = useT();
+  const t = useTerms();
+  const navigate = useNavigate();
+  const formatAlter = useAlterLabel();
+  const alters = api?.alters || [];
+  const limit = parseInt(settings?.limit, 10) || 6;
+  const sort = settings?.sort || "name";
+  const list = React.useMemo(() => {
+    const live = alters.filter((a) => !a.is_archived);
+    const sorted = sort === "recent"
+      ? [...live].sort((a, b) => new Date(b.updated_date || b.created_date || 0) - new Date(a.updated_date || a.created_date || 0))
+      : [...live].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+    return sorted.slice(0, limit);
+  }, [alters, sort, limit]);
+
+  return (
+    <Section label={applyTerms(tr("widget.alters.label"), t)}
+      action={<TextAction onClick={() => navigate("/Home")}>{tr("widget.today.open")}</TextAction>}>
+      {list.length === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
+      {list.map((a) => (
+        <Row key={a.id} left={<Dot color={a.color} />} primary={formatAlter(a)}
+          right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />
+      ))}
+    </Section>
+  );
+}
+
+function JournalWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const entries = useList("journalEntries", "JournalEntry");
+  const limit = parseInt(settings?.limit, 10) || 4;
+  const list = [...entries]
+    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
+    .slice(0, limit);
+  return (
+    <Section label={tr("widget.journal.label")}
+      action={<TextAction onClick={() => navigate("/journals?compose=1")}>{tr("widget.journal.new")}</TextAction>}>
+      {list.length === 0 && <Muted>{tr("widget.journal.empty")}</Muted>}
+      {list.map((e) => (
+        <Row key={e.id} primary={e.title || tr("widget.journal.untitled")}
+          right={fmtTime(e.timestamp || e.created_date)}
+          onClick={() => navigate(`/journals?entry=${e.id}`)} />
+      ))}
+    </Section>
+  );
+}
+
+function TasksWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const tasks = useList("tasks", "Task");
+  const limit = parseInt(settings?.limit, 10) || 6;
+  const open = tasks.filter((x) => !x.completed)
+    .sort((a, b) => new Date(a.due_date || 8.64e15) - new Date(b.due_date || 8.64e15))
+    .slice(0, limit);
+  return (
+    <Section label={tr("widget.tasks.label")}
+      action={<TextAction onClick={() => navigate("/todo")}>{tr("widget.today.open")}</TextAction>}>
+      {open.length === 0 && <Muted>{tr("widget.tasks.empty")}</Muted>}
+      {open.map((x) => (
+        <Row key={x.id} left={<CheckSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+          primary={x.title} right={x.due_date ? fmtTime(x.due_date) : undefined}
+          onClick={() => navigate(`/todo?id=${x.id}`)} />
+      ))}
+    </Section>
+  );
+}
+
+function SleepWidget() {
+  const tr = useT();
+  const navigate = useNavigate();
+  const sleeps = useList("sleep", "Sleep");
+  const last = [...sleeps].filter((s) => s.wake_time)
+    .sort((a, b) => new Date(b.wake_time) - new Date(a.wake_time))[0];
+  const active = sleeps.find((s) => s.bedtime && !s.wake_time);
+  const hours = last ? ((new Date(last.wake_time) - new Date(last.bedtime)) / 3600000) : 0;
+  return (
+    <Section label={tr("widget.sleep.label")}
+      action={<TextAction onClick={() => navigate("/sleep")}>{tr("widget.status.log")}</TextAction>}>
+      {active && <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.sleep.inProgress")} right={fmtTime(active.bedtime)} onClick={() => navigate("/sleep")} />}
+      {!active && last && (
+        <Row primary={tr("widget.sleep.lastNight", { hours: hours.toFixed(1) })}
+          right={fmtTime(last.wake_time)} onClick={() => navigate("/sleep")} />
+      )}
+      {!active && !last && <Muted>{tr("widget.sleep.empty")}</Muted>}
+    </Section>
+  );
+}
+
+function BulletinsWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const bulletins = useList("bulletins", "Bulletin");
+  const limit = parseInt(settings?.limit, 10) || 4;
+  const list = [...bulletins]
+    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
+    .slice(0, limit);
+  const strip = (html) => String(html || "").replace(/<[^>]*>/g, " ").replace(/\s+/g, " ").trim();
+  return (
+    <Section label={tr("widget.board.label")}
+      action={<TextAction onClick={() => navigate("/bulletins")}>{tr("widget.today.open")}</TextAction>}>
+      {list.length === 0 && <Muted>{tr("widget.board.empty")}</Muted>}
+      {list.map((b) => (
+        <Row key={b.id} primary={strip(b.content) || tr("widget.board.item")}
+          right={fmtTime(b.timestamp || b.created_date)} onClick={() => navigate("/bulletins")} />
+      ))}
+    </Section>
+  );
+}
+
+function RemindersWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const instances = useList("reminderInstances", "ReminderInstance");
+  const limit = parseInt(settings?.limit, 10) || 4;
+  const now = Date.now();
+  const next = instances
+    .filter((i) => i.status !== "acted" && i.status !== "dismissed" && i.scheduled_for)
+    .filter((i) => new Date(i.scheduled_for).getTime() > now - 12 * 3600000)
+    .sort((a, b) => new Date(a.scheduled_for) - new Date(b.scheduled_for))
+    .slice(0, limit);
+  return (
+    <Section label={tr("widget.reminders.label")}
+      action={<TextAction onClick={() => navigate("/reminders")}>{tr("widget.today.open")}</TextAction>}>
+      {next.length === 0 && <Muted>{tr("widget.reminders.empty")}</Muted>}
+      {next.map((i) => (
+        <Row key={i.id} left={<Bell className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+          primary={i.title || tr("widget.reminders.item")} right={fmtTime(i.scheduled_for)}
+          onClick={() => navigate("/reminders")} />
+      ))}
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
@@ -282,6 +529,119 @@ export const V2_WIDGETS = {
     render: ({ api }) => <CaptureWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+  },
+  system_identity: {
+    label: "{{System}} header", description: "Your {{system}}'s picture, name and description.",
+    icon: IdCard, category: "system",
+    render: ({ mode, api }) => <SystemIdentityWidget mode={mode} api={api} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  alters_list: {
+    label: "{{Alters}} list", description: "A list of {{alters}} that opens their profiles.",
+    icon: Users, category: "system",
+    render: ({ settings, api }) => <AltersListWidget settings={settings} api={api} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
+      { key: "sort", type: "select", label: "Order", default: "name",
+        options: [{ value: "name", label: "By name" }, { value: "recent", label: "Recently updated" }] },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  journal: {
+    label: "Journal", description: "Your most recent entries, and a button to start a new one.",
+    icon: BookOpen, category: "content",
+    render: ({ settings }) => <JournalWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  tasks: {
+    label: "To-dos", description: "Open to-dos, soonest due first.",
+    icon: ListTodo, category: "tracking",
+    render: ({ settings }) => <TasksWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  sleep: {
+    label: "Sleep", description: "Last night's sleep, or the one in progress.",
+    icon: Moon, category: "tracking",
+    render: () => <SleepWidget />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+  },
+  board: {
+    label: "Board", description: "The latest posts on the bulletin board.",
+    icon: Megaphone, category: "content",
+    render: ({ settings }) => <BulletinsWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  reminders: {
+    label: "Reminders", description: "What's coming up from your reminders.",
+    icon: Bell, category: "tracking",
+    render: ({ settings }) => <RemindersWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+
+  // ── Page-design elements. No data of their own: they exist so a page
+  // can be laid out the way the user wants it. ──
+  heading: {
+    label: "Heading", description: "A line of your own text, for labelling a part of the page.",
+    icon: Type, category: "layout",
+    render: ({ settings }) => <HeadingWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "text", type: "text", label: "Text", placeholder: "Heading" },
+      { key: "size", type: "select", label: "Size", default: "lg",
+        options: [{ value: "sm", label: "Small" }, { value: "md", label: "Medium" }, { value: "lg", label: "Large" }] },
+      { key: "align", type: "select", label: "Alignment", default: "left",
+        options: [{ value: "left", label: "Left" }, { value: "center", label: "Centre" }, { value: "right", label: "Right" }] },
+    ],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
+  },
+  text: {
+    label: "Text", description: "A paragraph of your own — notes, reminders to yourself, anything.",
+    icon: AlignLeft, category: "layout",
+    render: ({ settings }) => <TextWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "text", type: "textarea", label: "Text", rows: 4, placeholder: "Write anything here…" },
+      { key: "align", type: "select", label: "Alignment", default: "left",
+        options: [{ value: "left", label: "Left" }, { value: "center", label: "Centre" }, { value: "right", label: "Right" }] },
+    ],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  divider: {
+    label: "Divider", description: "A line to separate parts of a page.",
+    icon: Minus, category: "layout",
+    render: ({ settings }) => <DividerWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "thickness", type: "number", label: "Thickness", min: 1, max: 8, default: 1 },
+      { key: "dashed", type: "toggle", label: "Dashed", default: false },
+    ],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 1 },
+  },
+  spacer: {
+    label: "Spacer", description: "Empty space, for pushing things apart.",
+    icon: MoveVertical, category: "layout",
+    render: () => <SpacerWidget />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  app_shortcut: {
+    label: "App shortcut", description: "An icon that opens one page. Pin apps from the drawer's Apps tab.",
+    icon: Rocket, category: "nav",
+    render: ({ mode, settings }) => <AppTileWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    hiddenFromDrawer: true,
+    defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 2 },
   },
 };
 
