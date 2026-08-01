@@ -47,6 +47,7 @@ const fmtElapsed = (start) => {
   const h = Math.floor(mins / 60), m = mins % 60;
   return m ? `${h}h ${m}m` : `${h}h`;
 };
+const endOfToday = () => { const d = new Date(); d.setHours(23, 59, 59, 999); return d.getTime(); };
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 const useList = (key, entity) => useQuery({ queryKey: [key], queryFn: () => base44.entities[entity].list() }).data || [];
 
@@ -90,7 +91,7 @@ function PresenceWidget({ mode, api }) {
 }
 
 // ── Running right now ──────────────────────────────────────────────
-function RunningWidget({ api }) {
+function ActiveWidget({ api }) {
   const tr = useT();
   const navigate = useNavigate();
   const symptomSessions = useQuery({
@@ -105,22 +106,26 @@ function RunningWidget({ api }) {
   const nothing = activities.length === 0 && symptomSessions.length === 0 && !activeSleep;
 
   return (
-    <Section label={tr("widget.running.label")}>
-      {nothing && <Muted>{tr("widget.running.empty")}</Muted>}
+    <Section label={tr("widget.active.label")}>
+      {nothing && <Muted>{tr("widget.active.empty")}</Muted>}
       {activities.map((a) => (
-        <Row key={a.id} left={<Dot color="var(--v2-accent)" />} primary={a.activity_name || tr("widget.running.activity")}
-          right={a.start ? fmtTime(a.start) : undefined} onClick={() => navigate("/activities")} />
+        <Row key={a.id}
+          left={<Dot color={a.color || "var(--v2-accent)"} />}
+          primary={a.name || tr("widget.active.activity")}
+          secondary={a.notes || undefined}
+          right={a.startTime ? fmtElapsed(a.startTime) : undefined}
+          onClick={() => navigate("/activities")} />
       ))}
       {symptomSessions.map((s) => {
         const def = symById[s.symptom_id || s.symptom_definition_id];
         if (!def) return null;
         return (
           <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={def.label || def.name}
-            right={s.start_time ? fmtTime(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
+            right={s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
         );
       })}
       {activeSleep && (
-        <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.running.sleep")} right={fmtTime(activeSleep.bedtime)}
+        <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.active.sleep")} right={fmtElapsed(activeSleep.bedtime)}
           onClick={() => navigate("/sleep")} />
       )}
     </Section>
@@ -138,7 +143,7 @@ function TodayWidget() {
     .filter((a) => a.status === "scheduled" && a.timestamp && sameDay(a.timestamp, now))
     .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
   const due = tasks
-    .filter((x) => !x.completed && x.due_date && new Date(x.due_date).getTime() < now + 24 * 3600000)
+    .filter((x) => !x.completed && x.due_date && new Date(x.due_date).getTime() <= endOfToday())
     .sort((a, b) => new Date(a.due_date) - new Date(b.due_date));
   const unresolved = activities.filter(
     (a) => a.status === "scheduled" && a.timestamp && new Date(a.timestamp).getTime() < now - 3600000
@@ -147,6 +152,11 @@ function TodayWidget() {
   return (
     <Section label={tr("widget.today.label")} action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
       {plans.length === 0 && due.length === 0 && <Muted>{tr("widget.today.empty")}</Muted>}
+      {plans.length > 0 && due.length > 0 && (
+        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground pt-0.5">
+          {tr("widget.today.planned")}
+        </p>
+      )}
       {/* Plan vs task is carried by the icon rather than a word — in a
           one-column tile a "task" label just eats the title. Overdue plans
           take the accent colour. */}
@@ -161,6 +171,11 @@ function TodayWidget() {
             onClick={() => navigate(`/activities?activityId=${a.id}`)} />
         );
       })}
+      {plans.length > 0 && due.length > 0 && (
+        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
+          {tr("widget.today.dueLabel")}
+        </p>
+      )}
       {due.map((x) => (
         <Row key={x.id}
           left={<CheckSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
@@ -182,14 +197,42 @@ function TodayWidget() {
 function StatusWidget() {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const notes = useList("statusNotes", "StatusNote");
+  const [draft, setDraft] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
   const latest = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
+
+  // Every save is a NEW note — the status log is a timeline, never an edit
+  // of what you said before.
+  const save = async () => {
+    const text = draft.trim();
+    if (!text || saving) return;
+    setSaving(true);
+    try {
+      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: text });
+      qc.invalidateQueries({ queryKey: ["statusNotes"] });
+      setDraft("");
+    } finally { setSaving(false); }
+  };
+
   return (
     <Section label={tr("widget.status.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.status.log")}</TextAction>}>
       {latest
         ? <Row primary={latest.note} right={fmtTime(latest.timestamp)}
             onClick={() => navigate(`/timeline?highlightStatus=${latest.id}`)} />
         : <Muted>{tr("widget.status.empty")}</Muted>}
+      <div className="flex items-center gap-1.5 pt-0.5">
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
+          placeholder={tr("widget.status.placeholder")}
+          className="flex-1 min-w-0 h-8 px-2 text-sm bg-background border border-input focus:outline-none focus:ring-1 focus:ring-ring"
+          style={{ borderRadius: "var(--v2-radius, 8px)" }}
+        />
+        <TextAction onClick={save}>{tr("widget.status.save")}</TextAction>
+      </div>
     </Section>
   );
 }
@@ -596,14 +639,14 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   running: {
-    label: "Running", description: "Activity timers, symptom episodes and sleep in progress.",
+    label: "Active", description: "What's running right now — activities, symptom episodes, sleep — and how long for.",
     icon: Timer, category: "tracking",
-    render: ({ api }) => <RunningWidget api={api} />,
+    render: ({ api }) => <ActiveWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
-    label: "Today", description: "Plans and tasks due today, plus anything unresolved.",
+    label: "Today", description: "Today's schedule: plans at their times, anything due today, and anything left unresolved.",
     icon: CalendarCheck, category: "tracking",
     render: () => <TodayWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
@@ -658,7 +701,7 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   tasks: {
-    label: "To-dos", description: "Open to-dos, soonest due first.",
+    label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",
     icon: ListTodo, category: "tracking",
     render: ({ settings }) => <TasksWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,

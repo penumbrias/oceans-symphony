@@ -28,6 +28,8 @@ import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
+import ColorPicker from "@/components/shared/ColorPicker";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { widgetLabel } from "@/lib/widgetRegistry";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
@@ -250,16 +252,19 @@ export default function WidgetConfigSheet({
 
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>
-              <select
+              <SearchableSelect
                 value={settings.font || ""}
-                onChange={(e) => onSettings(widget.instanceId, { font: e.target.value })}
-                className="w-full h-9 px-2 rounded-lg border border-input bg-background text-sm"
-              >
-                <option value="">Use the app font</option>
-                {APP_FONT_OPTIONS.map((f) => (
-                  <option key={f.value} value={f.value}>{f.label}</option>
-                ))}
-              </select>
+                onChange={(v) => onSettings(widget.instanceId, { font: v || "" })}
+                options={[
+                  { id: "", label: "Use the app font" },
+                  ...APP_FONT_OPTIONS.map((f) => ({ id: f.value, label: f.label })),
+                ]}
+                placeholder="Use the app font"
+                searchPlaceholder="Search fonts…"
+                renderOption={(o) => (
+                  <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>
+                )}
+              />
             </div>
 
             <div>
@@ -316,10 +321,8 @@ export default function WidgetConfigSheet({
             <div>
               <label className="text-xs font-medium block mb-1">Highlight colour</label>
               <div className="flex items-center gap-2">
-                <input type="color" value={settings.accent || "#3b82f6"}
-                  onChange={(e) => onSettings(widget.instanceId, { accent: e.target.value })}
-                  aria-label="Highlight colour"
-                  className="w-9 h-9 rounded border border-border bg-transparent" />
+                <ColorPicker value={settings.accent || "#3b82f6"}
+                  onChange={(v) => onSettings(widget.instanceId, { accent: v })} />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { accent: "" })}
                   className={`text-xs px-2.5 py-1 rounded-full border ${!settings.accent ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
                   Use the app colour

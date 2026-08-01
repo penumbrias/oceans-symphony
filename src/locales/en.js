@@ -72,11 +72,10 @@ export default {
   "widget.presence.primary": "primary",
   "widget.presence.primaryOf": "Primary {{fronter}}",
 
-  "widget.running.label": "Running",
-  "widget.running.desc": "Activity timers, symptom episodes and sleep in progress.",
-  "widget.running.empty": "Nothing running.",
-  "widget.running.sleep": "Sleep",
-  "widget.running.activity": "Activity",
+  "widget.active.label": "Active",
+  "widget.active.empty": "Nothing active right now.",
+  "widget.active.sleep": "Sleep",
+  "widget.active.activity": "Activity",
 
   "widget.today.label": "Today",
   "widget.today.desc": "Plans and tasks due today, plus anything unresolved.",
@@ -86,12 +85,16 @@ export default {
   "widget.today.review": "review",
   "widget.today.open": "Open",
   "widget.today.task": "task",
+  "widget.today.planned": "Planned",
+  "widget.today.dueLabel": "Due today",
   "widget.today.dueToday": "today",
 
   "widget.status.label": "Status",
   "widget.status.desc": "The latest status note.",
   "widget.status.empty": "No status notes yet.",
   "widget.status.log": "Log",
+  "widget.status.placeholder": "Set a new status…",
+  "widget.status.save": "Save",
 
   "widget.recent.label": "Recent check-ins",
   "widget.recent.desc": "Your most recent check-ins.",

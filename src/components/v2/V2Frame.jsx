@@ -40,6 +40,7 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
+import ColorPicker from "@/components/shared/ColorPicker";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -117,8 +118,7 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
         )}
         {def.type === "color" && (
           <div className="flex items-center gap-2">
-            <input type="color" value={val || "#3b82f6"} onChange={(e) => onToken(def.id, e.target.value)}
-              aria-label={def.label} className="w-9 h-9 rounded border border-border bg-transparent" />
+            <ColorPicker value={val || "#3b82f6"} onChange={(v) => onToken(def.id, v)} />
             <button type="button" onClick={() => onToken(def.id, "")}
               className={`text-xs px-2.5 py-1 rounded-full border ${!val ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
               Use theme color

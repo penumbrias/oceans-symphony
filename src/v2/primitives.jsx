@@ -23,19 +23,25 @@ export function Page({ title, sub, children }) {
 
 export function Section({ label, action, children }) {
   return (
+    // Fills whatever box it's given — a widget resized taller should LOOK
+    // taller, not sit content-sized inside a bigger empty cell. min-h-0 so
+    // the list below can scroll instead of forcing the box open.
     <section
-      className="border-border/60"
+      className="border-border/60 h-full flex flex-col min-h-0"
       style={{
         borderWidth: "var(--v2-border-w, 1px)",
         borderRadius: "var(--v2-radius, 8px)",
         padding: "calc(var(--v2-space, 6px) * 1.5)",
       }}
     >
-      <div className="flex items-baseline justify-between mb-1">
-        <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>
-        {action}
-      </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: "calc(var(--v2-space, 6px) * 0.75)" }}>
+      {(label || action) && (
+        <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
+          <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>
+          {action}
+        </div>
+      )}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+        style={{ display: "flex", flexDirection: "column", gap: "calc(var(--v2-space, 6px) * 0.75)" }}>
         {children}
       </div>
     </section>

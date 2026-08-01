@@ -151,9 +151,13 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
     enabled: free && editMode && !a11yStack,
+    lockTouch: free && editMode && !a11yStack,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
   });
+
+  const handSized = widget.settings?.autoFit === false;
+  const fixedHeight = shownRows > 1 || handSized || !!resize.preview;
 
   const style = a11yStack
     ? {}
@@ -172,7 +176,13 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         }
       : {
         gridColumn: `span ${shownCols}`,
-        minHeight: shownRows > 1 ? shownRows * 80 : undefined,
+        // Rows are a real height once they mean something: a widget you have
+        // sized yourself (or made taller than one row, or are resizing right
+        // now) gets exactly that height and scrolls inside it. Untouched
+        // one-row widgets still size to their content, so nothing that was
+        // never resized suddenly becomes a 80px letterbox.
+        height: fixedHeight ? shownRows * 80 + (shownRows - 1) * 12 : undefined,
+        minHeight: fixedHeight ? undefined : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
         // Position-only transforms fix the "expands in weird ways" glitch.
@@ -226,11 +236,16 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           getStyleShell(
             HOME_STYLE_IDS.includes(widget.settings?.style) ? widget.settings.style : styleMode
           ),
-          editMode ? "relative select-none rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
+          editMode ? "relative select-none ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
         ].join(" ").trim() || undefined}
         style={{
           ...widgetStyleVars(widget.settings),
-          ...(free ? { height: "100%", overflowY: "auto", overscrollBehavior: "contain" } : null),
+          borderRadius: "var(--v2-radius, 8px)",
+          // The content fills the widget's box in both layout modes, so the
+          // border you see is the size you set; overflow scrolls inside it.
+          ...(free || fixedHeight
+            ? { height: "100%", overflowY: "auto", overscrollBehavior: "contain" }
+            : null),
           ...(editMode ? {
             // pan-y: vertical scrolling passes through; the 300ms hold-still
             // sensors lift the widget instead. Callout/user-select suppression

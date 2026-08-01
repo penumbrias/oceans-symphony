@@ -18,7 +18,18 @@
 
 export const CHANGELOG = [
   {
+    date: "August 1, 2026",
+    changes: [
+      { type: "improve", text: "🧪 New UI: the \"Running\" widget is now \"Active\" and names what is actually running — the activity, symptom or sleep — with how long it has been going." },
+      { type: "feature", text: "🧪 New UI: the Status widget can write a new status note itself, so you don't have to leave the home screen to set one." },
+      { type: "fix", text: "🧪 New UI: making a widget smaller now actually makes it smaller — the box is the size you set and the contents scroll inside it. Setting a widget's corners to 0 squares it off properly, and widgets you resize look resized instead of leaving empty space." },
+      { type: "fix", text: "🧪 New UI: in free layout, dragging a widget up or down no longer stops dead after you pick it up. Dragging near the top or bottom of the screen now scrolls the page." },
+      { type: "improve", text: "🧪 New UI: colour controls use the app's own colour picker instead of the browser's, and the per-widget font picker is searchable. Today now separates \"Planned\" from \"Due today\"." },
+    ],
+  },
+  {
     date: "July 31, 2026",
+    version: "0.100.2",
     changes: [
       { type: "feature", text: "🧪 New UI: folders on the page — a tile that holds any set of apps and opens to show them. Add it from Add widget → Navigation, then pick its apps in the widget's options." },
       { type: "fix", text: "🧪 Free layout: widgets no longer spill over each other. Each one is sized to what it holds, and anything that still doesn't fit scrolls inside its own box. Resize one yourself and it keeps the size you gave it." },
