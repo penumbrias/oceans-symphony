@@ -22,11 +22,13 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
-  Moon, Megaphone, Bell, FolderOpen,
+  Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import DOMPurify from "dompurify";
+import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -630,6 +632,128 @@ function FolderWidget({ settings, mode }) {
   );
 }
 
+
+// ── Journal (a book you can page through) ──────────────────────────
+// One journal at a time, one entry per page, newest page first. The
+// journals themselves are the app's journal folders, so this widget reads
+// and writes exactly what the Journals page does — no parallel storage.
+// Which journal you're reading is remembered in the widget's own settings.
+const JOURNAL_FOLDERS_KEY = "os_journal_folders";
+const readJournalFolders = () => {
+  try { return JSON.parse(localStorage.getItem(JOURNAL_FOLDERS_KEY) || "[]"); }
+  catch { return []; }
+};
+
+function JournalBookWidget({ settings, updateSettings, api, mode }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const entries = useList("journalEntries", "JournalEntry");
+  const [page, setPage] = React.useState(0);
+  const [picking, setPicking] = React.useState(false);
+  const [composing, setComposing] = React.useState(false);
+
+  const journal = settings?.journal ?? "";           // "" = every journal
+  const journals = React.useMemo(() => {
+    const fromEntries = new Set(entries.map((e) => e.folder).filter(Boolean));
+    readJournalFolders().forEach((f) => fromEntries.add(f));
+    return [...fromEntries].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const pages = React.useMemo(() => entries
+    .filter((e) => (journal ? e.folder === journal : true))
+    .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0)),
+  [entries, journal]);
+
+  // Land on the newest page whenever the journal changes or a new entry
+  // arrives, but don't yank the page out from under someone reading.
+  const lastTop = React.useRef("");
+  React.useEffect(() => {
+    const topId = pages[0]?.id || "";
+    if (topId !== lastTop.current) { lastTop.current = topId; setPage(0); }
+  }, [pages, journal]);
+
+  const idx = Math.min(page, Math.max(0, pages.length - 1));
+  const entry = pages[idx];
+  const isHtml = entry && /<[a-z][\s\S]*>/i.test(entry.content || "");
+
+  return (
+    <Section
+      label={journal || tr("widget.book.allJournals")}
+      action={
+        <span className="flex items-center gap-2">
+          <TextAction onClick={() => setPicking((v) => !v)}>{tr("widget.book.switch")}</TextAction>
+          <TextAction onClick={() => setComposing(true)}>{tr("widget.book.newPage")}</TextAction>
+        </span>
+      }
+    >
+      {picking && (
+        <div className="flex flex-wrap gap-1 pb-1">
+          <button type="button" onClick={() => { updateSettings?.({ journal: "" }); setPicking(false); }}
+            className={`text-[0.6875rem] px-2 py-1 border ${!journal ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            {tr("widget.book.allJournals")}
+          </button>
+          {journals.map((f) => (
+            <button key={f} type="button" onClick={() => { updateSettings?.({ journal: f }); setPicking(false); }}
+              className={`text-[0.6875rem] px-2 py-1 border ${journal === f ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+              {f}
+            </button>
+          ))}
+          {journals.length === 0 && <Muted>{tr("widget.book.noJournals")}</Muted>}
+        </div>
+      )}
+
+      {!entry && <Muted>{tr("widget.book.empty")}</Muted>}
+
+      {entry && (
+        <button type="button" onClick={() => navigate(`/journals?entry=${entry.id}`)}
+          className="text-left w-full min-w-0">
+          <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
+          <p className="text-[0.625rem] text-muted-foreground mb-1">
+            {new Date(entry.timestamp || entry.created_date).toLocaleString([], {
+              month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
+            })}
+          </p>
+          {mode !== "minimal" && (
+            isHtml
+              ? <div className="text-xs text-muted-foreground [&_p]:mb-1 [&_*]:!text-inherit"
+                  dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(entry.content || "") }} />
+              : <p className="text-xs text-muted-foreground whitespace-pre-line">{entry.content}</p>
+          )}
+        </button>
+      )}
+
+      {pages.length > 1 && (
+        <div className="flex items-center justify-between pt-1 mt-auto">
+          <button type="button" aria-label={tr("widget.book.newer")}
+            onClick={() => setPage((p) => Math.max(0, p - 1))} disabled={idx === 0}
+            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-[0.625rem] text-muted-foreground tabular-nums">
+            {tr("widget.book.page", { n: idx + 1, total: pages.length })}
+          </span>
+          <button type="button" aria-label={tr("widget.book.older")}
+            onClick={() => setPage((p) => Math.min(pages.length - 1, p + 1))} disabled={idx >= pages.length - 1}
+            className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+
+      {composing && (
+        <JournalEditorModal
+          isOpen
+          onClose={() => setComposing(false)}
+          alters={api?.alters || []}
+          defaultFolder={journal || null}
+        />
+      )}
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
@@ -699,6 +823,14 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  journal_book: {
+    label: "Journal pages", description: "Read one journal a page at a time, turn pages, switch journals, and start a new page.",
+    icon: NotebookPen, category: "content",
+    render: ({ mode, settings, updateSettings, api }) =>
+      <JournalBookWidget mode={mode} settings={settings} updateSettings={updateSettings} api={api} />,
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   tasks: {
     label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",

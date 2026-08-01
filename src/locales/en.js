@@ -118,6 +118,15 @@ export default {
   "widget.journal.untitled": "Untitled entry",
   "widget.journal.new": "New",
 
+  "widget.book.allJournals": "All journals",
+  "widget.book.switch": "Switch",
+  "widget.book.newPage": "New page",
+  "widget.book.noJournals": "No journals yet — a new page can start one.",
+  "widget.book.empty": "Nothing written in here yet.",
+  "widget.book.page": "page {n} of {total}",
+  "widget.book.newer": "Newer page",
+  "widget.book.older": "Older page",
+
   "widget.tasks.label": "To-dos",
   "widget.tasks.empty": "Nothing open.",
 

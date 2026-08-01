@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: a journal widget you read a page at a time — one entry per page, arrows to turn back and forward, a switcher for which journal you're in, and a button to start a new page." },
+      { type: "feature", text: "🧪 New UI: save any widget's look as your own named style, then apply it to other widgets. Your styles live beside your layout, so they travel with backups." },
+      { type: "feature", text: "🧪 New UI: much deeper per-widget styling — background colour or image, text colour, inner spacing, border colour and style, shadows, and a box for your own CSS if you want to go further." },
       { type: "improve", text: "🧪 New UI: the \"Running\" widget is now \"Active\" and names what is actually running — the activity, symptom or sleep — with how long it has been going." },
       { type: "feature", text: "🧪 New UI: the Status widget can write a new status note itself, so you don't have to leave the home screen to set one." },
       { type: "fix", text: "🧪 New UI: making a widget smaller now actually makes it smaller — the box is the size you set and the contents scroll inside it. Setting a widget's corners to 0 squares it off properly, and widgets you resize look resized instead of leaving empty space." },

@@ -43,6 +43,9 @@ import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
+import {
+  pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, isUserStyle, newStyleId,
+} from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
 import {
@@ -78,47 +81,16 @@ function useGridCols(phoneCols = 4) {
 // buttons that read --radius — picks them up by inheritance. That's what
 // makes "settings apply everywhere by default, individual widgets can
 // override" true rather than aspirational.
-export function widgetStyleVars(settings = {}) {
-  const vars = {};
-  if (settings.radius !== undefined && settings.radius !== "") {
-    vars["--v2-radius"] = `${settings.radius}px`;
-    vars["--radius"] = `${settings.radius}px`;
-  }
-  if (settings.borderW !== undefined && settings.borderW !== "") vars["--v2-border-w"] = `${settings.borderW}px`;
-  if (settings.accent) vars["--v2-accent"] = settings.accent;
-  if (settings.font) vars.fontFamily = settings.font;
-  if (settings.fontScale) vars.fontSize = `${settings.fontScale}%`;
-  return vars;
+// A widget's visual layer = its saved style (if it uses one) with its own
+// overrides on top, emitted as CSS variables on its wrapper so everything
+// inside inherits them. See src/lib/widgetLook.js.
+export function widgetLookFor(settings = {}, userStyles = []) {
+  const styleId = userStyleId(settings.style);
+  const saved = styleId ? userStyles.find((s) => s.id === styleId) : null;
+  return mergeLook(saved?.look || {}, pickLook(settings));
 }
 
-const TRASH_ID = "__widget_trash";
-
-// Drop target that only exists while a widget is being dragged — hold a
-// widget, drag it here, let go. Nothing to mis-tap the rest of the time.
-function TrashZone({ active }) {
-  const { setNodeRef, isOver } = useDroppable({ id: TRASH_ID });
-  return (
-    <div
-      ref={setNodeRef}
-      aria-hidden={!active}
-      data-widget-trash="1"
-      className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all pointer-events-none"
-      style={{
-        bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)",
-        opacity: active ? 1 : 0,
-        transform: `translateX(-50%) scale(${isOver ? 1.08 : 1})`,
-        background: isOver ? "hsl(var(--destructive))" : "hsl(var(--background) / 0.95)",
-        color: isOver ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
-        borderColor: isOver ? "hsl(var(--destructive))" : "hsl(var(--border))",
-        backdropFilter: "blur(8px)",
-      }}
-    >
-      <X className="w-4 h-4" /> Drop to remove
-    </div>
-  );
-}
-
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [] }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -156,6 +128,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     onRemove: () => onRemove(widget.instanceId),
   });
 
+  const look = widgetLookFor(widget.settings, userStyles);
+  const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
+  const lookStyle = lookToStyle(look.bgImage ? { ...look, bgImage: bgUrl } : look);
   const handSized = widget.settings?.autoFit === false;
   const fixedHeight = shownRows > 1 || handSized || !!resize.preview;
 
@@ -239,7 +214,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           editMode ? "relative select-none ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
         ].join(" ").trim() || undefined}
         style={{
-          ...widgetStyleVars(widget.settings),
+          ...lookStyle,
           borderRadius: "var(--v2-radius, 8px)",
           // The content fills the widget's box in both layout modes, so the
           // border you see is the size you set; overflow scrolls inside it.
@@ -264,7 +239,18 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
             {(widget.settings?.label || defLabel).slice(0, 60)}
           </span>
         )}
-        {def.render({ mode, settings: widget.settings || {}, instanceId: widget.instanceId, api })}
+        {look.css && (
+          <style dangerouslySetInnerHTML={{
+            __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
+          }} />
+        )}
+        {def.render({
+          mode,
+          settings: widget.settings || {},
+          instanceId: widget.instanceId,
+          api,
+          updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
+        })}
       </div>
 
       {/* Edge-resize handles — siblings of the drag wrapper so dnd-kit's
@@ -334,6 +320,15 @@ export default function ExperimentalDashboard({
     [settingsRow, settingsField, registry]
   );
   const gridCols = useGridCols(home.grid?.phoneCols || 4);
+  // The user's own saved styles live beside the layout, on the settings row,
+  // so they travel with backups and device sync for free.
+  const userStyles = useMemo(() => resolveUserStyles(settingsRow?.ui_v2_styles), [settingsRow?.ui_v2_styles]);
+  const persistStyles = useCallback(async (next) => {
+    try {
+      if (settingsRow?.id) await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2_styles: next });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch (e) { toast.error(e?.message || "Couldn't save the style"); }
+  }, [settingsRow?.id, qc]);
   // Phase 2: multiple pages. activePageId is transient (each visit starts
   // on the default page); the pages themselves live in experimental_home.
   const [activePageId, setActivePageId] = useState(null);
@@ -429,6 +424,7 @@ export default function ExperimentalDashboard({
   const handleAssetSelected = (url) => {
     if (assetPickerFor === "wallpaper") setWallpaper(url);
     else if (assetPickerFor?.icon) handleSettings(assetPickerFor.icon, { iconUrl: url || "" });
+    else if (assetPickerFor?.bg) handleSettings(assetPickerFor.bg, { bgImage: url || "" });
     setAssetPickerFor(null);
   };
 
@@ -615,11 +611,13 @@ export default function ExperimentalDashboard({
           onRemove={handleRemove}
           onSpan={handleSpan}
           onMode={handleMode}
+          onSettings={handleSettings}
           onMove={handleMove}
           onConfigure={setConfigId}
           styleMode={home.styleMode}
           free={freeMode}
           onPos={handlePos}
+          userStyles={userStyles}
         />
       ))}
     </div>
@@ -956,6 +954,10 @@ export default function ExperimentalDashboard({
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
         onRemove={(id) => { handleRemove(id); setConfigId(null); }}
+        userStyles={userStyles}
+        onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
+        onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
+        onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         widget={widgets.find((w) => w.instanceId === configId) || null}
         def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}

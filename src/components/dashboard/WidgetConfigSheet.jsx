@@ -29,6 +29,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { pickLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { widgetLabel } from "@/lib/widgetRegistry";
 
@@ -114,15 +115,29 @@ export default function WidgetConfigSheet({
   onSettings,        // (instanceId, patch)
   onPickIcon,        // (instanceId) → opens the shared AssetPickerModal
   onRemove,          // (instanceId) → delete this widget
+  userStyles = [],   // the user's own saved styles
+  onSaveStyle,       // (label, look) → save the current look as a style
+  onDeleteStyle,     // (styleId)
+  onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
 }) {
   const open = !!widget && !!def;
   const [styleOpen, setStyleOpen] = React.useState(false);
+  const [cssOpen, setCssOpen] = React.useState(false);
+  const [naming, setNaming] = React.useState(false);
+  const [styleName, setStyleName] = React.useState("");
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const t = useTerms();
   if (!open) return null;
 
   const defLabel = widgetLabel(def, t);
+  const saveStyle = () => {
+    const label = styleName.trim();
+    if (!label) return;
+    onSaveStyle?.(label.slice(0, 40), pickLook(settings));
+    setNaming(false);
+    setStyleName("");
+  };
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
@@ -329,6 +344,125 @@ export default function WidgetConfigSheet({
                 </button>
               </div>
             </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium block mb-1">Background</label>
+                <div className="flex items-center gap-2">
+                  <ColorPicker value={settings.bg || "#111827"}
+                    onChange={(v) => onSettings(widget.instanceId, { bg: v })} />
+                  <button type="button" onClick={() => onSettings(widget.instanceId, { bg: "" })}
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Text colour</label>
+                <div className="flex items-center gap-2">
+                  <ColorPicker value={settings.textColor || "#e5e7eb"}
+                    onChange={(v) => onSettings(widget.instanceId, { textColor: v })} />
+                  <button type="button" onClick={() => onSettings(widget.instanceId, { textColor: "" })}
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium block mb-1">Background image</label>
+              <div className="flex items-center gap-2">
+                <button type="button" onClick={() => onPickBackground?.(widget.instanceId)}
+                  className="h-9 px-3 rounded-lg border border-border text-xs flex items-center gap-1.5">
+                  <ImageIcon className="w-3.5 h-3.5" /> {settings.bgImage ? "Change" : "Choose"}
+                </button>
+                {settings.bgImage && (
+                  <>
+                    <div className="flex gap-1">
+                      {["cover", "contain", "repeat"].map((v) => (
+                        <button key={v} type="button" onClick={() => onSettings(widget.instanceId, { bgSize: v })}
+                          className={`text-xs px-2 py-1 rounded-full border ${
+                            (settings.bgSize || "cover") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                          }`}>{v}</button>
+                      ))}
+                    </div>
+                    <button type="button" onClick={() => onSettings(widget.instanceId, { bgImage: "" })}
+                      className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Remove</button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium mb-1">
+                <span>Inner spacing</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {settings.padding === undefined || settings.padding === "" ? "app default" : `${settings.padding}px`}
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="range" min={0} max={32} step={1}
+                  value={settings.padding === undefined || settings.padding === "" ? 9 : settings.padding}
+                  onChange={(e) => onSettings(widget.instanceId, { padding: parseInt(e.target.value, 10) })}
+                  className="flex-1" aria-label="Inner spacing" />
+                <button type="button" onClick={() => onSettings(widget.instanceId, { padding: "" })}
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium block mb-1">Border colour</label>
+                <div className="flex items-center gap-2">
+                  <ColorPicker value={settings.borderColor || "#3b82f6"}
+                    onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
+                  <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                </div>
+              </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Border style</label>
+                <div className="flex flex-wrap gap-1">
+                  {BORDER_STYLES.map((v) => (
+                    <button key={v} type="button"
+                      onClick={() => onSettings(widget.instanceId, { borderStyle: settings.borderStyle === v ? "" : v })}
+                      className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
+                        settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                      }`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium block mb-1">Shadow</label>
+              <div className="flex flex-wrap gap-1">
+                {Object.keys(SHADOW_PRESETS).map((v) => (
+                  <button key={v} type="button"
+                    onClick={() => onSettings(widget.instanceId, { shadow: settings.shadow === v ? "" : v })}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      settings.shadow === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                    }`}>{v}</button>
+                ))}
+              </div>
+            </div>
+
+            {/* The escape hatch: your own CSS, scoped to this widget. */}
+            <div>
+              <button type="button" onClick={() => setCssOpen((v) => !v)}
+                className="w-full flex items-center justify-between text-xs font-medium py-1">
+                <span>Your own CSS{settings.css ? " — in use" : ""}</span>
+                <ChevronDown className="w-3.5 h-3.5" style={{ transform: cssOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+              </button>
+              {cssOpen && (
+                <>
+                  <DebouncedText multiline rows={5} value={settings.css || ""}
+                    placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
+                    onCommit={(v) => onSettings(widget.instanceId, { css: v })}
+                    className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <p className="text-[0.6875rem] text-muted-foreground mt-1">
+                    Plain CSS declarations, applied to this widget only. Anything CSS can do — border images, gradients, filters.
+                  </p>
+                </>
+              )}
+            </div>
           </div>
 
           {/* Style presets — collapsed, because nine full-width cards open by
@@ -340,6 +474,51 @@ export default function WidgetConfigSheet({
               <ChevronDown className="w-3.5 h-3.5" style={{ transform: styleOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
             </button>
             <div className="space-y-1" hidden={!styleOpen}>
+              {naming ? (
+                <div className="flex gap-1.5 pb-1">
+                  <input autoFocus value={styleName} onChange={(e) => setStyleName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") saveStyle(); if (e.key === "Escape") setNaming(false); }}
+                    placeholder="Name this style" maxLength={40}
+                    className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                  <button type="button" onClick={saveStyle} disabled={!styleName.trim()}
+                    className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
+                  <button type="button" onClick={() => setNaming(false)}
+                    className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
+                </div>
+              ) : (
+                <div className="flex gap-1.5 pb-1">
+                  <button type="button" onClick={() => { setStyleName(""); setNaming(true); }}
+                    className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary">
+                    Save this look as a style
+                  </button>
+                </div>
+              )}
+              {userStyles.map((st) => {
+                const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
+                return (
+                  <div key={st.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                    on ? "border-primary/60 bg-primary/10" : "border-border/40"
+                  }`}>
+                    <button type="button" className="flex-1 text-left text-sm font-medium"
+                      onClick={() => onSettings(widget.instanceId, { style: `${USER_STYLE_PREFIX}${st.id}` })}>
+                      {st.label}
+                      <span className="text-xs text-muted-foreground block">Yours</span>
+                    </button>
+                    <button type="button" aria-label={`Delete ${st.label}`}
+                      onClick={async () => {
+                        const ok = await confirm({
+                          title: `Delete "${st.label}"?`,
+                          body: "Widgets using it go back to inheriting the page style. Their own tweaks stay.",
+                          confirmLabel: "Delete", destructive: true,
+                        });
+                        if (ok) onDeleteStyle?.(st.id);
+                      }}
+                      className="p-1 text-muted-foreground hover:text-destructive">
+                      <Trash2 className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                );
+              })}
               <button
                 type="button"
                 onClick={() => onSettings(widget.instanceId, { style: "" })}
