@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useLocation, useNavigate, useOutletContext } from "react-router-dom";
 import { base44, localEntities } from "@/api/base44Client";
@@ -1046,9 +1047,15 @@ export default function Dashboard() {
           includes terms as an inline step. A small "Continue setup"
           chip appears here when the checklist is incomplete, so the
           user can jump back into the Guide's checklist hub any time. */}
-      {showSetupChip && (
+      {showSetupChip && createPortal(
         <div
-          className="fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)+16px+env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:bottom-4 sm:max-w-xs"
+          // Clears the bottom tab bar. Two fixes (v0.96.1): the calc needs
+          // Tailwind underscores — without them it emits `calc(56px+16px)`,
+          // which is invalid CSS and drops the rule — and the desktop
+          // override must be `lg:`, not `sm:`: the tab bar is `lg:hidden`,
+          // so between 640–1023px it is still on screen and a `sm:bottom-4`
+          // chip lands underneath it.
+          className="fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
           role="status"
           aria-label="Continue setup"
         >
@@ -1077,7 +1084,8 @@ export default function Dashboard() {
               <X className="w-3.5 h-3.5" />
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <TourModal open={showTour} onClose={handleTourClose} openAt={tourOpenAt} />
