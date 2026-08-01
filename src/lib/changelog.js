@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "July 31, 2026",
     changes: [
+      { type: "fix", text: "🧪 New UI: widgets on a free-layout page no longer sit on top of each other — move or grow one and the others step down out of its way, keeping their own size and column. Layouts that were already overlapping are untangled on open." },
       { type: "feature", text: "🧪 New UI: free layout — switch a page to \"Free\" in edit mode and put each widget exactly where you want it, gaps and all, instead of having them pack together." },
       { type: "improve", text: "🧪 New UI: the corner-radius slider now curves the whole app, and any single widget can override the look on its own — font, corners, border, text size, highlight colour." },
       { type: "improve", text: "🧪 New UI: no more red X on every widget — hold one and drag it onto \"Drop to remove\", or use Remove inside its options. Style presets are tucked behind a dropdown instead of filling the options panel." },

@@ -37,7 +37,7 @@ import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, ACTION_BAR_BUTTONS, packPositions,
+  HOME_STYLE_IDS, ACTION_BAR_BUTTONS, packPositions, resolveOverlaps, hasOverlaps,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
@@ -351,8 +351,12 @@ export default function ExperimentalDashboard({
 
   // ── Edit operations ────────────────────────────────────────────
   const handleRemove = (instanceId) => updatePageWidgets((ws) => ws.filter((w) => w.instanceId !== instanceId));
+  const pageIsFree = page.layoutMode === "free";
   const handleSpan = (instanceId, patch) =>
-    updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, span: { ...w.span, ...patch } } : w)));
+    updatePageWidgets((ws) => {
+      const next = ws.map((w) => (w.instanceId === instanceId ? { ...w, span: { ...w.span, ...patch } } : w));
+      return pageIsFree ? resolveOverlaps(next, gridCols, instanceId) : next;
+    });
   const handleMode = (instanceId, mode) =>
     updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, mode } : w)));
   const handleSettings = (instanceId, patch) =>
@@ -436,7 +440,13 @@ export default function ExperimentalDashboard({
     setActivePageId(remaining[0].id);
   };
   const handlePos = (instanceId, pos) =>
-    updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, pos } : w)));
+    updatePageWidgets((ws) =>
+      resolveOverlaps(
+        ws.map((w) => (w.instanceId === instanceId ? { ...w, pos } : w)),
+        gridCols,
+        instanceId
+      )
+    );
 
   // Switching a page to free placement seeds every widget with the cell it
   // already occupies, so the switch itself never rearranges anything.
@@ -505,6 +515,19 @@ export default function ExperimentalDashboard({
   const altersBottom = altersBarOn && home.altersBar.position === "bottom";
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
+
+  // A layout can arrive overlapping: saved before widgets kept out of each
+  // other's way, or arranged at one width and opened at a narrower one.
+  // Untangle it once, quietly.
+  const repaired = React.useRef("");
+  React.useEffect(() => {
+    if (!freeMode || !settingsRow?.id) return;
+    const stamp = `${page.id}:${gridCols}`;
+    if (repaired.current === stamp) return;
+    if (!hasOverlaps(page.widgets, gridCols)) return;
+    repaired.current = stamp;
+    updatePageWidgets((ws) => resolveOverlaps(ws, gridCols));
+  }, [freeMode, page.id, page.widgets, gridCols, settingsRow?.id, updatePageWidgets]);
   // Enough rows to hold everything plus room to move things down into.
   const freeRows = freeMode
     ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) + (w.span?.rows || 1))) + (editMode ? 4 : 0)

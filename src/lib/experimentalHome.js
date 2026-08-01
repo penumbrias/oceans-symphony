@@ -265,3 +265,60 @@ export function packPositions(widgets, gridCols, measuredRows = {}) {
     return { ...w, span: { ...w.span, rows: r }, pos: { x: 0, y: 0 } };
   });
 }
+
+// ── Free-placement collision handling ──────────────────────────────
+// Free placement means "put it where I want, gaps and all" — it does NOT
+// mean widgets get to sit on top of each other. When one is moved or grown
+// into space another occupies, the other one gets out of the way by moving
+// DOWN. Never sideways (that would fight the user's chosen columns) and
+// never upward-compacted (that would eat the gaps they deliberately left).
+
+const box = (w, gridCols) => {
+  const x = Math.max(0, Math.min(gridCols - 1, w.pos?.x || 0));
+  const c = Math.max(1, Math.min(w.span?.cols || 1, gridCols - x));
+  return { x, y: Math.max(0, w.pos?.y || 0), c, r: Math.max(1, w.span?.rows || 1) };
+};
+const hits = (a, b) => a.x < b.x + b.c && b.x < a.x + a.c && a.y < b.y + b.r && b.y < a.y + a.r;
+
+export function hasOverlaps(widgets, gridCols) {
+  const boxes = widgets.map((w) => box(w, gridCols));
+  for (let i = 0; i < boxes.length; i += 1) {
+    for (let j = i + 1; j < boxes.length; j += 1) if (hits(boxes[i], boxes[j])) return true;
+  }
+  return false;
+}
+
+// `anchorId` is the widget the user just moved or resized: it keeps exactly
+// the cell it was given, and everything else arranges itself around it.
+export function resolveOverlaps(widgets, gridCols, anchorId = null) {
+  const order = [...widgets].sort((a, b) => {
+    if (a.instanceId === anchorId) return -1;
+    if (b.instanceId === anchorId) return 1;
+    const ay = a.pos?.y || 0, by = b.pos?.y || 0;
+    return ay === by ? (a.pos?.x || 0) - (b.pos?.x || 0) : ay - by;
+  });
+
+  const placed = [];
+  const byId = {};
+  for (const w of order) {
+    const b = box(w, gridCols);
+    // Push down past whatever is already in the way, re-checking each time
+    // (moving down can land on something else).
+    let guard = 0;
+    while (guard < 500) {
+      const clash = placed.find((p) => hits(b, p));
+      if (!clash) break;
+      b.y = clash.y + clash.r;
+      guard += 1;
+    }
+    placed.push(b);
+    byId[w.instanceId] = b;
+  }
+
+  return widgets.map((w) => {
+    const b = byId[w.instanceId];
+    if (!b) return w;
+    const same = (w.pos?.x || 0) === b.x && (w.pos?.y || 0) === b.y && (w.span?.cols || 1) === b.c;
+    return same ? w : { ...w, pos: { x: b.x, y: b.y }, span: { ...w.span, cols: b.c } };
+  });
+}
