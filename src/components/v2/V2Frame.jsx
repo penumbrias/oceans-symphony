@@ -37,6 +37,7 @@ import { getAccessibilitySettings, setAccessibilityFontSize } from "@/lib/useAcc
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 
@@ -423,11 +424,16 @@ function useNavItems(settingsRow) {
   // The rail has room the bottom bar doesn't — everything else the user has
   // chosen for their dashboard goes underneath, so desktop isn't limited to
   // five destinations.
-  const secondary = useMemo(
-    () => resolve((navConfig.dashboardGrid || DEFAULT_CONFIG.dashboardGrid).filter((id) => !primaryIds.includes(id))),
-    [navConfig.dashboardGrid, primaryIds, termMap]
-  );
-  return { primary, secondary };
+  // Grouped, not a flat dump: the rail reuses the app's own nav grouping
+  // (System / Tracking / Journal & Content / Tools / Analytics) so a long
+  // list stays scannable.
+  const groups = useMemo(() => {
+    const raw = buildNavGroups(terms.Alters, terms.System);
+    return Object.entries(raw)
+      .map(([label, items]) => ({ label, items: items.filter((i) => !primaryIds.includes(i.id)) }))
+      .filter((g) => g.items.length > 0);
+  }, [terms.Alters, terms.System, primaryIds]);
+  return { primary, groups };
 }
 
 function useIsActive() {
@@ -448,10 +454,12 @@ export function V2SideRail({ uiV2, settingsRow }) {
   const t = useT();
   const terms = useTerms();
   const isActive = useIsActive();
-  const { primary, secondary } = useNavItems(settingsRow);
+  const { primary, groups } = useNavItems(settingsRow);
   const [noteOpen, setNoteOpen] = useState(false);
   if (!uiV2.bars.rail) return null;
 
+  const onRight = uiV2.tokens.railSide === "right";
+  const iconsOnly = uiV2.tokens.railActions === "icons";
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
 
   const NavButton = ({ item, dim }) => {
@@ -474,13 +482,15 @@ export function V2SideRail({ uiV2, settingsRow }) {
   return (
     <nav
       aria-label={t("nav.appNav")}
-      className="hidden lg:flex flex-col fixed left-0 bottom-0 z-40 bg-background/95 backdrop-blur-xl border-r overflow-y-auto overscroll-contain"
+      className={`hidden lg:flex flex-col fixed bottom-0 z-40 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain ${
+        onRight ? "right-0 border-l" : "left-0 border-r"
+      }`}
       style={{
         top: uiV2.bars.top ? "calc(var(--v2-status-h) + env(safe-area-inset-top, 0px))" : 0,
         width: "var(--v2-rail-w)",
-        paddingLeft: "env(safe-area-inset-left, 0px)",
+        [onRight ? "paddingRight" : "paddingLeft"]: "env(safe-area-inset-left, 0px)",
         borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)",
-        borderRightWidth: "var(--v2-border-w)",
+        [onRight ? "borderLeftWidth" : "borderRightWidth"]: "var(--v2-border-w)",
       }}
     >
       <div className="p-2 space-y-0.5">
@@ -492,34 +502,54 @@ export function V2SideRail({ uiV2, settingsRow }) {
           <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("nav.quickActions")}
           </p>
-          {keys.map((k) => {
-            const Icon = KEY_ICONS[k.id] || Heart;
-            const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
-            return (
-              <button key={k.id} type="button"
-                onClick={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
-                className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
-                style={{ borderRadius: "var(--v2-radius)" }}>
-                <Icon className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
-              </button>
-            );
-          })}
-          <button type="button" onClick={() => navigate("/grounding")}
-            className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs hover:bg-muted/40"
-            style={{ borderRadius: "var(--v2-radius)", color: "var(--v2-accent)" }}>
-            <LifeBuoy className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{t("capture.support")}</span>
-          </button>
+          <div className={iconsOnly ? "flex flex-wrap gap-1" : "space-y-0.5"}>
+            {keys.map((k) => {
+              const Icon = KEY_ICONS[k.id] || Heart;
+              const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+              const onPress = () => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target));
+              return iconsOnly ? (
+                <button key={k.id} type="button" onClick={onPress} title={label} aria-label={label}
+                  className="flex items-center justify-center text-muted-foreground hover:text-foreground"
+                  style={{
+                    width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+                    borderRadius: "var(--v2-radius)",
+                    border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+                  }}>
+                  <Icon style={{ width: "45%", height: "45%" }} />
+                </button>
+              ) : (
+                <button key={k.id} type="button" onClick={onPress}
+                  className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
+                  style={{ borderRadius: "var(--v2-radius)" }}>
+                  <Icon className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
+                </button>
+              );
+            })}
+            <button type="button" onClick={() => navigate("/grounding")}
+              title={t("capture.support")} aria-label={t("capture.support")}
+              className={iconsOnly
+                ? "flex items-center justify-center"
+                : "w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs hover:bg-muted/40"}
+              style={iconsOnly
+                ? { width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)", borderRadius: "var(--v2-radius)", border: "var(--v2-border-w) solid var(--v2-accent)", color: "var(--v2-accent)" }
+                : { borderRadius: "var(--v2-radius)", color: "var(--v2-accent)" }}>
+              <LifeBuoy className={iconsOnly ? "" : "w-3.5 h-3.5 flex-shrink-0"}
+                style={iconsOnly ? { width: "45%", height: "45%" } : undefined} />
+              {!iconsOnly && <span className="truncate">{t("capture.support")}</span>}
+            </button>
+          </div>
         </div>
       )}
 
-      {secondary.length > 0 && (
-        <div className="px-2 pb-4 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
+      {groups.map((g) => (
+        <div key={g.label} className="px-2 pb-2 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
           <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
-            {t("nav.everythingElse")}
+            {g.label}
           </p>
-          {secondary.map((item) => <NavButton key={item.id} item={item} dim />)}
+          {g.items.map((item) => <NavButton key={item.id} item={item} dim />)}
         </div>
-      )}
+      ))}
+      <div className="pb-4" />
 
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </nav>

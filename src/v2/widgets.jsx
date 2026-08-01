@@ -26,6 +26,8 @@ import {
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
@@ -253,17 +255,36 @@ function SystemIdentityWidget({ mode = "normal", api }) {
   const tr = useT();
   const t = useTerms();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const settings = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() }).data?.[0];
+  // The picture is the system's own (SystemSettings.system_avatar_url), not
+  // a widget decoration — set it here and every other surface that shows it
+  // updates too.
+  const setAvatar = async (url) => {
+    if (!settings?.id) return;
+    await base44.entities.SystemSettings.update(settings.id, { system_avatar_url: url });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
   const alters = useList("alters", "Alter");
   const avatar = useResolvedAvatarUrl(settings?.system_avatar_url || settings?.system_avatar || "");
   const name = settings?.system_name || `${t.Your || "Your"} ${t.system}`.trim();
   const desc = settings?.system_description || settings?.system_bio || "";
   const count = alters.filter((a) => !a.is_archived).length;
 
+  const size = mode === "expanded" ? 56 : 36;
   const avatarEl = avatar
-    ? <img src={avatar} alt="" className="rounded-full object-cover flex-shrink-0"
-        style={{ width: mode === "expanded" ? 56 : 36, height: mode === "expanded" ? 56 : 36 }} />
-    : null;
+    ? (
+      <span className="relative flex-shrink-0" style={{ width: size, height: size }}>
+        <img src={avatar} alt="" className="rounded-full object-cover w-full h-full" />
+        <AssetButton onPick={setAvatar} title={tr("widget.identity.changePicture")}
+          className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-border bg-background flex items-center justify-center" />
+      </span>
+    )
+    : (
+      <AssetButton onPick={setAvatar} title={tr("widget.identity.addPicture")}
+        className="flex items-center justify-center rounded-full border border-dashed border-border text-muted-foreground flex-shrink-0"
+        style={{ width: size, height: size }} />
+    );
 
   if (mode === "minimal") {
     return <Section><h2 className="font-display font-semibold text-lg truncate">{name}</h2></Section>;

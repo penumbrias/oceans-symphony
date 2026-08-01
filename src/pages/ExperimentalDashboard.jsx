@@ -28,7 +28,7 @@ import {
   Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2,
 } from "lucide-react";
 import {
-  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter,
+  DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";
 import {
   SortableContext, rectSortingStrategy, arrayMove, useSortable,
@@ -37,11 +37,12 @@ import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, ACTION_BAR_BUTTONS,
+  HOME_STYLE_IDS, ACTION_BAR_BUTTONS, packPositions,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
+import { useFreeMove } from "@/hooks/useFreeMove";
 import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
 import {
@@ -72,10 +73,55 @@ function useGridCols(phoneCols = 4) {
   return cols;
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, onConfigure, styleMode = "current" }) {
+// Per-widget appearance overrides. They're emitted as CSS VARIABLES on the
+// widget's own wrapper, so anything inside it — including shadcn cards and
+// buttons that read --radius — picks them up by inheritance. That's what
+// makes "settings apply everywhere by default, individual widgets can
+// override" true rather than aspirational.
+export function widgetStyleVars(settings = {}) {
+  const vars = {};
+  if (settings.radius !== undefined && settings.radius !== "") {
+    vars["--v2-radius"] = `${settings.radius}px`;
+    vars["--radius"] = `${settings.radius}px`;
+  }
+  if (settings.borderW !== undefined && settings.borderW !== "") vars["--v2-border-w"] = `${settings.borderW}px`;
+  if (settings.accent) vars["--v2-accent"] = settings.accent;
+  if (settings.font) vars.fontFamily = settings.font;
+  if (settings.fontScale) vars.fontSize = `${settings.fontScale}%`;
+  return vars;
+}
+
+const TRASH_ID = "__widget_trash";
+
+// Drop target that only exists while a widget is being dragged — hold a
+// widget, drag it here, let go. Nothing to mis-tap the rest of the time.
+function TrashZone({ active }) {
+  const { setNodeRef, isOver } = useDroppable({ id: TRASH_ID });
+  return (
+    <div
+      ref={setNodeRef}
+      aria-hidden={!active}
+      data-widget-trash="1"
+      className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all pointer-events-none"
+      style={{
+        bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)",
+        opacity: active ? 1 : 0,
+        transform: `translateX(-50%) scale(${isOver ? 1.08 : 1})`,
+        background: isOver ? "hsl(var(--destructive))" : "hsl(var(--background) / 0.95)",
+        color: isOver ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
+        borderColor: isOver ? "hsl(var(--destructive))" : "hsl(var(--border))",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <X className="w-4 h-4" /> Drop to remove
+    </div>
+  );
+}
+
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
-    disabled: !editMode || a11yStack,
+    disabled: !editMode || a11yStack || free,
   });
   const t = useTerms();
   const defLabel = widgetLabel(def, t);
@@ -96,9 +142,30 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
   const shownCols = resize.preview?.cols ?? spanCols;
   const shownRows = resize.preview?.rows ?? spanRows;
 
+  // Free placement: hold, drag to a cell, drop. Only wired when the page is
+  // in free mode — flow pages keep dnd-kit's reordering.
+  const cell = widget.pos || { x: 0, y: 0 };
+  const move = useFreeMove({
+    gridRef,
+    gridCols,
+    span: { cols: shownCols, rows: shownRows },
+    pos: cell,
+    enabled: free && editMode && !a11yStack,
+    onCommit: (next) => onPos?.(widget.instanceId, next),
+    onRemove: () => onRemove(widget.instanceId),
+  });
+
   const style = a11yStack
     ? {}
-    : {
+    : free
+      ? {
+          gridColumn: `${cell.x + 1} / span ${shownCols}`,
+          gridRow: `${cell.y + 1} / span ${shownRows}`,
+          transform: move.drag ? `translate(${move.drag.dx}px, ${move.drag.dy}px)` : undefined,
+          zIndex: move.dragging ? 45 : undefined,
+          opacity: move.dragging ? (move.drag?.overTrash ? 0.4 : 0.9) : undefined,
+        }
+      : {
         gridColumn: `span ${shownCols}`,
         minHeight: shownRows > 1 ? shownRows * 80 : undefined,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
@@ -110,7 +177,18 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         opacity: isDragging ? 0.85 : undefined,
       };
   return (
-    <div ref={setNodeRef} style={style} className="relative min-w-0">
+    <>
+    {/* Where it will land — drawn in the grid itself, so the preview is the
+        actual cell rather than an approximation of it. */}
+    {free && move.drag && (
+      <div aria-hidden="true" className="rounded-xl border-2 border-dashed pointer-events-none"
+        style={{
+          gridColumn: `${move.drag.target.x + 1} / span ${shownCols}`,
+          gridRow: `${move.drag.target.y + 1} / span ${shownRows}`,
+          borderColor: "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 60%, transparent)",
+        }} />
+    )}
+    <div ref={setNodeRef} data-widget-id={widget.instanceId} style={style} className="relative min-w-0">
       {editMode && (
         <div className="absolute -top-2 -right-2 z-30 flex items-center gap-1">
           {/* Widget options (rename / mode / style / icon) */}
@@ -131,18 +209,10 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
                 className="px-1 h-full text-muted-foreground hover:text-foreground"><ArrowDown className="w-3 h-3" /></button>
             </span>
           )}
-          <button
-            type="button"
-            aria-label={`Remove ${defLabel}`}
-            onClick={() => onRemove(widget.instanceId)}
-            className="w-6 h-6 rounded-full bg-destructive text-destructive-foreground flex items-center justify-center shadow-sm"
-          >
-            <X className="w-3 h-3" />
-          </button>
         </div>
       )}
       <div
-        {...(editMode && !a11yStack ? { ...attributes, ...listeners } : {})}
+        {...(editMode && !a11yStack ? (free ? move.getMoveProps() : { ...attributes, ...listeners }) : {})}
         onContextMenu={editMode ? (e) => e.preventDefault() : undefined}
         className={[
           // Style shell (homeStyles.js) — per-widget override beats the
@@ -152,17 +222,20 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           ),
           editMode ? "relative select-none rounded-xl ring-1 ring-dashed ring-border/70 cursor-grab active:cursor-grabbing" : "",
         ].join(" ").trim() || undefined}
-        style={editMode ? {
-          // pan-y: vertical scrolling passes through; the 300ms hold-still
-          // sensors lift the widget instead. Callout/user-select suppression
-          // stops iOS's long-press magnifier from eating the hold.
-          touchAction: "pan-y",
-          WebkitTouchCallout: "none",
-          WebkitUserSelect: "none",
-          userSelect: "none",
-          minHeight: 56,
-          paddingTop: 18,
-        } : undefined}
+        style={{
+          ...widgetStyleVars(widget.settings),
+          ...(editMode ? {
+            // pan-y: vertical scrolling passes through; the 300ms hold-still
+            // sensors lift the widget instead. Callout/user-select suppression
+            // stops iOS's long-press magnifier from eating the hold.
+            touchAction: "pan-y",
+            WebkitTouchCallout: "none",
+            WebkitUserSelect: "none",
+            userSelect: "none",
+            minHeight: 56,
+            paddingTop: 18,
+          } : null),
+        }}
       >
         {editMode && (
           <span className="absolute top-0.5 left-2 text-[0.625rem] uppercase tracking-wide text-muted-foreground/70 pointer-events-none truncate max-w-[70%]">
@@ -208,6 +281,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         </span>
       )}
     </div>
+    </>
   );
 }
 
@@ -229,6 +303,7 @@ export default function ExperimentalDashboard({
   // null | "wallpaper" | { icon: instanceId }
   const [assetPickerFor, setAssetPickerFor] = useState(null);
   const [configId, setConfigId] = useState(null);
+  const [draggingId, setDraggingId] = useState(null);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const gridRef = React.useRef(null);
 
@@ -360,6 +435,32 @@ export default function ExperimentalDashboard({
     setSwipeDir(-1);
     setActivePageId(remaining[0].id);
   };
+  const handlePos = (instanceId, pos) =>
+    updatePageWidgets((ws) => ws.map((w) => (w.instanceId === instanceId ? { ...w, pos } : w)));
+
+  // Switching a page to free placement seeds every widget with the cell it
+  // already occupies, so the switch itself never rearranges anything.
+  const toggleLayoutMode = () => {
+    const next = page.layoutMode === "free" ? "flow" : "free";
+    // Measure what's actually on screen before packing, so a widget that
+    // grew past its declared rows keeps the space it was using.
+    const measured = {};
+    if (next === "free" && gridRef.current) {
+      for (const node of gridRef.current.querySelectorAll("[data-widget-id]")) {
+        const h = node.getBoundingClientRect().height;
+        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / 92));
+      }
+    }
+    persist({
+      ...home,
+      pages: home.pages.map((p) => (p.id !== page.id ? p : {
+        ...p,
+        layoutMode: next,
+        widgets: next === "free" ? packPositions(p.widgets, gridCols, measured) : p.widgets,
+      })),
+    });
+  };
+
   const handleBackToClassic = () => persist({ ...home, enabled: false });
   const toggleActionBarButton = (id) => {
     const has = home.actionBar.buttonIds.includes(id);
@@ -381,6 +482,8 @@ export default function ExperimentalDashboard({
     useSensor(TouchSensor, { activationConstraint: { delay: 300, tolerance: 6 } })
   );
   const handleDragEnd = ({ active, over }) => {
+    setDraggingId(null);
+    if (over?.id === TRASH_ID) { handleRemove(active.id); return; }
     if (!over || active.id === over.id) return;
     updatePageWidgets((ws) => {
       const from = ws.findIndex((w) => w.instanceId === active.id);
@@ -401,6 +504,11 @@ export default function ExperimentalDashboard({
   const altersTop = altersBarOn && home.altersBar.position === "top";
   const altersBottom = altersBarOn && home.altersBar.position === "bottom";
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
+  const freeMode = page.layoutMode === "free" && !a11yStack;
+  // Enough rows to hold everything plus room to move things down into.
+  const freeRows = freeMode
+    ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) + (w.span?.rows || 1))) + (editMode ? 4 : 0)
+    : 0;
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
   // status_note widget is on the page (mirrors classic layoutEnabled logic).
@@ -409,7 +517,15 @@ export default function ExperimentalDashboard({
   const canvas = (
     <div
       ref={gridRef}
-      style={a11yStack ? undefined : { display: "grid", gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`, gap: home.styleMode === "barebones" ? "0.375rem" : "0.75rem", alignItems: "start" }}
+      style={a11yStack ? undefined : {
+        display: "grid",
+        gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
+        gap: home.styleMode === "barebones" ? "0.375rem" : "0.75rem",
+        alignItems: "start",
+        // Free pages need fixed-height rows for cell coordinates to mean
+        // anything, plus a few spare rows so there's somewhere to drag TO.
+        ...(freeMode ? { gridAutoRows: "80px", gridTemplateRows: `repeat(${freeRows}, 80px)` } : null),
+      }}
       className={a11yStack ? "space-y-3" : undefined}
     >
       {widgets.map((w) => (
@@ -428,6 +544,8 @@ export default function ExperimentalDashboard({
           onMove={handleMove}
           onConfigure={setConfigId}
           styleMode={home.styleMode}
+          free={freeMode}
+          onPos={handlePos}
         />
       ))}
     </div>
@@ -472,6 +590,18 @@ export default function ExperimentalDashboard({
                 </button>
               ))}
             </div>
+            <button
+              type="button"
+              onClick={toggleLayoutMode}
+              title="Flow packs widgets in order; Free lets you put each one where you want, gaps and all"
+              className={`text-[0.625rem] px-2 py-1 rounded-full border whitespace-nowrap transition-all ${
+                page.layoutMode === "free"
+                  ? "border-primary/60 bg-primary/10 text-primary"
+                  : "border-border/40 text-muted-foreground hover:text-foreground"
+              }`}
+            >
+              Layout: {page.layoutMode === "free" ? "Free" : "Flow"}
+            </button>
             <button
               type="button"
               onClick={() => persist({ ...home, grid: { phoneCols: home.grid.phoneCols === 5 ? 4 : 5 } })}
@@ -674,7 +804,11 @@ export default function ExperimentalDashboard({
           {canvas}
         </motion.div>
       ) : (
-        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+        <DndContext sensors={sensors} collisionDetection={closestCenter}
+          onDragStart={({ active }) => setDraggingId(active.id)}
+          onDragCancel={() => setDraggingId(null)}
+          onDragEnd={handleDragEnd}>
+          <TrashZone active={!!draggingId} />
           <SortableContext items={widgets.map((w) => w.instanceId)} strategy={rectSortingStrategy}>
             {canvas}
           </SortableContext>
@@ -747,6 +881,7 @@ export default function ExperimentalDashboard({
 
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
+        onRemove={(id) => { handleRemove(id); setConfigId(null); }}
         widget={widgets.find((w) => w.instanceId === configId) || null}
         def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}

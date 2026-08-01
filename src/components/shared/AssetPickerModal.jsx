@@ -229,11 +229,11 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
 
 // Small trigger button that opens the picker and hands the chosen image
 // URL back via onPick. Drop next to any upload control.
-export function AssetButton({ onPick, className = "", title = "Choose from assets" }) {
+export function AssetButton({ onPick, className = "", title = "Choose from assets", style }) {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button type="button" onClick={() => setOpen(true)} title={title}
+      <button type="button" onClick={() => setOpen(true)} title={title} aria-label={title} style={style}
         className={className || "h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0"}>
         <Images className="w-4 h-4 text-muted-foreground" />
       </button>

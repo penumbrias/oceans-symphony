@@ -104,6 +104,8 @@ export default {
 
   "widget.identity.count": "{count} {{alters}}",
   "widget.identity.open": "Open",
+  "widget.identity.addPicture": "Add a picture",
+  "widget.identity.changePicture": "Change the picture",
 
   "widget.alters.label": "{{Alters}}",
   "widget.alters.empty": "No {{alters}} yet.",

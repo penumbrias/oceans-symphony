@@ -17,7 +17,9 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown } from "lucide-react";
+import { APP_FONT_OPTIONS } from "@/lib/useAccessibility";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -77,8 +79,10 @@ export default function WidgetConfigSheet({
   onMode,            // (instanceId, mode)
   onSettings,        // (instanceId, patch)
   onPickIcon,        // (instanceId) → opens the shared AssetPickerModal
+  onRemove,          // (instanceId) → delete this widget
 }) {
   const open = !!widget && !!def;
+  const [styleOpen, setStyleOpen] = React.useState(false);
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const t = useTerms();
@@ -200,12 +204,103 @@ export default function WidgetConfigSheet({
             );
           })}
 
-          {/* Style override */}
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Style
+          {/* Appearance overrides. These write CSS variables onto the widget
+              wrapper, so the whole-app settings apply by default and this
+              widget alone departs from them where the user says so. */}
+          <div className="space-y-3">
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block">
+              This widget's look
             </label>
-            <div className="space-y-1">
+
+            <div>
+              <label className="text-xs font-medium block mb-1">Font</label>
+              <select
+                value={settings.font || ""}
+                onChange={(e) => onSettings(widget.instanceId, { font: e.target.value })}
+                className="w-full h-9 px-2 rounded-lg border border-input bg-background text-sm"
+              >
+                <option value="">Use the app font</option>
+                {APP_FONT_OPTIONS.map((f) => (
+                  <option key={f.value} value={f.value}>{f.label}</option>
+                ))}
+              </select>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium mb-1">
+                <span>Corner radius</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {settings.radius === undefined || settings.radius === "" ? "app default" : `${settings.radius}px`}
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="range" min={0} max={32} step={1}
+                  value={settings.radius === undefined || settings.radius === "" ? 12 : settings.radius}
+                  onChange={(e) => onSettings(widget.instanceId, { radius: parseInt(e.target.value, 10) })}
+                  className="flex-1" aria-label="Corner radius" />
+                <button type="button" onClick={() => onSettings(widget.instanceId, { radius: "" })}
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium mb-1">
+                <span>Border width</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {settings.borderW === undefined || settings.borderW === "" ? "app default" : `${settings.borderW}px`}
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="range" min={0} max={6} step={1}
+                  value={settings.borderW === undefined || settings.borderW === "" ? 0 : settings.borderW}
+                  onChange={(e) => onSettings(widget.instanceId, { borderW: parseInt(e.target.value, 10) })}
+                  className="flex-1" aria-label="Border width" />
+                <button type="button" onClick={() => onSettings(widget.instanceId, { borderW: "" })}
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+              </div>
+            </div>
+
+            <div>
+              <label className="flex items-center justify-between text-xs font-medium mb-1">
+                <span>Text size</span>
+                <span className="text-muted-foreground tabular-nums">
+                  {settings.fontScale ? `${settings.fontScale}%` : "app default"}
+                </span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input type="range" min={70} max={160} step={5}
+                  value={settings.fontScale || 100}
+                  onChange={(e) => onSettings(widget.instanceId, { fontScale: parseInt(e.target.value, 10) })}
+                  className="flex-1" aria-label="Text size" />
+                <button type="button" onClick={() => onSettings(widget.instanceId, { fontScale: "" })}
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium block mb-1">Highlight colour</label>
+              <div className="flex items-center gap-2">
+                <input type="color" value={settings.accent || "#3b82f6"}
+                  onChange={(e) => onSettings(widget.instanceId, { accent: e.target.value })}
+                  aria-label="Highlight colour"
+                  className="w-9 h-9 rounded border border-border bg-transparent" />
+                <button type="button" onClick={() => onSettings(widget.instanceId, { accent: "" })}
+                  className={`text-xs px-2.5 py-1 rounded-full border ${!settings.accent ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                  Use the app colour
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Style presets — collapsed, because nine full-width cards open by
+              default buried everything else in this sheet. */}
+          <div>
+            <button type="button" onClick={() => setStyleOpen((v) => !v)}
+              className="w-full flex items-center justify-between text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
+              <span>Style preset{styleOverride ? ` — ${HOME_STYLES.find((x) => x.id === styleOverride)?.label}` : " — inherit"}</span>
+              <ChevronDown className="w-3.5 h-3.5" style={{ transform: styleOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+            </button>
+            <div className="space-y-1" hidden={!styleOpen}>
               <button
                 type="button"
                 onClick={() => onSettings(widget.instanceId, { style: "" })}
@@ -270,6 +365,26 @@ export default function WidgetConfigSheet({
               </div>
             </div>
           )}
+          <div className="pt-2 border-t border-border/50">
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Remove ${settings.label || defLabel}?`,
+                  body: "It comes off this page. Nothing it shows is deleted, and you can add it back any time.",
+                  confirmLabel: "Remove",
+                  destructive: true,
+                });
+                if (ok) onRemove?.(widget.instanceId);
+              }}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-destructive/40 text-destructive text-sm font-medium hover:bg-destructive/10"
+            >
+              <Trash2 className="w-4 h-4" /> Remove widget
+            </button>
+            <p className="text-[0.6875rem] text-muted-foreground mt-1 text-center">
+              Or hold a widget and drag it onto “Drop to remove”.
+            </p>
+          </div>
         </div>
       </DrawerContent>
     </Drawer>

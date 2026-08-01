@@ -584,10 +584,22 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
 }
 
 
+/* The header wave costs vertical room, so it hides on a phone held
+   sideways — but "landscape" also describes every desktop monitor, where
+   there is plenty of room and the wave should show. Gate on height. */
+@media (orientation: landscape) and (max-height: 500px) {
+  .wave-hide-short { display: none; }
+}
+
 /* ── UI v2 (opt-in rebuild) ──
    Hides the classic chrome only when the user has switched v2 on; the
    --v2-* variables are the customization tokens emitted by uiV2.js. */
 [data-ui-v2="1"] .os-classic-chrome { display: none !important; }
+/* One radius control, applied broadly: --radius is what every card,
+   button, input and dialog in the app reads, so the v2 corner slider
+   curves the whole UI rather than just its own chrome. Individual
+   widgets can still override it locally (see widgetStyleVars). */
+[data-ui-v2="1"] { --radius: var(--v2-radius); }
 [data-ui-v2="1"] main.app-content-main {
   max-width: var(--v2-content-w, 100%);
   margin-inline: auto;
@@ -596,4 +608,5 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    inset by its width. Phones keep the bottom bar and no inset. */
 @media (min-width: 1024px) {
   [data-ui-v2="1"] { padding-left: var(--v2-rail-pad, 0px); }
+  [data-ui-v2="1"][data-rail-side="right"] { padding-left: 0; padding-right: var(--v2-rail-pad, 0px); }
 }

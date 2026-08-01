@@ -62,7 +62,7 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   grid: { phoneCols: 4 },
   // App-drawer folders: [{ id, label, appIds: [navCatalogue ids] }].
   drawer: { folders: [] },
-  pages: [{ id: "p1", label: "Home", widgets: [] }],
+  pages: [{ id: "p1", label: "Home", layoutMode: "flow", widgets: [] }],
 };
 
 let _idCounter = 0;
@@ -148,11 +148,24 @@ export function resolveExperimentalHome(stored, registry = {}) {
         },
         mode: HOME_MODES.includes(w.mode) ? w.mode : "normal",
         settings: w.settings && typeof w.settings === "object" ? w.settings : {},
+        // Free-placement coordinates (grid cells, 0-based). Absent = this
+        // widget just flows in order, which is the old behaviour.
+        pos: w.pos && Number.isFinite(parseInt(w.pos.x, 10)) && Number.isFinite(parseInt(w.pos.y, 10))
+          ? { x: Math.max(0, parseInt(w.pos.x, 10)), y: Math.max(0, parseInt(w.pos.y, 10)) }
+          : null,
       });
     }
-    out.pages.push({ id: pageId, label: typeof p.label === "string" ? p.label : "", widgets });
+    out.pages.push({
+      id: pageId,
+      label: typeof p.label === "string" ? p.label : "",
+      // "flow": widgets pack in order (the original behaviour, and still the
+      // default). "free": each widget sits at the cell the user put it in,
+      // gaps and all.
+      layoutMode: p.layoutMode === "free" ? "free" : "flow",
+      widgets,
+    });
   }
-  if (out.pages.length === 0) out.pages.push({ id: "p1", label: "Home", widgets: [] });
+  if (out.pages.length === 0) out.pages.push({ id: "p1", label: "Home", layoutMode: "flow", widgets: [] });
   out.defaultPageId = out.pages.some((p) => p.id === src.defaultPageId) ? src.defaultPageId : out.pages[0].id;
   return out;
 }
@@ -215,4 +228,40 @@ export function seedFromClassic(dashboardLayoutStored, registry, classicToWidget
     pages: [{ id: "p1", label: "Home", widgets }],
     defaultPageId: "p1",
   };
+}
+
+// Give every widget a cell, packing them in their current order — used when
+// a page switches from flow to free placement so nothing jumps around at
+// the moment of the switch. First-fit, scanning row by row.
+export function packPositions(widgets, gridCols, measuredRows = {}) {
+  const taken = new Set();
+  const key = (x, y) => `${x},${y}`;
+  const fits = (x, y, c, r) => {
+    if (x + c > gridCols) return false;
+    for (let dy = 0; dy < r; dy += 1) {
+      for (let dx = 0; dx < c; dx += 1) if (taken.has(key(x + dx, y + dy))) return false;
+    }
+    return true;
+  };
+  const occupy = (x, y, c, r) => {
+    for (let dy = 0; dy < r; dy += 1) {
+      for (let dx = 0; dx < c; dx += 1) taken.add(key(x + dx, y + dy));
+    }
+  };
+  return widgets.map((w) => {
+    const c = Math.min(w.span?.cols || 1, gridCols);
+    // Flow mode lets a widget be as tall as its content; free mode gives it
+    // exactly the rows it claims. Take the taller of the two so switching
+    // never crushes a widget into its neighbour.
+    const r = Math.max(w.span?.rows || 1, measuredRows[w.instanceId] || 0);
+    for (let y = 0; y < 400; y += 1) {
+      for (let x = 0; x <= gridCols - c; x += 1) {
+        if (fits(x, y, c, r)) {
+          occupy(x, y, c, r);
+          return { ...w, span: { ...w.span, rows: r }, pos: { x, y } };
+        }
+      }
+    }
+    return { ...w, span: { ...w.span, rows: r }, pos: { x: 0, y: 0 } };
+  });
 }

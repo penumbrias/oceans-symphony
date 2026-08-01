@@ -88,6 +88,10 @@ export const V2_TOKEN_DEFS = [
   { id: "borderW",   group: "bars", label: "Border width",           type: "range",  cssVar: "--v2-border-w",  default: 1,  min: 0, max: 3,  step: 1, unit: "px" },
   { id: "stripH",    group: "bars", label: "Bottom tab height",      type: "range",  cssVar: "--v2-strip-h",   default: 52, min: 40, max: 68, step: 2, unit: "px" },
   { id: "cmdSize",   group: "bars", label: "Quick-action size",      type: "range",  cssVar: "--v2-cmd-size",  default: 42, min: 34, max: 60, step: 2, unit: "px" },
+  { id: "railSide",  group: "bars", label: "Desktop rail side",      type: "select", cssVar: "--v2-rail-side", default: "left",
+    options: [{ v: "left", label: "Left" }, { v: "right", label: "Right" }] },
+  { id: "railActions", group: "bars", label: "Rail quick actions",    type: "select", cssVar: "--v2-rail-actions", default: "labels",
+    options: [{ v: "labels", label: "With labels" }, { v: "icons", label: "Icons only" }] },
   { id: "railW",     group: "bars", label: "Desktop rail width",     type: "range",  cssVar: "--v2-rail-w",    default: 200, min: 150, max: 320, step: 10, unit: "px" },
   { id: "statusH",   group: "bars", label: "Top bar height",         type: "range",  cssVar: "--v2-status-h",  default: 48, min: 30, max: 72, step: 2, unit: "px" },
 ];

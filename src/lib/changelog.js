@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "July 31, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: free layout — switch a page to \"Free\" in edit mode and put each widget exactly where you want it, gaps and all, instead of having them pack together." },
+      { type: "improve", text: "🧪 New UI: the corner-radius slider now curves the whole app, and any single widget can override the look on its own — font, corners, border, text size, highlight colour." },
+      { type: "improve", text: "🧪 New UI: no more red X on every widget — hold one and drag it onto \"Drop to remove\", or use Remove inside its options. Style presets are tucked behind a dropdown instead of filling the options panel." },
+      { type: "feature", text: "🧪 New UI: the header widget can set your system's picture, and the desktop rail is grouped by section, can sit on either side, and can show quick actions as icons only." },
+      { type: "fix", text: "The wave animation in the header shows on desktop again — it was being hidden on any wide screen, not just phones held sideways." },
       { type: "feature", text: "🧪 New UI: wide screens get a proper desktop view — a side rail with all your pages instead of a stretched phone bar, and the home screen keeps a separate arrangement for desktop." },
       { type: "feature", text: "🧪 New UI: lots of new widgets — a header for your own name and picture, a member list, journal, to-dos, sleep, board and reminders — plus headings, text, dividers and spacers so you can lay pages out yourself." },
       { type: "improve", text: "🧪 New UI: Display options now contains everything Appearance does — themes, colours, fonts, sizes and navigation — in one place." },
