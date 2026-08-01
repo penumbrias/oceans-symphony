@@ -513,7 +513,9 @@ const handleNotifClick = (mentionLog) => {
         ...uiV2Vars,
         // Clearance for fixed elements (grounding bubble, sheets), derived
         // from whichever v2 bars are visible.
-        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions ? "var(--v2-cmd-size) + var(--v2-space) * 2" : "0px"} + var(--v2-space))`,
+        // Quick actions are collapsed behind an 18px handle by default,
+        // so reserve the handle — not the whole row.
+        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions ? "18px" : "0px"} + var(--v2-space))`,
       } : undefined}
     >
       {/* Skip link — the first focusable element; lets keyboard / switch users
@@ -814,7 +816,7 @@ const handleNotifClick = (mentionLog) => {
         </React.Suspense>
       )}
 
-      {uiV2On && <V2BottomChrome uiV2={uiV2} />}
+      {uiV2On && <V2BottomChrome uiV2={uiV2} settingsRow={settings0} />}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

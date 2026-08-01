@@ -21,7 +21,7 @@ export const DEFAULT_UI_V2 = {
   tokens: {}, // { [tokenId]: value } — only overrides are stored
   // Per-bar visibility. When the top bar is off, a small floating button
   // keeps Display options reachable so no combination can strand the user.
-  bars: { top: true, actions: true, tabs: true },
+  bars: { top: true, actions: true, tabs: true, wave: true },
 };
 
 // ── Sections (bottom bar tabs) ─────────────────────────────────────
@@ -88,7 +88,7 @@ export const V2_TOKEN_DEFS = [
   { id: "borderW",   group: "bars", label: "Border width",           type: "range",  cssVar: "--v2-border-w",  default: 1,  min: 0, max: 3,  step: 1, unit: "px" },
   { id: "stripH",    group: "bars", label: "Bottom tab height",      type: "range",  cssVar: "--v2-strip-h",   default: 52, min: 40, max: 68, step: 2, unit: "px" },
   { id: "cmdSize",   group: "bars", label: "Quick-action size",      type: "range",  cssVar: "--v2-cmd-size",  default: 42, min: 34, max: 60, step: 2, unit: "px" },
-  { id: "statusH",   group: "bars", label: "Top bar height",         type: "range",  cssVar: "--v2-status-h",  default: 38, min: 30, max: 56, step: 2, unit: "px" },
+  { id: "statusH",   group: "bars", label: "Top bar height",         type: "range",  cssVar: "--v2-status-h",  default: 48, min: 30, max: 72, step: 2, unit: "px" },
 ];
 
 export function resolveUiV2(stored) {
@@ -121,6 +121,7 @@ export function resolveUiV2(stored) {
       top: src.bars?.top !== false,
       actions: src.bars?.actions !== false,
       tabs: src.bars?.tabs !== false,
+      wave: src.bars?.wave !== false,
     },
   };
 }

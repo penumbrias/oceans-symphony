@@ -20,19 +20,30 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
-  Users, StickyNote, CalendarCheck, Timer, History, Heart,
+  Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare,
 } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
+import { useT } from "@/lib/i18n";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+// Compact "how long so far" — reads better than a clock time in a narrow
+// tile, and answers the question the row is actually asked.
+const fmtElapsed = (start) => {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(start).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+};
 const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateString();
 const useList = (key, entity) => useQuery({ queryKey: [key], queryFn: () => base44.entities[entity].list() }).data || [];
 
 // ── Who's here ─────────────────────────────────────────────────────
 function PresenceWidget({ mode, api }) {
+  const tr = useT();
   const navigate = useNavigate();
   const t = useTerms();
   const formatAlter = useAlterLabel();
@@ -49,17 +60,19 @@ function PresenceWidget({ mode, api }) {
 
   return (
     <Section
-      label={`Here now`}
-      action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-set-front"))}>{t.Switch}</TextAction>}
+      label={tr("widget.presence.title")}
+      action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-set-front"))}>{applyTerms(tr("common.switch"), t)}</TextAction>}
     >
-      {fronters.length === 0 && <Muted>No {t.fronter} set.</Muted>}
+      {fronters.length === 0 && <Muted>{applyTerms(tr("widget.presence.empty"), t)}</Muted>}
       {(mode === "minimal" ? fronters.slice(0, 1) : fronters).map(({ s, alter }) => (
         <Row
           key={s.id}
-          left={<Dot color={alter.color} />}
+          // A ring marks the primary instead of a word — the name needs the
+          // room more than the label does in a one-column widget.
+          left={<Dot color={alter.color} ring={s.is_primary} />}
           primary={formatAlter(alter)}
-          secondary={s.is_primary ? "primary" : undefined}
-          right={s.start_time ? fmtTime(s.start_time) : undefined}
+          right={s.start_time ? fmtElapsed(s.start_time) : undefined}
+          title={s.is_primary ? applyTerms(tr("widget.presence.primaryOf"), t) : undefined}
           onClick={() => navigate(`/alter/${alter.id}`)}
         />
       ))}
@@ -69,6 +82,7 @@ function PresenceWidget({ mode, api }) {
 
 // ── Running right now ──────────────────────────────────────────────
 function RunningWidget({ api }) {
+  const tr = useT();
   const navigate = useNavigate();
   const symptomSessions = useQuery({
     queryKey: ["symptomSessions"],
@@ -82,10 +96,10 @@ function RunningWidget({ api }) {
   const nothing = activities.length === 0 && symptomSessions.length === 0 && !activeSleep;
 
   return (
-    <Section label="Running">
-      {nothing && <Muted>Nothing running.</Muted>}
+    <Section label={tr("widget.running.label")}>
+      {nothing && <Muted>{tr("widget.running.empty")}</Muted>}
       {activities.map((a) => (
-        <Row key={a.id} left={<Dot color="var(--v2-accent)" />} primary={a.activity_name || "Activity"}
+        <Row key={a.id} left={<Dot color="var(--v2-accent)" />} primary={a.activity_name || tr("widget.running.activity")}
           right={a.start ? fmtTime(a.start) : undefined} onClick={() => navigate("/activities")} />
       ))}
       {symptomSessions.map((s) => {
@@ -97,7 +111,7 @@ function RunningWidget({ api }) {
         );
       })}
       {activeSleep && (
-        <Row left={<Dot color="#6a7bd6" />} primary="Sleep" right={fmtTime(activeSleep.bedtime)}
+        <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.running.sleep")} right={fmtTime(activeSleep.bedtime)}
           onClick={() => navigate("/sleep")} />
       )}
     </Section>
@@ -106,6 +120,7 @@ function RunningWidget({ api }) {
 
 // ── Today ──────────────────────────────────────────────────────────
 function TodayWidget() {
+  const tr = useT();
   const navigate = useNavigate();
   const now = Date.now();
   const activities = useList("activities", "Activity");
@@ -121,22 +136,33 @@ function TodayWidget() {
   ).length;
 
   return (
-    <Section label="Today" action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
-      {plans.length === 0 && due.length === 0 && <Muted>Nothing scheduled or due.</Muted>}
-      {plans.map((a) => (
-        <Row key={a.id} primary={a.activity_name} right={fmtTime(a.timestamp)}
-          secondary={new Date(a.timestamp).getTime() < now ? "unresolved" : undefined}
-          onClick={() => navigate(`/activities?activityId=${a.id}`)} />
-      ))}
+    <Section label={tr("widget.today.label")} action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
+      {plans.length === 0 && due.length === 0 && <Muted>{tr("widget.today.empty")}</Muted>}
+      {/* Plan vs task is carried by the icon rather than a word — in a
+          one-column tile a "task" label just eats the title. Overdue plans
+          take the accent colour. */}
+      {plans.map((a) => {
+        const late = new Date(a.timestamp).getTime() < now;
+        return (
+          <Row key={a.id}
+            left={<CalendarCheck className="w-3.5 h-3.5 flex-shrink-0"
+              style={{ color: late ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />}
+            primary={a.activity_name} right={fmtTime(a.timestamp)}
+            title={late ? tr("widget.today.unresolved") : undefined}
+            onClick={() => navigate(`/activities?activityId=${a.id}`)} />
+        );
+      })}
       {due.map((x) => (
-        <Row key={x.id} primary={x.title} secondary="task"
-          right={sameDay(x.due_date, now) ? "today" : fmtTime(x.due_date)}
+        <Row key={x.id}
+          left={<CheckSquare className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+          primary={x.title} title={tr("widget.today.task")}
+          right={sameDay(x.due_date, now) ? tr("widget.today.dueToday") : fmtTime(x.due_date)}
           onClick={() => navigate(`/todo?id=${x.id}`)} />
       ))}
       {unresolved > 0 && (
         <Muted>
-          {unresolved} unresolved —{" "}
-          <TextAction onClick={() => navigate("/activities?tab=planned")}>review</TextAction>
+          {tr("widget.today.unresolvedCount", { count: unresolved })} —{" "}
+          <TextAction onClick={() => navigate("/activities?tab=planned")}>{tr("widget.today.review")}</TextAction>
         </Muted>
       )}
     </Section>
@@ -145,21 +171,23 @@ function TodayWidget() {
 
 // ── Status note ────────────────────────────────────────────────────
 function StatusWidget() {
+  const tr = useT();
   const navigate = useNavigate();
   const notes = useList("statusNotes", "StatusNote");
   const latest = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
   return (
-    <Section label="Status" action={<TextAction onClick={() => navigate("/checkin-log")}>Log</TextAction>}>
+    <Section label={tr("widget.status.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.status.log")}</TextAction>}>
       {latest
         ? <Row primary={latest.note} right={fmtTime(latest.timestamp)}
             onClick={() => navigate(`/timeline?highlightStatus=${latest.id}`)} />
-        : <Muted>No status notes yet.</Muted>}
+        : <Muted>{tr("widget.status.empty")}</Muted>}
     </Section>
   );
 }
 
 // ── Recent captures ────────────────────────────────────────────────
 function RecentWidget({ settings }) {
+  const tr = useT();
   const navigate = useNavigate();
   const limit = Math.max(1, Math.min(10, parseInt(settings?.limit, 10) || 4));
   const checkIns = useList("emotionCheckIns", "EmotionCheckIn");
@@ -167,10 +195,10 @@ function RecentWidget({ settings }) {
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
     .slice(0, limit);
   return (
-    <Section label="Recent check-ins" action={<TextAction onClick={() => navigate("/checkin-log")}>All</TextAction>}>
-      {recent.length === 0 && <Muted>Nothing logged yet.</Muted>}
+    <Section label={tr("widget.recent.label")} action={<TextAction onClick={() => navigate("/checkin-log")}>{tr("widget.recent.all")}</TextAction>}>
+      {recent.length === 0 && <Muted>{tr("widget.recent.empty")}</Muted>}
       {recent.map((c) => (
-        <Row key={c.id} primary={(c.emotions || []).join(", ") || "Check-in"}
+        <Row key={c.id} primary={(c.emotions || []).join(", ") || tr("widget.recent.item")}
           right={sameDay(c.timestamp, Date.now()) ? fmtTime(c.timestamp)
             : new Date(c.timestamp).toLocaleDateString([], { month: "short", day: "numeric" })}
           onClick={() => navigate(`/checkin-log?id=${c.id}`)} />
@@ -181,13 +209,14 @@ function RecentWidget({ settings }) {
 
 // ── Capture keys (widget form of the frame's row) ───────────────────
 const CAPTURE = [
-  { id: "quick-checkin", label: "Check-in" },
-  { id: "start-activity", label: "Activity" },
-  { id: "start-symptom", label: "Symptom" },
-  { id: "quick-task", label: "Task" },
-  { id: "quick-plan", label: "Plan" },
+  { id: "quick-checkin", key: "capture.checkIn" },
+  { id: "start-activity", key: "capture.activity" },
+  { id: "start-symptom", key: "capture.symptom" },
+  { id: "quick-task", key: "capture.task" },
+  { id: "quick-plan", key: "capture.plan" },
 ];
 function CaptureWidget({ api }) {
+  const tr = useT();
   const on = api?.quickOn || {};
   const fire = (id) => {
     if (id === "quick-checkin") return window.dispatchEvent(new CustomEvent("open-quick-checkin"));
@@ -197,13 +226,13 @@ function CaptureWidget({ api }) {
     if (id === "quick-plan") return on.quickPlan?.();
   };
   return (
-    <Section label="Capture">
+    <Section label={tr("widget.capture.label")}>
       <div className="flex flex-wrap" style={{ gap: "calc(var(--v2-space, 6px) * 0.75)" }}>
         {CAPTURE.map((c) => (
           <button key={c.id} type="button" onClick={() => fire(c.id)}
             className="text-xs px-2.5 py-1.5 border border-border/60 hover:border-primary/60 transition-colors"
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            {c.label}
+            {tr(c.key)}
           </button>
         ))}
       </div>

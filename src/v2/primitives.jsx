@@ -43,18 +43,21 @@ export function Section({ label, action, children }) {
 }
 
 // One list row: [left] primary — secondary [right]. Tappable if onClick.
-export function Row({ left, primary, secondary, right, onClick }) {
+export function Row({ left, primary, secondary, right, onClick, title }) {
   const Tag = onClick ? "button" : "div";
   return (
     <Tag
       type={onClick ? "button" : undefined}
       onClick={onClick}
+      title={title}
       className={`flex items-center gap-2 text-left w-full min-h-[32px] ${onClick ? "hover:bg-muted/40 -mx-1 px-1" : ""}`}
       style={onClick ? { borderRadius: "var(--v2-radius, 8px)" } : undefined}
     >
       {left}
-      <span className="text-sm truncate">{primary}</span>
-      {secondary && <span className="text-xs text-muted-foreground truncate">{secondary}</span>}
+      {/* The name is what identifies the row, so it keeps the space and the
+          qualifier is the first thing to give way in a narrow widget. */}
+      <span className="text-sm truncate min-w-0">{primary}</span>
+      {secondary && <span className="text-xs text-muted-foreground truncate shrink-[3] min-w-0">{secondary}</span>}
       {right && <span className="ml-auto text-xs text-muted-foreground flex-shrink-0 tabular-nums">{right}</span>}
     </Tag>
   );
@@ -75,9 +78,15 @@ export function TextAction({ onClick, children }) {
 }
 
 // Colored presence dot (member color).
-export function Dot({ color, active = true }) {
+export function Dot({ color, active = true, ring = false }) {
+  const c = color || "hsl(var(--muted-foreground))";
   return (
     <span aria-hidden="true" className="w-2 h-2 rounded-full flex-shrink-0"
-      style={{ background: color || "hsl(var(--muted-foreground))", opacity: active ? 1 : 0.4 }} />
+      style={{
+        background: c,
+        opacity: active ? 1 : 0.4,
+        // A ring is how a row says "this one leads" without spending words.
+        boxShadow: ring ? `0 0 0 2px color-mix(in srgb, ${c} 45%, transparent)` : undefined,
+      }} />
   );
 }

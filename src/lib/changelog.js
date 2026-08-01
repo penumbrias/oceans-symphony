@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "July 31, 2026",
+    changes: [
+      { type: "feature", text: "🧪 New UI: the wave animation is back in the header." },
+      { type: "feature", text: "🧪 New UI: quick actions now sit behind a slim handle above the bottom buttons — tap or swipe it up to show them, down to hide." },
+      { type: "improve", text: "🧪 New UI: the bottom buttons are yours to choose — they follow the same Settings → Appearance → Navigation setup as the classic bar." },
+      { type: "improve", text: "Groundwork for other languages: the new UI's text is now translatable, and a language picker appears as soon as a translation is available." },
+    ],
+  },
+  {
     date: "July 30, 2026",
+    version: "0.97.0",
     changes: [
       { type: "feature", text: "🧪 New UI: the home screen is a customizable widget board again — arrange, resize and page it exactly like before — but the widgets themselves are rebuilt in the new design. Its layout is stored separately, so your old experimental homescreen arrangement is untouched." },
       { type: "fix", text: "The \"Continue setup\" chip no longer hides behind the bottom tab bar or under the floating support bubble — its Open and dismiss buttons are reachable again on phones and tablets." },

@@ -1,0 +1,101 @@
+// English source strings for the rebuilt UI.
+//
+// This is the reference locale: every key lives here first, and any other
+// locale falls back to these values for keys it hasn't translated yet.
+//
+// Conventions for translators:
+//   • {name} is a runtime value (a count, a time) — keep it as-is.
+//   • {{Alter}} / {{System}} / {{fronters}} etc. are the USER'S OWN words
+//     for their system, filled in after translation. Keep them, and keep
+//     the capitalisation ({{Alter}} renders capitalised, {{alter}} lower).
+//   • Keys are grouped by area; please keep the grouping.
+
+export default {
+  // ── Bottom bar / navigation ──
+  "nav.quickActions": "Quick actions",
+  "nav.showQuickActions": "Show quick actions",
+  "nav.hideQuickActions": "Hide quick actions",
+  "nav.appNav": "App navigation",
+  "nav.customize": "Customize",
+
+  // ── Top bar ──
+  "top.search": "Search",
+  "top.notifications": "Notifications",
+  "top.displayOptions": "Display options",
+  "top.noFronter": "no {{fronter}} set",
+
+  // ── Display options ──
+  "options.title": "Display options",
+  "options.subtitle": "Changes apply instantly and save.",
+  "options.showHide": "Show / hide",
+  "options.appWide": "App-wide",
+  "options.bars": "Top & bottom bars",
+  "options.textSize": "Text size",
+  "options.textNormal": "normal",
+  "options.language": "Language",
+  "options.topBar": "Top bar",
+  "options.quickActionRow": "Quick-action row",
+  "options.sectionTabs": "Bottom buttons",
+  "options.waveHeader": "Wave animation in the header",
+  "options.recoveryHint": "With the top bar hidden, a small button stays in the corner so you can always get back here.",
+
+  // ── Quick note ──
+  "note.title": "Quick note",
+  "note.subtitle": "Save a status note here, or start a longer entry.",
+  "note.placeholder": "Status note…",
+  "note.save": "Save",
+  "note.saved": "Status note saved",
+  "note.newJournal": "New journal entry",
+  "note.newPost": "New board post",
+
+  // ── Capture ──
+  "capture.checkIn": "Check-in",
+  "capture.note": "Note",
+  "capture.activity": "Activity",
+  "capture.symptom": "Symptom",
+  "capture.task": "Task",
+  "capture.plan": "Plan",
+  "capture.front": "{{Front}}",
+  "capture.support": "Support",
+
+  // ── Widgets ──
+  "widget.presence.label": "Who's here",
+  "widget.presence.desc": "Current {{fronters}}, with time since each arrived.",
+  "widget.presence.title": "Here now",
+  "widget.presence.empty": "No {{fronter}} set.",
+  "widget.presence.primary": "primary",
+  "widget.presence.primaryOf": "Primary {{fronter}}",
+
+  "widget.running.label": "Running",
+  "widget.running.desc": "Activity timers, symptom episodes and sleep in progress.",
+  "widget.running.empty": "Nothing running.",
+  "widget.running.sleep": "Sleep",
+  "widget.running.activity": "Activity",
+
+  "widget.today.label": "Today",
+  "widget.today.desc": "Plans and tasks due today, plus anything unresolved.",
+  "widget.today.empty": "Nothing scheduled or due.",
+  "widget.today.unresolved": "unresolved",
+  "widget.today.unresolvedCount": "{count} unresolved",
+  "widget.today.review": "review",
+  "widget.today.open": "Open",
+  "widget.today.task": "task",
+  "widget.today.dueToday": "today",
+
+  "widget.status.label": "Status",
+  "widget.status.desc": "The latest status note.",
+  "widget.status.empty": "No status notes yet.",
+  "widget.status.log": "Log",
+
+  "widget.recent.label": "Recent check-ins",
+  "widget.recent.desc": "Your most recent check-ins.",
+  "widget.recent.empty": "Nothing logged yet.",
+  "widget.recent.all": "All",
+  "widget.recent.item": "Check-in",
+
+  "widget.capture.label": "Capture",
+  "widget.capture.desc": "One-tap buttons for the things you log most.",
+
+  // ── Shared ──
+  "common.switch": "{{Switch}}",
+};
