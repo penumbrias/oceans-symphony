@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: the Apps button now lives in the top-left corner (like the classic sidebar), works from any page, and its icon can be a picture of your choosing (Display options → Apps button icon). Editing the home screen moved into Display options, so the canvas has no floating buttons and no dead band at the top." },
+      { type: "feature", text: "🧪 New UI: the collapsed quick-actions bubble (and the floating bar, via its grip) can be held and dragged to any spot on either edge — it snaps to the nearer side, remembers its place, and can never end up off screen." },
       { type: "improve", text: "🧪 New UI: the floating support bubble no longer doubles up with the Support button in quick actions. If you hide quick actions, the bubble comes back — there is always a support entry on screen." },
       { type: "improve", text: "🧪 New UI: the bulletin-board widget is just the board now — the quick-task and quick-plan rows and the planned-events strip are gone (they live in quick actions). It can also carry group boards: pick them under \"Boards\" and flip between them with arrows." },
       { type: "improve", text: "Quick actions: starting a symptom or habit can now also log a past episode with its own end time — \"Active now\" stays the default. (Activities already offered both.)" },

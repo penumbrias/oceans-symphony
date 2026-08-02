@@ -341,6 +341,27 @@ export default function ExperimentalDashboard({
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const gridRef = React.useRef(null);
 
+  // The apps button (top bar) and "Edit the home screen" (Display options)
+  // trigger the drawer / edit mode from outside this component.
+  React.useEffect(() => {
+    const openApps = () => { setDrawerOpen(true); };
+    const editHome = () => { setEditMode(true); };
+    window.addEventListener("os-v2-open-apps", openApps);
+    window.addEventListener("os-v2-edit-home", editHome);
+    try {
+      if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
+        sessionStorage.removeItem("symphony_v2_open-apps"); setDrawerOpen(true);
+      }
+      if (sessionStorage.getItem("symphony_v2_edit-home") === "1") {
+        sessionStorage.removeItem("symphony_v2_edit-home"); setEditMode(true);
+      }
+    } catch { /* storage off */ }
+    return () => {
+      window.removeEventListener("os-v2-open-apps", openApps);
+      window.removeEventListener("os-v2-edit-home", editHome);
+    };
+  }, []);
+
   const home = useMemo(
     () => resolveExperimentalHome(settingsRow?.[settingsField], registry),
     [settingsRow, settingsField, registry]
@@ -660,7 +681,8 @@ export default function ExperimentalDashboard({
         </div>
       )}
       {/* Edit-mode toolbar */}
-      <div className={`flex flex-wrap items-center justify-end gap-1.5 ${editMode ? "mb-2" : "-mt-1 mb-0"}`}>
+      {editMode && (
+      <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">
         {editMode && (
           <>
             <button
@@ -772,9 +794,10 @@ export default function ExperimentalDashboard({
             editMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
           }`}
         >
-          {editMode ? <Check className="w-4 h-4" /> : <Pencil className="w-3.5 h-3.5" />}
+          <Check className="w-4 h-4" />
         </button>
       </div>
+      )}
 
       {/* Pinned-alters bar (top position) — persists across page swipes. */}
       {altersTop && (

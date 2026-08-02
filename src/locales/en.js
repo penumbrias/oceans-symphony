@@ -17,17 +17,23 @@ export default {
   "nav.hideQuickActions": "Hide quick actions",
   "nav.appNav": "App navigation",
   "nav.customize": "Customize",
+  "nav.dockDragHint": "Hold and drag to move",
   "nav.everythingElse": "Everything else",
 
   // ── Top bar ──
   "top.search": "Search",
   "top.notifications": "Notifications",
   "top.displayOptions": "Display options",
+  "top.apps": "Apps",
   "top.noFronter": "no {{fronter}} set",
 
   // ── Display options ──
   "options.title": "Display options",
   "options.subtitle": "Changes apply instantly, across the whole app, and save.",
+  "options.editHome": "Edit the home screen",
+  "options.appsIcon": "Apps button icon",
+  "options.appsIconPick": "Choose an image",
+  "options.appsIconReset": "Use the default",
   "options.showHide": "Show / hide",
   "options.preview": "Preview",
   "options.previewRow": "A row of something",

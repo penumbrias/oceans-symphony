@@ -16,6 +16,11 @@ import {
 export const DEFAULT_UI_V2 = {
   version: 1,
   enabled: false,
+  // Custom icon for the top-left apps button ("" = the default grid glyph).
+  appsIcon: "",
+  // Where the floating/bubble quick-action dock sits — set by dragging it.
+  // null = the dockSide token's edge at mid-height.
+  dockPos: null,
   registerOrder: null, // null = catalogue order
   commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task"],
   tokens: {}, // { [tokenId]: value } — only overrides are stored
@@ -140,6 +145,11 @@ export function resolveUiV2(stored) {
       // Desktop-only: the side rail that replaces the bottom bar at ≥1024px.
       rail: src.bars?.rail !== false,
     },
+    appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
+    dockPos: (src.dockPos && (src.dockPos.side === "left" || src.dockPos.side === "right")
+      && Number.isFinite(src.dockPos.topPct))
+      ? { side: src.dockPos.side, topPct: Math.min(88, Math.max(6, src.dockPos.topPct)) }
+      : null,
   };
 }
 

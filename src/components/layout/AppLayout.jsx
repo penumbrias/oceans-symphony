@@ -846,7 +846,7 @@ const handleNotifClick = (mentionLog) => {
 
       {uiV2On && <V2BottomChrome uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <V2SideRail uiV2={uiV2} settingsRow={settings0} />}
-      {uiV2On && <V2QuickDock uiV2={uiV2} />}
+      {uiV2On && <V2QuickDock uiV2={uiV2} settingsRow={settings0} />}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

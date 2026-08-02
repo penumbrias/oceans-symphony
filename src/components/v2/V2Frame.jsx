@@ -25,7 +25,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp, Eye, EyeOff,
+  Megaphone, ChevronUp, Eye, EyeOff, LayoutGrid, Pencil,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -41,6 +41,8 @@ import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -64,6 +66,17 @@ const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3
 const QA_OPEN_KEY = "symphony_v2_quickactions_open";
 const PREVIEW_OPEN_KEY = "symphony_v2_options_preview";
 const DOCK_OPEN_KEY = "symphony_v2_dock_open";
+
+// The apps drawer and home-edit mode live on the home canvas; these fire
+// them from anywhere (event when already home, flag + navigate otherwise).
+export function requestHomeAction(navigate, pathname, action) {
+  if (pathname === "/") {
+    window.dispatchEvent(new CustomEvent(`os-v2-${action}`));
+  } else {
+    try { sessionStorage.setItem(`symphony_v2_${action}`, "1"); } catch { /* storage off */ }
+    navigate("/");
+  }
+}
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -156,8 +169,11 @@ function LivePreview({ uiV2 }) {
   );
 }
 
-function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
+function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
   const t = useT();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
   const [fontIdx, setFontIdx] = useState(() =>
     Math.max(0, FONT_STEPS.indexOf(getAccessibilitySettings().fontSize || "default"))
   );
@@ -267,6 +283,32 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
         )}
         <div className="px-4 space-y-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+
+          {/* Home-screen editing lives here now, like the classic UI keeps
+              it in settings — not as a pencil floating over the canvas. */}
+          <button type="button"
+            onClick={() => { onClose(); requestHomeAction(navigate, location.pathname, "edit-home"); }}
+            className="w-full flex items-center gap-2.5 h-10 px-3 rounded-lg border border-primary/50 text-primary text-sm font-medium">
+            <Pencil className="w-4 h-4" /> {t("options.editHome")}
+          </button>
+
+          <div>
+            <label className="text-xs font-medium block mb-1">{t("options.appsIcon")}</label>
+            <div className="flex items-center gap-2">
+              <span className="w-9 h-9 flex items-center justify-center rounded-lg border border-border">
+                {appsIconUrl
+                  ? <img src={appsIconUrl} alt="" className="w-6 h-6 object-cover rounded" />
+                  : <LayoutGrid className="w-4 h-4 text-muted-foreground" />}
+              </span>
+              <AssetButton onPick={(url) => onMisc?.({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
+              {uiV2.appsIcon && (
+                <button type="button" onClick={() => onMisc?.({ appsIcon: "" })}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground">
+                  {t("options.appsIconReset")}
+                </button>
+              )}
+            </div>
+          </div>
 
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{t("options.showHide")}</p>
           {BAR_TOGGLES.map((b) => (
@@ -426,6 +468,7 @@ function usePersistUiV2(settingsRow) {
   return {
     setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
     setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
+    setMisc: (patch) => write(patch),
   };
 }
 
@@ -437,9 +480,10 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const clock = useClock();
+  const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const { setToken, setBar } = usePersistUiV2(settingsRow);
+  const { setToken, setBar, setMisc } = usePersistUiV2(settingsRow);
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -461,7 +505,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const hasUnread = mentionLogs.some((m) => m.is_active !== false && !m.seen && !m.read);
 
   const options = (
-    <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={setToken} onBar={setBar} />
+    <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={setToken} onBar={setBar} onMisc={setMisc} />
   );
 
   if (!uiV2.bars.top) {
@@ -492,6 +536,16 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           user colour setting, so it stays in sync with the rest of the app. */}
       {uiV2.bars.wave && <HeaderWaveBlock />}
       <div className="flex items-center gap-1.5 relative" style={{ zIndex: 1, minHeight: "var(--v2-status-h)" }}>
+        {/* Apps — upper-left, where the classic sidebar trigger lives. The
+            icon is the user's own if they've set one in Display options. */}
+        <button type="button"
+          onClick={() => requestHomeAction(navigate, location.pathname, "open-apps")}
+          aria-label={t("top.apps")} title={t("top.apps")}
+          className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
+          {appsIconUrl
+            ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
+            : <LayoutGrid className="w-4 h-4" />}
+        </button>
         <button type="button" onClick={() => navigate("/")}
           className="font-semibold text-sm truncate max-w-[34%] text-left"
           title={settingsRow?.system_name || terms.System}>
@@ -687,19 +741,27 @@ export function V2SideRail({ uiV2, settingsRow }) {
 // Alternative homes for the quick actions: a strip stuck to a screen edge,
 // or a single bubble that opens into the strip — same actions, same order,
 // just a different place to keep them.
-export function V2QuickDock({ uiV2 }) {
+export function V2QuickDock({ uiV2, settingsRow }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const t = useT();
   const terms = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
   const [bubbleOpen, setBubbleOpen] = useState(() => {
     try { return localStorage.getItem(DOCK_OPEN_KEY) === "1"; } catch { return false; }
   });
+  // Hold-and-drag repositioning. While dragging, the dock follows the
+  // pointer; on release it snaps to the nearer edge at that height, clamped
+  // so it can never end up off screen, and the spot is saved.
+  const [drag, setDrag] = useState(null); // { x, y }
+  const dragState = useRef(null);
+  const suppressTap = useRef(false);
+
   const mode = uiV2.tokens.actionsMode || "bar";
-  if (!uiV2.bars.actions || (mode !== "float" && mode !== "bubble")) return null;
   const isBubble = mode === "bubble";
   const open = !isBubble || bubbleOpen;
-  const side = uiV2.tokens.dockSide === "left" ? "left" : "right";
+  const side = uiV2.dockPos?.side || (uiV2.tokens.dockSide === "left" ? "left" : "right");
+  const topPct = uiV2.dockPos?.topPct ?? 50;
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
 
   const setOpen = (v) => {
@@ -707,12 +769,75 @@ export function V2QuickDock({ uiV2 }) {
     try { localStorage.setItem(DOCK_OPEN_KEY, v ? "1" : "0"); } catch { /* storage off */ }
   };
 
+  const savePos = async (pos) => {
+    try {
+      if (!settingsRow?.id) return;
+      await base44.entities.SystemSettings.update(settingsRow.id, {
+        ui_v2: { ...(settingsRow.ui_v2 || {}), dockPos: pos },
+      });
+      qc.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch { /* best-effort */ }
+  };
+
+  const onHandleDown = (e) => {
+    if (e.button === 1 || e.button === 2 || dragState.current) return;
+    const node = e.currentTarget;
+    const startX = e.clientX, startY = e.clientY;
+    const st = { active: false, timer: null };
+    const onMove = (ev) => {
+      if (!st.active) {
+        if (Math.abs(ev.clientX - startX) > 6 || Math.abs(ev.clientY - startY) > 6) cleanup();
+        return;
+      }
+      setDrag({ x: ev.clientX, y: ev.clientY });
+      ev.preventDefault();
+    };
+    const onTouchMove = (ev) => { if (st.active) ev.preventDefault(); };
+    const onUp = (ev) => {
+      const wasActive = st.active;
+      cleanup();
+      setDrag(null);
+      if (!wasActive) return;
+      suppressTap.current = true;
+      const nextSide = ev.clientX < window.innerWidth / 2 ? "left" : "right";
+      const pct = Math.min(88, Math.max(6, (ev.clientY / window.innerHeight) * 100));
+      savePos({ side: nextSide, topPct: Math.round(pct * 10) / 10 });
+    };
+    const cleanup = () => {
+      if (st.timer) clearTimeout(st.timer);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", cleanup);
+      window.removeEventListener("touchmove", onTouchMove);
+      dragState.current = null;
+    };
+    dragState.current = st;
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp);
+    window.addEventListener("pointercancel", cleanup);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
+    st.timer = setTimeout(() => {
+      st.active = true;
+      try { node.setPointerCapture?.(e.pointerId); } catch { /* unsupported */ }
+      try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+      setDrag({ x: startX, y: startY });
+    }, 300);
+  };
+
+  if (!uiV2.bars.actions || (mode !== "float" && mode !== "bubble")) return null;
+
   return (
     <div
       className="fixed z-40 flex flex-col items-center"
-      style={{
+      style={drag ? {
+        left: drag.x, top: drag.y,
+        transform: "translate(-50%, -50%)",
+        gap: "calc(var(--v2-space) * 0.75)",
+        opacity: 0.9,
+      } : {
         [side]: "calc(env(safe-area-inset-" + side + ", 0px) + 8px)",
-        top: "50%",
+        // clamp() keeps the whole stack on screen even at the extremes.
+        top: `clamp(calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + 16px), ${topPct}%, calc(100% - var(--bottom-nav-height, 56px) - 120px))`,
         transform: "translateY(-50%)",
         gap: "calc(var(--v2-space) * 0.75)",
       }}
@@ -749,8 +874,25 @@ export function V2QuickDock({ uiV2 }) {
           <LifeBuoy style={{ width: "45%", height: "45%" }} />
         </button>
       )}
+      {!isBubble && (
+        <span
+          onPointerDown={onHandleDown}
+          onContextMenu={(e) => e.preventDefault()}
+          title={t("nav.dockDragHint")}
+          className="w-6 h-3 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          style={{ touchAction: "pan-y" }}
+        >
+          <span className="w-4 h-[3px] rounded-full bg-border" aria-hidden="true" />
+        </span>
+      )}
       {isBubble && (
-        <button type="button" onClick={() => setOpen(!bubbleOpen)}
+        <button type="button"
+          onPointerDown={onHandleDown}
+          onContextMenu={(e) => e.preventDefault()}
+          onClick={() => {
+            if (suppressTap.current) { suppressTap.current = false; return; }
+            setOpen(!bubbleOpen);
+          }}
           aria-expanded={bubbleOpen}
           aria-label={bubbleOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
           className="flex items-center justify-center active:scale-95 transition-transform bg-background/95 backdrop-blur"
