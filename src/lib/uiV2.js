@@ -84,7 +84,9 @@ export const V2_TOKEN_DEFS = [
   { id: "density",   group: "bars", label: "Spacing",                type: "select", cssVar: "--v2-space",
     options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Medium", css: "6px" }, { v: "roomy", label: "Wide", css: "9px" }],
     default: "cozy" },
-  { id: "radius",    group: "bars", label: "Button corner radius",   type: "range",  cssVar: "--v2-radius",    default: 8,  min: 0, max: 20, step: 1, unit: "px" },
+  // Default matches the app's own --radius (0.75rem), so switching the new
+  // UI on doesn't silently re-corner the whole app before you touch it.
+  { id: "radius",    group: "bars", label: "Corner radius",          type: "range",  cssVar: "--v2-radius",    default: 12, min: 0, max: 24, step: 1, unit: "px" },
   { id: "borderW",   group: "bars", label: "Border width",           type: "range",  cssVar: "--v2-border-w",  default: 1,  min: 0, max: 3,  step: 1, unit: "px" },
   { id: "stripH",    group: "bars", label: "Bottom tab height",      type: "range",  cssVar: "--v2-strip-h",   default: 52, min: 40, max: 68, step: 2, unit: "px" },
   { id: "cmdSize",   group: "bars", label: "Quick-action size",      type: "range",  cssVar: "--v2-cmd-size",  default: 42, min: 34, max: 60, step: 2, unit: "px" },
@@ -153,8 +155,23 @@ export function buildTokenVars(uiV2) {
       const opt = def.options.find((o) => o.v === v) || def.options[0];
       vars[def.cssVar] = opt.css;
     } else if (def.type === "color") {
-      vars[def.cssVar] = v || "hsl(var(--primary))";
+      vars[def.cssVar] = v || "var(--color-primary)";
     }
   }
+
+  // These are not "v2 chrome" settings — they're the app's settings, and
+  // they reach every card, button, input and dialog, not just the bars:
+  //   • the highlight colour IS the app's primary colour
+  //   • the corner radius IS --radius, which every component reads
+  //   • border width and spacing drive the utility overrides in index.css
+  // A widget or component that sets its own value still wins, because it
+  // overrides these further down the tree.
+  const accent = uiV2.tokens.accent;
+  if (accent) vars["--color-primary"] = accent;
+  vars["--radius"] = vars["--v2-radius"];
+  // Density as a multiplier around the middle setting, so "Medium" leaves
+  // the app's own spacing exactly as designed.
+  const space = parseFloat(vars["--v2-space"]) || 6;
+  vars["--v2-density"] = String(Math.round((space / 6) * 100) / 100);
   return vars;
 }

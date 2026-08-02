@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: Display options now change the WHOLE app, not just the bars — highlight colour, corner radius, border width and spacing reach every card, button, input and dialog on every page. Anything you have styled individually keeps its own look." },
       { type: "fix", text: "🧪 New UI: fixed a crash when opening edit mode on the home screen." },
       { type: "feature", text: "🧪 New UI: a journal widget you read a page at a time — one entry per page, arrows to turn back and forward, a switcher for which journal you're in, and a button to start a new page." },
       { type: "feature", text: "🧪 New UI: save any widget's look as your own named style, then apply it to other widgets. Your styles live beside your layout, so they travel with backups." },

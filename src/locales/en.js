@@ -27,10 +27,10 @@ export default {
 
   // ── Display options ──
   "options.title": "Display options",
-  "options.subtitle": "Changes apply instantly and save.",
+  "options.subtitle": "Changes apply instantly, across the whole app, and save.",
   "options.showHide": "Show / hide",
   "options.appWide": "App-wide",
-  "options.bars": "Top & bottom bars",
+  "options.bars": "Whole app",
   "options.textSize": "Text size",
   "options.textNormal": "normal",
   "options.language": "Language",

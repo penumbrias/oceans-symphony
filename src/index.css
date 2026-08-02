@@ -595,11 +595,44 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    Hides the classic chrome only when the user has switched v2 on; the
    --v2-* variables are the customization tokens emitted by uiV2.js. */
 [data-ui-v2="1"] .os-classic-chrome { display: none !important; }
-/* One radius control, applied broadly: --radius is what every card,
-   button, input and dialog in the app reads, so the v2 corner slider
-   curves the whole UI rather than just its own chrome. Individual
-   widgets can still override it locally (see widgetStyleVars). */
+/* Display options are APP settings, not bar settings. The radius, border
+   width, spacing and highlight colour below reach every component in the
+   app — a card on the Alters page changes with them, not just the chrome.
+   Anything that sets its own value further down the tree still wins,
+   which is how per-widget overrides keep working. */
 [data-ui-v2="1"] { --radius: var(--v2-radius); }
+
+/* Border width. Tailwind's border utilities hardcode 1px/2px; inside v2
+   they follow the slider instead, so 0 really means "no borders anywhere"
+   and 3 really means heavy. Directional utilities are listed explicitly
+   rather than blanket-setting `border-width`, so a `border-t` divider
+   never grows a full box. */
+[data-ui-v2="1"] .border   { border-width: var(--v2-border-w); }
+[data-ui-v2="1"] .border-2 { border-width: calc(var(--v2-border-w) * 2); }
+[data-ui-v2="1"] .border-t { border-top-width: var(--v2-border-w); }
+[data-ui-v2="1"] .border-b { border-bottom-width: var(--v2-border-w); }
+[data-ui-v2="1"] .border-l { border-left-width: var(--v2-border-w); }
+[data-ui-v2="1"] .border-r { border-right-width: var(--v2-border-w); }
+
+/* Spacing. --v2-density is 1 at the middle setting, so "Medium" is the
+   app exactly as designed; Compact and Wide scale the common padding and
+   gap utilities around it. Only the utilities the app actually leans on
+   are remapped — a curated list beats a blanket rule that would also
+   squash things measured in px for a reason. */
+[data-ui-v2="1"] .p-2 { padding: calc(0.5rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .p-3 { padding: calc(0.75rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .p-4 { padding: calc(1rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .px-3 { padding-left: calc(0.75rem * var(--v2-density, 1)); padding-right: calc(0.75rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .px-4 { padding-left: calc(1rem * var(--v2-density, 1)); padding-right: calc(1rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .py-2 { padding-top: calc(0.5rem * var(--v2-density, 1)); padding-bottom: calc(0.5rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .py-3 { padding-top: calc(0.75rem * var(--v2-density, 1)); padding-bottom: calc(0.75rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .py-4 { padding-top: calc(1rem * var(--v2-density, 1)); padding-bottom: calc(1rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .gap-2 { gap: calc(0.5rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .gap-3 { gap: calc(0.75rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .gap-4 { gap: calc(1rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.5rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.75rem * var(--v2-density, 1)); }
+[data-ui-v2="1"] .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--v2-density, 1)); }
 [data-ui-v2="1"] main.app-content-main {
   max-width: var(--v2-content-w, 100%);
   margin-inline: auto;
