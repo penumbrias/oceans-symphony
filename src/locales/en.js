@@ -33,7 +33,7 @@ export default {
   "options.editHome": "Edit the home screen",
   "options.appsIcon": "Apps button icon",
   "options.appsIconPick": "Choose an image",
-  "options.appsIconReset": "Use the default",
+  "options.appsIconReset": "Use the app logo",
   "options.showHide": "Show / hide",
   "options.preview": "Preview",
   "options.previewRow": "A row of something",

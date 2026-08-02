@@ -298,7 +298,7 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
               <span className="w-9 h-9 flex items-center justify-center rounded-lg border border-border">
                 {appsIconUrl
                   ? <img src={appsIconUrl} alt="" className="w-6 h-6 object-cover rounded" />
-                  : <LayoutGrid className="w-4 h-4 text-muted-foreground" />}
+                  : <img src="/logo.png" alt="" className="w-6 h-6 object-contain rounded" />}
               </span>
               <AssetButton onPick={(url) => onMisc?.({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
               {uiV2.appsIcon && (
@@ -544,7 +544,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
           {appsIconUrl
             ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
-            : <LayoutGrid className="w-4 h-4" />}
+            : <img src="/logo.png" alt="" className="w-6 h-6 object-contain rounded-md" />}
         </button>
         <button type="button" onClick={() => navigate("/")}
           className="font-semibold text-sm truncate max-w-[34%] text-left"

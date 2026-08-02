@@ -16,6 +16,7 @@ import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { seedFromClassic } from "@/lib/experimentalHome";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
+import SetFrontModal from "@/components/fronting/SetFrontModal";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
 
@@ -66,6 +67,33 @@ import { addActiveActivity } from "@/lib/activitySession";
 import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
+
+// v2-only host for the switch modal: listens for the same "open-set-front"
+// event the classic CurrentFronters handles, since that component isn't
+// mounted when the v2 home is on.
+function V2SetFrontHost({ alters }) {
+  const [open, setOpen] = useState(false);
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+    enabled: open,
+  });
+  useEffect(() => {
+    const show = () => setOpen(true);
+    const hide = () => setOpen(false);
+    window.addEventListener("open-set-front", show);
+    window.addEventListener("open-set-front-close", hide);
+    return () => {
+      window.removeEventListener("open-set-front", show);
+      window.removeEventListener("open-set-front-close", hide);
+    };
+  }, []);
+  if (!open) return null;
+  return (
+    <SetFrontModal open onClose={() => setOpen(false)} alters={alters}
+      currentSession={sessions.find((x) => x.is_primary) || sessions[0] || null} />
+  );
+}
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -920,6 +948,7 @@ export default function Dashboard() {
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
       {uiV2On && <HomeV2 settingsRow={settings[0] || null} api={homeApi} />}
+      {uiV2On && <V2SetFrontHost alters={alters} />}
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (
