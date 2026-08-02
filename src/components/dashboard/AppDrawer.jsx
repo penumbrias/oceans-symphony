@@ -13,6 +13,119 @@ import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
+import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
+import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
+
+const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
+
+// One widget crashing must not take the whole gallery down with it.
+class PreviewBoundary extends React.Component {
+  constructor(props) { super(props); this.state = { failed: false }; }
+  static getDerivedStateFromError() { return { failed: true }; }
+  render() {
+    if (this.state.failed) {
+      return <p className="text-xs text-muted-foreground p-3">Preview unavailable</p>;
+    }
+    return this.props.children;
+  }
+}
+
+// A live render of the actual widget, Android-widget-picker style — the
+// real component with the user's real data, just not interactive. `styleId`
+// previews a page style (shell class) or a saved user style (look vars).
+function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [], maxHeight = 170 }) {
+  const shell = styleId && !styleId.startsWith(USER_STYLE_PREFIX) ? getStyleShell(styleId) : "";
+  const userLook = styleId.startsWith(USER_STYLE_PREFIX)
+    ? userStyles.find((st) => `${USER_STYLE_PREFIX}${st.id}` === styleId)?.look
+    : null;
+  return (
+    <div
+      aria-hidden="true"
+      className={`pointer-events-none select-none overflow-hidden ${shell || ""}`}
+      style={{ ...(userLook ? lookToStyle(userLook) : null), maxHeight, borderRadius: "var(--v2-radius, 8px)" }}
+    >
+      <PreviewBoundary>
+        {def.render({ mode, settings: {}, instanceId: `preview_${mode}`, api })}
+      </PreviewBoundary>
+    </div>
+  );
+}
+
+// Tapping a widget in the gallery opens this: flip through its display
+// modes, try a style, then add it configured that way — instead of adding
+// blind and fixing it afterwards.
+function WidgetDetail({ id, def, api, userStyles, onBack, onAdd, t }) {
+  const modes = HOME_MODES.filter((m) => (def.supportsModes || ["normal"]).includes(m));
+  const [mode, setMode] = useState(effectiveMode("normal", def.supportsModes));
+  const [styleId, setStyleId] = useState("");
+  return (
+    <div className="space-y-3">
+      <button type="button" onClick={onBack}
+        className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground">
+        <ChevronLeft className="w-3.5 h-3.5" /> All widgets
+      </button>
+      <div>
+        <p className="text-sm font-semibold">{widgetLabel(def, t)}</p>
+        <p className="text-xs text-muted-foreground">{widgetDescription(def, t)}</p>
+      </div>
+
+      <div className="rounded-xl border border-border/50 p-2 bg-background/40">
+        <WidgetPreview def={def} mode={mode} api={api} styleId={styleId} userStyles={userStyles} maxHeight={260} />
+      </div>
+
+      {modes.length > 1 && (
+        <div>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Display mode</p>
+          <div className="flex flex-wrap gap-1.5">
+            {modes.map((m) => (
+              <button key={m} type="button" onClick={() => setMode(m)}
+                className={`text-xs px-3 py-1.5 rounded-full border ${
+                  mode === m ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                }`}>
+                {MODE_LABEL[m]}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1">Style</p>
+        <div className="flex flex-wrap gap-1.5">
+          <button type="button" onClick={() => setStyleId("")}
+            className={`text-xs px-3 py-1.5 rounded-full border ${
+              !styleId ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+            }`}>
+            Inherit page style
+          </button>
+          {userStyles.map((st) => (
+            <button key={st.id} type="button" onClick={() => setStyleId(`${USER_STYLE_PREFIX}${st.id}`)}
+              className={`text-xs px-3 py-1.5 rounded-full border ${
+                styleId === `${USER_STYLE_PREFIX}${st.id}` ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+              }`}>
+              {st.label} · yours
+            </button>
+          ))}
+          {HOME_STYLES.filter((st) => st.id !== "current").map((st) => (
+            <button key={st.id} type="button" onClick={() => setStyleId(st.id)}
+              className={`text-xs px-3 py-1.5 rounded-full border ${
+                styleId === st.id ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+              }`}>
+              {st.label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <button type="button"
+        onClick={() => onAdd(id, styleId ? { style: styleId } : {}, mode)}
+        className="w-full h-10 rounded-lg bg-primary text-primary-foreground text-sm font-medium">
+        Add to page
+      </button>
+    </div>
+  );
+}
 
 // One app tile (icon + label + optional pin badge) — shared between the
 // folder view and the main grid.
@@ -175,6 +288,7 @@ export default function AppDrawer({
   open, onClose, placedWidgetIds = [], onAddWidget, onAddShortcut, pinOnTap = false,
   registry = WIDGET_REGISTRY,
   folders = [], onSaveFolders,
+  api = null, userStyles = [],
 }) {
   const t = useTerms();
   const navigate = useNavigate();
@@ -182,6 +296,7 @@ export default function AppDrawer({
   const [search, setSearch] = useState("");
   const [openFolderId, setOpenFolderId] = useState(null);
   const [organizeOpen, setOrganizeOpen] = useState(false);
+  const [detailId, setDetailId] = useState(null);
 
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
   const appById = useMemo(() => new Map(apps.map((a) => [a.id, a])), [apps]);
@@ -313,6 +428,17 @@ export default function AppDrawer({
               )}
             </>
           ) : (
+            detailId && registry[detailId] ? (
+              <WidgetDetail
+                id={detailId}
+                def={registry[detailId]}
+                api={api}
+                userStyles={userStyles}
+                t={t}
+                onBack={() => setDetailId(null)}
+                onAdd={(id, settings, mode) => { onAddWidget?.(id, settings, { mode }); setDetailId(null); }}
+              />
+            ) : (
             <div className="space-y-4">
               {WIDGET_CATEGORIES.map((cat) => {
                 const widgets = Object.entries(registry).filter(([, d]) => d.category === cat.id && !d.hiddenFromDrawer);
@@ -320,33 +446,43 @@ export default function AppDrawer({
                 return (
                   <div key={cat.id}>
                     <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{applyTerms(cat.label, t)}</p>
-                    <div className="space-y-1">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {widgets.map(([id, def]) => {
-                        const Icon = def.icon;
                         const already = !def.supportsMultiInstance && placed.has(id);
                         return (
-                          <button
-                            key={id}
-                            type="button"
-                            disabled={already}
-                            onClick={() => onAddWidget?.(id)}
-                            className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-xl border text-left transition-colors ${
-                              already
-                                ? "border-border/30 opacity-50 cursor-not-allowed"
-                                : "border-border/50 hover:border-primary/50 hover:bg-primary/5"
-                            }`}
-                          >
-                            {Icon && <Icon className="w-4 h-4 text-primary flex-shrink-0" />}
-                            <span className="flex-1 min-w-0">
-                              <span className="text-sm font-medium block">{widgetLabel(def, t)}</span>
-                              <span className="text-xs text-muted-foreground block truncate">{widgetDescription(def, t)}</span>
-                            </span>
-                            {already && (
-                              <span className="text-[0.6875rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
-                                <Check className="w-3 h-3" /> added
-                              </span>
-                            )}
-                          </button>
+                          <div key={id}
+                            className={`rounded-xl border text-left transition-colors overflow-hidden ${
+                              already ? "border-border/30 opacity-60" : "border-border/50 hover:border-primary/50"
+                            }`}>
+                            <button type="button" onClick={() => setDetailId(id)}
+                              className="w-full text-left">
+                              <div className="flex items-center gap-2 px-3 pt-2">
+                                <span className="text-sm font-medium flex-1 truncate">{widgetLabel(def, t)}</span>
+                                {already && (
+                                  <span className="text-[0.6875rem] text-muted-foreground flex items-center gap-0.5 flex-shrink-0">
+                                    <Check className="w-3 h-3" /> added
+                                  </span>
+                                )}
+                              </div>
+                              {/* The widget itself, live — what it will actually
+                                  look like with your data, not an icon standing
+                                  in for it. */}
+                              <div className="px-2 py-2">
+                                <WidgetPreview def={def} api={api} userStyles={userStyles} maxHeight={140} />
+                              </div>
+                            </button>
+                            <div className="flex items-center justify-between px-3 pb-2">
+                              <button type="button" onClick={() => setDetailId(id)}
+                                className="text-xs text-muted-foreground hover:text-foreground">
+                                Preview & options
+                              </button>
+                              <button type="button" disabled={already}
+                                onClick={() => onAddWidget?.(id)}
+                                className="text-xs px-2.5 py-1 rounded-full border border-primary/50 text-primary disabled:opacity-40">
+                                Add
+                              </button>
+                            </div>
+                          </div>
                         );
                       })}
                     </div>
@@ -354,6 +490,7 @@ export default function AppDrawer({
                 );
               })}
             </div>
+            )
           )}
         </div>
       </div>

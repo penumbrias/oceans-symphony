@@ -421,7 +421,7 @@ export default function ExperimentalDashboard({
       if (i === -1 || j < 0 || j >= ws.length) return ws;
       return arrayMove(ws, i, j);
     });
-  const handleAddWidget = (widgetId, settings = {}, { edit = true } = {}) => {
+  const handleAddWidget = (widgetId, settings = {}, { edit = true, mode = "normal" } = {}) => {
     const def = registry[widgetId];
     if (!def) return;
     // Single-instance is per PAGE — the same widget CAN live on several
@@ -431,7 +431,7 @@ export default function ExperimentalDashboard({
       return;
     }
     updatePageWidgets((ws) => {
-      const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: "normal", settings };
+      const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: effectiveMode(mode, def.supportsModes), settings };
       const next = [...ws, added];
       // On a free page a new widget needs a cell of its own, or it lands on
       // top of whatever is at the origin.
@@ -966,6 +966,8 @@ export default function ExperimentalDashboard({
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         registry={registry}
         onAddWidget={handleAddWidget}
+        api={widgetApi}
+        userStyles={userStyles}
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
         folders={home.drawer.folders}
