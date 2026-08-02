@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "fix", text: "🧪 New UI: dragging widgets in edit mode works properly on touch again — hold, then move in any direction — and the page scrolls normally, both in edit mode and out of it. Widgets with lots of content no longer swallow scroll gestures." },
       { type: "feature", text: "🧪 New UI: a Notebook widget — write straight onto the home screen and save it as a journal entry into whichever journal you pick. Half-written text survives closing the app." },
       { type: "feature", text: "🧪 New UI: the full bulletin board is back as a widget — post, sign, comment, react and vote right on the home screen, exactly like the board page." },
       { type: "improve", text: "🧪 New UI: a widget's options panel now shows the widget live at the top (collapsible), and has the same Peek button as Display options — the panel shrinks, the dimming lifts, and the widget scrolls into view so you watch it change as you adjust." },

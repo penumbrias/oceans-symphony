@@ -40,7 +40,7 @@ export function Section({ label, action, children }) {
           {action}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain"
+      <div className="min-h-0 flex-1 overflow-y-auto"
         style={{ display: "flex", flexDirection: "column", gap: "calc(var(--v2-space, 6px) * 0.75)" }}>
         {children}
       </div>

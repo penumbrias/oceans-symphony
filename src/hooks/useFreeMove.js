@@ -13,16 +13,16 @@
 // the release always comes back to us, and a drop onto the remove target
 // deletes — same as flicking the support bubble away.
 //
-// TOUCH-ACTION, and why it is "none" the whole time in edit mode.
-// With `touch-action: pan-y` the browser owns vertical movement: the moment
-// the finger goes up or down it starts scrolling, fires pointercancel, and
-// the widget you just lifted dies under your thumb — while sideways drags
-// work fine, because pan-y never claimed the horizontal axis. And because a
-// browser decides touch-action when the finger LANDS, flipping it to "none"
-// after the hold fires is too late to help. So in edit mode the widget
-// surface never pans: the page still scrolls from the background and the
-// toolbar, and a drag near the top or bottom edge scrolls the page itself
-// (see the auto-scroll below).
+// TOUCH HANDLING. The surface stays `touch-action: pan-y`, so a finger
+// that MOVES scrolls the page like anywhere else — widgets cover most of
+// the screen, and an unscrollable edit mode is unusable. The way a drag
+// survives that: once the stationary hold has lifted the widget, every
+// following touchmove is preventDefault-ed (non-passive listener), so the
+// browser never gets to start the scroll whose pointercancel would kill
+// the drag. Same pattern as dnd-kit's TouchSensor. NOT touch-action:none —
+// that was tried, and it traded vertical drags for a page you couldn't
+// scroll; and setting it after the hold is too late because the browser
+// decides touch-action when the finger lands.
 
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -50,8 +50,6 @@ export function useFreeMove({
   pos = { x: 0, y: 0 },
   enabled = true,
   onCommit,
-  // Edit mode owns the gesture; outside it the widget scrolls normally.
-  lockTouch = true,
   onRemove,
   trashSelector = "[data-widget-trash]",
 }) {
@@ -66,6 +64,7 @@ export function useFreeMove({
     window.removeEventListener("pointermove", st.onMove);
     window.removeEventListener("pointerup", st.onUp);
     window.removeEventListener("pointercancel", st.onCancel || st.onUp);
+    if (st.onTouchMove) window.removeEventListener("touchmove", st.onTouchMove);
     state.current = null;
   }, []);
 
@@ -121,10 +120,19 @@ export function useFreeMove({
     // call arriving) — drop it, don't treat it as a drop.
     const onCancelEvent = () => { cleanup(); setDrag(null); };
 
-    state.current = { active: false, node, onMove, onUp, onCancel: onCancelEvent, last: null, holdTimer: null };
+    // Non-passive: once the widget is lifted this is what stops the page
+    // from scrolling out from under the drag. Before the lift it does
+    // nothing, so scroll gestures behave normally.
+    const onTouchMove = (ev) => {
+      const st = state.current;
+      if (st?.active) ev.preventDefault();
+    };
+
+    state.current = { active: false, node, onMove, onUp, onCancel: onCancelEvent, onTouchMove, last: null, holdTimer: null };
     window.addEventListener("pointermove", onMove, { passive: false });
     window.addEventListener("pointerup", onUp);
     window.addEventListener("pointercancel", onCancelEvent);
+    window.addEventListener("touchmove", onTouchMove, { passive: false });
 
     state.current.holdTimer = setTimeout(() => {
       const st = state.current;
@@ -164,12 +172,7 @@ export function useFreeMove({
     dragging: !!drag,
     drag,
     getMoveProps: () => (enabled
-      ? {
-          onPointerDown,
-          // See the note at the top of the file: this has to be "none" from
-          // the moment the finger lands, not from the moment the hold fires.
-          style: { touchAction: lockTouch ? "none" : "pan-y" },
-        }
+      ? { onPointerDown, style: { touchAction: "pan-y" } }
       : {}),
   };
 }

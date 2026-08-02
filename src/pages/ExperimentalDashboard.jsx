@@ -150,7 +150,6 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
     enabled: free && editMode && !a11yStack,
-    lockTouch: free && editMode && !a11yStack,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
   });
@@ -246,7 +245,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           // The content fills the widget's box in both layout modes, so the
           // border you see is the size you set; overflow scrolls inside it.
           ...(free || fixedHeight
-            ? { height: "100%", overflowY: "auto", overscrollBehavior: "contain" }
+            ? { height: "100%", overflowY: "auto" }
             : null),
           ...(editMode ? {
             // pan-y: vertical scrolling passes through; the 300ms hold-still
