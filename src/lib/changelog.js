@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "fix", text: "🧪 New UI: fixed a crash when opening edit mode on the home screen." },
       { type: "feature", text: "🧪 New UI: a journal widget you read a page at a time — one entry per page, arrows to turn back and forward, a switcher for which journal you're in, and a button to start a new page." },
       { type: "feature", text: "🧪 New UI: save any widget's look as your own named style, then apply it to other widgets. Your styles live beside your layout, so they travel with backups." },
       { type: "feature", text: "🧪 New UI: much deeper per-widget styling — background colour or image, text colour, inner spacing, border colour and style, shadows, and a box for your own CSS if you want to go further." },

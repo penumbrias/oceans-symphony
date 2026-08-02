@@ -90,6 +90,33 @@ export function widgetLookFor(settings = {}, userStyles = []) {
   return mergeLook(saved?.look || {}, pickLook(settings));
 }
 
+const TRASH_ID = "__widget_trash";
+
+// Drop target that only exists while a widget is being dragged — hold a
+// widget, drag it here, let go. Nothing to mis-tap the rest of the time.
+function TrashZone({ active }) {
+  const { setNodeRef, isOver } = useDroppable({ id: TRASH_ID });
+  return (
+    <div
+      ref={setNodeRef}
+      aria-hidden={!active}
+      data-widget-trash="1"
+      className="fixed left-1/2 -translate-x-1/2 z-[60] flex items-center gap-2 px-4 py-2 rounded-full border text-sm transition-all pointer-events-none"
+      style={{
+        bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)",
+        opacity: active ? 1 : 0,
+        transform: `translateX(-50%) scale(${isOver ? 1.08 : 1})`,
+        background: isOver ? "hsl(var(--destructive))" : "hsl(var(--background) / 0.95)",
+        color: isOver ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
+        borderColor: isOver ? "hsl(var(--destructive))" : "hsl(var(--border))",
+        backdropFilter: "blur(8px)",
+      }}
+    >
+      <X className="w-4 h-4" /> Drop to remove
+    </div>
+  );
+}
+
 function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [] }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
