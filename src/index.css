@@ -602,6 +602,36 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    which is how per-widget overrides keep working. */
 [data-ui-v2="1"] { --radius: var(--v2-radius); }
 
+/* Corner radius, for real. Tailwind's rounded-* utilities hardcode their
+   own px values — only `rounded-lg/md/sm` were ever wired to --radius —
+   which is why setting the slider to 0 left most of the app rounded. Every
+   size is now derived from the slider, keeping the relative hierarchy
+   (sm < md < lg < xl < 2xl < 3xl) so a card still reads as softer than a
+   chip at any setting.
+
+   `.rounded-full` is deliberately NOT included, matching the existing
+   Sharp corner mode: avatars, dots and circular badges derive their
+   identity from being round, and squaring them looks broken rather than
+   sharp. Inline radii (per-widget looks) win over all of this, which is
+   how "unless set otherwise" keeps working. */
+[data-ui-v2="1"] .rounded-sm  { border-radius: calc(var(--v2-radius) * 0.33); }
+[data-ui-v2="1"] .rounded     { border-radius: calc(var(--v2-radius) * 0.5); }
+[data-ui-v2="1"] .rounded-md  { border-radius: calc(var(--v2-radius) * 0.65); }
+[data-ui-v2="1"] .rounded-lg  { border-radius: calc(var(--v2-radius) * 0.8); }
+[data-ui-v2="1"] .rounded-xl  { border-radius: var(--v2-radius); }
+[data-ui-v2="1"] .rounded-2xl { border-radius: calc(var(--v2-radius) * 1.35); }
+[data-ui-v2="1"] .rounded-3xl { border-radius: calc(var(--v2-radius) * 1.8); }
+/* Side- and corner-specific utilities keep their side, and take the
+   slider's value on the corners they actually round. */
+[data-ui-v2="1"] [class*="rounded-t-"]  { border-top-left-radius: var(--v2-radius); border-top-right-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-b-"]  { border-bottom-left-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-l-"]  { border-top-left-radius: var(--v2-radius); border-bottom-left-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-r-"]  { border-top-right-radius: var(--v2-radius); border-bottom-right-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-tl-"] { border-top-left-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-tr-"] { border-top-right-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-bl-"] { border-bottom-left-radius: var(--v2-radius); }
+[data-ui-v2="1"] [class*="rounded-br-"] { border-bottom-right-radius: var(--v2-radius); }
+
 /* Border width. Tailwind's border utilities hardcode 1px/2px; inside v2
    they follow the slider instead, so 0 really means "no borders anywhere"
    and 3 really means heavy. Directional utilities are listed explicitly
