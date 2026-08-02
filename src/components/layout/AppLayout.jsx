@@ -38,7 +38,7 @@ import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
-import { V2StatusLine, V2BottomChrome, V2SideRail } from "@/components/v2/V2Frame";
+import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock } from "@/components/v2/V2Frame";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 
@@ -265,6 +265,30 @@ const settings0 = systemSettings?.[0];
 const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
 const uiV2On = UI_V2_ENABLED && uiV2.enabled;
 const uiV2Vars = useMemo(() => (uiV2On ? buildTokenVars(uiV2) : null), [uiV2On, uiV2]);
+
+// Dialogs, drawers and dropdowns are portaled to <body>, OUTSIDE the app
+// root div — tokens set only there never reach them (the "popups ignore
+// the corner slider" bug). Mirror the flag + variables onto <html>, so the
+// cascade covers portals too. Cleaned up when v2 turns off.
+useEffect(() => {
+  const root = document.documentElement;
+  if (!uiV2On || !uiV2Vars) {
+    root.removeAttribute("data-ui-v2");
+    return undefined;
+  }
+  root.setAttribute("data-ui-v2", "1");
+  const applied = [];
+  for (const [k, v] of Object.entries(uiV2Vars)) {
+    root.style.setProperty(k, v);
+    applied.push(k);
+  }
+  root.style.setProperty("--radius", uiV2Vars["--v2-radius"]);
+  applied.push("--radius");
+  return () => {
+    root.removeAttribute("data-ui-v2");
+    for (const k of applied) root.style.removeProperty(k);
+  };
+}, [uiV2On, uiV2Vars]);
 const bannerUrl = settings0?.system_banner_url || "";
 const bannerHeight = typeof settings0?.system_banner_height === "number" ? settings0.system_banner_height : 150;
 const bannerPosition = typeof settings0?.system_banner_position === "number" ? settings0.system_banner_position : 50;
@@ -516,7 +540,7 @@ const handleNotifClick = (mentionLog) => {
         // from whichever v2 bars are visible.
         // Quick actions are collapsed behind an 18px handle by default,
         // so reserve the handle — not the whole row.
-        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions ? "18px" : "0px"} + var(--v2-space))`,
+        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" ? "18px" : "0px"} + var(--v2-space))`,
         // Desktop rail clearance — 0 when the rail is off, and the media
         // query in index.css keeps it from applying on phones.
         "--v2-rail-pad": uiV2.bars.rail ? "var(--v2-rail-w)" : "0px",
@@ -822,6 +846,7 @@ const handleNotifClick = (mentionLog) => {
 
       {uiV2On && <V2BottomChrome uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <V2SideRail uiV2={uiV2} settingsRow={settings0} />}
+      {uiV2On && <V2QuickDock uiV2={uiV2} />}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

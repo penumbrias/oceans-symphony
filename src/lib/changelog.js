@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: quick actions can now live where you want them — behind the bottom handle, as a floating bar stuck to either screen edge, or as a bubble that opens when tapped. Pick in Display options." },
+      { type: "fix", text: "🧪 New UI: pop-ups now follow the corner radius and the other whole-app settings — panels, dialogs and menus were ignoring them." },
       { type: "improve", text: "🧪 New UI: Peek now shows a short panel of the actual settings instead of the sample, so you can keep adjusting while watching the real app change above it. The sample can also be collapsed out of the way, and stays collapsed until you want it back." },
       { type: "improve", text: "🧪 New UI: Display options now shows a live sample at the top — a card, buttons, an input and the bars — so you can see each change as you make it. A Peek button shrinks the panel and lifts the dimming so you can watch the real app change too." },
       { type: "fix", text: "🧪 New UI: the corner radius slider now actually rounds (or squares) the whole app — cards, rows, buttons, inputs, banners and avatars. Deliberately round things like status dots and pills stay round." },

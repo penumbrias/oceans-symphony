@@ -63,6 +63,7 @@ const KEY_LABEL_KEYS = {
 const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
 const QA_OPEN_KEY = "symphony_v2_quickactions_open";
 const PREVIEW_OPEN_KEY = "symphony_v2_options_preview";
+const DOCK_OPEN_KEY = "symphony_v2_dock_open";
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -682,6 +683,94 @@ export function V2SideRail({ uiV2, settingsRow }) {
   );
 }
 
+// ── Quick-action dock (floating edge bar / bubble) ─────────────────
+// Alternative homes for the quick actions: a strip stuck to a screen edge,
+// or a single bubble that opens into the strip — same actions, same order,
+// just a different place to keep them.
+export function V2QuickDock({ uiV2 }) {
+  const navigate = useNavigate();
+  const t = useT();
+  const terms = useTerms();
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [bubbleOpen, setBubbleOpen] = useState(() => {
+    try { return localStorage.getItem(DOCK_OPEN_KEY) === "1"; } catch { return false; }
+  });
+  const mode = uiV2.tokens.actionsMode || "bar";
+  if (!uiV2.bars.actions || (mode !== "float" && mode !== "bubble")) return null;
+  const isBubble = mode === "bubble";
+  const open = !isBubble || bubbleOpen;
+  const side = uiV2.tokens.dockSide === "left" ? "left" : "right";
+  const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+
+  const setOpen = (v) => {
+    setBubbleOpen(v);
+    try { localStorage.setItem(DOCK_OPEN_KEY, v ? "1" : "0"); } catch { /* storage off */ }
+  };
+
+  return (
+    <div
+      className="fixed z-40 flex flex-col items-center"
+      style={{
+        [side]: "calc(env(safe-area-inset-" + side + ", 0px) + 8px)",
+        top: "50%",
+        transform: "translateY(-50%)",
+        gap: "calc(var(--v2-space) * 0.75)",
+      }}
+    >
+      {open && keys.map((k) => {
+        const Icon = KEY_ICONS[k.id] || Heart;
+        const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+        return (
+          <button key={k.id} type="button"
+            onClick={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
+            aria-label={label} title={label}
+            className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform bg-background/90 backdrop-blur"
+            style={{
+              width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+              borderRadius: "var(--v2-radius)",
+              border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+              boxShadow: "0 2px 8px rgb(0 0 0 / 0.25)",
+            }}>
+            <Icon style={{ width: "45%", height: "45%" }} />
+          </button>
+        );
+      })}
+      {open && (
+        <button type="button" onClick={() => navigate("/grounding")}
+          aria-label={t("capture.support")} title={t("capture.support")}
+          className="flex items-center justify-center active:scale-95 transition-transform bg-background/90 backdrop-blur"
+          style={{
+            width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+            borderRadius: "var(--v2-radius)",
+            border: "var(--v2-border-w) solid var(--v2-accent)",
+            color: "var(--v2-accent)",
+            boxShadow: "0 2px 8px rgb(0 0 0 / 0.25)",
+          }}>
+          <LifeBuoy style={{ width: "45%", height: "45%" }} />
+        </button>
+      )}
+      {isBubble && (
+        <button type="button" onClick={() => setOpen(!bubbleOpen)}
+          aria-expanded={bubbleOpen}
+          aria-label={bubbleOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
+          className="flex items-center justify-center active:scale-95 transition-transform bg-background/95 backdrop-blur"
+          style={{
+            width: "calc(var(--v2-cmd-size) + 6px)", height: "calc(var(--v2-cmd-size) + 6px)",
+            borderRadius: "9999px",
+            border: "var(--v2-border-w) solid var(--v2-accent)",
+            color: "var(--v2-accent)",
+            boxShadow: "0 2px 10px rgb(0 0 0 / 0.3)",
+          }}>
+          {bubbleOpen
+            ? <ChevronUp style={{ width: "40%", height: "40%", transform: side === "right" ? "rotate(90deg)" : "rotate(-90deg)" }} />
+            : <Zap style={{ width: "42%", height: "42%" }} />}
+        </button>
+      )}
+      <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+    </div>
+  );
+}
+
 // ── Bottom chrome ──────────────────────────────────────────────────
 export function V2BottomChrome({ uiV2, settingsRow }) {
   const navigate = useNavigate();
@@ -722,7 +811,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       }}
       aria-label={t("nav.appNav")}
     >
-      {uiV2.bars.actions && (
+      {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
         <>
           {/* Pull handle — tap, or swipe up/down, to reveal or hide. */}
           <button
