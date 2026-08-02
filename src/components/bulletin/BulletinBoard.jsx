@@ -27,6 +27,10 @@ export default function BulletinBoard({
   // its own bulletins and posts are tagged with it. Null (default) → the
   // system-wide board, which excludes any group-scoped bulletins.
   groupId = null,
+  // boardOnly: just the composer and the board itself — no quick-task /
+  // quick-plan rows, no planned-events strip. Used by the v2 widget, where
+  // those capture actions live in the quick-actions bar instead.
+  boardOnly = false,
 }) {
   const [composing, setComposing] = useState(false);
   const [composeInitial, setComposeInitial] = useState("");
@@ -208,11 +212,11 @@ export default function BulletinBoard({
       }
 
       {/* Quick Task Add — system board only (tasks aren't group-scoped) */}
-      {!groupId && <QuickTaskComposer frontingAlterIds={frontingAlterIds} />}
+      {!groupId && !boardOnly && <QuickTaskComposer frontingAlterIds={frontingAlterIds} />}
 
       {/* Quick Plan — schedules an Activity for today straight from the
           board. System board only (plans aren't group-scoped). */}
-      {!groupId && <QuickPlanComposer />}
+      {!groupId && !boardOnly && <QuickPlanComposer />}
 
       {/* Mention alerts */}
       {currentAlterId &&
@@ -227,7 +231,7 @@ export default function BulletinBoard({
         />
       }
 
-      <UpcomingPlans placement="bulletin_top" />
+      {!boardOnly && <UpcomingPlans placement="bulletin_top" />}
 
       {/* Pinned — always on top, never reordered. Includes both pinned
           bulletins/tasks AND standalone pinned polls (Polls page polls

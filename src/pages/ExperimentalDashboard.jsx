@@ -660,7 +660,7 @@ export default function ExperimentalDashboard({
         </div>
       )}
       {/* Edit-mode toolbar */}
-      <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">
+      <div className={`flex flex-wrap items-center justify-end gap-1.5 ${editMode ? "mb-2" : "-mt-1 mb-0"}`}>
         {editMode && (
           <>
             <button
@@ -758,9 +758,9 @@ export default function ExperimentalDashboard({
           onClick={() => setDrawerOpen(true)}
           aria-label="Open app drawer"
           title="Apps & widgets"
-          className="min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
         >
-          <LayoutGrid className="w-5 h-5" />
+          <LayoutGrid className="w-4 h-4" />
         </button>
         <button
           type="button"
@@ -768,11 +768,11 @@ export default function ExperimentalDashboard({
           aria-pressed={editMode}
           aria-label={editMode ? "Done editing" : "Edit homescreen"}
           title={editMode ? "Done" : "Edit homescreen"}
-          className={`min-w-[40px] min-h-[40px] flex items-center justify-center rounded-xl transition-colors ${
+          className={`min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl transition-colors ${
             editMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
           }`}
         >
-          {editMode ? <Check className="w-5 h-5" /> : <Pencil className="w-4 h-4" />}
+          {editMode ? <Check className="w-4 h-4" /> : <Pencil className="w-3.5 h-3.5" />}
         </button>
       </div>
 

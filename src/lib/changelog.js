@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: the bulletin-board widget is just the board now — the quick-task and quick-plan rows and the planned-events strip are gone (they live in quick actions). It can also carry group boards: pick them under \"Boards\" and flip between them with arrows." },
+      { type: "improve", text: "Quick actions: starting a symptom or habit can now also log a past episode with its own end time — \"Active now\" stays the default. (Activities already offered both.)" },
+      { type: "improve", text: "🧪 New UI: less dead space at the top of the home screen — the Apps and edit buttons are smaller and sit tighter to the corner." },
       { type: "fix", text: "🧪 New UI: dragging widgets in edit mode works properly on touch again — hold, then move in any direction — and the page scrolls normally, both in edit mode and out of it. Widgets with lots of content no longer swallow scroll gestures." },
       { type: "feature", text: "🧪 New UI: a Notebook widget — write straight onto the home screen and save it as a journal entry into whichever journal you pick. Half-written text survives closing the app." },
       { type: "feature", text: "🧪 New UI: the full bulletin board is back as a widget — post, sign, comment, react and vote right on the home screen, exactly like the board page." },

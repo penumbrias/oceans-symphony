@@ -24,6 +24,10 @@ export default function StartSymptomModal({ isOpen, onClose }) {
   const [selectedSymptomId, setSelectedSymptomId] = useState(null);
   const [severity, setSeverity] = useState(null);
   const [startTimeStr, setStartTimeStr] = useState(() => toLocalDatetimeValue(new Date().toISOString()));
+  // "active" starts a running episode (the default); "past" logs one that
+  // already ended, with its own end time.
+  const [when, setWhen] = useState("active");
+  const [endTimeStr, setEndTimeStr] = useState(() => toLocalDatetimeValue(new Date().toISOString()));
   const [notes, setNotes] = useState("");
   const [starting, setStarting] = useState(false);
 
@@ -51,6 +55,8 @@ export default function StartSymptomModal({ isOpen, onClose }) {
     setSelectedSymptomId(null);
     setSeverity(null);
     setStartTimeStr(toLocalDatetimeValue(new Date().toISOString()));
+    setWhen("active");
+    setEndTimeStr(toLocalDatetimeValue(new Date().toISOString()));
     setNotes("");
     setSearch("");
   };
@@ -72,18 +78,24 @@ export default function StartSymptomModal({ isOpen, onClose }) {
       toast.error("Set a start time");
       return;
     }
+    const endDate = when === "past" ? fromLocalDatetimeValue(endTimeStr) : null;
+    if (when === "past" && (!endDate || endDate < startDate)) {
+      toast.error("Set an end time after the start");
+      return;
+    }
     setStarting(true);
     try {
       await base44.entities.SymptomSession.create({
         symptom_id: selectedSymptomId,
         start_time: startDate.toISOString(),
-        is_active: true,
+        is_active: when !== "past",
+        ...(when === "past" ? { end_time: endDate.toISOString() } : {}),
         severity_snapshots: severity !== null ? [{ severity, timestamp: startDate.toISOString() }] : [],
         notes: notes.trim() || null,
       });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       const sym = symptoms.find((s) => s.id === selectedSymptomId);
-      toast.success(`▶ Started ${sym?.label || "session"}`);
+      toast.success(when === "past" ? `Logged ${sym?.label || "session"}` : `▶ Started ${sym?.label || "session"}`);
       handleClose();
     } finally {
       setStarting(false);
@@ -175,6 +187,17 @@ export default function StartSymptomModal({ isOpen, onClose }) {
             </div>
           )}
 
+          <div className="flex gap-1.5">
+            {[["active", "Active now"], ["past", "Past episode"]].map(([v, label]) => (
+              <button key={v} type="button" onClick={() => setWhen(v)}
+                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                  when === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div>
             <label className="text-sm font-medium text-foreground">Start time <span className="text-destructive">*</span></label>
             <input
@@ -184,6 +207,18 @@ export default function StartSymptomModal({ isOpen, onClose }) {
               className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
             />
           </div>
+
+          {when === "past" && (
+            <div>
+              <label className="text-sm font-medium text-foreground">End time <span className="text-destructive">*</span></label>
+              <input
+                type="datetime-local"
+                value={endTimeStr}
+                onChange={(e) => setEndTimeStr(e.target.value)}
+                className="mt-1 w-full px-3 py-2 rounded-lg border border-border bg-background text-sm"
+              />
+            </div>
+          )}
 
           <div>
             <label className="text-sm font-medium text-foreground">Notes</label>

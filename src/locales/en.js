@@ -159,6 +159,11 @@ export default {
   "widget.folder.empty": "Nothing in here yet — add apps in this widget's options.",
   "widget.folder.count": "{count} apps",
 
+  "widget.bboard.system": "{{System}} board",
+  "widget.bboard.boards": "Boards",
+  "widget.bboard.prev": "Previous board",
+  "widget.bboard.next": "Next board",
+
   "widget.app.missing": "Missing shortcut — remove me",
 
   // ── Shared ──

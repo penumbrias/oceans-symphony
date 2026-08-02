@@ -849,6 +849,78 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
   );
 }
 
+
+// ── Bulletin board (stripped, multi-board) ─────────────────────────
+// The REAL BulletinBoard component in boardOnly mode: composer + board,
+// nothing else — quick task / quick plan / planned-events live in the
+// quick-actions bar now. `settings.boards` holds which boards this widget
+// carries ("system" and/or group ids); with several, arrows flip between
+// them. Group boards are the same isolated boards the group pages show.
+function BulletinBoardWidget({ api, settings, updateSettings }) {
+  const tr = useT();
+  const t = useTerms();
+  const groups = useList("groups", "Group");
+  const [idx, setIdx] = React.useState(0);
+  const [picking, setPicking] = React.useState(false);
+
+  const chosen = Array.isArray(settings?.boards) && settings.boards.length > 0 ? settings.boards : ["system"];
+  const boards = chosen
+    .map((id) => id === "system"
+      ? { id: "system", label: applyTerms(tr("widget.bboard.system"), t), groupId: null }
+      : (() => { const g = groups.find((x) => x.id === id); return g ? { id, label: g.name, groupId: id } : null; })())
+    .filter(Boolean);
+  const cur = boards[Math.min(idx, boards.length - 1)] || boards[0];
+
+  const toggleBoard = (id) => {
+    const next = chosen.includes(id) ? chosen.filter((x) => x !== id) : [...chosen, id];
+    updateSettings?.({ boards: next.length ? next : ["system"] });
+    setIdx(0);
+  };
+
+  return (
+    <Section
+      label={
+        boards.length > 1 ? (
+          <span className="inline-flex items-center gap-1">
+            <button type="button" aria-label={tr("widget.bboard.prev")}
+              onClick={() => setIdx((i) => (i - 1 + boards.length) % boards.length)}
+              className="p-0.5 text-muted-foreground hover:text-foreground"><ChevronLeft className="w-3.5 h-3.5" /></button>
+            <span>{cur?.label}</span>
+            <button type="button" aria-label={tr("widget.bboard.next")}
+              onClick={() => setIdx((i) => (i + 1) % boards.length)}
+              className="p-0.5 text-muted-foreground hover:text-foreground"><ChevronRight className="w-3.5 h-3.5" /></button>
+          </span>
+        ) : cur?.label
+      }
+      action={<TextAction onClick={() => setPicking((v) => !v)}>{tr("widget.bboard.boards")}</TextAction>}
+    >
+      {picking && (
+        <div className="flex flex-wrap gap-1 pb-1">
+          {[{ id: "system", name: applyTerms(tr("widget.bboard.system"), t) }, ...groups].map((g) => (
+            <button key={g.id} type="button" onClick={() => toggleBoard(g.id)}
+              className={`text-[0.6875rem] px-2 py-1 border ${
+                chosen.includes(g.id) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+              }`}
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+              {g.name}
+            </button>
+          ))}
+        </div>
+      )}
+      {/* keyed by board so flipping fully remounts the board's own state */}
+      <BulletinBoard
+        key={cur?.id || "system"}
+        boardOnly
+        groupId={cur?.groupId || null}
+        alters={api?.alters || []}
+        currentAlterId={api?.currentAlterId || null}
+        frontingAlterIds={api?.frontingAlterIds || []}
+        highlightBulletinId={api?.highlightBulletinId || null}
+      />
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
@@ -936,21 +1008,12 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   bulletin_board: {
-    label: "Bulletin board", description: "The full board — post, comment and vote right here.",
+    label: "Bulletin board", description: "The board itself — post and read. Can show group boards too, with arrows to flip between them.",
     icon: Megaphone, category: "content",
-    // The REAL BulletinBoard component, not a copy — posts, comments,
-    // polls, mentions all behave exactly like the /bulletins page.
-    render: ({ api }) => (
-      <Section label={null}>
-        <BulletinBoard
-          alters={api?.alters || []}
-          currentAlterId={api?.currentAlterId || null}
-          frontingAlterIds={api?.frontingAlterIds || []}
-          highlightBulletinId={api?.highlightBulletinId || null}
-        />
-      </Section>
+    render: ({ api, settings, updateSettings }) => (
+      <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />
     ),
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
   tasks: {
