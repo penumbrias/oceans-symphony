@@ -62,6 +62,7 @@ const KEY_LABEL_KEYS = {
 
 const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
 const QA_OPEN_KEY = "symphony_v2_quickactions_open";
+const PREVIEW_OPEN_KEY = "symphony_v2_options_preview";
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -165,6 +166,13 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
   // and drops the dimming overlay, which would otherwise hide the very
   // thing you're adjusting.
   const [peek, setPeek] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(() => {
+    try { return localStorage.getItem(PREVIEW_OPEN_KEY) !== "0"; } catch { return true; }
+  });
+  const togglePreview = (next) => {
+    setPreviewOpen(next);
+    try { localStorage.setItem(PREVIEW_OPEN_KEY, next ? "1" : "0"); } catch { /* storage off */ }
+  };
   useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
@@ -223,24 +231,40 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className={peek ? "max-h-[42vh]" : "max-h-[85vh]"}>
+      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <DrawerTitle className="text-base">{t("options.title")}</DrawerTitle>
-              <DrawerDescription className="text-xs">{t("options.subtitle")}</DrawerDescription>
+              <DrawerTitle className={peek ? "text-sm" : "text-base"}>{t("options.title")}</DrawerTitle>
+              {!peek && <DrawerDescription className="text-xs">{t("options.subtitle")}</DrawerDescription>}
+              {peek && <DrawerDescription className="text-xs">{t("options.peekHint")}</DrawerDescription>}
             </div>
             <button type="button" onClick={() => setPeek((v) => !v)}
-              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex-shrink-0">
+              title={t("options.peekHint")}
+              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border flex-shrink-0 ${
+                peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}>
               {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {peek ? t("options.showOptions") : t("options.peek")}
+              {peek ? t("options.fullPanel") : t("options.peek")}
             </button>
           </div>
         </DrawerHeader>
-        <div className="px-4 pb-2">
-          <LivePreview uiV2={uiV2} />
-        </div>
-        <div className="px-4 space-y-4 overflow-y-auto overscroll-contain" hidden={peek}
+        {/* The sample is collapsible — it's useful while you're setting the
+            look, and in the way once you're done with it. Peeking hides it
+            outright: the point of peeking is to watch the REAL app, and a
+            sample would just take up the little room the sheet has left. */}
+        {!peek && (
+          <div className="px-4 pb-2">
+            <button type="button" onClick={() => togglePreview(!previewOpen)}
+              className="w-full flex items-center justify-between text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
+              <span>{t("options.preview")}</span>
+              <ChevronUp className="w-3.5 h-3.5"
+                style={{ transform: previewOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+            </button>
+            {previewOpen && <LivePreview uiV2={uiV2} />}
+          </div>
+        )}
+        <div className="px-4 space-y-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
 
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{t("options.showHide")}</p>
