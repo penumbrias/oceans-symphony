@@ -987,6 +987,7 @@ export default function ExperimentalDashboard({
         onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
         onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
+        api={widgetApi}
         widget={widgets.find((w) => w.instanceId === configId) || null}
         def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}

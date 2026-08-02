@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
 import { APP_FONT_OPTIONS } from "@/lib/useAccessibility";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
@@ -29,7 +29,8 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
 import ColorPicker from "@/components/shared/ColorPicker";
-import { pickLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
+import { pickLook, mergeLook, lookToStyle, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
+import { getStyleShell } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { widgetLabel } from "@/lib/widgetRegistry";
 
@@ -119,12 +120,34 @@ export default function WidgetConfigSheet({
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
+  api = null,        // live widget api, for the in-sheet preview
 }) {
   const open = !!widget && !!def;
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
+  // Same viewing affordances as Display options: a collapsible live sample,
+  // and Peek — a short undimmed sheet so the REAL widget is visible while
+  // its options change under your finger (settings persist instantly, so
+  // the page updates live).
+  const [peek, setPeek] = React.useState(false);
+  const [previewOpen, setPreviewOpen] = React.useState(() => {
+    try { return localStorage.getItem("symphony_v2_widget_preview") !== "0"; } catch { return true; }
+  });
+  const togglePreview = (v) => {
+    setPreviewOpen(v);
+    try { localStorage.setItem("symphony_v2_widget_preview", v ? "1" : "0"); } catch { /* storage off */ }
+  };
+  React.useEffect(() => {
+    if (!open || !peek) return undefined;
+    document.documentElement.setAttribute("data-v2-peek", "1");
+    // Bring the widget being styled into the visible strip above the sheet
+    // — peeking at a widget that's below the fold shows nothing.
+    const node = widget && document.querySelector(`[data-widget-id="${widget.instanceId}"]`);
+    node?.scrollIntoView({ block: "start", behavior: "smooth" });
+    return () => document.documentElement.removeAttribute("data-v2-peek");
+  }, [open, peek, widget]);
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const t = useTerms();
@@ -139,16 +162,54 @@ export default function WidgetConfigSheet({
     setStyleName("");
   };
   const mode = effectiveMode(widget.mode, def.supportsModes);
+  const savedLook = userStyles.find((st) => `${USER_STYLE_PREFIX}${st.id}` === settings.style)?.look || {};
+  const previewLook = mergeLook(savedLook, pickLook(settings));
+  const previewShell = !userStyleId(settings.style) && settings.style ? getStyleShell(settings.style) : "";
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"}>
         <DrawerHeader className="pb-1">
-          <DrawerTitle className="text-base">{settings.label || defLabel}</DrawerTitle>
-          <DrawerDescription className="text-xs">Widget options</DrawerDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <DrawerTitle className="text-base">{settings.label || defLabel}</DrawerTitle>
+              <DrawerDescription className="text-xs">
+                {peek ? "Keep adjusting — the widget is visible above." : "Widget options"}
+              </DrawerDescription>
+            </div>
+            <button type="button" onClick={() => setPeek((v) => !v)}
+              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border flex-shrink-0 ${
+                peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+              }`}>
+              {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {peek ? "Full panel" : "Peek"}
+            </button>
+          </div>
         </DrawerHeader>
+        {!peek && (
+          <div className="px-4 pb-2">
+            <button type="button" onClick={() => togglePreview(!previewOpen)}
+              className="w-full flex items-center justify-between text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
+              <span>Preview</span>
+              <ChevronUp className="w-3.5 h-3.5"
+                style={{ transform: previewOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+            </button>
+            {previewOpen && (
+              <div className="rounded-xl border border-border/50 p-2 bg-background/40">
+                {settings.css && (
+                  <style dangerouslySetInnerHTML={{ __html: `[data-config-preview="1"]{${settings.css}}` }} />
+                )}
+                <div data-config-preview="1" aria-hidden="true"
+                  className={`pointer-events-none select-none overflow-hidden ${previewShell || ""}`}
+                  style={{ ...lookToStyle(previewLook), maxHeight: 200, borderRadius: "var(--v2-radius, 8px)" }}>
+                  {def.render({ mode, settings, instanceId: "config_preview", api })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
         <div
           className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}

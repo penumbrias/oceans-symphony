@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: a widget's options panel now shows the widget live at the top (collapsible), and has the same Peek button as Display options — the panel shrinks, the dimming lifts, and the widget scrolls into view so you watch it change as you adjust." },
       { type: "feature", text: "🧪 New UI: the Add-widget list now shows each widget live with your real data, like a phone's widget picker. Tap one to preview its Minimal/Normal/Expanded versions, try a style — including your own saved styles — and add it already set up that way." },
       { type: "feature", text: "🧪 New UI: quick actions can now live where you want them — behind the bottom handle, as a floating bar stuck to either screen edge, or as a bubble that opens when tapped. Pick in Display options." },
       { type: "fix", text: "🧪 New UI: pop-ups now follow the corner radius and the other whole-app settings — panels, dialogs and menus were ignoring them." },
