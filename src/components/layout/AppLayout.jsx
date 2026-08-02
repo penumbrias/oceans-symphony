@@ -903,7 +903,12 @@ const handleNotifClick = (mentionLog) => {
       )}
 
       <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <FloatingGroundingButton />
+      {/* The floating support bubble is the always-there crisis path in the
+          classic UI. In v2 the quick actions carry a Support anchor in every
+          placement (handle row, floating bar, bubble, rail), so showing both
+          is redundant — but if the user hides quick actions entirely, the
+          bubble comes back rather than leaving no support entry at all. */}
+      {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
       <GroceryListPanel />
       <ReminderToast />
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}

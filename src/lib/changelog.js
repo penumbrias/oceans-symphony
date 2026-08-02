@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: the floating support bubble no longer doubles up with the Support button in quick actions. If you hide quick actions, the bubble comes back — there is always a support entry on screen." },
       { type: "improve", text: "🧪 New UI: the bulletin-board widget is just the board now — the quick-task and quick-plan rows and the planned-events strip are gone (they live in quick actions). It can also carry group boards: pick them under \"Boards\" and flip between them with arrows." },
       { type: "improve", text: "Quick actions: starting a symptom or habit can now also log a past episode with its own end time — \"Active now\" stays the default. (Activities already offered both.)" },
       { type: "improve", text: "🧪 New UI: less dead space at the top of the home screen — the Apps and edit buttons are smaller and sit tighter to the corner." },
