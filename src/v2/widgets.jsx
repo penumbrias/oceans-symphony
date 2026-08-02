@@ -20,7 +20,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
-  Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare,
+  Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
 } from "lucide-react";
@@ -29,6 +29,9 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import DOMPurify from "dompurify";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
+import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import useFormDraft from "@/hooks/useFormDraft";
+import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -754,6 +757,98 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
   );
 }
 
+
+// ── Notebook (write in place) ──────────────────────────────────────
+// A journal page you write ON the home screen — no modal, no navigation.
+// Saving CREATES a JournalEntry in the chosen journal (never updates one:
+// journals are a log). Half-written text survives closing the app via the
+// shared draft hook, per instance so two notebooks never share a draft.
+function NotebookWidget({ settings, updateSettings, instanceId }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const entries = useList("journalEntries", "JournalEntry");
+  const [title, setTitle] = React.useState("");
+  const [text, setText] = React.useState("");
+  const [saving, setSaving] = React.useState(false);
+  const [picking, setPicking] = React.useState(false);
+
+  const journal = settings?.journal ?? "";
+  const journals = React.useMemo(() => {
+    const set = new Set(entries.map((e) => e.folder).filter(Boolean));
+    readJournalFolders().forEach((f) => set.add(f));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const { clearDraft } = useFormDraft(`symphony_draft_notebook_${instanceId}`, { title, text }, {
+    onRestore: (d) => { setTitle(d.title || ""); setText(d.text || ""); },
+    isEmpty: (d) => !d.title?.trim() && !d.text?.trim(),
+  });
+
+  const save = async () => {
+    const content = text.trim();
+    if (!content || saving) return;
+    setSaving(true);
+    try {
+      await base44.entities.JournalEntry.create({
+        title: title.trim() || null,
+        content,
+        timestamp: new Date().toISOString(),
+        folder: journal || null,
+      });
+      qc.invalidateQueries({ queryKey: ["journalEntries"] });
+      clearDraft();
+      setTitle("");
+      setText("");
+      toast.success(tr("widget.notebook.saved"));
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Section
+      label={journal || tr("widget.book.allJournals")}
+      action={
+        <span className="flex items-center gap-2">
+          <TextAction onClick={() => setPicking((v) => !v)}>{tr("widget.book.switch")}</TextAction>
+          <TextAction onClick={save}>{saving ? "…" : tr("widget.notebook.save")}</TextAction>
+        </span>
+      }
+    >
+      {picking && (
+        <div className="flex flex-wrap gap-1 pb-1">
+          <button type="button" onClick={() => { updateSettings?.({ journal: "" }); setPicking(false); }}
+            className={`text-[0.6875rem] px-2 py-1 border ${!journal ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            {tr("widget.book.allJournals")}
+          </button>
+          {journals.map((f) => (
+            <button key={f} type="button" onClick={() => { updateSettings?.({ journal: f }); setPicking(false); }}
+              className={`text-[0.6875rem] px-2 py-1 border ${journal === f ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+              {f}
+            </button>
+          ))}
+        </div>
+      )}
+      <input
+        value={title}
+        onChange={(e) => setTitle(e.target.value)}
+        placeholder={tr("widget.notebook.titlePlaceholder")}
+        className="w-full h-8 px-2 text-sm font-medium bg-transparent border-0 border-b border-border/40 focus:outline-none focus:border-primary/50"
+      />
+      {/* The page itself: grows with the widget, scrolls when it outgrows it. */}
+      <textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={tr("widget.notebook.placeholder")}
+        className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
+        style={{ overscrollBehavior: "contain" }}
+      />
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
@@ -831,6 +926,32 @@ export const V2_WIDGETS = {
       <JournalBookWidget mode={mode} settings={settings} updateSettings={updateSettings} api={api} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  notebook: {
+    label: "Notebook", description: "Write straight onto the page — it saves as a journal entry in the journal you pick.",
+    icon: PenLine, category: "content",
+    render: ({ settings, updateSettings, instanceId }) =>
+      <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  bulletin_board: {
+    label: "Bulletin board", description: "The full board — post, comment and vote right here.",
+    icon: Megaphone, category: "content",
+    // The REAL BulletinBoard component, not a copy — posts, comments,
+    // polls, mentions all behave exactly like the /bulletins page.
+    render: ({ api }) => (
+      <Section label={null}>
+        <BulletinBoard
+          alters={api?.alters || []}
+          currentAlterId={api?.currentAlterId || null}
+          frontingAlterIds={api?.frontingAlterIds || []}
+          highlightBulletinId={api?.highlightBulletinId || null}
+        />
+      </Section>
+    ),
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
   tasks: {
     label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",

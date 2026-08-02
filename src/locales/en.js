@@ -134,6 +134,11 @@ export default {
   "widget.book.newer": "Newer page",
   "widget.book.older": "Older page",
 
+  "widget.notebook.save": "Save page",
+  "widget.notebook.saved": "Saved to your journal",
+  "widget.notebook.titlePlaceholder": "Title (optional)",
+  "widget.notebook.placeholder": "Write here\u2026",
+
   "widget.tasks.label": "To-dos",
   "widget.tasks.empty": "Nothing open.",
 

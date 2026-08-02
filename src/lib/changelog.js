@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: a Notebook widget — write straight onto the home screen and save it as a journal entry into whichever journal you pick. Half-written text survives closing the app." },
+      { type: "feature", text: "🧪 New UI: the full bulletin board is back as a widget — post, sign, comment, react and vote right on the home screen, exactly like the board page." },
       { type: "improve", text: "🧪 New UI: a widget's options panel now shows the widget live at the top (collapsible), and has the same Peek button as Display options — the panel shrinks, the dimming lifts, and the widget scrolls into view so you watch it change as you adjust." },
       { type: "feature", text: "🧪 New UI: the Add-widget list now shows each widget live with your real data, like a phone's widget picker. Tap one to preview its Minimal/Normal/Expanded versions, try a style — including your own saved styles — and add it already set up that way." },
       { type: "feature", text: "🧪 New UI: quick actions can now live where you want them — behind the bottom handle, as a floating bar stuck to either screen edge, or as a bubble that opens when tapped. Pick in Display options." },
