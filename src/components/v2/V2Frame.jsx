@@ -25,12 +25,12 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp,
+  Megaphone, ChevronUp, Eye, EyeOff,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
-import { V2_COMMAND_KEYS, V2_TOKEN_DEFS } from "@/lib/uiV2";
+import { V2_COMMAND_KEYS, V2_TOKEN_DEFS, buildTokenVars } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getAccessibilitySettings, setAccessibilityFontSize } from "@/lib/useAccessibility";
@@ -73,6 +73,87 @@ function useClock() {
 }
 
 // ── Display options ────────────────────────────────────────────────
+// Live sample of what the settings are doing. The sheet covers the app on
+// a phone, so without this you'd be adjusting blind and closing the sheet
+// after every nudge.
+//
+// It carries data-ui-v2 + the token vars ITSELF rather than inheriting
+// them: the sheet is portaled to <body>, outside the app root those live
+// on. That turns out to be the honest way to preview anyway — the sample
+// is styled by exactly the same rules as the real thing.
+function LivePreview({ uiV2 }) {
+  const t = useT();
+  const vars = useMemo(() => buildTokenVars(uiV2), [uiV2]);
+  return (
+    <div data-ui-v2="1" style={vars}
+      className="rounded-xl border border-border/60 bg-background p-3 space-y-2 overflow-hidden">
+      <div className="flex items-center justify-between">
+        <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+          {t("options.preview")}
+        </span>
+        <span className="text-xs" style={{ color: "var(--v2-accent)" }}>{t("widget.today.open")}</span>
+      </div>
+      <div className="rounded-xl border border-border/60 p-3 space-y-2">
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--v2-accent)" }} />
+          <span className="text-sm flex-1 truncate">{t("options.previewRow")}</span>
+          <span className="text-xs text-muted-foreground tabular-nums">12:30</span>
+        </div>
+        <div className="flex items-center gap-2">
+          <button type="button" tabIndex={-1}
+            className="text-xs px-3 py-1.5 rounded-lg text-white"
+            style={{ background: "var(--v2-accent)" }}>
+            {t("note.save")}
+          </button>
+          <button type="button" tabIndex={-1}
+            className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground">
+            {t("options.previewSecondary")}
+          </button>
+          <span className="text-[0.625rem] px-2 py-1 rounded-full border border-border/60 text-muted-foreground">
+            {t("options.previewPill")}
+          </span>
+        </div>
+        <div className="h-8 rounded-lg border border-input bg-background flex items-center px-2">
+          <span className="text-xs text-muted-foreground">{t("note.placeholder")}</span>
+        </div>
+      </div>
+      {/* The bars, at their real heights */}
+      <div className="rounded-xl border overflow-hidden"
+        style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)", borderWidth: "var(--v2-border-w)" }}>
+        <div className="flex items-center gap-2 px-2" style={{ height: "var(--v2-status-h)" }}>
+          <span className="text-xs font-semibold">Aa</span>
+          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />
+          <span className="ml-auto text-[0.625rem] text-muted-foreground tabular-nums">12:30</span>
+        </div>
+        <div className="flex items-center justify-center gap-2 py-1">
+          {[0, 1, 2].map((i) => (
+            <span key={i} className="flex items-center justify-center"
+              style={{
+                width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+                borderRadius: "var(--v2-radius)",
+                border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+              }}>
+              <Heart className="w-3.5 h-3.5 text-muted-foreground" />
+            </span>
+          ))}
+        </div>
+        <div className="flex" style={{ height: "var(--v2-strip-h)" }}>
+          {[0, 1, 2, 3].map((i) => (
+            <span key={i} className="flex-1 flex flex-col items-center justify-center gap-0.5"
+              style={{
+                color: i === 0 ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
+                boxShadow: i === 0 ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
+              }}>
+              <Heart className="w-3.5 h-3.5" />
+              <span className="text-[0.5rem]">Aa</span>
+            </span>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
   const t = useT();
   const [fontIdx, setFontIdx] = useState(() =>
@@ -80,6 +161,15 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
   );
   const [locale, setLocaleState] = useState(getLocale());
   const [moreOpen, setMoreOpen] = useState(false);
+  // Peek shrinks the sheet to the sample so the real app shows behind it —
+  // and drops the dimming overlay, which would otherwise hide the very
+  // thing you're adjusting.
+  const [peek, setPeek] = useState(false);
+  useEffect(() => {
+    if (!open || !peek) return undefined;
+    document.documentElement.setAttribute("data-v2-peek", "1");
+    return () => document.documentElement.removeAttribute("data-v2-peek");
+  }, [open, peek]);
 
   const BAR_TOGGLES = [
     { id: "top", label: t("options.topBar") },
@@ -133,12 +223,24 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar }) {
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className={peek ? "max-h-[42vh]" : "max-h-[85vh]"}>
         <DrawerHeader className="pb-1">
-          <DrawerTitle className="text-base">{t("options.title")}</DrawerTitle>
-          <DrawerDescription className="text-xs">{t("options.subtitle")}</DrawerDescription>
+          <div className="flex items-start justify-between gap-2">
+            <div>
+              <DrawerTitle className="text-base">{t("options.title")}</DrawerTitle>
+              <DrawerDescription className="text-xs">{t("options.subtitle")}</DrawerDescription>
+            </div>
+            <button type="button" onClick={() => setPeek((v) => !v)}
+              className="flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex-shrink-0">
+              {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+              {peek ? t("options.showOptions") : t("options.peek")}
+            </button>
+          </div>
         </DrawerHeader>
-        <div className="px-4 space-y-4 overflow-y-auto overscroll-contain"
+        <div className="px-4 pb-2">
+          <LivePreview uiV2={uiV2} />
+        </div>
+        <div className="px-4 space-y-4 overflow-y-auto overscroll-contain" hidden={peek}
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
 
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{t("options.showHide")}</p>

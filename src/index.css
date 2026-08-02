@@ -602,6 +602,11 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    which is how per-widget overrides keep working. */
 [data-ui-v2="1"] { --radius: var(--v2-radius); }
 
+/* Peeking at the app while Display options is open: the sheet shrinks to
+   the sample, and the dimming overlay steps aside so what you're adjusting
+   is actually visible behind it. */
+html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important; }
+
 /* Corner radius, for real. Tailwind's rounded-* utilities hardcode their
    own px values — only `rounded-lg/md/sm` were ever wired to --radius —
    which is why setting the slider to 0 left most of the app rounded. Every

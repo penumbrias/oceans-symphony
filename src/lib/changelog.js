@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 1, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: Display options now shows a live sample at the top — a card, buttons, an input and the bars — so you can see each change as you make it. A Peek button shrinks the panel and lifts the dimming so you can watch the real app change too." },
       { type: "fix", text: "🧪 New UI: the corner radius slider now actually rounds (or squares) the whole app — cards, rows, buttons, inputs, banners and avatars. Deliberately round things like status dots and pills stay round." },
       { type: "improve", text: "🧪 New UI: Display options now change the WHOLE app, not just the bars — highlight colour, corner radius, border width and spacing reach every card, button, input and dialog on every page. Anything you have styled individually keeps its own look." },
       { type: "fix", text: "🧪 New UI: fixed a crash when opening edit mode on the home screen." },
