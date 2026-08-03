@@ -297,6 +297,17 @@ export default function AppDrawer({
   const [openFolderId, setOpenFolderId] = useState(null);
   const [organizeOpen, setOrganizeOpen] = useState(false);
   const [detailId, setDetailId] = useState(null);
+  const [widgetSearch, setWidgetSearch] = useState("");
+  // Per-card preview mode — cycled right on the card, no detail view needed.
+  const [cardModes, setCardModes] = useState({});
+  const cycleCardMode = (id, def) => {
+    const modes = HOME_MODES.filter((m) => (def.supportsModes || ["normal"]).includes(m));
+    if (modes.length < 2) return;
+    setCardModes((prev) => {
+      const cur = prev[id] || effectiveMode("normal", def.supportsModes);
+      return { ...prev, [id]: modes[(modes.indexOf(cur) + 1) % modes.length] };
+    });
+  };
 
   const apps = useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
   const appById = useMemo(() => new Map(apps.map((a) => [a.id, a])), [apps]);
@@ -440,8 +451,17 @@ export default function AppDrawer({
               />
             ) : (
             <div className="space-y-4">
+              <input
+                value={widgetSearch}
+                onChange={(e) => setWidgetSearch(e.target.value)}
+                placeholder="Search widgets…"
+                className="w-full h-10 px-3 rounded-xl border border-border/50 bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              />
               {WIDGET_CATEGORIES.map((cat) => {
-                const widgets = Object.entries(registry).filter(([, d]) => d.category === cat.id && !d.hiddenFromDrawer);
+                const q = widgetSearch.trim().toLowerCase();
+                const widgets = Object.entries(registry).filter(([, d]) =>
+                  d.category === cat.id && !d.hiddenFromDrawer
+                  && (!q || widgetLabel(d, t).toLowerCase().includes(q) || widgetDescription(d, t).toLowerCase().includes(q)));
                 if (widgets.length === 0) return null;
                 return (
                   <div key={cat.id}>
@@ -449,6 +469,8 @@ export default function AppDrawer({
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                       {widgets.map(([id, def]) => {
                         const already = !def.supportsMultiInstance && placed.has(id);
+                        const cardMode = cardModes[id] || effectiveMode("normal", def.supportsModes);
+                        const multiMode = (def.supportsModes || []).length > 1;
                         return (
                           <div key={id}
                             className={`rounded-xl border text-left transition-colors overflow-hidden ${
@@ -468,14 +490,20 @@ export default function AppDrawer({
                                   look like with your data, not an icon standing
                                   in for it. */}
                               <div className="px-2 py-2">
-                                <WidgetPreview def={def} api={api} userStyles={userStyles} maxHeight={140} />
+                                <WidgetPreview def={def} mode={cardMode} api={api} userStyles={userStyles} maxHeight={140} />
                               </div>
                             </button>
-                            <div className="flex items-center justify-between px-3 pb-2">
+                            <div className="flex items-center justify-between px-3 pb-2 gap-2">
                               <button type="button" onClick={() => setDetailId(id)}
                                 className="text-xs text-muted-foreground hover:text-foreground">
-                                Preview & options
+                                Options
                               </button>
+                              {multiMode && (
+                                <button type="button" onClick={() => cycleCardMode(id, def)}
+                                  className="text-xs px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                                  {MODE_LABEL[cardMode]}
+                                </button>
+                              )}
                               <button type="button" disabled={already}
                                 onClick={() => onAddWidget?.(id)}
                                 className="text-xs px-2.5 py-1 rounded-full border border-primary/50 text-primary disabled:opacity-40">

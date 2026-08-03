@@ -183,8 +183,10 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
   // and drops the dimming overlay, which would otherwise hide the very
   // thing you're adjusting.
   const [peek, setPeek] = useState(false);
+  // Collapsed by default — Peek shows the real app, which beats a sample;
+  // the sample stays available for people who want it.
   const [previewOpen, setPreviewOpen] = useState(() => {
-    try { return localStorage.getItem(PREVIEW_OPEN_KEY) !== "0"; } catch { return true; }
+    try { return localStorage.getItem(PREVIEW_OPEN_KEY) === "1"; } catch { return false; }
   });
   const togglePreview = (next) => {
     setPreviewOpen(next);
@@ -762,6 +764,23 @@ export function V2QuickDock({ uiV2, settingsRow }) {
   const open = !isBubble || bubbleOpen;
   const side = uiV2.dockPos?.side || (uiV2.tokens.dockSide === "left" ? "left" : "right");
   const topPct = uiV2.dockPos?.topPct ?? 50;
+  const horizontal = side === "top" || side === "bottom";
+  // Measure the stack so the clamp uses its REAL size — a fixed guess let
+  // the bottom of a tall dock slide behind the bottom bar.
+  const dockRef = useRef(null);
+  const [dockSize, setDockSize] = useState({ w: 56, h: 220 });
+  useEffect(() => {
+    const node = dockRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      const r = node.getBoundingClientRect();
+      if (r.width && r.height) setDockSize({ w: r.width, h: r.height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, [open, mode]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
 
   const setOpen = (v) => {
@@ -799,8 +818,14 @@ export function V2QuickDock({ uiV2, settingsRow }) {
       setDrag(null);
       if (!wasActive) return;
       suppressTap.current = true;
-      const nextSide = ev.clientX < window.innerWidth / 2 ? "left" : "right";
-      const pct = Math.min(88, Math.max(6, (ev.clientY / window.innerHeight) * 100));
+      const W = window.innerWidth, H = window.innerHeight;
+      const dists = {
+        left: ev.clientX, right: W - ev.clientX,
+        top: ev.clientY, bottom: H - ev.clientY,
+      };
+      const nextSide = Object.keys(dists).reduce((a, b) => (dists[a] <= dists[b] ? a : b));
+      const along = nextSide === "top" || nextSide === "bottom" ? ev.clientX / W : ev.clientY / H;
+      const pct = Math.min(88, Math.max(6, along * 100));
       savePos({ side: nextSide, topPct: Math.round(pct * 10) / 10 });
     };
     const cleanup = () => {
@@ -828,16 +853,25 @@ export function V2QuickDock({ uiV2, settingsRow }) {
 
   return (
     <div
-      className="fixed z-40 flex flex-col items-center"
+      ref={dockRef}
+      className={`fixed z-40 flex items-center ${horizontal ? "flex-row" : "flex-col"}`}
       style={drag ? {
         left: drag.x, top: drag.y,
         transform: "translate(-50%, -50%)",
         gap: "calc(var(--v2-space) * 0.75)",
         opacity: 0.9,
+      } : horizontal ? {
+        [side]: side === "top"
+          ? "calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + 8px)"
+          : "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)",
+        left: `clamp(${8 + dockSize.w / 2}px, ${topPct}%, calc(100% - ${8 + dockSize.w / 2}px))`,
+        transform: "translateX(-50%)",
+        gap: "calc(var(--v2-space) * 0.75)",
       } : {
         [side]: "calc(env(safe-area-inset-" + side + ", 0px) + 8px)",
-        // clamp() keeps the whole stack on screen even at the extremes.
-        top: `clamp(calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + 16px), ${topPct}%, calc(100% - var(--bottom-nav-height, 56px) - 120px))`,
+        // Clamp with the dock's measured height so its far end can never
+        // slide behind the top or bottom chrome.
+        top: `clamp(calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + ${8 + dockSize.h / 2}px), ${topPct}%, calc(100% - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px) - ${8 + dockSize.h / 2}px))`,
         transform: "translateY(-50%)",
         gap: "calc(var(--v2-space) * 0.75)",
       }}

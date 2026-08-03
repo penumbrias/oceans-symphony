@@ -18,7 +18,18 @@
 
 export const CHANGELOG = [
   {
+    date: "August 2, 2026",
+    changes: [
+      { type: "feature", text: "🧪 New UI: eight new widgets — the classic fronting panel, pinned members, a member list scoped to one group/subsystem, plans, recent activities, one-tap sleep start/wake, inline guided breathing, quick-links tiles, and polls." },
+      { type: "improve", text: "🧪 New UI: the widget picker is searchable, organized by app area, and every card can cycle Minimal/Normal/Expanded right on its preview." },
+      { type: "fix", text: "🧪 New UI: \"Back to classic\" while editing actually returns to the classic UI now, and widgets are inert while editing so moving one can't accidentally trigger it." },
+      { type: "fix", text: "🧪 New UI: the floating quick-actions dock can't get trapped behind the bottom bar any more, and dragging it to the top or bottom edge turns it into a horizontal bar." },
+      { type: "fix", text: "🧪 New UI: page dots show every page (others at low opacity), sliders no longer change while you scroll past them, the Display-options sample starts collapsed, and the bulletin board page is just the board." },
+    ],
+  },
+  {
     date: "August 1, 2026",
+    version: "0.109.1",
     changes: [
       { type: "fix", text: "🧪 New UI: \"Switch\" in the Who's-here widget (and the Front quick action) actually opens the switch picker now — it was firing an event only the classic dashboard listened for." },
       { type: "improve", text: "🧪 New UI: the Apps button in the top-left shows the Oceans Symphony logo by default (your own image still wins if you set one)." },

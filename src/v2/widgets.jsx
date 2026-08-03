@@ -23,6 +23,7 @@ import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
+  Pin, Wind, Link2, Vote, CalendarDays, BarChart2,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -31,6 +32,13 @@ import DOMPurify from "dompurify";
 import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
+import CurrentFronters from "@/components/dashboard/CurrentFronters";
+import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
+import BreathingExercise from "@/components/grounding/BreathingExercise";
+import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
+import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
+import { getMemberAlters } from "@/lib/subsystemUtils";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -428,19 +436,24 @@ function AltersListWidget({ settings, api }) {
   const t = useTerms();
   const navigate = useNavigate();
   const formatAlter = useAlterLabel();
+  const groups = useList("groups", "Group");
   const alters = api?.alters || [];
   const limit = parseInt(settings?.limit, 10) || 6;
   const sort = settings?.sort || "name";
+  const group = settings?.groupId ? groups.find((g) => g.id === settings.groupId) : null;
   const list = React.useMemo(() => {
-    const live = alters.filter((a) => !a.is_archived);
+    // Scoped to one group/subsystem via the same membership resolution the
+    // group pages use, so the two can never disagree.
+    const pool = group ? getMemberAlters(group, alters) : alters;
+    const live = pool.filter((a) => !a.is_archived);
     const sorted = sort === "recent"
       ? [...live].sort((a, b) => new Date(b.updated_date || b.created_date || 0) - new Date(a.updated_date || a.created_date || 0))
       : [...live].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
     return sorted.slice(0, limit);
-  }, [alters, sort, limit]);
+  }, [alters, sort, limit, group]);
 
   return (
-    <Section label={applyTerms(tr("widget.alters.label"), t)}
+    <Section label={group ? group.name : applyTerms(tr("widget.alters.label"), t)}
       action={<TextAction onClick={() => navigate("/Home")}>{tr("widget.today.open")}</TextAction>}>
       {list.length === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
       {list.map((a) => (
@@ -921,6 +934,188 @@ function BulletinBoardWidget({ api, settings, updateSettings }) {
   );
 }
 
+
+// ── Sleep controls ─────────────────────────────────────────────────
+// Start sleeping / wake up, right on the page. Ending sets wake_time on
+// the running record — that's this entity's own lifecycle, not an
+// immutable log like status notes.
+function SleepControlWidget() {
+  const tr = useT();
+  const qc = useQueryClient();
+  const sleeps = useList("sleep", "Sleep");
+  const [busy, setBusy] = React.useState(false);
+  const active = sleeps.find((x) => x.bedtime && !x.wake_time);
+
+  const act = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      if (active) await base44.entities.Sleep.update(active.id, { wake_time: new Date().toISOString() });
+      else await base44.entities.Sleep.create({ bedtime: new Date().toISOString() });
+      qc.invalidateQueries({ queryKey: ["sleep"] });
+    } finally { setBusy(false); }
+  };
+
+  return (
+    <Section label={tr("widget.sleep.label")}>
+      {active
+        ? <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.sleepCtl.sleeping")} right={fmtElapsed(active.bedtime)} />
+        : <Muted>{tr("widget.sleepCtl.awake")}</Muted>}
+      <button type="button" onClick={act} disabled={busy}
+        className="w-full h-9 text-sm font-medium border text-center disabled:opacity-50"
+        style={{
+          borderRadius: "var(--v2-radius, 8px)",
+          borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
+          color: "var(--v2-accent)",
+        }}>
+        {active ? tr("widget.sleepCtl.wake") : tr("widget.sleepCtl.start")}
+      </button>
+    </Section>
+  );
+}
+
+// ── Breathing ──────────────────────────────────────────────────────
+// The real guided animation, inline. settings.autoRun starts it on sight;
+// otherwise a start button, so a page can carry it without motion.
+function BreathingWidget({ settings }) {
+  const tr = useT();
+  const [running, setRunning] = React.useState(!!settings?.autoRun);
+  const pattern = BREATHING_PATTERNS[settings?.pattern] ? settings.pattern : "Box breathing";
+  return (
+    <Section label={tr("widget.breathe.label")}>
+      {running ? (
+        <div className="flex justify-center">
+          <BreathingExercise
+            patternName={pattern}
+            onStop={() => setRunning(!!settings?.autoRun)}
+            onComplete={() => { try { markGroundingTechniqueUsedToday(); } catch { /* marker only */ } }}
+          />
+        </div>
+      ) : (
+        <button type="button" onClick={() => setRunning(true)}
+          className="w-full h-10 text-sm font-medium border flex items-center justify-center gap-2"
+          style={{
+            borderRadius: "var(--v2-radius, 8px)",
+            borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
+            color: "var(--v2-accent)",
+          }}>
+          <Wind className="w-4 h-4" /> {tr("widget.breathe.start")}
+        </button>
+      )}
+    </Section>
+  );
+}
+
+// ── Plans (upcoming) ───────────────────────────────────────────────
+function PlansWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const activities = useList("activities", "Activity");
+  const days = parseInt(settings?.days, 10) || 7;
+  const limit = parseInt(settings?.limit, 10) || 8;
+  const now = Date.now();
+  const upcoming = activities
+    .filter((a) => a.status === "scheduled" && a.timestamp
+      && new Date(a.timestamp).getTime() > now - 3600000
+      && new Date(a.timestamp).getTime() < now + days * 86400000)
+    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+    .slice(0, limit);
+  const fmtDay = (d) => new Date(d).toLocaleDateString([], { weekday: "short", month: "short", day: "numeric" });
+  return (
+    <Section label={tr("widget.plans.label")}
+      action={<TextAction onClick={() => navigate("/activities?tab=planned")}>{tr("widget.today.open")}</TextAction>}>
+      {upcoming.length === 0 && <Muted>{tr("widget.plans.empty")}</Muted>}
+      {upcoming.map((a) => (
+        <Row key={a.id}
+          left={<CalendarCheck className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+          primary={a.activity_name}
+          secondary={sameDay(a.timestamp, now) ? undefined : fmtDay(a.timestamp)}
+          right={fmtTime(a.timestamp)}
+          onClick={() => navigate(`/activities?activityId=${a.id}`)} />
+      ))}
+    </Section>
+  );
+}
+
+// ── Recent activities ──────────────────────────────────────────────
+function RecentActivitiesWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const activities = useList("activities", "Activity");
+  const limit = parseInt(settings?.limit, 10) || 6;
+  const done = activities
+    .filter((a) => ["logged", "done", "partial"].includes(a.status) && a.timestamp)
+    .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
+    .slice(0, limit);
+  return (
+    <Section label={tr("widget.recentActs.label")}
+      action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
+      {done.length === 0 && <Muted>{tr("widget.recentActs.empty")}</Muted>}
+      {done.map((a) => (
+        <Row key={a.id} primary={a.activity_name}
+          secondary={a.duration_minutes ? `${a.actual_duration_minutes || a.duration_minutes}m` : undefined}
+          right={fmtTime(a.timestamp)}
+          onClick={() => navigate(`/activities?activityId=${a.id}`)} />
+      ))}
+    </Section>
+  );
+}
+
+// ── Quick links ────────────────────────────────────────────────────
+// A tile row of app destinations the user picks — their own nav screen.
+function QuickLinksWidget({ settings, mode }) {
+  const t = useTerms();
+  const tr = useT();
+  const navigate = useNavigate();
+  const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
+  const links = (settings?.appIds || []).map((id) => findGridItem(items, id)).filter(Boolean);
+  if (links.length === 0) return <Muted>{tr("widget.links.empty")}</Muted>;
+  return (
+    <div className="grid gap-1 h-full" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(64px, 1fr))` }}>
+      {links.map((a) => {
+        const Icon = a.icon;
+        return (
+          <button key={a.id} type="button" onClick={() => navigate(a.path)}
+            className="flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${a.color}`}>
+              <Icon className="w-4 h-4" />
+            </span>
+            {mode !== "minimal" && (
+              <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">{a.label}</span>
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+// ── Polls ──────────────────────────────────────────────────────────
+function PollsWidget({ settings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const polls = useList("polls", "Poll");
+  const limit = parseInt(settings?.limit, 10) || 4;
+  const list = [...polls]
+    .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
+    .slice(0, limit);
+  const votes = (p) => Object.values(p.votes || {}).reduce((n, v) => n + (Array.isArray(v) ? v.length : 1), 0);
+  return (
+    <Section label={tr("widget.polls.label")}
+      action={<TextAction onClick={() => navigate("/polls")}>{tr("widget.today.open")}</TextAction>}>
+      {list.length === 0 && <Muted>{tr("widget.polls.empty")}</Muted>}
+      {list.map((p) => (
+        <Row key={p.id}
+          left={<Vote className="w-3.5 h-3.5 flex-shrink-0 text-muted-foreground" />}
+          primary={p.question}
+          right={tr("widget.polls.votes", { count: votes(p) })}
+          onClick={() => navigate("/polls")} />
+      ))}
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
@@ -977,6 +1172,7 @@ export const V2_WIDGETS = {
     render: ({ settings, api }) => <AltersListWidget settings={settings} api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
+      { key: "groupId", type: "group", label: "Only show one group / subsystem" },
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
       { key: "sort", type: "select", label: "Order", default: "name",
         options: [{ value: "name", label: "By name" }, { value: "recent", label: "Recently updated" }] },
@@ -1093,6 +1289,76 @@ export const V2_WIDGETS = {
     render: () => <SpacerWidget />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  fronting_panel: {
+    label: "{{Fronting}} panel", description: "The classic currently-{{fronting}} panel — per-{{alter}} feelings, symptoms and notes.",
+    icon: Users, category: "system",
+    render: ({ api }) => (
+      <CurrentFronters alters={api?.alters || []} hideStatusNote={api?.statusNotePlaced ?? true} />
+    ),
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  pinned_alters: {
+    label: "Pinned {{alters}}", description: "Your pinned {{alters}}, as a gallery.",
+    icon: Pin, category: "system",
+    render: () => <PinnedAltersGallery showHeader={false} />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  sleep_controls: {
+    label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",
+    icon: Moon, category: "tracking",
+    render: () => <SleepControlWidget />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+  },
+  breathing: {
+    label: "Breathing", description: "The guided breathing animation, right on the page.",
+    icon: Wind, category: "support",
+    render: ({ settings }) => <BreathingWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "pattern", type: "select", label: "Pattern", default: "Box breathing",
+        options: Object.keys(BREATHING_PATTERNS).map((k) => ({ value: k, label: k })) },
+      { key: "autoRun", type: "toggle", label: "Run whenever visible", default: false },
+    ],
+    defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  plans: {
+    label: "Plans", description: "What's scheduled over the coming days.",
+    icon: CalendarDays, category: "activity",
+    render: ({ settings }) => <PlansWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7 },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8 },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  recent_activities: {
+    label: "Recent activities", description: "The most recently logged activities, with durations.",
+    icon: BarChart2, category: "activity",
+    render: ({ settings }) => <RecentActivitiesWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  quick_links: {
+    label: "Quick links", description: "A tile of shortcuts you choose — build your own nav page.",
+    icon: Link2, category: "nav",
+    render: ({ settings, mode }) => <QuickLinksWidget settings={settings} mode={mode} />,
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [{ key: "appIds", type: "apps", label: "Destinations" }],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  polls: {
+    label: "Polls", description: "The latest polls and their vote counts.",
+    icon: Vote, category: "content",
+    render: ({ settings }) => <PollsWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   folder: {
     label: "Folder", description: "A folder on the page that holds apps — tap to open it.",

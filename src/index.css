@@ -602,6 +602,11 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    which is how per-widget overrides keep working. */
 [data-ui-v2="1"] { --radius: var(--v2-radius); }
 
+/* A range slider grabs any touch that lands on it — including a scroll
+   gesture passing through. pan-y hands vertical movement back to the
+   scroller, so only a deliberate horizontal drag changes the value. */
+input[type="range"] { touch-action: pan-y; }
+
 /* Peeking at the app while Display options is open: the sheet shrinks to
    the sample, and the dimming overlay steps aside so what you're adjusting
    is actually visible behind it. */

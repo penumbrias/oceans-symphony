@@ -265,6 +265,9 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
             {(widget.settings?.label || defLabel).slice(0, 60)}
           </span>
         )}
+        {/* While editing, the widget's own controls are inert — a hold to
+            move should never also start an activity or save a status. */}
+        <div style={editMode ? { pointerEvents: "none" } : undefined}>
         {look.css && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
@@ -277,6 +280,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           api,
           updateSettings: (patch) => onSettings?.(widget.instanceId, patch),
         })}
+        </div>
       </div>
 
       {/* Edge-resize handles — siblings of the drag wrapper so dnd-kit's
@@ -327,6 +331,9 @@ export default function ExperimentalDashboard({
   api,
   registry = WIDGET_REGISTRY,
   settingsField = "experimental_home",
+  // v2 injects this: leaving "back to classic" must flip ui_v2.enabled,
+  // not this layout blob's own enabled flag (which nothing reads in v2).
+  onExitToClassic = null,
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -546,7 +553,7 @@ export default function ExperimentalDashboard({
     });
   };
 
-  const handleBackToClassic = () => persist({ ...home, enabled: false });
+  const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...home, enabled: false }));
   const toggleActionBarButton = (id) => {
     const has = home.actionBar.buttonIds.includes(id);
     persist({
@@ -821,8 +828,11 @@ export default function ExperimentalDashboard({
               className="min-w-[24px] min-h-[24px] flex items-center justify-center"
             >
               <span
+                // Other pages use the foreground colour at low opacity —
+                // muted-foreground can vanish into a dark background, which
+                // made it look like there was only one page.
                 className={`rounded-full transition-all ${
-                  p.id === page.id ? "w-2.5 h-2.5 bg-primary" : "w-2 h-2 bg-muted-foreground/70"
+                  p.id === page.id ? "w-2.5 h-2.5 bg-primary" : "w-2 h-2 bg-foreground opacity-25"
                 }`}
               />
             </button>

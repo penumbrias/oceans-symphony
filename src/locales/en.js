@@ -172,6 +172,26 @@ export default {
 
   "widget.app.missing": "Missing shortcut — remove me",
 
+  "widget.sleepCtl.sleeping": "Sleeping",
+  "widget.sleepCtl.awake": "No sleep running.",
+  "widget.sleepCtl.start": "Start sleeping",
+  "widget.sleepCtl.wake": "I'm awake",
+
+  "widget.breathe.label": "Breathing",
+  "widget.breathe.start": "Start breathing exercise",
+
+  "widget.plans.label": "Plans",
+  "widget.plans.empty": "Nothing scheduled.",
+
+  "widget.recentActs.label": "Recent activities",
+  "widget.recentActs.empty": "Nothing logged yet.",
+
+  "widget.links.empty": "Pick destinations in this widget's options.",
+
+  "widget.polls.label": "Polls",
+  "widget.polls.empty": "No polls yet.",
+  "widget.polls.votes": "{count} votes",
+
   // ── Shared ──
   "common.switch": "{{Switch}}",
   "common.loading": "Loading…",

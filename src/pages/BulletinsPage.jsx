@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { ChevronLeft } from "lucide-react";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 // Full-screen Bulletin Board view. Same component the dashboard
 // widget uses, but mounted in `pageMode` so it:
@@ -25,6 +26,12 @@ export default function BulletinsPage() {
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
   });
+
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const uiV2On = UI_V2_ENABLED && settingsList[0]?.ui_v2?.enabled === true;
 
   // Active fronter context — bulletins composed from this page should
   // attribute to current fronters just like the dashboard widget does.
@@ -60,6 +67,9 @@ export default function BulletinsPage() {
         frontingAlterIds={frontingAlterIds}
         highlightBulletinId={highlightId}
         pageMode
+        // With the new UI on, capture lives in the quick-actions bar — the
+        // page is just the board. Classic keeps its rows.
+        boardOnly={uiV2On}
       />
     </div>
   );

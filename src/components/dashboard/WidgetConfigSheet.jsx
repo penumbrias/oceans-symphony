@@ -28,6 +28,8 @@ import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
 import { buildGridItems } from "@/lib/navCatalogue";
+import { useQuery } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { pickLook, mergeLook, lookToStyle, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
 import { getStyleShell } from "@/lib/homeStyles";
@@ -102,6 +104,28 @@ function AppListField({ value = [], onChange, terms }) {
         {shown.length === 0 && <p className="text-xs text-muted-foreground px-1 py-2">No apps match that.</p>}
       </div>
     </div>
+  );
+}
+
+// Searchable group/subsystem picker (house rule: never a bare select —
+// large systems have many groups).
+function GroupField({ value, onChange }) {
+  const { data: groups = [] } = useQuery({
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+  });
+  const options = [
+    { id: "", label: "Everyone" },
+    ...groups.map((g) => ({ id: g.id, label: g.name || "Group" })),
+  ];
+  return (
+    <SearchableSelect
+      value={value}
+      onChange={(v) => onChange(v)}
+      options={options}
+      placeholder="Everyone"
+      searchPlaceholder="Search groups…"
+    />
   );
 }
 
@@ -299,6 +323,9 @@ export default function WidgetConfigSheet({
                       </button>
                     ))}
                   </div>
+                )}
+                {f.type === "group" && (
+                  <GroupField value={val || ""} onChange={(v) => commit(v || "")} />
                 )}
                 {f.type === "apps" && (
                   <AppListField value={Array.isArray(val) ? val : []}

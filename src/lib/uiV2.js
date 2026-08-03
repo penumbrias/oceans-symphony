@@ -146,8 +146,11 @@ export function resolveUiV2(stored) {
       rail: src.bars?.rail !== false,
     },
     appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
-    dockPos: (src.dockPos && (src.dockPos.side === "left" || src.dockPos.side === "right")
+    dockPos: (src.dockPos
+      && ["left", "right", "top", "bottom"].includes(src.dockPos.side)
       && Number.isFinite(src.dockPos.topPct))
+      // topPct is the position ALONG the chosen edge (vertical % on the
+      // sides, horizontal % on top/bottom).
       ? { side: src.dockPos.side, topPct: Math.min(88, Math.max(6, src.dockPos.topPct)) }
       : null,
   };

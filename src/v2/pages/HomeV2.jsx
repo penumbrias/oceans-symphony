@@ -73,6 +73,14 @@ export default function HomeV2({ settingsRow, api }) {
       api={api}
       registry={V2_WIDGETS}
       settingsField={field}
+      onExitToClassic={async () => {
+        try {
+          await base44.entities.SystemSettings.update(settingsRow.id, {
+            ui_v2: { ...(settingsRow.ui_v2 || {}), enabled: false },
+          });
+          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        } catch { /* stays in v2 */ }
+      }}
     />
   );
 }
