@@ -21,7 +21,8 @@ import {
   UserPlus,
 } from "lucide-react";
 import { toast } from "sonner";
-import { format, addDays, addWeeks, addMonths } from "date-fns";
+import { format } from "date-fns";
+import { createPlan } from "@/lib/planCreate";
 import { useTerms } from "@/lib/useTerms";
 import { motion, AnimatePresence } from "framer-motion";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
@@ -269,81 +270,27 @@ export default function QuickPlanComposer({ onSaved, hideCancelButton = false })
         }
       }
 
-      // "Set this plan as a to-do" — build the Task up-front so its id can
-      // flow into task_id on every Activity (including recurring ones), then
-      // keep its due date in sync. Mirrors ActivityPlanModal's create path.
+      // ONE plan-create path (lib/planCreate.js) — shared with
+      // ActivityPlanModal, so the schema and the plan-vs-logged rules can
+      // never drift between the two surfaces again.
       const linkedTask = linkedTaskId ? tasks.find((t) => t.id === linkedTaskId) : null;
-      let derivedTask = null;
-      if (createTodo && !linkedTask) {
-        derivedTask = await base44.entities.Task.create({
-          title: title.trim(),
-          completed: false,
-          priority: "medium",
-          due_date: format(baseTs, "yyyy-MM-dd"),
-          notes: notes.trim() || null,
-        });
-        queryClient.invalidateQueries({ queryKey: ["tasks"] });
-      }
-      const effectiveLinkedTask = linkedTask || derivedTask;
-
-      // Recurrence — expand to N occurrences sharing a group id.
-      const recurrenceGroupId =
-        recurrenceInterval !== "none"
-          ? `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-          : null;
-      const advance = (dt, n) => {
-        if (recurrenceInterval === "daily") return addDays(dt, n);
-        if (recurrenceInterval === "weekly") return addWeeks(dt, n);
-        if (recurrenceInterval === "biweekly") return addWeeks(dt, n * 2);
-        if (recurrenceInterval === "monthly") return addMonths(dt, n);
-        return dt;
-      };
-      const occurrences = recurrenceGroupId
-        ? Array.from({ length: Math.max(1, Math.min(52, recurrenceCount)) }, (_, i) => advance(baseTs, i))
-        : [baseTs];
-
-      // Identical schema to ActivityPlanModal's create path so the plan is
-      // read identically by the day/week/month grids, UpcomingPlans and
-      // plan analytics: categories + alters are ARRAYS, the lifecycle is
-      // driven by `status`, and is_planned/is_quick_plan match the modal.
-      for (const occ of occurrences) {
-        // A recurring occurrence is always a PLAN instance to resolve later;
-        // a single plan keeps the past→logged rule.
-        const isPlanned = !!recurrenceGroupId || (isQuickPlan
-          ? format(occ, "yyyy-MM-dd") >= todayLocalISODate()
-          : occ.getTime() > Date.now());
-        await base44.entities.Activity.create({
-          timestamp: occ.toISOString(),
-          activity_name: title.trim(),
-          activity_category_ids: categoryId ? [categoryId] : [],
-          task_id: effectiveLinkedTask?.id || null,
-          duration_minutes: isQuickPlan ? null : (durationMinutes ? Number(durationMinutes) : null),
-          fronting_alter_ids: alterIds,
-          notes: notes.trim() || null,
-          location: location.trim() || null,
-          is_planned: isPlanned,
-          is_quick_plan: isQuickPlan,
-          is_critical: isCritical ? true : false,
-          critical_lead_steps: isCritical ? leadSteps : null,
-          recurrence_group_id: recurrenceGroupId,
-          recurrence_interval: recurrenceGroupId ? recurrenceInterval : null,
-          assigned_alter_ids: isPlanned ? alterIds : [],
-          status: isPlanned ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
-          actual_duration_minutes: null,
-          reschedule_history: [],
-          reminder_offset_minutes: reminderOffset,
-        });
-      }
-
-      if (linkedTask) {
-        try {
-          const dueDateStr = format(baseTs, "yyyy-MM-dd");
-          if (linkedTask.due_date !== dueDateStr) {
-            await base44.entities.Task.update(linkedTask.id, { due_date: dueDateStr });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
-          }
-        } catch { /* non-fatal */ }
-      }
+      const { occurrences, derivedTask, recurrenceGroupId } = await createPlan({
+        records: [{ activity_name: title.trim(), activity_category_ids: categoryId ? [categoryId] : [] }],
+        timestamp: baseTs,
+        durationMinutes: durationMinutes ? Number(durationMinutes) : null,
+        alterIds,
+        notes,
+        location,
+        isQuickPlan,
+        isCritical,
+        leadSteps,
+        reminderOffset,
+        recurrence: { interval: recurrenceInterval, count: recurrenceCount },
+        linkedTask,
+        createTodo,
+        todoTitle: title,
+      });
+      if (derivedTask || linkedTask) queryClient.invalidateQueries({ queryKey: ["tasks"] });
 
       queryClient.invalidateQueries({ queryKey: ["activities"] });
       queryClient.invalidateQueries({ queryKey: ["plannedActivities"] });

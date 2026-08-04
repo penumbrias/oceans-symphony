@@ -31,33 +31,6 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       look: `the floating "Accessibility" button in the corner of the screen`, action: null,
     },
 
-    // ─── DASHBOARD ──────────────────────────────────────────────────────────
-    {
-      section: "dashboard", sectionLabel: "Dashboard",
-      emoji: "📥",
-      title: "Notifications Inbox",
-      body: `The inbox icon (📥) in the top-right of the header opens your notifications — @ mentions from bulletins, messages, and other ${t.alters}, plus any reminder alerts that have fired. It's deliberately a different icon from the bell used for reminders elsewhere so the two don't get confused. A coloured dot appears when there are unread items; tap any notification in the panel to jump directly to its source.`,
-      route: "/", target: null,
-      look: `the 📥 inbox icon in the top-right of the header — a dot appears when you have unread notifications`, action: null,
-    },
-    {
-      section: "dashboard", sectionLabel: "Dashboard",
-      emoji: "☰",
-      classicOnly: true,
-      title: "Sidebar — opens from the logo",
-      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
-      route: "/", target: null,
-      look: `the Oceans Symphony logo in the top-left of the header — tap it to open the full navigation drawer`, action: null,
-    },
-    {
-      section: "dashboard", sectionLabel: "Dashboard",
-      emoji: "🛒",
-      title: "Grocery list — also a privacy cover",
-      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list can be marked "Available when the app is locked" if you want it accessible from the unlock screen — handy when you're shopping and don't want to enter your password every time. Check off items to log when you bought them; tap again to mark "ran out" so you can see when the broccoli in the fridge actually came from. Star items to save them as frequent purchases. If you have encryption turned on, the lock icon in the header means closing the list also clears your session.`,
-      route: "/", target: "grocery-list-button",
-      look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
-    },
-
     // ─── NEW UI (only when the ui_v2 toggle is on) ──────────────────────────
     ...(uiV2On ? [
       {
@@ -101,6 +74,33 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         look: `the small handle with lines either side of the arrow, above the bottom buttons — tap or swipe up`, action: null,
       },
     ] : []),
+
+    // ─── DASHBOARD ──────────────────────────────────────────────────────────
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "📥",
+      title: "Notifications Inbox",
+      body: `The inbox icon (📥) in the top-right of the header opens your notifications — @ mentions from bulletins, messages, and other ${t.alters}, plus any reminder alerts that have fired. It's deliberately a different icon from the bell used for reminders elsewhere so the two don't get confused. A coloured dot appears when there are unread items; tap any notification in the panel to jump directly to its source.`,
+      route: "/", target: null,
+      look: `the 📥 inbox icon in the top-right of the header — a dot appears when you have unread notifications`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "☰",
+      classicOnly: true,
+      title: "Sidebar — opens from the logo",
+      body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
+      route: "/", target: null,
+      look: `the Oceans Symphony logo in the top-left of the header — tap it to open the full navigation drawer`, action: null,
+    },
+    {
+      section: "dashboard", sectionLabel: "Dashboard",
+      emoji: "🛒",
+      title: "Grocery list — also a privacy cover",
+      body: `The cart icon in the sidebar opens what looks like a normal grocery list — and works as one. It's also a one-tap privacy screen for those moments when someone glances at your phone. Triple-tap anywhere in the app to open it instantly. Tap the list name in the header to switch lists or create new ones (wish lists, hardware, anywhere). Each new list can be marked "Available when the app is locked" if you want it accessible from the unlock screen — handy when you're shopping and don't want to enter your password every time. Check off items to log when you bought them; tap again to mark "ran out" so you can see when the broccoli in the fridge actually came from. Star items to save them as frequent purchases. If you have encryption turned on, the lock icon in the header means closing the list also clears your session.`,
+      route: "/", target: "grocery-list-button",
+      look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
+    },
 
     // ─── FRONTING ───────────────────────────────────────────────────────────
     {

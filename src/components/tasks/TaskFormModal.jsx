@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { createTask } from "@/lib/taskCreate";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -116,7 +117,9 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         savedTask = await base44.entities.Task.update(editingTask.id, data);
         toast.success("Task updated!");
       } else {
-        savedTask = await base44.entities.Task.create(data);
+        // Shared create path (lib/taskCreate.js) — same semantics as the
+        // bulletin board's quick row.
+        savedTask = await createTask(data);
         toast.success("Task created!");
       }
 

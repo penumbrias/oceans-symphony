@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
+import { createTask } from "@/lib/taskCreate";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -104,9 +105,10 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
           if (liveIds.length > 0) authorIds = liveIds;
         } catch { /* fall through */ }
       }
-      const task = await base44.entities.Task.create({
-        title: title.trim(),
-        completed: false,
+      // ONE task-create path (lib/taskCreate.js), shared with the full
+      // TaskFormModal; the companion board post is an option of it.
+      await createTask({
+        title,
         priority,
         due_date: dueDate || null,
         scheduled_at: scheduledDate || null,
@@ -116,14 +118,7 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
         is_urgent: urgent,
         goal_target: goalTarget ? parseInt(goalTarget, 10) : null,
         goal_unit: goalUnit.trim() || "",
-      });
-      await base44.entities.Bulletin.create({
-        content: `[task:${task.id}] ${title.trim()}`,
-        author_alter_ids: authorIds,
-        author_alter_id: authorIds[0] || null,
-        reactions: {},
-        read_by_alter_ids: authorIds,
-      });
+      }, { companionBulletin: true, authorAlterIds: authorIds });
       queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
       resetForm();

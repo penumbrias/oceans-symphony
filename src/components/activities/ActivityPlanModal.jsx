@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
+import { createPlan } from "@/lib/planCreate";
 import { format, differenceInMinutes, addDays, addWeeks, addMonths } from "date-fns";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
@@ -539,62 +540,29 @@ export default function ActivityPlanModal({
           })
         : [{ activity_name: fallbackName, activity_category_ids: [], color: undefined }];
 
-      const recurrenceGroupId =
-        recurrenceInterval !== "none"
-          ? `rec-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
-          : null;
-      const advance = (d, n) => {
-        if (recurrenceInterval === "daily") return addDays(d, n);
-        if (recurrenceInterval === "weekly") return addWeeks(d, n);
-        if (recurrenceInterval === "biweekly") return addWeeks(d, n * 2);
-        if (recurrenceInterval === "monthly") return addMonths(d, n);
-        return d;
-      };
-      const occurrences = recurrenceGroupId
-        ? Array.from({ length: Math.max(1, Math.min(52, recurrenceCount)) }, (_, i) => advance(timestamp, i))
-        : [timestamp];
-
-      for (const occurrence of occurrences) {
-        // A recurring occurrence is always a PLAN instance to be resolved later
-        // (done/partial/skipped/cancelled), even if its time is already past at
-        // creation — otherwise the first/past occurrences silently auto-"log"
-        // and can't be managed. Non-recurring plans keep the past→logged rule.
-        const isPlanInstance = !!recurrenceGroupId || occurrence.getTime() > Date.now();
-        for (const r of records) {
-          await base44.entities.Activity.create({
-            timestamp: occurrence.toISOString(),
-            activity_name: r.activity_name,
-            activity_category_ids: r.activity_category_ids,
-            ...(r.color ? { color: r.color } : {}),
-            task_id: effectiveLinkedTask?.id || null,
-            duration_minutes: isQuickPlan ? null : (durationMinutes > 0 ? durationMinutes : null),
-            fronting_alter_ids: selectedAlters,
-            notes: finalNotes || null,
-            location: location.trim() || null,
-            is_planned: isPlanInstance,
-            is_quick_plan: isQuickPlan,
-            is_critical: isCritical ? true : false,
-            critical_lead_steps: isCritical ? leadSteps : null,
-            recurrence_group_id: recurrenceGroupId,
-            recurrence_interval: recurrenceGroupId ? recurrenceInterval : null,
-            assigned_alter_ids: isPlanInstance ? selectedAlters : [],
-            status: isPlanInstance ? ACTIVITY_STATUSES.SCHEDULED : ACTIVITY_STATUSES.LOGGED,
-            actual_duration_minutes: null,
-            reschedule_history: [],
-            reminder_offset_minutes: reminderOffset,
-          });
-        }
-      }
-
-      if (linkedTask) {
-        try {
-          const dueDateStr = format(timestamp, "yyyy-MM-dd");
-          if (linkedTask.due_date !== dueDateStr) {
-            await base44.entities.Task.update(linkedTask.id, { due_date: dueDateStr });
-            queryClient.invalidateQueries({ queryKey: ["tasks"] });
-          }
-        } catch { /* non-fatal */ }
-      }
+      // ONE plan-create path (lib/planCreate.js) — shared with
+      // QuickPlanComposer. Also adopts the composer's quick-plan rule: a
+      // quick plan dated today stays a PLAN even if its time has passed
+      // (this modal used to silently log it).
+      const { occurrences, recurrenceGroupId } = await createPlan({
+        records,
+        timestamp,
+        durationMinutes: durationMinutes > 0 ? durationMinutes : null,
+        alterIds: selectedAlters,
+        notes: finalNotes,
+        location,
+        isQuickPlan,
+        isCritical,
+        leadSteps,
+        reminderOffset,
+        recurrence: { interval: recurrenceInterval, count: recurrenceCount },
+        // The modal already built its derived task up-front (shared with the
+        // edit branch) — pass it as the linked task so createPlan links it
+        // to every occurrence without creating a second one.
+        linkedTask: effectiveLinkedTask,
+        createTodo: false,
+      });
+      if (effectiveLinkedTask) queryClient.invalidateQueries({ queryKey: ["tasks"] });
 
       // No fronting-session updates here — plan-mode plans are future-
       // dated, so the alter isn't actually fronting yet. assigned_alter_ids

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "Creating a to-do or a plan now runs through one shared path from every surface — the quick rows on the bulletin board, the full task form, and the activity planner all agree on what gets saved. Fixes a quiet inconsistency where a quick plan set for earlier today was treated as already done instead of still planned." },
+      { type: "improve", text: "🧪 New UI: the tour's \"your home screen is a widget board\" section now comes first while the new UI is on." },
       { type: "improve", text: "🧪 New UI: the feature tour now covers it — a New UI section walks through the widget board, editing, adding widgets, styling and quick actions, and steps describing classic-only chrome are skipped while the new UI is on." },
       { type: "fix", text: "Daily-task check-offs write through one shared path now, from every surface — fixing two quiet XP bugs (totals could inflate from the quick-actions menu and shrink from the pinned widget)." },
       { type: "feature", text: "To-dos and plans that are linked finally talk to each other: ticking the to-do resolves its plan, and marking the plan done or partial completes the to-do. Skipping or cancelling a plan leaves the to-do alone." },

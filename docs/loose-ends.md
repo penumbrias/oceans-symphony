@@ -1,4 +1,4 @@
-# Loose Ends — living audit (updated 2026-08-04, v0.113.1, branch claude/ui-v2)
+# Loose Ends — living audit (updated 2026-08-04, v0.115.0, branch claude/ui-v2)
 
 *Purpose: nothing about this project's state should depend on anyone's memory.
 When an item is finished, move it to "Done" with the version. When you find a
@@ -6,26 +6,18 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Needs doing — high priority
 
-- [ ] **FeatureTour has zero UI-v2 steps.** With v2 on, tour steps target
-  classic elements that don't exist. This violates the CLAUDE.md tour rule and
-  is the single biggest onboarding gap. Needs: a v2 branch in `buildSteps()`
-  (home canvas, edit mode, quick actions, apps button, cog menu, Display
-  options) gated on `ui_v2.enabled`, using v2 `data-tour` anchors.
-- [ ] **Merge-to-main plan.** `claude/ui-v2` is ~18 releases ahead of main
-  (v0.95.7 → v0.113.1). v2 is double-gated (build flag + per-user toggle), so a
-  merge is safe in principle, but wants: fresh export/import round-trip test,
-  the seven-scenario boot check, and Play `versionCode` continuity. The old
-  question "cherry-pick the v0.96.1 setup-chip fix to main?" is superseded by
-  merging (the chip has had further fixes on-branch since).
-- [ ] **Tasks/plans consolidation** — proposal written
-  (`docs/tasks-consolidation-proposal.md`), awaiting owner sign-off on its
-  three open questions, then Phases 1–5.
+- [ ] **Merge to main — ON HOLD by owner (2026-08-04: "I want to hold off on
+  the update release").** Pre-checks all ran green on 2026-08-04: zero
+  storage-layer diff vs main, versionCode strictly increasing (832 → current),
+  pure fast-forward, classic mode verified. When the hold lifts: re-run those
+  quick checks (versions have moved since), then `git checkout main && git
+  merge --ff-only claude/ui-v2 && git push`.
 
 ## Needs doing — widget catalogue gaps (owner's "widgets for every page" goal)
 
 - [ ] Weekly activity grid widget (`ActivityWeeklyGrid` embed).
 - [ ] Formal schedule/log composer widget (create plans/logs from the canvas —
-  blocked on consolidation Phase 4 so it wraps the ONE create path).
+  now unblocked: wrap `createPlan()` from `src/lib/planCreate.js`).
 - [ ] Analytics display widgets beyond fronting-leaders/recent-activities
   (emotion trends, symptom charts — embed the analytics components).
 - [ ] Alter-profile boards in the board widget (`AlterMessage` is a separate
@@ -36,6 +28,12 @@ new one, add it. Update the date line above whenever you touch this file.*
   categories; fine today, revisit past ~60 widgets).
 
 ## Needs doing — smaller
+
+- [ ] **Watch: one unexplained ui_v2 re-enable** (2026-08-04, dev preview
+  only). Flag flipped true without user action; NOT reproducible — visiting
+  /, /tasks, /settings#appearance with v2 off leaves it off. If a tester
+  reports v2 turning itself on, suspect any `write({...enabled:true})`
+  paths (V2DisplaySettings.write) reachable from an unexpected mount.
 
 - [ ] **dockPos syncs across devices** but is arguably per-device (a phone
   edge position makes little sense on a monitor). Layouts are already
@@ -70,6 +68,15 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Done (this cycle, for orientation)
 
+- v0.115.0: consolidation Phases 3+4 — ONE task-create path
+  (`src/lib/taskCreate.js`, used by QuickTaskComposer + TaskFormModal;
+  companion bulletin is an option, not a fork) and ONE plan-create path
+  (`src/lib/planCreate.js`, used by QuickPlanComposer + ActivityPlanModal;
+  kept the composer's quick-plan date rule). All five proposal phases now
+  shipped (P1 sync v0.114.0, P2 reschedule/carry-over v0.114.0, P5 single
+  DailyProgress writer v0.114.1 — five copies found, not four).
+- v0.114.2: v2 FeatureTour steps shipped; v0.115.0 reordered them so the
+  widget-board step leads under v2 (owner request).
 - v0.110–0.113: R4/R5 feedback — drawer redesign (hold-to-edit, folders,
   sidebar mode), chat/poll/links widgets, look-rendering fix, settings
   integration + reset, page-aware cog menu, breathing widget rebuild + pace,
