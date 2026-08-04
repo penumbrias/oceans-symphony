@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: the feature tour now covers it — a New UI section walks through the widget board, editing, adding widgets, styling and quick actions, and steps describing classic-only chrome are skipped while the new UI is on." },
       { type: "fix", text: "Daily-task check-offs write through one shared path now, from every surface — fixing two quiet XP bugs (totals could inflate from the quick-actions menu and shrink from the pinned widget)." },
       { type: "feature", text: "To-dos and plans that are linked finally talk to each other: ticking the to-do resolves its plan, and marking the plan done or partial completes the to-do. Skipping or cancelling a plan leaves the to-do alone." },
       { type: "feature", text: "\"Plans needing review\" gains a Tomorrow button on every plan and a \"Carry all to tomorrow\" action — bullet-journal style migration instead of forcing a verdict. Carrying a plan moves its linked to-do's due date with it." },

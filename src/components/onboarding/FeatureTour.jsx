@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { X, ChevronLeft, ChevronRight, MapPin, ChevronsRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -10,7 +11,7 @@ import AccessibilityFab from "@/components/accessibility/AccessibilityFab";
 
 // alterId — ID of the alter whose profile to navigate to during profile steps.
 // tourAlterWasCreated — true if we created a temporary demo alter.
-export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
+export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2On = false) {
   const ai = alterId;
   return [
     // ─── WELCOME ────────────────────────────────────────────────────────────
@@ -42,6 +43,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
     {
       section: "dashboard", sectionLabel: "Dashboard",
       emoji: "☰",
+      classicOnly: true,
       title: "Sidebar — opens from the logo",
       body: `Tap the Oceans Symphony logo in the top-left of the header to slide open the sidebar. Every page in the app is reachable from there, grouped by what they do (Tracking, Journal & Content, Tools, Analytics). The grocery list / privacy cover lives in the sidebar header too. The sidebar closes automatically as soon as you navigate, so you don't need to dismiss it manually.`,
       route: "/", target: null,
@@ -55,6 +57,50 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false) {
       route: "/", target: "grocery-list-button",
       look: `the 🛒 cart icon in the sidebar (tap the ☰ menu top-left to see it). Triple-tap anywhere to open it without using the icon.`, action: null,
     },
+
+    // ─── NEW UI (only when the ui_v2 toggle is on) ──────────────────────────
+    ...(uiV2On ? [
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "🧪",
+        title: "Your home screen is a widget board",
+        body: `With the new UI on, the home screen is made of widgets — building blocks for every part of the app. Each one shows or does exactly one thing: who's ${t.fronting}, today's plans, a journal you can write straight into, a chat channel, a breathing circle. You choose which widgets exist, where they sit, and how they look.`,
+        route: "/", target: null,
+        look: `your widgets on the home screen — every block is one you can move, resize, restyle or remove`, action: null,
+      },
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "✏️",
+        title: "Editing the home screen",
+        body: `Open the cog menu (top-right) and choose "Edit home screen". In edit mode: hold a widget until it lifts, then drag — to a new spot, or onto "Drop to remove" to delete it. Hold an edge to resize. The "Layout" chip switches between Flow (widgets pack together) and Free (put each one exactly where you want, gaps and all). Widgets are inert while editing, so moving one can't accidentally trigger it.`,
+        route: "/", target: null,
+        look: `the ⚙ cog in the top-right — "Edit home screen" is the first item`, action: null,
+      },
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "➕",
+        title: "Adding widgets",
+        body: `In edit mode, the apps button (top-left) opens the drawer with an "Add widget" tab: every widget previews LIVE with your real data, like a phone's widget picker. Tap a card for a bigger preview, cycle its Minimal/Normal/Expanded views, try a style, and add it already set up. The search box finds widgets by name.`,
+        route: "/", target: null,
+        look: `the app-logo button in the top-left — in edit mode its drawer gains the "Add widget" tab`, action: null,
+      },
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "🎨",
+        title: "Every widget's look is yours",
+        body: `The gear on any widget (in edit mode) opens its options: rename it, change its font, corners, border, background colour or image, shadow — or write your own CSS for just that widget. "Save this look as a style" turns your design into a reusable style you can apply to other widgets. App-wide looks live in Display options (cog menu), and Peek lets you watch the real app change while you adjust.`,
+        route: "/", target: null,
+        look: `the small gear that appears on each widget while editing`, action: null,
+      },
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "⚡",
+        title: "Quick actions & the support anchor",
+        body: `The quick-action buttons live behind the pull handle above the bottom bar (or as a floating bar or bubble — hold and drag the bubble to park it on any edge). Capture a check-in, note, activity, symptom, task or plan from anywhere. The Support anchor is always among them — one tap to grounding, from any page.`,
+        route: "/", target: null,
+        look: `the small handle with lines either side of the arrow, above the bottom buttons — tap or swipe up`, action: null,
+      },
+    ] : []),
 
     // ─── FRONTING ───────────────────────────────────────────────────────────
     {
@@ -914,6 +960,12 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
   const [tourAlterId, setTourAlterId] = useState(null);
   const [tourAlterWasCreated, setTourAlterWasCreated] = useState(false);
 
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const uiV2On = UI_V2_ENABLED && settingsList[0]?.ui_v2?.enabled === true;
+
   const { data: existingAlters = [], isSuccess: altersLoaded } = useQuery({
     queryKey: ["alters"],
     queryFn: () => base44.entities.Alter.list(),
@@ -937,10 +989,11 @@ export default function FeatureTour({ onClose, restrictToRoute = null }) {
   }, [altersLoaded]);
 
   const steps = useMemo(() => {
-    const all = buildSteps(t, tourAlterId, tourAlterWasCreated);
+    const all = buildSteps(t, tourAlterId, tourAlterWasCreated, uiV2On)
+      .filter((st) => !(uiV2On && st.classicOnly));
     if (!restrictToRoute) return all;
     return all.filter(s => s.route === restrictToRoute && s.section !== "welcome");
-  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute]);
+  }, [t, tourAlterId, tourAlterWasCreated, restrictToRoute, uiV2On]);
   const [step, setStep] = useState(0);
 
   // Safety: if a page-scoped tour ends up with no steps (bad route, or every
