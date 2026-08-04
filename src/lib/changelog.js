@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "fix", text: "🧪 New UI: widget display settings — text size, text color, border, background, shadow, accent — now actually apply on every widget. The breathing widget (and app tiles, folders, quick links, headings) ignored most of them before." },
       { type: "improve", text: "Creating a to-do or a plan now runs through one shared path from every surface — the quick rows on the bulletin board, the full task form, and the activity planner all agree on what gets saved. Fixes a quiet inconsistency where a quick plan set for earlier today was treated as already done instead of still planned." },
       { type: "improve", text: "🧪 New UI: the tour's \"your home screen is a widget board\" section now comes first while the new UI is on." },
       { type: "improve", text: "🧪 New UI: the feature tour now covers it — a New UI section walks through the widget board, editing, adding widgets, styling and quick actions, and steps describing classic-only chrome are skipped while the new UI is on." },

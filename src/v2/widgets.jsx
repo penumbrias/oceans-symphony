@@ -46,7 +46,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
-import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
+import { Section, Row, Muted, TextAction, Dot, boxStyle } from "@/v2/primitives";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -168,7 +168,7 @@ function TodayWidget() {
     <Section label={tr("widget.today.label")} action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
       {plans.length === 0 && due.length === 0 && <Muted>{tr("widget.today.empty")}</Muted>}
       {plans.length > 0 && due.length > 0 && (
-        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground pt-0.5">
+        <p className="text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground pt-0.5">
           {tr("widget.today.planned")}
         </p>
       )}
@@ -187,7 +187,7 @@ function TodayWidget() {
         );
       })}
       {plans.length > 0 && due.length > 0 && (
-        <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
+        <p className="text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground pt-1">
           {tr("widget.today.dueLabel")}
         </p>
       )}
@@ -377,13 +377,16 @@ function HeadingWidget({ settings }) {
     : size === "md" ? "text-base font-semibold"
     : "font-display text-2xl font-semibold";
   const align = settings?.align || "left";
-  return <p className={cls} style={{ textAlign: align }}>{settings?.text || settings?.label || "Heading"}</p>;
+  // Chromeless by default, but still the widget's visible box — a border or
+  // background set in its look has somewhere to land (widget contract).
+  return <p className={cls} style={{ ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align }}>{settings?.text || settings?.label || "Heading"}</p>;
 }
 
 function TextWidget({ settings }) {
   const align = settings?.align || "left";
   return (
-    <p className="text-sm text-muted-foreground whitespace-pre-line" style={{ textAlign: align }}>
+    <p className="text-sm text-muted-foreground whitespace-pre-line"
+      style={{ ...boxStyle({ borderFallback: false, padFallback: false }), textAlign: align }}>
       {settings?.text || ""}
     </p>
   );
@@ -434,20 +437,11 @@ function AppTileWidget({ mode, settings }) {
   return (
     <button type="button" onClick={() => navigate(item.path)} title={label}
       className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
-      style={{
-        borderRadius: "var(--v2-radius)",
-        // The tile is this widget's visible box: border / shadow / background
-        // from the widget's look wrap the icon AND the name.
-        borderWidth: "var(--v2-border-w, 0px)",
-        borderStyle: "var(--v2-border-style, solid)",
-        borderColor: "var(--v2-border-color, transparent)",
-        boxShadow: "var(--v2-shadow, none)",
-        background: "var(--v2-widget-bg, transparent)",
-        padding: "var(--v2-pad, 6px)",
-      }}>
+      // The tile is this widget's visible box (widget contract).
+      style={boxStyle({ borderFallback: false })}>
       {iconEl}
       {display !== "plain" && mode !== "minimal" && (
-        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
+        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
       )}
     </button>
   );
@@ -613,7 +607,8 @@ function FolderWidget({ settings, mode }) {
     <>
       <button type="button" onClick={() => setOpen(true)}
         className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
-        style={{ borderRadius: "var(--v2-radius)" }}>
+        // The folder tile is this widget's visible box (widget contract).
+        style={boxStyle({ borderFallback: false })}>
         {/* The tile previews what's inside — the first four, in a 2×2, the
             way a phone folder does. */}
         <span className="grid grid-cols-2 gap-0.5 p-1 flex-shrink-0"
@@ -628,7 +623,7 @@ function FolderWidget({ settings, mode }) {
           {apps.length === 0 && <FolderOpen className="w-3.5 h-3.5 text-muted-foreground col-span-2" />}
         </span>
         {mode !== "minimal" && (
-          <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
+          <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">
             {label}
           </span>
         )}
@@ -658,7 +653,7 @@ function FolderWidget({ settings, mode }) {
                     }}>
                     <Icon className="w-4 h-4" />
                   </span>
-                  <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">
+                  <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
                     {a.label}
                   </span>
                 </button>
@@ -744,7 +739,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
         <button type="button" onClick={() => navigate(`/journals?entry=${entry.id}`)}
           className="text-left w-full min-w-0">
           <p className="text-sm font-medium truncate">{entry.title || tr("widget.journal.untitled")}</p>
-          <p className="text-[0.625rem] text-muted-foreground mb-1">
+          <p className="text-[0.625em] text-muted-foreground mb-1">
             {new Date(entry.timestamp || entry.created_date).toLocaleString([], {
               month: "short", day: "numeric", hour: "2-digit", minute: "2-digit",
             })}
@@ -765,7 +760,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
             className="p-1 text-muted-foreground hover:text-foreground disabled:opacity-30">
             <ChevronLeft className="w-4 h-4" />
           </button>
-          <span className="text-[0.625rem] text-muted-foreground tabular-nums">
+          <span className="text-[0.625em] text-muted-foreground tabular-nums">
             {tr("widget.book.page", { n: idx + 1, total: pages.length })}
           </span>
           <button type="button" aria-label={tr("widget.book.older")}
@@ -1015,7 +1010,12 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   const maxSize = Math.max(72, Math.min(box.w - 8, box.h - chrome, 260));
 
   return (
-    <div ref={boxRef} className="h-full min-h-0 flex flex-col items-center justify-center gap-1.5">
+    // Section is this widget's visible box (widget contract) — without it,
+    // border / background / shadow / padding looks had nothing to paint on.
+    // The measuring div sits inside, so the circle sizes to the box's
+    // content area and shrinks when the user adds padding or borders.
+    <Section>
+    <div ref={boxRef} className="h-full w-full min-h-0 flex flex-col items-center justify-center gap-1.5">
       <BreathingExercise
         key={`${pattern}_${maxSize}_${running}_${settings?.pace || 1}`}
         embedded
@@ -1041,9 +1041,10 @@ function BreathingWidget({ settings, updateSettings, mode }) {
         </div>
       )}
       {mode === "expanded" && (
-        <p className="text-[0.625rem] text-muted-foreground">{BREATHING_PATTERNS[pattern].pattern}</p>
+        <p className="text-[0.625em] text-muted-foreground">{BREATHING_PATTERNS[pattern].pattern}</p>
       )}
     </div>
+    </Section>
   );
 }
 
@@ -1120,7 +1121,7 @@ function AlterLinkTile({ alter, mode }) {
             {(formatAlter(alter) || "?")[0]}
           </span>}
       {mode !== "minimal" && (
-        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">
+        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">
           {formatAlter(alter)}
         </span>
       )}
@@ -1150,13 +1151,15 @@ function QuickLinksWidget({ settings, mode, api }) {
       style={{ borderRadius: "var(--v2-radius, 8px)" }}>
       {icon}
       {mode !== "minimal" && (
-        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">{label}</span>
+        <span className="text-[0.625em] text-center leading-tight text-muted-foreground line-clamp-2">{label}</span>
       )}
     </button>
   );
 
   return (
-    <div className="grid gap-1 h-full" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(64px, 1fr))` }}>
+    // The grid itself is this widget's visible box (widget contract).
+    <div className="grid gap-1 h-full min-h-0"
+      style={{ ...boxStyle({ borderFallback: false }), gridTemplateColumns: `repeat(auto-fill, minmax(64px, 1fr))` }}>
       {links.map((l, i) => {
         const key = `${l.type}_${l.id}_${i}`;
         if (l.type === "app") {

@@ -703,3 +703,24 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
   [data-ui-v2="1"] { padding-left: var(--v2-rail-pad, 0px); }
   [data-ui-v2="1"][data-rail-side="right"] { padding-left: 0; padding-right: var(--v2-rail-pad, 0px); }
 }
+
+/* ── Widget contract (docs/widget-contract.md) ──────────────────────
+   Inside a widget, text utilities are EM, not rem. A widget's per-look
+   "Text size" works by setting a % font-size on the wrapper; rem sizes
+   are relative to the page root and ignore it, so every text-* below is
+   remapped to its em equivalent (identical rendering at 100%). Bracketed
+   sizes can't be caught here — widget code uses text-[0.625em]-style
+   brackets, never rem (contract rule). */
+[data-widget-content] .text-xs   { font-size: 0.75em; }
+[data-widget-content] .text-sm   { font-size: 0.875em; }
+[data-widget-content] .text-base { font-size: 1em; }
+[data-widget-content] .text-lg   { font-size: 1.125em; }
+[data-widget-content] .text-xl   { font-size: 1.25em; }
+
+/* A widget's "Text color" must also reach CLASSED text — nearly every
+   line in a widget carries text-foreground or text-muted-foreground,
+   which beat inherited color. When the look sets a text color,
+   widgetLook.js emits --v2-text / --v2-text-muted; otherwise these
+   fall back to exactly the theme values the classes normally resolve to. */
+[data-widget-content] .text-foreground       { color: var(--v2-text, var(--color-text-primary)); }
+[data-widget-content] .text-muted-foreground { color: var(--v2-text-muted, var(--color-text-secondary)); }

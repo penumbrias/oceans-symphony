@@ -61,7 +61,9 @@ new one, add it. Update the date line above whenever you touch this file.*
 - **House picker rules apply inside widgets/config sheets**: unbounded list →
   `SearchableSelect` / `SearchableMultiList`; chips only for ≤5 static options.
 - Per-widget **looks are CSS variables consumed by the widget's visible box**
-  (`widgetLook.js`); never direct properties on the wrapper.
+  (`widgetLook.js`); never direct properties on the wrapper. The full rule set
+  is now formalized in **`docs/widget-contract.md`** (v0.115.1) — one box per
+  widget, em text, accent via `--v2-accent`, compliance test in the doc.
 - **One surface per job**: settings live integrated in Appearance (v2 pieces
   woven in by relevance); capture modals flip modes in place rather than
   swapping components.

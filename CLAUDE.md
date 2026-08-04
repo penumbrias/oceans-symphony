@@ -941,6 +941,22 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **New entity → backup wiring in the same commit.** Add to `ENTITY_NAMES` AND `EXPORT_CATEGORIES` in `DataBackupRestore.jsx`. If it's device-bound, document the exclusion instead.
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
 
+### UI v2 widgets — follow the Widget Contract
+
+**Every v2 widget follows `docs/widget-contract.md` — read it before writing or
+modifying any widget.** The load-bearing rules: exactly ONE visible box per
+widget (`Section` from `src/v2/primitives.jsx`, or `boxStyle()` spread on a
+tile root) — that box is what consumes the per-widget look variables, so a
+widget that hand-rolls its own container silently ignores the user's border /
+background / shadow / padding settings (the breathing-widget bug). Text inside
+widgets uses em, never bracketed rem (`text-[0.625em]`, not `text-[0.625rem]`)
+so the per-widget "Text size" works; standard `text-xs`…`text-xl` are remapped
+to em inside `[data-widget-content]` by index.css. Chrome colors go through
+`var(--v2-accent)`; never read look fields off `settings` directly — they
+arrive as CSS variables via `lookToStyle()` in `src/lib/widgetLook.js`. The
+compliance test: set border width, background, text size, text color, and
+accent in the widget's options — all five must visibly change.
+
 ### Nested / hierarchical pickers — never a flat `<select>`
 
 **Any feature whose options are NESTED or hierarchical must use a nesting-aware picker — never a native `<select>` or a plain flat list.** This covers alter **groups & subsystems**, **activity categories**, **relationship types**, inner-world **maps & layers**, and anything else with parent/child structure. A native `<select>` flattens the hierarchy the user built (and isn't searchable) — exactly the bug this rule prevents.

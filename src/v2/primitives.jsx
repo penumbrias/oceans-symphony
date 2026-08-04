@@ -21,31 +21,46 @@ export function Page({ title, sub, children }) {
   );
 }
 
-export function Section({ label, action, children }) {
+// THE visible box (widget contract, docs/widget-contract.md): the one
+// element per widget that consumes the box look variables. Section spreads
+// it; tile-shaped widgets (app tiles, folders, quick links) spread it on
+// their own root. `borderFallback: false` is for tiles, which are
+// borderless until the user asks for a border.
+export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
+  return {
+    borderWidth: borderFallback ? "var(--v2-border-w, 1px)" : "var(--v2-border-w, 0px)",
+    borderStyle: "var(--v2-border-style, solid)",
+    borderColor: borderFallback
+      ? "var(--v2-border-color, hsl(var(--border) / 0.6))"
+      : "var(--v2-border-color, transparent)",
+    borderRadius: "var(--v2-radius, 8px)",
+    boxShadow: "var(--v2-shadow, none)",
+    background: "var(--v2-widget-bg, transparent)",
+    // padFallback: false = flush until the user sets padding (text widgets).
+    padding: padFallback ? "var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))" : "var(--v2-pad, 0px)",
+  };
+}
+
+export function Section({ label, action, center, children }) {
   return (
     // Fills whatever box it's given — a widget resized taller should LOOK
     // taller, not sit content-sized inside a bigger empty cell. min-h-0 so
     // the list below can scroll instead of forcing the box open.
-    <section
-      className="h-full flex flex-col min-h-0"
-      style={{
-        borderWidth: "var(--v2-border-w, 1px)",
-        borderStyle: "var(--v2-border-style, solid)",
-        borderColor: "var(--v2-border-color, hsl(var(--border) / 0.6))",
-        borderRadius: "var(--v2-radius, 8px)",
-        boxShadow: "var(--v2-shadow, none)",
-        background: "var(--v2-widget-bg, transparent)",
-        padding: "var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))",
-      }}
-    >
+    <section className="h-full flex flex-col min-h-0" style={boxStyle()}>
       {(label || action) && (
         <div className="flex items-baseline justify-between mb-1 flex-shrink-0">
-          <h2 className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>
+          <h2 className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground">{label}</h2>
           {action}
         </div>
       )}
       <div className="min-h-0 flex-1 overflow-y-auto"
-        style={{ display: "flex", flexDirection: "column", gap: "calc(var(--v2-space, 6px) * 0.75)" }}>
+        style={{
+          display: "flex", flexDirection: "column",
+          gap: "calc(var(--v2-space, 6px) * 0.75)",
+          // For non-list content (the breathing circle) that should sit in
+          // the middle of the box rather than stack from the top.
+          ...(center ? { alignItems: "center", justifyContent: "center" } : null),
+        }}>
         {children}
       </div>
     </section>

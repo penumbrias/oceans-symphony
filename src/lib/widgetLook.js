@@ -57,10 +57,21 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   const s = {};
   if (isSet(look.radius)) { s["--v2-radius"] = `${look.radius}px`; s["--radius"] = `${look.radius}px`; }
   if (isSet(look.borderW)) s["--v2-border-w"] = `${look.borderW}px`;
-  if (isSet(look.accent)) s["--v2-accent"] = look.accent;
+  // Re-declaring the APP token (--color-primary) at widget scope is what
+  // makes accent reach everything inside that already follows the theme
+  // (bg-primary, the breathing circle, buttons) — same trick as --radius.
+  if (isSet(look.accent)) { s["--v2-accent"] = look.accent; s["--color-primary"] = look.accent; }
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;
-  if (isSet(look.textColor)) s.color = look.textColor;
+  if (isSet(look.textColor)) {
+    // Plain inheritance only reaches unclassed text — nearly everything in a
+    // widget carries text-foreground / text-muted-foreground, which win over
+    // `color`. These two vars feed the [data-widget-content] remaps in
+    // index.css so classed text follows too (muted = same hue, softened).
+    s.color = look.textColor;
+    s["--v2-text"] = look.textColor;
+    s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} 72%, transparent)`;
+  }
   if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
   if (isSet(look.bg)) s["--v2-widget-bg"] = look.bg;
   if (isSet(look.bgImage)) {
