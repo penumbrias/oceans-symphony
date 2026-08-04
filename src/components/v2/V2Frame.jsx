@@ -42,6 +42,7 @@ import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SidebarNav from "@/components/layout/SidebarNav";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { confirm } from "@/components/shared/ConfirmDialog";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -411,6 +412,23 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
               <LivePreview uiV2={uiV2} />
             </Section2>
           )}
+
+          <button type="button"
+            onClick={async () => {
+              const ok = await confirm({
+                title: t("options.resetTitle"),
+                body: t("options.resetBody"),
+                confirmLabel: t("options.resetConfirm"),
+                destructive: true,
+              });
+              // Reset exactly what this panel controls: tokens, bar
+              // visibility, dock position, apps button. Layouts, widgets,
+              // saved styles, themes and text size are untouched.
+              if (ok) onMisc?.({ tokens: {}, bars: {}, dockPos: null, appsIcon: "", appsView: "grid" });
+            }}
+            className="w-full h-10 rounded-xl border border-border/60 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/40">
+            {t("options.reset")}
+          </button>
 
           <Section2 id="everything" title={t("options.everythingElse")}>
             <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.everythingElseHint")}</p>

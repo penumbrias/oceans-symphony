@@ -1084,7 +1084,7 @@ export default function Dashboard() {
           // override must be `lg:`, not `sm:`: the tab bar is `lg:hidden`,
           // so between 640–1023px it is still on screen and a `sm:bottom-4`
           // chip lands underneath it.
-          className="fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
+          className="os-setup-chip fixed z-[85] bottom-[calc(var(--bottom-nav-height,56px)_+_16px_+_env(safe-area-inset-bottom,0px))] left-3 right-3 sm:left-auto sm:right-4 sm:max-w-xs lg:bottom-4"
           role="status"
           aria-label="Continue setup"
         >

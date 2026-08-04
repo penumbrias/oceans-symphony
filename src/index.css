@@ -607,6 +607,15 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    scroller, so only a deliberate horizontal drag changes the value. */
 input[type="range"] { touch-action: pan-y; }
 
+/* The "Continue setup" chip sits at z-85 — above bottom sheets (z-50).
+   With a sheet open, tapping the chip's X could land on the controls
+   underneath instead. While ANY drawer or dialog is open, the chip steps
+   aside entirely. */
+body:has([data-vaul-drawer][data-state="open"]) .os-setup-chip,
+body:has([role="dialog"][data-state="open"]) .os-setup-chip {
+  display: none;
+}
+
 /* Peeking at the app while Display options is open: the sheet shrinks to
    the sample, and the dimming overlay steps aside so what you're adjusting
    is actually visible behind it. */

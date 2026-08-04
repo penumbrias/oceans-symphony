@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 2, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: a \"Reset display options\" button restores bars, colours, sizes, the dock position and the apps button to defaults — your layout, widgets, saved styles and themes are untouched." },
+      { type: "fix", text: "The \"Continue setup\" notice no longer floats on top of open panels, where closing it could press the controls underneath — it steps aside while any panel is open." },
       { type: "improve", text: "🧪 New UI: Display options is reorganized into tidy sections that open one at a time, and every slider has −/+ buttons for precise steps — no more settings changing themselves while you scroll the menu. The quick-actions handle now has its line on both sides of the arrow." },
       { type: "feature", text: "🧪 New UI: the apps list is reorganizable phone-style — hold any icon to enter edit mode, drag to reorder, drop apps onto folders, make folders with the New-folder tile, and add from inside a folder with its + button. This replaces the old Organize screen." },
       { type: "feature", text: "🧪 New UI: the Apps button can open the classic sidebar instead of the app grid (Display options → \"Apps button opens\")." },
