@@ -179,13 +179,12 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
     Math.max(0, FONT_STEPS.indexOf(getAccessibilitySettings().fontSize || "default"))
   );
   const [locale, setLocaleState] = useState(getLocale());
-  const [moreOpen, setMoreOpen] = useState(false);
-  // Peek shrinks the sheet to the sample so the real app shows behind it —
-  // and drops the dimming overlay, which would otherwise hide the very
-  // thing you're adjusting.
+  // ONE section open at a time. Closed sections expose no sliders, which is
+  // what actually stops settings changing under a scrolling finger — the
+  // earlier touch-action patch only helped for perfectly vertical swipes.
+  const [openSection, setOpenSection] = useState(null);
+  const toggleSection = (id) => setOpenSection((cur) => (cur === id ? null : id));
   const [peek, setPeek] = useState(false);
-  // Collapsed by default — Peek shows the real app, which beats a sample;
-  // the sample stays available for people who want it.
   const [previewOpen, setPreviewOpen] = useState(() => {
     try { return localStorage.getItem(PREVIEW_OPEN_KEY) === "1"; } catch { return false; }
   });
@@ -199,6 +198,85 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
     return () => document.documentElement.removeAttribute("data-v2-peek");
   }, [open, peek]);
 
+  const localeCodes = Object.keys(LOCALES);
+  const tokenById = useMemo(() => Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d])), []);
+
+  // Range rows get −/+ steppers: precise, and impossible to hit by
+  // accident while scrolling. The slider stays for coarse moves.
+  const renderToken = (def) => {
+    const val = uiV2.tokens[def.id] ?? def.default;
+    if (def.type === "range") {
+      const shown = def.id === "contentW" && !val ? t("options.valueFull") : `${val}${def.unit || ""}`;
+      const step = (dir) => {
+        const next = Math.min(def.max, Math.max(def.min, (Number(val) || 0) + dir * def.step));
+        if (next !== val) onToken(def.id, next);
+      };
+      return (
+        <div key={def.id} className="flex items-center gap-3 py-1">
+          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
+          <button type="button" aria-label={`${def.label} −`} onClick={() => step(-1)}
+            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">−</button>
+          <input type="range" min={def.min} max={def.max} step={def.step} value={val}
+            onChange={(e) => onToken(def.id, parseInt(e.target.value, 10))}
+            className="w-28 sm:w-40" aria-label={def.label} />
+          <button type="button" aria-label={`${def.label} +`} onClick={() => step(1)}
+            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">+</button>
+          <span className="text-xs text-muted-foreground tabular-nums w-12 text-right flex-shrink-0">{shown}</span>
+        </div>
+      );
+    }
+    if (def.type === "select") {
+      return (
+        <div key={def.id} className="flex items-center gap-3 py-1">
+          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
+          <div className="flex gap-1.5 flex-wrap justify-end">
+            {def.options.map((o) => (
+              <button key={o.v} type="button" onClick={() => onToken(def.id, o.v)}
+                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                  val === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                }`}>
+                {o.label}
+              </button>
+            ))}
+          </div>
+        </div>
+      );
+    }
+    if (def.type === "color") {
+      return (
+        <div key={def.id} className="flex items-center gap-3 py-1">
+          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
+          <ColorPicker value={val || "#3b82f6"} onChange={(v) => onToken(def.id, v)} />
+          <button type="button" onClick={() => onToken(def.id, "")}
+            className={`text-xs px-2.5 py-1 rounded-full border ${!val ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+            {t("options.useTheme")}
+          </button>
+        </div>
+      );
+    }
+    return null;
+  };
+
+  const Section2 = ({ id, title, children }) => {
+    const on = openSection === id;
+    return (
+      <div className="rounded-xl border border-border/50 overflow-hidden">
+        <button type="button" onClick={() => toggleSection(id)}
+          className={`w-full flex items-center justify-between px-3 py-2.5 text-left ${on ? "bg-muted/30" : ""}`}>
+          <span className="text-xs font-semibold">{title}</span>
+          <ChevronUp className="w-3.5 h-3.5 text-muted-foreground"
+            style={{ transform: on ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+        </button>
+        {on && <div className="px-3 pb-3 pt-1 space-y-1.5 border-t border-border/40">{children}</div>}
+      </div>
+    );
+  };
+
+  const LOOK_IDS = ["accent", "density", "radius", "borderW"];
+  const lookDefs = LOOK_IDS.map((id) => tokenById[id]).filter(Boolean);
+  const sizeDefs = V2_TOKEN_DEFS.filter((d) => d.group === "bars" && !LOOK_IDS.includes(d.id));
+  const appDefs = V2_TOKEN_DEFS.filter((d) => d.group === "app");
+
   const BAR_TOGGLES = [
     { id: "top", label: t("options.topBar") },
     { id: "actions", label: t("options.quickActionRow") },
@@ -206,48 +284,6 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
     { id: "wave", label: t("options.waveHeader") },
     { id: "rail", label: t("options.sideRail") },
   ];
-
-  const renderToken = (def) => {
-    const val = uiV2.tokens[def.id] ?? def.default;
-    return (
-      <div key={def.id}>
-        <label className="flex items-center justify-between text-xs font-medium mb-1">
-          <span>{def.label}</span>
-          <span className="text-muted-foreground tabular-nums">
-            {def.type === "range" ? (def.id === "contentW" && !val ? "full" : `${val}${def.unit || ""}`) : ""}
-          </span>
-        </label>
-        {def.type === "range" && (
-          <input type="range" min={def.min} max={def.max} step={def.step} value={val}
-            onChange={(e) => onToken(def.id, parseInt(e.target.value, 10))}
-            className="w-full" aria-label={def.label} />
-        )}
-        {def.type === "select" && (
-          <div className="flex gap-1.5">
-            {def.options.map((o) => (
-              <button key={o.v} type="button" onClick={() => onToken(def.id, o.v)}
-                className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                  val === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                }`}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        )}
-        {def.type === "color" && (
-          <div className="flex items-center gap-2">
-            <ColorPicker value={val || "#3b82f6"} onChange={(v) => onToken(def.id, v)} />
-            <button type="button" onClick={() => onToken(def.id, "")}
-              className={`text-xs px-2.5 py-1 rounded-full border ${!val ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
-              Use theme color
-            </button>
-          </div>
-        )}
-      </div>
-    );
-  };
-
-  const localeCodes = Object.keys(LOCALES);
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -269,53 +305,76 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
             </button>
           </div>
         </DrawerHeader>
-        {/* The sample is collapsible — it's useful while you're setting the
-            look, and in the way once you're done with it. Peeking hides it
-            outright: the point of peeking is to watch the REAL app, and a
-            sample would just take up the little room the sheet has left. */}
-        {!peek && (
-          <div className="px-4 pb-2">
-            <button type="button" onClick={() => togglePreview(!previewOpen)}
-              className="w-full flex items-center justify-between text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
-              <span>{t("options.preview")}</span>
-              <ChevronUp className="w-3.5 h-3.5"
-                style={{ transform: previewOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-            </button>
-            {previewOpen && <LivePreview uiV2={uiV2} />}
-          </div>
-        )}
-        <div className="px-4 space-y-4 overflow-y-auto overscroll-contain"
+
+        <div className="px-4 space-y-2 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
 
-          {/* Home-screen editing lives here now, like the classic UI keeps
-              it in settings — not as a pencil floating over the canvas. */}
-          <button type="button"
-            onClick={() => { onClose(); requestHomeAction(navigate, location.pathname, "edit-home"); }}
-            className="w-full flex items-center gap-2.5 h-10 px-3 rounded-lg border border-primary/50 text-primary text-sm font-medium">
-            <Pencil className="w-4 h-4" /> {t("options.editHome")}
-          </button>
+          {!peek && (
+            <button type="button"
+              onClick={() => { onClose(); requestHomeAction(navigate, location.pathname, "edit-home"); }}
+              className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl border border-primary/50 text-primary text-sm font-medium">
+              <Pencil className="w-4 h-4" /> {t("options.editHome")}
+            </button>
+          )}
 
-          <div>
-            <label className="text-xs font-medium block mb-1">{t("options.appsView")}</label>
-            <div className="flex gap-1.5">
-              {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([v, label]) => (
-                <button key={v} type="button" onClick={() => onMisc?.({ appsView: v })}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    (uiV2.appsView || "grid") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                  }`}>
-                  {label}
-                </button>
-              ))}
+          <Section2 id="showhide" title={t("options.showHide")}>
+            {BAR_TOGGLES.map((b) => (
+              <label key={b.id} className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
+                <span>{b.label}</span>
+                <input type="checkbox" checked={uiV2.bars[b.id]} onChange={(e) => onBar(b.id, e.target.checked)}
+                  className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
+              </label>
+            ))}
+            {!uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
+          </Section2>
+
+          <Section2 id="look" title={t("options.sectionLook")}>
+            {lookDefs.map(renderToken)}
+          </Section2>
+
+          <Section2 id="text" title={t("options.sectionText")}>
+            <div className="flex items-center gap-3 py-1">
+              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.textSize")}</span>
+              <button type="button" aria-label={`${t("options.textSize")} −`}
+                onClick={() => { const i = Math.max(0, fontIdx - 1); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
+                className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">−</button>
+              <input type="range" min={0} max={FONT_STEPS.length - 1} step={1} value={fontIdx}
+                onChange={(e) => { const i = parseInt(e.target.value, 10); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
+                className="w-28 sm:w-40" aria-label={t("options.textSize")} />
+              <button type="button" aria-label={`${t("options.textSize")} +`}
+                onClick={() => { const i = Math.min(FONT_STEPS.length - 1, fontIdx + 1); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
+                className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">+</button>
+              <span className="text-xs text-muted-foreground w-12 text-right flex-shrink-0">
+                {FONT_STEPS[fontIdx] === "default" ? t("options.textNormal") : FONT_STEPS[fontIdx]}
+              </span>
             </div>
-          </div>
+            {appDefs.map(renderToken)}
+          </Section2>
 
-          <div>
-            <label className="text-xs font-medium block mb-1">{t("options.appsIcon")}</label>
-            <div className="flex items-center gap-2">
-              <span className="w-9 h-9 flex items-center justify-center rounded-lg border border-border">
+          <Section2 id="sizes" title={t("options.sectionSizes")}>
+            {sizeDefs.map(renderToken)}
+          </Section2>
+
+          <Section2 id="apps" title={t("options.sectionApps")}>
+            <div className="flex items-center gap-3 py-1">
+              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.appsView")}</span>
+              <div className="flex gap-1.5">
+                {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([v, label]) => (
+                  <button key={v} type="button" onClick={() => onMisc?.({ appsView: v })}
+                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
+                      (uiV2.appsView || "grid") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                    }`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <div className="flex items-center gap-3 py-1">
+              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.appsIcon")}</span>
+              <span className="w-8 h-8 flex items-center justify-center rounded-lg border border-border">
                 {appsIconUrl
-                  ? <img src={appsIconUrl} alt="" className="w-6 h-6 object-cover rounded" />
-                  : <img src="/logo.png" alt="" className="w-6 h-6 object-contain rounded" />}
+                  ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover rounded" />
+                  : <img src="/logo.png" alt="" className="w-5 h-5 object-contain rounded" />}
               </span>
               <AssetButton onPick={(url) => onMisc?.({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
               {uiV2.appsIcon && (
@@ -325,34 +384,11 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
                 </button>
               )}
             </div>
-          </div>
+          </Section2>
 
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">{t("options.showHide")}</p>
-          {BAR_TOGGLES.map((b) => (
-            <label key={b.id} className="flex items-center justify-between gap-3 text-xs font-medium cursor-pointer">
-              <span>{b.label}</span>
-              <input type="checkbox" checked={uiV2.bars[b.id]} onChange={(e) => onBar(b.id, e.target.checked)}
-                className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
-            </label>
-          ))}
-          {!uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
-
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{t("options.appWide")}</p>
-          <div>
-            <label className="flex items-center justify-between text-xs font-medium mb-1">
-              <span>{t("options.textSize")}</span>
-              <span className="text-muted-foreground">{FONT_STEPS[fontIdx] === "default" ? t("options.textNormal") : FONT_STEPS[fontIdx]}</span>
-            </label>
-            <input type="range" min={0} max={FONT_STEPS.length - 1} step={1} value={fontIdx}
-              onChange={(e) => { const i = parseInt(e.target.value, 10); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
-              className="w-full" aria-label={t("options.textSize")} />
-          </div>
-          {/* Language — hidden until a second locale is registered, so it
-              never shows a pointless one-option control. */}
           {localeCodes.length > 1 && (
-            <div>
-              <label className="text-xs font-medium block mb-1">{t("options.language")}</label>
-              <div className="flex flex-wrap gap-1.5">
+            <Section2 id="language" title={t("options.language")}>
+              <div className="flex flex-wrap gap-1.5 py-1">
                 {localeCodes.map((code) => {
                   const cov = localeCoverage(code);
                   return (
@@ -367,28 +403,23 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
                   );
                 })}
               </div>
-            </div>
+            </Section2>
           )}
-          {V2_TOKEN_DEFS.filter((d) => d.group === "app").map(renderToken)}
 
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{t("options.bars")}</p>
-          {V2_TOKEN_DEFS.filter((d) => d.group === "bars").map(renderToken)}
+          {!peek && (
+            <Section2 id="preview" title={t("options.preview")}>
+              <LivePreview uiV2={uiV2} />
+            </Section2>
+          )}
 
-          {/* Everything the classic Appearance settings can do, in place —
-              same components, so the two can never drift apart. */}
-          <div className="pt-2 border-t border-border/50">
-            <button type="button" onClick={() => setMoreOpen((v) => !v)}
-              className="w-full flex items-center justify-between py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-              <span>{t("options.everythingElse")}</span>
-              <ChevronUp className="w-3.5 h-3.5" style={{ transform: moreOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-            </button>
-            {!moreOpen && <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.everythingElseHint")}</p>}
-            {moreOpen && (
+          <Section2 id="everything" title={t("options.everythingElse")}>
+            <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.everythingElseHint")}</p>
+            {openSection === "everything" && (
               <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">{t("common.loading")}</p>}>
                 <AdvancedAppearance />
               </React.Suspense>
             )}
-          </div>
+          </Section2>
         </div>
       </DrawerContent>
     </Drawer>
@@ -1036,6 +1067,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
             className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
             style={{ height: 18, touchAction: "none" }}
           >
+            <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
             <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
             <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
           </button>
