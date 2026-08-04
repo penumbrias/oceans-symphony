@@ -434,7 +434,17 @@ function AppTileWidget({ mode, settings }) {
   return (
     <button type="button" onClick={() => navigate(item.path)} title={label}
       className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
-      style={{ borderRadius: "var(--v2-radius)" }}>
+      style={{
+        borderRadius: "var(--v2-radius)",
+        // The tile is this widget's visible box: border / shadow / background
+        // from the widget's look wrap the icon AND the name.
+        borderWidth: "var(--v2-border-w, 0px)",
+        borderStyle: "var(--v2-border-style, solid)",
+        borderColor: "var(--v2-border-color, transparent)",
+        boxShadow: "var(--v2-shadow, none)",
+        background: "var(--v2-widget-bg, transparent)",
+        padding: "var(--v2-pad, 6px)",
+      }}>
       {iconEl}
       {display !== "plain" && mode !== "minimal" && (
         <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
@@ -1482,8 +1492,11 @@ export const V2_WIDGETS = {
   fronting_panel: {
     label: "{{Fronting}} panel", description: "The classic currently-{{fronting}} panel — per-{{alter}} feelings, symptoms and notes.",
     icon: Users, category: "system",
+    // hideStatusNote ALWAYS: the classic panel bundles the status bar for
+    // dashboard convenience, but widgets are building blocks — status entry
+    // is its own widget, so the panel carries only the fronting feature.
     render: ({ api }) => (
-      <CurrentFronters alters={api?.alters || []} hideStatusNote={api?.statusNotePlaced ?? true} />
+      <CurrentFronters alters={api?.alters || []} hideStatusNote />
     ),
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },

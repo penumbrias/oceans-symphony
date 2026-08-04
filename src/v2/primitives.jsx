@@ -27,11 +27,15 @@ export function Section({ label, action, children }) {
     // taller, not sit content-sized inside a bigger empty cell. min-h-0 so
     // the list below can scroll instead of forcing the box open.
     <section
-      className="border-border/60 h-full flex flex-col min-h-0"
+      className="h-full flex flex-col min-h-0"
       style={{
         borderWidth: "var(--v2-border-w, 1px)",
+        borderStyle: "var(--v2-border-style, solid)",
+        borderColor: "var(--v2-border-color, hsl(var(--border) / 0.6))",
         borderRadius: "var(--v2-radius, 8px)",
-        padding: "calc(var(--v2-space, 6px) * 1.5)",
+        boxShadow: "var(--v2-shadow, none)",
+        background: "var(--v2-widget-bg, transparent)",
+        padding: "var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))",
       }}
     >
       {(label || action) && (

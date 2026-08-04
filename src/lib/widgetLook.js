@@ -48,7 +48,11 @@ export function mergeLook(base = {}, override = {}) {
   return out;
 }
 
-// CSS custom properties + the few real properties that aren't tokens.
+// The look is emitted as CSS VARIABLES on the widget wrapper; the widget's
+// visible box (a v2 Section, an app tile) consumes them. Setting border /
+// shadow / background as direct properties on the wrapper was the earlier
+// mistake — the wrapper has no border of its own and sits behind the box,
+// so those settings computed fine and rendered as nothing.
 export function lookToStyle(look = {}, resolveImage = (u) => u) {
   const s = {};
   if (isSet(look.radius)) { s["--v2-radius"] = `${look.radius}px`; s["--radius"] = `${look.radius}px`; }
@@ -57,17 +61,20 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;
   if (isSet(look.textColor)) s.color = look.textColor;
-  if (isSet(look.padding)) s.padding = `${look.padding}px`;
-  if (isSet(look.bg)) s.background = look.bg;
+  if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
+  if (isSet(look.bg)) s["--v2-widget-bg"] = look.bg;
   if (isSet(look.bgImage)) {
+    // The image sits on the wrapper and shows through the box, so it can
+    // sit behind an icon AND its name (the encapsulating-frame ask).
     s.backgroundImage = `url("${resolveImage(look.bgImage)}")`;
     s.backgroundSize = look.bgSize || "cover";
     s.backgroundPosition = "center";
     s.backgroundRepeat = look.bgSize === "repeat" ? "repeat" : "no-repeat";
+    s.borderRadius = "var(--v2-radius, 8px)";
   }
-  if (isSet(look.borderColor)) s.borderColor = look.borderColor;
-  if (isSet(look.borderStyle)) s.borderStyle = look.borderStyle;
-  if (isSet(look.shadow)) s.boxShadow = SHADOW_PRESETS[look.shadow] ?? look.shadow;
+  if (isSet(look.borderColor)) s["--v2-border-color"] = look.borderColor;
+  if (isSet(look.borderStyle)) s["--v2-border-style"] = look.borderStyle;
+  if (isSet(look.shadow)) s["--v2-shadow"] = SHADOW_PRESETS[look.shadow] ?? look.shadow;
   return s;
 }
 

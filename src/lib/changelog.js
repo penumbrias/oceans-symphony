@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "August 4, 2026",
+    changes: [
+      { type: "fix", text: "🧪 New UI: per-widget borders, shadows, backgrounds and inner spacing actually render now — they were being painted onto an invisible wrapper instead of the widget's box. App shortcuts take the same frame, wrapping the icon and name together." },
+      { type: "improve", text: "🧪 New UI: display controls are woven into Appearance where they belong — spacing with the size controls, highlight colour with Theme, corner radius and border width with Corner style, bars and the apps button under Layout. No more duplicate-looking sections." },
+      { type: "fix", text: "🧪 New UI: the fronting-panel widget no longer carries the status-note bar — status entry is its own widget. Widgets are building blocks, not copies of the old dashboard." },
+    ],
+  },
+  {
     date: "August 2, 2026",
+    version: "0.111.2",
     changes: [
       { type: "improve", text: "🧪 New UI: Display options and Settings → Appearance are now ONE surface — the new-UI controls live inside Appearance, and the top-bar sheet opens that same integrated panel. No more \"everything else\" split." },
       { type: "fix", text: "🧪 New UI: Reset display options now also resets the app-wide text size — resetting actually un-does an accidental text-size change. Widget scrollbars follow the app's hidden-scrollbar style instead of the browser default." },

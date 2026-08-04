@@ -18,6 +18,7 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { resolveUiV2, V2_TOKEN_DEFS } from "@/lib/uiV2";
+import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { setAccessibilityFontSize } from "@/lib/useAccessibility";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { requestHomeAction } from "@/components/v2/V2Frame";
@@ -80,21 +81,20 @@ function TokenRow({ def, value, onChange }) {
   return null;
 }
 
-export default function V2DisplaySettings() {
-  const t = useT();
+// Shared plumbing for every piece below. Each piece renders null when the
+// new UI is off, so the classic Appearance body can mount them
+// unconditionally at the RELEVANT spots (spacing with sizes, accent with
+// theme, radius with corner style, bars with layout) instead of stacking a
+// separate "new UI" block on top.
+function useV2Display() {
   const qc = useQueryClient();
-  const navigate = useNavigate();
-  const location = useLocation();
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
   const settingsRow = settingsList[0] || null;
   const uiV2 = resolveUiV2(settingsRow?.ui_v2);
-  const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
-  const [locale, setLocaleState] = React.useState(getLocale());
-  const localeCodes = Object.keys(LOCALES);
-
+  const enabled = UI_V2_ENABLED && uiV2.enabled === true;
   const write = async (patch) => {
     try {
       if (!settingsRow?.id) return;
@@ -104,13 +104,52 @@ export default function V2DisplaySettings() {
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch { /* best-effort live */ }
   };
-  const setToken = (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } });
-  const setBar = (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } });
+  return {
+    enabled, uiV2, write,
+    setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
+    setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
+  };
+}
 
-  const tokenById = Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d]));
-  const lookDefs = LOOK_IDS.map((id) => tokenById[id]).filter(Boolean);
+const tokenById = Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d]));
+const row = (v2, id) => {
+  const def = tokenById[id];
+  return def ? (
+    <TokenRow key={id} def={def} value={v2.uiV2.tokens[id] ?? def.default} onChange={(v) => v2.setToken(id, v)} />
+  ) : null;
+};
+
+// With UI size / Advanced: the spacing scale.
+export function V2SpacingRow() {
+  const v2 = useV2Display();
+  if (!v2.enabled) return null;
+  return row(v2, "density");
+}
+
+// With Theme: the highlight colour.
+export function V2AccentRow() {
+  const v2 = useV2Display();
+  if (!v2.enabled) return null;
+  return row(v2, "accent");
+}
+
+// With Corner style: radius + border width.
+export function V2ShapeRows() {
+  const v2 = useV2Display();
+  if (!v2.enabled) return null;
+  return <div className="space-y-1">{row(v2, "radius")}{row(v2, "borderW")}</div>;
+}
+
+// With Layout: edit-home, bar visibility, bar sizes, apps button, reset.
+export function V2LayoutControls() {
+  const t = useT();
+  const navigate = useNavigate();
+  const location = useLocation();
+  const v2 = useV2Display();
+  const appsIconUrl = useResolvedAvatarUrl(v2.uiV2.appsIcon || "");
+  if (!v2.enabled) return null;
+
   const sizeDefs = V2_TOKEN_DEFS.filter((d) => !LOOK_IDS.includes(d.id));
-
   const BAR_TOGGLES = [
     { id: "top", label: t("options.topBar") },
     { id: "actions", label: t("options.quickActionRow") },
@@ -132,26 +171,18 @@ export default function V2DisplaySettings() {
           {BAR_TOGGLES.map((b) => (
             <label key={b.id} className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
               <span>{b.label}</span>
-              <input type="checkbox" checked={uiV2.bars[b.id]} onChange={(e) => setBar(b.id, e.target.checked)}
+              <input type="checkbox" checked={v2.uiV2.bars[b.id]} onChange={(e) => v2.setBar(b.id, e.target.checked)}
                 className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
             </label>
           ))}
-          {!uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
-        </div>
-      </SubSection>
-
-      <SubSection title={t("options.sectionLook")}>
-        <div className="space-y-1">
-          {lookDefs.map((d) => (
-            <TokenRow key={d.id} def={d} value={uiV2.tokens[d.id] ?? d.default} onChange={(v) => setToken(d.id, v)} />
-          ))}
+          {!v2.uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
         </div>
       </SubSection>
 
       <SubSection title={t("options.sectionSizes")}>
         <div className="space-y-1">
           {sizeDefs.map((d) => (
-            <TokenRow key={d.id} def={d} value={uiV2.tokens[d.id] ?? d.default} onChange={(v) => setToken(d.id, v)} />
+            <TokenRow key={d.id} def={d} value={v2.uiV2.tokens[d.id] ?? d.default} onChange={(val) => v2.setToken(d.id, val)} />
           ))}
         </div>
       </SubSection>
@@ -161,10 +192,10 @@ export default function V2DisplaySettings() {
           <div className="flex items-center gap-2.5 py-1">
             <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.appsView")}</span>
             <div className="flex gap-1.5">
-              {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([v, label]) => (
-                <button key={v} type="button" onClick={() => write({ appsView: v })}
+              {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([val, label]) => (
+                <button key={val} type="button" onClick={() => v2.write({ appsView: val })}
                   className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                    (uiV2.appsView || "grid") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                    (v2.uiV2.appsView || "grid") === val ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
                   }`}>
                   {label}
                 </button>
@@ -178,9 +209,9 @@ export default function V2DisplaySettings() {
                 ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover rounded" />
                 : <img src="/logo.png" alt="" className="w-5 h-5 object-contain rounded" />}
             </span>
-            <AssetButton onPick={(url) => write({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
-            {uiV2.appsIcon && (
-              <button type="button" onClick={() => write({ appsIcon: "" })}
+            <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
+            {v2.uiV2.appsIcon && (
+              <button type="button" onClick={() => v2.write({ appsIcon: "" })}
                 className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground">
                 {t("options.appsIconReset")}
               </button>
@@ -188,26 +219,6 @@ export default function V2DisplaySettings() {
           </div>
         </div>
       </SubSection>
-
-      {localeCodes.length > 1 && (
-        <SubSection title={t("options.language")}>
-          <div className="flex flex-wrap gap-1.5 py-1">
-            {localeCodes.map((code) => {
-              const cov = localeCoverage(code);
-              return (
-                <button key={code} type="button"
-                  onClick={() => { setLocale(code); setLocaleState(code); }}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    locale === code ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                  }`}>
-                  {LOCALES[code].name}
-                  {cov.pct < 100 && <span className="opacity-60"> · {cov.pct}%</span>}
-                </button>
-              );
-            })}
-          </div>
-        </SubSection>
-      )}
 
       <button type="button"
         onClick={async () => {
@@ -218,15 +229,40 @@ export default function V2DisplaySettings() {
             destructive: true,
           });
           if (!ok) return;
-          // Everything this panel (and the sheet that embeds it) controls,
-          // INCLUDING the app-wide text size — "everything is still massive"
-          // after a reset is a reset that lied.
           setAccessibilityFontSize("default");
-          write({ tokens: {}, bars: {}, dockPos: null, appsIcon: "", appsView: "grid" });
+          v2.write({ tokens: {}, bars: {}, dockPos: null, appsIcon: "", appsView: "grid" });
         }}
         className="w-full h-10 rounded-xl border border-border/60 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/40">
         {t("options.reset")}
       </button>
     </div>
+  );
+}
+
+// Language picker — only when a second locale is registered.
+export function V2LanguageSection() {
+  const t = useT();
+  const v2 = useV2Display();
+  const [locale, setLocaleState] = React.useState(getLocale());
+  const localeCodes = Object.keys(LOCALES);
+  if (!v2.enabled || localeCodes.length < 2) return null;
+  return (
+    <SubSection title={t("options.language")}>
+      <div className="flex flex-wrap gap-1.5 py-1">
+        {localeCodes.map((code) => {
+          const cov = localeCoverage(code);
+          return (
+            <button key={code} type="button"
+              onClick={() => { setLocale(code); setLocaleState(code); }}
+              className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                locale === code ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+              }`}>
+              {LOCALES[code].name}
+              {cov.pct < 100 && <span className="opacity-60"> · {cov.pct}%</span>}
+            </button>
+          );
+        })}
+      </div>
+    </SubSection>
   );
 }

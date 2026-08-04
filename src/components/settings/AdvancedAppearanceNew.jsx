@@ -26,8 +26,7 @@ import DashboardLayoutSettings from './DashboardLayoutSettings';
 import NavigationSettings from './NavigationSettings';
 import UpcomingPlansSurfacesSection from './UpcomingPlansSurfacesSection';
 import { isNative } from '@/lib/platform';
-import { UI_V2_ENABLED } from '@/lib/featureFlags';
-import V2DisplaySettings from '@/components/settings/V2DisplaySettings';
+import { V2SpacingRow, V2AccentRow, V2ShapeRows, V2LayoutControls, V2LanguageSection } from '@/components/settings/V2DisplaySettings';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
@@ -811,17 +810,14 @@ export default function AdvancedAppearance() {
   return (
     <div className="space-y-5">
       {/* 1. UI SIZE — directly on the card. */}
-      {/* New-UI display controls live HERE, as ordinary Appearance
-          sections — one settings surface. The v2 top-bar sheet embeds this
-          whole body, so both routes see the same integrated controls. */}
-      {UI_V2_ENABLED && systemSettings?.ui_v2?.enabled === true && <V2DisplaySettings />}
-
       <UiSizeControl />
 
       {/* 2. ADVANCED — touch target + nav height sliders. */}
       <SubSection title="Advanced" defaultOpen={false}>
         <TouchTargetControl />
         <NavHeightControl />
+        {/* New-UI spacing scale — a sizing control, so it lives with them. */}
+        <V2SpacingRow />
       </SubSection>
 
       {/* 3. FONTS — directly on the card. Body font with the
@@ -924,6 +920,8 @@ export default function AdvancedAppearance() {
 
       {/* 4. THEME — expandable, with the light/dark cycle chip in its header. */}
       <SubSection title="Theme" defaultOpen={false} right={<ThemeModeChip />}>
+        {/* New-UI highlight colour — a colour, so it lives with the theme. */}
+        <V2AccentRow />
         {/* a. Built-in preset swatch dropdown. */}
         <BuiltInPresetDropdown
           presets={presets}
@@ -977,6 +975,8 @@ export default function AdvancedAppearance() {
       <div className="space-y-2">
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Corner style</p>
         <CornerStyleSettings embedded />
+        {/* New-UI corner radius + border width — shape, so it lives here. */}
+        <V2ShapeRows />
       </div>
 
       {/* 6. PRESETS — save (granular), your presets, fronter themes. */}
@@ -1170,6 +1170,9 @@ export default function AdvancedAppearance() {
       {/* 7. LAYOUT — one expandable card holding Dashboard, the bottom bar,
               and Upcoming plans surfaces. */}
       <SubSection title="Layout" defaultOpen={false}>
+        {/* New-UI bars, sizes, apps button and reset — layout, so it lives
+            here with the navigation config. */}
+        <V2LayoutControls />
         <SubSection title="Dashboard" defaultOpen={false}>
           <DashboardLayoutSettings />
         </SubSection>
@@ -1180,6 +1183,8 @@ export default function AdvancedAppearance() {
           <UpcomingPlansSurfacesSection />
         </SubSection>
       </SubSection>
+
+      <V2LanguageSection />
 
       {/* ── Color editor modal ────────────────────────────────── */}
       {editingColor && (
