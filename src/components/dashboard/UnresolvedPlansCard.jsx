@@ -2,6 +2,8 @@ import React, { useMemo, useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import { syncActivityResolved } from "@/lib/linkedCompletion";
+import { appendRescheduleEntry } from "@/lib/activityStatus";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { format } from "date-fns";
@@ -12,7 +14,7 @@ import {
   isPastTimeScheduled,
 } from "@/lib/activityStatus";
 import { addActiveActivity, getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
-import { cancelPlanReminder } from "@/lib/planReminderScheduler";
+import { cancelPlanReminder, schedulePlanReminder } from "@/lib/planReminderScheduler";
 
 // Dashboard surface that lists past-time scheduled plans the user hasn't
 // resolved yet. One-tap buttons send the lifecycle update directly so
@@ -102,6 +104,48 @@ export default function UnresolvedPlansCard() {
   if (!nagEnabled) return null;
   if (unresolved.length === 0) return null;
 
+  // Bullet-journal migration: push one plan (or all of them) forward instead
+  // of forcing a verdict. Same time of day, next day forward of now; the move
+  // is APPENDED to reschedule_history — never rewritten (data invariant).
+  const rescheduleTo = async (act, toDate) => {
+    setBusyId(act.id);
+    try {
+      const toIso = toDate.toISOString();
+      await base44.entities.Activity.update(act.id, {
+        timestamp: toIso,
+        status: "scheduled",
+        reschedule_history: appendRescheduleEntry(act.reschedule_history, act.timestamp, toIso),
+      });
+      try { await cancelPlanReminder(act.id); await schedulePlanReminder({ ...act, timestamp: toIso }); } catch { /* non-fatal */ }
+      // Owner-approved: carrying a plan bumps its linked to-do's due date too.
+      if (act.task_id) {
+        try { await base44.entities.Task.update(act.task_id, { due_date: toIso }); } catch { /* best-effort */ }
+      }
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      toast.success("Moved to tomorrow");
+    } catch (err) {
+      toast.error(err?.message || "Couldn't reschedule");
+    } finally {
+      setBusyId(null);
+    }
+  };
+  const tomorrowSameTime = (act) => {
+    const d = new Date(act.timestamp);
+    const t = new Date();
+    t.setDate(t.getDate() + 1);
+    t.setHours(d.getHours(), d.getMinutes(), 0, 0);
+    return t;
+  };
+  const rescheduleTomorrow = (act) => rescheduleTo(act, tomorrowSameTime(act));
+  const carryOverAll = async (acts) => {
+    for (const act of acts) {
+      // Sequential on purpose: each write appends history; racing them
+      // against the same list invites lost updates.
+      await rescheduleTo(act, tomorrowSameTime(act)); // eslint-disable-line no-await-in-loop
+    }
+  };
+
   const resolve = async (act, status, extra = {}) => {
     setBusyId(act.id);
     try {
@@ -109,8 +153,10 @@ export default function UnresolvedPlansCard() {
         status,
         ...extra,
       });
+      await syncActivityResolved(act, status);
       toast.success(`Marked ${status}`);
       qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
     } catch (err) {
       toast.error(err?.message || "Couldn't update plan");
     } finally {
@@ -159,6 +205,14 @@ export default function UnresolvedPlansCard() {
         <span className="text-xs text-muted-foreground">
           ({unresolved.length})
         </span>
+        {unresolved.length > 1 && (
+          <button type="button"
+            onClick={() => carryOverAll(unresolved)}
+            className="ml-auto text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
+            title="Move every unresolved plan to tomorrow at its own time">
+            Carry all to tomorrow
+          </button>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -168,6 +222,7 @@ export default function UnresolvedPlansCard() {
             act={act}
             busy={busyId === act.id}
             onResolve={resolve}
+            onReschedule={rescheduleTomorrow}
             onStart={() => startActive(act)}
             onOpen={() => navigate(`/activities?activityId=${act.id}`)}
           />
@@ -192,7 +247,7 @@ export default function UnresolvedPlansCard() {
 // CriticalPlanCard). Single tap is a no-op so the lifecycle buttons
 // stay the primary one-shot affordance — accidentally tapping the row
 // shouldn't yank the user off the dashboard.
-function UnresolvedPlanRow({ act, busy, onResolve, onStart, onOpen }) {
+function UnresolvedPlanRow({ act, busy, onResolve, onReschedule, onStart, onOpen }) {
   const lastTapRef = useRef(0);
   const handleRowTap = () => {
     const now = Date.now();
@@ -249,6 +304,15 @@ function UnresolvedPlanRow({ act, busy, onResolve, onStart, onOpen }) {
           className="h-7 text-xs px-2"
         >
           Partial
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          disabled={busy}
+          onClick={(e) => { e.stopPropagation(); onReschedule(act); }}
+          className="h-7 text-xs px-2"
+        >
+          Tomorrow
         </Button>
         <Button
           size="sm"

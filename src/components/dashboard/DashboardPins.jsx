@@ -4,6 +4,7 @@ import { Pin, Zap, Flag, Clock, CheckCircle2, Circle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { base44 } from "@/api/base44Client";
+import { syncTaskCompleted } from "@/lib/linkedCompletion";
 import BulletinCard from "@/components/bulletin/BulletinCard";
 import TaskBulletinCard from "@/components/bulletin/TaskBulletinCard";
 import TaskQuickActionsSheet from "@/components/tasks/TaskQuickActionsSheet";
@@ -132,7 +133,9 @@ function PinnedTaskRow({ task }) {
         completed: !task.completed,
         completed_date: !task.completed ? new Date().toISOString() : null,
       });
+      if (!task.completed) await syncTaskCompleted(task.id);
       qc.invalidateQueries({ queryKey: ["tasks"] });
+      qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["pinnedTasks"] });
     } catch (err) {
       toast.error(err?.message || "Failed to update task");

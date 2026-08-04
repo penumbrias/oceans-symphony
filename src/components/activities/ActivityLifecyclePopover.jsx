@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { syncActivityResolved } from "@/lib/linkedCompletion";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -163,6 +164,8 @@ export default function ActivityLifecyclePopover({
     setSaving(true);
     try {
       await base44.entities.Activity.update(activity.id, patch);
+      // Resolving done/partial completes the linked to-do (Phase 1 sync).
+      if (patch.status) await syncActivityResolved(activity, patch.status);
       // Reminder hygiene: resolving a plan cancels its pending OS
       // notification; restoring it to SCHEDULED re-schedules one.
       // Rescheduling is handled separately in the reschedule path.

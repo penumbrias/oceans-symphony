@@ -1,5 +1,6 @@
 import React, { useState, useRef } from "react";
 import { base44 } from "@/api/base44Client";
+import { syncTaskCompleted } from "@/lib/linkedCompletion";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { CheckSquare, Square, Loader2, Trash2, Pin, MessageCircle, ChevronDown, ChevronUp } from "lucide-react";
 import { formatDistanceToNow, format } from "date-fns";
@@ -64,7 +65,9 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
       completed: newCompleted,
       completed_date: newCompleted ? new Date().toISOString() : null,
     });
+    if (newCompleted) await syncTaskCompleted(parsed.taskId);
     qc.invalidateQueries({ queryKey: ["bulletins"] });
+    qc.invalidateQueries({ queryKey: ["activities"] });
     qc.invalidateQueries({ queryKey: ["tasks"] });
     setToggling(false);
   };
