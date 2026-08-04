@@ -4,17 +4,26 @@ import { Button } from "@/components/ui/button";
 
 const SIZES = { small: 120, large: 220 };
 
-export default function BreathingExercise({ patternName = "Box breathing", onStop, onComplete }) {
+// embedded: the widget form — no setup screen, no rounds, no completion
+// screen; just the guided animation, looping until stopped, scaled to
+// `maxSize`. The classic page/modal flow is untouched when embedded=false.
+export default function BreathingExercise({
+  patternName = "Box breathing", onStop, onComplete,
+  embedded = false, autoStart = false, loop = false, maxSize = 240,
+}) {
   const pattern = BREATHING_PATTERNS[patternName] || BREATHING_PATTERNS["Box breathing"];
+  const sizes = embedded
+    ? { small: Math.round(maxSize * 0.5), large: Math.round(maxSize * 0.92) }
+    : SIZES;
   const [totalRounds, setTotalRounds] = useState(5);
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] = useState(autoStart);
   const [paused, setPaused] = useState(false);
   const [completed, setCompleted] = useState(false);
 
   const [round, setRound] = useState(1);
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [countdown, setCountdown] = useState(pattern.phases[0].seconds);
-  const [circleSize, setCircleSize] = useState(SIZES.small);
+  const [circleSize, setCircleSize] = useState(sizes.small);
 
   const timerRef = useRef(null);
   const pausedRef = useRef(false);
@@ -26,8 +35,8 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
   const isHold = phaseType.includes("hold");
 
   const getTargetSize = useCallback(() => {
-    if (isInhale) return SIZES.large;
-    if (isExhale) return SIZES.small;
+    if (isInhale) return sizes.large;
+    if (isExhale) return sizes.small;
     return circleSize; // hold — stay at current size
   }, [isInhale, isExhale, circleSize]);
 
@@ -40,7 +49,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
       if (nextIdx === 0) {
         // completed a full round
         setRound(r => {
-          if (r >= totalRounds) {
+          if (!loop && r >= totalRounds) {
             setCompleted(true);
             return r;
           }
@@ -49,7 +58,7 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
       }
       return nextIdx;
     });
-  }, [pattern.phases, totalRounds]);
+  }, [pattern.phases, totalRounds, loop]);
 
   useEffect(() => {
     if (!started || paused || completed) return;
@@ -85,6 +94,19 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
       onComplete?.();
     }
   }, [completed]);
+
+  if (!started && embedded) {
+    return (
+      <button type="button"
+        onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }}
+        className="relative flex items-center justify-center mx-auto"
+        style={{ width: maxSize, height: maxSize }}
+        aria-label={`Start ${patternName}`}>
+        <span className="rounded-full absolute bg-primary" style={{ width: sizes.small, height: sizes.small, opacity: 0.35 }} />
+        <span className="relative z-10 text-sm font-medium text-foreground">Start</span>
+      </button>
+    );
+  }
 
   if (!started) {
     return (
@@ -141,6 +163,32 @@ export default function BreathingExercise({ patternName = "Box breathing", onSto
   }
 
   const transitionDuration = (isInhale || isExhale) ? currentPhase.seconds : 0.5;
+
+  if (embedded) {
+    return (
+      <div className="flex flex-col items-center gap-1.5">
+        <button type="button" onClick={onStop}
+          aria-label="Stop breathing exercise"
+          className="relative flex items-center justify-center"
+          style={{ width: maxSize, height: maxSize }}>
+          <span
+            className="rounded-full absolute bg-primary flex items-center justify-center"
+            style={{
+              opacity: isHold ? 0.7 : 0.85,
+              width: circleSize,
+              height: circleSize,
+              transition: `width ${transitionDuration}s ease-in-out, height ${transitionDuration}s ease-in-out, opacity 0.5s ease`,
+            }}
+          >
+            <span style={{ color: "white", fontSize: Math.max(16, Math.round(maxSize / 8)), fontWeight: "bold" }}>
+              {countdown}
+            </span>
+          </span>
+        </button>
+        <p className="text-xs font-medium text-foreground">{currentPhase.label}</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col items-center gap-6 py-4">

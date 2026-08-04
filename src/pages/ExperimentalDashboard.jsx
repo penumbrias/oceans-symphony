@@ -267,7 +267,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         )}
         {/* While editing, the widget's own controls are inert — a hold to
             move should never also start an activity or save a status. */}
-        <div style={editMode ? { pointerEvents: "none" } : undefined}>
+        <div style={{ height: "100%", minHeight: 0, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,

@@ -998,34 +998,68 @@ function SleepControlWidget() {
 }
 
 // ── Breathing ──────────────────────────────────────────────────────
-// The real guided animation, inline. settings.autoRun starts it on sight;
-// otherwise a start button, so a page can carry it without motion.
-function BreathingWidget({ settings }) {
+// The guided breathing display itself, scaled to whatever size the widget
+// is. autoRun loops it whenever it's on screen; otherwise the circle is a
+// start/stop button. Minimal = animation only (technique set in the
+// widget's options); normal adds technique chips; expanded adds the
+// pattern's timing line.
+function BreathingWidget({ settings, updateSettings, mode }) {
   const tr = useT();
+  const boxRef = React.useRef(null);
+  const [box, setBox] = React.useState({ w: 200, h: 200 });
   const [running, setRunning] = React.useState(!!settings?.autoRun);
+  React.useEffect(() => { setRunning(!!settings?.autoRun); }, [settings?.autoRun]);
+  React.useEffect(() => {
+    const node = boxRef.current;
+    if (!node) return undefined;
+    const measure = () => {
+      const r = node.getBoundingClientRect();
+      if (r.width && r.height) setBox({ w: r.width, h: r.height });
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+
   const pattern = BREATHING_PATTERNS[settings?.pattern] ? settings.pattern : "Box breathing";
+  const showChips = mode !== "minimal";
+  const chrome = (showChips ? 40 : 0) + (mode === "expanded" ? 20 : 0) + 22;
+  // Fit the circle to the SMALLER axis so resizing in either direction
+  // actually resizes the animation instead of cropping it.
+  const maxSize = Math.max(72, Math.min(box.w - 8, box.h - chrome, 260));
+
   return (
-    <Section label={tr("widget.breathe.label")}>
-      {running ? (
-        <div className="flex justify-center">
-          <BreathingExercise
-            patternName={pattern}
-            onStop={() => setRunning(!!settings?.autoRun)}
-            onComplete={() => { try { markGroundingTechniqueUsedToday(); } catch { /* marker only */ } }}
-          />
+    <div ref={boxRef} className="h-full min-h-0 flex flex-col items-center justify-center gap-1.5">
+      <BreathingExercise
+        key={`${pattern}_${maxSize}_${running}`}
+        embedded
+        loop
+        autoStart={running}
+        maxSize={maxSize}
+        patternName={pattern}
+        onStop={() => {
+          try { markGroundingTechniqueUsedToday(); } catch { /* marker only */ }
+          if (!settings?.autoRun) setRunning(false);
+        }}
+      />
+      {showChips && (
+        <div className="flex flex-wrap justify-center gap-1">
+          {Object.keys(BREATHING_PATTERNS).map((name) => (
+            <button key={name} type="button" onClick={() => updateSettings?.({ pattern: name })}
+              className={`text-[0.625rem] px-2 py-0.5 border ${
+                pattern === name ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+              }`}
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+              {name}
+            </button>
+          ))}
         </div>
-      ) : (
-        <button type="button" onClick={() => setRunning(true)}
-          className="w-full h-10 text-sm font-medium border flex items-center justify-center gap-2"
-          style={{
-            borderRadius: "var(--v2-radius, 8px)",
-            borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
-            color: "var(--v2-accent)",
-          }}>
-          <Wind className="w-4 h-4" /> {tr("widget.breathe.start")}
-        </button>
       )}
-    </Section>
+      {mode === "expanded" && (
+        <p className="text-[0.625rem] text-muted-foreground">{BREATHING_PATTERNS[pattern].pattern}</p>
+      )}
+    </div>
   );
 }
 
@@ -1518,12 +1552,13 @@ export const V2_WIDGETS = {
   breathing: {
     label: "Breathing", description: "The guided breathing animation, right on the page.",
     icon: Wind, category: "support",
-    render: ({ settings }) => <BreathingWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: ({ settings, updateSettings, mode }) =>
+      <BreathingWidget settings={settings} updateSettings={updateSettings} mode={mode} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
-      { key: "pattern", type: "select", label: "Pattern", default: "Box breathing",
+      { key: "pattern", type: "select", label: "Technique", default: "Box breathing",
         options: Object.keys(BREATHING_PATTERNS).map((k) => ({ value: k, label: k })) },
-      { key: "autoRun", type: "toggle", label: "Run whenever visible", default: false },
+      { key: "autoRun", type: "toggle", label: "Always running (no start button)", default: false },
     ],
     defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
