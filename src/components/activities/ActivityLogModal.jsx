@@ -84,6 +84,9 @@ export default function ActivityLogModal({
   alters,
   frontingHistory = [],
   onSave,
+  // Open directly in Active ("start now") mode — the quick-action Start
+  // Activity path. One modal, both directions of its own toggle.
+  initialActive = false,
 }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
@@ -114,7 +117,7 @@ export default function ActivityLogModal({
   const [fronterPickerOpen, setFronterPickerOpen] = useState(false);
   // "Active" mode = start an in-progress activity now and end/log it later
   // (an easier entry point — the saved record is identical to a normal log).
-  const [activeMode, setActiveMode] = useState(false);
+  const [activeMode, setActiveMode] = useState(initialActive);
 
   // v0.89.1 layout revamp: optional DETAILS fields hide behind "+ chips"
   // (plan-modal pattern) and auto-expand whenever they hold a value — so
@@ -134,6 +137,7 @@ export default function ActivityLogModal({
   // call setState during render, never key off Date objects directly.
   useEffect(() => {
     if (!isOpen) return;
+    setActiveMode(initialActive);
     const seedDate = startDateProp || new Date();
     const nearNow = (d) => Math.abs(Date.now() - d.getTime()) < 15 * 60000;
     if (startHour !== undefined) {
@@ -414,7 +418,7 @@ export default function ActivityLogModal({
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
-            Log Activity
+            {activeMode ? "Start Activity" : "Log Activity"}
             {startDate && (
               <div className="text-sm font-normal text-muted-foreground mt-1">
                 {format(startDate, "MMM d, yyyy")}

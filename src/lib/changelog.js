@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "The quick-action \"Start Activity\" and \"Log Activity\" are one modal now — the Active/Log toggle flips modes in place instead of swapping you into a different-looking popup, and the title follows the mode." },
       { type: "improve", text: "🧪 New UI: the top-bar settings button is now the same page-aware menu as the classic UI — \"Edit home screen\" and \"Display options\" are one tap away from any page, with \"All settings\" underneath." },
       { type: "feature", text: "Breathing exercises can be slowed down (or sped up) with a new Pace setting — Quicker to Very slow — in the breathing widget's options. The counts stay the same; they just elapse at your pace." },
       { type: "improve", text: "🧪 New UI: in-widget pickers (breathing technique, journal switchers, the board picker) are proper searchable selects instead of rows of pills — usable no matter how many options a large system accumulates." },
