@@ -10,7 +10,7 @@ import RatingRow from "@/components/diary/RatingRow";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
-import { getTodayString, applyTerms } from "@/lib/dailyTaskSystem";
+import { getTodayString, applyTerms, toggleDailyProgressTasks } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { contactDisplayName } from "@/lib/contacts";
@@ -417,15 +417,15 @@ function DailyTaskRow({ action }) {
         : old
     );
 
-    // Stamp/clear the completion time so the task lists individually on the Timeline.
-    const completion_times = { ...((currentRecord && currentRecord.completion_times) || {}) };
-    if (nowCompleted) completion_times[task_id] = new Date().toISOString();
-    else delete completion_times[task_id];
-    if (currentRecord) {
-      await base44.entities.DailyProgress.update(currentRecord.id, { completed_task_ids: [...newCompleted], completion_times, xp_earned: newXP });
-    } else {
-      await base44.entities.DailyProgress.create({ date: TODAY, period_key: TODAY, frequency: "daily", completed_task_ids: [...newCompleted], completion_times, xp_earned: newXP });
-    }
+    // Shared writer: refetch-before-write + XP recomputed from the final
+    // set (the old add/subtract here is exactly how XP drifted).
+    await toggleDailyProgressTasks({
+      periodKey: TODAY,
+      frequency: "daily",
+      setIds: nowCompleted ? [task_id] : [],
+      clearIds: nowCompleted ? [] : [task_id],
+      templates: (templates || []).filter((t) => t.is_active && (t.frequency || "daily") === "daily"),
+    });
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
     if (nowCompleted && template.points > 0) toast.success(`+${template.points} XP — ${applyTerms(template.title, terms)} done! 🎉`);
   };

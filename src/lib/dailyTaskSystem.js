@@ -508,3 +508,61 @@ export function hasStreakMilestoneHitToday() {
     return parsed?.date === getTodayString();
   } catch { return false; }
 }
+
+// ── One DailyProgress writer (consolidation Phase 5) ───────────────
+// Four surfaces used to hand-roll this read-merge-write (DailyTasks,
+// PinnedDailyTasksWidget, QuickActionsMenu, useDailyCheckInOnOpen), each
+// with its own XP arithmetic — including one that could quietly shrink XP
+// by recomputing over a template subset, and one that could inflate it by
+// only ever adding. This is now the ONLY writer:
+//
+//   • Refetch-before-write (CLAUDE.md canonical pattern) so a stale cached
+//     row never drives the update or duplicates the record.
+//   • XP is RECOMPUTED from the final completed set via pointsFor — pass
+//     the FULL template list for that frequency (all modes). Recompute is
+//     idempotent; incremental add/subtract is how drift happened.
+//   • completion_times: stamped for newly-set ids when stampTimes is true,
+//     always cleared for cleared ids.
+export async function toggleDailyProgressTasks({
+  periodKey,
+  dateKey = periodKey,
+  frequency = "daily",
+  setIds = [],
+  clearIds = [],
+  templates = [],
+  stampTimes = true,
+}) {
+  const { base44 } = await import("@/api/base44Client");
+  const fresh = await base44.entities.DailyProgress.list().catch(() => []);
+  const record = (fresh || []).find((p) =>
+    ((p.frequency || "daily") === frequency) &&
+    (p.period_key === periodKey || (frequency === "daily" && p.date === dateKey))
+  );
+
+  const ids = new Set(record?.completed_task_ids || []);
+  for (const id of setIds) ids.add(id);
+  for (const id of clearIds) ids.delete(id);
+  const newIds = [...ids];
+
+  const pointsFor = (id) => templates.find((t) => t.id === id)?.points || 0;
+  const xp_earned = newIds.reduce((sum, id) => sum + pointsFor(id), 0);
+
+  const completion_times = { ...(record?.completion_times || {}) };
+  const nowIso = new Date().toISOString();
+  for (const id of setIds) {
+    if (stampTimes && !completion_times[id]) completion_times[id] = nowIso;
+  }
+  for (const id of clearIds) delete completion_times[id];
+
+  if (record) {
+    await base44.entities.DailyProgress.update(record.id, {
+      completed_task_ids: newIds, completion_times, xp_earned,
+    });
+    return { recordId: record.id, ids: newIds };
+  }
+  const created = await base44.entities.DailyProgress.create({
+    date: dateKey, period_key: periodKey, frequency,
+    completed_task_ids: newIds, completion_times, xp_earned,
+  });
+  return { recordId: created.id, ids: newIds };
+}

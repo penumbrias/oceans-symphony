@@ -26,6 +26,7 @@ import {
   hasStreakMilestoneHitToday,
   markStreakMilestoneHitToday,
   isAutoTriggered,
+  toggleDailyProgressTasks,
 } from "@/lib/dailyTaskSystem";
 import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { startOfWeek, format } from "date-fns";
@@ -591,45 +592,19 @@ export default function DailyTasks() {
   }, [streak]);
 
   const toggleHistoryTask = async (taskId, periodKey, currentDone) => {
-    // Refetch DailyProgress fresh before deciding update vs create.
-    // The hold-to-change has a 1-second hold window during which the
-    // query cache may have refetched. Using the render-captured
-    // `allProgress` would let a stale snapshot drive the update — landing
-    // on an old record id or duplicating a freshly-created row. Matches
-    // the canonical refetch-before-write pattern from CLAUDE.md.
-    const fresh = await base44.entities.DailyProgress.list();
-    const record = fresh.find(p =>
-      (p.frequency === activeFreq || (!p.frequency && activeFreq === "daily")) &&
-      (p.period_key === periodKey || (activeFreq === "daily" && p.date === periodKey))
-    );
-    const existing = new Set(record?.completed_task_ids || []);
-    currentDone ? existing.delete(taskId) : existing.add(taskId);
-    const newIds = [...existing];
-    const newXP = templates.filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
-      .reduce((sum, t) => existing.has(t.id) ? sum + (t.points || 0) : sum, 0);
-    // Per-task checkoff time so each completion lands individually on the
-    // Timeline. Only stamp for today's daily record: a real wall-clock time on
-    // a past-day record would fall outside that day's window and vanish from
-    // the view, so retroactive toggles stay untimed (they collapse into one
-    // day marker, which is the honest fallback when we don't know the time).
-    const completion_times = { ...(record?.completion_times || {}) };
-    if (currentDone) delete completion_times[taskId];
-    else if (activeFreq === "daily" && periodKey === TODAY) completion_times[taskId] = new Date().toISOString();
-    if (record) {
-      queryClient.setQueryData(["dailyProgress"], old =>
-        Array.isArray(old) ? old.map(p => p.id === record.id ? { ...p, completed_task_ids: newIds, completion_times, xp_earned: newXP } : p) : old
-      );
-      await base44.entities.DailyProgress.update(record.id, { completed_task_ids: newIds, completion_times, xp_earned: newXP });
-    } else {
-      await base44.entities.DailyProgress.create({
-        date: periodKey,
-        period_key: periodKey,
-        frequency: activeFreq,
-        completed_task_ids: newIds,
-        completion_times,
-        xp_earned: newXP,
-      });
-    }
+    // One shared writer (dailyTaskSystem.toggleDailyProgressTasks) does the
+    // refetch-before-write, XP recompute and time-stamping for every
+    // surface — this page only decides WHAT to toggle.
+    await toggleDailyProgressTasks({
+      periodKey,
+      frequency: activeFreq,
+      setIds: currentDone ? [] : [taskId],
+      clearIds: currentDone ? [taskId] : [],
+      templates: templates.filter(t => t.is_active && (t.frequency || "daily") === activeFreq),
+      // Retroactive toggles stay untimed — a wall-clock stamp on a past-day
+      // record falls outside that day's Timeline window.
+      stampTimes: activeFreq === "daily" && periodKey === TODAY,
+    });
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 
@@ -702,22 +677,17 @@ export default function DailyTasks() {
       }
     }
 
-    if (currentRecord) {
-      await base44.entities.DailyProgress.update(currentRecord.id, {
-        completed_task_ids: allCompleted,
-        completion_times,
-        xp_earned: newXP,
-      });
-    } else {
-      await base44.entities.DailyProgress.create({
-        date: TODAY,
-        period_key: currentPeriodKey,
-        frequency: activeFreq,
-        completed_task_ids: allCompleted,
-        completion_times,
-        xp_earned: newXP,
-      });
-    }
+    // Persistence goes through the ONE shared writer (refetch-before-write,
+    // XP recomputed from the final set). The optimistic cache update above
+    // keeps the tap feeling instant; the writer is the source of truth.
+    await toggleDailyProgressTasks({
+      periodKey: currentPeriodKey,
+      dateKey: TODAY,
+      frequency: activeFreq,
+      setIds: nowCompleted ? [templateId, ...autoCompletedIds] : [...autoCompletedIds],
+      clearIds: nowCompleted ? [] : [templateId],
+      templates: activeTasks,
+    });
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 

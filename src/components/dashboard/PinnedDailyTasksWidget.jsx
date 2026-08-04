@@ -17,6 +17,7 @@ import {
   getPeriodKey,
   getTodayString,
   FREQUENCY_LABELS,
+  toggleDailyProgressTasks,
 } from "@/lib/dailyTaskSystem";
 import {
   loadPrefs, savePrefs, subscribePrefs, FREQUENCIES, DEFAULT_PREFS,
@@ -134,47 +135,17 @@ export default function PinnedDailyTasksWidget() {
     // DailyTasks page's trigger pipeline; don't fake-toggle them.
     const f = template.frequency || "daily";
     const slot = completionByFreq[f];
-    // Refetch the freshest DailyProgress row for this period before toggling, so
-    // a background refetch or a rapid tap can't write to a stale record / stale
-    // completion set (which could also duplicate the row).
-    let record = slot.record;
-    try {
-      const rows = await base44.entities.DailyProgress.filter({ period_key: slot.periodKey, frequency: f });
-      if (rows && rows[0]) record = rows[0];
-    } catch { /* fall back to the cached record */ }
-    const completed = new Set((record && record.completed_task_ids) || []);
-    const nowDone = !completed.has(template.id);
-    if (nowDone) completed.add(template.id);
-    else completed.delete(template.id);
-    const newIds = [...completed];
-    // Compute XP for THIS freq's active manual templates only (auto
-    // tasks get persisted separately by DailyTasks page).
-    const newXP = activeTemplates
-      .filter((t) => (t.frequency || "daily") === f && t.mode === "MANUAL")
-      .reduce((sum, t) => completed.has(t.id) ? sum + (t.points || 0) : sum, 0);
-    // Stamp/clear completion time so each task lists individually on the Timeline.
-    const completion_times = { ...((record && record.completion_times) || {}) };
-    if (nowDone) completion_times[template.id] = new Date().toISOString();
-    else delete completion_times[template.id];
-    if (record) {
-      await base44.entities.DailyProgress.update(record.id, {
-        completed_task_ids: newIds,
-        completion_times,
-        // Write the recomputed value directly. Math.max meant unchecking a task
-        // never lowered XP, so lifetime XP inflated and desynced from the
-        // DailyTasks page (which writes newXP).
-        xp_earned: newXP,
-      });
-    } else {
-      await base44.entities.DailyProgress.create({
-        date: slot.periodKey,
-        period_key: slot.periodKey,
-        frequency: f,
-        completed_task_ids: newIds,
-        completion_times,
-        xp_earned: newXP,
-      });
-    }
+    const done = slot.completed.has(template.id);
+    // Shared writer: refetch-before-write + XP recompute over the FULL
+    // active template list for this frequency (the old MANUAL-only recompute
+    // silently dropped auto-task XP from the record on every pin toggle).
+    await toggleDailyProgressTasks({
+      periodKey: slot.periodKey,
+      frequency: f,
+      setIds: done ? [] : [template.id],
+      clearIds: done ? [template.id] : [],
+      templates: activeTemplates.filter((t) => (t.frequency || "daily") === f),
+    });
     queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
   };
 

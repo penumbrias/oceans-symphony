@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "fix", text: "Daily-task check-offs write through one shared path now, from every surface — fixing two quiet XP bugs (totals could inflate from the quick-actions menu and shrink from the pinned widget)." },
       { type: "feature", text: "To-dos and plans that are linked finally talk to each other: ticking the to-do resolves its plan, and marking the plan done or partial completes the to-do. Skipping or cancelling a plan leaves the to-do alone." },
       { type: "feature", text: "\"Plans needing review\" gains a Tomorrow button on every plan and a \"Carry all to tomorrow\" action — bullet-journal style migration instead of forcing a verdict. Carrying a plan moves its linked to-do's due date with it." },
       { type: "improve", text: "The quick-action \"Start Activity\" and \"Log Activity\" are one modal now — the Active/Log toggle flips modes in place instead of swapping you into a different-looking popup, and the title follows the mode." },
