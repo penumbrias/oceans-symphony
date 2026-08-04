@@ -10,6 +10,10 @@ const SIZES = { small: 120, large: 220 };
 export default function BreathingExercise({
   patternName = "Box breathing", onStop, onComplete,
   embedded = false, autoStart = false, loop = false, maxSize = 240,
+  // Base pace: 1 = the pattern's own timing; 1.5 stretches every phase 50%
+  // slower. The on-screen counts stay the pattern's numbers — they just
+  // elapse at the chosen pace.
+  pace = 1,
 }) {
   const pattern = BREATHING_PATTERNS[patternName] || BREATHING_PATTERNS["Box breathing"];
   const sizes = embedded
@@ -76,10 +80,10 @@ export default function BreathingExercise({
         }
         return s - 1;
       });
-    }, 1000);
+    }, Math.round(1000 * pace));
 
     return () => clearInterval(timerRef.current);
-  }, [started, paused, phaseIdx, completed, getTargetSize, advance]);
+  }, [started, paused, phaseIdx, completed, getTargetSize, advance, pace]);
 
   useEffect(() => {
     pausedRef.current = paused;
@@ -162,7 +166,7 @@ export default function BreathingExercise({
     );
   }
 
-  const transitionDuration = (isInhale || isExhale) ? currentPhase.seconds : 0.5;
+  const transitionDuration = (isInhale || isExhale) ? currentPhase.seconds * pace : 0.5;
 
   if (embedded) {
     return (

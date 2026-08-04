@@ -40,6 +40,7 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SidebarNav from "@/components/layout/SidebarNav";
+import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { confirm } from "@/components/shared/ConfirmDialog";
@@ -315,10 +316,16 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           <Bell className="w-4 h-4" />
           {hasUnread && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />}
         </button>
-        <button type="button" aria-label={t("top.displayOptions")} onClick={() => setOptionsOpen(true)}
-          className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground">
-          <SlidersHorizontal className="w-4 h-4" />
-        </button>
+        {/* The classic page-aware settings menu, with v2 entries on top —
+            Edit home screen and Display options are one tap away from any
+            page, and "All settings" stays the catch-all. */}
+        <HeaderPageMenu
+          className="min-w-[34px] min-h-[34px] rounded-none"
+          v2Options={{
+            editHome: () => requestHomeAction(navigate, location.pathname, "edit-home"),
+            openDisplayOptions: () => setOptionsOpen(true),
+          }}
+        />
       </div>
       {options}
       <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: the top-bar settings button is now the same page-aware menu as the classic UI — \"Edit home screen\" and \"Display options\" are one tap away from any page, with \"All settings\" underneath." },
+      { type: "feature", text: "Breathing exercises can be slowed down (or sped up) with a new Pace setting — Quicker to Very slow — in the breathing widget's options. The counts stay the same; they just elapse at your pace." },
       { type: "improve", text: "🧪 New UI: in-widget pickers (breathing technique, journal switchers, the board picker) are proper searchable selects instead of rows of pills — usable no matter how many options a large system accumulates." },
       { type: "improve", text: "🧪 New UI: the breathing widget is now the guided animation itself — no setup screen, no rounds. Tap the circle to start or stop, or set it to always run. It scales with the widget instead of cropping, and the technique can be switched right on the widget (or in its options in minimal view)." },
       { type: "fix", text: "🧪 New UI: per-widget borders, shadows, backgrounds and inner spacing actually render now — they were being painted onto an invisible wrapper instead of the widget's box. App shortcuts take the same frame, wrapping the icon and name together." },

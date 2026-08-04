@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -24,14 +24,31 @@ import {
 // already lives on the page — we just let the cog open it). The other entries
 // deep-link into the matching Settings section via its URL hash (Settings
 // honours the hash on mount and opens that section).
-export default function HeaderPageMenu({ className }) {
+// v2Options: when the new UI hosts this menu, its own entries replace the
+// classic dashboard ones — Edit home screen + Display options on top, and
+// the per-page settings deep links below (those work identically in v2).
+export default function HeaderPageMenu({ className, v2Options = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
   const path = location.pathname;
 
   const pageActions = [];
-  if (path === "/") {
+  if (v2Options) {
+    pageActions.push({
+      key: "v2-edit-home",
+      label: "Edit home screen",
+      icon: Pencil,
+      onSelect: () => v2Options.editHome(),
+    });
+    pageActions.push({
+      key: "v2-display",
+      label: "Display options",
+      icon: SlidersHorizontal,
+      onSelect: () => v2Options.openDisplayOptions(),
+    });
+  }
+  if (!v2Options && path === "/") {
     pageActions.push({
       key: "dash-edit",
       label: "Customize dashboard",

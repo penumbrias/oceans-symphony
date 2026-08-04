@@ -1017,11 +1017,12 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   return (
     <div ref={boxRef} className="h-full min-h-0 flex flex-col items-center justify-center gap-1.5">
       <BreathingExercise
-        key={`${pattern}_${maxSize}_${running}`}
+        key={`${pattern}_${maxSize}_${running}_${settings?.pace || 1}`}
         embedded
         loop
         autoStart={running}
         maxSize={maxSize}
+        pace={parseFloat(settings?.pace) || 1}
         patternName={pattern}
         onStop={() => {
           try { markGroundingTechniqueUsedToday(); } catch { /* marker only */ }
@@ -1572,6 +1573,14 @@ export const V2_WIDGETS = {
       { key: "pattern", type: "select", label: "Technique", default: "Box breathing",
         options: Object.keys(BREATHING_PATTERNS).map((k) => ({ value: k, label: k })) },
       { key: "autoRun", type: "toggle", label: "Always running (no start button)", default: false },
+      { key: "pace", type: "select", label: "Pace", default: "1",
+        options: [
+          { value: "0.75", label: "Quicker" },
+          { value: "1", label: "Normal" },
+          { value: "1.25", label: "Gentler" },
+          { value: "1.5", label: "Slow" },
+          { value: "2", label: "Very slow" },
+        ] },
     ],
     defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
