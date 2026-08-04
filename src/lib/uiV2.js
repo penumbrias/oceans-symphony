@@ -18,6 +18,8 @@ export const DEFAULT_UI_V2 = {
   enabled: false,
   // Custom icon for the top-left apps button ("" = the default grid glyph).
   appsIcon: "",
+  // What the apps button opens: the app grid drawer, or the classic sidebar.
+  appsView: "grid",
   // Where the floating/bubble quick-action dock sits — set by dragging it.
   // null = the dockSide token's edge at mid-height.
   dockPos: null,
@@ -146,6 +148,7 @@ export function resolveUiV2(stored) {
       rail: src.bars?.rail !== false,
     },
     appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
+    appsView: src.appsView === "sidebar" ? "sidebar" : "grid",
     dockPos: (src.dockPos
       && ["left", "right", "top", "bottom"].includes(src.dockPos.side)
       && Number.isFinite(src.dockPos.topPct))

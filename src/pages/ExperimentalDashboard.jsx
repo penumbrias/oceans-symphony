@@ -1003,7 +1003,9 @@ export default function ExperimentalDashboard({
         onAddShortcut={(appId) => handleAddWidget("app_shortcut", { targetId: appId }, { edit: false })}
         pinOnTap={editMode}
         folders={home.drawer.folders}
-        onSaveFolders={(folders) => persist({ ...home, drawer: { folders } })}
+        onSaveFolders={(folders) => persist({ ...home, drawer: { ...home.drawer, folders } })}
+        order={home.drawer.order || []}
+        onSaveOrder={(order) => persist({ ...home, drawer: { ...home.drawer, order } })}
       />
 
       <AssetPickerModal

@@ -61,7 +61,7 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   // breakpoints stay 8/12.
   grid: { phoneCols: 4 },
   // App-drawer folders: [{ id, label, appIds: [navCatalogue ids] }].
-  drawer: { folders: [] },
+  drawer: { order: [], folders: [] },
   pages: [{ id: "p1", label: "Home", layoutMode: "flow", widgets: [] }],
 };
 
@@ -110,6 +110,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
     wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
     grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
     drawer: {
+      // User-chosen app order for the drawer grid (ids not listed keep
+      // catalogue order after the listed ones).
+      order: Array.isArray(src.drawer?.order) ? src.drawer.order.filter((x) => typeof x === "string") : [],
       folders: (Array.isArray(src.drawer?.folders) ? src.drawer.folders : [])
         .filter((f) => f && typeof f === "object" && typeof f.id === "string" && f.id)
         .map((f) => ({

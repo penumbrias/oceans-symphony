@@ -39,6 +39,7 @@ import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n"
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
+import SidebarNav from "@/components/layout/SidebarNav";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -295,6 +296,20 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
           </button>
 
           <div>
+            <label className="text-xs font-medium block mb-1">{t("options.appsView")}</label>
+            <div className="flex gap-1.5">
+              {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([v, label]) => (
+                <button key={v} type="button" onClick={() => onMisc?.({ appsView: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                    (uiV2.appsView || "grid") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
             <label className="text-xs font-medium block mb-1">{t("options.appsIcon")}</label>
             <div className="flex items-center gap-2">
               <span className="w-9 h-9 flex items-center justify-center rounded-lg border border-border">
@@ -485,6 +500,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const { setToken, setBar, setMisc } = usePersistUiV2(settingsRow);
 
   const { data: activeSessions = [] } = useQuery({
@@ -541,7 +557,9 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         {/* Apps — upper-left, where the classic sidebar trigger lives. The
             icon is the user's own if they've set one in Display options. */}
         <button type="button"
-          onClick={() => requestHomeAction(navigate, location.pathname, "open-apps")}
+          onClick={() => (uiV2.appsView === "sidebar"
+            ? setSidebarOpen(true)
+            : requestHomeAction(navigate, location.pathname, "open-apps"))}
           aria-label={t("top.apps")} title={t("top.apps")}
           className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
           {appsIconUrl
@@ -581,6 +599,9 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
       </div>
       {options}
       <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {/* Classic sidebar, verbatim — the appsView="sidebar" mode is exactly
+          the old UI's navigation, not an imitation of it. */}
+      {sidebarOpen && <SidebarNav open onClose={() => setSidebarOpen(false)} />}
     </header>
   );
 }

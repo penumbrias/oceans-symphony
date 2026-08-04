@@ -169,7 +169,7 @@ function PollListView({ polls, alters, onSelectPoll }) {
   );
 }
 
-function CreatePollModal({ open, onClose, alters }) {
+export function CreatePollModal({ open, onClose, alters }) {
   const terms = useTerms();
   const [question, setQuestion] = useState("");
   const [options, setOptions] = useState(["", ""]);

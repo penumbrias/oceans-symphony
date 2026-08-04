@@ -23,7 +23,7 @@ import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
-  Pin, Wind, Link2, Vote, CalendarDays, BarChart2,
+  Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -39,6 +39,8 @@ import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import ChannelView from "@/components/chat/ChannelView";
+import { CreatePollModal } from "@/pages/Polls";
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -413,17 +415,28 @@ function AppTileWidget({ mode, settings }) {
   if (!item) return <Muted>{tr("widget.app.missing")}</Muted>;
   const Icon = item.icon;
   const label = (settings?.label || item.label).slice(0, 60);
+  // Three looks: "tile" (outline icon), "card" (the colourful catalogue
+  // icon from the apps list, framed with the name — the per-widget look's
+  // border/background/gradient wraps it), "plain" (icon only). A custom
+  // image beats all three. The card frame itself is the widget wrapper, so
+  // borders and background images from the look settings apply.
+  const display = settings?.display || (mode === "minimal" ? "plain" : "tile");
+  const iconEl = customIcon
+    ? <img src={customIcon} alt="" className="w-9 h-9 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
+    : display === "card"
+      ? <span className={`w-10 h-10 rounded-2xl flex items-center justify-center ${item.color}`}>
+          <Icon className="w-5 h-5" />
+        </span>
+      : <span className="w-9 h-9 flex items-center justify-center"
+          style={{ borderRadius: "var(--v2-radius)", border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)" }}>
+          <Icon className="w-4 h-4" />
+        </span>;
   return (
     <button type="button" onClick={() => navigate(item.path)} title={label}
       className="w-full h-full min-h-[52px] flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
       style={{ borderRadius: "var(--v2-radius)" }}>
-      {customIcon
-        ? <img src={customIcon} alt="" className="w-9 h-9 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
-        : <span className="w-9 h-9 flex items-center justify-center"
-            style={{ borderRadius: "var(--v2-radius)", border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)" }}>
-            <Icon className="w-4 h-4" />
-          </span>}
-      {mode !== "minimal" && (
+      {iconEl}
+      {display !== "plain" && mode !== "minimal" && (
         <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2 px-0.5">{label}</span>
       )}
     </button>
@@ -1063,29 +1076,92 @@ function RecentActivitiesWidget({ settings }) {
 
 // ── Quick links ────────────────────────────────────────────────────
 // A tile row of app destinations the user picks — their own nav screen.
-function QuickLinksWidget({ settings, mode }) {
+// One alter tile (own component so the avatar hook is legal in a list).
+function AlterLinkTile({ alter, mode }) {
+  const navigate = useNavigate();
+  const formatAlter = useAlterLabel();
+  const avatar = useResolvedAvatarUrl(alter.image_url || "");
+  return (
+    <button type="button" onClick={() => navigate(`/alter/${alter.id}`)}
+      className="flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
+      style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+      {avatar
+        ? <img src={avatar} alt="" className="w-9 h-9 rounded-full object-cover" />
+        : <span className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold"
+            style={{ background: `${alter.color || "#64748b"}33`, color: alter.color || undefined }}>
+            {(formatAlter(alter) || "?")[0]}
+          </span>}
+      {mode !== "minimal" && (
+        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">
+          {formatAlter(alter)}
+        </span>
+      )}
+    </button>
+  );
+}
+
+// Links can point at app pages, journals, {{alters}} or groups — enough to
+// build a whole nav page of your own. Legacy appIds keep working.
+function QuickLinksWidget({ settings, mode, api }) {
   const t = useTerms();
   const tr = useT();
   const navigate = useNavigate();
+  const groups = useList("groups", "Group");
   const items = React.useMemo(() => buildGridItems(t.Alters, t.System), [t.Alters, t.System]);
-  const links = (settings?.appIds || []).map((id) => findGridItem(items, id)).filter(Boolean);
+  const alters = api?.alters || [];
+
+  const links = [
+    ...(settings?.appIds || []).map((id) => ({ type: "app", id })),
+    ...(Array.isArray(settings?.links) ? settings.links : []),
+  ];
   if (links.length === 0) return <Muted>{tr("widget.links.empty")}</Muted>;
+
+  const tile = (label, icon, onClick, key) => (
+    <button key={key} type="button" onClick={onClick}
+      className="flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
+      style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+      {icon}
+      {mode !== "minimal" && (
+        <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">{label}</span>
+      )}
+    </button>
+  );
+
   return (
     <div className="grid gap-1 h-full" style={{ gridTemplateColumns: `repeat(auto-fill, minmax(64px, 1fr))` }}>
-      {links.map((a) => {
-        const Icon = a.icon;
-        return (
-          <button key={a.id} type="button" onClick={() => navigate(a.path)}
-            className="flex flex-col items-center justify-center gap-1 py-1.5 hover:bg-muted/40"
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+      {links.map((l, i) => {
+        const key = `${l.type}_${l.id}_${i}`;
+        if (l.type === "app") {
+          const a = findGridItem(items, l.id);
+          if (!a) return null;
+          const Icon = a.icon;
+          return tile(a.label, (
             <span className={`w-9 h-9 rounded-xl flex items-center justify-center ${a.color}`}>
               <Icon className="w-4 h-4" />
             </span>
-            {mode !== "minimal" && (
-              <span className="text-[0.625rem] text-center leading-tight text-muted-foreground line-clamp-2">{a.label}</span>
-            )}
-          </button>
-        );
+          ), () => navigate(a.path), key);
+        }
+        if (l.type === "journal") {
+          return tile(l.id, (
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center bg-amber-500/15 text-amber-500">
+              <BookOpen className="w-4 h-4" />
+            </span>
+          ), () => navigate(`/journals?folder=${encodeURIComponent(l.id)}`), key);
+        }
+        if (l.type === "alter") {
+          const a = alters.find((x) => x.id === l.id);
+          return a ? <AlterLinkTile key={key} alter={a} mode={mode} /> : null;
+        }
+        if (l.type === "group") {
+          const g = groups.find((x) => x.id === l.id);
+          if (!g) return null;
+          return tile(g.name, (
+            <span className="w-9 h-9 rounded-xl flex items-center justify-center bg-lime-500/15 text-lime-500">
+              <Users className="w-4 h-4" />
+            </span>
+          ), () => navigate(`/group/${g.id}`), key);
+        }
+        return null;
       })}
     </div>
   );
@@ -1112,6 +1188,119 @@ function PollsWidget({ settings }) {
           right={tr("widget.polls.votes", { count: votes(p) })}
           onClick={() => navigate("/polls")} />
       ))}
+    </Section>
+  );
+}
+
+
+// ── Chat channel ───────────────────────────────────────────────────
+// A real chat channel on the page — the SAME ChannelView the chat page
+// hosts, so sending, signposts, whispers and mentions all behave
+// identically. Which channel is chosen in the widget's options.
+function ChatChannelWidget({ settings, updateSettings, api }) {
+  const tr = useT();
+  const channels = useList("systemChatChannels", "SystemChatChannel");
+  const chan = channels.find((c) => c.id === settings?.channelId) || channels[0] || null;
+  return (
+    <Section
+      label={chan ? `#${chan.name}` : tr("widget.chat.label")}
+      action={channels.length > 1 && (
+        <span style={{ minWidth: 130 }}>
+          <SearchableSelect
+            value={chan?.id || ""}
+            onChange={(v) => updateSettings?.({ channelId: v })}
+            options={channels.map((c) => ({ id: c.id, label: `#${c.name}` }))}
+            placeholder={tr("widget.chat.pick")}
+            searchPlaceholder={tr("widget.chat.search")}
+          />
+        </span>
+      )}
+    >
+      {!chan && <Muted>{tr("widget.chat.empty")}</Muted>}
+      {chan && (
+        <div className="min-h-0 flex-1 flex flex-col" style={{ minHeight: 220 }}>
+          <ChannelView
+            channel={chan}
+            alters={api?.alters || []}
+            defaultAuthorId={api?.currentAlterId || null}
+            frontingAlterIds={api?.frontingAlterIds || []}
+          />
+        </div>
+      )}
+    </Section>
+  );
+}
+
+// ── Poll results ───────────────────────────────────────────────────
+function PollResultsWidget({ settings, updateSettings }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const polls = useList("polls", "Poll");
+  const sorted = [...polls].sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0));
+  const poll = sorted.find((p) => p.id === settings?.pollId) || sorted[0] || null;
+  const counts = (poll?.options || []).map((_, i) => {
+    const v = poll?.votes?.[String(i)];
+    return Array.isArray(v) ? v.length : (typeof v === "number" ? v : 0);
+  });
+  const total = counts.reduce((a, b) => a + b, 0);
+  return (
+    <Section
+      label={tr("widget.pollResults.label")}
+      action={sorted.length > 1 && (
+        <span style={{ minWidth: 130 }}>
+          <SearchableSelect
+            value={poll?.id || ""}
+            onChange={(v) => updateSettings?.({ pollId: v })}
+            options={sorted.map((p) => ({ id: p.id, label: p.question }))}
+            placeholder={tr("widget.pollResults.pick")}
+            searchPlaceholder={tr("widget.chat.search")}
+          />
+        </span>
+      )}
+    >
+      {!poll && <Muted>{tr("widget.polls.empty")}</Muted>}
+      {poll && (
+        <button type="button" onClick={() => navigate("/polls")} className="text-left w-full space-y-1.5">
+          <p className="text-sm font-medium">{poll.question}</p>
+          {(poll.options || []).map((opt, i) => {
+            const pct = total ? Math.round((counts[i] / total) * 100) : 0;
+            return (
+              <div key={i}>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="truncate">{opt}</span>
+                  <span className="text-muted-foreground tabular-nums flex-shrink-0 ml-2">{counts[i]} · {pct}%</span>
+                </div>
+                <div className="h-1.5 mt-0.5 rounded-full bg-muted/50 overflow-hidden">
+                  <div className="h-full rounded-full" style={{ width: `${pct}%`, background: "var(--v2-accent)" }} />
+                </div>
+              </div>
+            );
+          })}
+        </button>
+      )}
+    </Section>
+  );
+}
+
+// ── New poll ───────────────────────────────────────────────────────
+function PollComposerWidget({ api }) {
+  const tr = useT();
+  const [open, setOpen] = React.useState(false);
+  return (
+    <Section label={tr("widget.polls.label")}>
+      <button type="button" onClick={() => setOpen(true)}
+        className="w-full h-10 text-sm font-medium border flex items-center justify-center gap-2"
+        style={{
+          borderRadius: "var(--v2-radius, 8px)",
+          borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)",
+          color: "var(--v2-accent)",
+        }}>
+        <Vote className="w-4 h-4" /> {tr("widget.pollNew.start")}
+      </button>
+      {open && (
+        <CreatePollModal open onClose={() => setOpen(false)}
+          alters={(api?.alters || []).filter((a) => !a.is_archived)} />
+      )}
     </Section>
   );
 }
@@ -1347,9 +1536,12 @@ export const V2_WIDGETS = {
   quick_links: {
     label: "Quick links", description: "A tile of shortcuts you choose — build your own nav page.",
     icon: Link2, category: "nav",
-    render: ({ settings, mode }) => <QuickLinksWidget settings={settings} mode={mode} />,
+    render: ({ settings, mode, api }) => <QuickLinksWidget settings={settings} mode={mode} api={api} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
-    configFields: [{ key: "appIds", type: "apps", label: "Destinations" }],
+    configFields: [
+      { key: "appIds", type: "apps", label: "App pages" },
+      { key: "links", type: "links", label: "Journals, {{alters}} & groups" },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   polls: {
@@ -1359,6 +1551,29 @@ export const V2_WIDGETS = {
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  chat_channel: {
+    label: "Chat channel", description: "A {{system}}-chat channel you can read and send in, right here.",
+    icon: MessageSquare, category: "content",
+    render: ({ settings, updateSettings, api }) =>
+      <ChatChannelWidget settings={settings} updateSettings={updateSettings} api={api} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  poll_results: {
+    label: "Poll results", description: "One poll's live results as bars — pick which in the header.",
+    icon: BarChart2, category: "content",
+    render: ({ settings, updateSettings }) =>
+      <PollResultsWidget settings={settings} updateSettings={updateSettings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  poll_new: {
+    label: "New poll", description: "A button that opens the real poll composer.",
+    icon: Vote, category: "content",
+    render: ({ api }) => <PollComposerWidget api={api} />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 6, rows: 2 },
   },
   folder: {
     label: "Folder", description: "A folder on the page that holds apps — tap to open it.",
@@ -1376,6 +1591,14 @@ export const V2_WIDGETS = {
     icon: Rocket, category: "nav",
     render: ({ mode, settings }) => <AppTileWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "display", type: "select", label: "Display", default: "tile",
+        options: [
+          { value: "tile", label: "Tile" },
+          { value: "card", label: "Card (colourful icon + name)" },
+          { value: "plain", label: "Icon only" },
+        ] },
+    ],
     hiddenFromDrawer: true,
     defaultSpan: { cols: 1, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 4, rows: 2 },
   },

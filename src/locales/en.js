@@ -31,6 +31,9 @@ export default {
   "options.title": "Display options",
   "options.subtitle": "Changes apply instantly, across the whole app, and save.",
   "options.editHome": "Edit the home screen",
+  "options.appsView": "Apps button opens",
+  "options.appsViewGrid": "App grid",
+  "options.appsViewSidebar": "Classic sidebar",
   "options.appsIcon": "Apps button icon",
   "options.appsIconPick": "Choose an image",
   "options.appsIconReset": "Use the app logo",
@@ -191,6 +194,15 @@ export default {
   "widget.polls.label": "Polls",
   "widget.polls.empty": "No polls yet.",
   "widget.polls.votes": "{count} votes",
+
+  "widget.chat.label": "Chat",
+  "widget.chat.pick": "Pick a channel",
+  "widget.chat.search": "Search…",
+  "widget.chat.empty": "No channels yet — create one on the Chat page.",
+
+  "widget.pollResults.label": "Poll results",
+  "widget.pollResults.pick": "Pick a poll",
+  "widget.pollNew.start": "Start a poll",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

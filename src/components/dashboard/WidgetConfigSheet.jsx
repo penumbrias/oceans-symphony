@@ -27,6 +27,7 @@ import { HOME_MODES, effectiveMode } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { useAlterLabel } from "@/lib/useAlterLabel";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -103,6 +104,67 @@ function AppListField({ value = [], onChange, terms }) {
         })}
         {shown.length === 0 && <p className="text-xs text-muted-foreground px-1 py-2">No apps match that.</p>}
       </div>
+    </div>
+  );
+}
+
+// Builder for "links to anywhere": journals, alters, groups — each added
+// through a SEARCHABLE picker (house rule: large systems, no bare lists).
+function LinksField({ value = [], onChange }) {
+  const [kind, setKind] = React.useState("journal");
+  const formatAlter = useAlterLabel();
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const { data: entries = [] } = useQuery({ queryKey: ["journalEntries"], queryFn: () => base44.entities.JournalEntry.list() });
+  const journals = React.useMemo(() => {
+    const set = new Set(entries.map((e) => e.folder).filter(Boolean));
+    try { JSON.parse(localStorage.getItem("os_journal_folders") || "[]").forEach((f) => set.add(f)); }
+    catch { /* none saved */ }
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [entries]);
+
+  const options = kind === "journal"
+    ? journals.map((f) => ({ id: f, label: f }))
+    : kind === "alter"
+      ? alters.filter((a) => !a.is_archived).map((a) => ({ id: a.id, label: a.name || a.alias || "?" }))
+      : groups.map((g) => ({ id: g.id, label: g.name || "Group" }));
+
+  const labelFor = (l) => {
+    if (l.type === "journal") return l.id;
+    if (l.type === "alter") { const a = alters.find((x) => x.id === l.id); return a ? formatAlter(a) : "?"; }
+    return groups.find((g) => g.id === l.id)?.name || "?";
+  };
+
+  return (
+    <div className="space-y-2">
+      {value.length > 0 && (
+        <div className="flex flex-wrap gap-1">
+          {value.map((l, i) => (
+            <span key={`${l.type}_${l.id}_${i}`}
+              className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full border border-border/60">
+              <span className="text-muted-foreground">{l.type}:</span> {labelFor(l)}
+              <button type="button" aria-label={`Remove ${labelFor(l)}`}
+                onClick={() => onChange(value.filter((_, j) => j !== i))}
+                className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex gap-1.5">
+        {[["journal", "Journal"], ["alter", "Member"], ["group", "Group"]].map(([v, label]) => (
+          <button key={v} type="button" onClick={() => setKind(v)}
+            className={`text-xs px-2.5 py-1 rounded-full border ${
+              kind === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+            }`}>{label}</button>
+        ))}
+      </div>
+      <SearchableSelect
+        value={null}
+        onChange={(id) => { if (id) onChange([...value, { type: kind, id }]); }}
+        options={options.filter((o) => !value.some((l) => l.type === kind && l.id === o.id))}
+        placeholder="Add a link…"
+        searchPlaceholder="Search…"
+      />
     </div>
   );
 }
@@ -323,6 +385,9 @@ export default function WidgetConfigSheet({
                       </button>
                     ))}
                   </div>
+                )}
+                {f.type === "links" && (
+                  <LinksField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} />
                 )}
                 {f.type === "group" && (
                   <GroupField value={val || ""} onChange={(v) => commit(v || "")} />

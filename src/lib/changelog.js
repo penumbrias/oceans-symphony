@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 2, 2026",
     changes: [
+      { type: "feature", text: "🧪 New UI: the apps list is reorganizable phone-style — hold any icon to enter edit mode, drag to reorder, drop apps onto folders, make folders with the New-folder tile, and add from inside a folder with its + button. This replaces the old Organize screen." },
+      { type: "feature", text: "🧪 New UI: the Apps button can open the classic sidebar instead of the app grid (Display options → \"Apps button opens\")." },
+      { type: "feature", text: "🧪 New UI: a chat-channel widget — read and send in a system-chat channel right on the home screen, with the full composer (signing, mentions, whispers, formatting)." },
+      { type: "feature", text: "🧪 New UI: poll widgets — live results bars for a poll you pick, and a Start-a-poll button that opens the real composer. Quick links can now also point at journals, members and groups." },
+      { type: "improve", text: "🧪 New UI: app shortcuts have a third look — the colourful catalogue icon with the name, which pairs with per-widget borders and background images." },
       { type: "feature", text: "🧪 New UI: eight new widgets — the classic fronting panel, pinned members, a member list scoped to one group/subsystem, plans, recent activities, one-tap sleep start/wake, inline guided breathing, quick-links tiles, and polls." },
       { type: "improve", text: "🧪 New UI: the widget picker is searchable, organized by app area, and every card can cycle Minimal/Normal/Expanded right on its preview." },
       { type: "fix", text: "🧪 New UI: \"Back to classic\" while editing actually returns to the classic UI now, and widgets are inert while editing so moving one can't accidentally trigger it." },
