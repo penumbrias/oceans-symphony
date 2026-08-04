@@ -26,6 +26,8 @@ import DashboardLayoutSettings from './DashboardLayoutSettings';
 import NavigationSettings from './NavigationSettings';
 import UpcomingPlansSurfacesSection from './UpcomingPlansSurfacesSection';
 import { isNative } from '@/lib/platform';
+import { UI_V2_ENABLED } from '@/lib/featureFlags';
+import V2DisplaySettings from '@/components/settings/V2DisplaySettings';
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
@@ -809,6 +811,11 @@ export default function AdvancedAppearance() {
   return (
     <div className="space-y-5">
       {/* 1. UI SIZE — directly on the card. */}
+      {/* New-UI display controls live HERE, as ordinary Appearance
+          sections — one settings surface. The v2 top-bar sheet embeds this
+          whole body, so both routes see the same integrated controls. */}
+      {UI_V2_ENABLED && systemSettings?.ui_v2?.enabled === true && <V2DisplaySettings />}
+
       <UiSizeControl />
 
       {/* 2. ADVANCED — touch target + nav height sliders. */}

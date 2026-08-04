@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 2, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: Display options and Settings → Appearance are now ONE surface — the new-UI controls live inside Appearance, and the top-bar sheet opens that same integrated panel. No more \"everything else\" split." },
+      { type: "fix", text: "🧪 New UI: Reset display options now also resets the app-wide text size — resetting actually un-does an accidental text-size change. Widget scrollbars follow the app's hidden-scrollbar style instead of the browser default." },
       { type: "feature", text: "🧪 New UI: a \"Reset display options\" button restores bars, colours, sizes, the dock position and the apps button to defaults — your layout, widgets, saved styles and themes are untouched." },
       { type: "fix", text: "The \"Continue setup\" notice no longer floats on top of open panels, where closing it could press the controls underneath — it steps aside while any panel is open." },
       { type: "improve", text: "🧪 New UI: Display options is reorganized into tidy sections that open one at a time, and every slider has −/+ buttons for precise steps — no more settings changing themselves while you scroll the menu. The quick-actions handle now has its line on both sides of the arrow." },

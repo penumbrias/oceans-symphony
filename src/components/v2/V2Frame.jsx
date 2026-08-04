@@ -66,7 +66,6 @@ const KEY_LABEL_KEYS = {
 
 const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
 const QA_OPEN_KEY = "symphony_v2_quickactions_open";
-const PREVIEW_OPEN_KEY = "symphony_v2_options_preview";
 const DOCK_OPEN_KEY = "symphony_v2_dock_open";
 
 // The apps drawer and home-edit mode live on the home canvas; these fire
@@ -90,201 +89,18 @@ function useClock() {
 }
 
 // ── Display options ────────────────────────────────────────────────
-// Live sample of what the settings are doing. The sheet covers the app on
-// a phone, so without this you'd be adjusting blind and closing the sheet
-// after every nudge.
-//
-// It carries data-ui-v2 + the token vars ITSELF rather than inheriting
-// them: the sheet is portaled to <body>, outside the app root those live
-// on. That turns out to be the honest way to preview anyway — the sample
-// is styled by exactly the same rules as the real thing.
-function LivePreview({ uiV2 }) {
+function OptionsSheet({ open, onClose, uiV2 }) {
   const t = useT();
-  const vars = useMemo(() => buildTokenVars(uiV2), [uiV2]);
-  return (
-    <div data-ui-v2="1" style={vars}
-      className="rounded-xl border border-border/60 bg-background p-3 space-y-2 overflow-hidden">
-      <div className="flex items-center justify-between">
-        <span className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
-          {t("options.preview")}
-        </span>
-        <span className="text-xs" style={{ color: "var(--v2-accent)" }}>{t("widget.today.open")}</span>
-      </div>
-      <div className="rounded-xl border border-border/60 p-3 space-y-2">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: "var(--v2-accent)" }} />
-          <span className="text-sm flex-1 truncate">{t("options.previewRow")}</span>
-          <span className="text-xs text-muted-foreground tabular-nums">12:30</span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button type="button" tabIndex={-1}
-            className="text-xs px-3 py-1.5 rounded-lg text-white"
-            style={{ background: "var(--v2-accent)" }}>
-            {t("note.save")}
-          </button>
-          <button type="button" tabIndex={-1}
-            className="text-xs px-3 py-1.5 rounded-lg border border-border text-muted-foreground">
-            {t("options.previewSecondary")}
-          </button>
-          <span className="text-[0.625rem] px-2 py-1 rounded-full border border-border/60 text-muted-foreground">
-            {t("options.previewPill")}
-          </span>
-        </div>
-        <div className="h-8 rounded-lg border border-input bg-background flex items-center px-2">
-          <span className="text-xs text-muted-foreground">{t("note.placeholder")}</span>
-        </div>
-      </div>
-      {/* The bars, at their real heights */}
-      <div className="rounded-xl border overflow-hidden"
-        style={{ borderColor: "color-mix(in srgb, var(--v2-accent) 30%, transparent)", borderWidth: "var(--v2-border-w)" }}>
-        <div className="flex items-center gap-2 px-2" style={{ height: "var(--v2-status-h)" }}>
-          <span className="text-xs font-semibold">Aa</span>
-          <span className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />
-          <span className="ml-auto text-[0.625rem] text-muted-foreground tabular-nums">12:30</span>
-        </div>
-        <div className="flex items-center justify-center gap-2 py-1">
-          {[0, 1, 2].map((i) => (
-            <span key={i} className="flex items-center justify-center"
-              style={{
-                width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
-                borderRadius: "var(--v2-radius)",
-                border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
-              }}>
-              <Heart className="w-3.5 h-3.5 text-muted-foreground" />
-            </span>
-          ))}
-        </div>
-        <div className="flex" style={{ height: "var(--v2-strip-h)" }}>
-          {[0, 1, 2, 3].map((i) => (
-            <span key={i} className="flex-1 flex flex-col items-center justify-center gap-0.5"
-              style={{
-                color: i === 0 ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
-                boxShadow: i === 0 ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
-              }}>
-              <Heart className="w-3.5 h-3.5" />
-              <span className="text-[0.5rem]">Aa</span>
-            </span>
-          ))}
-        </div>
-      </div>
-    </div>
-  );
-}
-
-function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
-  const t = useT();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
-  const [fontIdx, setFontIdx] = useState(() =>
-    Math.max(0, FONT_STEPS.indexOf(getAccessibilitySettings().fontSize || "default"))
-  );
-  const [locale, setLocaleState] = useState(getLocale());
-  // ONE section open at a time. Closed sections expose no sliders, which is
-  // what actually stops settings changing under a scrolling finger — the
-  // earlier touch-action patch only helped for perfectly vertical swipes.
-  const [openSection, setOpenSection] = useState(null);
-  const toggleSection = (id) => setOpenSection((cur) => (cur === id ? null : id));
+  // The controls themselves live in the Appearance body (V2DisplaySettings
+  // renders at its top) — ONE settings surface, embedded here so the
+  // top-bar route and Settings → Appearance are the same thing. This sheet
+  // only adds the Peek affordance.
   const [peek, setPeek] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(() => {
-    try { return localStorage.getItem(PREVIEW_OPEN_KEY) === "1"; } catch { return false; }
-  });
-  const togglePreview = (next) => {
-    setPreviewOpen(next);
-    try { localStorage.setItem(PREVIEW_OPEN_KEY, next ? "1" : "0"); } catch { /* storage off */ }
-  };
   useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
     return () => document.documentElement.removeAttribute("data-v2-peek");
   }, [open, peek]);
-
-  const localeCodes = Object.keys(LOCALES);
-  const tokenById = useMemo(() => Object.fromEntries(V2_TOKEN_DEFS.map((d) => [d.id, d])), []);
-
-  // Range rows get −/+ steppers: precise, and impossible to hit by
-  // accident while scrolling. The slider stays for coarse moves.
-  const renderToken = (def) => {
-    const val = uiV2.tokens[def.id] ?? def.default;
-    if (def.type === "range") {
-      const shown = def.id === "contentW" && !val ? t("options.valueFull") : `${val}${def.unit || ""}`;
-      const step = (dir) => {
-        const next = Math.min(def.max, Math.max(def.min, (Number(val) || 0) + dir * def.step));
-        if (next !== val) onToken(def.id, next);
-      };
-      return (
-        <div key={def.id} className="flex items-center gap-3 py-1">
-          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
-          <button type="button" aria-label={`${def.label} −`} onClick={() => step(-1)}
-            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">−</button>
-          <input type="range" min={def.min} max={def.max} step={def.step} value={val}
-            onChange={(e) => onToken(def.id, parseInt(e.target.value, 10))}
-            className="w-28 sm:w-40" aria-label={def.label} />
-          <button type="button" aria-label={`${def.label} +`} onClick={() => step(1)}
-            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">+</button>
-          <span className="text-xs text-muted-foreground tabular-nums w-12 text-right flex-shrink-0">{shown}</span>
-        </div>
-      );
-    }
-    if (def.type === "select") {
-      return (
-        <div key={def.id} className="flex items-center gap-3 py-1">
-          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
-          <div className="flex gap-1.5 flex-wrap justify-end">
-            {def.options.map((o) => (
-              <button key={o.v} type="button" onClick={() => onToken(def.id, o.v)}
-                className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                  val === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                }`}>
-                {o.label}
-              </button>
-            ))}
-          </div>
-        </div>
-      );
-    }
-    if (def.type === "color") {
-      return (
-        <div key={def.id} className="flex items-center gap-3 py-1">
-          <span className="text-xs font-medium flex-1 min-w-0 truncate">{def.label}</span>
-          <ColorPicker value={val || "#3b82f6"} onChange={(v) => onToken(def.id, v)} />
-          <button type="button" onClick={() => onToken(def.id, "")}
-            className={`text-xs px-2.5 py-1 rounded-full border ${!val ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
-            {t("options.useTheme")}
-          </button>
-        </div>
-      );
-    }
-    return null;
-  };
-
-  const Section2 = ({ id, title, children }) => {
-    const on = openSection === id;
-    return (
-      <div className="rounded-xl border border-border/50 overflow-hidden">
-        <button type="button" onClick={() => toggleSection(id)}
-          className={`w-full flex items-center justify-between px-3 py-2.5 text-left ${on ? "bg-muted/30" : ""}`}>
-          <span className="text-xs font-semibold">{title}</span>
-          <ChevronUp className="w-3.5 h-3.5 text-muted-foreground"
-            style={{ transform: on ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-        </button>
-        {on && <div className="px-3 pb-3 pt-1 space-y-1.5 border-t border-border/40">{children}</div>}
-      </div>
-    );
-  };
-
-  const LOOK_IDS = ["accent", "density", "radius", "borderW"];
-  const lookDefs = LOOK_IDS.map((id) => tokenById[id]).filter(Boolean);
-  const sizeDefs = V2_TOKEN_DEFS.filter((d) => d.group === "bars" && !LOOK_IDS.includes(d.id));
-  const appDefs = V2_TOKEN_DEFS.filter((d) => d.group === "app");
-
-  const BAR_TOGGLES = [
-    { id: "top", label: t("options.topBar") },
-    { id: "actions", label: t("options.quickActionRow") },
-    { id: "tabs", label: t("options.sectionTabs") },
-    { id: "wave", label: t("options.waveHeader") },
-    { id: "rail", label: t("options.sideRail") },
-  ];
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
@@ -293,8 +109,9 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <DrawerTitle className={peek ? "text-sm" : "text-base"}>{t("options.title")}</DrawerTitle>
-              {!peek && <DrawerDescription className="text-xs">{t("options.subtitle")}</DrawerDescription>}
-              {peek && <DrawerDescription className="text-xs">{t("options.peekHint")}</DrawerDescription>}
+              <DrawerDescription className="text-xs">
+                {peek ? t("options.peekHint") : t("options.subtitle")}
+              </DrawerDescription>
             </div>
             <button type="button" onClick={() => setPeek((v) => !v)}
               title={t("options.peekHint")}
@@ -306,138 +123,13 @@ function OptionsSheet({ open, onClose, uiV2, onToken, onBar, onMisc }) {
             </button>
           </div>
         </DrawerHeader>
-
-        <div className="px-4 space-y-2 overflow-y-auto overscroll-contain"
+        <div className="px-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
-
-          {!peek && (
-            <button type="button"
-              onClick={() => { onClose(); requestHomeAction(navigate, location.pathname, "edit-home"); }}
-              className="w-full flex items-center gap-2.5 h-10 px-3 rounded-xl border border-primary/50 text-primary text-sm font-medium">
-              <Pencil className="w-4 h-4" /> {t("options.editHome")}
-            </button>
+          {open && (
+            <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">{t("common.loading")}</p>}>
+              <AdvancedAppearance />
+            </React.Suspense>
           )}
-
-          <Section2 id="showhide" title={t("options.showHide")}>
-            {BAR_TOGGLES.map((b) => (
-              <label key={b.id} className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
-                <span>{b.label}</span>
-                <input type="checkbox" checked={uiV2.bars[b.id]} onChange={(e) => onBar(b.id, e.target.checked)}
-                  className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
-              </label>
-            ))}
-            {!uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
-          </Section2>
-
-          <Section2 id="look" title={t("options.sectionLook")}>
-            {lookDefs.map(renderToken)}
-          </Section2>
-
-          <Section2 id="text" title={t("options.sectionText")}>
-            <div className="flex items-center gap-3 py-1">
-              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.textSize")}</span>
-              <button type="button" aria-label={`${t("options.textSize")} −`}
-                onClick={() => { const i = Math.max(0, fontIdx - 1); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
-                className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">−</button>
-              <input type="range" min={0} max={FONT_STEPS.length - 1} step={1} value={fontIdx}
-                onChange={(e) => { const i = parseInt(e.target.value, 10); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
-                className="w-28 sm:w-40" aria-label={t("options.textSize")} />
-              <button type="button" aria-label={`${t("options.textSize")} +`}
-                onClick={() => { const i = Math.min(FONT_STEPS.length - 1, fontIdx + 1); setFontIdx(i); setAccessibilityFontSize(FONT_STEPS[i]); }}
-                className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none">+</button>
-              <span className="text-xs text-muted-foreground w-12 text-right flex-shrink-0">
-                {FONT_STEPS[fontIdx] === "default" ? t("options.textNormal") : FONT_STEPS[fontIdx]}
-              </span>
-            </div>
-            {appDefs.map(renderToken)}
-          </Section2>
-
-          <Section2 id="sizes" title={t("options.sectionSizes")}>
-            {sizeDefs.map(renderToken)}
-          </Section2>
-
-          <Section2 id="apps" title={t("options.sectionApps")}>
-            <div className="flex items-center gap-3 py-1">
-              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.appsView")}</span>
-              <div className="flex gap-1.5">
-                {[["grid", t("options.appsViewGrid")], ["sidebar", t("options.appsViewSidebar")]].map(([v, label]) => (
-                  <button key={v} type="button" onClick={() => onMisc?.({ appsView: v })}
-                    className={`text-xs px-2.5 py-1 rounded-full border transition-all ${
-                      (uiV2.appsView || "grid") === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                    }`}>
-                    {label}
-                  </button>
-                ))}
-              </div>
-            </div>
-            <div className="flex items-center gap-3 py-1">
-              <span className="text-xs font-medium flex-1 min-w-0 truncate">{t("options.appsIcon")}</span>
-              <span className="w-8 h-8 flex items-center justify-center rounded-lg border border-border">
-                {appsIconUrl
-                  ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover rounded" />
-                  : <img src="/logo.png" alt="" className="w-5 h-5 object-contain rounded" />}
-              </span>
-              <AssetButton onPick={(url) => onMisc?.({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
-              {uiV2.appsIcon && (
-                <button type="button" onClick={() => onMisc?.({ appsIcon: "" })}
-                  className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground">
-                  {t("options.appsIconReset")}
-                </button>
-              )}
-            </div>
-          </Section2>
-
-          {localeCodes.length > 1 && (
-            <Section2 id="language" title={t("options.language")}>
-              <div className="flex flex-wrap gap-1.5 py-1">
-                {localeCodes.map((code) => {
-                  const cov = localeCoverage(code);
-                  return (
-                    <button key={code} type="button"
-                      onClick={() => { setLocale(code); setLocaleState(code); }}
-                      className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                        locale === code ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                      }`}>
-                      {LOCALES[code].name}
-                      {cov.pct < 100 && <span className="opacity-60"> · {cov.pct}%</span>}
-                    </button>
-                  );
-                })}
-              </div>
-            </Section2>
-          )}
-
-          {!peek && (
-            <Section2 id="preview" title={t("options.preview")}>
-              <LivePreview uiV2={uiV2} />
-            </Section2>
-          )}
-
-          <button type="button"
-            onClick={async () => {
-              const ok = await confirm({
-                title: t("options.resetTitle"),
-                body: t("options.resetBody"),
-                confirmLabel: t("options.resetConfirm"),
-                destructive: true,
-              });
-              // Reset exactly what this panel controls: tokens, bar
-              // visibility, dock position, apps button. Layouts, widgets,
-              // saved styles, themes and text size are untouched.
-              if (ok) onMisc?.({ tokens: {}, bars: {}, dockPos: null, appsIcon: "", appsView: "grid" });
-            }}
-            className="w-full h-10 rounded-xl border border-border/60 text-sm text-muted-foreground hover:text-destructive hover:border-destructive/40">
-            {t("options.reset")}
-          </button>
-
-          <Section2 id="everything" title={t("options.everythingElse")}>
-            <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.everythingElseHint")}</p>
-            {openSection === "everything" && (
-              <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">{t("common.loading")}</p>}>
-                <AdvancedAppearance />
-              </React.Suspense>
-            )}
-          </Section2>
         </div>
       </DrawerContent>
     </Drawer>
@@ -521,23 +213,6 @@ function SearchSheet({ open, onClose }) {
   );
 }
 
-function usePersistUiV2(settingsRow) {
-  const qc = useQueryClient();
-  const write = async (patch) => {
-    try {
-      if (!settingsRow?.id) return;
-      const next = { ...(settingsRow.ui_v2 || {}), enabled: true, ...patch };
-      await base44.entities.SystemSettings.update(settingsRow.id, { ui_v2: next });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
-    } catch { /* best-effort live */ }
-  };
-  return {
-    setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
-    setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
-    setMisc: (patch) => write(patch),
-  };
-}
-
 // ── Top bar ────────────────────────────────────────────────────────
 export function V2StatusLine({ settingsRow, uiV2 }) {
   const navigate = useNavigate();
@@ -550,7 +225,6 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const { setToken, setBar, setMisc } = usePersistUiV2(settingsRow);
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -572,7 +246,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const hasUnread = mentionLogs.some((m) => m.is_active !== false && !m.seen && !m.read);
 
   const options = (
-    <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} onToken={setToken} onBar={setBar} onMisc={setMisc} />
+    <OptionsSheet open={optionsOpen} onClose={() => setOptionsOpen(false)} uiV2={uiV2} />
   );
 
   if (!uiV2.bars.top) {

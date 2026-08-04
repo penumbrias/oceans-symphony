@@ -44,6 +44,17 @@
 .overflow-y-auto::-webkit-scrollbar {
   display: none;
 }
+/* Same rule for widget internals: their scrollers are often styled inline
+   (height/overflow from the size system), which dodges the class selector
+   above and leaks the default browser scrollbar. */
+[data-widget-content]::-webkit-scrollbar,
+[data-widget-content] *::-webkit-scrollbar {
+  display: none;
+}
+[data-widget-content],
+[data-widget-content] * {
+  scrollbar-width: none;
+}
 
 @layer base {
   :root {
