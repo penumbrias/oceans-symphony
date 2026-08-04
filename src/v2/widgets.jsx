@@ -726,19 +726,14 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
       }
     >
       {picking && (
-        <div className="flex flex-wrap gap-1 pb-1">
-          <button type="button" onClick={() => { updateSettings?.({ journal: "" }); setPicking(false); }}
-            className={`text-[0.6875rem] px-2 py-1 border ${!journal ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            {tr("widget.book.allJournals")}
-          </button>
-          {journals.map((f) => (
-            <button key={f} type="button" onClick={() => { updateSettings?.({ journal: f }); setPicking(false); }}
-              className={`text-[0.6875rem] px-2 py-1 border ${journal === f ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
-              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-              {f}
-            </button>
-          ))}
+        <div className="pb-1">
+          <SearchableSelect
+            value={journal || ""}
+            onChange={(v) => { updateSettings?.({ journal: v || "" }); setPicking(false); }}
+            options={[{ id: "", label: tr("widget.book.allJournals") }, ...journals.map((f) => ({ id: f, label: f }))]}
+            placeholder={journal || tr("widget.book.allJournals")}
+            searchPlaceholder={tr("widget.chat.search")}
+          />
           {journals.length === 0 && <Muted>{tr("widget.book.noJournals")}</Muted>}
         </div>
       )}
@@ -852,19 +847,14 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
       }
     >
       {picking && (
-        <div className="flex flex-wrap gap-1 pb-1">
-          <button type="button" onClick={() => { updateSettings?.({ journal: "" }); setPicking(false); }}
-            className={`text-[0.6875rem] px-2 py-1 border ${!journal ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            {tr("widget.book.allJournals")}
-          </button>
-          {journals.map((f) => (
-            <button key={f} type="button" onClick={() => { updateSettings?.({ journal: f }); setPicking(false); }}
-              className={`text-[0.6875rem] px-2 py-1 border ${journal === f ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}
-              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-              {f}
-            </button>
-          ))}
+        <div className="pb-1">
+          <SearchableSelect
+            value={journal || ""}
+            onChange={(v) => { updateSettings?.({ journal: v || "" }); setPicking(false); }}
+            options={[{ id: "", label: tr("widget.book.allJournals") }, ...journals.map((f) => ({ id: f, label: f }))]}
+            placeholder={journal || tr("widget.book.allJournals")}
+            searchPlaceholder={tr("widget.chat.search")}
+          />
         </div>
       )}
       <input
@@ -931,17 +921,12 @@ function BulletinBoardWidget({ api, settings, updateSettings }) {
       action={<TextAction onClick={() => setPicking((v) => !v)}>{tr("widget.bboard.boards")}</TextAction>}
     >
       {picking && (
-        <div className="flex flex-wrap gap-1 pb-1">
-          {[{ id: "system", name: applyTerms(tr("widget.bboard.system"), t) }, ...groups].map((g) => (
-            <button key={g.id} type="button" onClick={() => toggleBoard(g.id)}
-              className={`text-[0.6875rem] px-2 py-1 border ${
-                chosen.includes(g.id) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-              }`}
-              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-              {g.name}
-            </button>
-          ))}
-        </div>
+        <SearchableMultiList
+          options={[{ id: "system", label: applyTerms(tr("widget.bboard.system"), t) }, ...groups.map((g) => ({ id: g.id, label: g.name || "Group" }))]}
+          selectedIds={chosen}
+          onToggle={toggleBoard}
+          searchPlaceholder={tr("widget.chat.search")}
+        />
       )}
       {/* keyed by board so flipping fully remounts the board's own state */}
       <BulletinBoard
@@ -1044,16 +1029,14 @@ function BreathingWidget({ settings, updateSettings, mode }) {
         }}
       />
       {showChips && (
-        <div className="flex flex-wrap justify-center gap-1">
-          {Object.keys(BREATHING_PATTERNS).map((name) => (
-            <button key={name} type="button" onClick={() => updateSettings?.({ pattern: name })}
-              className={`text-[0.625rem] px-2 py-0.5 border ${
-                pattern === name ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-              }`}
-              style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-              {name}
-            </button>
-          ))}
+        <div style={{ width: Math.max(160, maxSize) }}>
+          <SearchableSelect
+            value={pattern}
+            onChange={(v) => { if (v) updateSettings?.({ pattern: v }); }}
+            options={Object.keys(BREATHING_PATTERNS).map((name) => ({ id: name, label: name }))}
+            placeholder={pattern}
+            searchPlaceholder={tr("widget.chat.search")}
+          />
         </div>
       )}
       {mode === "expanded" && (
@@ -1346,6 +1329,36 @@ function PollComposerWidget({ api }) {
           alters={(api?.alters || []).filter((a) => !a.is_archived)} />
       )}
     </Section>
+  );
+}
+
+
+// House picker rules apply INSIDE widgets too: anything with an unbounded
+// option list (journals, groups, boards) is searchable and scrollable —
+// never a wrap of pills that becomes unnavigable in a large system.
+function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
+  const [q, setQ] = React.useState("");
+  const needle = q.trim().toLowerCase();
+  const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
+  return (
+    <div className="space-y-1 pb-1">
+      <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder}
+        className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
+      <div className="max-h-40 overflow-y-auto space-y-0.5">
+        {shown.map((o) => {
+          const on = selectedIds.includes(o.id);
+          return (
+            <button key={o.id} type="button" onClick={() => onToggle(o.id)}
+              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left text-xs ${
+                on ? "border-primary/60 bg-primary/10" : "border-transparent hover:bg-muted/40"
+              }`}>
+              <span className="flex-1 truncate">{o.label}</span>
+              {on && <span className="text-primary flex-shrink-0">✓</span>}
+            </button>
+          );
+        })}
+      </div>
+    </div>
   );
 }
 

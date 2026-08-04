@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "🧪 New UI: in-widget pickers (breathing technique, journal switchers, the board picker) are proper searchable selects instead of rows of pills — usable no matter how many options a large system accumulates." },
       { type: "improve", text: "🧪 New UI: the breathing widget is now the guided animation itself — no setup screen, no rounds. Tap the circle to start or stop, or set it to always run. It scales with the widget instead of cropping, and the technique can be switched right on the widget (or in its options in minimal view)." },
       { type: "fix", text: "🧪 New UI: per-widget borders, shadows, backgrounds and inner spacing actually render now — they were being painted onto an invisible wrapper instead of the widget's box. App shortcuts take the same frame, wrapping the icon and name together." },
       { type: "improve", text: "🧪 New UI: display controls are woven into Appearance where they belong — spacing with the size controls, highlight colour with Theme, corner radius and border width with Corner style, bars and the apps button under Layout. No more duplicate-looking sections." },
