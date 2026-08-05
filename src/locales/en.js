@@ -95,6 +95,8 @@ export default {
   "widget.presence.desc": "Current {{fronters}}, with time since each arrived.",
   "widget.pinned.label": "Pinned {{alters}}",
   "widget.pinned.empty": "No pinned {{alters}} yet \u2014 pin them from their profile or the {{alters}} page.",
+  "widget.presence.triggered": "Flag this {{switch}} as triggered",
+  "widget.presence.journal": "Journal this {{switch}}",
   "widget.presence.title": "Here now",
   "widget.presence.empty": "No {{fronter}} set.",
   "widget.presence.primary": "primary",
@@ -138,6 +140,7 @@ export default {
   "widget.identity.addPicture": "Add a picture",
   "widget.identity.changePicture": "Change the picture",
 
+  "widget.alters.ungrouped": "Everyone else",
   "widget.alters.label": "{{Alters}}",
   "widget.alters.empty": "No {{alters}} yet.",
 

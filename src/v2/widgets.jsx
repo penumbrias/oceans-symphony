@@ -21,7 +21,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
-  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ListTodo,
+  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash,
 } from "lucide-react";
@@ -40,6 +40,10 @@ import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLev
 import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
+import { parseSessionEmotions, parseSessionSymptoms, parseSessionNote } from "@/lib/perAlterSessionEntries";
+import { parsePreferences, PREF_LEVELS } from "@/lib/alterPreferences";
+import TriggerEditModal from "@/components/fronting/TriggerEditModal";
+import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
@@ -132,19 +136,69 @@ function PresenceWidget({ mode, api, settings }) {
   const [expandedId, setExpandedId] = React.useState(null);
   const [menuFor, setMenuFor] = React.useState(null);
   const lastTap = React.useRef({});
-  const showAvatar = !!settings?.showAvatar;
-  const showPronouns = !!settings?.showPronouns;
+  // Owner spec for the three display modes:
+  //   minimal  — name + their colour, nothing else
+  //   normal   — avatar, name, {fronting} status (level + elapsed)
+  //   expanded — normal plus the extras each toggle allows: pronouns and
+  //              this session's own feelings / symptoms / note
+  const isMinimal = mode === "minimal";
+  const isExpanded = mode === "expanded";
+  const showAvatar = isMinimal ? false : (settings?.showAvatar !== false);
+  const showStatus = !isMinimal;
+  const showPronouns = isExpanded && settings?.showPronouns !== false;
+  const showSessionBits = isExpanded && settings?.showSessionDetail !== false;
+
+  // Switch tools, same as the classic Currently Fronting card: flag the
+  // switch as triggered, or journal it. Both act on the LIVE sessions.
+  const [triggerOpen, setTriggerOpen] = React.useState(false);
+  const [journalFor, setJournalFor] = React.useState(null);
+  const openJournal = async () => {
+    try {
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const lead = fresh.find((x) => x.is_primary) || fresh[0];
+      setJournalFor({ sessionId: lead?.id || null, authorAlterId: lead?.alter_id || null });
+    } catch { setJournalFor({ sessionId: null, authorAlterId: null }); }
+  };
 
   return (
     <Section
       label={tr("widget.presence.title")}
-      action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-set-front"))}>{applyTerms(tr("common.switch"), t)}</TextAction>}
+      action={
+        <span className="flex items-center gap-1.5">
+          {fronters.length > 0 && (
+            <>
+              <button type="button" onClick={() => setTriggerOpen(true)}
+                aria-label={applyTerms(tr("widget.presence.triggered"), t)}
+                title={applyTerms(tr("widget.presence.triggered"), t)}
+                className="text-muted-foreground hover:text-amber-500">
+                <AlertTriangle className="w-3.5 h-3.5" />
+              </button>
+              <button type="button" onClick={openJournal}
+                aria-label={applyTerms(tr("widget.presence.journal"), t)}
+                title={applyTerms(tr("widget.presence.journal"), t)}
+                className="text-muted-foreground hover:text-primary">
+                <BookOpen className="w-3.5 h-3.5" />
+              </button>
+            </>
+          )}
+          <TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-set-front"))}>{applyTerms(tr("common.switch"), t)}</TextAction>
+        </span>
+      }
     >
       {fronters.length === 0 && <Muted>{applyTerms(tr("widget.presence.empty"), t)}</Muted>}
-      {(mode === "minimal" ? fronters.slice(0, 1) : fronters).map(({ s, alter }) => {
+      {fronters.map(({ s, alter }) => {
         const level = getSessionLevel(s, levelCfg);
-        const secondary = [showPronouns ? alter.pronouns : null, level ? frontLevelLabel(level, t) : null]
-          .filter(Boolean).join(" · ") || undefined;
+        const secondary = isMinimal ? undefined : ([
+          showPronouns ? alter.pronouns : null,
+          showStatus && level ? frontLevelLabel(level, t) : null,
+        ].filter(Boolean).join(" · ") || undefined);
+        // Expanded rows summarise what this session already carries, so
+        // "who's here" answers "and how are they doing" at a glance.
+        const bits = showSessionBits ? [
+          ...parseSessionEmotions(s.session_emotions).slice(0, 3),
+          ...parseSessionSymptoms(s.session_symptoms).slice(0, 3).map((x) => x.label).filter(Boolean),
+        ] : [];
+        const noteText = showSessionBits ? (parseSessionNote(s.note).slice(-1)[0]?.text || "") : "";
         return (
         <React.Fragment key={s.id}>
         <div {...getHoldProps(alter.id, s.front_level)} className="select-none">
@@ -156,7 +210,7 @@ function PresenceWidget({ mode, api, settings }) {
             : <Dot color={alter.color} ring={s.is_primary} />}
           primary={formatAlter(alter)}
           secondary={secondary}
-          right={s.start_time ? fmtElapsed(s.start_time) : undefined}
+          right={showStatus && s.start_time ? fmtElapsed(s.start_time) : undefined}
           title={s.is_primary ? applyTerms(tr("widget.presence.primaryOf"), t) : undefined}
           onClick={() => {
             if (rail || Date.now() < suppressTapUntil.current) return;
@@ -171,6 +225,16 @@ function PresenceWidget({ mode, api, settings }) {
           }}
         />
         </div>
+        {(bits.length > 0 || noteText) && (
+          <div className="pl-6 -mt-0.5 space-y-0.5">
+            {bits.length > 0 && (
+              <p className="text-[0.6875em] text-muted-foreground truncate">{bits.join(" · ")}</p>
+            )}
+            {noteText && (
+              <p className="text-[0.6875em] text-muted-foreground truncate">💬 {noteText}</p>
+            )}
+          </div>
+        )}
         {/* The per-alter panel opens INLINE under its row, exactly like the
             classic Currently Fronting card — reused, not forked. */}
         {expandedId === alter.id && (
@@ -191,6 +255,15 @@ function PresenceWidget({ mode, api, settings }) {
         <AlterActionMenu alter={menuFor} activeSessions={sessions}
           session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id)}
           onClose={() => setMenuFor(null)} />
+      )}
+      <TriggerEditModal open={triggerOpen} onClose={() => setTriggerOpen(false)} sessions={sessions} />
+      {journalFor && (
+        <SwitchJournalModal
+          open
+          onClose={() => setJournalFor(null)}
+          sessionId={journalFor.sessionId}
+          authorAlterId={journalFor.authorAlterId}
+        />
       )}
     </Section>
   );
@@ -227,7 +300,7 @@ function ActiveWidget({ api }) {
         if (!def) return null;
         return (
           <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={def.label || def.name}
-            right={s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
+            right={showStatus && s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
         );
       })}
       {activeSleep && (
@@ -539,7 +612,7 @@ function AppTileWidget({ mode, settings }) {
 }
 
 // ── Content lists ──────────────────────────────────────────────────
-function AltersListWidget({ settings, api }) {
+function AltersListWidget({ settings, api, mode }) {
   const tr = useT();
   const t = useTerms();
   const navigate = useNavigate();
@@ -547,28 +620,157 @@ function AltersListWidget({ settings, api }) {
   const groups = useList("groups", "Group");
   const alters = api?.alters || [];
   const limit = parseInt(settings?.limit, 10) || 6;
+  // Ordering is the user's call (owner request): what to sort by, which
+  // direction, and whether to break the list into their groups /
+  // subsystems or keep it flat.
   const sort = settings?.sort || "name";
+  const reverse = !!settings?.reverse;
+  const arrangement = settings?.arrangement || "flat";
   const group = settings?.groupId ? groups.find((g) => g.id === settings.groupId) : null;
-  const list = React.useMemo(() => {
-    // Scoped to one group/subsystem via the same membership resolution the
-    // group pages use, so the two can never disagree.
-    const pool = group ? getMemberAlters(group, alters) : alters;
-    const live = pool.filter((a) => !a.is_archived);
-    const sorted = sort === "recent"
-      ? [...live].sort((a, b) => new Date(b.updated_date || b.created_date || 0) - new Date(a.updated_date || a.created_date || 0))
-      : [...live].sort((a, b) => (a.name || "").localeCompare(b.name || ""));
-    return sorted.slice(0, limit);
-  }, [alters, sort, limit, group]);
+  const isExpanded = mode === "expanded";
+
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const sessionFor = (id) => sessions.find((x) => (x.alter_id || x.primary_alter_id) === id);
+  // Fronting frequency needs history, and only when that sort is chosen.
+  const { data: allSessions = [] } = useQuery({
+    queryKey: ["frontSessionsAll"],
+    queryFn: () => base44.entities.FrontingSession.filter({}),
+    enabled: sort === "front_time" || sort === "front_count",
+    staleTime: 60000,
+  });
+  const frontStats = React.useMemo(() => {
+    const stat = {};
+    for (const x of allSessions) {
+      const ids = x.alter_id ? [x.alter_id] : [x.primary_alter_id, ...(x.co_fronter_ids || [])].filter(Boolean);
+      const ms = x.start_time && x.end_time ? new Date(x.end_time) - new Date(x.start_time) : 0;
+      for (const id of ids) {
+        if (!stat[id]) stat[id] = { ms: 0, count: 0 };
+        stat[id].ms += ms;
+        stat[id].count += 1;
+      }
+    }
+    return stat;
+  }, [allSessions]);
+
+  const sortAlters = React.useCallback((pool) => {
+    const cmp = {
+      name: (a, b) => (formatAlter(a) || "").localeCompare(formatAlter(b) || ""),
+      recent: (a, b) => new Date(b.updated_date || b.created_date || 0) - new Date(a.updated_date || a.created_date || 0),
+      front_time: (a, b) => (frontStats[b.id]?.ms || 0) - (frontStats[a.id]?.ms || 0),
+      front_count: (a, b) => (frontStats[b.id]?.count || 0) - (frontStats[a.id]?.count || 0),
+      created: (a, b) => new Date(a.created_date || 0) - new Date(b.created_date || 0),
+      role: (a, b) => (a.role || "~").localeCompare(b.role || "~"),
+    }[sort] || ((a, b) => (formatAlter(a) || "").localeCompare(formatAlter(b) || ""));
+    const out = [...pool].sort(cmp);
+    return reverse ? out.reverse() : out;
+  }, [sort, reverse, frontStats, formatAlter]);
+
+  // Flat → one sorted list. Grouped → a section per group/subsystem the
+  // user has, with anyone ungrouped gathered at the end.
+  const sections = React.useMemo(() => {
+    const pool = (group ? getMemberAlters(group, alters) : alters).filter((a) => !a.is_archived);
+    if (arrangement !== "grouped" || group) {
+      return [{ id: "_all", label: null, items: sortAlters(pool).slice(0, limit) }];
+    }
+    const claimed = new Set();
+    const out = [];
+    for (const g of groups) {
+      const members = getMemberAlters(g, pool);
+      if (members.length === 0) continue;
+      members.forEach((m) => claimed.add(m.id));
+      out.push({ id: g.id, label: g.name || "Group", items: sortAlters(members) });
+    }
+    const rest = pool.filter((a) => !claimed.has(a.id));
+    if (rest.length) out.push({ id: "_rest", label: applyTerms(tr("widget.alters.ungrouped"), t), items: sortAlters(rest) });
+    // The limit applies across the whole widget, not per section.
+    let left = limit;
+    return out.map((sec) => {
+      const items = sec.items.slice(0, Math.max(0, left));
+      left -= items.length;
+      return { ...sec, items };
+    }).filter((sec) => sec.items.length > 0);
+  }, [alters, groups, group, arrangement, sortAlters, limit, tr, t]);
+
+  const total = sections.reduce((n, sec) => n + sec.items.length, 0);
 
   return (
     <Section label={group ? group.name : applyTerms(tr("widget.alters.label"), t)}
       action={<TextAction onClick={() => navigate("/Home")}>{tr("widget.today.open")}</TextAction>}>
-      {list.length === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
-      {list.map((a) => (
-        <Row key={a.id} left={<Dot color={a.color} />} primary={formatAlter(a)}
-          right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />
+      {total === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
+      {sections.map((sec) => (
+        <React.Fragment key={sec.id}>
+          {sec.label && (
+            <p className="text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{sec.label}</p>
+          )}
+          {sec.items.map((a) => {
+            const session = sessionFor(a.id);
+            if (!isExpanded) {
+              return (
+                <Row key={a.id} left={<Dot color={a.color} ring={!!session} />} primary={formatAlter(a)}
+                  right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />
+              );
+            }
+            return <ExpandedAlterRow key={a.id} alter={a} session={session} onOpen={() => navigate(`/alter/${a.id}`)} t={t} formatAlter={formatAlter} />;
+          })}
+        </React.Fragment>
       ))}
     </Section>
+  );
+}
+
+// Expanded alters-list row: avatar, emoji + name (alias per the label
+// mode), role, pronouns/preferences, and whatever this {alter} has going
+// right now (level, feelings, symptoms, note) when they're {fronting}.
+function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter }) {
+  const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  const levelCfg = useFrontLevels();
+  const level = session ? getSessionLevel(session, levelCfg) : null;
+  const prefs = React.useMemo(() => parsePreferences(alter), [alter]);
+  const prefChips = prefs.filter((p) => p.level >= 4 || p.level === 1).slice(0, 4);
+  const bits = session ? [
+    ...parseSessionEmotions(session.session_emotions).slice(0, 3),
+    ...parseSessionSymptoms(session.session_symptoms).slice(0, 2).map((x) => x.label).filter(Boolean),
+  ] : [];
+  const note = session ? (parseSessionNote(session.note).slice(-1)[0]?.text || "") : "";
+  return (
+    <button type="button" onClick={onOpen}
+      className="w-full flex items-start gap-2 text-left rounded-lg px-1 py-1 hover:bg-muted/40">
+      <span className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5"
+        style={{
+          backgroundColor: alter.color || "hsl(var(--muted))",
+          boxShadow: session ? `0 0 0 2px color-mix(in srgb, ${alter.color || "var(--v2-accent)"} 55%, transparent)` : undefined,
+        }}>
+        {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" /> : null}
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-baseline gap-1.5 min-w-0">
+          <span className="text-sm truncate">
+            {alter.emoji ? `${alter.emoji} ` : ""}{formatAlter(alter)}
+          </span>
+          {alter.role && <span className="text-[0.6875em] text-muted-foreground truncate">{alter.role}</span>}
+        </span>
+        {(alter.pronouns || level) && (
+          <span className="block text-[0.6875em] text-muted-foreground truncate">
+            {[alter.pronouns, level ? frontLevelLabel(level, t) : null].filter(Boolean).join(" · ")}
+          </span>
+        )}
+        {prefChips.length > 0 && (
+          <span className="flex flex-wrap gap-1 mt-0.5">
+            {prefChips.map((p) => (
+              <span key={p.id} className="text-[0.625em] px-1.5 py-0.5 rounded-full border"
+                style={{ borderColor: `${PREF_LEVELS[p.level].color}55`, color: PREF_LEVELS[p.level].color }}>
+                {PREF_LEVELS[p.level].emoji} {p.label}
+              </span>
+            ))}
+          </span>
+        )}
+        {bits.length > 0 && <span className="block text-[0.6875em] text-muted-foreground truncate">{bits.join(" · ")}</span>}
+        {note && <span className="block text-[0.6875em] text-muted-foreground truncate">💬 {note}</span>}
+      </span>
+    </button>
   );
 }
 
@@ -1607,10 +1809,11 @@ export const V2_WIDGETS = {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
     icon: Users, category: "system",
     render: ({ mode, api, settings }) => <PresenceWidget mode={mode} api={api} settings={settings} />,
-    supportsModes: ["minimal", "normal"], supportsMultiInstance: false,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     configFields: [
-      { key: "showAvatar", type: "toggle", label: "Show avatars", default: false },
-      { key: "showPronouns", type: "toggle", label: "Show pronouns", default: false },
+      { key: "showAvatar", type: "toggle", label: "Show avatars (normal & expanded)", default: true },
+      { key: "showPronouns", type: "toggle", label: "Show pronouns (expanded)", default: true },
+      { key: "showSessionDetail", type: "toggle", label: "Show this session's feelings, symptoms & note (expanded)", default: true },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -1657,17 +1860,30 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   alters_list: {
-    label: "{{Alters}} list", description: "A list of {{alters}} that opens their profiles.",
+    label: "{{Alters}} list", description: "Your {{alters}}, ordered how you like \u2014 flat or split by group, alphabetical or by {{fronting}} time. Expanded rows add avatars, pronouns, preferences and what each one has going right now.",
     icon: Users, category: "system",
-    render: ({ settings, api }) => <AltersListWidget settings={settings} api={api} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: ({ settings, api, mode }) => <AltersListWidget settings={settings} api={api} mode={mode} />,
+    supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
     configFields: [
+      { key: "arrangement", type: "select", label: "Arrangement", default: "flat",
+        options: [
+          { value: "flat", label: "One flat list" },
+          { value: "grouped", label: "Split by group / subsystem" },
+        ] },
+      { key: "sort", type: "select", label: "Order by", default: "name",
+        options: [
+          { value: "name", label: "Name (A\u2013Z)" },
+          { value: "front_time", label: "{{Fronting}} time" },
+          { value: "front_count", label: "{{Switch}} count" },
+          { value: "recent", label: "Recently updated" },
+          { value: "created", label: "When they joined" },
+          { value: "role", label: "Role" },
+        ] },
+      { key: "reverse", type: "toggle", label: "Reverse the order", default: false },
       { key: "groupId", type: "group", label: "Only show one group / subsystem" },
-      { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },
-      { key: "sort", type: "select", label: "Order", default: "name",
-        options: [{ value: "name", label: "By name" }, { value: "recent", label: "Recently updated" }] },
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 40, default: 6 },
     ],
-    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   journal: {
     label: "Journal", description: "Your most recent entries, and a button to start a new one.",

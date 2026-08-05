@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: who's-here display modes now mean something \u2014 minimal is just names and colours, normal adds avatars and status, expanded adds pronouns and whatever that session already holds (feelings, symptoms, note). The widget also gained the triggered-switch and journal-this-switch buttons." },
+      { type: "improve", text: "\ud83e\uddea New UI: the alters-list widget can be ordered how you like \u2014 flat or split by group/subsystem, sorted by name, fronting time, switch count, when they joined, role, or recently updated, in either direction. Its new expanded mode shows avatars, emoji, pronouns, preference chips and each alter's current session details." },
+      { type: "fix", text: "\ud83e\uddea New UI: colour and border controls in widget options no longer squash their buttons into unreadable single-letter columns on narrow screens." },
       { type: "feature", text: "Custom fields can sit side by side instead of stacked \u2014 either wrapping onto more lines or staying on one line that scrolls sideways. Settings \u2192 Alter setup \u2192 Custom fields \u2192 Layout on profiles." },
       { type: "fix", text: "The alter action menu (go to profile, pin, subsystem, groups\u2026) is reachable again: press and hold an alter's chip on the alters page, or double-tap them in Currently Fronting or the who's-here widget. It now also carries \"Jump to session on Timeline\" and \"Edit session\" when they're fronting." },
       { type: "improve", text: "Alters page gestures settled: tapping an alter opens their profile, holding their chip opens their menu, and the bolt button owns fronting \u2014 tap to add them at the top level or adjust, hold for the level spectrum." },

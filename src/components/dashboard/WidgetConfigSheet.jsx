@@ -535,7 +535,7 @@ export default function WidgetConfigSheet({
                   onChange={(e) => onSettings(widget.instanceId, { radius: parseInt(e.target.value, 10) })}
                   className="flex-1" aria-label="Corner radius" />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { radius: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
               </div>
             </div>
 
@@ -552,7 +552,7 @@ export default function WidgetConfigSheet({
                   onChange={(e) => onSettings(widget.instanceId, { borderW: parseInt(e.target.value, 10) })}
                   className="flex-1" aria-label="Border width" />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { borderW: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
               </div>
             </div>
 
@@ -569,7 +569,7 @@ export default function WidgetConfigSheet({
                   onChange={(e) => onSettings(widget.instanceId, { fontScale: parseInt(e.target.value, 10) })}
                   className="flex-1" aria-label="Text size" />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { fontScale: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
               </div>
             </div>
 
@@ -585,30 +585,30 @@ export default function WidgetConfigSheet({
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium block mb-1">Background</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <ColorPicker value={settings.bg || "#111827"}
                     onChange={(v) => onSettings(widget.instanceId, { bg: v })} />
                   <button type="button" onClick={() => onSettings(widget.instanceId, { bg: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
                 </div>
               </div>
               <div>
                 <label className="text-xs font-medium block mb-1">Text colour</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <ColorPicker value={settings.textColor || "#e5e7eb"}
                     onChange={(v) => onSettings(widget.instanceId, { textColor: v })} />
                   <button type="button" onClick={() => onSettings(widget.instanceId, { textColor: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
                 </div>
               </div>
             </div>
 
             <div>
               <label className="text-xs font-medium block mb-1">Background image</label>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <button type="button" onClick={() => onPickBackground?.(widget.instanceId)}
                   className="h-9 px-3 rounded-lg border border-border text-xs flex items-center gap-1.5">
                   <ImageIcon className="w-3.5 h-3.5" /> {settings.bgImage ? "Change" : "Choose"}
@@ -624,7 +624,7 @@ export default function WidgetConfigSheet({
                       ))}
                     </div>
                     <button type="button" onClick={() => onSettings(widget.instanceId, { bgImage: "" })}
-                      className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Remove</button>
+                      className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Remove</button>
                   </>
                 )}
               </div>
@@ -643,18 +643,18 @@ export default function WidgetConfigSheet({
                   onChange={(e) => onSettings(widget.instanceId, { padding: parseInt(e.target.value, 10) })}
                   className="flex-1" aria-label="Inner spacing" />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { padding: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Reset</button>
+                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
               </div>
             </div>
 
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium block mb-1">Border colour</label>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <ColorPicker value={settings.borderColor || "#3b82f6"}
                     onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
                   <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">Clear</button>
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
                 </div>
               </div>
               <div>
