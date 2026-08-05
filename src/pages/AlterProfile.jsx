@@ -18,6 +18,7 @@ import { useTerms } from "@/lib/useTerms";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
 
 import ProfileTab from "@/components/alters/profile/ProfileTab";
+import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import InfoTab from "@/components/alters/profile/InfoTab";
 import HistoryTab from "@/components/alters/profile/HistoryTab";
 import NotesTab from "@/components/alters/profile/NotesTab";
@@ -269,6 +270,10 @@ function AlterProfileInner() {
       transition={{ duration: 0.3 }}
       className="relative min-h-screen"
     >
+      {/* Profile song — plays on open (MySpace style), floating mini-player,
+          global toggle in Settings → {Alter} setup. Unmounts (and stops) on
+          navigation away. */}
+      {alter?.profile_song?.ref && <ProfileSongPlayer alter={alter} />}
       {hasPageBg && (
         <div className="fixed inset-0 pointer-events-none z-0" aria-hidden>
           {resolvedBgImage ? (

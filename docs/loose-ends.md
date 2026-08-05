@@ -48,6 +48,10 @@ new one, add it. Update the date line above whenever you touch this file.*
 - [ ] **Unused locale keys** from retired UIs (`options.previewRow`,
   `options.fullPanel`-era strings, `widget.book.*` chips-era strings) — sweep
   `src/locales/en.js` against actual `t()` usage.
+- [ ] **Profile songs follow-ups** (v0.119.0 shipped core): per-alter volume;
+  "entrance theme on switch-in" (owner explicitly deferred); the asset
+  library page doesn't list audio blobs (they're store-only, still in
+  backups); consider audio in the v2 alter-link widgets.
 - [ ] **Breathing pace on the Grounding page** — the `pace` prop exists; the
   full-screen exercise has no control for it yet (widget-only today).
 - [ ] **Fronting levels follow-ups**: terms for the word "level" itself

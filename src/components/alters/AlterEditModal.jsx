@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User, Music } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -89,7 +89,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
     name: "", alias: "", pronouns: "", role: "",
     description: "", color: "", avatar_url: "", avatar_rotation_mode: "off",
     birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false,
-    custom_fields: {}, preferences: [],
+    custom_fields: {}, preferences: [], profile_song: null,
   });
   // "Advanced" pronouns/preferences drawer (pronouns.cc-style comfort
   // levels). Auto-opens when the alter already has entries.
@@ -141,11 +141,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         description: alter.description || "", color: alter.color || "",
         avatar_url: alter.avatar_url || "", avatar_rotation_mode: alter.avatar_rotation_mode || "off",
         birthday, origin_year, is_pinned: !!alter.is_pinned, emoji: alter.emoji || "", use_emoji_as_alias: !!alter.use_emoji_as_alias,
-        custom_fields: alter.custom_fields || {}, preferences,
+        custom_fields: alter.custom_fields || {}, preferences, profile_song: alter.profile_song || null,
       });
       setPrefsOpen(preferences.length > 0);
     } else {
-      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [] });
+      setForm({ name: "", alias: "", pronouns: "", role: "", description: "", color: "", avatar_url: "", avatar_rotation_mode: "off", birthday: "", origin_year: "", is_pinned: false, emoji: "", use_emoji_as_alias: false, custom_fields: {}, preferences: [], profile_song: null });
       setPrefsOpen(false);
     }
     setShowAvatarUrl(false);
@@ -195,6 +195,37 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
       toast.error("Failed to process avatar");
     } finally {
       setUploadingAvatar(false);
+      e.target.value = "";
+    }
+  };
+
+  // Profile song upload — raw audio file straight into the local blob
+  // store (it's MIME-generic and its backup export walks every blob, so
+  // songs travel in backups exactly like avatars). No image processing.
+  const [uploadingSong, setUploadingSong] = useState(false);
+  const songFileRef = useRef(null);
+  const handleSongUpload = async (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith("audio/")) { toast.error("That's not an audio file"); e.target.value = ""; return; }
+    if (file.size > 25 * 1024 * 1024) { toast.error("Audio over 25MB is too large — try a compressed MP3"); e.target.value = ""; return; }
+    setUploadingSong(true);
+    try {
+      if (!isLocalMode()) { toast.error("Song upload requires local mode. Paste an audio URL instead."); return; }
+      if (file.size > 10 * 1024 * 1024) toast.warning(`${(file.size / 1024 / 1024).toFixed(1)}MB — large songs grow your storage and backups.`);
+      const audioId = `song-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+      await saveLocalImage(audioId, file, file.type);
+      set("profile_song", {
+        ...(form.profile_song || {}),
+        ref: createLocalImageUrl(audioId),
+        title: form.profile_song?.title || file.name.replace(/\.[^.]+$/, ""),
+        loop: form.profile_song?.loop !== false,
+      });
+      toast.success("Song saved!");
+    } catch {
+      toast.error("Failed to save the song");
+    } finally {
+      setUploadingSong(false);
       e.target.value = "";
     }
   };
@@ -518,6 +549,57 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               clearField={clearCF}
               rotationConfig={!isNew && alter ? { alterId: alter.id, role: "background" } : null}
             />
+          </SubSection>
+
+          {/* Profile song — the MySpace touch: plays when their page opens.
+              Upload goes to the local blob store (rides backups); a direct
+              audio URL streams instead. Global kill-switch lives in
+              Settings → {Alter} setup. */}
+          <SubSection title="Profile song" icon={Music} defaultOpen={false}>
+            <div className="space-y-2">
+              {form.profile_song?.ref ? (
+                <div className="flex items-center gap-2 rounded-xl border border-border/50 px-3 py-2">
+                  <Music className="w-3.5 h-3.5 text-primary flex-shrink-0" />
+                  <Input
+                    value={form.profile_song.title || ""}
+                    onChange={(e) => set("profile_song", { ...form.profile_song, title: e.target.value })}
+                    placeholder="Song title (shown in the player)"
+                    className="h-8 text-sm flex-1 border-0 bg-transparent px-0 focus-visible:ring-0"
+                  />
+                  <IconButton icon={X} title="Remove song" onClick={() => set("profile_song", null)} />
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  No song yet — when set, it plays whenever this {t.alter}'s page opens (MySpace style).
+                </p>
+              )}
+              <div className="flex flex-wrap items-center gap-2">
+                <Button type="button" size="sm" variant="outline" className="gap-1.5 text-xs"
+                  onClick={() => songFileRef.current?.click()} disabled={uploadingSong}>
+                  {uploadingSong ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
+                  Upload audio
+                </Button>
+                <Input
+                  placeholder="…or paste a direct audio URL"
+                  defaultValue={form.profile_song?.ref?.startsWith("http") ? form.profile_song.ref : ""}
+                  onBlur={(e) => {
+                    const v = e.target.value.trim();
+                    if (v && /^https?:\/\//.test(v)) {
+                      set("profile_song", { ...(form.profile_song || {}), ref: v, title: form.profile_song?.title || "", loop: form.profile_song?.loop !== false });
+                    }
+                  }}
+                  className="h-8 text-xs flex-1 min-w-[160px]"
+                />
+              </div>
+              {form.profile_song?.ref && (
+                <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>Loop while the page is open</span>
+                  <Switch checked={form.profile_song.loop !== false}
+                    onCheckedChange={(v) => set("profile_song", { ...form.profile_song, loop: !!v })} />
+                </label>
+              )}
+              <input ref={songFileRef} type="file" accept="audio/*" className="hidden" onChange={handleSongUpload} />
+            </div>
           </SubSection>
 
           {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
