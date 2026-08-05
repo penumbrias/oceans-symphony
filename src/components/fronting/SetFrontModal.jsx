@@ -16,12 +16,12 @@ import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import PresencePicker from "@/components/presences/PresencePicker";
 import { useTerms } from "@/lib/useTerms";
-import { pushFrontStatus } from "@/lib/friendsApi";
+import { applyFrontSelection } from "@/lib/setFront";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { formatInTimeZone } from "date-fns-tz";
 
-const TRIGGER_CATEGORIES = [
+export const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
   { id: "emotional",       label: "Emotional",      emoji: "💙", hint: "grief, fear, loneliness" },
   { id: "interpersonal",   label: "Interpersonal",  emoji: "👥", hint: "conflict, rejection" },
@@ -51,7 +51,7 @@ function getContrastColor(hex) {
 // (AlterGridView): tap = toggle selection, swipe right = toggle selection,
 // swipe left = toggle primary. The visual is also avatar-centric so the
 // modal's grid feels identical to the rest of the app.
-function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary }) {
+export function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
@@ -567,155 +567,35 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     }
     setSaving(true);
     try {
-      const activeSessions = await base44.entities.FrontingSession.filter({ is_active: true });
-
-      if (isUnsure) {
-        const now = nowLocalIso();
-        for (const s of activeSessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-        }
-        // Also reconcile ghost-active sessions (is_active: false but
-        // end_time still null) — they appear as "Active" in the
-        // Timeline popover even though the rest of the app considers
-        // them ended.
-        try {
-          const ghosts = await base44.entities.FrontingSession.filter({ is_active: false, end_time: null });
-          for (const g of ghosts || []) {
-            await base44.entities.FrontingSession.update(g.id, { end_time: now });
-          }
-        } catch { /* filter on end_time: null may not be supported */ }
-        toast.success(`✅ ${terms.Front} cleared`);
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-        // Push cleared status to friends server (fire-and-forget)
-        pushFrontStatus({ fronters: [], terms: { fronting: terms.fronting } }).catch(() => {});
-        onClose();
+      // ONE write path for every set-front surface: src/lib/setFront.js
+      // (extracted from this modal's original handleSave, v0.117.0).
+      const coIds = coFronterIds.filter((id) => id !== primaryId);
+      const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
+      const { firstSessionId } = await applyFrontSelection({
+        clearAll: isUnsure,
+        selections: allSelectedIds.map((id) => ({
+          alterId: id,
+          isPrimary: id === primaryId,
+          level: levelCfg.enabled
+            ? (pendingLevels[id]
+                ?? modalActiveSessions.find((s) => (s.alter_id || s.primary_alter_id) === id)?.front_level
+                ?? levelCfg.levels[0]?.id)
+            : undefined,
+        })),
+        triggered: triggeredSwitch && triggerCategory
+          ? { category: triggerCategory, label: triggerLabel }
+          : null,
+        levelsEnabled: levelCfg.enabled,
+        alters,
+        terms,
+        queryClient,
+      });
+      toast.success(isUnsure ? `✅ ${terms.Front} cleared` : `✅ ${terms.Front} updated!`);
+      if (!isUnsure && journalSwitch) {
+        setNewSessionId(firstSessionId);
+        setShowJournalModal(true);
       } else {
-        const now = nowLocalIso();
-        const coIds = coFronterIds.filter((id) => id !== primaryId);
-        const allSelectedIds = [primaryId, ...coIds].filter(Boolean);
-
-        // Build desired state: alter_id -> is_primary
-        const desiredMap = {};
-        for (const id of allSelectedIds) {
-          desiredMap[id] = id === primaryId;
-        }
-
-        // Handle legacy sessions (old format with primary_alter_id)
-        const legacySessions = activeSessions.filter(s => !s.alter_id && s.primary_alter_id);
-        for (const s of legacySessions) {
-          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-        }
-
-        const newModelSessions = activeSessions.filter(s => s.alter_id);
-
-        // Group by alter_id — duplicates (>1 session per alter) get fully cleared
-        const sessionsByAlterId = {};
-        for (const s of newModelSessions) {
-          if (!sessionsByAlterId[s.alter_id]) sessionsByAlterId[s.alter_id] = [];
-          sessionsByAlterId[s.alter_id].push(s);
-        }
-
-        // 1. End sessions for removed alters and ALL duplicates. A still-present
-        //    alter whose ONLY change is primary status is intentionally NOT ended
-        //    here — step 2 updates it in place so its start_time (the "fronting
-        //    since" timer) is preserved instead of reset to now.
-        for (const [alterId, sessions] of Object.entries(sessionsByAlterId)) {
-          const isStillPresent = alterId in desiredMap;
-          const hasDuplicates = sessions.length > 1;
-          if (hasDuplicates) {
-            // End every copy — a clean single session will be created in step 2
-            for (const s of sessions) {
-              await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
-            }
-          } else if (!isStillPresent) {
-            await base44.entities.FrontingSession.update(sessions[0].id, { is_active: false, end_time: now });
-          }
-        }
-
-        // 2. Update or create sessions:
-        //    - still-present alter, single session, only primary changed → UPDATE
-        //      in place (preserves start_time / the "fronting since" timer)
-        //    - new alter, or duplicates cleared in step 1 → CREATE a fresh session
-        //    - unchanged single session → nothing to do
-        let firstSessionId = null;
-        for (const id of allSelectedIds) {
-          const sessions = sessionsByAlterId[id] || [];
-          const hasDuplicates = sessions.length > 1;
-          const single = sessions.length === 1 ? sessions[0] : null;
-          const statusUnchanged = single && single.is_primary === desiredMap[id];
-
-          if (single && !hasDuplicates && !statusUnchanged) {
-            await base44.entities.FrontingSession.update(single.id, { is_primary: desiredMap[id] });
-            if (!firstSessionId) firstSessionId = single.id;
-          } else if (hasDuplicates || !single) {
-            const newSession = await base44.entities.FrontingSession.create({
-              alter_id: id,
-              is_primary: desiredMap[id],
-              start_time: now,
-              is_active: true,
-            });
-            if (!firstSessionId) firstSessionId = newSession?.id || null;
-          }
-        }
-
-        if (triggeredSwitch && triggerCategory) {
-          const nowActive = await base44.entities.FrontingSession.filter({ is_active: true });
-          await Promise.all(nowActive.map(s =>
-            base44.entities.FrontingSession.update(s.id, {
-              is_triggered_switch: true,
-              trigger_category: triggerCategory,
-              trigger_label: triggerLabel,
-            })
-          ));
-        }
-
-        // Apply fronting levels (opt-in) to the surviving sessions. Fresh
-        // fetch — sessions may have been created/replaced above.
-        if (levelCfg.enabled && Object.keys(pendingLevels).length > 0) {
-          const nowActiveForLevels = await base44.entities.FrontingSession.filter({ is_active: true });
-          for (const s of nowActiveForLevels) {
-            const aId = s.alter_id || s.primary_alter_id;
-            const want = pendingLevels[aId];
-            if (want !== undefined && want !== s.front_level) {
-              await base44.entities.FrontingSession.update(s.id, { front_level: want });
-            }
-          }
-        }
-
-        toast.success(`✅ ${terms.Front} updated!`);
-        queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-        queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-
-        // Push front status to friends server (fire-and-forget)
-        // id is included so pushFrontStatus can apply per-friend visibility filtering
-        const visibleFronters = allSelectedIds
-          .map(id => alters.find(a => a.id === id))
-          .filter(a => a && a.friends_visible !== false)
-          .map(a => ({
-            id: a.id,
-            name: a.name,
-            initial: a.name?.[0] || '?',
-            color: a.color || null,
-            isPrimary: a.id === primaryId,
-            isCofronter: a.id !== primaryId,
-          }));
-        pushFrontStatus({
-          fronters: visibleFronters,
-          terms: {
-            fronting: terms.fronting,
-            front: terms.front,
-            alter: terms.alter,
-            system: terms.system,
-          },
-        }).catch(() => {});
-
-        if (journalSwitch) {
-          setNewSessionId(firstSessionId);
-          setShowJournalModal(true);
-        } else {
-          onClose();
-        }
+        onClose();
       }
     } catch (e) {
       toast.error(e.message || `Failed to set ${terms.front}`);

@@ -39,6 +39,7 @@ import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
+import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -69,7 +70,21 @@ const sameDay = (a, b) => new Date(a).toDateString() === new Date(b).toDateStrin
 const useList = (key, entity) => useQuery({ queryKey: [key], queryFn: () => base44.entities[entity].list() }).data || [];
 
 // ── Who's here ─────────────────────────────────────────────────────
-function PresenceWidget({ mode, api }) {
+// Row avatar for the presence widget (hook-per-row for local-image URLs).
+function PresenceAvatar({ alter, ring }) {
+  const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  return (
+    <span className="w-7 h-7 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
+      style={{
+        backgroundColor: alter.color || "hsl(var(--muted))",
+        boxShadow: ring ? `0 0 0 2px color-mix(in srgb, ${alter.color || "var(--v2-accent)"} 55%, transparent)` : undefined,
+      }}>
+      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" /> : null}
+    </span>
+  );
+}
+
+function PresenceWidget({ mode, api, settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const t = useTerms();
@@ -94,6 +109,12 @@ function PresenceWidget({ mode, api }) {
     onCommit: (alterId, levelId) => commitFrontLevel({ alterId, levelId, queryClient: qc }),
   });
   const railAlter = rail ? byId[rail.alterId] : null;
+  // Tap opens the per-alter check-in panel (the same AlterPanel the classic
+  // Currently Fronting card uses — reused, not forked) or the profile.
+  const [panelFor, setPanelFor] = React.useState(null);
+  const showAvatar = !!settings?.showAvatar;
+  const showPronouns = !!settings?.showPronouns;
+  const tapAction = settings?.tapAction || "panel";
 
   return (
     <Section
@@ -103,22 +124,47 @@ function PresenceWidget({ mode, api }) {
       {fronters.length === 0 && <Muted>{applyTerms(tr("widget.presence.empty"), t)}</Muted>}
       {(mode === "minimal" ? fronters.slice(0, 1) : fronters).map(({ s, alter }) => {
         const level = getSessionLevel(s, levelCfg);
+        const secondary = [showPronouns ? alter.pronouns : null, level ? frontLevelLabel(level, t) : null]
+          .filter(Boolean).join(" · ") || undefined;
         return (
         <div key={s.id} {...getHoldProps(alter.id, s.front_level)} className="select-none">
         <Row
           // A ring marks the primary instead of a word — the name needs the
           // room more than the label does in a one-column widget.
-          left={<Dot color={alter.color} ring={s.is_primary} />}
+          left={showAvatar
+            ? <PresenceAvatar alter={alter} ring={s.is_primary} />
+            : <Dot color={alter.color} ring={s.is_primary} />}
           primary={formatAlter(alter)}
-          secondary={level ? frontLevelLabel(level, t) : undefined}
+          secondary={secondary}
           right={s.start_time ? fmtElapsed(s.start_time) : undefined}
           title={s.is_primary ? applyTerms(tr("widget.presence.primaryOf"), t) : undefined}
-          onClick={() => { if (!rail) navigate(`/alter/${alter.id}`); }}
+          onClick={() => {
+            if (rail) return;
+            if (tapAction === "profile") navigate(`/alter/${alter.id}`);
+            else setPanelFor({ alter, session: s });
+          }}
         />
         </div>
         );
       })}
       <FrontLevelRail rail={rail} cfg={levelCfg} alterName={railAlter ? formatAlter(railAlter) : ""} />
+      {/* Per-alter check-in panel — feelings, symptoms, note for THIS alter's
+          current session, right from the widget. */}
+      {panelFor && (
+        <Drawer open onOpenChange={(v) => { if (!v) setPanelFor(null); }}>
+          <DrawerContent className="max-h-[85vh]">
+            <div className="overflow-y-auto px-2"
+              style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
+              <AlterPanel
+                alter={panelFor.alter}
+                session={panelFor.session}
+                onClose={() => setPanelFor(null)}
+                onSaved={() => setPanelFor(null)}
+              />
+            </div>
+          </DrawerContent>
+        </Drawer>
+      )}
     </Section>
   );
 }
@@ -1386,10 +1432,19 @@ function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder
 
 export const V2_WIDGETS = {
   presence: {
-    label: "Who's here", description: "Current {{fronters}}, with time since each arrived.",
+    label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Rows can show avatars and pronouns; tapping opens the per-{{alter}} panel (feelings, symptoms, note) or their profile.",
     icon: Users, category: "system",
-    render: ({ mode, api }) => <PresenceWidget mode={mode} api={api} />,
+    render: ({ mode, api, settings }) => <PresenceWidget mode={mode} api={api} settings={settings} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: false,
+    configFields: [
+      { key: "showAvatar", type: "toggle", label: "Show avatars", default: false },
+      { key: "showPronouns", type: "toggle", label: "Show pronouns", default: false },
+      { key: "tapAction", type: "select", label: "Tapping an {{alter}} opens", default: "panel",
+        options: [
+          { value: "panel", label: "Their check-in panel (feelings, symptoms, note)" },
+          { value: "profile", label: "Their profile page" },
+        ] },
+    ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   running: {

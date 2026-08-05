@@ -1,4 +1,4 @@
-# Loose Ends — living audit (updated 2026-08-04, v0.115.0, branch claude/ui-v2)
+# Loose Ends — living audit (updated 2026-08-04, v0.117.0, branch claude/ui-v2)
 
 *Purpose: nothing about this project's state should depend on anyone's memory.
 When an item is finished, move it to "Done" with the version. When you find a
@@ -55,6 +55,18 @@ new one, add it. Update the date line above whenever you touch this file.*
   Home-page alter rows don't show levels yet; consider level colors; wiki
   entry missing (see wiki item below). The hold→drag rail exists only on the
   v2 who's-here widget by design (classic chips already own hold + swipes).
+- [ ] **Old SetFrontModal is now ONLY the selection-mode alter picker**
+  (v0.117.0 rebuilt the real set-front flow as `SetFrontSheet`, engine in
+  `src/lib/setFront.js`). Follow-up: strip the modal's dead set-front code
+  paths (unsure/triggered/journal/levels UI, handleSave's front branch) and
+  rename it `AlterMultiSelectModal`; its 4 callers are QuickPlanComposer,
+  MeetingParticipantsSection, ActivityLogModal, ActivityPlanModal.
+- [ ] **Dev-verification trap (for Claude, documented so it stops recurring):**
+  in the Vite dev preview, `import('…/base44Client.js')` from the console
+  creates a SECOND localDb module instance whose in-memory DB snapshots at
+  first import; any later write through it saves the WHOLE stale blob (this
+  faked the "ui_v2 re-enables itself" recurrences on 08-04/08-05). Method:
+  reload → import+write immediately → reload before trusting app state.
 - [ ] **Wiki preview (`previewWiki.js`) knows nothing about v2.** The
   staleness banner is honest about it (WIKI_CONTENT_VERSION < APP_VERSION),
   but before v2 ships to main the wiki wants a v2 walkthrough entry.

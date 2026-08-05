@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { User, Star, Plus, Pencil } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { motion } from "framer-motion";
-import SetFrontModal from "./SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import { useTerms } from "@/lib/useTerms";
 
 function getContrastColor(hex) {
@@ -148,11 +148,10 @@ export default function FrontingBar({ alters }) {
         }
       </motion.div>
 
-      <SetFrontModal
+      <SetFrontSheet
         open={showModal}
         onClose={() => setShowModal(false)}
-        alters={alters || []}
-        currentSession={session} />
+        alters={alters || []} />
       
     </>);
 

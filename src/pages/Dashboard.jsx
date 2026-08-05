@@ -16,7 +16,7 @@ import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { seedFromClassic } from "@/lib/experimentalHome";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import { WIDGET_REGISTRY, CLASSIC_TO_WIDGET } from "@/lib/widgetRegistry";
 import { Grid2x2 } from "lucide-react";
 
@@ -90,7 +90,7 @@ function V2SetFrontHost({ alters }) {
   }, []);
   if (!open) return null;
   return (
-    <SetFrontModal open onClose={() => setOpen(false)} alters={alters}
+    <SetFrontSheet open onClose={() => setOpen(false)} alters={alters}
       currentSession={sessions.find((x) => x.is_primary) || sessions[0] || null} />
   );
 }

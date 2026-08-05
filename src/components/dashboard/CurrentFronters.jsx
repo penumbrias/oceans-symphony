@@ -17,7 +17,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
@@ -794,7 +794,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
             <RefreshCw className="w-3 h-3" /> Set {terms.Front}
           </Button>
         </div>
-        <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={null} />
+        <SetFrontSheet open={showModal} onClose={() => setShowModal(false)} alters={alters} />
       </>
     );
   }
@@ -956,7 +956,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
           </button>
         )}
       </div>
-      <SetFrontModal open={showModal} onClose={() => setShowModal(false)} alters={alters} currentSession={active} />
+      <SetFrontSheet open={showModal} onClose={() => setShowModal(false)} alters={alters} />
 
       <TriggerEditModal
         open={showTriggerEdit}

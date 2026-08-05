@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { CATEGORY_ICONS } from "./reminderHelpers";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { formatSnoozeLabel, snoozeUntilDate } from "./snoozeHelpers";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import {
   DropdownMenu,
@@ -280,7 +280,7 @@ export default function ReminderToast() {
         </div>
       )}
 
-      <SetFrontModal
+      <SetFrontSheet
         open={setFrontOpen}
         onClose={() => {
           setSetFrontOpen(false);

@@ -6,7 +6,7 @@ import { ChevronDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import ReminderInstanceCard from "./ReminderInstanceCard";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import { snoozeUntilDate } from "./snoozeHelpers";
 
 export default function RemindersInbox({ autoTriggerAction = null }) {
@@ -198,7 +198,7 @@ export default function RemindersInbox({ autoTriggerAction = null }) {
         }}
       />
 
-      <SetFrontModal
+      <SetFrontSheet
         open={setFrontOpen}
         alters={alters}
         onClose={() => {

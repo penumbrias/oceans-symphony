@@ -7,7 +7,7 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
-import SetFrontModal from "@/components/fronting/SetFrontModal";
+import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import AlterEditModal from "@/components/alters/AlterEditModal";
 import { useNavigate } from "react-router-dom";
 import { FrontingToggleButton } from "@/components/alters/AlterCard";
@@ -430,14 +430,13 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
 
       {selectedAlter &&
       <>
-          <SetFrontModal
+          <SetFrontSheet
           open={setFrontOpen}
           onClose={() => {
             setSetFrontOpen(false);
             setSelectedAlter(null);
           }}
-          alters={alters}
-          currentSession={activeSessions[0] || null} />
+          alters={alters} />
         
           <AlterEditModal
           alter={selectedAlter}

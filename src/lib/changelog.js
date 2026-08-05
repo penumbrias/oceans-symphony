@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "feature", text: "Set Fronters is rebuilt: everyone currently fronting appears as a card with their avatar, pronouns, time so far, a primary star, and (when enabled) their fronting level \u2014 no hidden gestures needed. List, avatar-grid, and by-group tree views for adding; Unsure and the journal/triggered options are all still there." },
+      { type: "improve", text: "\ud83e\uddea New UI: the who's-here widget can show avatars and pronouns (widget options), and tapping an alter now opens their check-in panel \u2014 feelings, symptoms, and a note for their current session \u2014 right from the widget. A setting switches the tap back to opening their profile." },
+      { type: "fix", text: "\ud83e\uddea New UI: dragging along the fronting-level spectrum no longer highlights text on the page behind it." },
       { type: "feature", text: "New opt-in: fronting levels. Define your own closeness-to-front spectrum (Fronting / Close / Nearby / Observing by default, fully editable) and set a level per alter — from the Set Fronters window, an alter's panel, or (new UI) press-and-hold an alter in the who's-here widget and drag along the spectrum. Levels marked \"doesn't count as fronting time\" stay out of analytics and reports. Settings \u2192 Tracking setup." },
       { type: "fix", text: "\ud83e\uddea Fixed the new UI switching itself on: adjusting display-option sliders (including from the classic Appearance page) silently opted you in. Display tweaks no longer touch the on/off switch." },
       { type: "improve", text: "\ud83e\uddea New UI: press and hold an empty spot on the home screen to enter edit mode \u2014 the same gesture as a phone homescreen. Scrolling or pressing a widget won't trigger it." },

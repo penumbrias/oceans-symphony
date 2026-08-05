@@ -60,6 +60,8 @@ export function useHoldDragLevel({ cfg, onCommit }) {
       window.removeEventListener("pointercancel", live.current.cancel);
       live.current = null;
     }
+    document.body.style.userSelect = "";
+    document.body.style.webkitUserSelect = "";
     setRail(null);
   }, []);
 
@@ -73,6 +75,12 @@ export function useHoldDragLevel({ cfg, onCommit }) {
         timer.current = setTimeout(() => {
           timer.current = null;
           try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+          // While the rail is live, dragging must not paint a text selection
+          // across the page (the reported bug) — kill selection globally and
+          // clear any that already started during the hold.
+          document.body.style.userSelect = "none";
+          document.body.style.webkitUserSelect = "none";
+          try { window.getSelection()?.removeAllRanges(); } catch { /* fine */ }
           const startIndex = Math.max(0, cfg.levels.findIndex((l) => l.id === currentLevelId));
           const state = { alterId, x: origin.current.x, y: origin.current.y, pickedIndex: startIndex, startIndex };
           setRail(state);

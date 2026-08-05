@@ -107,7 +107,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "👥",
       title: `Set ${t.Front}ers — Select`,
-      body: `The Set ${t.Front}ers modal is now open. All active ${t.alters} appear as a scrollable list. Tap any ${t.alter} to select them — selected ${t.alters} appear as chips at the top. Tap a chip's × to remove them. Long-press a chip to toggle primary status. Optional: turn on ${t.fronting} levels (Settings → Tracking setup) to place each selected ${t.alter} on a closeness-to-${t.front} spectrum right here.`,
+      body: `The Set ${t.Front}ers window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar and pronouns — the ★ marks the primary (tap it to change), and × removes them. Tap any ${t.alter} in the list below to add them. Optional: turn on ${t.fronting} levels (Settings → Tracking setup) and each card also gets a closeness-to-${t.front} picker.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
       route: "/", target: null,
@@ -117,7 +117,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "🔃",
       title: `Sort ${t.Alters} in Modal`,
-      body: `The sort button in the modal's search row cycles through four modes: A→Z, Z→A, Most ${t.fronting} time first, and Least ${t.fronting} time first. Currently ${t.fronting} ${t.alters} always appear at the top of the list regardless of sort mode.`,
+      body: `The sort button in the search row cycles through four modes: A→Z, Z→A, Most ${t.fronting} time first, and Least ${t.fronting} time first. The view buttons beside it switch between list, avatar grid, and by-group tree. Already-selected ${t.alters} live in the cards above, so the list only shows who can still be added.`,
       route: "/", target: "setfront-sort",
       look: `the highlighted sort icon button in the modal's search bar row`, action: "open-set-front",
     },
