@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "Custom fields can sit side by side instead of stacked \u2014 either wrapping onto more lines or staying on one line that scrolls sideways. Settings \u2192 Alter setup \u2192 Custom fields \u2192 Layout on profiles." },
+      { type: "fix", text: "The alter action menu (go to profile, pin, subsystem, groups\u2026) is reachable again: press and hold an alter's chip on the alters page, or double-tap them in Currently Fronting or the who's-here widget. It now also carries \"Jump to session on Timeline\" and \"Edit session\" when they're fronting." },
+      { type: "improve", text: "Alters page gestures settled: tapping an alter opens their profile, holding their chip opens their menu, and the bolt button owns fronting \u2014 tap to add them at the top level or adjust, hold for the level spectrum." },
       { type: "feature", text: "One fronting gesture everywhere: on the alters page (list and grid), the pinned row, and quick actions \u2014 tap opens, press-and-hold opens the level spectrum (drag past the end to remove from front). The bolt button adds a non-fronter at the top level with one tap, or opens the level picker if they're already on. All the old swipes are gone." },
       { type: "improve", text: "Timeline session tools speak levels: splitting a session lets you pick the level it continues at, new sessions are created at a chosen level, and editing a session edits its level." },
       { type: "improve", text: "Analytics: a new \"Fronting levels\" card shows where the period's time sat on your spectrum (per level, with who), and the co-fronting map now ignores non-counting levels like Observing." },

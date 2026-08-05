@@ -28,6 +28,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
+import { useCustomFieldsLayout, fieldLayoutClasses } from "@/lib/customFieldsLayout";
 import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
@@ -156,6 +157,10 @@ function contrastRatio(a, b) {
 }
 
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
+  // Custom-field layout (Settings → {Alter} setup → Custom fields):
+  // stacked rows, side-by-side wrapping, or one sideways-scrolling line.
+  const fieldLayout = useCustomFieldsLayout();
+  const fieldLayoutCls = fieldLayoutClasses(fieldLayout);
   const queryClient = useQueryClient();
   const t = useTerms();
   const [showColorPicker, setShowColorPicker] = useState(false);
@@ -884,10 +889,12 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           return (
             <div>
               <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
-              <div className="rounded-xl border border-border/40 bg-muted/10 overflow-hidden" style={sectionCardStyle}>
+              <div className={`rounded-xl border border-border/40 bg-muted/10 ${fieldLayout === "stacked" ? "overflow-hidden" : `${fieldLayoutCls.container} p-2`}`} style={sectionCardStyle}>
                 {bodyFilled.map((field, i) => (
-                  <div key={field.id} className={`flex gap-3 px-3 py-2.5 ${i < bodyFilled.length + bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`}>
-                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
+                  <div key={field.id} className={fieldLayout === "stacked"
+                    ? `flex gap-3 px-3 py-2.5 ${i < bodyFilled.length + bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`
+                    : `${fieldLayoutCls.item} rounded-lg border border-border/30 bg-background/40 px-2.5 py-2`}>
+                    <span className={`text-xs text-muted-foreground leading-relaxed ${fieldLayout === "stacked" ? "w-32 flex-shrink-0 pt-0.5" : "block mb-0.5 truncate"}`}>{field.name}</span>
                     {/* div (not span) so text-type fields can host the
                         block-level MarkdownText without invalid nesting. */}
                     <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
@@ -908,8 +915,10 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
                   </div>
                 ))}
                 {bodyAdhoc.map((field, idx) => (
-                  <div key={idx} className={`flex gap-3 px-3 py-2.5 ${idx < bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`}>
-                    <span className="text-xs text-muted-foreground w-32 flex-shrink-0 pt-0.5 leading-relaxed">{field.name}</span>
+                  <div key={idx} className={fieldLayout === "stacked"
+                    ? `flex gap-3 px-3 py-2.5 ${idx < bodyAdhoc.length - 1 ? "border-b border-border/30" : ""}`
+                    : `${fieldLayoutCls.item} rounded-lg border border-border/30 bg-background/40 px-2.5 py-2`}>
+                    <span className={`text-xs text-muted-foreground leading-relaxed ${fieldLayout === "stacked" ? "w-32 flex-shrink-0 pt-0.5" : "block mb-0.5 truncate"}`}>{field.name}</span>
                     <div className="text-xs text-foreground flex-1 leading-relaxed break-words min-w-0">
                       <MarkdownText>{String(field.value)}</MarkdownText>
                     </div>

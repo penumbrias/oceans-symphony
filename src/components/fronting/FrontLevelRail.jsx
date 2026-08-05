@@ -224,6 +224,42 @@ export function usePrimaryGesture() {
   return { trigger, node, levelsOn: cfg.enabled };
 }
 
+// Plain press-and-hold → callback, with the same cancel-on-move and
+// tap-suppression rules as the level rail. Used where hold opens the
+// alter ACTION MENU rather than the spectrum (the alters page's chips and
+// grid tiles — there, fronting lives on the bolt button instead).
+export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
+  const timer = useRef(null);
+  const origin = useRef(null);
+  const suppress = useRef(0);
+  const clear = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null; } };
+  return {
+    suppressed: () => Date.now() < suppress.current,
+    bind: {
+      onPointerDown: (e) => {
+        if (e.button !== undefined && e.button !== 0) return;
+        origin.current = { x: e.clientX, y: e.clientY };
+        clear();
+        timer.current = setTimeout(() => {
+          timer.current = null;
+          suppress.current = Date.now() + 400;
+          try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+          onHold();
+        }, holdMs);
+      },
+      onPointerMove: (e) => {
+        if (!timer.current || !origin.current) return;
+        const dx = e.clientX - origin.current.x;
+        const dy = e.clientY - origin.current.y;
+        if (dx * dx + dy * dy > 64) clear();
+      },
+      onPointerUp: clear,
+      onPointerCancel: clear,
+      onContextMenu: (e) => e.preventDefault(),
+    },
+  };
+}
+
 // ── The app-standard front gesture kit ─────────────────────────────
 // One hook = the whole per-alter fronting interaction, identical on every
 // surface (owner rule, v0.122.0 — the here-now widget defines the grammar):

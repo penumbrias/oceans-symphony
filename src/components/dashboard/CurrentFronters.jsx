@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { base44, localEntities } from "@/api/base44Client";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
-import SessionActionPopover from "@/components/fronting/SessionActionPopover";
 import {
   User, Zap, RefreshCw, X, Edit2, Smile, Activity, AlertTriangle,
   Check, Loader2, BookOpen
@@ -20,6 +19,7 @@ import { toast } from "sonner";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
+import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
@@ -81,7 +81,7 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
   // — the per-alter panel briefly opens then sits behind the popover).
   // 350ms is the same threshold the Activity grid uses.
   const lastTapRef = useRef(0);
-  const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
+  const [actionMenuOpen, setActionMenuOpen] = useState(false);
 
   // The standard gesture trio (owner decision, v0.121.1 — the old
   // swipe-left/right front gestures are gone): tap toggles the per-alter
@@ -92,7 +92,7 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
     const now = Date.now();
     if (now - lastTapRef.current < 350) {
       lastTapRef.current = 0;
-      if (session?.id) setSessionMenuOpen(true);
+      setActionMenuOpen(true);   // owner spec: double-tap = the alter menu
       return;
     }
     lastTapRef.current = now;
@@ -161,17 +161,13 @@ function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, hol
       </div>
     </div>
 
-    {/* Double-tap action sheet — jump to this session on the Timeline
-        (scrolls to the day + 3s glow halo on the session bar) or open
-        it in the session edit modal. Shared with the alter History
-        tab's session cards. */}
-    <SessionActionPopover
-      open={sessionMenuOpen}
-      onClose={() => setSessionMenuOpen(false)}
-      session={session}
-      alter={alter}
-      startTime={startTime}
-    />
+    {/* Double-tap → the alter's full action menu. It carries the session
+        tools (jump to Timeline / edit session) when a session is in
+        context, so the old two-button popover is no longer needed. */}
+    {actionMenuOpen && (
+      <AlterActionMenu alter={alter} activeSessions={session ? [session] : []} session={session}
+        onClose={() => setActionMenuOpen(false)} />
+    )}
     </>
   );
 }

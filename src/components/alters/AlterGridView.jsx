@@ -13,7 +13,8 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import SubsystemActionMenu from "./SubsystemActionMenu";
-import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
+import { useHoldMenu } from "@/components/fronting/FrontLevelRail";
+import AlterActionMenu from "./AlterActionMenu";
 import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
@@ -24,8 +25,14 @@ const EMPTY_SET = new Set();
 // fresh top-level view you can back out of, no redirect to its profile.
 const MAX_GRID_INLINE_DEPTH = 3;
 
-function AlterCard({ alter, fronting, isPrimary, compact, onTap, holdProps = {}, suppressed = null, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onTap, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
   const formatAlter = useAlterLabel();
+  // Grid grammar (owner spec, v0.122.1): tap the avatar → profile,
+  // press-and-hold → the alter's action menu (fronting lives in that
+  // menu here — the grid has no bolt button).
+  const [menuOpen, setMenuOpen] = useState(false);
+  const holdMenu = useHoldMenu(() => setMenuOpen(true));
+  const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
   // malformed alter doesn't render as a blank uncoloured tile next
@@ -48,8 +55,8 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, holdProps = {},
     <div className="flex flex-col items-center gap-2 select-none">
       <div
         className="relative"
-        {...holdProps}
-        onClick={() => { if (!suppressed?.()) onTap?.(); }}
+        {...holdMenu.bind}
+        onClick={() => { if (!holdMenu.suppressed()) onTap?.(); }}
       >
         {resolvedUrl && !imgError ? (
           <img
@@ -81,6 +88,10 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, holdProps = {},
         >
           {alter.emoji ? <span className="mr-0.5">{alter.emoji}</span> : null}{formatAlter(alter)}
         </span>
+      )}
+      {menuOpen && (
+        <AlterActionMenu alter={alter} activeSessions={activeSessions} session={mySession}
+          onClose={() => setMenuOpen(false)} />
       )}
       {ownsSubsystem && (
         <button
@@ -188,10 +199,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     return s;
   }, [navStack]);
 
-  // The standard gesture grammar (v0.122.0): tap = open, hold = the level
-  // rail (Remove stop included). Swipes and the long-press menu are gone;
-  // menu actions live on the profile page.
-  const gesture = useFrontGesture();
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
   const isPrimaryOf = (alterId) => activeSessions.some(s => s.alter_id === alterId && s.is_primary);
@@ -218,8 +225,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     isPrimary: isPrimaryOf(alter.id),
     compact,
     onTap: () => navigate(`/alter/${alter.id}`),
-    holdProps: gesture.getHoldProps(alter, activeSessions.find((s) => s.alter_id === alter.id)?.front_level),
-    suppressed: gesture.suppressed,
     anonymize,
     activeSessions,
   });
@@ -337,7 +342,6 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   return (
     <>
-      {gesture.node}
       {navStack.length > 0 && (
         <div className="flex items-center gap-1 text-xs border-b border-border/50 pb-1.5 mb-3 min-w-0">
           <button onClick={() => setNavStack([])} className="text-muted-foreground hover:text-foreground flex items-center gap-1 flex-shrink-0">

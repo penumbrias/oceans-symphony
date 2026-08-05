@@ -188,7 +188,9 @@ function PresenceWidget({ mode, api, settings }) {
       })}
       <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
       {menuFor && (
-        <AlterActionMenu alter={menuFor} activeSessions={sessions} onClose={() => setMenuFor(null)} />
+        <AlterActionMenu alter={menuFor} activeSessions={sessions}
+          session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id)}
+          onClose={() => setMenuFor(null)} />
       )}
     </Section>
   );
@@ -1592,7 +1594,9 @@ function PinnedAltersWidget({ api, settings }) {
       </div>
       <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
       {menuFor && (
-        <AlterActionMenu alter={menuFor} activeSessions={sessions} onClose={() => setMenuFor(null)} />
+        <AlterActionMenu alter={menuFor} activeSessions={sessions}
+          session={sessions.find((s) => (s.alter_id || s.primary_alter_id) === menuFor.id)}
+          onClose={() => setMenuFor(null)} />
       )}
     </Section>
   );

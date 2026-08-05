@@ -11,7 +11,8 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
-import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
+import { useFrontGesture, useHoldMenu } from "@/components/fronting/FrontLevelRail";
+import AlterActionMenu from "./AlterActionMenu";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -87,14 +88,15 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const queryClient = useQueryClient();
   const terms = useTerms();
 
-  // The standard gesture grammar (v0.122.0 — same as the who's-here
-  // widget): tap opens the profile, press-and-hold opens the level rail
-  // (Remove stop included; holding a non-fronter adds them at the level
-  // released on). The old swipes and the long-press menu are gone — every
-  // menu action lives on the profile page and the bolt covers quick
-  // set-front. hideFront drops the fronting controls entirely (group
-  // member lists etc.).
+  // Alters-page grammar (owner spec, v0.122.1): the CHIP is about the
+  // alter — tap opens their profile (the one place tap goes straight
+  // there), press-and-hold opens their action menu. Fronting lives
+  // entirely on the bolt button beside it (tap = add at the top level /
+  // adjust, hold = the level rail). hideFront drops the bolt for lists
+  // where fronting doesn't belong (group members etc.).
   const gesture = useFrontGesture();
+  const [menuOpen, setMenuOpen] = useState(false);
+  const holdMenu = useHoldMenu(() => setMenuOpen(true));
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
@@ -103,8 +105,8 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
     <div className="flex items-center gap-2 select-none">
       {gesture.node}
       <div className="flex-1 min-w-0 relative"
-        {...(hideFront ? {} : gesture.getHoldProps(alter, mySession?.front_level))}
-        onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}>
+        {...holdMenu.bind}
+        onClick={() => { if (!holdMenu.suppressed()) navigate(`/alter/${alter.id}`); }}>
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
@@ -147,6 +149,10 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
       </div>
       {rightAccessory}
       {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} gesture={gesture} />}
+      {menuOpen && (
+        <AlterActionMenu alter={alter} activeSessions={activeSessions} session={mySession}
+          onClose={() => setMenuOpen(false)} />
+      )}
     </div>
   );
 }

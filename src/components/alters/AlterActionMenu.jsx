@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus, ArrowRightLeft } from "lucide-react";
+import { User, FolderPlus, FolderTree, Zap, Star, Users, X, Loader2, Pin, UserMinus, ArrowRightLeft, CalendarClock, PencilLine } from "lucide-react";
 import { toggleFrontFor, togglePrimaryFor } from "@/hooks/useSwipeActions";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
@@ -19,7 +19,7 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 // go to profile, create/open subsystem, toggle front, toggle primary,
 // add to groups (reuses the same GroupPickerModal as the profile's
 // "Edit groups"). Dismiss by tapping the backdrop, the X, or any action.
-export default function AlterActionMenu({ alter, activeSessions = [], onClose }) {
+export default function AlterActionMenu({ alter, activeSessions = [], session = null, onClose }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useTerms();
@@ -62,7 +62,7 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
       toast.error(e.message || "Failed to remove");
     }
   };
-  const mySession = activeSessions.find((s) => s.alter_id === alter.id);
+  const mySession = session || activeSessions.find((s) => s.alter_id === alter.id);
   const isFronting = !!mySession;
   // Fronting level (opt-in): a dropdown in the header row, inline with the
   // name — the menu's alternative to the hold-and-drag rail.
@@ -167,6 +167,19 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
           {!levelCfg.enabled && (
             <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
               onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
+          )}
+          {/* Session tools — shown when this alter has a session in
+              context (the fronting chips / who's-here rows pass theirs).
+              Both routes land on the Timeline focused on that session;
+              `edit=1` also opens its edit modal. Replaces the old
+              separate double-tap popover (v0.122.1). */}
+          {mySession?.id && (
+            <>
+              <Item icon={CalendarClock} label="Jump to session on Timeline"
+                onClick={() => go(() => navigate(`/timeline?focusSessionId=${encodeURIComponent(mySession.id)}`))} />
+              <Item icon={PencilLine} label="Edit session"
+                onClick={() => go(() => navigate(`/timeline?focusSessionId=${encodeURIComponent(mySession.id)}&edit=1`))} />
+            </>
           )}
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
           {hasMultipleSystems() && (

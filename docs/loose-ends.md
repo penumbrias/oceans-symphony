@@ -59,12 +59,15 @@ new one, add it. Update the date line above whenever you touch this file.*
   backups); consider audio in the v2 alter-link widgets.
 - [ ] **Breathing pace on the Grounding page** — the `pace` prop exists; the
   full-screen exercise has no control for it yet (widget-only today).
-- [ ] **AlterActionMenu reachability narrowed (v0.122.0):** hold now opens
-  the level rail on the alters page/grid/pinned strip, so the menu is
-  reachable from the who's-here + pinned widgets (double-tap) and the
-  profile page. If testers miss it on the alters page, consider double-tap
-  there (conflicts with tap-to-navigate; would need nav delay). The
-  classic gallery's "scroll block" config is now vestigial (swipes gone).
+- [ ] **Gesture map (settled v0.122.1 — owner spec).** Alters page: tap
+  chip = profile · hold chip = action menu · bolt tap = add at top level /
+  adjust · bolt hold = level rail. Grid tiles: tap = profile · hold =
+  menu (no bolt there — fronting via the menu's level dropdown). Fronting
+  chips + who's-here/pinned widgets: tap = panel/profile · double-tap =
+  menu · hold = rail. SessionActionPopover is now used only by the alter
+  profile's History tab (its two actions live in the menu everywhere
+  else) — fold it in if that surface is ever touched. The classic pinned
+  gallery's "scroll block" config is vestigial (swipes gone).
   TimeOfDayFronters (legacy, collapsed) still splits primary/cofront —
   fine as lead/non-lead; modernise to levels if ever promoted.
 - [ ] **Fronting levels follow-ups**: terms for the word "level" itself

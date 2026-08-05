@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { useCustomFieldsLayout, FIELD_LAYOUTS } from "@/lib/customFieldsLayout";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Trash2, Hash, Type, ToggleLeft, Tags, FileText, CalendarDays, MoreVertical, GripVertical, Pencil, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -127,6 +128,7 @@ function SortableFieldRow({ field, isEditing, editName, editType, setEditName, s
 }
 
 export default function CustomFieldsManager({ embedded = false } = {}) {
+  const fieldLayout = useCustomFieldsLayout();
   const queryClient = useQueryClient();
   const [adding, setAdding] = useState(false);
   const [newName, setNewName] = useState("");
@@ -228,6 +230,16 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
     setEditType("text");
   };
 
+  // Profile field layout (system-wide).
+  const saveFieldLayout = async (id) => {
+    try {
+      const rows = await base44.entities.SystemSettings.list();
+      if (rows[0]?.id) await base44.entities.SystemSettings.update(rows[0].id, { custom_fields_layout: id });
+      else await base44.entities.SystemSettings.create({ custom_fields_layout: id });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+    } catch { /* non-fatal display preference */ }
+  };
+
   const saveEdit = async () => {
     if (!editName.trim()) return;
     await base44.entities.CustomField.update(editingId, {
@@ -240,6 +252,28 @@ export default function CustomFieldsManager({ embedded = false } = {}) {
 
   const body = (
     <div className="space-y-3">
+        {/* How these fields LAY OUT on alter profiles. Three static
+            options → chips are fine here (house rule: searchable pickers
+            are for unbounded lists). */}
+        <div className="rounded-xl border border-border/50 p-2.5">
+          <p className="text-xs font-medium mb-1.5">Layout on profiles</p>
+          <div className="flex gap-1.5 flex-wrap">
+            {FIELD_LAYOUTS.map((opt) => {
+              const selected = fieldLayout === opt.id;
+              return (
+                <button key={opt.id} type="button" title={opt.hint}
+                  onClick={() => saveFieldLayout(opt.id)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border transition-colors ${selected ? "border-primary bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:border-border"}`}>
+                  {opt.label}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-[0.6875rem] text-muted-foreground mt-1.5">
+            {FIELD_LAYOUTS.find((o) => o.id === fieldLayout)?.hint}
+          </p>
+        </div>
+
         {sortedFields.length === 0 && !adding && (
           <p className="text-sm text-muted-foreground italic py-2">No custom fields defined yet.</p>
         )}
