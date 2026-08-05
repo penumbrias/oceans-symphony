@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "Currently Fronting chips drop the old swipe gestures: press and hold now opens the fronting-level spectrum (with Remove from front at the end), tap still opens the check-in panel, double-tap still opens the session options. No more accidental swipes while scrolling." },
       { type: "feature", text: "Fronting levels are now THE fronting system, everywhere \u2014 classic UI included. The default two levels are exactly the old Fronting / Co-fronting pair, so nothing changes until you add more (Close to front, Observing, \u2026) in Settings \u2192 Tracking setup. Whoever sits at the topmost level leads." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters widget is rebuilt \u2014 a clean row of avatars that actually scales when you resize the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = the level spectrum (holding someone not fronting adds them at the level you pick)." },
       { type: "fix", text: "The side menu scrolls all the way down now \u2014 it was sized past the visible screen (worst with a browser bar showing), so the bottom entry could never be reached. Applies to the classic sidebar and the new UI's sidebar apps view alike." },

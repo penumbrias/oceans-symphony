@@ -18,13 +18,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import SetFrontSheet from "@/components/fronting/SetFrontSheet";
-import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
+import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { commitFrontLevel, usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
+import { commitFrontLevel, useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -57,7 +56,7 @@ function sessionNoteText(session) {
   } catch { return session.note; }
 }
 
-function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLabel, onSwipeRight, onSwipeLeft, onSwipeLeftUp, isExpanded, onToggleExpand }) {
+function FronterChip({ alter, isPrimary, startTime, session, coFronterLabel, holdProps = {}, railActive = false, isExpanded, onToggleExpand }) {
   const bg = alter?.color || null;
   const text = bg ? getContrastColor(bg) : null;
   const navigate = useNavigate();
@@ -84,27 +83,21 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
   const lastTapRef = useRef(0);
   const [sessionMenuOpen, setSessionMenuOpen] = useState(false);
 
-  // Tap on a currently-fronting chip toggles the per-alter panel (emotions,
-  // symptoms, notes, trigger category). Long-press opens the hold menu
-  // (set primary, remove from front, open profile). Double-tap opens
-  // the jump/edit-session popover. Swipes do front / primary actions
-  // just like the alters page.
-  const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => {
-      const now = Date.now();
-      if (now - lastTapRef.current < 350) {
-        lastTapRef.current = 0;
-        if (session?.id) setSessionMenuOpen(true);
-        return;
-      }
-      lastTapRef.current = now;
-      onToggleExpand?.(alter.id);
-    },
-    onSwipeRight: () => onSwipeRight?.(alter),
-    onSwipeLeft: () => onSwipeLeft?.(alter),
-    onSwipeLeftUp: () => onSwipeLeftUp?.(alter),
-    onLongPress: () => onHold(alter),
-  });
+  // The standard gesture trio (owner decision, v0.121.1 — the old
+  // swipe-left/right front gestures are gone): tap toggles the per-alter
+  // panel, double-tap opens the jump/edit-session popover, press-and-hold
+  // opens the level spectrum (its Remove stop takes them off front).
+  const handleTap = () => {
+    if (railActive || Date.now() < (window.__chipSuppressTapUntil || 0)) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 350) {
+      lastTapRef.current = 0;
+      if (session?.id) setSessionMenuOpen(true);
+      return;
+    }
+    lastTapRef.current = now;
+    onToggleExpand?.(alter.id);
+  };
 
 
   return (
@@ -112,22 +105,13 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     <div
       role="button"
       tabIndex={0}
-      aria-label={`${alter.name} — ${isPrimary ? "primary" : "co-front"}, fronting for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Long-press for the front-management menu. Double-tap to jump to the session on the Timeline or edit it. Swipe right to remove from front, swipe left to toggle primary.`}
+      aria-label={`${alter.name}${chipLevel ? ` — ${chipLevel}` : ""}, ${chipTerms.fronting} for ${startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "unknown time"}. Tap to ${isExpanded ? "collapse" : "expand"} the per-alter panel. Double-tap to jump to the session on the Timeline or edit it. Press and hold to set their ${chipTerms.fronting} level or remove them from ${chipTerms.front}.`}
       aria-expanded={!!isExpanded}
-      {...bind}
+      {...holdProps}
+      onClick={handleTap}
       onKeyDown={e => e.key === "Enter" || e.key === " " ? onToggleExpand?.(alter.id) : undefined}
-      style={{
-        transform: `translateX(${dragX}px)`,
-        transition: dragX === 0 ? "transform 150ms ease-out" : "none",
-        touchAction: "pan-y",
-      }}
       className="flex items-center gap-2.5 bg-card border border-border/50 rounded-2xl px-1.5 py-2 transition-all cursor-pointer select-none hover:border-border hover:bg-muted/20 relative"
     >
-      {swipeHint && (
-        <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
-          {swipeHint === "front" ? "Remove" : swipeHint === "solo" ? "Solo" : chipLevelCfg.enabled ? "Level" : isPrimary ? "Demote" : "Promote"}
-        </span>
-      )}
       {/* Avatar with badges */}
       <div className="relative flex-shrink-0">
         <div
@@ -623,7 +607,6 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const [showSwitchJournal, setShowSwitchJournal] = useState(false);
   const [switchJournalSessionId, setSwitchJournalSessionId] = useState(null);
   const [switchJournalAuthorAlterId, setSwitchJournalAuthorAlterId] = useState(null);
-  const [holdMenuAlter, setHoldMenuAlter] = useState(null);
   const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
 
@@ -642,9 +625,22 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const [tempStatus, setTempStatus] = useState("");
   const queryClient = useQueryClient();
   const terms = useTerms();
-  // Levels on → the primary swipe opens the tap-to-pick spectrum instead
-  // of toggling a star (owner decision: the spectrum replaces primary).
-  const primaryGesture = usePrimaryGesture();
+  // ONE hold-drag rail serves every chip (v0.121.1 — the chips' old
+  // swipe-left/right front gestures are fully replaced by the standard
+  // hold gesture; the rail's Remove stop covers remove-from-front).
+  const chipLevelCfgMain = useFrontLevels();
+  const { rail: chipRail, getHoldProps: getChipHoldProps } = useHoldDragLevel({
+    cfg: chipLevelCfgMain,
+    onCommit: (alterId, levelId) => {
+      window.__chipSuppressTapUntil = Date.now() + 400;
+      commitFrontLevel({ alterId, levelId, queryClient, cfg: chipLevelCfgMain });
+    },
+    onRemove: (alterId) => {
+      window.__chipSuppressTapUntil = Date.now() + 400;
+      const a = alters.find((x) => x.id === alterId);
+      if (a) toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms);
+    },
+  });
 
   // Read the SAME canonical active-front query the rest of the app uses and
   // invalidates after every set-front / switch (FrontingBar, the persistent
@@ -899,15 +895,9 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                   isPrimary={isPrimaryAlter}
                   startTime={alterSession?.start_time}
                   session={alterSession}
-                  onHold={setHoldMenuAlter}
                   coFronterLabel={`Co-${terms.fronting}`}
-                  onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
-                  onSwipeLeft={async (a) => {
-                    // Levels on → tap-to-pick spectrum (star retired);
-                    // levels off → the classic primary toggle.
-                    if (!(await primaryGesture.trigger(a))) togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms);
-                  }}
-                  onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
+                  holdProps={getChipHoldProps(alter.id, alterSession?.front_level)}
+                  railActive={!!chipRail}
                   isExpanded={expandedAlterId === alter.id}
                   onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
                 />
@@ -930,7 +920,8 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
 
         </div>
 
-        {primaryGesture.node}
+        <FrontLevelRail rail={chipRail} cfg={chipLevelCfgMain} withRemove
+          alterName={chipRail ? (alters.find((a) => a.id === chipRail.alterId)?.name || "") : ""} />
         <PrivateMessagesIndicator activeFronters={all} />
 
         {/* Custom status — each save is a new timestamped record, old
@@ -985,18 +976,6 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
         />
       )}
 
-      {/* Press-and-hold a fronting chip → the SAME full action menu as the
-          alters page (go to profile, pin, create/open subsystem, add/remove
-          front, make/demote primary, add to groups, leave subsystem). Reuses
-          AlterActionMenu so the fronting context gets every action without
-          duplicating its own buttons. */}
-      {holdMenuAlter && (
-        <AlterActionMenu
-          alter={holdMenuAlter}
-          activeSessions={activeSessions}
-          onClose={() => setHoldMenuAlter(null)}
-        />
-      )}
     </>
   );
 }
