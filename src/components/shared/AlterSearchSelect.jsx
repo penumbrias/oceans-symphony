@@ -1,5 +1,6 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
-import { useAlterOrder } from "@/lib/alterOrder";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -20,6 +21,7 @@ export default function AlterSearchSelect({
   disabledLabel = "unavailable",
   buttonClassName = "",
   zIndex = 60,               // raise when nested inside another overlay
+  frontingFirst = true,      // float current fronters to the top
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -49,16 +51,15 @@ export default function AlterSearchSelect({
     };
   }, [open]);
 
-  const { arrange } = useAlterOrder();
+  // Sorting is the shared vocabulary: the hand-set arrangement (Settings →
+  // {Alter} setup) when the user has one, otherwise A→Z, with a one-tap
+  // toggle in the search row. Whoever is fronting stays on top either way.
+  const sorter = useAlterSorter("alterSearchSelect_sort", { frontingFirst });
   const selected = value ? alters.find((a) => a.id === value) : null;
-  // The system-wide manual order (Settings → {Alter} setup) decides the
-  // sequence when the user has set one; anyone they didn't place falls
-  // back to alphabetical.
-  const list = arrange(
+  const list = sorter.sort(
     alters
       .filter((a) => !a.is_archived)
       .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase())),
-    (a, b) => (a.name || "").localeCompare(b.name || ""),
   );
 
   const pick = (id) => { onChange?.(id); setOpen(false); setSearch(""); };
@@ -96,14 +97,15 @@ export default function AlterSearchSelect({
             onPointerDown={(e) => e.stopPropagation()}
             onFocus={(e) => e.stopPropagation()}
           >
-            <div className="px-3 py-2 border-b border-border/50">
+            <div className="px-3 py-2 border-b border-border/50 flex items-center gap-1">
               <input
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${terms?.alters || "alters"}...`}
-                className="w-full text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                className="flex-1 min-w-0 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
               />
+              <AlterSortToggle sorter={sorter} className="flex-shrink-0 px-1.5 py-1" />
             </div>
             <div className="max-h-60 overflow-y-auto overscroll-contain" style={{ WebkitOverflowScrolling: "touch" }}>
               {showNone && (

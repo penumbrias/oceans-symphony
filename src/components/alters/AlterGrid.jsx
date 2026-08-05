@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive } from "lucide-react";
+import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -39,7 +39,11 @@ export default function AlterGrid({ alters }) {
   );
   const [sortMode, setSortMode] = useState(() => {
     try { return sessionStorage.getItem("alterGrid_sortMode") || "alpha-asc"; } catch { return "alpha-asc"; }
-  }); // "alpha-asc" | "alpha-desc" | "most" | "least"
+  });
+  // With an arrangement set, "My order" joins the cycle (and leads it).
+  useEffect(() => {
+    if (manualEntries.length && !sessionStorage.getItem("alterGrid_sortMode")) setSortMode("manual");
+  }, [manualEntries.length]); // "alpha-asc" | "alpha-desc" | "most" | "least"
   useEffect(() => {
     try { sessionStorage.setItem("alterGrid_sortMode", sortMode); } catch { /* storage off */ }
   }, [sortMode]);
@@ -192,25 +196,22 @@ export default function AlterGrid({ alters }) {
     a.pronouns?.toLowerCase().includes(search.toLowerCase()))
   ).
   sort((a, b) => {
-    // A hand-set arrangement (Settings → {Alter} setup → Order your
-    // {alters}) is ABSOLUTE — it even outranks "fronters first", because
-    // the whole point is that the user placed them there. Who's fronting
-    // stays obvious from the ring and size. Anyone not placed keeps the
-    // old behaviour: fronters first, then the chosen sort.
-    if (manualIndex) {
+    // Fronters first — always (owner). The chosen order then arranges
+    // each band, including "my order" (the hand-set arrangement).
+    const ra = frontingRank[a.id] ?? 2;
+    const rb = frontingRank[b.id] ?? 2;
+    if (ra !== rb) return ra - rb;
+    if (sortMode === "manual" && manualIndex) {
       const ma = manualIndex.get(a.id);
       const mb = manualIndex.get(b.id);
       if (ma !== undefined && mb !== undefined) return ma - mb;
       if (ma !== undefined) return -1;
       if (mb !== undefined) return 1;
     }
-    const ra = frontingRank[a.id] ?? 2;
-    const rb = frontingRank[b.id] ?? 2;
-    if (ra !== rb) return ra - rb; // fronters first among the unplaced
     if (sortMode === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
     if (sortMode === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
     const cmp = (a.name || "").localeCompare(b.name || "");
-    return sortMode === "alpha-asc" ? cmp : -cmp;
+    return sortMode === "alpha-desc" ? -cmp : cmp;
   });
 
   // Root-level groups for display
@@ -359,9 +360,14 @@ export default function AlterGrid({ alters }) {
           {/* Sort */}
           <button
             data-tour="alter-sort"
-            onClick={() => setSortMode(m => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[m]))}
-            title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
+            onClick={() => setSortMode(m => {
+              // "My order" only joins the cycle once an arrangement exists.
+              const next = { "manual": "alpha-asc", "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": manualEntries.length ? "manual" : "alpha-asc" }[m];
+              return next || "alpha-asc";
+            })}
+            title={{ "manual": "My order", "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortMode]}
             className="flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 text-muted-foreground hover:text-foreground hover:bg-accent transition-colors">
+            {sortMode === "manual" && <ListOrdered className="w-4 h-4" />}
             {sortMode === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
             {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
             {sortMode === "most" && <TrendingDown className="w-4 h-4" />}

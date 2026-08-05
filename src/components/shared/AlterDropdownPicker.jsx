@@ -2,6 +2,8 @@ import React, { useState, useRef, useMemo } from "react";
 import { Check, ChevronDown, Users, Globe, Search } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 // Compact dropdown-style alter picker for surfaces where the
 // SetFrontModal-style full grid is too heavy (Polls, small inline
@@ -44,9 +46,10 @@ export default function AlterDropdownPicker({
   const isMulti = mode === "multi";
   const multiValue = useMemo(() => (Array.isArray(value) ? value : []), [value]);
 
+  const sorter = useAlterSorter("alterDropdown_sort");
   const activeAlters = useMemo(
-    () => (alters || []).filter((a) => !a.is_archived).sort((a, b) => (a.name || "").localeCompare(b.name || "")),
-    [alters]
+    () => sorter.sort((alters || []).filter((a) => !a.is_archived)),
+    [alters, sorter]
   );
   const filteredAlters = useMemo(() => {
     const s = search.trim().toLowerCase();
@@ -118,15 +121,16 @@ export default function AlterDropdownPicker({
                 </button>
               )}
             </div>
-            <div className="px-3 py-2 border-b border-border/50 relative">
+            <div className="px-3 py-2 border-b border-border/50 relative flex items-center gap-1">
               <Search className="absolute left-5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
               <input
                 autoFocus
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder={`Search ${terms.alters || "alters"}…`}
-                className="w-full pl-6 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
+                className="flex-1 min-w-0 pl-6 text-xs bg-transparent outline-none placeholder:text-muted-foreground"
               />
+              <AlterSortToggle sorter={sorter} className="flex-shrink-0 px-1.5 py-1 border-0" />
             </div>
             <div className="max-h-60 overflow-y-auto">
               {allowSystemWide && (

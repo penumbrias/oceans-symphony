@@ -3,11 +3,13 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, User, Star, X, List, Grid3x3, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2 } from "lucide-react";
+import { Search, User, Star, X, List, Grid3x3, Trash2 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import useSwipeActions from "@/hooks/useSwipeActions";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 // Shared fronter picker UI extracted from SetFrontModal so other
 // surfaces (Get to know me, etc.) can drop in the exact same picker
@@ -228,17 +230,27 @@ export default function FronterPicker({
   const terms = useTerms();
   const [search, setSearch] = useState("");
   const [viewMode, setViewMode] = useState("list");
-  const [sortBy, setSortBy] = useState("alpha-asc");
+
+  // Already-selected fronters lead the list; the shared sort vocabulary
+  // (manual arrangement, A→Z, most/least time…) orders the rest.
+  const selectedForSort = useMemo(() => {
+    const ids = new Set(coFronterIds || []);
+    if (primaryId) ids.add(primaryId);
+    return ids;
+  }, [primaryId, coFronterIds]);
+  const sorter = useAlterSorter("fronterPicker_sort", { frontingIds: selectedForSort });
+
+
 
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: enabled && (sortBy === "most" || sortBy === "least"),
+    enabled: enabled && (sorter.mode === "most" || sorter.mode === "least"),
     staleTime: 60000,
   });
 
   const alterFrontTotals = useMemo(() => {
-    if (sortBy === "alpha-asc" || sortBy === "alpha-desc") return {};
+    if (sorter.mode !== "most" && sorter.mode !== "least") return {};
     const totals = {};
     for (const s of allSessions) {
       const dur = s.end_time && s.start_time ? new Date(s.end_time) - new Date(s.start_time) : 0;
@@ -250,21 +262,13 @@ export default function FronterPicker({
       }
     }
     return totals;
-  }, [allSessions, sortBy]);
+  }, [allSessions, sorter.mode]);
 
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = useMemo(() => {
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
-    const rank = (a) => (a.id === primaryId ? 0 : coFronterIds.includes(a.id) ? 1 : 2);
-    return [...list].sort((a, b) => {
-      const ra = rank(a), rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
-      if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
-      const cmp = (a.name || "").localeCompare(b.name || "");
-      return sortBy === "alpha-desc" ? -cmp : cmp;
-    });
-  }, [activeAlters, search, sortBy, alterFrontTotals, primaryId, coFronterIds]);
+    return sorter.sort(list, alterFrontTotals);
+  }, [activeAlters, search, sorter, alterFrontTotals]);
 
   const selectedIds = useMemo(() => {
     const ids = new Set(coFronterIds);
@@ -322,25 +326,7 @@ export default function FronterPicker({
             className="pl-9"
           />
         </div>
-        <button
-          onClick={() => setSortBy((s) => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", most: "least", least: "alpha-asc" }[s]))}
-          title={
-            {
-              "alpha-asc": "A → Z",
-              "alpha-desc": "Z → A",
-              most: `Most ${terms.fronting || "fronting"} time first`,
-              least: `Least ${terms.fronting || "fronting"} time first`,
-            }[sortBy]
-          }
-          className={`p-2 rounded-md border transition-colors flex-shrink-0 ${
-            sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
-          {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
-          {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
-          {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
-        </button>
+        <AlterSortToggle sorter={sorter} className="p-2 rounded-md flex-shrink-0" />
         <div className="flex gap-1 bg-muted/50 rounded-md p-1" role="group" aria-label="View mode">
           <button
             onClick={() => setViewMode("list")}

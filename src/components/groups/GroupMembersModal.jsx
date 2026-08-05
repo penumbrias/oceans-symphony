@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 // Avatar that resolves local-image:// (and the SW /local-image/ path) the
 // way the rest of the app does — a raw <img src> on a legacy
@@ -111,8 +113,9 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
     return ids;
   }, [subsystem, alters, altersInGroup, allGroups, group]);
 
+  const sorter = useAlterSorter("groupMembers_sort");
   const filteredAlters = useMemo(() => {
-    return alters
+    const list = alters
       .filter((alter) => {
         if (alter.is_archived) return false; // archived alters don't belong in the member picker
         const inGroup = altersInGroup.has(alter.id);
@@ -126,9 +129,9 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
           return false;
         }
         return true;
-      })
-      .sort((a, b) => a.name.localeCompare(b.name));
-  }, [alters, filterMode, searchQuery, altersInGroup]);
+      });
+    return sorter.sort(list);
+  }, [alters, filterMode, searchQuery, altersInGroup, sorter]);
 
   const handleToggleAlter = async (alterId, isAdding) => {
     // Create flow: just report the selection change; nothing is written to the
@@ -187,6 +190,7 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
               onChange={(e) => setSearchQuery(e.target.value)}
               className="flex-1"
             />
+            <AlterSortToggle sorter={sorter} className="px-2.5" />
             <Button
               variant={viewMode === "list" ? "default" : "outline"}
               size="icon"

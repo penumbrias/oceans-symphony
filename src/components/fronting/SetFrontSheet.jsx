@@ -25,8 +25,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import {
-  Search, User, Star, X, HelpCircle, List, Grid3x3, FolderTree,
-  ArrowDownAZ, ArrowUpAZ, TrendingUp, TrendingDown, AlertTriangle, BookOpen,
+  Search, User, Star, X, HelpCircle, List, Grid3x3, FolderTree, AlertTriangle, BookOpen,
 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -43,7 +42,8 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
-import { useAlterOrder } from "@/lib/alterOrder";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -127,25 +127,20 @@ function AddRow({ alter, formatAlter, onAdd }) {
   );
 }
 
-const SORT_MODES = [
-  { id: "alpha-asc", icon: ArrowDownAZ, label: "A to Z" },
-  { id: "alpha-desc", icon: ArrowUpAZ, label: "Z to A" },
-  { id: "most", icon: TrendingUp, label: "most-time-first" },
-  { id: "least", icon: TrendingDown, label: "least-time-first" },
-];
-
 export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const levelCfg = useFrontLevels();
-  const { arrange: arrangeAlters } = useAlterOrder();
+
+  // Everyone already in the draft sits in the section above, so this list
+  // never needs fronters-first — just the user's chosen order.
+  const sorter = useAlterSorter("setFront_sort", { frontingFirst: false });
 
   const [tab, setTab] = useState("fronters");
   const [draft, setDraft] = useState([]);        // [{ alterId, isPrimary, level, startTime }]
   const [isUnsure, setIsUnsure] = useState(false);
   const [search, setSearch] = useState("");
-  const [sortBy, setSortBy] = useState("alpha-asc");
   const [viewMode, setViewMode] = useState("list");
   const [journalSwitch, setJournalSwitch] = useState(false);
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
@@ -168,7 +163,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: open && (sortBy === "most" || sortBy === "least"),
+    enabled: open && (sorter.mode === "most" || sorter.mode === "least"),
     staleTime: 60000,
   });
   const { data: customTriggerTypes = [] } = useQuery({
@@ -218,7 +213,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
         })));
       } catch { setDraft([]); }
     })();
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [open]);  
 
   const draftIds = useMemo(() => new Set(draft.map((d) => d.alterId)), [draft]);
 
@@ -251,7 +246,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
 
   // Fronting-time totals for the two time-based sort modes.
   const alterFrontTotals = useMemo(() => {
-    if (sortBy === "alpha-asc" || sortBy === "alpha-desc") return {};
+    if (sorter.mode !== "most" && sorter.mode !== "least") return {};
     const totals = {};
     for (const s of allSessions) {
       const dur = s.end_time && s.start_time ? new Date(s.end_time) - new Date(s.start_time) : 0;
@@ -262,22 +257,14 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       }
     }
     return totals;
-  }, [allSessions, sortBy]);
+  }, [allSessions, sorter.mode]);
 
   const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const addList = useMemo(() => {
     const list = activeAlters.filter((a) =>
       !draftIds.has(a.id) && (a.name || "").toLowerCase().includes(search.toLowerCase()));
-    const sorted = [...list].sort((a, b) => {
-      if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
-      if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
-      const cmp = (a.name || "").localeCompare(b.name || "");
-      return sortBy === "alpha-desc" ? -cmp : cmp;
-    });
-    // A hand-set order (Settings → {Alter} setup) leads; the chosen sort
-    // still orders everyone the user didn't place.
-    return sortBy === "alpha-asc" ? arrangeAlters(sorted) : sorted;
-  }, [activeAlters, draftIds, search, sortBy, alterFrontTotals]);
+    return sorter.sort(list, alterFrontTotals);
+  }, [activeAlters, draftIds, search, sorter, alterFrontTotals]);
 
   const triggerDefaultText = useMemo(() => {
     if (!triggeredSwitch) return "";
@@ -390,13 +377,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                       <Input placeholder={`Search ${terms.alters}...`} value={search}
                         onChange={(e) => setSearch(e.target.value)} className="pl-9" />
                     </div>
-                    <button type="button"
-                      data-tour="setfront-sort"
-                      onClick={() => setSortBy((s) => SORT_MODES[(SORT_MODES.findIndex((m) => m.id === s) + 1) % SORT_MODES.length].id)}
-                      title={`Sort: ${SORT_MODES.find((m) => m.id === sortBy)?.label.replace("time", `${terms.fronting} time`)}`}
-                      className="p-2 rounded-lg border border-border/50 text-muted-foreground hover:text-foreground">
-                      {React.createElement(SORT_MODES.find((m) => m.id === sortBy)?.icon || ArrowDownAZ, { className: "w-4 h-4" })}
-                    </button>
+                    <AlterSortToggle sorter={sorter} data-tour="setfront-sort" className="px-2 py-2" />
                   </>
                 )}
                 {viewMode === "tree" && <div className="flex-1" />}

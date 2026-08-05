@@ -9,7 +9,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, FolderTree, ArrowDownAZ, ArrowUpAZ, TrendingDown, TrendingUp, Trash2, AlertTriangle } from "lucide-react";
+import { Search, User, Star, X, BookOpen, HelpCircle, List, Grid3x3, FolderTree, Trash2, AlertTriangle } from "lucide-react";
 import { toast } from "sonner";
 import { useQueryClient, useQuery } from "@tanstack/react-query";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
@@ -20,6 +20,8 @@ import { applyFrontSelection } from "@/lib/setFront";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 import { formatInTimeZone } from "date-fns-tz";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 export const TRIGGER_CATEGORIES = [
   { id: "sensory",         label: "Sensory",        emoji: "👂", hint: "loud noise, smell, touch" },
@@ -316,15 +318,25 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     enabled: !!open,
   });
   useEffect(() => { if (open) setPendingLevels({}); }, [open]);
-  const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
+
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
   const [triggerLabel, setTriggerLabel] = useState("");
 
+  // Already-selected fronters lead; the shared sort vocabulary (manual
+  // arrangement, A→Z, most/least time…) orders the rest.
+  const selectedForSort = useMemo(() => {
+    const ids = new Set(coFronterIds || []);
+    if (primaryId) ids.add(primaryId);
+    return ids;
+  }, [primaryId, coFronterIds]);
+  const sorter = useAlterSorter("setFrontModal_sort", { frontingIds: selectedForSort });
+
+
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
     queryFn: () => base44.entities.FrontingSession.filter({}),
-    enabled: open && (sortBy === "most" || sortBy === "least"),
+    enabled: open && (sorter.mode === "most" || sorter.mode === "least"),
     staleTime: 60000,
   });
 
@@ -346,7 +358,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   }, [triggeredSwitch, triggerCategory, triggerLabel, allTriggerCategories]);
 
   const alterFrontTotals = useMemo(() => {
-    if (sortBy === "alpha-asc" || sortBy === "alpha-desc") return {};
+    if (sorter.mode !== "most" && sorter.mode !== "least") return {};
     const totals = {};
     for (const s of allSessions) {
       const dur = s.end_time && s.start_time
@@ -362,7 +374,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
       }
     }
     return totals;
-  }, [allSessions, sortBy]);
+  }, [allSessions, sorter.mode]);
 
   // Sync state when modal opens — load actual active sessions to populate
   // current front. Also dedupe stale data: collapse duplicate active sessions
@@ -466,16 +478,8 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   const activeAlters = useMemo(() => (alters || []).filter((a) => !a.is_archived), [alters]);
   const filtered = useMemo(() => {
     const list = activeAlters.filter((a) => a.name?.toLowerCase().includes(search.toLowerCase()));
-    const rank = (a) => a.id === primaryId ? 0 : coFronterIds.includes(a.id) ? 1 : 2;
-    return [...list].sort((a, b) => {
-      const ra = rank(a), rb = rank(b);
-      if (ra !== rb) return ra - rb;
-      if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
-      if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
-      const cmp = (a.name || "").localeCompare(b.name || "");
-      return sortBy === "alpha-desc" ? -cmp : cmp;
-    });
-  }, [activeAlters, search, sortBy, alterFrontTotals, primaryId, coFronterIds]);
+    return sorter.sort(list, alterFrontTotals);
+  }, [activeAlters, search, sorter, alterFrontTotals]);
 
   const selectedIds = useMemo(() => {
     const ids = new Set(coFronterIds);
@@ -746,16 +750,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
                     onChange={(e) => setSearch(e.target.value)}
                     className="pl-9" />
                 </div>
-                <button
-                  data-tour="setfront-sort"
-                  onClick={() => setSortBy(s => ({ "alpha-asc": "alpha-desc", "alpha-desc": "most", "most": "least", "least": "alpha-asc" }[s]))}
-                  title={{ "alpha-asc": "A → Z", "alpha-desc": "Z → A", "most": `Most ${terms.fronting} time first`, "least": `Least ${terms.fronting} time first` }[sortBy]}
-                  className={`p-2 rounded-md border transition-colors flex-shrink-0 ${sortBy !== "alpha-asc" ? "bg-primary/10 text-primary border-primary/30" : "border-border text-muted-foreground hover:text-foreground"}`}>
-                  {sortBy === "alpha-asc" && <ArrowDownAZ className="w-4 h-4" />}
-                  {sortBy === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
-                  {sortBy === "most" && <TrendingDown className="w-4 h-4" />}
-                  {sortBy === "least" && <TrendingUp className="w-4 h-4" />}
-                </button>
+                <AlterSortToggle sorter={sorter} className="p-2 rounded-md flex-shrink-0" />
               </>
             )}
             {viewMode === "tree" && (

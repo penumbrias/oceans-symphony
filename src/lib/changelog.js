@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "Every alter picker can sort by your hand-set arrangement now \u2014 one tap on the sort button switches between My order, A\u2013Z, most or least fronting time, and recently updated. Whoever is fronting still sits at the top." },
       { type: "feature", text: "Arrange your alters by hand, and every list follows: drag alters and whole groups into the order you want in Settings \u2192 Alter setup \u2192 \"Order your alters\", and that order is used on the alters page, in the Set Fronters window, and in pickers. Anyone you don't place is listed after, as usual." },
       { type: "improve", text: "\ud83e\uddea New UI: the Add-widget list is organised by app page now \u2014 collapsible sections for Alters & fronting, Check-in, Activity tracker, Journals, Bulletins, Chat, Sleep, Analytics and the rest, each showing how many widgets it holds." },
       { type: "feature", text: "\ud83e\uddea New UI: the alters-list widget takes a hand-built order \u2014 pick \"My own order\", then drag alters and whole groups/subsystems into exactly the sequence you want (this alter, then that subsystem, then this one). Anyone you don't place can follow after, or not." },

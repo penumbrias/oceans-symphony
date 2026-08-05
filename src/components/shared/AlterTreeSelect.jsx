@@ -6,6 +6,8 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { getMemberAlters, getSubsystemsOwnedBy, isSubsystem, getAltersInsideSubsystems, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
+import { useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 
 // Small round alter avatar for tree rows — same vibe as the alters list, just
 // minimal. Resolves local-image:// URLs; falls back to a colour disc with the
@@ -199,7 +201,10 @@ export default function AlterTreeSelect({
     if (!q) return null;
     return liveAlters.filter((a) => a.name?.toLowerCase().includes(q) || a.alias?.toLowerCase().includes(q));
   }, [liveAlters, search]);
-  const flatAlters = useMemo(() => [...liveAlters].sort((a, b) => (a.name || "").localeCompare(b.name || "")), [liveAlters]);
+  // Flat list follows the shared sort vocabulary (manual arrangement, A→Z,
+  // …), toggled from the row under the search box.
+  const sorter = useAlterSorter("alterTree_sort");
+  const flatAlters = useMemo(() => sorter.sort(liveAlters), [liveAlters, sorter]);
   const memberItems = useMemo(() => (tab === "members" && nested && !searchHits ? buildSubsystemItems(liveAlters, groups, expanded) : []), [tab, nested, searchHits, liveAlters, groups, expanded]);
   const folderItems = useMemo(() => (tab === "groups" ? buildFolderItems(liveAlters, groups, groupExpanded) : []), [tab, liveAlters, groups, groupExpanded]);
 
@@ -287,7 +292,8 @@ export default function AlterTreeSelect({
           <div className="relative">
             <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-muted-foreground" />
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder={`Search ${terms.alters}…`}
-              className="w-full h-8 pl-8 pr-2 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+              className="w-full h-8 pl-8 pr-10 text-xs rounded-lg border border-border/50 bg-background focus:outline-none focus:ring-1 focus:ring-primary" />
+            <AlterSortToggle sorter={sorter} className="absolute right-1 top-1/2 -translate-y-1/2 px-1.5 py-1 border-0" />
           </div>
           <div className="flex items-center justify-between gap-2 text-[0.6875rem]">
             {bulk ? (
