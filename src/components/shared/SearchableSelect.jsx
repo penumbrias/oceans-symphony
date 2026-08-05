@@ -263,6 +263,11 @@ export function SearchableSelect({
             <input
               ref={searchRef}
               type="text"
+              // A tap must ALWAYS land focus here. Inside sheets/dialogs,
+              // ambient layers can swallow the mousedown default (which is
+              // what normally moves focus), leaving taps on this input
+              // inert — reclaim focus explicitly on release.
+              onPointerUp={(e) => e.currentTarget.focus()}
               value={query}
               onChange={e => { setQuery(e.target.value); setActiveIdx(-1); }}
               placeholder={searchPlaceholder}
@@ -458,6 +463,11 @@ export function SearchableMultiSelect({
             <input
               ref={searchRef}
               type="text"
+              // A tap must ALWAYS land focus here. Inside sheets/dialogs,
+              // ambient layers can swallow the mousedown default (which is
+              // what normally moves focus), leaving taps on this input
+              // inert — reclaim focus explicitly on release.
+              onPointerUp={(e) => e.currentTarget.focus()}
               value={query}
               onChange={e => setQuery(e.target.value)}
               placeholder={searchPlaceholder}

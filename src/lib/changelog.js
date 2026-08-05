@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: search boxes in widget-option pickers really accept typing now (the sheet's focus trap was still winning on real taps). The widget-options and Display-options sheets no longer freeze the page behind them, which pairs nicely with Peek." },
       { type: "hotfix", text: "Hotfix: widget options crashed on open after the previous update." },
       { type: "fix", text: "\ud83e\uddea New UI: you can type in the search boxes inside widget-option pickers again (\"Add a link\", channel/journal/poll pickers) \u2014 the sheet was stealing focus back from them. Also fixed a raw {{alters}} placeholder showing in a picker label." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget's options sheet now carries its FULL setup, not just looks \u2014 chat channel, poll, journal, and bulletin boards are all pickable right in the widget's settings (searchable, of course)." },

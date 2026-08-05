@@ -105,7 +105,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
   }, [open, peek]);
 
   return (
-    <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
+    <Drawer open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
       <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
