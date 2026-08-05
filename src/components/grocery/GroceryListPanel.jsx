@@ -554,6 +554,11 @@ export default function GroceryListPanel({ lockedMode = false }) {
     <div
       className="fixed left-0 right-0 top-0 z-[9999] bg-white dark:bg-neutral-900 text-neutral-900 dark:text-neutral-100 flex flex-col"
       style={{
+        // The privacy cover must ALWAYS be interactive. If it opens while a
+        // bottom sheet (vaul) is up, vaul has pointer-events:none on <body>
+        // and this panel inherits it — the user gets trapped behind a
+        // click-dead cover. Explicit auto breaks the inheritance.
+        pointerEvents: "auto",
         touchAction: "manipulation",
         paddingTop: "env(safe-area-inset-top)",
         bottom: keyboardInset > 0 ? `${keyboardInset}px` : 0,

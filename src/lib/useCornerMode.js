@@ -20,6 +20,12 @@ export function useCornerMode() {
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
+  // With the new UI on, the Corner radius slider is the ONE corner control.
+  // Sharp mode's `border-radius: 0 !important` would silently out-rank the
+  // radius token and every per-widget look (a stylesheet !important beats
+  // inline styles) — so corner_mode is inert under v2 rather than layered
+  // on top of it. The stored preference is preserved for classic mode.
+  if (list?.[0]?.ui_v2?.enabled === true) return DEFAULT_CORNER_MODE;
   const raw = list?.[0]?.corner_mode;
   return raw === CORNER_MODES.SHARP ? CORNER_MODES.SHARP : DEFAULT_CORNER_MODE;
 }

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "fix", text: "Grocery list can't trap you anymore \u2014 opening it over a settings sheet left it un-tappable. Popups that stack above a bottom sheet (action menus, level pickers) got the same guard." },
+      { type: "improve", text: "\ud83e\uddea New UI: the Rounded/Sharp corner toggle no longer fights the Corner radius slider \u2014 with the new UI on, the slider is the one corner control (0 = sharp) and the toggle explains it now applies to classic only." },
       { type: "fix", text: "\ud83e\uddea New UI: theme presets in Display options are selectable again \u2014 clicks on the dropdown were falling through onto the custom colour swatches beneath it (which is also why a stray \"Custom\" theme kept appearing)." },
       { type: "fix", text: "\ud83e\uddea New UI: tapping \"Empty page \u2014 tap to add widgets\" now opens the Add-widget gallery in edit mode, instead of the apps list." },
       { type: "feature", text: "Profile songs \ud83c\udfb5 \u2014 MySpace style. Give an alter a song in their edit window (upload an audio file or paste a URL) and it plays when their page opens, with a floating mini-player to pause or stop. Uploaded songs live on your device and ride backups. Global off-switch in Settings \u2192 Alter setup." },

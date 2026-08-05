@@ -715,6 +715,16 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
   [data-ui-v2="1"][data-rail-side="right"] { padding-left: 0; padding-right: var(--v2-rail-pad, 0px); }
 }
 
+/* ── Overlay layering guard ─────────────────────────────────────────
+   While a vaul bottom sheet is open it sets pointer-events:none on
+   <body>, which silently kills every overlay that portals to body
+   (action menus, level rails/pickers, session popovers). Anything that
+   stacks ABOVE a sheet is by definition meant to be interactive — so
+   body-level fixed portals get their pointer events back. Vaul's own
+   dismiss overlay sits above the page content it blocks, so the sheet's
+   modal behaviour for the page itself is unchanged. */
+body > .fixed { pointer-events: auto; }
+
 /* ── Widget contract (docs/widget-contract.md) ──────────────────────
    Inside a widget, text utilities are EM, not rem. A widget's per-look
    "Text size" works by setting a % font-size on the wrapper; rem sizes
