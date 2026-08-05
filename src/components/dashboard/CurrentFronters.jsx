@@ -23,6 +23,9 @@ import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
+import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { commitFrontLevel } from "@/components/fronting/FrontLevelRail";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 
@@ -68,6 +71,11 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
 
   const hasNote = !!sessionNoteText(session);
   const isTriggered = !!session?.is_triggered_switch;
+  // Fronting level (opt-in feature) — shown in the subtitle when set.
+  const chipTerms = useTerms();
+  const chipLevelCfg = useFrontLevels();
+  const chipLevelObj = getSessionLevel(session, chipLevelCfg);
+  const chipLevel = chipLevelObj ? frontLevelLabel(chipLevelObj, chipTerms) : null;
 
   // Double-tap detection: open a small "Jump to / Edit session"
   // popover. First tap still fires onToggleExpand (existing behaviour
@@ -161,6 +169,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
         <p className={`text-sm font-semibold text-foreground truncate ${blurNames ? "blur-sm" : ""}`}>{alter.name}</p>
         <p className="text-[0.6875rem] text-muted-foreground truncate">
           {isPrimary ? "Primary · " : `${coFronterLabel} · `}
+          {chipLevel ? `${chipLevel} · ` : ""}
           {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
         </p>
       </div>
@@ -303,6 +312,7 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
   ];
 
   const activeSymptoms = symptoms.filter(s => !s.is_archived);
+  const levelCfg = useFrontLevels();
 
   // Build the canonical [{ id, label, value, type }] symptom array from the
   // internal id→value map (same shape handleSave writes for sessions). The
@@ -422,6 +432,24 @@ export function AlterPanel({ alter, session, onClose, onSaved, participant, onCh
             title={`📅 Plans for ${alter.name}`}
             limit={3}
           />
+        </div>
+      )}
+
+      {/* Fronting level (opt-in) — how close to front this alter is.
+          Session mode only; writes through the canonical refetch-before-
+          write helper so it can never race the modal or the rail. */}
+      {!controlled && session && levelCfg.enabled && (
+        <div className="px-3 pt-2 flex items-center gap-2">
+          <span className="text-xs text-muted-foreground flex-shrink-0">{terms.Front} level</span>
+          <div className="flex-1 min-w-0">
+            <SearchableSelect
+              value={session.front_level || levelCfg.levels[0]?.id}
+              onChange={async (v) => { if (v) await commitFrontLevel({ alterId: alter.id, levelId: v, queryClient }); }}
+              options={levelCfg.levels.map(l => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+              placeholder={`Set ${terms.front} level...`}
+              searchPlaceholder="Search levels..."
+            />
+          </div>
         </div>
       )}
 

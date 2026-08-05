@@ -29,11 +29,15 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Needs doing — smaller
 
-- [ ] **Watch: one unexplained ui_v2 re-enable** (2026-08-04, dev preview
-  only). Flag flipped true without user action; NOT reproducible — visiting
-  /, /tasks, /settings#appearance with v2 off leaves it off. If a tester
-  reports v2 turning itself on, suspect any `write({...enabled:true})`
-  paths (V2DisplaySettings.write) reachable from an unexpected mount.
+- [ ] **Watch: unexplained ui_v2 re-enables** (2026-08-04, twice, dev
+  preview). RECURRED 2026-08-05 during fronting-levels verification: flag
+  flipped true at a dashboard load right after a settings session. Likely
+  cause found and fixed in v0.116.0: `useV2Display().write` forced
+  `enabled: true` on EVERY write, and those rows are mounted in classic
+  Appearance — one accidental slider touch opted the user into v2. The
+  force is removed (writes preserve the flag; only the explicit New UI
+  toggle changes it). Keep watching one more cycle; if it recurs, the
+  cause is elsewhere.
 
 - [ ] **dockPos syncs across devices** but is arguably per-device (a phone
   edge position makes little sense on a monitor). Layouts are already
@@ -46,6 +50,11 @@ new one, add it. Update the date line above whenever you touch this file.*
   `src/locales/en.js` against actual `t()` usage.
 - [ ] **Breathing pace on the Grounding page** — the `pace` prop exists; the
   full-screen exercise has no control for it yet (widget-only today).
+- [ ] **Fronting levels follow-ups** (v0.116.0 shipped the core): terms for
+  the word "level" itself aren't customizable; the classic FrontingBar and
+  Home-page alter rows don't show levels yet; consider level colors; wiki
+  entry missing (see wiki item below). The hold→drag rail exists only on the
+  v2 who's-here widget by design (classic chips already own hold + swipes).
 - [ ] **Wiki preview (`previewWiki.js`) knows nothing about v2.** The
   staleness banner is honest about it (WIKI_CONTENT_VERSION < APP_VERSION),
   but before v2 ships to main the wiki wants a v2 walkthrough entry.

@@ -1,6 +1,8 @@
 import React, { useState, useMemo, useEffect } from "react";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -303,6 +305,17 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
   // identified fragment). The presence tab renders a self-contained form and
   // touches NO FrontingSession logic.
   const [tab, setTab] = useState("fronters");
+  const formatAlter = useAlterLabel();
+  // Fronting levels (opt-in): per-selected-alter picks, applied on save.
+  // Keys are alter ids; absent = keep whatever the session already has.
+  const [pendingLevels, setPendingLevels] = useState({});
+  const levelCfg = useFrontLevels();
+  const { data: modalActiveSessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+    enabled: !!open,
+  });
+  useEffect(() => { if (open) setPendingLevels({}); }, [open]);
   const [sortBy, setSortBy] = useState("alpha-asc"); // "alpha-asc" | "alpha-desc" | "most" | "least"
   const [triggeredSwitch, setTriggeredSwitch] = useState(false);
   const [triggerCategory, setTriggerCategory] = useState("");
@@ -657,6 +670,19 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           ));
         }
 
+        // Apply fronting levels (opt-in) to the surviving sessions. Fresh
+        // fetch — sessions may have been created/replaced above.
+        if (levelCfg.enabled && Object.keys(pendingLevels).length > 0) {
+          const nowActiveForLevels = await base44.entities.FrontingSession.filter({ is_active: true });
+          for (const s of nowActiveForLevels) {
+            const aId = s.alter_id || s.primary_alter_id;
+            const want = pendingLevels[aId];
+            if (want !== undefined && want !== s.front_level) {
+              await base44.entities.FrontingSession.update(s.id, { front_level: want });
+            }
+          }
+        }
+
         toast.success(`✅ ${terms.Front} updated!`);
         queryClient.invalidateQueries({ queryKey: ["activeFront"] });
         queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
@@ -778,6 +804,34 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               })
               }
               </div>
+              {/* Fronting levels (opt-in) — per-alter closeness pick, applied
+                  when the front is saved. */}
+              {!selectionMode && !isUnsure && levelCfg.enabled && selectedIds.size > 0 && (
+                <div className="mt-2 pt-2 border-t border-border/40 space-y-1.5">
+                  <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wide">{terms.Front} levels</p>
+                  {[...selectedIds].map((id) => {
+                    const a = (alters || []).find((x) => x.id === id);
+                    if (!a) return null;
+                    const existing = modalActiveSessions.find(s => (s.alter_id || s.primary_alter_id) === id);
+                    const value = pendingLevels[id] ?? existing?.front_level ?? levelCfg.levels[0]?.id;
+                    return (
+                      <div key={id} className="flex items-center gap-2">
+                        <span className="text-xs truncate flex-1 min-w-0">{formatAlter(a)}</span>
+                        <div className="w-[55%] flex-shrink-0">
+                          <SearchableSelect
+                            value={value}
+                            onChange={(v) => { if (v) setPendingLevels(prev => ({ ...prev, [id]: v })); }}
+                            options={levelCfg.levels.map(l => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+                            placeholder={`${terms.Front} level`}
+                            searchPlaceholder="Search levels..."
+                            zIndex={70}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
             </div>
           }
 

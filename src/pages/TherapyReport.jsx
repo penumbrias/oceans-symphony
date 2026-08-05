@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { isLocalMode } from "@/lib/storageMode";
@@ -29,6 +30,7 @@ export default function TherapyReportPage() {
     queryFn: () => db.Alter.list(),
   });
 
+  const levelCfg = useFrontLevels();
   const { data: frontingSessions = [] } = useQuery({
     queryKey: ["frontingSessions"],
     queryFn: () => db.FrontingSession.list(),
@@ -144,7 +146,9 @@ export default function TherapyReportPage() {
       const fronting = reportSections.buildFrontingSection({
         dateFrom: config.dateFrom,
         dateTo: config.dateTo,
-        frontingSessions,
+        // Fronting levels (opt-in): the report's fronting-time numbers skip
+        // sessions at a level marked "doesn't count" (e.g. Observing).
+        frontingSessions: filterCountedSessions(frontingSessions, levelCfg),
         alters,
         includeAlterInfo,
         thresholds: config.thresholds,

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
@@ -156,9 +157,17 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
   });
   const s = freshSession || session;
 
+  // Fronting level (opt-in feature) shown on the session card. Hooks stay
+  // ABOVE the early return — conditional hooks crash on re-render.
+  const popTerms = useTerms();
+  const popLevelCfg = useFrontLevels();
+  const popLevelObj = getSessionLevel(s, popLevelCfg);
+  const popLevel = popLevelObj ? frontLevelLabel(popLevelObj, popTerms) : null;
+
   if (!s) return null;
   const start = parseDate(s.start_time);
   const end = s.end_time ? parseDate(s.end_time) : null;
+
   // A session reads as "Active" only when the rest of the app would also
   // count it as active (is_active === true AND end_time is null). A row
   // with is_active: false but no end_time is an orphan — show it as
@@ -202,6 +211,14 @@ export function AlterSessionInfo({ session, alter, onClose, onEdit }) {
             <p className="text-xs text-muted-foreground">Duration</p>
             <p className="font-semibold text-primary">{formatDuration(durationMins)}</p>
           </div>
+
+          {/* Fronting level (opt-in feature) — recorded on the session */}
+          {popLevel && (
+            <div>
+              <p className="text-xs text-muted-foreground">{popTerms.Front} level</p>
+              <p className="font-medium">{popLevel}</p>
+            </div>
+          )}
 
           <SessionDetails session={s} />
 

@@ -98,8 +98,13 @@ function useV2Display() {
   const write = async (patch) => {
     try {
       if (!settingsRow?.id) return;
+      // NEVER flip `enabled` here. These rows are woven into the classic
+      // Appearance page too, so a write used to silently opt the user into
+      // v2 (the "v2 turned itself on" mystery — an accidental slider touch
+      // was enough). Adjusting display options preserves the flag as-is;
+      // only the explicit New UI toggle changes it.
       await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2: { ...(settingsRow.ui_v2 || {}), enabled: true, ...patch },
+        ui_v2: { ...(settingsRow.ui_v2 || {}), ...patch },
       });
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
     } catch { /* best-effort live */ }

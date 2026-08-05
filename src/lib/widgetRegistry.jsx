@@ -37,6 +37,7 @@ import { base44 } from "@/api/base44Client";
 import { frontShare, coFrontingPairs } from "@/lib/analytics/fronting";
 import { lastNDays } from "@/lib/analytics/range";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import AlterAvatar from "@/components/shared/AlterAvatar";
 
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -184,20 +185,23 @@ function FrontingLeadersWidget({ mode, settings, instanceId, api }) {
   const alters = api?.alters || [];
   const altersById = React.useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
 
+  const levelCfg = useFrontLevels();
   const { top, pairs } = React.useMemo(() => {
     const range = lastNDays(windowSel === "month" ? 30 : 7);
-    const share = frontShare({ sessions, range });
+    // Fronting levels (opt-in): only counting levels feed the leaderboard.
+    const counted = filterCountedSessions(sessions, levelCfg);
+    const share = frontShare({ sessions: counted, range });
     const top = [...share.perAlterMs.entries()]
       .map(([id, ms]) => ({ alter: altersById[id], ms }))
       .filter((x) => x.alter && !x.alter.is_archived)
       .sort((a, b) => b.ms - a.ms)
       .slice(0, 5);
-    const pairs = coFrontingPairs({ sessions, range })
+    const pairs = coFrontingPairs({ sessions: counted, range })
       .map((p) => ({ ...p, a: altersById[p.alterIdA], b: altersById[p.alterIdB] }))
       .filter((p) => p.a && p.b)
       .slice(0, 3);
     return { top, pairs };
-  }, [sessions, altersById, windowSel]);
+  }, [sessions, altersById, windowSel, levelCfg]);
 
   const fmtH = (ms) => {
     const h = ms / 3600000;

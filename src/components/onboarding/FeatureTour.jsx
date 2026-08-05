@@ -107,7 +107,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "👥",
       title: `Set ${t.Front}ers — Select`,
-      body: `The Set ${t.Front}ers modal is now open. All active ${t.alters} appear as a scrollable list. Tap any ${t.alter} to select them — selected ${t.alters} appear as chips at the top. Tap a chip's × to remove them. Long-press a chip to toggle primary status.`,
+      body: `The Set ${t.Front}ers modal is now open. All active ${t.alters} appear as a scrollable list. Tap any ${t.alter} to select them — selected ${t.alters} appear as chips at the top. Tap a chip's × to remove them. Long-press a chip to toggle primary status. Optional: turn on ${t.fronting} levels (Settings → Tracking setup) to place each selected ${t.alter} on a closeness-to-${t.front} spectrum right here.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
       route: "/", target: null,

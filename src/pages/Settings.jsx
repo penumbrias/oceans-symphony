@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
+import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
@@ -676,6 +677,7 @@ export default function Settings() {
           </SubSection>
           <SubSection title="Custom emotions" defaultOpen={false}><CustomEmotionsManager /></SubSection>
           <SubSection title="Custom triggers" defaultOpen={false}><CustomTriggerTypesManager /></SubSection>
+          <SubSection title={`${terms.Fronting} levels`} defaultOpen={false}><FrontLevelsSettings /></SubSection>
           <SubSection title="Analytics & attribution" defaultOpen={false}>
             <div>
               <p className="text-sm font-semibold mb-1">Analytics grouping</p>

@@ -1,4 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from "react";
+import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { startOfDay, endOfDay } from "date-fns";
 import { useTerms } from "@/lib/useTerms";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
@@ -24,7 +25,10 @@ function MatrixPopover({ content, onClose }) {
   );
 }
 
-export default function CoFrontingAnalytics({ sessions = [], alters = [], altersById = {}, from, to }) {
+export default function CoFrontingAnalytics({ sessions: sessionsProp = [], alters = [], altersById = {}, from, to }) {
+  // Fronting levels (opt-in): non-counting levels are excluded here too.
+  const levelCfg = useFrontLevels();
+  const sessions = useMemo(() => filterCountedSessions(sessionsProp, levelCfg), [sessionsProp, levelCfg]);
   const terms = useTerms();
   const [activePopover, setActivePopover] = useState(null); // { key, content }
   const cofrontingLabel = terms.Cofronting;

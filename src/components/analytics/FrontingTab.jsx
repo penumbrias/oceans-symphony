@@ -9,6 +9,7 @@ import ClassicFrontStats from "@/components/analytics/ClassicFrontStats";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { buildRange, priorRange } from "@/lib/analytics/range";
@@ -472,7 +473,7 @@ function ReconnectionCard({ sessions, alters, altersById, terms, formatAlter, pr
 
 // ── Main tab ───────────────────────────────────────────────────────────────
 export default function FrontingTab({
-  sessions = [],
+  sessions: sessionsProp = [],
   alters = [],
   altersById = {},
   from,
@@ -485,6 +486,12 @@ export default function FrontingTab({
   const terms = useTerms();
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
+
+  // Fronting levels (opt-in): sessions at a level marked "doesn't count as
+  // fronting time" (e.g. Observing) are excluded from every card on this
+  // tab — an alter who watched all day must not chart as fronting.
+  const levelCfg = useFrontLevels();
+  const sessions = useMemo(() => filterCountedSessions(sessionsProp, levelCfg), [sessionsProp, levelCfg]);
 
   const range = useMemo(() => buildRange(from, to), [from, to]);
   const prior = useMemo(() => priorRange(range), [range]);

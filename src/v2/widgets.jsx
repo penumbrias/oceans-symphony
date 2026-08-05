@@ -37,6 +37,8 @@ import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
+import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -71,6 +73,7 @@ function PresenceWidget({ mode, api }) {
   const tr = useT();
   const navigate = useNavigate();
   const t = useTerms();
+  const qc = useQueryClient();
   const formatAlter = useAlterLabel();
   const { data: sessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -83,24 +86,39 @@ function PresenceWidget({ mode, api }) {
     .filter((x) => x.alter)
     .sort((a, b) => (b.s.is_primary === true) - (a.s.is_primary === true));
 
+  // Fronting levels (opt-in): each row shows its alter's level, and
+  // press-and-hold a row → the vertical spectrum rail → drag → release.
+  const levelCfg = useFrontLevels();
+  const { rail, getHoldProps } = useHoldDragLevel({
+    cfg: levelCfg,
+    onCommit: (alterId, levelId) => commitFrontLevel({ alterId, levelId, queryClient: qc }),
+  });
+  const railAlter = rail ? byId[rail.alterId] : null;
+
   return (
     <Section
       label={tr("widget.presence.title")}
       action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-set-front"))}>{applyTerms(tr("common.switch"), t)}</TextAction>}
     >
       {fronters.length === 0 && <Muted>{applyTerms(tr("widget.presence.empty"), t)}</Muted>}
-      {(mode === "minimal" ? fronters.slice(0, 1) : fronters).map(({ s, alter }) => (
+      {(mode === "minimal" ? fronters.slice(0, 1) : fronters).map(({ s, alter }) => {
+        const level = getSessionLevel(s, levelCfg);
+        return (
+        <div key={s.id} {...getHoldProps(alter.id, s.front_level)} className="select-none">
         <Row
-          key={s.id}
           // A ring marks the primary instead of a word — the name needs the
           // room more than the label does in a one-column widget.
           left={<Dot color={alter.color} ring={s.is_primary} />}
           primary={formatAlter(alter)}
+          secondary={level ? frontLevelLabel(level, t) : undefined}
           right={s.start_time ? fmtElapsed(s.start_time) : undefined}
           title={s.is_primary ? applyTerms(tr("widget.presence.primaryOf"), t) : undefined}
-          onClick={() => navigate(`/alter/${alter.id}`)}
+          onClick={() => { if (!rail) navigate(`/alter/${alter.id}`); }}
         />
-      ))}
+        </div>
+        );
+      })}
+      <FrontLevelRail rail={rail} cfg={levelCfg} alterName={railAlter ? formatAlter(railAlter) : ""} />
     </Section>
   );
 }

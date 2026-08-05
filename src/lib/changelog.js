@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "feature", text: "New opt-in: fronting levels. Define your own closeness-to-front spectrum (Fronting / Close / Nearby / Observing by default, fully editable) and set a level per alter — from the Set Fronters window, an alter's panel, or (new UI) press-and-hold an alter in the who's-here widget and drag along the spectrum. Levels marked \"doesn't count as fronting time\" stay out of analytics and reports. Settings \u2192 Tracking setup." },
+      { type: "fix", text: "\ud83e\uddea Fixed the new UI switching itself on: adjusting display-option sliders (including from the classic Appearance page) silently opted you in. Display tweaks no longer touch the on/off switch." },
       { type: "improve", text: "\ud83e\uddea New UI: press and hold an empty spot on the home screen to enter edit mode \u2014 the same gesture as a phone homescreen. Scrolling or pressing a widget won't trigger it." },
       { type: "fix", text: "🧪 New UI: widget display settings — text size, text color, border, background, shadow, accent — now actually apply on every widget. The breathing widget (and app tiles, folders, quick links, headings) ignored most of them before." },
       { type: "improve", text: "Creating a to-do or a plan now runs through one shared path from every surface — the quick rows on the bulletin board, the full task form, and the activity planner all agree on what gets saved. Fixes a quiet inconsistency where a quick plan set for earlier today was treated as already done instead of still planned." },
