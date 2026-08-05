@@ -9,12 +9,12 @@ import ClassicFrontStats from "@/components/analytics/ClassicFrontStats";
 import CoFrontingAnalytics from "@/components/analytics/CoFrontingAnalytics";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
+import { useFrontLevels, filterCountedSessions, frontLevelLabel } from "@/lib/frontLevels";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import { buildRange, priorRange } from "@/lib/analytics/range";
 import { frontingRollup } from "@/lib/analytics/rollups";
-import { frontShare, frontHistory, switchTimingCells, sessionTexture, reconnectionList, TEXTURE_BUCKETS } from "@/lib/analytics/fronting";
+import { frontShare, frontHistory, switchTimingCells, sessionTexture, reconnectionList, timeByLevel, TEXTURE_BUCKETS } from "@/lib/analytics/fronting";
 import { formatHoursMs } from "@/lib/analytics/insights";
 import { parseSessionNote, parseSessionEmotions, parseSessionSymptoms } from "@/lib/perAlterSessionEntries";
 import HBarList from "@/components/analytics/primitives/HBarList";
@@ -76,6 +76,51 @@ function AlterDot({ alter, size = 5 }) {
     >
       {url ? <img src={url} alt="" className="w-full h-full object-cover" /> : initial}
     </span>
+  );
+}
+
+// ── Time by level ──────────────────────────────────────────────────────────
+// Where the window's fronting time sat on the user's spectrum, with the
+// alters inside each level. Uses UNFILTERED sessions deliberately: this is
+// the one card where non-counting levels (Observing…) SHOULD appear — it's
+// the accounting of the spectrum itself.
+function TimeByLevelCard({ sessionsAll, range, terms, altersById, formatAlter }) {
+  const cfg = useFrontLevels();
+  const rows = useMemo(() => timeByLevel({ sessions: sessionsAll, range, cfg }), [sessionsAll, range, cfg]);
+  if (rows.length === 0) return null;
+  const maxMs = Math.max(...rows.map((r) => r.ms), 1);
+  const fmtH = (ms) => {
+    const h = ms / 3600000;
+    return h >= 10 ? `${Math.round(h)}h` : h >= 1 ? `${h.toFixed(1)}h` : `${Math.round(ms / 60000)}m`;
+  };
+  return (
+    <div className="rounded-2xl border border-border/50 bg-card p-4 space-y-3">
+      <div>
+        <p className="text-sm font-semibold">{terms.Fronting} levels</p>
+        <p className="text-xs text-muted-foreground">Where this period's time sat on your spectrum. Levels marked "doesn't count" still show here — they're excluded from the {terms.fronting}-time numbers above.</p>
+      </div>
+      {rows.map(({ level, ms, perAlter }) => {
+        const top = [...perAlter.entries()]
+          .map(([id, aMs]) => ({ alter: altersById[id], aMs }))
+          .filter((x) => x.alter)
+          .sort((a, b) => b.aMs - a.aMs)
+          .slice(0, 4);
+        return (
+          <div key={level.id}>
+            <div className="flex items-baseline justify-between text-xs mb-1">
+              <span className="font-medium">{frontLevelLabel(level, terms)}</span>
+              <span className="text-muted-foreground tabular-nums">{fmtH(ms)}{level.counts_as_front === false ? " · not counted" : ""}</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted/60 overflow-hidden mb-1">
+              <div className="h-full rounded-full bg-primary/70" style={{ width: `${Math.max(4, (ms / maxMs) * 100)}%` }} />
+            </div>
+            <p className="text-[0.6875rem] text-muted-foreground truncate">
+              {top.map((x) => `${formatAlter(x.alter)} ${fmtH(x.aMs)}`).join(" · ")}
+            </p>
+          </div>
+        );
+      })}
+    </div>
   );
 }
 
@@ -573,6 +618,7 @@ export default function FrontingTab({
         countUntracked={prefs.analytics_count_untracked}
         onToggleCountUntracked={() => savePrefs({ analytics_count_untracked: !prefs.analytics_count_untracked })}
       />
+      <TimeByLevelCard sessionsAll={sessionsProp} range={range} terms={terms} altersById={altersById} formatAlter={formatAlter} />
       <SwitchRhythmCard sessions={sessions} range={range} prior={prior} terms={terms} />
       <FrontHistoryStrip sessions={sessions} range={range} altersById={altersById} terms={terms} formatAlter={formatAlter} />
       <SwitchTimingCard sessions={sessions} range={range} terms={terms} />

@@ -12,8 +12,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { getTodayString, applyTerms, toggleDailyProgressTasks } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
-import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
+import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 
@@ -117,44 +116,32 @@ function SwipeHintBadge({ hint, fallback, fallbackCls }) {
   return <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${fallbackCls}`}>{fallback}</span>;
 }
 
-// Fronting quick-action rows now share the SAME gestures as every other
-// set-front area: tap = the configured action, swipe-left / long-press =
-// toggle primary, swipe-left-then-up = make them the sole front, swipe-right
-// = toggle them on/off front. `front` carries the bound toggle helpers.
+// Fronting quick-action rows share the app-standard grammar: tap = the
+// configured action, press-and-hold = the level rail.
 function AlterRow({ action, alter, onAction, front }) {
-  const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => onAction(action),
-    onSwipeRight: () => front.toggleFront(alter),
-    onSwipeLeft: () => front.togglePrimary(alter),
-    onSwipeLeftUp: () => front.solo(alter),
-    onLongPress: () => front.togglePrimary(alter),
-  });
+  // Standard grammar (v0.122.0): tap fires the configured action, hold
+  // opens the level rail. Swipes are gone.
   return (
-    <div role="button" tabIndex={0} {...bind}
-      style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 ? "transform 150ms ease-out" : "none", touchAction: "pan-y" }}
+    <div role="button" tabIndex={0}
+      {...front.holdProps(alter)}
+      onClick={() => { if (!front.suppressed()) onAction(action); }}
       className="relative flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-primary/5 border border-border/50 hover:border-primary/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full select-none cursor-pointer">
       <RefreshCw className="w-3.5 h-3.5 text-primary flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <SwipeHintBadge hint={swipeHint} fallback="Set" fallbackCls="text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md" />
+      <SwipeHintBadge hint={null} fallback="Set" fallbackCls="text-primary/70 bg-primary/10 px-1.5 py-0.5 rounded-md" />
     </div>
   );
 }
 
 function AddToFrontRow({ action, alter, onAction, front }) {
-  const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => onAction(action),
-    onSwipeRight: () => front.toggleFront(alter),
-    onSwipeLeft: () => front.togglePrimary(alter),
-    onSwipeLeftUp: () => front.solo(alter),
-    onLongPress: () => front.togglePrimary(alter),
-  });
   return (
-    <div role="button" tabIndex={0} {...bind}
-      style={{ transform: `translateX(${dragX}px)`, transition: dragX === 0 ? "transform 150ms ease-out" : "none", touchAction: "pan-y" }}
+    <div role="button" tabIndex={0}
+      {...front.holdProps(alter)}
+      onClick={() => { if (!front.suppressed()) onAction(action); }}
       className="relative flex items-center gap-2.5 px-4 py-3 bg-card hover:bg-green-500/5 border border-border/50 hover:border-green-500/40 rounded-2xl text-sm font-medium text-foreground transition-all text-left shadow-sm w-full select-none cursor-pointer">
       <UserPlus className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
       <span className="flex-1">{alter.name}</span>
-      <SwipeHintBadge hint={swipeHint} fallback="Add" fallbackCls="text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md" />
+      <SwipeHintBadge hint={null} fallback="Add" fallbackCls="text-green-600/80 bg-green-500/10 px-1.5 py-0.5 rounded-md" />
     </div>
   );
 }
@@ -473,15 +460,12 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
-  // Levels on → the primary gesture opens the tap-to-pick spectrum (the
-  // star is retired); levels off → the classic toggle.
-  const primaryGesture = usePrimaryGesture();
+  // The standard gesture kit (v0.122.0): rows tap their action, hold
+  // opens the level rail.
+  const gesture = useFrontGesture();
   const front = {
-    toggleFront: (a) => toggleFrontFor(a, activeSessions, base44, qc, toast, terms),
-    togglePrimary: async (a) => {
-      if (!(await primaryGesture.trigger(a))) togglePrimaryFor(a, activeSessions, base44, qc, toast, terms);
-    },
-    solo: (a) => replaceFrontWith(a, base44, qc, toast, terms),
+    holdProps: (a) => gesture.getHoldProps(a, activeSessions.find((s) => s.alter_id === a.id)?.front_level),
+    suppressed: gesture.suppressed,
   };
 
   // Close on outside *tap*, not outside pointerdown. A pointerdown also
@@ -529,7 +513,7 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
     }, 400);
   };
 
-  const primaryGestureNode = primaryGesture.node;
+  const primaryGestureNode = gesture.node;
 
   const renderAction = action => {
     switch (action.type) {

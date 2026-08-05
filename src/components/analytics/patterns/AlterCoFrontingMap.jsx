@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { computeAlterCoFrontingMatrix } from "@/lib/analyticsEngine";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -21,7 +22,13 @@ function cellColor(count, maxCount) {
   return { bg: "bg-primary/10", text: "text-foreground" };
 }
 
-export default function AlterCoFrontingMap({ frontingSessions, alters }) {
+export default function AlterCoFrontingMap({ frontingSessions: sessionsProp, alters }) {
+  // Levels: sessions at a non-counting level (Observing…) don't co-front.
+  const mapLevelCfg = useFrontLevels();
+  const frontingSessions = useMemo(
+    () => filterCountedSessions(sessionsProp, mapLevelCfg),
+    [sessionsProp, mapLevelCfg]
+  );
   const altersWithSessions = useMemo(() => {
     const activeIds = new Set();
     frontingSessions.forEach(s => {

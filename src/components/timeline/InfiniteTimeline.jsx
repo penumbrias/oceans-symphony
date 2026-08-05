@@ -4,6 +4,9 @@ import AlterAvatarInline from "@/components/shared/AlterAvatar";
 import { format, differenceInMinutes, startOfDay } from "date-fns";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
+import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import { base44 } from "@/api/base44Client";
 import DailyTallyPanel from "@/components/timeline/DailyTallyPanel";
 import { parseDate } from "@/lib/dateUtils";
@@ -242,11 +245,12 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
   const [adjustedMins, setAdjustedMins] = useState(splitMins);
   const splitResolvedUrl = useResolvedAvatarUrl(alter?.avatar_url);
   const [splitImgError, setSplitImgError] = useState(false);
-  const isPrimary = session?.alter_id
-    ? (session?.is_primary ?? false)
-    : session?.primary_alter_id === alter?.id;
-  // For new model, co-fronters are derived from overlapping sessions (not in this record)
-  const coIds = session?.alter_id ? [] : (session?.co_fronter_ids || []).filter(Boolean);
+  // Splitting speaks fronting LEVELS now (v0.122.0): pick the level the
+  // session continues at from the split point — promote/demote were just
+  // the two-level special case of this.
+  const levelCfg = useFrontLevels();
+  const currentLevel = getSessionLevel(session?.alter_id ? session : { ...session, is_primary: session?.primary_alter_id === alter?.id }, levelCfg);
+  const [newLevel, setNewLevel] = useState(null);
 
   const minsToTime = (mins) => {
     const h = Math.floor(Math.max(0, mins) / 60) % 24;
@@ -282,24 +286,24 @@ function SessionSplitPopup({ alter, session, splitMins, onClose, onSave }) {
           className="w-full h-9 px-3 rounded-md border border-input bg-background text-sm font-medium"
         />
         <div className="space-y-2">
-          {!isPrimary && (
-            <button onClick={() => onSave("promote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-amber-500/10 border border-amber-500/40 text-amber-500 hover:bg-amber-500/20 transition-colors text-left">
-              ⭐ Make primary from {formatMins(adjustedMins)}
-            </button>
-          )}
-          {isPrimary && coIds.length > 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Demote to co-fronter from {formatMins(adjustedMins)}
-            </button>
-          )}
-          {isPrimary && coIds.length === 0 && (
-            <button onClick={() => onSave("demote", adjustedMins)}
-              className="w-full px-3 py-2 text-sm rounded-lg bg-muted border border-border hover:bg-muted/80 transition-colors text-left">
-              ↓ Remove primary status from {formatMins(adjustedMins)}
-            </button>
-          )}
+          <div>
+            <p className="text-xs text-muted-foreground mb-1">
+              From {formatMins(adjustedMins)}, their {terms.fronting} level becomes:
+            </p>
+            <SearchableSelect
+              value={newLevel || currentLevel?.id || levelCfg.levels[0]?.id}
+              onChange={(v) => { if (v) setNewLevel(v); }}
+              options={levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+              placeholder={`${terms.Front} level`}
+              searchPlaceholder="Search levels..."
+              zIndex={70}
+            />
+          </div>
+          <button
+            onClick={() => onSave("level", adjustedMins, newLevel || currentLevel?.id || levelCfg.levels[0]?.id)}
+            className="w-full px-3 py-2 text-sm rounded-lg bg-primary/10 border border-primary/40 text-primary hover:bg-primary/20 transition-colors text-left">
+            Split here with that level
+          </button>
           <button onClick={() => onSave("end", adjustedMins)}
             className="w-full px-3 py-2 text-sm rounded-lg bg-destructive/10 border border-destructive/40 text-destructive hover:bg-destructive/20 transition-colors text-left">
             ✕ Remove from {terms.front} at {formatMins(adjustedMins)}
@@ -325,7 +329,9 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
   const [endTime, setEndTime] = useState("");
   const [stillFronting, setStillFronting] = useState(false);
   const [selectedAlterId, setSelectedAlterId] = useState("");
-  const [asPrimary, setAsPrimary] = useState(true);
+  // New sessions carry a fronting LEVEL (v0.122.0) — top level by default.
+  const levelCfg = useFrontLevels();
+  const [level, setLevel] = useState(null);
   const [search, setSearch] = useState("");
 
   const filtered = alters
@@ -387,13 +393,16 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <input type="checkbox" id="new-as-primary" checked={asPrimary}
-            onChange={e => setAsPrimary(e.target.checked)}
-            className="w-4 h-4 accent-primary" />
-          <label htmlFor="new-as-primary" className="text-xs text-muted-foreground cursor-pointer select-none">
-            Mark as primary {terms.fronter}
-          </label>
+        <div>
+          <p className="text-xs text-muted-foreground mb-1">{terms.Fronting} level</p>
+          <SearchableSelect
+            value={level || levelCfg.levels[0]?.id}
+            onChange={(v) => { if (v) setLevel(v); }}
+            options={levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+            placeholder={`${terms.Front} level`}
+            searchPlaceholder="Search levels..."
+            zIndex={70}
+          />
         </div>
 
         <div className="flex gap-2">
@@ -402,7 +411,7 @@ function NewSessionPopup({ startMins, dayStart, alters, onClose, onSave }) {
             Cancel
           </button>
           <button disabled={!selectedAlterId}
-            onClick={() => onSave({ startTime, endTime: stillFronting ? null : endTime, alterId: selectedAlterId, asPrimary })}
+            onClick={() => onSave({ startTime, endTime: stillFronting ? null : endTime, alterId: selectedAlterId, levelId: level || levelCfg.levels[0]?.id })}
             className="flex-1 px-3 py-2 text-sm rounded-lg bg-primary text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-40">
             Save
           </button>
@@ -790,6 +799,7 @@ export default function InfiniteTimeline({
     lastAutoOpenedRef.current = focusSessionId;
     setEditingSession({ session: s, alter });
   }, [focusSessionId, focusOpenEditor, sessions, alters]);
+  const levelCfgTimeline = useFrontLevels();
   const [splitPopover, setSplitPopover] = useState(null); // { alter, session, splitMins }
   const [newSessionPopover, setNewSessionPopover] = useState(null);
   const [retroPickerState, setRetroPickerState] = useState(null); // { startMins } — type picker
@@ -1328,11 +1338,14 @@ export default function InfiniteTimeline({
       ? format(day, "EEEE, MMM d, yyyy")
       : format(day, "EEEE, MMM d");
 
-  const handleSplitSave = async (action, splitMins) => {
+  const handleSplitSave = async (action, splitMins, levelId = null) => {
     if (!splitPopover) return;
     const { alter, session } = splitPopover;
     const splitTime = new Date(dayStart.getTime() + splitMins * 60 * 1000).toISOString();
     const isNewModel = !!session.alter_id;
+    // Levels are the split vocabulary now; "promote"/"demote" survive only
+    // for the legacy group-row model below (mapped from the level index).
+    const levelIdx = levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0;
 
     try {
       if (isNewModel) {
@@ -1343,36 +1356,32 @@ export default function InfiniteTimeline({
             end_time: splitTime,
             is_active: false,
           });
-        } else if (action === "promote") {
-          // End current session, create new with is_primary: true; demote any current primary
+        } else if (action === "level") {
+          // End the current segment; the continuation carries the picked
+          // level. is_primary follows the level (top level = the lead) and
+          // — for still-active sessions — the shared recompute settles ties
+          // exactly like every other write path.
           await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          // Refetch — never trust the render-time `sessions` closure for a
-          // primary-demotion decision. Demote EVERY remaining active primary
-          // (not just the first match) so duplicate primaries that leaked in
-          // can't survive the split.
-          const freshActive = await base44.entities.FrontingSession.filter({ is_active: true });
-          for (const s of freshActive.filter(s => s.is_primary && s.alter_id && s.id !== session.id)) {
-            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
+          await base44.entities.FrontingSession.create({
+            alter_id: alter.id,
+            is_primary: levelIdx === 0,
+            front_level: levelId,
+            start_time: splitTime,
+            end_time: session.end_time || null,
+            is_active: !session.end_time,
+          });
+      // Active new sessions settle the lead through the shared recompute.
+      if (!endDate) {
+        await recomputePrimaryFromLevels({ cfg: levelCfgTimeline, queryClient: null });
+      }
+          if (!session.end_time) {
+            await recomputePrimaryFromLevels({ cfg: levelCfgTimeline, queryClient: null });
           }
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: true,
-            start_time: splitTime,
-            end_time: session.end_time || null,
-            is_active: !session.end_time,
-          });
-        } else if (action === "demote") {
-          await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: false,
-            start_time: splitTime,
-            end_time: session.end_time || null,
-            is_active: !session.end_time,
-          });
         }
       } else {
-        // Legacy model fallback
+        // Legacy model fallback — a picked level maps onto the old binary:
+        // top level = promote, anything else = demote.
+        if (action === "level") action = levelIdx === 0 ? "promote" : "demote";
         if (action === "end") {
           await base44.entities.FrontingSession.update(session.id, { end_time: splitTime, is_active: false });
           const others = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(id => id && id !== alter.id);
@@ -1414,7 +1423,8 @@ export default function InfiniteTimeline({
     setSplitPopover(null);
   };
 
-  const handleNewSessionSave = async ({ startTime, endTime, alterId, asPrimary }) => {
+  const handleNewSessionSave = async ({ startTime, endTime, alterId, levelId }) => {
+    const levelIdx = levelId ? Math.max(0, levelCfgTimeline.levels.findIndex((l) => l.id === levelId)) : 0;
     try {
       const startDate = new Date(dayStart);
       const [sh, sm] = startTime.split(":").map(Number);
@@ -1425,22 +1435,13 @@ export default function InfiniteTimeline({
         const [eh, em] = endTime.split(":").map(Number);
         endDate.setHours(eh, em, 0, 0);
       }
-      // New individual model. If this new session is being marked primary
-      // AND it would still be active (no end_time, i.e. it's the current
-      // front), demote every other active primary first so the DB never
-      // ends up with two `is_primary: true` rows. Refetch instead of
-      // trusting a cached snapshot — cf. useSwipeActions.togglePrimaryFor.
-      if (asPrimary && !endDate) {
-        try {
-          const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-          for (const s of fresh.filter(s => s.is_primary)) {
-            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
-          }
-        } catch {}
-      }
+      // New individual model. The picked level rides on the row; for a
+      // still-active session the shared recompute below settles the lead
+      // (top occupied level wins) — same rule as every other write path.
       await base44.entities.FrontingSession.create({
         alter_id: alterId,
-        is_primary: asPrimary,
+        front_level: levelId,
+        is_primary: levelIdx === 0,
         start_time: startDate.toISOString(),
         end_time: endDate?.toISOString() || null,
         is_active: !endDate,

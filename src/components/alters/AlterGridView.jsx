@@ -7,15 +7,13 @@ import { toast } from "sonner";
 import { ChevronDown, ChevronRight, Plus, ArrowLeft } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/lib/subsystemUtils";
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
-import AlterActionMenu from "./AlterActionMenu";
 import SubsystemActionMenu from "./SubsystemActionMenu";
-import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
+import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
@@ -26,9 +24,8 @@ const EMPTY_SET = new Set();
 // fresh top-level view you can back out of, no redirect to its profile.
 const MAX_GRID_INLINE_DEPTH = 3;
 
-function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
+function AlterCard({ alter, fronting, isPrimary, compact, onTap, holdProps = {}, suppressed = null, anonymize = "off", ownsSubsystem = false, expanded = false, onToggleExpand, activeSessions = [] }) {
   const formatAlter = useAlterLabel();
-  const [menuOpen, setMenuOpen] = useState(false);
   // Falls back to the default purple for missing OR invalid colours
   // (e.g. "#8b5c1" — 5 hex digits, not parseable by CSS) so a single
   // malformed alter doesn't render as a blank uncoloured tile next
@@ -37,7 +34,6 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
   const rotatingAvatarUrl = useRotatingImageUrl({ alterId: alter.id, role: "avatar", mode: alter.avatar_rotation_mode, fallbackUrl: alter.avatar_url });
   const resolvedUrl = useResolvedAvatarUrl(rotatingAvatarUrl);
   const [imgError, setImgError] = useState(false);
-  const { bind, dragX, swipeHint } = useSwipeActions({ onTap, onSwipeRight, onSwipeLeft, onSwipeLeftUp, onLongPress: () => setMenuOpen(true) });
 
   const boxShadow = fronting
     ? isPrimary
@@ -52,12 +48,8 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
     <div className="flex flex-col items-center gap-2 select-none">
       <div
         className="relative"
-        {...bind}
-        style={{
-          transform: `translateX(${dragX}px)`,
-          transition: dragX === 0 ? "transform 150ms ease-out" : "none",
-          touchAction: "pan-y",
-        }}
+        {...holdProps}
+        onClick={() => { if (!suppressed?.()) onTap?.(); }}
       >
         {resolvedUrl && !imgError ? (
           <img
@@ -82,12 +74,7 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
           </div>
         )}
       </div>
-      {swipeHint && (
-        <span className={`text-[0.625rem] font-semibold uppercase tracking-wide ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
-          {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Promote")}
-        </span>
-      )}
-      {!swipeHint && (
+      {(
         <span
           title={formatAlter(alter)}
           className={`text-xs text-center font-medium truncate w-full px-1 ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
@@ -106,7 +93,6 @@ function AlterCard({ alter, fronting, isPrimary, compact, onTap, onSwipeRight, o
           {expanded ? "Hide" : "Members"}
         </button>
       )}
-      {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
     </div>
   );
 }
@@ -202,14 +188,10 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     return s;
   }, [navStack]);
 
-  // Levels on → the primary gesture opens the tap-to-pick spectrum (the
-  // star is retired); levels off → the classic primary toggle.
-  const primaryGesture = usePrimaryGesture();
-  const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, t);
-  const togglePrimary = async (alter) => {
-    if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, t);
-  };
-  const replaceFront = (alter) => replaceFrontWith(alter, base44, queryClient, toast, t);
+  // The standard gesture grammar (v0.122.0): tap = open, hold = the level
+  // rail (Remove stop included). Swipes and the long-press menu are gone;
+  // menu actions live on the profile page.
+  const gesture = useFrontGesture();
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
   const isPrimaryOf = (alterId) => activeSessions.some(s => s.alter_id === alterId && s.is_primary);
@@ -236,9 +218,8 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     isPrimary: isPrimaryOf(alter.id),
     compact,
     onTap: () => navigate(`/alter/${alter.id}`),
-    onSwipeRight: () => toggleFront(alter),
-    onSwipeLeft: () => togglePrimary(alter),
-    onSwipeLeftUp: () => replaceFront(alter),
+    holdProps: gesture.getHoldProps(alter, activeSessions.find((s) => s.alter_id === alter.id)?.front_level),
+    suppressed: gesture.suppressed,
     anonymize,
     activeSessions,
   });
@@ -356,7 +337,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   return (
     <>
-      {primaryGesture.node}
+      {gesture.node}
       {navStack.length > 0 && (
         <div className="flex items-center gap-1 text-xs border-b border-border/50 pb-1.5 mb-3 min-w-0">
           <button onClick={() => setNavStack([])} className="text-muted-foreground hover:text-foreground flex items-center gap-1 flex-shrink-0">

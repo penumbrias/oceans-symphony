@@ -224,6 +224,90 @@ export function usePrimaryGesture() {
   return { trigger, node, levelsOn: cfg.enabled };
 }
 
+// ── The app-standard front gesture kit ─────────────────────────────
+// One hook = the whole per-alter fronting interaction, identical on every
+// surface (owner rule, v0.122.0 — the here-now widget defines the grammar):
+//   • getHoldProps(alter, currentLevel) — press-and-hold opens the drag
+//     rail (Remove stop included). Holding a NON-fronter adds them at the
+//     level released on.
+//   • quickSet(alter, session) — for explicit "set front" buttons: not
+//     fronting → straight onto the TOP level; fronting → the tap-to-pick
+//     spectrum for adjusting/removing.
+//   • node — render once per surface (rail + picker portals).
+//   • suppressed() — guard click handlers against the tap that follows a
+//     completed hold.
+export function useFrontGesture() {
+  const cfg = useFrontLevels();
+  const queryClient = useQueryClient();
+  const terms = useTerms();
+  const altersRef = useRef({});
+  const suppress = useRef(0);
+  const [pickFor, setPickFor] = useState(null);
+
+  const addOrLevel = async (alterId, levelId) => {
+    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+    const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
+    if (!existing) {
+      const alter = altersRef.current[alterId];
+      if (alter) await toggleFrontFor(alter, fresh, base44, queryClient, toast, terms);
+    }
+    await commitFrontLevel({ alterId, levelId, queryClient, cfg });
+  };
+
+  const { rail, getHoldProps: rawHoldProps } = useHoldDragLevel({
+    cfg,
+    onCommit: (alterId, levelId) => {
+      suppress.current = Date.now() + 400;
+      addOrLevel(alterId, levelId);
+    },
+    onRemove: (alterId) => {
+      suppress.current = Date.now() + 400;
+      const alter = altersRef.current[alterId];
+      if (alter) toggleFrontFor(alter, [], base44, queryClient, toast, terms);
+    },
+  });
+
+  const getHoldProps = (alter, currentLevel) => {
+    if (!alter) return {};
+    altersRef.current[alter.id] = alter;
+    return rawHoldProps(alter.id, currentLevel);
+  };
+
+  const quickSet = async (alter, session) => {
+    altersRef.current[alter.id] = alter;
+    if (!session) {
+      suppress.current = Date.now() + 400;
+      await addOrLevel(alter.id, cfg.levels[0]?.id);
+    } else {
+      setPickFor({ alter, currentLevel: session.front_level });
+    }
+  };
+
+  const railAlter = rail ? altersRef.current[rail.alterId] : null;
+  const node = (
+    <>
+      <FrontLevelRail rail={rail} cfg={cfg} withRemove alterName={railAlter?.name || ""} />
+      {pickFor && (
+        <LevelPickerOverlay
+          alter={pickFor.alter}
+          currentLevel={pickFor.currentLevel}
+          cfg={cfg}
+          terms={terms}
+          queryClient={queryClient}
+          onClose={() => setPickFor(null)}
+        />
+      )}
+    </>
+  );
+
+  return {
+    getHoldProps, quickSet, node,
+    railActive: !!rail,
+    suppressed: () => !!rail || Date.now() < suppress.current,
+    cfg,
+  };
+}
+
 export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
   const terms = useTerms();
   if (!rail || !cfg?.enabled) return null;

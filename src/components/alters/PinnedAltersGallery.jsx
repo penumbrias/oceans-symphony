@@ -14,32 +14,23 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
-import AlterActionMenu from "./AlterActionMenu";
-import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
+import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
 // fetches its own data and renders nothing when no alter is pinned.
 //
-// Per-chip gestures (mobile, vertical — the strip itself scrolls
-// horizontally so vertical is free):
-//   - tap                  → open the alter's profile
-//   - swipe UP             → add to front, or toggle primary if fronting
-//   - swipe DOWN           → remove from front
-//   - swipe UP, THEN LEFT  → make them the sole fronter
-// The sole-front gesture is a deliberate two-leg "corner": the finger
-// must travel UP past the threshold first, THEN move LEFT from that
-// point. A casual upper-left diagonal does NOT trigger it. This mirrors
-// the alters grid's "left then up" corner gesture.
-// The chip follows the finger (translateY) with the same recoverable
-// feel as the grid: a hint label shows what will fire, and releasing
-// near the middle does nothing — so an accidental scroll-grab can be
-// backed out of.
+// Per-chip gestures — the app-standard grammar (v0.122.0):
+//   - tap             → open the alter's profile
+//   - press-and-hold  → the fronting-level rail (Remove stop included;
+//                       holding a non-fronter adds them at the level
+//                       released on)
+// The old vertical swipes are gone: hold-to-trigger can't misfire while
+// the strip scrolls, so no hint labels or recovery choreography needed.
 //
 // A settings gear (top-right of the header) opens per-user options:
 //   - Rearrange: drag/drop the pin order (persisted to
@@ -457,144 +448,11 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
 // with the gallery's horizontal scroll.
 const LONG_PRESS_MS = 450;
 
-function useVerticalChipSwipe({ onUp, onDown, onSolo, onTap, onLongPress }) {
-  const startX = useRef(0);
-  const startY = useRef(0);
-  const recentTouch = useRef(false);
-  const moved = useRef(false);            // finger left the tap radius
-  const longPressTimer = useRef(null);
-  const longPressFired = useRef(false);
-  const upReached = useRef(false);
-  const upAnchorX = useRef(0);
-  const cornerFired = useRef(false);
-  const [dragY, setDragY] = useState(0);
-  const [hint, setHint] = useState(null); // 'up' | 'down' | 'solo' | null
-
-  const cancelLongPress = () => { if (longPressTimer.current) { clearTimeout(longPressTimer.current); longPressTimer.current = null; } };
-  // Only suppress the trailing synthetic click when we actually acted on
-  // the gesture — an abandoned/return-to-centre swipe leaves NO lingering
-  // state, so it can't break later taps.
-  const suppressClick = () => {
-    recentTouch.current = true;
-    galleryRecentTouchUntil = Date.now() + 500;
-    setTimeout(() => { recentTouch.current = false; }, 500);
-  };
-  const reset = () => { cancelLongPress(); upReached.current = false; cornerFired.current = false; setDragY(0); setHint(null); };
-
-  // ── Coordinate-based gesture core, shared by the touch and mouse paths
-  //    (mirrors useSwipeActions). Touch handlers feed it e.touches[0], mouse
-  //    handlers feed it e.clientX/Y, so the vertical swipe / corner / tap /
-  //    long-press all work with a mouse on desktop.
-  const beginGesture = (clientX, clientY) => {
-    startX.current = clientX;
-    startY.current = clientY;
-    upReached.current = false;
-    cornerFired.current = false;
-    moved.current = false;
-    longPressFired.current = false;
-    setDragY(0);
-    setHint(null);
-    cancelLongPress();
-    if (onLongPress) {
-      longPressTimer.current = setTimeout(() => {
-        longPressTimer.current = null;
-        if (moved.current) return;
-        longPressFired.current = true;
-        onLongPress();
-      }, LONG_PRESS_MS);
-    }
-  };
-  const moveGesture = (clientX, clientY) => {
-    const dx = clientX - startX.current;
-    const dy = clientY - startY.current;
-    if (Math.abs(dx) > V_TAP_THRESHOLD || Math.abs(dy) > V_TAP_THRESHOLD) {
-      moved.current = true;
-      cancelLongPress();
-    }
-    if (Math.abs(dy) >= Math.abs(dx)) {
-      setDragY(Math.max(-60, Math.min(60, dy)));
-    }
-    if (!upReached.current && dy <= -V_SWIPE_THRESHOLD) {
-      upReached.current = true;
-      upAnchorX.current = clientX;
-    }
-    if (upReached.current && !cornerFired.current) {
-      if (upAnchorX.current - clientX >= CORNER_LEFT_THRESHOLD) cornerFired.current = true;
-    }
-    if (cornerFired.current) setHint("solo");
-    else if (dy <= -V_SWIPE_THRESHOLD) setHint("up");
-    else if (dy >= V_SWIPE_THRESHOLD) setHint("down");
-    else setHint(null);
-  };
-  const endGesture = (clientX, clientY, e) => {
-    cancelLongPress();
-    const dx = clientX - startX.current;
-    const dy = clientY - startY.current;
-    const adx = Math.abs(dx);
-    const ady = Math.abs(dy);
-    setDragY(0);
-    setHint(null);
-
-    if (longPressFired.current) { suppressClick(); return; }
-
-    let fired = false;
-    const pd = () => { if (e && typeof e.preventDefault === "function") e.preventDefault(); };
-    if (cornerFired.current) { pd(); onSolo?.(); fired = true; }
-    else if (dy <= -V_SWIPE_THRESHOLD && ady > adx) { pd(); onUp?.(); fired = true; }
-    else if (dy >= V_SWIPE_THRESHOLD && ady > adx) { pd(); onDown?.(); fired = true; }
-    else if (!moved.current && adx < V_TAP_THRESHOLD && ady < V_TAP_THRESHOLD) { pd(); onTap?.(); fired = true; }
-    if (fired) suppressClick();
-  };
-
-  // ── Touch path (mobile) — stamps galleryLastTouchAt so the mouse path can
-  //    ignore the synthetic mouse events that follow. ──
-  const onTouchStart = (e) => { galleryLastTouchAt = Date.now(); const t = e.touches[0]; beginGesture(t.clientX, t.clientY); };
-  const onTouchMove = (e) => { galleryLastTouchAt = Date.now(); const t = e.touches[0]; moveGesture(t.clientX, t.clientY); };
-  const onTouchEnd = (e) => { galleryLastTouchAt = Date.now(); const t = e.changedTouches[0]; endGesture(t.clientX, t.clientY, e); };
-  const onTouchCancel = () => { galleryLastTouchAt = Date.now(); reset(); };
-
-  // ── Mouse path (desktop) — additive. Document-level move/up listeners let
-  //    the drag continue and end even when the cursor leaves the chip. ──
-  const mouseMoveRef = useRef(null);
-  const mouseUpRef = useRef(null);
-  const detachMouse = () => {
-    if (mouseMoveRef.current) { document.removeEventListener("mousemove", mouseMoveRef.current); mouseMoveRef.current = null; }
-    if (mouseUpRef.current) { document.removeEventListener("mouseup", mouseUpRef.current); mouseUpRef.current = null; }
-  };
-  const onMouseDown = (e) => {
-    if (e.button !== 0) return; // left button only
-    // Ignore the synthetic mousedown mobile browsers fire right after a touch.
-    if (Date.now() - galleryLastTouchAt < 700) return;
-    // Stop the native image/text drag so a click-drag becomes a swipe.
-    e.preventDefault();
-    detachMouse();
-    beginGesture(e.clientX, e.clientY);
-    const move = (ev) => { if (typeof ev.preventDefault === "function") ev.preventDefault(); moveGesture(ev.clientX, ev.clientY); };
-    const up = (ev) => { detachMouse(); endGesture(ev.clientX, ev.clientY, ev); };
-    mouseMoveRef.current = move;
-    mouseUpRef.current = up;
-    document.addEventListener("mousemove", move);
-    document.addEventListener("mouseup", up);
-  };
-  useEffect(() => () => detachMouse(), []);
-
-  const onClick = () => {
-    if (recentTouch.current || Date.now() < galleryRecentTouchUntil) return;
-    onTap?.();
-  };
-
-  return {
-    bind: { onTouchStart, onTouchMove, onTouchEnd, onTouchCancel, onMouseDown, onClick },
-    dragY,
-    hint,
-  };
-}
 
 function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
-  const [menuOpen, setMenuOpen] = useState(false);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
@@ -602,58 +460,26 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const blurAvatar = anonymizeBlurAvatars(anonymize);
   const label = formatAlter(alter);
 
-  // Levels on → the primary swipe opens the tap-to-pick spectrum (the star
-  // is retired); levels off → the classic primary toggle.
-  const primaryGesture = usePrimaryGesture();
-  const { bind, dragY, hint } = useVerticalChipSwipe({
-    onTap: () => navigate(`/alter/${alter.id}`),
-    onUp: async () => {
-      if (fronting) {
-        if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms);
-      } else {
-        toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms);
-      }
-    },
-    onDown: () => {
-      // Swipe-down only means anything when they're fronting (it removes
-      // them). toggleFrontFor removes when a session exists.
-      if (fronting) toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms);
-    },
-    onSolo: () => replaceFrontWith(alter, base44, queryClient, toast, terms),
-    // Press-and-hold → the same quick-actions menu as the alters page
-    // (profile, subsystem, front/primary, add to groups, pin/unpin).
-    onLongPress: () => setMenuOpen(true),
-  });
+  // The standard gesture grammar (v0.122.0): tap = profile, press-and-hold
+  // = the level rail (Remove stop; holding a non-fronter adds them at the
+  // level released on). The vertical swipes and the long-press menu are
+  // gone — menu actions live on the profile page.
+  const gesture = useFrontGesture();
 
   const ringColor = fronting
     ? (isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6"))
     : (alter.color || "hsl(var(--border))");
 
-  const hintText =
-    hint === "solo" ? "Solo" :
-    hint === "down" ? "Remove" :
-    hint === "up" ? (fronting ? (primaryGesture.levelsOn ? "Level" : "Primary") : "Front") :
-    null;
-  const hintColor =
-    hint === "solo" ? "text-primary" :
-    hint === "down" ? "text-amber-500" :
-    "text-emerald-500";
-
   return (
     <>
-    {primaryGesture.node}
+    {gesture.node}
     <button
       type="button"
-      {...bind}
-      title={`${label} — swipe up for front/primary, down to remove, up-then-left for sole front; tap to open, hold for options`}
+      {...gesture.getHoldProps(alter, mySession?.front_level)}
+      onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}
+      title={`${label} — tap to open, press and hold to set their ${terms.fronting} level or remove from ${terms.front}`}
       className="relative flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
-      style={{ touchAction: "pan-x" }}
     >
-      {hintText && (
-        <span className={`absolute -top-4 left-1/2 -translate-x-1/2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${hintColor}`}>
-          {hintText}
-        </span>
-      )}
       <div
         className={`relative rounded-full overflow-hidden flex items-center justify-center ${fronting ? "w-16 h-16" : "w-12 h-12"}`}
         style={{
@@ -662,8 +488,6 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
           // less visual noise. A coloured border still tints them.
           border: `2px solid ${fronting ? ringColor : "hsl(var(--border))"}`,
           backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
-          transform: `translateY(${dragY}px)`,
-          transition: dragY === 0 ? "transform 150ms ease-out" : "none",
         }}
       >
         {resolvedAvatar ? (
@@ -686,7 +510,6 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         {label}
       </span>
     </button>
-    {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
     </>
   );
 }

@@ -59,6 +59,14 @@ new one, add it. Update the date line above whenever you touch this file.*
   backups); consider audio in the v2 alter-link widgets.
 - [ ] **Breathing pace on the Grounding page** — the `pace` prop exists; the
   full-screen exercise has no control for it yet (widget-only today).
+- [ ] **AlterActionMenu reachability narrowed (v0.122.0):** hold now opens
+  the level rail on the alters page/grid/pinned strip, so the menu is
+  reachable from the who's-here + pinned widgets (double-tap) and the
+  profile page. If testers miss it on the alters page, consider double-tap
+  there (conflicts with tap-to-navigate; would need nav delay). The
+  classic gallery's "scroll block" config is now vestigial (swipes gone).
+  TimeOfDayFronters (legacy, collapsed) still splits primary/cofront —
+  fine as lead/non-lead; modernise to levels if ever promoted.
 - [ ] **Fronting levels follow-ups**: terms for the word "level" itself
   aren't customizable; consider level colors; wiki entry missing (see wiki
   item below). v0.121.0 made levels THE system (always on; defaults =

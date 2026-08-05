@@ -73,6 +73,42 @@ export function coFrontingPairs({ sessions, range }) {
   return Object.values(pairs).sort((a, b) => b.totalOverlap - a.totalOverlap);
 }
 
+// ---- Time by level ------------------------------------------------------
+//
+// Per-level fronting time across the window, with a per-alter breakdown
+// inside each level (v0.122.0 — analytics speak levels now). Sessions clip
+// to the window; rows resolve their level through the same legacy mapping
+// as display (no front_level → lead maps to the top level, co-fronter to
+// the second), so pre-levels history charts correctly.
+export function timeByLevel({ sessions, range, cfg }) {
+  const now = range.now;
+  const normalized = normalizeSessions(sessions || [], now);
+  const inWin = sessionsInRange(normalized, range.fromMs, range.toMs, now);
+  const levelOf = (raw, alterId) => {
+    if (raw?.front_level && cfg.levels.some((l) => l.id === raw.front_level)) return raw.front_level;
+    const isLead = raw?.alter_id ? !!raw.is_primary : raw?.primary_alter_id === alterId;
+    return isLead ? cfg.levels[0]?.id : (cfg.levels[1]?.id ?? cfg.levels[0]?.id);
+  };
+  const perLevel = new Map(); // levelId -> { ms, perAlter: Map(alterId -> ms) }
+  for (const s of inWin) {
+    const startMs = Math.max(s.startMs, range.fromMs);
+    const endMs = Math.min(s.endMs ?? now, range.toMs);
+    const dur = endMs - startMs;
+    if (dur <= 0) continue;
+    for (const alterId of s.alterIds) {
+      const lv = levelOf(s.raw, alterId);
+      if (!perLevel.has(lv)) perLevel.set(lv, { ms: 0, perAlter: new Map() });
+      const bucket = perLevel.get(lv);
+      bucket.ms += dur;
+      bucket.perAlter.set(alterId, (bucket.perAlter.get(alterId) || 0) + dur);
+    }
+  }
+  // Ordered by the user's spectrum (top level first), dropping empty levels.
+  return cfg.levels
+    .map((l) => ({ level: l, ...(perLevel.get(l.id) || { ms: 0, perAlter: new Map() }) }))
+    .filter((row) => row.ms > 0);
+}
+
 // ---- Front history strip ------------------------------------------------
 //
 // Sessions clipped to the window, newest first, with the fields the

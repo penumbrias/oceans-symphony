@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "One fronting gesture everywhere: on the alters page (list and grid), the pinned row, and quick actions \u2014 tap opens, press-and-hold opens the level spectrum (drag past the end to remove from front). The bolt button adds a non-fronter at the top level with one tap, or opens the level picker if they're already on. All the old swipes are gone." },
+      { type: "improve", text: "Timeline session tools speak levels: splitting a session lets you pick the level it continues at, new sessions are created at a chosen level, and editing a session edits its level." },
+      { type: "improve", text: "Analytics: a new \"Fronting levels\" card shows where the period's time sat on your spectrum (per level, with who), and the co-fronting map now ignores non-counting levels like Observing." },
       { type: "improve", text: "Currently Fronting chips drop the old swipe gestures: press and hold now opens the fronting-level spectrum (with Remove from front at the end), tap still opens the check-in panel, double-tap still opens the session options. No more accidental swipes while scrolling." },
       { type: "feature", text: "Fronting levels are now THE fronting system, everywhere \u2014 classic UI included. The default two levels are exactly the old Fronting / Co-fronting pair, so nothing changes until you add more (Close to front, Observing, \u2026) in Settings \u2192 Tracking setup. Whoever sits at the topmost level leads." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters widget is rebuilt \u2014 a clean row of avatars that actually scales when you resize the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = the level spectrum (holding someone not fronting adds them at the level you pick)." },

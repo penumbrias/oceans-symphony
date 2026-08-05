@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
+import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import SearchableSelect from "@/components/shared/SearchableSelect";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
@@ -317,9 +319,15 @@ export function AlterSessionEdit({ session, alter, onClose }) {
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [asPrimary, setAsPrimary] = useState(
-    session?.alter_id ? (session?.is_primary ?? false) : session?.primary_alter_id === alter?.id
-  );
+  // The session's LEVEL is the edited property now (v0.122.0) — pre-levels
+  // rows seed from their old role via the shared mapping in getSessionLevel.
+  const editLevelCfg = useFrontLevels();
+  const seedSession = session?.alter_id
+    ? session
+    : { ...session, is_primary: session?.primary_alter_id === alter?.id };
+  const [editLevel, setEditLevel] = useState(getSessionLevel(seedSession, editLevelCfg)?.id || editLevelCfg.levels[0]?.id);
+  const editLevelIdx = Math.max(0, editLevelCfg.levels.findIndex((l) => l.id === editLevel));
+  const asPrimary = editLevelIdx === 0;
 
   const handleDelete = async () => {
     if (!confirmDelete) { setConfirmDelete(true); return; }
@@ -368,20 +376,18 @@ const handleSave = async () => {
       // `is_primary: true` rows. Refetch instead of trusting any closure-
       // captured array — the cached snapshot may be stale by the time the
       // user hits Save (cf. useSwipeActions.togglePrimaryFor).
-      if (asPrimary && !session.is_primary) {
-        try {
-          const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-          for (const s of fresh.filter(s => s.is_primary && s.id !== session.id)) {
-            try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
-          }
-        } catch {}
-      }
       await base44.entities.FrontingSession.update(session.id, {
+        front_level: editLevel,
         is_primary: asPrimary,
         start_time: newStart,
         end_time: newEnd,
         is_active: !newEnd,
       });
+      // Still-active sessions settle the lead through the shared recompute
+      // (top occupied level wins; ties keep the current lead).
+      if (!newEnd) {
+        await recomputePrimaryFromLevels({ cfg: editLevelCfg, queryClient: null });
+      }
     } else {
       // Legacy model fallback
       const allIds = [session.primary_alter_id, ...(session.co_fronter_ids || [])].filter(Boolean);
@@ -407,6 +413,7 @@ const handleSave = async () => {
         });
         await base44.entities.FrontingSession.create({
           alter_id: alter.id,
+          front_level: editLevel,
           is_primary: asPrimary,
           start_time: newStart,
           end_time: newEnd,
@@ -460,17 +467,16 @@ const handleSave = async () => {
             <p className="text-xs text-muted-foreground mb-1">Note (use Emotion Check-In for notes)</p>
             <p className="text-xs text-muted-foreground italic">Session notes are stored as Emotion Check-Ins.</p>
           </div>
-          <div className="flex items-center gap-2 py-1 border-t border-border/40">
-            <input
-              type="checkbox"
-              id="as-primary"
-              checked={asPrimary}
-              onChange={e => setAsPrimary(e.target.checked)}
-              className="w-4 h-4 accent-primary"
+          <div className="py-1 border-t border-border/40">
+            <p className="text-xs text-muted-foreground mb-1">{terms.Fronting} level during this session</p>
+            <SearchableSelect
+              value={editLevel}
+              onChange={(v) => { if (v) setEditLevel(v); }}
+              options={editLevelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))}
+              placeholder={`${terms.Front} level`}
+              searchPlaceholder="Search levels..."
+              zIndex={70}
             />
-            <label htmlFor="as-primary" className="text-sm text-muted-foreground cursor-pointer select-none">
-              Primary {terms.fronter} during this session
-            </label>
           </div>
           <div className="flex gap-2">
             <Button variant="outline" size="sm" className="flex-1" onClick={onClose}>Cancel</Button>

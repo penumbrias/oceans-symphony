@@ -5,15 +5,13 @@ import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
-import AlterActionMenu from "./AlterActionMenu";
-import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
+import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -25,124 +23,30 @@ function getContrastColor(hex) {
   return luminance > 0.5 ? "#1a1a2e" : "#ffffff";
 }
 
-export function FrontingToggleButton({ alter, activeSessions = [] }) {
+export function FrontingToggleButton({ alter, activeSessions = [], gesture = null }) {
   const terms = useTerms();
-  const queryClient = useQueryClient();
-  const longPressRef = useRef(null);
-
-  // New individual model: each active session is one alter
+  // The standard front control (v0.122.0): tap while NOT fronting puts
+  // them straight on at the TOP level; tap while fronting opens the
+  // tap-to-pick spectrum; press-and-hold opens the drag rail. A surface
+  // that already hosts a gesture kit passes it in; standalone uses (the
+  // folder/group member rows) self-host one.
+  const own = useFrontGesture();
+  const g = gesture || own;
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
   const isFronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
 
-  const handleToggle = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      // Refetch — never trust the render-time `activeSessions` snapshot. A
-      // rapid second tap can fire after a previous tap's invalidation queued
-      // a refetch but before it landed, so the closure can claim there's no
-      // primary when one was just created. Match the pattern used by
-      // useSwipeActions.togglePrimaryFor.
-      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-      const freshMySession = fresh.find(s => s.alter_id === alter.id);
-      if (freshMySession) {
-        // Remove this alter from front
-        await base44.entities.FrontingSession.update(freshMySession.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
-        toast.success(`${alter.name} removed from ${terms.front}`);
-      } else {
-        // Add alter to front (as co-fronter by default — promote to primary
-        // only if nobody else holds primary right now)
-        const hasPrimary = fresh.some(s => s.is_primary);
-        await base44.entities.FrontingSession.create({
-          alter_id: alter.id,
-          is_primary: !hasPrimary,
-          start_time: new Date().toISOString(),
-          is_active: true,
-        });
-        toast.success(`${alter.name} added to ${terms.front}!`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || `Failed to update ${terms.front}`);
-    }
-  };
-
-  const handleSetPrimary = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    try {
-      // Always refetch — the long-press timer runs 600ms after touchstart and
-      // the closure-captured `activeSessions` may be stale by the time the
-      // handler fires (parent re-renders frequently from query invalidations).
-      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
-      const freshMySession = fresh.find(s => s.alter_id === alter.id);
-      const freshIsPrimary = !!freshMySession?.is_primary;
-
-      if (freshIsPrimary) {
-        // Already primary → demote
-        await base44.entities.FrontingSession.update(freshMySession.id, { is_primary: false });
-        toast.success(`${alter.name} demoted to co-${terms.fronter}`);
-      } else {
-        // Demote EVERY existing primary, not just the first match — handles
-        // any case where stale duplicate primaries leaked into the DB.
-        for (const s of fresh.filter(s => s.is_primary && s.alter_id !== alter.id)) {
-          try { await base44.entities.FrontingSession.update(s.id, { is_primary: false }); } catch {}
-        }
-        if (freshMySession) {
-          await base44.entities.FrontingSession.update(freshMySession.id, { is_primary: true });
-        } else {
-          await base44.entities.FrontingSession.create({
-            alter_id: alter.id,
-            is_primary: true,
-            start_time: new Date().toISOString(),
-            is_active: true,
-          });
-        }
-        toast.success(`${alter.name} is now primary!`);
-      }
-      queryClient.invalidateQueries({ queryKey: ["activeFront"] });
-      queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
-    } catch (err) {
-      toast.error(err.message || "Failed to set primary");
-    }
-  };
-
-  const onMouseDown = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-    longPressRef.current = setTimeout(() => {
-      longPressRef.current = null;
-      handleSetPrimary(e);
-    }, 600);
-  };
-
-  const onMouseUp = (e) => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-      handleToggle(e);
-    }
-  };
-
-  const onMouseLeave = () => {
-    if (longPressRef.current) {
-      clearTimeout(longPressRef.current);
-      longPressRef.current = null;
-    }
-  };
-
   return (
+    <>
     <button
-      onMouseDown={onMouseDown}
-      onMouseUp={onMouseUp}
-      onMouseLeave={onMouseLeave}
-      onTouchStart={onMouseDown}
-      onTouchEnd={onMouseUp}
+      type="button"
+      {...g.getHoldProps(alter, mySession?.front_level)}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (g.suppressed()) return;
+        g.quickSet(alter, mySession);
+      }}
       className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95"
       style={{
         backgroundColor: isFronting
@@ -152,7 +56,9 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
           ? isPrimary ? "2px solid #f59e0b" : `2px solid ${alter.color || "#9333ea"}`
           : "2px solid hsl(var(--border))",
       }}
-      title={isFronting ? (isPrimary ? `Primary ${terms.fronter} — tap to remove, hold to keep as co-${terms.fronter}` : `Co-${terms.fronting} — tap to remove, hold to set primary`) : `Tap to add to ${terms.front}, hold to set as primary`}
+      title={isFronting
+        ? `${terms.Fronting} — tap to adjust their level or remove, hold for the spectrum`
+        : `Tap to add to ${terms.front} at the top level, hold to pick a level`}
     >
       {isFronting ? (
         <Zap className="w-3.5 h-3.5" style={{ color: isPrimary ? "#f59e0b" : alter.color || "#9333ea" }} fill={isPrimary ? "#f59e0b" : alter.color || "#9333ea"} />
@@ -160,6 +66,8 @@ export function FrontingToggleButton({ alter, activeSessions = [] }) {
         <Zap className="w-3.5 h-3.5 text-muted-foreground" />
       )}
     </button>
+    {!gesture && own.node}
+    </>
   );
 }
 
@@ -178,46 +86,25 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const terms = useTerms();
-  const [menuOpen, setMenuOpen] = useState(false);
 
-  // Long-press opens the quick-actions menu (profile, subsystem, front,
-  // primary, add to groups). The swipe hook cancels the long-press on any
-  // movement, so it never collides with the front/primary swipe gestures.
-  // hideFront removes the inline front/primary controls (the bolt + the
-  // swipe gestures) — used where adjusting front from the chip doesn't
-  // belong, e.g. a group/subsystem members list. Tap (open) and long-press
-  // (menu) still work.
-  // Levels on → the primary swipe opens the tap-to-pick spectrum (the star
-  // is retired); levels off → the classic primary toggle.
-  const primaryGesture = usePrimaryGesture();
-  const { bind, dragX, swipeHint } = useSwipeActions({
-    onTap: () => navigate(`/alter/${alter.id}`),
-    onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
-    onSwipeLeft: hideFront ? undefined : async () => {
-      if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms);
-    },
-    onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast, terms),
-    onLongPress: () => setMenuOpen(true),
-  });
-
+  // The standard gesture grammar (v0.122.0 — same as the who's-here
+  // widget): tap opens the profile, press-and-hold opens the level rail
+  // (Remove stop included; holding a non-fronter adds them at the level
+  // released on). The old swipes and the long-press menu are gone — every
+  // menu action lives on the profile page and the bolt covers quick
+  // set-front. hideFront drops the fronting controls entirely (group
+  // member lists etc.).
+  const gesture = useFrontGesture();
   const mySession = activeSessions.find(s => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
 
   return (
     <div className="flex items-center gap-2 select-none">
-      {primaryGesture.node}
-      <div className="flex-1 min-w-0 relative" {...bind}
-        style={{
-          transform: hideFront ? undefined : `translateX(${dragX}px)`,
-          transition: dragX === 0 ? "transform 150ms ease-out" : "none",
-          touchAction: "pan-y",
-        }}>
-        {!hideFront && swipeHint && (
-          <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
-            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : primaryGesture.levelsOn ? "Level" : (isPrimary ? "Demote" : "Promote")}
-          </span>
-        )}
+      {gesture.node}
+      <div className="flex-1 min-w-0 relative"
+        {...(hideFront ? {} : gesture.getHoldProps(alter, mySession?.front_level))}
+        onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}>
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
@@ -259,8 +146,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         </div>
       </div>
       {rightAccessory}
-      {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} />}
-      {menuOpen && <AlterActionMenu alter={alter} activeSessions={activeSessions} onClose={() => setMenuOpen(false)} />}
+      {!hideFront && <FrontingToggleButton alter={alter} activeSessions={activeSessions} gesture={gesture} />}
     </div>
   );
 }
