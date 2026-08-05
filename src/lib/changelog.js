@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: press and hold an empty spot on the home screen to enter edit mode \u2014 the same gesture as a phone homescreen. Scrolling or pressing a widget won't trigger it." },
       { type: "fix", text: "🧪 New UI: widget display settings — text size, text color, border, background, shadow, accent — now actually apply on every widget. The breathing widget (and app tiles, folders, quick links, headings) ignored most of them before." },
       { type: "improve", text: "Creating a to-do or a plan now runs through one shared path from every surface — the quick rows on the bulletin board, the full task form, and the activity planner all agree on what gets saved. Fixes a quiet inconsistency where a quick plan set for earlier today was treated as already done instead of still planned." },
       { type: "improve", text: "🧪 New UI: the tour's \"your home screen is a widget board\" section now comes first while the new UI is on." },

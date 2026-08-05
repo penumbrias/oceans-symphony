@@ -18,7 +18,7 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
-import React, { useMemo, useState, useCallback } from "react";
+import React, { useMemo, useState, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -638,6 +638,41 @@ export default function ExperimentalDashboard({
   // status_note widget is on the page (mirrors classic layoutEnabled logic).
   const widgetApi = { ...api, statusNotePlaced: widgets.some((w) => w.widgetId === "status_note") };
 
+  // Press-and-hold an empty spot on the home screen to enter edit mode —
+  // the phone-homescreen gesture. Background only: a press that starts on
+  // a widget or a control keeps its normal behaviour, and any movement
+  // (i.e. scrolling) cancels the hold. 600ms: longer than the 300ms
+  // widget-drag hold so the two gestures never race.
+  const holdTimer = useRef(null);
+  const holdOrigin = useRef(null);
+  const cancelHold = () => {
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = null;
+    holdOrigin.current = null;
+  };
+  const holdHandlers = editMode ? {} : {
+    onPointerDown: (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest("[data-widget-content], button, a, input, textarea, select, [contenteditable='true']")) return;
+      holdOrigin.current = { x: e.clientX, y: e.clientY };
+      if (holdTimer.current) clearTimeout(holdTimer.current);
+      holdTimer.current = setTimeout(() => {
+        holdTimer.current = null;
+        try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+        setEditMode(true);
+      }, 600);
+    },
+    onPointerMove: (e) => {
+      if (!holdTimer.current || !holdOrigin.current) return;
+      const dx = e.clientX - holdOrigin.current.x;
+      const dy = e.clientY - holdOrigin.current.y;
+      if (dx * dx + dy * dy > 64) cancelHold();
+    },
+    onPointerUp: cancelHold,
+    onPointerCancel: cancelHold,
+    onPointerLeave: cancelHold,
+  };
+
   const canvas = (
     <div
       ref={gridRef}
@@ -678,7 +713,8 @@ export default function ExperimentalDashboard({
   );
 
   return (
-    <div className="pt-1 relative isolate overflow-x-clip" data-tour="experimental-home" data-home-style={home.styleMode}>
+    <div className="pt-1 relative isolate overflow-x-clip" data-tour="experimental-home" data-home-style={home.styleMode}
+      {...holdHandlers}>
       {/* Wallpaper — fixed under everything in this stacking context; the
           isolate on the root keeps the negative z-index from escaping. */}
       {wallpaperUrl && (

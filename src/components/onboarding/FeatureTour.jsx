@@ -45,7 +45,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "newui", sectionLabel: "New UI",
         emoji: "✏️",
         title: "Editing the home screen",
-        body: `Open the cog menu (top-right) and choose "Edit home screen". In edit mode: hold a widget until it lifts, then drag — to a new spot, or onto "Drop to remove" to delete it. Hold an edge to resize. The "Layout" chip switches between Flow (widgets pack together) and Free (put each one exactly where you want, gaps and all). Widgets are inert while editing, so moving one can't accidentally trigger it.`,
+        body: `Press and hold an empty spot on the home screen — or open the cog menu (top-right) and choose "Edit home screen". In edit mode: hold a widget until it lifts, then drag — to a new spot, or onto "Drop to remove" to delete it. Hold an edge to resize. The "Layout" chip switches between Flow (widgets pack together) and Free (put each one exactly where you want, gaps and all). Widgets are inert while editing, so moving one can't accidentally trigger it.`,
         route: "/", target: null,
         look: `the ⚙ cog in the top-right — "Edit home screen" is the first item`, action: null,
       },
