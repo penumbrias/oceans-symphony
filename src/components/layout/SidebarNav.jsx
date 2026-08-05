@@ -109,9 +109,15 @@ export default function SidebarNav({ open, onClose }) {
         aria-modal="true"
         aria-label="Navigation menu"
         className={cn(
-          "fixed top-0 left-0 h-full z-[101] w-72 bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-in-out lg:hidden",
+          "fixed top-0 left-0 z-[101] w-72 bg-background border-r border-border/50 flex flex-col transition-transform duration-300 ease-in-out lg:hidden",
           open ? "translate-x-0" : "-translate-x-full"
         )}
+        // 100dvh, NOT h-full: h-full on a fixed element is the LARGE
+        // viewport height, so whenever a browser URL bar / system chrome is
+        // showing, the drawer's bottom hangs below the visible screen and
+        // the last nav option can never be scrolled into view (tester
+        // report). dvh tracks the real visible height.
+        style={{ height: "100dvh" }}
       >
         {/* Safe-area + header */}
         <div style={{ paddingTop: "env(safe-area-inset-top, 0px)" }} className="bg-background/95 backdrop-blur-xl border-b border-border/50 flex-shrink-0">

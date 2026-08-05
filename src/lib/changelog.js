@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "The side menu scrolls all the way down now \u2014 it was sized past the visible screen (worst with a browser bar showing), so the bottom entry could never be reached. Applies to the classic sidebar and the new UI's sidebar apps view alike." },
       { type: "fix", text: "Landscape works properly now: the Set Fronters window (old and new) no longer cuts off the alter list or the save button \u2014 everything scrolls. Every popup app-wide now scrolls when it's taller than the screen instead of clipping." },
     ],
   },
