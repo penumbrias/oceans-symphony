@@ -24,6 +24,7 @@ import {
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
+  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -66,6 +67,13 @@ import {
 } from "@/components/ui/drawer";
 import { useT } from "@/lib/i18n";
 import { applyTerms } from "@/lib/dailyTaskSystem";
+import {
+  ActivityWeekWidget, ActivityDayWidget, ActivityMonthWidget, ActivityYearWidget,
+} from "@/v2/activityWidgets";
+import {
+  TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
+  ChatChannelsWidget, GroundingWidget, LearnWidget,
+} from "@/v2/moreWidgets";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // Compact "how long so far" — reads better than a clock time in a narrow
@@ -2013,6 +2021,96 @@ function SymptomAnalyticsWidget({ settings }) {
 }
 
 export const V2_WIDGETS = {
+  activity_week: {
+    label: "Week grid", description: "The activity tracker's week, on your home screen. Minimal is a per-day readout; normal draws the grid; expanded gives you the tracker's own gestures \u2014 drag a time range to log or plan it.",
+    icon: CalendarRange, category: "activities",
+    render: ({ mode, settings }) => <ActivityWeekWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 12, rows: 5 }, minSpan: { cols: 4, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  activity_day: {
+    label: "Day grid", description: "One day of the activity tracker, hour by hour. Step days with the arrows; expanded adds drag-to-log and the full day view.",
+    icon: CalendarCheck, category: "activities",
+    render: ({ mode, settings }) => <ActivityDayWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  activity_month: {
+    label: "Month calendar", description: "The activity month view \u2014 what happened on each day, with your important dates marked.",
+    icon: CalendarDays, category: "activities",
+    render: ({ mode, settings }) => <ActivityMonthWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 8, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  activity_year: {
+    label: "Year overview", description: "A year of activity at a glance, one square per day.",
+    icon: Grid2X2, category: "activities",
+    render: ({ mode, settings }) => <ActivityYearWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 8, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  timeline_days: {
+    label: "Timeline", description: "Your timeline days, scrolling inside the widget. Expanded keeps loading older days as you reach the bottom.",
+    icon: CalendarClock, category: "timeline",
+    render: ({ mode, settings }) => <TimelineWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "days", type: "number", label: "Days to start with", min: 1, max: 30, default: 3 },
+    ],
+    defaultSpan: { cols: 12, rows: 6 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  day_summary: {
+    label: "Day summary", description: "The timeline's tally for a day \u2014 who was here, how long, what was logged. Step back through days with the arrows.",
+    icon: ListChecks, category: "timeline",
+    render: ({ mode }) => <DailySummaryWidget mode={mode} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  checkin_log: {
+    label: "Check-in log", description: "Your check-ins as they came in \u2014 feelings, and symptoms too from normal upwards.",
+    icon: History, category: "checkin",
+    render: ({ mode, settings }) => <CheckInLogWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "limit", type: "number", label: "How many to show", min: 1, max: 50, default: 8 },
+    ],
+    defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  daily_tasks: {
+    label: "Daily tasks", description: "Your recurring tasks for this period, tickable here. Automatic ones tick themselves when you do the thing they track.",
+    icon: CheckCircle2, category: "tasks",
+    render: ({ mode, settings }) => <DailyTasksWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    configFields: [
+      { key: "frequency", type: "select", label: "Which set", default: "daily",
+        options: [
+          { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" },
+          { value: "monthly", label: "Monthly" }, { value: "yearly", label: "Yearly" },
+        ] },
+    ],
+    defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  chat_channels: {
+    label: "Chat channels", description: "Every {{system}}-chat channel, most recent first, one tap to open. Private channels stay hidden unless one of their {{alters}} is here.",
+    icon: Hash, category: "chat",
+    render: ({ mode, settings }) => <ChatChannelsWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  grounding_techniques: {
+    label: "Grounding", description: "Your grounding techniques \u2014 tap one and it runs right here, guided.",
+    icon: Wind, category: "support",
+    render: ({ mode, settings }) => <GroundingWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  learn_modules: {
+    label: "Learn", description: "The learning modules with your progress \u2014 tap one to pick up where you left off.",
+    icon: GraduationCap, category: "support",
+    render: ({ mode, settings }) => <LearnWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
+  },
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
     icon: Users, category: "alters",

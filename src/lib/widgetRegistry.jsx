@@ -588,6 +588,7 @@ export const WIDGET_CATEGORIES = [
   { id: "home", label: "Home & dashboard" },
   { id: "alters", label: "{{Alters}} & {{fronting}}" },
   { id: "checkin", label: "Check-in & tracking" },
+  { id: "timeline", label: "Timeline" },
   { id: "activities", label: "Activity tracker" },
   { id: "tasks", label: "To-dos & daily tasks" },
   { id: "journals", label: "Journals" },

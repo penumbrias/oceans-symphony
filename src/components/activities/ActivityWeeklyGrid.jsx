@@ -151,6 +151,10 @@ export default function ActivityWeeklyGrid({
   onDayClick,
   onEditPlan,
   importantDates = [],
+  // Widget use: the home board gives the grid a tile, not a page, so the
+  // filter row is hidden there and the grid draws straight away. The
+  // tracker page never passes this.
+  hideControls = false,
 }) {
   const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
   const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
@@ -728,7 +732,7 @@ if (isSameCell) {
           finish the range — see handleCellTap below. The trailing
           "Cancel selection" pill renders when addMode is on, so users
           can exit that flow without entering it from this row. */}
-      <div className="flex flex-wrap gap-1.5 justify-end items-center">
+      <div className={`flex flex-wrap gap-1.5 justify-end items-center ${hideControls ? "hidden" : ""}`}>
         {addMode && (
           <Button variant="default" size="sm" onClick={handleToggleAddMode} className="gap-1.5 h-7 px-2 text-xs">
             <X className="w-3 h-3" />Cancel selection

@@ -53,9 +53,17 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
         section: "newui", sectionLabel: "New UI",
         emoji: "➕",
         title: "Adding widgets",
-        body: `In edit mode, the apps button (top-left) opens the drawer with an "Add widget" tab: every widget previews LIVE with your real data, like a phone's widget picker. Tap a card for a bigger preview, cycle its Minimal/Normal/Expanded views, try a style, and add it already set up. The search box finds widgets by name.`,
+        body: `In edit mode, the apps button (top-left) opens the drawer with an "Add widget" tab: every widget previews LIVE with your real data, like a phone's widget picker. It's grouped by page — ${t.Alters} & ${t.fronting}, Check-in, Activity tracker, Timeline, To-dos, Chat, Support and the rest — because the aim is that a page's job can be done from the home screen. Tap a card for a bigger preview, cycle its Minimal/Normal/Expanded views, try a style, and add it already set up.`,
         route: "/", target: null,
         look: `the app-logo button in the top-left — in edit mode its drawer gains the "Add widget" tab`, action: null,
+      },
+      {
+        section: "newui", sectionLabel: "New UI",
+        emoji: "🔎",
+        title: "Minimal, normal, expanded",
+        body: `Most widgets read at three depths, switched in the widget's options. Minimal is text — the answer, nothing else. Normal is the real thing: the activity week grid, the timeline, your day summary, the check-in log. Expanded adds the actions that belong to it — on the activity grids that means the tracker's own gestures, so you can drag a time range on the home screen and log or plan it there.`,
+        route: "/", target: null,
+        look: `a widget's gear (in edit mode) → the display-mode row at the top`, action: null,
       },
       {
         section: "newui", sectionLabel: "New UI",

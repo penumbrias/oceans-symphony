@@ -120,6 +120,14 @@ new one, add it. Update the date line above whenever you touch this file.*
 - [ ] **Wiki preview (`previewWiki.js`) knows nothing about v2.** The
   staleness banner is honest about it (WIKI_CONTENT_VERSION < APP_VERSION),
   but before v2 ships to main the wiki wants a v2 walkthrough entry.
+- [ ] **Older v2 widgets are still single-mode.** The tranche shipped in
+  v0.128.0 all read minimal/normal/expanded; several earlier ones
+  (`tasks`, `plans`, `sleep`, `status`, `recent`, `bulletin_board`) still
+  declare only `normal`. Give them the same ladder when touched.
+- [ ] **New widget strings are unkeyed.** activityWidgets/moreWidgets write
+  English directly instead of going through `useT()`, unlike the rest of
+  `widgets.jsx`. Fold them into `src/locales/en.js` when the locale work
+  starts.
 - [ ] **i18n coverage** — only v2 surfaces use `useT()`; classic pages are
   unkeyed. Fine while translations don't exist; becomes the long pole the day
   a locale lands.
@@ -141,6 +149,15 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Done (this cycle, for orientation)
 
+- v0.128.0: page-sized widgets — activity week/day/month/year (expanded =
+  the tracker's real gestures via a shared modal host in
+  `src/v2/activityWidgets.jsx`), timeline + day summary + check-in log +
+  daily tasks + chat channels + grounding + learn
+  (`src/v2/moreWidgets.jsx`). The timeline's 25 queries and per-day slicing
+  moved to `src/lib/timelineData.js`, shared by Timeline.jsx and the
+  widgets. `ActivityWeeklyGrid` gained one additive prop (`hideControls`)
+  so a tile doesn't spend its height on the filter row. DailyTallyPanel's
+  fronting split moved off primary/co onto the user's levels.
 - v0.115.0: consolidation Phases 3+4 — ONE task-create path
   (`src/lib/taskCreate.js`, used by QuickTaskComposer + TaskFormModal;
   companion bulletin is an option, not a fork) and ONE plan-create path

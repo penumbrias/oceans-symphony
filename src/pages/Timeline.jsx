@@ -1,14 +1,11 @@
 import React, { useState, useEffect, useRef } from "react";
-import { base44 } from "@/api/base44Client";
 import { parseDate } from "@/lib/dateUtils";
-import { collectAlterDates, datesForDay } from "@/lib/importantDates";
-import { useQuery } from "@tanstack/react-query";
-import { format, subDays, startOfDay, endOfDay, isToday } from "date-fns";
+import { format, subDays, startOfDay, isToday } from "date-fns";
 import { Activity, Heart, Users, Calendar, BookOpen, Zap, MapPin, ArrowUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useSearchParams } from "react-router-dom";
 import InfiniteTimeline from "@/components/timeline/InfiniteTimeline";
-import { localEntities } from "@/api/base44Client";
+import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 
 const CHUNK_DAYS = 14; // how many days to load per chunk
 
@@ -33,141 +30,12 @@ export default function Timeline() {
   const containerRef = useRef(null);
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-  const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
-    queryFn: () => base44.entities.FrontingSession.list("-start_time", 2000),
-  });
-
-  const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
-    queryFn: () => base44.entities.Activity.list("-timestamp", 2000),
-  });
-
-  const { data: emotions = [] } = useQuery({
-    queryKey: ["emotionCheckIns"],
-    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 2000),
-  });
-
-  const { data: alters = [] } = useQuery({
-    queryKey: ["alters"],
-    queryFn: () => base44.entities.Alter.list(),
-  });
-
-  const { data: customFields = [] } = useQuery({
-    queryKey: ["customFields"],
-    queryFn: () => base44.entities.CustomField.list(),
-  });
-
-  // Annual important dates (birthdays etc.) from date-typed custom fields.
-  const importantDates = collectAlterDates(alters, customFields);
-
-  const { data: journals = [] } = useQuery({
-    queryKey: ["journalEntries"],
-    queryFn: () => base44.entities.JournalEntry.list("-created_date", 2000),
-  });
-
-  const { data: checkIns = [] } = useQuery({
-    queryKey: ["systemCheckIns"],
-    queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 2000),
-  });
-
-  const { data: categories = [] } = useQuery({
-    queryKey: ["activityCategories"],
-    queryFn: () => base44.entities.ActivityCategory.list(),
-  });
-
-  const { data: bulletins = [] } = useQuery({
-    queryKey: ["bulletins"],
-    queryFn: () => base44.entities.Bulletin.list("-created_date", 2000),
-  });
-
-  const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.list("-created_date", 2000),
-  });
-
-  const { data: dailyProgress = [] } = useQuery({
-    queryKey: ["dailyProgress"],
-    queryFn: () => base44.entities.DailyProgress.list("-date", 365),
-  });
-
-  const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
-    queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000),
-  });
-
-  const { data: symptomCheckIns = [] } = useQuery({
-    queryKey: ["symptomCheckIns"],
-    queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 2000),
-  });
-
-  const { data: locationRecords = [] } = useQuery({
-    queryKey: ["locations"],
-    queryFn: () => localEntities.Location.list(),
-  });
-
-  const { data: statusNotes = [] } = useQuery({
-    queryKey: ["statusNotes"],
-    queryFn: () => localEntities.StatusNote.list(),
-  });
-
-  const { data: symptoms = [] } = useQuery({
-    queryKey: ["symptoms"],
-    queryFn: () => base44.entities.Symptom.list(),
-  });
-
-  // Additional timestamped sources surfaced in the timeline's events column.
-  const { data: sleeps = [] } = useQuery({
-    queryKey: ["sleep"],
-    queryFn: () => base44.entities.Sleep.list("-bedtime", 2000),
-  });
-
-  const { data: lineageEvents = [] } = useQuery({
-    queryKey: ["systemChangeEvents"],
-    queryFn: () => localEntities.SystemChangeEvent.list(),
-  });
-
-  const { data: diaryCards = [] } = useQuery({
-    queryKey: ["diaryCards"],
-    queryFn: () => base44.entities.DiaryCard.list("-created_date", 2000),
-  });
-
-  const { data: polls = [] } = useQuery({
-    queryKey: ["polls"],
-    queryFn: () => base44.entities.Poll.list("-created_date", 2000),
-  });
-
-  const { data: reminderInstances = [] } = useQuery({
-    queryKey: ["reminderInstances"],
-    queryFn: () => base44.entities.ReminderInstance.list("-scheduled_for", 2000),
-  });
-
-  // Parent reminders hold the actual title/message — the instance only has a
-  // reminder_id — so fetch them to label timeline entries with what the
-  // reminder was actually about (instead of a generic "Reminder").
-  const { data: reminders = [] } = useQuery({
-    queryKey: ["reminders"],
-    queryFn: () => base44.entities.Reminder.list("-created_date", 1000),
-  });
-  const reminderById = React.useMemo(
-    () => Object.fromEntries((reminders || []).map((r) => [r.id, r])),
-    [reminders]
-  );
-
-  const { data: reflections = [] } = useQuery({
-    queryKey: ["supportJournalAll"],
-    queryFn: () => base44.entities.SupportJournalEntry.list("-created_date", 2000),
-  });
-
-  const { data: alterNotes = [] } = useQuery({
-    queryKey: ["alterNotes"],
-    queryFn: () => base44.entities.AlterNote.list("-created_date", 2000),
-  });
-
-  const { data: dailyTaskTemplates = [] } = useQuery({
-    queryKey: ["dailyTaskTemplates"],
-    queryFn: () => base44.entities.DailyTaskTemplate.list(),
-  });
+  // One shared data layer with the timeline widgets (src/lib/timelineData.js)
+  // so the page and the board can't drift apart.
+  const src = useTimelineSources();
+  const {
+    sessions, alters, symptoms, categories, dailyTaskTemplates,
+  } = src;
 
   // Jump to date from URL param on mount
   useEffect(() => {
@@ -230,7 +98,7 @@ export default function Timeline() {
     next.delete("edit");
     setSearchParams(next, { replace: true });
     return () => clearTimeout(t);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [focusSessionId, sessions]);
 
   // Lazy load more days as user scrolls to bottom
@@ -346,139 +214,43 @@ export default function Timeline() {
       {/* Timeline days */}
       <div className="space-y-2">
         {days.map((day) => {
-          const dateStr = format(day, "yyyy-MM-dd");
-          const dayStart = startOfDay(day);
-          const dayEnd = endOfDay(day);
-
-          const daySessions = showFronting
-            ? sessions.filter((s) => {
-                const start = parseDate(s.start_time);
-                const end = s.end_time ? parseDate(s.end_time) : new Date();
-                return start <= dayEnd && end >= dayStart;
-              })
-            : [];
-
-          const dayActivities = showActivities
-            ? activities.filter((a) => {
-                const t = parseDate(a.timestamp);
-                const tMs = t.getTime();
-                const duration = Math.max(a.duration_minutes || 0, 0);
-                const endMs = duration > 0 ? tMs + duration * 60 * 1000 : tMs + 1;
-                return endMs > dayStart.getTime() && tMs < dayEnd.getTime() + 1;
-              })
-            : [];
-
-          const dayEmotions = emotions.filter((e) => {
-            const t = parseDate(e.timestamp);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const dayJournals = journals.filter((j) => {
-            const t = parseDate(j.created_date);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const dayCheckIns = checkIns.filter((c) => {
-            const t = parseDate(c.created_date);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const dayBulletins = bulletins.filter((b) => {
-            const t = parseDate(b.created_date);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const dayTasks = tasks.filter((t) => {
-            const created = parseDate(t.created_date);
-            const completed = t.completed && t.completed_date ? parseDate(t.completed_date) : null;
-            return (created >= dayStart && created <= dayEnd) || (completed && completed >= dayStart && completed <= dayEnd);
-          });
-
-          const daySymptomSessions = symptomSessions.filter(s => {
-            const start = parseDate(s.start_time);
-            const end = s.end_time ? parseDate(s.end_time) : new Date();
-            return start <= dayEnd && end >= dayStart;
-          });
-
-          const daySymptomCheckIns = symptomCheckIns.filter(s => {
-            const t = parseDate(s.timestamp);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const dayLocations = showLocations
-            ? locationRecords.filter(loc => {
-                const t = parseDate(loc.timestamp);
-                return t >= dayStart && t <= dayEnd;
-              })
-            : [];
-
-          const dayStatusNotes = statusNotes.filter(n => {
-            const t = parseDate(n.timestamp);
-            return t >= dayStart && t <= dayEnd;
-          });
-
-          const inDay = (val) => {
-            if (!val) return false;
-            const t = parseDate(val);
-            return t >= dayStart && t <= dayEnd;
-          };
-          const daySleeps = sleeps.filter((s) => inDay(s.bedtime || (s.date ? `${s.date}T12:00:00` : null)));
-          const dayLineage = lineageEvents.filter((ev) => inDay(ev.date));
-          const dayDiaryCards = diaryCards.filter((d) => inDay(d.created_date || (d.date ? `${d.date}T12:00:00` : null)));
-          const dayPolls = polls.filter((p) => inDay(p.created_date));
-          const dayReminderInstances = reminderInstances
-            .filter((ri) => inDay(ri.fired_at || ri.scheduled_for))
-            .map((ri) => {
-              // Pull the title/message from the parent reminder so the timeline
-              // shows what it was about, not just "Reminder".
-              const r = reminderById[ri.reminder_id];
-              return r ? { ...ri, title: ri.title || r.title, body: ri.body || r.body } : ri;
-            });
-          const dayReflections = reflections.filter((r) => inDay(r.created_date));
-          const dayAlterNotes = alterNotes.filter((n) => inDay(n.created_date));
-          const dayProgress = dailyProgress.find((p) => p.date === dateStr) || null;
-          const dayHasDailyTasks = !!(dayProgress && Array.isArray(dayProgress.completed_task_ids) && dayProgress.completed_task_ids.length && dayProgress.created_date);
-
-          const dayImportantDates = datesForDay(importantDates, day);
-
-          const hasData = daySessions.length > 0 || dayActivities.length > 0 || dayEmotions.length > 0 || dayJournals.length > 0 || dayCheckIns.length > 0 || dayBulletins.length > 0 || dayTasks.length > 0 || daySymptomSessions.length > 0 || daySymptomCheckIns.length > 0 || dayLocations.length > 0 || dayStatusNotes.length > 0 || dayImportantDates.length > 0 || daySleeps.length > 0 || dayLineage.length > 0 || dayDiaryCards.length > 0 || dayPolls.length > 0 || dayReminderInstances.length > 0 || dayReflections.length > 0 || dayAlterNotes.length > 0 || dayHasDailyTasks;
-
+          const d = sliceTimelineDay(src, day, { showActivities, showFronting, showLocations });
           return (
-            <div key={dateStr} id={`day-${dateStr}`}>
+            <div key={d.dateStr} id={`day-${d.dateStr}`}>
               <InfiniteTimeline
                 day={day}
-                sessions={daySessions}
-                activities={dayActivities}
-                emotions={dayEmotions}
+                sessions={d.sessions}
+                activities={d.activities}
+                emotions={d.emotions}
                 alters={alters}
-                hasData={hasData}
+                hasData={d.hasData}
                 isToday={isToday(day)}
-                journals={dayJournals}
-                checkIns={dayCheckIns}
-                bulletins={dayBulletins}
-                tasks={dayTasks}
+                journals={d.journals}
+                checkIns={d.checkIns}
+                bulletins={d.bulletins}
+                tasks={d.tasks}
                 showActivities={showActivities}
                 showCheckIns={showCheckIns}
                 showEmotions={showEmotions}
                 showSymptoms={showSymptoms}
-                symptomSessions={daySymptomSessions}
-                symptomCheckIns={daySymptomCheckIns}
+                symptomSessions={d.symptomSessions}
+                symptomCheckIns={d.symptomCheckIns}
                 symptoms={symptoms}
                 categories={categories}
-                locations={dayLocations}
+                locations={d.locations}
                 showLocations={showLocations}
-                statusNotes={dayStatusNotes}
-                importantDates={dayImportantDates}
-                sleeps={daySleeps}
-                lineageEvents={dayLineage}
-                diaryCards={dayDiaryCards}
-                polls={dayPolls}
-                reminderInstances={dayReminderInstances}
-                reflections={dayReflections}
-                alterNotes={dayAlterNotes}
-                dailyProgress={dayProgress}
+                statusNotes={d.statusNotes}
+                importantDates={d.importantDates}
+                sleeps={d.sleeps}
+                lineageEvents={d.lineageEvents}
+                diaryCards={d.diaryCards}
+                polls={d.polls}
+                reminderInstances={d.reminderInstances}
+                reflections={d.reflections}
+                alterNotes={d.alterNotes}
+                dailyProgress={d.dailyProgress}
                 dailyTaskTemplates={dailyTaskTemplates}
-                focusSessionId={daySessions.some((s) => s.id === focusSessionId) ? focusSessionId : null}
+                focusSessionId={d.sessions.some((x) => x.id === focusSessionId) ? focusSessionId : null}
                 focusOpenEditor={focusEdit}
               />
             </div>

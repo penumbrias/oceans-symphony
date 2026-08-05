@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: the activity tracker as widgets \u2014 week grid, single day, month calendar and year overview. Expanded gives you the tracker's own gestures, so you can drag a time range on the home screen and log or plan it there." },
+      { type: "feature", text: "\ud83e\uddea New UI: new widgets for your timeline, a day's summary, the check-in log, daily/recurring tasks you can tick off, your chat channels, grounding techniques (they run in the widget) and the learning modules with progress." },
+      { type: "improve", text: "\ud83e\uddea New UI: widgets read at three depths now \u2014 minimal is plain text, normal draws the real thing, expanded adds its actions." },
+      { type: "improve", text: "The timeline's day summary splits fronting time by your own fronting levels instead of the old primary/co-fronting pair." },
       { type: "improve", text: "Every alter picker can sort by your hand-set arrangement now \u2014 one tap on the sort button switches between My order, A\u2013Z, most or least fronting time, and recently updated. Whoever is fronting still sits at the top." },
       { type: "feature", text: "Arrange your alters by hand, and every list follows: drag alters and whole groups into the order you want in Settings \u2192 Alter setup \u2192 \"Order your alters\", and that order is used on the alters page, in the Set Fronters window, and in pickers. Anyone you don't place is listed after, as usual." },
       { type: "improve", text: "\ud83e\uddea New UI: the Add-widget list is organised by app page now \u2014 collapsible sections for Alters & fronting, Check-in, Activity tracker, Journals, Bulletins, Chat, Sleep, Analytics and the rest, each showing how many widgets it holds." },

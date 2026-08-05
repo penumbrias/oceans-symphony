@@ -4,6 +4,7 @@ import { parseDate } from "@/lib/dateUtils";
 import { startOfDay, endOfDay, format } from "date-fns";
 import { ChevronRight } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
+import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 
 const EMOTION_COLORS = [
   "#f43f5e","#ec4899","#a855f7","#3b82f6","#14b8a6",
@@ -48,6 +49,9 @@ export default function DailyTallyPanel({
   const dayEnd = useMemo(() => endOfDay(day), [day]);
   const inDay = (d) => d >= dayStart && d <= dayEnd;
 
+  // Fronting time splits by the user's own levels now — the old
+  // primary/co-fronting pair was the retired binary.
+  const levelCfg = useFrontLevels();
   const [frontingView, setFrontingView] = useState("total");
 
   const catMap = useMemo(() => Object.fromEntries((categories || []).map(c => [c.id, c])), [categories]);
@@ -64,25 +68,28 @@ export default function DailyTallyPanel({
       const clampEnd = Math.min(end, dayEnd);
       if (clampStart >= clampEnd) return;
       const mins = Math.round((clampEnd - clampStart) / 60000);
+      // Legacy rows (primary + co_fronter_ids) map onto the levels at read
+      // time, same as everywhere else: the primary takes the top level,
+      // co-fronters the next one down.
+      const add = (id, levelId) => {
+        if (!id) return;
+        if (!tally[id]) tally[id] = { total: 0, byLevel: {} };
+        tally[id].total += mins;
+        if (levelId) tally[id].byLevel[levelId] = (tally[id].byLevel[levelId] || 0) + mins;
+      };
       if (s.alter_id) {
-        if (!tally[s.alter_id]) tally[s.alter_id] = { total: 0, primary: 0, cofronting: 0 };
-        tally[s.alter_id].total += mins;
-        if (s.is_primary) tally[s.alter_id].primary += mins;
-        else tally[s.alter_id].cofronting += mins;
+        add(s.alter_id, getSessionLevel(s, levelCfg)?.id);
       } else {
-        const ids = [s.primary_alter_id, ...(s.co_fronter_ids || [])].filter(Boolean);
-        ids.forEach((id) => {
-          if (!tally[id]) tally[id] = { total: 0, primary: 0, cofronting: 0 };
-          tally[id].total += mins;
-          if (s.primary_alter_id === id) tally[id].primary += mins;
-          else tally[id].cofronting += mins;
-        });
+        const top = levelCfg.levels[0]?.id;
+        const next = levelCfg.levels[1]?.id || top;
+        add(s.primary_alter_id, top);
+        (s.co_fronter_ids || []).forEach((id) => add(id, next));
       }
     });
     return Object.entries(tally)
       .map(([alterId, times]) => ({ alterId, ...times, alter: (alters || []).find(a => a.id === alterId) }))
       .sort((a, b) => b.total - a.total);
-  }, [sessions, dayStart, dayEnd, alters]);
+  }, [sessions, dayStart, dayEnd, alters, levelCfg]);
 
   // ── Activities ────────────────────────────────────────────────────────────
   const dayActivities = useMemo(() =>
@@ -156,7 +163,7 @@ export default function DailyTallyPanel({
           <div className="flex items-center justify-between mb-1">
             <SectionLabel>{terms.Fronters}</SectionLabel>
             <div className="flex gap-0.5 bg-muted/40 rounded-full p-0.5">
-              {[{ id: "total", label: "All" }, { id: "primary", label: "⭐" }, { id: "cofronting", label: "co" }].map(opt => (
+              {[{ id: "total", label: "All" }, ...levelCfg.levels.map((l) => ({ id: l.id, label: frontLevelLabel(l, terms) }))].map(opt => (
                 <button key={opt.id} onClick={() => setFrontingView(opt.id)}
                   className={`px-1.5 py-0.5 rounded-full text-[0.5625rem] font-medium transition-colors ${frontingView === opt.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}>
                   {opt.label}
@@ -169,13 +176,9 @@ export default function DailyTallyPanel({
           ) : (
             <div className="space-y-0.5">
               {fronterTally
-                .filter(({ primary, cofronting }) => {
-                  if (frontingView === "primary") return primary > 0;
-                  if (frontingView === "cofronting") return cofronting > 0;
-                  return true;
-                })
-                .map(({ alter, alterId, total, primary, cofronting }) => {
-                  const mins = frontingView === "primary" ? primary : frontingView === "cofronting" ? cofronting : total;
+                .filter(({ byLevel }) => (frontingView === "total" ? true : (byLevel?.[frontingView] || 0) > 0))
+                .map(({ alter, alterId, total, byLevel }) => {
+                  const mins = frontingView === "total" ? total : (byLevel?.[frontingView] || 0);
                   return (
                     <div key={alterId} className="flex items-center gap-1.5">
                       <div className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: alter?.color || "#9333ea" }} />
