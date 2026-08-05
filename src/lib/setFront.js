@@ -28,6 +28,43 @@ export function nowLocalIso() {
   return formatInTimeZone(new Date(), tz, "yyyy-MM-dd'T'HH:mm:ss.SSSXXX");
 }
 
+// With fronting levels ON, "primary" is no longer a hand-set star — it is
+// DERIVED from the spectrum (owner decision, v0.118.0): the alter at the
+// topmost occupied level leads. No level recorded counts as the top level
+// (classic full-front semantics). Ties keep the current primary if they're
+// in the tied set, otherwise the longest-standing session wins. is_primary
+// stays on the row so every existing consumer (attribution, analytics,
+// friends push, "Primary ·" labels) keeps working unchanged.
+export async function recomputePrimaryFromLevels({ cfg, queryClient = null }) {
+  try {
+    if (!cfg?.enabled) return;
+    const active = (await base44.entities.FrontingSession.filter({ is_active: true }))
+      .filter((s) => s.alter_id);
+    if (active.length === 0) return;
+    const levelIndex = (s) => {
+      if (!s.front_level) return 0;
+      const i = cfg.levels.findIndex((l) => l.id === s.front_level);
+      return i === -1 ? 0 : i;
+    };
+    const best = Math.min(...active.map(levelIndex));
+    const candidates = active.filter((s) => levelIndex(s) === best);
+    const lead = candidates.find((s) => s.is_primary)
+      || [...candidates].sort((a, b) => new Date(a.start_time || 0) - new Date(b.start_time || 0))[0];
+    let changed = false;
+    for (const s of active) {
+      const want = s.id === lead.id;
+      if (!!s.is_primary !== want) {
+        await base44.entities.FrontingSession.update(s.id, { is_primary: want });
+        changed = true;
+      }
+    }
+    if (changed) {
+      queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
+      queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
+    }
+  } catch { /* best-effort — never block the user's own action */ }
+}
+
 // Open-time read + repair (ported from the old modal's open effect): sweep
 // ghost-active rows (is_active false, end_time null), dedupe multiple
 // active sessions per alter (keep newest), demote phantom extra primaries.
@@ -94,6 +131,7 @@ export async function applyFrontSelection({
   clearAll = false,
   triggered = null,
   levelsEnabled = false,
+  levelCfg = null,          // pass the resolved config to auto-derive primary
   alters = [],
   terms = {},
   queryClient = null,
@@ -199,6 +237,11 @@ export async function applyFrontSelection({
         trigger_label: triggered.label || "",
       })
     ));
+  }
+
+  // Levels on → the star is retired; the spectrum decides who leads.
+  if (levelsEnabled && levelCfg) {
+    await recomputePrimaryFromLevels({ cfg: levelCfg, queryClient: null });
   }
 
   queryClient?.invalidateQueries({ queryKey: ["activeFront"] });

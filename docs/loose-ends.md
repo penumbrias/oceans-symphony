@@ -1,4 +1,4 @@
-# Loose Ends — living audit (updated 2026-08-04, v0.117.0, branch claude/ui-v2)
+# Loose Ends — living audit (updated 2026-08-04, v0.118.0, branch claude/ui-v2)
 
 *Purpose: nothing about this project's state should depend on anyone's memory.
 When an item is finished, move it to "Done" with the version. When you find a
@@ -50,11 +50,14 @@ new one, add it. Update the date line above whenever you touch this file.*
   `src/locales/en.js` against actual `t()` usage.
 - [ ] **Breathing pace on the Grounding page** — the `pace` prop exists; the
   full-screen exercise has no control for it yet (widget-only today).
-- [ ] **Fronting levels follow-ups** (v0.116.0 shipped the core): terms for
-  the word "level" itself aren't customizable; the classic FrontingBar and
-  Home-page alter rows don't show levels yet; consider level colors; wiki
-  entry missing (see wiki item below). The hold→drag rail exists only on the
-  v2 who's-here widget by design (classic chips already own hold + swipes).
+- [ ] **Fronting levels follow-ups**: terms for the word "level" itself
+  aren't customizable; consider level colors; wiki entry missing (see wiki
+  item below). v0.118.0 retired the primary star when levels are on
+  (is_primary now DERIVED: topmost occupied level, ties keep current lead —
+  recomputePrimaryFromLevels in setFront.js) and replaced the set-primary
+  swipe with the tap-to-pick spectrum on: AlterCard, AlterGridView,
+  PinnedAltersGallery, QuickActionsMenu rows, FronterChip. Level display on
+  classic FrontingBar rows still pending.
 - [ ] **Old SetFrontModal is now ONLY the selection-mode alter picker**
   (v0.117.0 rebuilt the real set-front flow as `SetFrontSheet`, engine in
   `src/lib/setFront.js`). Follow-up: strip the modal's dead set-front code

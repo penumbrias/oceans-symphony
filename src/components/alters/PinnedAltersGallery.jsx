@@ -20,6 +20,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import AlterActionMenu from "./AlterActionMenu";
+import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -601,12 +602,18 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const blurAvatar = anonymizeBlurAvatars(anonymize);
   const label = formatAlter(alter);
 
+  // Levels on → the primary swipe opens the tap-to-pick spectrum (the star
+  // is retired); levels off → the classic primary toggle.
+  const primaryGesture = usePrimaryGesture();
   const { bind, dragY, hint } = useVerticalChipSwipe({
     onTap: () => navigate(`/alter/${alter.id}`),
-    onUp: () =>
-      fronting
-        ? togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms)
-        : toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onUp: async () => {
+      if (fronting) {
+        if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms);
+      } else {
+        toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms);
+      }
+    },
     onDown: () => {
       // Swipe-down only means anything when they're fronting (it removes
       // them). toggleFrontFor removes when a session exists.
@@ -625,7 +632,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const hintText =
     hint === "solo" ? "Solo" :
     hint === "down" ? "Remove" :
-    hint === "up" ? (fronting ? "Primary" : "Front") :
+    hint === "up" ? (fronting ? (primaryGesture.levelsOn ? "Level" : "Primary") : "Front") :
     null;
   const hintColor =
     hint === "solo" ? "text-primary" :
@@ -634,6 +641,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
 
   return (
     <>
+    {primaryGesture.node}
     <button
       type="button"
       {...bind}

@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "feature", text: "With fronting levels on, the primary star retires: whoever sits closest to front leads automatically (ties keep the current lead). The star and \"make primary\" controls hide; everything that showed a primary still works." },
+      { type: "improve", text: "The set-primary swipe on alter lists, chips, the pinned bar, and quick actions now opens a tap-to-pick fronting-level spectrum when levels are on \u2014 the same one everywhere, with Remove from front included." },
+      { type: "fix", text: "\ud83e\uddea New UI: icons no longer overlap the text in search boxes (the density setting was overriding their spacing)." },
+      { type: "fix", text: "\ud83e\uddea New UI: pressing and holding inside an open popup no longer triggers the home screen's edit mode." },
       { type: "improve", text: "\ud83e\uddea New UI: the fronting-level spectrum gains a \"Remove from front\" stop at the far end \u2014 hold an alter and drag all the way down to take them off front in one gesture." },
       { type: "improve", text: "\ud83e\uddea New UI: who's-here gestures reworked \u2014 tap an alter to open their check-in panel right inside the widget, double-tap for their action menu, press-and-hold for the fronting-level spectrum. The action menu also gains a level dropdown beside the alter's name." },
       { type: "feature", text: "Set Fronters is rebuilt: everyone currently fronting appears as a card with their avatar, pronouns, time so far, a primary star, and (when enabled) their fronting level \u2014 no hidden gestures needed. List, avatar-grid, and by-group tree views for adding; Unsure and the journal/triggered options are all still there." },

@@ -653,6 +653,11 @@ export default function ExperimentalDashboard({
   const holdHandlers = editMode ? {} : {
     onPointerDown: (e) => {
       if (e.button !== undefined && e.button !== 0) return;
+      // Portaled overlays (dialogs, drawers, action menus) bubble their
+      // pointer events through the REACT tree even though their DOM lives
+      // elsewhere — a hold inside a popup must never arm edit mode. Only
+      // presses physically inside the canvas count.
+      if (!e.currentTarget.contains(e.target)) return;
       if (e.target.closest("[data-widget-content], button, a, input, textarea, select, [contenteditable='true']")) return;
       holdOrigin.current = { x: e.clientX, y: e.clientY };
       if (holdTimer.current) clearTimeout(holdTimer.current);

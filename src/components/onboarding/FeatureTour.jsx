@@ -107,7 +107,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "fronting", sectionLabel: `${t.Fronting}`,
       emoji: "👥",
       title: `Set ${t.Front}ers — Select`,
-      body: `The Set ${t.Front}ers window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar and pronouns — the ★ marks the primary (tap it to change), and × removes them. Tap any ${t.alter} in the list below to add them. Optional: turn on ${t.fronting} levels (Settings → Tracking setup) and each card also gets a closeness-to-${t.front} picker.`,
+      body: `The Set ${t.Front}ers window is now open. Everyone currently ${t.fronting} appears as a card at the top with their avatar and pronouns — the ★ marks the primary (tap it to change), and × removes them. Tap any ${t.alter} in the list below to add them. Optional: turn on ${t.fronting} levels (Settings → Tracking setup) — each card then gets a closeness-to-${t.front} picker, the star retires, and whoever sits closest to ${t.front} leads automatically.`,
       // Target left null so the trigger button (now hidden behind the modal)
       // doesn't drive the spotlight or flip the tour card to the top.
       route: "/", target: null,

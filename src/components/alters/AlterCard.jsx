@@ -13,6 +13,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import AlterActionMenu from "./AlterActionMenu";
+import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
 
 function getContrastColor(hex) {
   if (!hex) return "hsl(var(--muted-foreground))";
@@ -186,10 +187,15 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   // swipe gestures) — used where adjusting front from the chip doesn't
   // belong, e.g. a group/subsystem members list. Tap (open) and long-press
   // (menu) still work.
+  // Levels on → the primary swipe opens the tap-to-pick spectrum (the star
+  // is retired); levels off → the classic primary toggle.
+  const primaryGesture = usePrimaryGesture();
   const { bind, dragX, swipeHint } = useSwipeActions({
     onTap: () => navigate(`/alter/${alter.id}`),
     onSwipeRight: hideFront ? undefined : () => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, terms),
-    onSwipeLeft: hideFront ? undefined : () => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms),
+    onSwipeLeft: hideFront ? undefined : async () => {
+      if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, terms);
+    },
     onSwipeLeftUp: hideFront ? undefined : () => replaceFrontWith(alter, base44, queryClient, toast, terms),
     onLongPress: () => setMenuOpen(true),
   });
@@ -200,6 +206,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
 
   return (
     <div className="flex items-center gap-2 select-none">
+      {primaryGesture.node}
       <div className="flex-1 min-w-0 relative" {...bind}
         style={{
           transform: hideFront ? undefined : `translateX(${dragX}px)`,
@@ -208,7 +215,7 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         }}>
         {!hideFront && swipeHint && (
           <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none z-10 ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
-            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : (isPrimary ? "Demote" : "Promote")}
+            {swipeHint === "front" ? (fronting ? "Remove" : "Add") : swipeHint === "solo" ? "Solo" : primaryGesture.levelsOn ? "Level" : (isPrimary ? "Demote" : "Promote")}
           </span>
         )}
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"

@@ -15,6 +15,7 @@ import { getSubsystemsOwnedBy, getMemberAlters, MAX_SUBSYSTEM_DEPTH } from "@/li
 import { needsHalo, getSurfaceBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import AlterActionMenu from "./AlterActionMenu";
 import SubsystemActionMenu from "./SubsystemActionMenu";
+import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
 import GroupIcon from "@/components/shared/GroupIcon";
 
 const EMPTY_SET = new Set();
@@ -201,8 +202,13 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
     return s;
   }, [navStack]);
 
+  // Levels on → the primary gesture opens the tap-to-pick spectrum (the
+  // star is retired); levels off → the classic primary toggle.
+  const primaryGesture = usePrimaryGesture();
   const toggleFront = (alter) => toggleFrontFor(alter, activeSessions, base44, queryClient, toast, t);
-  const togglePrimary = (alter) => togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, t);
+  const togglePrimary = async (alter) => {
+    if (!(await primaryGesture.trigger(alter))) togglePrimaryFor(alter, activeSessions, base44, queryClient, toast, t);
+  };
   const replaceFront = (alter) => replaceFrontWith(alter, base44, queryClient, toast, t);
 
   const isFronting = (alterId) => activeSessions.some(s => s.alter_id === alterId);
@@ -350,6 +356,7 @@ export default function AlterGridView({ alters, activeSessions = [], allAlters =
 
   return (
     <>
+      {primaryGesture.node}
       {navStack.length > 0 && (
         <div className="flex items-center gap-1 text-xs border-b border-border/50 pb-1.5 mb-3 min-w-0">
           <button onClick={() => setNavStack([])} className="text-muted-foreground hover:text-foreground flex items-center gap-1 flex-shrink-0">

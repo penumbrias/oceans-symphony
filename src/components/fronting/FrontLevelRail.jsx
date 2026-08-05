@@ -21,20 +21,25 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
-import { frontLevelLabel } from "@/lib/frontLevels";
+import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
+import { recomputePrimaryFromLevels } from "@/lib/setFront";
+import { toggleFrontFor } from "@/hooks/useSwipeActions";
 
 export const LEVEL_ROW_H = 44;
 const HOLD_MS = 350;
 const SLOP_PX = 8;
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
-export async function commitFrontLevel({ alterId, levelId, queryClient }) {
+// Pass cfg so the derived primary follows the spectrum (star retired).
+export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null }) {
   try {
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const session = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
     if (!session) return false;
-    if (session.front_level === levelId) return true;
-    await base44.entities.FrontingSession.update(session.id, { front_level: levelId });
+    if (session.front_level !== levelId) {
+      await base44.entities.FrontingSession.update(session.id, { front_level: levelId });
+    }
+    if (cfg?.enabled) await recomputePrimaryFromLevels({ cfg, queryClient: null });
     queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
     queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
     return true;
@@ -130,6 +135,92 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
   };
 
   return { rail, getHoldProps };
+}
+
+// ── Static tap-to-pick variant ─────────────────────────────────────
+// Swipe gestures can't flow into a drag, so surfaces whose "set primary"
+// swipe was replaced by levels (owner decision: the star is retired when
+// levels are on) open THIS instead: the same spectrum, centered, tap a
+// level (or the remove stop) to commit, tap outside to cancel.
+function LevelPickerOverlay({ alter, currentLevel, cfg, onClose, queryClient, terms }) {
+  const rows = [
+    ...cfg.levels,
+    { id: "__remove", label: "Remove from {{front}}", _remove: true },
+  ];
+  return createPortal(
+    <div className="fixed inset-0 z-[80] flex items-center justify-center"
+      onClick={onClose} role="dialog" aria-label={`Set ${terms.front} level for ${alter.name}`}>
+      <div className="absolute inset-0 bg-background/60" />
+      <div className="relative bg-background border border-border rounded-2xl shadow-2xl px-3 py-2 min-w-[220px]"
+        onClick={(e) => e.stopPropagation()}>
+        <p className="text-xs font-medium text-muted-foreground px-1 py-1.5 truncate">{alter.name}</p>
+        {rows.map((level) => {
+          const current = !level._remove && (currentLevel ? level.id === currentLevel : level.id === cfg.levels[0]?.id);
+          return (
+            <button
+              key={level.id}
+              type="button"
+              onClick={async () => {
+                onClose();
+                if (level._remove) toggleFrontFor(alter, [], base44, queryClient, toast, terms);
+                else await commitFrontLevel({ alterId: alter.id, levelId: level.id, queryClient, cfg });
+              }}
+              className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left text-sm transition-colors ${
+                level._remove
+                  ? "text-destructive hover:bg-destructive/10"
+                  : current
+                    ? "bg-primary/15 text-primary font-medium"
+                    : "text-foreground hover:bg-muted/50"
+              }`}
+            >
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+                style={{ background: level._remove ? "hsl(var(--destructive))" : current ? "var(--color-primary)" : "color-mix(in srgb, var(--color-primary) 35%, transparent)" }} />
+              {frontLevelLabel(level, terms)}
+            </button>
+          );
+        })}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
+// The drop-in replacement for a "toggle primary" gesture callback. With
+// levels OFF, trigger() returns false and the caller falls back to the
+// classic togglePrimaryFor. With levels ON it opens the tap-to-pick
+// spectrum for that alter (or explains they're not fronting).
+export function usePrimaryGesture() {
+  const cfg = useFrontLevels();
+  const queryClient = useQueryClient();
+  const terms = useTerms();
+  const [pickFor, setPickFor] = useState(null);
+
+  const trigger = async (alter) => {
+    if (!cfg.enabled) return false;
+    try {
+      const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+      const session = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alter.id);
+      if (!session) {
+        toast.info(`${alter.name} isn't ${terms.fronting} — add them to the ${terms.front} first`);
+        return true;
+      }
+      setPickFor({ alter, currentLevel: session.front_level });
+    } catch { /* leave closed */ }
+    return true;
+  };
+
+  const node = pickFor ? (
+    <LevelPickerOverlay
+      alter={pickFor.alter}
+      currentLevel={pickFor.currentLevel}
+      cfg={cfg}
+      terms={terms}
+      queryClient={queryClient}
+      onClose={() => setPickFor(null)}
+    />
+  ) : null;
+
+  return { trigger, node, levelsOn: cfg.enabled };
 }
 
 export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {

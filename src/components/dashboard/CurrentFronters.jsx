@@ -24,7 +24,7 @@ import { useTerms } from "@/lib/useTerms";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { commitFrontLevel } from "@/components/fronting/FrontLevelRail";
+import { commitFrontLevel, usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
 import SearchableSelect from "@/components/shared/SearchableSelect";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -125,7 +125,7 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
     >
       {swipeHint && (
         <span className={`absolute top-1 right-2 text-[0.5625rem] font-semibold uppercase tracking-wide pointer-events-none ${swipeHint === "front" ? "text-emerald-500" : swipeHint === "solo" ? "text-primary" : "text-amber-500"}`}>
-          {swipeHint === "front" ? "Remove" : swipeHint === "solo" ? "Solo" : isPrimary ? "Demote" : "Promote"}
+          {swipeHint === "front" ? "Remove" : swipeHint === "solo" ? "Solo" : chipLevelCfg.enabled ? "Level" : isPrimary ? "Demote" : "Promote"}
         </span>
       )}
       {/* Avatar with badges */}
@@ -640,6 +640,9 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const [tempStatus, setTempStatus] = useState("");
   const queryClient = useQueryClient();
   const terms = useTerms();
+  // Levels on → the primary swipe opens the tap-to-pick spectrum instead
+  // of toggling a star (owner decision: the spectrum replaces primary).
+  const primaryGesture = usePrimaryGesture();
 
   // Read the SAME canonical active-front query the rest of the app uses and
   // invalidates after every set-front / switch (FrontingBar, the persistent
@@ -897,7 +900,11 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
                   onHold={setHoldMenuAlter}
                   coFronterLabel={`Co-${terms.fronting}`}
                   onSwipeRight={(a) => toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms)}
-                  onSwipeLeft={(a) => togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms)}
+                  onSwipeLeft={async (a) => {
+                    // Levels on → tap-to-pick spectrum (star retired);
+                    // levels off → the classic primary toggle.
+                    if (!(await primaryGesture.trigger(a))) togglePrimaryFor(a, activeSessions, base44, queryClient, toast, terms);
+                  }}
                   onSwipeLeftUp={(a) => replaceFrontWith(a, base44, queryClient, toast, terms)}
                   isExpanded={expandedAlterId === alter.id}
                   onToggleExpand={(id) => setExpandedAlterId(prev => prev === id ? null : id)}
@@ -921,6 +928,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
 
         </div>
 
+        {primaryGesture.node}
         <PrivateMessagesIndicator activeFronters={all} />
 
         {/* Custom status — each save is a new timestamped record, old

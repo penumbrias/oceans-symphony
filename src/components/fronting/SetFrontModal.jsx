@@ -586,6 +586,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
           ? { category: triggerCategory, label: triggerLabel }
           : null,
         levelsEnabled: levelCfg.enabled,
+        levelCfg,
         alters,
         terms,
         queryClient,

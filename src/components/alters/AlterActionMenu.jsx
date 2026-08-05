@@ -162,8 +162,12 @@ export default function AlterActionMenu({ alter, activeSessions = [], onClose })
           <Item icon={FolderPlus} label={`Create ${subTerm}`} onClick={createSubsystem} busy={creating} />
           <Item icon={Zap} label={isFronting ? `Remove from ${t.front}` : `Add to ${t.front}`}
             onClick={() => go(() => toggleFrontFor(alter, activeSessions, base44, qc, toast, t))} />
-          <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
-            onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
+          {/* With levels ON the star is retired — the header's level
+              dropdown decides closeness, and primary derives from it. */}
+          {!levelCfg.enabled && (
+            <Item icon={Star} label={isPrimary ? "Demote from primary" : `Make primary ${t.fronter}`}
+              onClick={() => go(() => togglePrimaryFor(alter, activeSessions, base44, qc, toast, t))} />
+          )}
           <Item icon={Users} label="Add to groups" onClick={() => setShowGroupPicker(true)} />
           {hasMultipleSystems() && (
             <Item icon={ArrowRightLeft} label={`Move to another ${t.system}`} onClick={() => setShowTransfer(true)} />

@@ -13,6 +13,7 @@ import { useTerms } from "@/lib/useTerms";
 import { getTodayString, applyTerms, toggleDailyProgressTasks } from "@/lib/dailyTaskSystem";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions, { toggleFrontFor, togglePrimaryFor, replaceFrontWith } from "@/hooks/useSwipeActions";
+import { usePrimaryGesture } from "@/components/fronting/FrontLevelRail";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 
@@ -472,9 +473,14 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
+  // Levels on → the primary gesture opens the tap-to-pick spectrum (the
+  // star is retired); levels off → the classic toggle.
+  const primaryGesture = usePrimaryGesture();
   const front = {
     toggleFront: (a) => toggleFrontFor(a, activeSessions, base44, qc, toast, terms),
-    togglePrimary: (a) => togglePrimaryFor(a, activeSessions, base44, qc, toast, terms),
+    togglePrimary: async (a) => {
+      if (!(await primaryGesture.trigger(a))) togglePrimaryFor(a, activeSessions, base44, qc, toast, terms);
+    },
     solo: (a) => replaceFrontWith(a, base44, qc, toast, terms),
   };
 
@@ -522,6 +528,8 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
       if (el) { el.scrollIntoView({ behavior: "smooth", block: "start" }); if (el.querySelector(".space-y-6") === null) el.querySelector("button")?.click(); }
     }, 400);
   };
+
+  const primaryGestureNode = primaryGesture.node;
 
   const renderAction = action => {
     switch (action.type) {
@@ -593,6 +601,7 @@ export default function QuickActionsMenu({ actions = [], onAction, onClose }) {
         </div>
       )}
       {actions.map(renderAction)}
+      {primaryGestureNode}
       <button onClick={handleAdd}
         className="flex items-center gap-2.5 px-4 py-3 bg-muted/20 hover:bg-muted/40 border border-dashed border-border/60 hover:border-primary/40 rounded-2xl text-sm font-medium text-muted-foreground transition-all text-left">
         <span className="text-base leading-none">＋</span>

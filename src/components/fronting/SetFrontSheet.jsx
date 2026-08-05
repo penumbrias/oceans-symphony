@@ -77,15 +77,19 @@ function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary,
           />
         </div>
       )}
-      <button
-        type="button"
-        aria-label={entry.isPrimary ? `${formatAlter(alter)} is primary — tap to make co-${terms.front} only` : `Make ${formatAlter(alter)} primary`}
-        aria-pressed={entry.isPrimary}
-        onClick={() => onTogglePrimary(alter.id)}
-        className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted/50 flex-shrink-0"
-      >
-        <Star className={`w-4 h-4 ${entry.isPrimary ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
-      </button>
+      {/* With levels ON the star is retired — whoever sits closest to
+          front leads automatically, so there's nothing to hand-set. */}
+      {!levelCfg.enabled && (
+        <button
+          type="button"
+          aria-label={entry.isPrimary ? `${formatAlter(alter)} is primary — tap to make co-${terms.front} only` : `Make ${formatAlter(alter)} primary`}
+          aria-pressed={entry.isPrimary}
+          onClick={() => onTogglePrimary(alter.id)}
+          className="w-8 h-8 flex items-center justify-center rounded-lg hover:bg-muted/50 flex-shrink-0"
+        >
+          <Star className={`w-4 h-4 ${entry.isPrimary ? "text-amber-500 fill-amber-500" : "text-muted-foreground"}`} />
+        </button>
+      )}
       <button
         type="button"
         aria-label={`Remove ${formatAlter(alter)} from the ${terms.front}`}
@@ -283,6 +287,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
         selections: draft,
         triggered: triggeredSwitch && triggerCategory ? { category: triggerCategory, label: triggerLabel } : null,
         levelsEnabled: levelCfg.enabled,
+        levelCfg,
         alters,
         terms,
         queryClient,
@@ -354,7 +359,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                     );
                   })
                 )}
-                {!isUnsure && draft.length > 0 && !primaryId && (
+                {!isUnsure && draft.length > 0 && !primaryId && !levelCfg.enabled && (
                   <p className="text-[0.6875rem] text-muted-foreground px-1">
                     No primary set — tap a star to mark who leads, or leave everyone co-{terms.fronting}.
                   </p>
