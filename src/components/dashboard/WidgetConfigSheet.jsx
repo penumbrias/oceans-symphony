@@ -38,6 +38,7 @@ import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
 // Committing only onBlur loses whatever was typed when the sheet is closed

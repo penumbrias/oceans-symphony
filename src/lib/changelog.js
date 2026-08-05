@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: widget options crashed on open after the previous update." },
       { type: "fix", text: "\ud83e\uddea New UI: you can type in the search boxes inside widget-option pickers again (\"Add a link\", channel/journal/poll pickers) \u2014 the sheet was stealing focus back from them. Also fixed a raw {{alters}} placeholder showing in a picker label." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget's options sheet now carries its FULL setup, not just looks \u2014 chat channel, poll, journal, and bulletin boards are all pickable right in the widget's settings (searchable, of course)." },
       { type: "fix", text: "Grocery list can't trap you anymore \u2014 opening it over a settings sheet left it un-tappable. Popups that stack above a bottom sheet (action menus, level pickers) got the same guard." },
