@@ -1428,7 +1428,7 @@ function PollComposerWidget({ api }) {
 // House picker rules apply INSIDE widgets too: anything with an unbounded
 // option list (journals, groups, boards) is searchable and scrollable —
 // never a wrap of pills that becomes unnavigable in a large system.
-function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
+export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
   const [q, setQ] = React.useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
@@ -1535,6 +1535,9 @@ export const V2_WIDGETS = {
     render: ({ mode, settings, updateSettings, api }) =>
       <JournalBookWidget mode={mode} settings={settings} updateSettings={updateSettings} api={api} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "journal", type: "dynamicSelect", source: "journalFolders", label: "Journal", emptyLabel: "All journals" },
+    ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   notebook: {
@@ -1543,6 +1546,9 @@ export const V2_WIDGETS = {
     render: ({ settings, updateSettings, instanceId }) =>
       <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "journal", type: "dynamicSelect", source: "journalFolders", label: "Journal", emptyLabel: "All journals" },
+    ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   bulletin_board: {
@@ -1552,6 +1558,9 @@ export const V2_WIDGETS = {
       <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />
     ),
     supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "boards", type: "dynamicMulti", source: "boards", label: "Boards" },
+    ],
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
   tasks: {
@@ -1723,6 +1732,9 @@ export const V2_WIDGETS = {
     render: ({ settings, updateSettings, api }) =>
       <ChatChannelWidget settings={settings} updateSettings={updateSettings} api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "channelId", type: "dynamicSelect", source: "chatChannels", label: "Channel" },
+    ],
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
   },
   poll_results: {
@@ -1731,6 +1743,9 @@ export const V2_WIDGETS = {
     render: ({ settings, updateSettings }) =>
       <PollResultsWidget settings={settings} updateSettings={updateSettings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "pollId", type: "dynamicSelect", source: "polls", label: "Poll" },
+    ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
   poll_new: {

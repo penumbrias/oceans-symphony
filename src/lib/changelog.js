@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: a widget's options sheet now carries its FULL setup, not just looks \u2014 chat channel, poll, journal, and bulletin boards are all pickable right in the widget's settings (searchable, of course)." },
       { type: "fix", text: "Grocery list can't trap you anymore \u2014 opening it over a settings sheet left it un-tappable. Popups that stack above a bottom sheet (action menus, level pickers) got the same guard." },
       { type: "improve", text: "\ud83e\uddea New UI: the Rounded/Sharp corner toggle no longer fights the Corner radius slider \u2014 with the new UI on, the slider is the one corner control (0 = sharp) and the toggle explains it now applies to classic only." },
       { type: "fix", text: "\ud83e\uddea New UI: theme presets in Display options are selectable again \u2014 clicks on the dropdown were falling through onto the custom colour swatches beneath it (which is also why a stray \"Custom\" theme kept appearing)." },

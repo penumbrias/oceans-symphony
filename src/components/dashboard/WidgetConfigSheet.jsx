@@ -35,6 +35,7 @@ import ColorPicker from "@/components/shared/ColorPicker";
 import { pickLook, mergeLook, lookToStyle, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
 import { getStyleShell } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
@@ -187,6 +188,84 @@ function GroupField({ value, onChange }) {
       options={options}
       placeholder="Everyone"
       searchPlaceholder="Search groups…"
+    />
+  );
+}
+
+// ── Dynamic-source fields ───────────────────────────────────────────
+// The sheet must carry a widget's FULL functional config, not only its
+// look (owner rule) — including choices whose options come from live data
+// (chat channels, polls, journals, boards). In-widget switchers still
+// exist for convenience, but widgets are inert in edit mode, so the sheet
+// is the canonical place to configure them.
+const DYNAMIC_SOURCES = {
+  chatChannels: {
+    queryKey: ["systemChatChannels"],
+    queryFn: () => base44.entities.SystemChatChannel.list(),
+    toOptions: (rows) => rows.map((c) => ({ id: c.id, label: `#${c.name}` })),
+    searchPlaceholder: "Search channels…",
+  },
+  polls: {
+    queryKey: ["polls"],
+    queryFn: () => base44.entities.Poll.list(),
+    toOptions: (rows) => [...rows]
+      .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
+      .map((p) => ({ id: p.id, label: p.question || "Poll" })),
+    searchPlaceholder: "Search polls…",
+  },
+  journalFolders: {
+    queryKey: ["journalEntries"],
+    queryFn: () => base44.entities.JournalEntry.list(),
+    toOptions: (rows) => {
+      const set = new Set(rows.map((e) => e.folder).filter(Boolean));
+      try { JSON.parse(localStorage.getItem("os_journal_folders") || "[]").forEach((f) => set.add(f)); } catch { /* none saved */ }
+      return [...set].sort((a, b) => a.localeCompare(b)).map((f) => ({ id: f, label: f }));
+    },
+    searchPlaceholder: "Search journals…",
+  },
+  boards: {
+    queryKey: ["groups"],
+    queryFn: () => base44.entities.Group.list(),
+    toOptions: (rows, terms) => [
+      { id: "system", label: `${terms?.System || "System"} board` },
+      ...rows.map((g) => ({ id: g.id, label: g.name || "Group" })),
+    ],
+    searchPlaceholder: "Search boards…",
+  },
+};
+
+function DynamicSelectField({ field, value, onChange }) {
+  const src = DYNAMIC_SOURCES[field.source];
+  const { data: rows = [] } = useQuery({ queryKey: src.queryKey, queryFn: src.queryFn });
+  const options = [
+    ...(field.emptyLabel ? [{ id: "", label: field.emptyLabel }] : []),
+    ...src.toOptions(rows),
+  ];
+  return (
+    <SearchableSelect
+      value={value || ""}
+      onChange={(v) => onChange(v ?? "")}
+      options={options}
+      placeholder={field.emptyLabel || field.label}
+      searchPlaceholder={src.searchPlaceholder}
+    />
+  );
+}
+
+function DynamicMultiField({ field, value = [], onChange, terms }) {
+  const src = DYNAMIC_SOURCES[field.source];
+  const { data: rows = [] } = useQuery({ queryKey: src.queryKey, queryFn: src.queryFn });
+  const options = src.toOptions(rows, terms);
+  return (
+    <SearchableMultiList
+      options={options}
+      selectedIds={value.length ? value : ["system"]}
+      onToggle={(id) => {
+        const cur = value.length ? value : ["system"];
+        const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
+        onChange(next.length ? next : ["system"]);
+      }}
+      searchPlaceholder={src.searchPlaceholder}
     />
   );
 }
@@ -385,6 +464,12 @@ export default function WidgetConfigSheet({
                       </button>
                     ))}
                   </div>
+                )}
+                {f.type === "dynamicSelect" && (
+                  <DynamicSelectField field={f} value={val} onChange={commit} />
+                )}
+                {f.type === "dynamicMulti" && (
+                  <DynamicMultiField field={f} value={Array.isArray(val) ? val : []} onChange={commit} terms={t} />
                 )}
                 {f.type === "links" && (
                   <LinksField value={Array.isArray(val) ? val : []} onChange={(next) => commit(next)} />
