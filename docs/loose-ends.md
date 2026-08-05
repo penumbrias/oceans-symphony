@@ -39,6 +39,11 @@ new one, add it. Update the date line above whenever you touch this file.*
   toggle changes it). Keep watching one more cycle; if it recurs, the
   cause is elsewhere.
 
+- [ ] **Landscape audit residue (v0.120.4 fixed the core):** the hold-drag
+  level RAIL can exceed a landscape viewport if a user defines ~8+ levels
+  (picker overlay + menu dropdown cover that case; rail rows beyond the
+  screen are pickable only blind). Consider scaling row height when
+  railH > viewport.
 - [ ] **dockPos syncs across devices** but is arguably per-device (a phone
   edge position makes little sense on a monitor). Layouts are already
   per-device; consider `dockPos` → device-class keyed like `ui_v2_home*`.

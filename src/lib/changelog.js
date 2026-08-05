@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 5, 2026",
+    changes: [
+      { type: "fix", text: "Landscape works properly now: the Set Fronters window (old and new) no longer cuts off the alter list or the save button \u2014 everything scrolls. Every popup app-wide now scrolls when it's taller than the screen instead of clipping." },
+    ],
+  },
+  {
     date: "August 4, 2026",
+    version: "0.120.3",
     changes: [
       { type: "fix", text: "\ud83e\uddea New UI: search boxes in widget-option pickers really accept typing now (the sheet's focus trap was still winning on real taps). The widget-options and Display-options sheets no longer freeze the page behind them, which pairs nicely with Peek." },
       { type: "hotfix", text: "Hotfix: widget options crashed on open after the previous update." },

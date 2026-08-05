@@ -609,7 +609,11 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent
-          className="max-w-md flex flex-col overflow-hidden"
+          // Outer scroll + bounded list, not a rigid flex column — on
+          // landscape phones the flex-1 list collapsed to zero height and
+          // the footer clipped with no way to scroll (same class of bug as
+          // the rebuilt sheet had; fixed the same way).
+          className="max-w-md flex flex-col overflow-y-auto overscroll-contain"
           style={{
             // Don't let the modal stretch up under the device status bar.
             // The base Dialog uses `top: 50%` + `translate-y(-50%)` and
@@ -791,7 +795,7 @@ export default function SetFrontModal({ open, onClose, alters: altersProp, curre
               the triggered-switch box grew the footer past the modal's
               max-height and overflow-hidden clipped the Save button off
               the bottom of the screen, leaving no way to save. */}
-          <div className="flex-1 overflow-y-auto min-h-0">
+          <div className="overflow-y-auto overscroll-contain" style={{ maxHeight: "40vh", minHeight: 120 }}>
             {viewMode === "tree" ? (
               <AlterTreeSelect
                 alters={activeAlters}

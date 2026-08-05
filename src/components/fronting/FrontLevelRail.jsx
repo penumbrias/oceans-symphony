@@ -151,7 +151,8 @@ function LevelPickerOverlay({ alter, currentLevel, cfg, onClose, queryClient, te
     <div className="fixed inset-0 z-[80] flex items-center justify-center"
       onClick={onClose} role="dialog" aria-label={`Set ${terms.front} level for ${alter.name}`}>
       <div className="absolute inset-0 bg-background/60" />
-      <div className="relative bg-background border border-border rounded-2xl shadow-2xl px-3 py-2 min-w-[220px]"
+      <div className="relative bg-background border border-border rounded-2xl shadow-2xl px-3 py-2 min-w-[220px] overflow-y-auto overscroll-contain"
+        style={{ maxHeight: "min(80vh, calc(100dvh - 48px))" }}
         onClick={(e) => e.stopPropagation()}>
         <p className="text-xs font-medium text-muted-foreground px-1 py-1.5 truncate">{alter.name}</p>
         {rows.map((level) => {

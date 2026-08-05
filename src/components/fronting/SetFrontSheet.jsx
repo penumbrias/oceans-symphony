@@ -312,7 +312,12 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
     <>
       <Dialog open={open} onOpenChange={onClose}>
         <DialogContent
-          className="max-w-md flex flex-col overflow-hidden"
+          // One scrollable column, NOT a rigid flex layout: on short
+          // viewports (landscape phones) a fixed header/footer flex column
+          // starves the alter list to zero height and cuts the footer off
+          // with no way to scroll (the tester report). With outer scroll +
+          // bounded inner lists, every control stays reachable at any size.
+          className="max-w-md flex flex-col overflow-y-auto overscroll-contain"
           style={{
             maxHeight: "calc(100dvh - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px) - 2rem)",
           }}
@@ -339,7 +344,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
           ) : (
             <>
               {/* The draft — who this save will make the front */}
-              <div className="space-y-1.5 overflow-y-auto flex-shrink-0" style={{ maxHeight: "34vh" }}>
+              <div className="space-y-1.5 overflow-y-auto overscroll-contain flex-shrink-0" style={{ maxHeight: "30vh", minHeight: 44 }}>
                 {isUnsure ? (
                   <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
                     <HelpCircle className="w-4 h-4" /> Unsure — saving will clear the {terms.front}.
@@ -397,7 +402,8 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
               </div>
 
               {/* The add surface */}
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+              <div className="overflow-y-auto overscroll-contain"
+                style={{ maxHeight: "38vh", minHeight: 120 }}>
                 {viewMode === "tree" ? (
                   <AlterTreeSelect
                     alters={activeAlters}
