@@ -675,6 +675,46 @@ function AltersListWidget({ settings, api, mode }) {
   // user has, with anyone ungrouped gathered at the end.
   const sections = React.useMemo(() => {
     const pool = (group ? getMemberAlters(group, alters) : alters).filter((a) => !a.is_archived);
+
+    // Custom: the user's own hand-placed order — each entry is either one
+    // {alter} or a whole group/subsystem, rendered exactly where they put
+    // it. Consecutive loose {alters} share one unlabelled section so the
+    // list reads as a single run rather than a stack of one-row groups.
+    if (arrangement === "custom") {
+      const order = Array.isArray(settings?.customOrder) ? settings.customOrder : [];
+      const byId = Object.fromEntries(pool.map((a) => [a.id, a]));
+      const out = [];
+      const placed = new Set();
+      for (const entry of order) {
+        if (entry?.type === "alter") {
+          const a = byId[entry.id];
+          if (!a || placed.has(a.id)) continue;
+          placed.add(a.id);
+          const last = out[out.length - 1];
+          if (last && last.id.startsWith("_loose")) last.items.push(a);
+          else out.push({ id: `_loose${out.length}`, label: null, items: [a] });
+        } else if (entry?.type === "group") {
+          const g = groups.find((x) => x.id === entry.id);
+          if (!g) continue;
+          const members = getMemberAlters(g, pool).filter((m) => !placed.has(m.id));
+          if (members.length === 0) continue;
+          members.forEach((m) => placed.add(m.id));
+          out.push({ id: g.id, label: g.name || "Group", items: sortAlters(members) });
+        }
+      }
+      // Anyone the user didn't place can follow (or not — their call).
+      if (settings?.customRest !== false) {
+        const rest = pool.filter((a) => !placed.has(a.id));
+        if (rest.length) out.push({ id: "_rest", label: applyTerms(tr("widget.alters.ungrouped"), t), items: sortAlters(rest) });
+      }
+      let left = limit;
+      return out.map((sec) => {
+        const items = sec.items.slice(0, Math.max(0, left));
+        left -= items.length;
+        return { ...sec, items };
+      }).filter((sec) => sec.items.length > 0);
+    }
+
     if (arrangement !== "grouped" || group) {
       return [{ id: "_all", label: null, items: sortAlters(pool).slice(0, limit) }];
     }
@@ -695,7 +735,7 @@ function AltersListWidget({ settings, api, mode }) {
       left -= items.length;
       return { ...sec, items };
     }).filter((sec) => sec.items.length > 0);
-  }, [alters, groups, group, arrangement, sortAlters, limit, tr, t]);
+  }, [alters, groups, group, arrangement, sortAlters, limit, tr, t, settings?.customOrder, settings?.customRest]);
 
   const total = sections.reduce((n, sec) => n + sec.items.length, 0);
 
@@ -2075,7 +2115,10 @@ export const V2_WIDGETS = {
         options: [
           { value: "flat", label: "One flat list" },
           { value: "grouped", label: "Split by group / subsystem" },
+          { value: "custom", label: "My own order" },
         ] },
+      { key: "customOrder", type: "arrangement", label: "Your order (drag to arrange)" },
+      { key: "customRest", type: "toggle", label: "List everyone else after your order", default: true },
       { key: "sort", type: "select", label: "Order by", default: "name",
         options: [
           { value: "name", label: "Name (A\u2013Z)" },

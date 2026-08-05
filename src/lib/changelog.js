@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: the alters-list widget takes a hand-built order \u2014 pick \"My own order\", then drag alters and whole groups/subsystems into exactly the sequence you want (this alter, then that subsystem, then this one). Anyone you don't place can follow after, or not." },
       { type: "feature", text: "\ud83e\uddea New UI: five new widgets \u2014 Log a feeling (the emotion picker in place), Log symptoms (one tap per symptom), Diary card, Feelings analytics and Symptom analytics." },
       { type: "improve", text: "\ud83e\uddea New UI: your app themes \u2014 built-in and your own saved ones \u2014 now appear in a widget's style presets, translated into that widget's look. Widget font pickers also list your uploaded fonts." },
       { type: "fix", text: "Symptom analytics no longer errors when it loads on its own (it assumed another screen had already fetched its data)." },

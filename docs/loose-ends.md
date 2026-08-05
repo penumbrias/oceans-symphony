@@ -48,6 +48,10 @@ new one, add it. Update the date line above whenever you touch this file.*
   activity/plan analytics embeds, a weekly-grid widget, timeline strip,
   goals, locations, reminders-inbox. Check-in parity: the quick check-in
   also has Company/Location/Note steps with no widget yet.
+- [ ] **Manual arrangement is per-widget (v0.125.0).** If the owner wants
+  the same hand-built order on the ALTERS PAGE, promote settings.customOrder
+  to SystemSettings (e.g. alters_custom_order) and have Home.jsx read it —
+  the ArrangementField editor and the section-builder are reusable as-is.
 - [ ] **Font pickers:** widget options + profile style now offer uploaded
   fonts; ProfileStyleEditor still uses a raw <select> (house rule says
   SearchableSelect) — convert when touched.
