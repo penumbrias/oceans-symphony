@@ -10,6 +10,7 @@ import FolderGroupsSection from "./FolderGroupsSection.jsx";
 import useAnonymizeMode from "@/hooks/useAnonymizeMode";
 import CreateGroupModal from "@/components/groups/CreateGroupModal";
 import { useTerms } from "@/lib/useTerms";
+import { useAlterOrder } from "@/lib/alterOrder";
 import { TOUR_DEMO_ALTERS } from "@/lib/tourDemoData";
 import AlterLabelToggle from "@/components/shared/AlterLabelToggle";
 import PinnedAltersGallery from "./PinnedAltersGallery";
@@ -28,6 +29,14 @@ export default function AlterGrid({ alters }) {
   // page (after viewing an alter, a subsystem, etc.) keeps the view you set up
   // rather than snapping back to the default. sessionStorage = per-session, so a
   // fresh app launch still starts clean.
+  // System-wide manual order → an id→position index (null when unset).
+  const { entries: manualEntries, placedIndex } = useAlterOrder();
+  // Only the alters the user actually placed get a position; everyone
+  // else stays undefined and falls through to the normal sort.
+  const manualIndex = React.useMemo(
+    () => (manualEntries.length ? placedIndex(effectiveAlters) : null),
+    [manualEntries, placedIndex, effectiveAlters],
+  );
   const [sortMode, setSortMode] = useState(() => {
     try { return sessionStorage.getItem("alterGrid_sortMode") || "alpha-asc"; } catch { return "alpha-asc"; }
   }); // "alpha-asc" | "alpha-desc" | "most" | "least"
@@ -183,9 +192,21 @@ export default function AlterGrid({ alters }) {
     a.pronouns?.toLowerCase().includes(search.toLowerCase()))
   ).
   sort((a, b) => {
+    // A hand-set arrangement (Settings → {Alter} setup → Order your
+    // {alters}) is ABSOLUTE — it even outranks "fronters first", because
+    // the whole point is that the user placed them there. Who's fronting
+    // stays obvious from the ring and size. Anyone not placed keeps the
+    // old behaviour: fronters first, then the chosen sort.
+    if (manualIndex) {
+      const ma = manualIndex.get(a.id);
+      const mb = manualIndex.get(b.id);
+      if (ma !== undefined && mb !== undefined) return ma - mb;
+      if (ma !== undefined) return -1;
+      if (mb !== undefined) return 1;
+    }
     const ra = frontingRank[a.id] ?? 2;
     const rb = frontingRank[b.id] ?? 2;
-    if (ra !== rb) return ra - rb; // fronters always first
+    if (ra !== rb) return ra - rb; // fronters first among the unplaced
     if (sortMode === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
     if (sortMode === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
     const cmp = (a.name || "").localeCompare(b.name || "");

@@ -42,6 +42,7 @@ import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import { parseSessionEmotions, parseSessionSymptoms, parseSessionNote } from "@/lib/perAlterSessionEntries";
 import { parsePreferences, PREF_LEVELS } from "@/lib/alterPreferences";
+import { useAlterOrder } from "@/lib/alterOrder";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
@@ -636,6 +637,7 @@ function AltersListWidget({ settings, api, mode }) {
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
+  const { entries: globalOrderEntries } = useAlterOrder();
   const sessionFor = (id) => sessions.find((x) => (x.alter_id || x.primary_alter_id) === id);
   // Fronting frequency needs history, and only when that sort is chosen.
   const { data: allSessions = [] } = useQuery({
@@ -681,7 +683,11 @@ function AltersListWidget({ settings, api, mode }) {
     // it. Consecutive loose {alters} share one unlabelled section so the
     // list reads as a single run rather than a stack of one-row groups.
     if (arrangement === "custom") {
-      const order = Array.isArray(settings?.customOrder) ? settings.customOrder : [];
+      // The widget can carry its own order; with none set it follows the
+      // system-wide arrangement (Settings → {Alter} setup) so the board
+      // matches every other list by default.
+      const own = Array.isArray(settings?.customOrder) ? settings.customOrder : [];
+      const order = own.length ? own : globalOrderEntries;
       const byId = Object.fromEntries(pool.map((a) => [a.id, a]));
       const out = [];
       const placed = new Set();
@@ -735,7 +741,7 @@ function AltersListWidget({ settings, api, mode }) {
       left -= items.length;
       return { ...sec, items };
     }).filter((sec) => sec.items.length > 0);
-  }, [alters, groups, group, arrangement, sortAlters, limit, tr, t, settings?.customOrder, settings?.customRest]);
+  }, [alters, groups, group, arrangement, sortAlters, limit, tr, t, settings?.customOrder, settings?.customRest, globalOrderEntries]);
 
   const total = sections.reduce((n, sec) => n + sec.items.length, 0);
 
@@ -2009,7 +2015,7 @@ function SymptomAnalyticsWidget({ settings }) {
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
-    icon: Users, category: "system",
+    icon: Users, category: "alters",
     render: ({ mode, api, settings }) => <PresenceWidget mode={mode} api={api} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     configFields: [
@@ -2021,42 +2027,42 @@ export const V2_WIDGETS = {
   },
   running: {
     label: "Active", description: "What's running right now — activities, symptom episodes, sleep — and how long for.",
-    icon: Timer, category: "tracking",
+    icon: Timer, category: "home",
     render: ({ api }) => <ActiveWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
     label: "Today", description: "Today's schedule: plans at their times, anything due today, and anything left unresolved.",
-    icon: CalendarCheck, category: "tracking",
+    icon: CalendarCheck, category: "home",
     render: () => <TodayWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   status: {
     label: "Status", description: "The latest status note.",
-    icon: StickyNote, category: "system",
+    icon: StickyNote, category: "home",
     render: () => <StatusWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   recent: {
     label: "Recent check-ins", description: "Your most recent check-ins.",
-    icon: History, category: "tracking",
+    icon: History, category: "home",
     render: ({ settings }) => <RecentWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   log_emotion: {
     label: "Log a feeling", description: "The emotion picker, right on the page \u2014 pick and save without opening the check-in.",
-    icon: Smile, category: "tracking",
+    icon: Smile, category: "checkin",
     render: ({ mode, settings }) => <LogEmotionWidget mode={mode} settings={settings} />,
     supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   log_symptom: {
     label: "Log symptoms", description: "One-tap logging for the symptoms you track most.",
-    icon: Activity, category: "tracking",
+    icon: Activity, category: "checkin",
     render: ({ settings }) => <LogSymptomWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
@@ -2066,7 +2072,7 @@ export const V2_WIDGETS = {
   },
   diary_card: {
     label: "Diary card", description: "Whether today's diary card is started, and a way in.",
-    icon: ClipboardList, category: "tracking",
+    icon: ClipboardList, category: "checkin",
     render: () => <DiaryCardWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
@@ -2093,21 +2099,21 @@ export const V2_WIDGETS = {
   },
   capture: {
     label: "Capture", description: "One-tap buttons for the things you log most.",
-    icon: Heart, category: "actions",
+    icon: Heart, category: "home",
     render: ({ api }) => <CaptureWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   system_identity: {
     label: "{{System}} header", description: "Your {{system}}'s picture, name and description.",
-    icon: IdCard, category: "system",
+    icon: IdCard, category: "alters",
     render: ({ mode, api }) => <SystemIdentityWidget mode={mode} api={api} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   alters_list: {
     label: "{{Alters}} list", description: "Your {{alters}}, ordered how you like \u2014 flat or split by group, alphabetical or by {{fronting}} time. Expanded rows add avatars, pronouns, preferences and what each one has going right now.",
-    icon: Users, category: "system",
+    icon: Users, category: "alters",
     render: ({ settings, api, mode }) => <AltersListWidget settings={settings} api={api} mode={mode} />,
     supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
     configFields: [
@@ -2117,7 +2123,7 @@ export const V2_WIDGETS = {
           { value: "grouped", label: "Split by group / subsystem" },
           { value: "custom", label: "My own order" },
         ] },
-      { key: "customOrder", type: "arrangement", label: "Your order (drag to arrange)" },
+      { key: "customOrder", type: "arrangement", label: "This widget\u2019s own order (leave empty to follow your {{system}}-wide order)" },
       { key: "customRest", type: "toggle", label: "List everyone else after your order", default: true },
       { key: "sort", type: "select", label: "Order by", default: "name",
         options: [
@@ -2136,7 +2142,7 @@ export const V2_WIDGETS = {
   },
   journal: {
     label: "Journal", description: "Your most recent entries, and a button to start a new one.",
-    icon: BookOpen, category: "content",
+    icon: BookOpen, category: "journals",
     render: ({ settings }) => <JournalWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
@@ -2144,7 +2150,7 @@ export const V2_WIDGETS = {
   },
   journal_book: {
     label: "Journal pages", description: "Read one journal a page at a time, turn pages, switch journals, and start a new page.",
-    icon: NotebookPen, category: "content",
+    icon: NotebookPen, category: "journals",
     render: ({ mode, settings, updateSettings, api }) =>
       <JournalBookWidget mode={mode} settings={settings} updateSettings={updateSettings} api={api} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
@@ -2155,7 +2161,7 @@ export const V2_WIDGETS = {
   },
   notebook: {
     label: "Notebook", description: "Write straight onto the page — it saves as a journal entry in the journal you pick.",
-    icon: PenLine, category: "content",
+    icon: PenLine, category: "journals",
     render: ({ settings, updateSettings, instanceId }) =>
       <NotebookWidget settings={settings} updateSettings={updateSettings} instanceId={instanceId} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
@@ -2166,7 +2172,7 @@ export const V2_WIDGETS = {
   },
   bulletin_board: {
     label: "Bulletin board", description: "The board itself — post and read. Can show group boards too, with arrows to flip between them.",
-    icon: Megaphone, category: "content",
+    icon: Megaphone, category: "bulletins",
     render: ({ api, settings, updateSettings }) => (
       <BulletinBoardWidget api={api} settings={settings} updateSettings={updateSettings} />
     ),
@@ -2178,7 +2184,7 @@ export const V2_WIDGETS = {
   },
   tasks: {
     label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",
-    icon: ListTodo, category: "tracking",
+    icon: ListTodo, category: "tasks",
     render: ({ settings }) => <TasksWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
@@ -2186,14 +2192,14 @@ export const V2_WIDGETS = {
   },
   sleep: {
     label: "Sleep", description: "Last night's sleep, or the one in progress.",
-    icon: Moon, category: "tracking",
+    icon: Moon, category: "sleep",
     render: () => <SleepWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   board: {
     label: "Board", description: "The latest posts on the bulletin board.",
-    icon: Megaphone, category: "content",
+    icon: Megaphone, category: "bulletins",
     render: ({ settings }) => <BulletinsWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
@@ -2201,7 +2207,7 @@ export const V2_WIDGETS = {
   },
   reminders: {
     label: "Reminders", description: "What's coming up from your reminders.",
-    icon: Bell, category: "tracking",
+    icon: Bell, category: "reminders",
     render: ({ settings }) => <RemindersWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
@@ -2256,7 +2262,7 @@ export const V2_WIDGETS = {
   },
   fronting_panel: {
     label: "{{Fronting}} panel", description: "The classic currently-{{fronting}} panel — per-{{alter}} feelings, symptoms and notes.",
-    icon: Users, category: "system",
+    icon: Users, category: "alters",
     // hideStatusNote ALWAYS: the classic panel bundles the status bar for
     // dashboard convenience, but widgets are building blocks — status entry
     // is its own widget, so the panel carries only the fronting feature.
@@ -2268,7 +2274,7 @@ export const V2_WIDGETS = {
   },
   pinned_alters: {
     label: "Pinned {{alters}}", description: "Your pinned {{alters}} as a row of avatars that scales with the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = set {{front}} (the level spectrum when levels are on).",
-    icon: Pin, category: "system",
+    icon: Pin, category: "alters",
     render: ({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     configFields: [
@@ -2278,7 +2284,7 @@ export const V2_WIDGETS = {
   },
   sleep_controls: {
     label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",
-    icon: Moon, category: "tracking",
+    icon: Moon, category: "sleep",
     render: () => <SleepControlWidget />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
@@ -2306,7 +2312,7 @@ export const V2_WIDGETS = {
   },
   plans: {
     label: "Plans", description: "What's scheduled over the coming days.",
-    icon: CalendarDays, category: "activity",
+    icon: CalendarDays, category: "activities",
     render: ({ settings }) => <PlansWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
@@ -2317,7 +2323,7 @@ export const V2_WIDGETS = {
   },
   recent_activities: {
     label: "Recent activities", description: "The most recently logged activities, with durations.",
-    icon: BarChart2, category: "activity",
+    icon: BarChart2, category: "activities",
     render: ({ settings }) => <RecentActivitiesWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 }],
@@ -2336,7 +2342,7 @@ export const V2_WIDGETS = {
   },
   polls: {
     label: "Polls", description: "The latest polls and their vote counts.",
-    icon: Vote, category: "content",
+    icon: Vote, category: "bulletins",
     render: ({ settings }) => <PollsWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
@@ -2344,7 +2350,7 @@ export const V2_WIDGETS = {
   },
   chat_channel: {
     label: "Chat channel", description: "A {{system}}-chat channel you can read and send in, right here.",
-    icon: MessageSquare, category: "content",
+    icon: MessageSquare, category: "chat",
     render: ({ settings, updateSettings, api }) =>
       <ChatChannelWidget settings={settings} updateSettings={updateSettings} api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
@@ -2355,7 +2361,7 @@ export const V2_WIDGETS = {
   },
   poll_results: {
     label: "Poll results", description: "One poll's live results as bars — pick which in the header.",
-    icon: BarChart2, category: "content",
+    icon: BarChart2, category: "bulletins",
     render: ({ settings, updateSettings }) =>
       <PollResultsWidget settings={settings} updateSettings={updateSettings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
@@ -2366,7 +2372,7 @@ export const V2_WIDGETS = {
   },
   poll_new: {
     label: "New poll", description: "A button that opens the real poll composer.",
-    icon: Vote, category: "content",
+    icon: Vote, category: "bulletins",
     render: ({ api }) => <PollComposerWidget api={api} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 6, rows: 2 },

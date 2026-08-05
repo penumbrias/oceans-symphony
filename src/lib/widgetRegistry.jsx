@@ -582,18 +582,30 @@ export const CLASSIC_TO_WIDGET = Object.fromEntries(
 );
 
 export const WIDGET_CATEGORIES = [
+  // One section per PAGE of the app (owner, v0.126.0): the goal is that a
+  // page's functions can be assembled on the home screen instead of
+  // navigating to it, so the picker is organised the way the app is.
+  { id: "home", label: "Home & dashboard" },
+  { id: "alters", label: "{{Alters}} & {{fronting}}" },
+  { id: "checkin", label: "Check-in & tracking" },
+  { id: "activities", label: "Activity tracker" },
+  { id: "tasks", label: "To-dos & daily tasks" },
+  { id: "journals", label: "Journals" },
+  { id: "bulletins", label: "Bulletins & polls" },
+  { id: "chat", label: "{{System}} chat" },
+  { id: "sleep", label: "Sleep" },
+  { id: "reminders", label: "Reminders" },
+  { id: "analytics", label: "Analytics" },
+  { id: "support", label: "Support & grounding" },
+  { id: "nav", label: "Navigation & shortcuts" },
+  { id: "layout", label: "Page design" },
+  // Anything not claimed above still shows, under these.
   { id: "chrome", label: "Header & chrome" },
   { id: "actions", label: "Quick actions" },
   { id: "system", label: "{{System}}" },
   { id: "tracking", label: "Tracking" },
   { id: "activity", label: "Activities & plans" },
-  { id: "support", label: "Support" },
   { id: "content", label: "Journals & content" },
-  { id: "nav", label: "Navigation" },
-  // Page-design pieces (headings, text, dividers, spacers) — they carry no
-  // data, they're what lets a user compose a page rather than fill one.
-  { id: "layout", label: "Page design" },
-  { id: "analytics", label: "Analytics" },
   { id: "meta", label: "App" },
 ];
 

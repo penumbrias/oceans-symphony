@@ -1,4 +1,5 @@
 import React, { useState, useRef, useLayoutEffect } from "react";
+import { useAlterOrder } from "@/lib/alterOrder";
 import { createPortal } from "react-dom";
 import { ChevronDown, Check } from "lucide-react";
 import { isValidHexColor } from "@/lib/colorUtils";
@@ -48,11 +49,17 @@ export default function AlterSearchSelect({
     };
   }, [open]);
 
+  const { arrange } = useAlterOrder();
   const selected = value ? alters.find((a) => a.id === value) : null;
-  const list = alters
-    .filter((a) => !a.is_archived)
-    .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase()))
-    .sort((a, b) => (a.name || "").localeCompare(b.name || ""));
+  // The system-wide manual order (Settings → {Alter} setup) decides the
+  // sequence when the user has set one; anyone they didn't place falls
+  // back to alphabetical.
+  const list = arrange(
+    alters
+      .filter((a) => !a.is_archived)
+      .filter((a) => !search || (a.name || "").toLowerCase().includes(search.toLowerCase())),
+    (a, b) => (a.name || "").localeCompare(b.name || ""),
+  );
 
   const pick = (id) => { onChange?.(id); setOpen(false); setSearch(""); };
   const dotColor = (a) => (isValidHexColor(a?.color) ? a.color : "#94a3b8");

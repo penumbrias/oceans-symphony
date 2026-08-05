@@ -11,6 +11,7 @@ import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import CustomTriggerTypesManager from "@/components/settings/CustomTriggerTypesManager";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
 import ProfileSongsSettings from "@/components/settings/ProfileSongsSettings";
+import AlterOrderSettings from "@/components/settings/AlterOrderSettings";
 import { useTerms } from "@/lib/useTerms";
 import { pickPrimarySystemSettings } from "@/lib/systemSettingsSingleton";
 import TermsSettings from "@/components/settings/TermsSettings";
@@ -665,6 +666,7 @@ export default function Settings() {
           <SubSection title="Relationship types" defaultOpen={false}><RelationshipTypesManager /></SubSection>
           <SubSection title={`Archived ${terms.alters}`} defaultOpen={false}><ArchivedAltersManager /></SubSection>
           <SubSection title="Find & remove duplicates" defaultOpen={false}><DuplicateAltersManager /></SubSection>
+          <SubSection title={`Order your ${terms.alters}`} defaultOpen={false}><AlterOrderSettings /></SubSection>
           <SubSection title="Profile songs" defaultOpen={false}><ProfileSongsSettings /></SubSection>
         </Section>
 

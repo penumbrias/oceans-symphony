@@ -43,6 +43,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
+import { useAlterOrder } from "@/lib/alterOrder";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
@@ -138,6 +139,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const formatAlter = useAlterLabel();
   const queryClient = useQueryClient();
   const levelCfg = useFrontLevels();
+  const { arrange: arrangeAlters } = useAlterOrder();
 
   const [tab, setTab] = useState("fronters");
   const [draft, setDraft] = useState([]);        // [{ alterId, isPrimary, level, startTime }]
@@ -266,12 +268,15 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const addList = useMemo(() => {
     const list = activeAlters.filter((a) =>
       !draftIds.has(a.id) && (a.name || "").toLowerCase().includes(search.toLowerCase()));
-    return [...list].sort((a, b) => {
+    const sorted = [...list].sort((a, b) => {
       if (sortBy === "most") return (alterFrontTotals[b.id] || 0) - (alterFrontTotals[a.id] || 0);
       if (sortBy === "least") return (alterFrontTotals[a.id] || 0) - (alterFrontTotals[b.id] || 0);
       const cmp = (a.name || "").localeCompare(b.name || "");
       return sortBy === "alpha-desc" ? -cmp : cmp;
     });
+    // A hand-set order (Settings → {Alter} setup) leads; the chosen sort
+    // still orders everyone the user didn't place.
+    return sortBy === "alpha-asc" ? arrangeAlters(sorted) : sorted;
   }, [activeAlters, draftIds, search, sortBy, alterFrontTotals]);
 
   const triggerDefaultText = useMemo(() => {

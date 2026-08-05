@@ -8,7 +8,7 @@
 
 import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, Trash2, Pencil } from "lucide-react";
+import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, ChevronRight, Trash2, Pencil } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
 } from "@dnd-kit/core";
@@ -239,6 +239,9 @@ export default function AppDrawer({
   const [folderAddOpen, setFolderAddOpen] = useState(false);
   const [detailId, setDetailId] = useState(null);
   const [widgetSearch, setWidgetSearch] = useState("");
+  // Which widget sections are expanded. The first (Home & dashboard)
+  // starts open so the tab never looks empty.
+  const [openCats, setOpenCats] = useState({ home: true });
   // Per-card preview mode — cycled right on the card, no detail view needed.
   const [cardModes, setCardModes] = useState({});
   const cycleCardMode = (id, def) => {
@@ -512,10 +515,26 @@ export default function AppDrawer({
                   d.category === cat.id && !d.hiddenFromDrawer
                   && (!q || widgetLabel(d, t).toLowerCase().includes(q) || widgetDescription(d, t).toLowerCase().includes(q)));
                 if (widgets.length === 0) return null;
+                // Sections collapse (owner request): with a section per
+                // page the list is long, so only what you opened stays
+                // open. A search always expands what it matched.
+                const searching = !!q;
+                const open = searching || !!openCats[cat.id];
                 return (
-                  <div key={cat.id}>
-                    <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">{applyTerms(cat.label, t)}</p>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div key={cat.id} className="border-b border-border/30 pb-2">
+                    <button
+                      type="button"
+                      onClick={() => setOpenCats((prev) => ({ ...prev, [cat.id]: !prev[cat.id] }))}
+                      aria-expanded={open}
+                      className="w-full flex items-center gap-2 py-1.5 text-left"
+                    >
+                      <ChevronRight className={`w-3.5 h-3.5 text-muted-foreground transition-transform flex-shrink-0 ${open ? "rotate-90" : ""}`} />
+                      <span className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground flex-1 truncate">
+                        {applyTerms(cat.label, t)}
+                      </span>
+                      <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{widgets.length}</span>
+                    </button>
+                    <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${open ? "" : "hidden"}`}>
                       {widgets.map(([id, def]) => {
                         const already = !def.supportsMultiInstance && placed.has(id);
                         const cardMode = cardModes[id] || effectiveMode("normal", def.supportsModes);

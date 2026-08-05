@@ -48,10 +48,22 @@ new one, add it. Update the date line above whenever you touch this file.*
   activity/plan analytics embeds, a weekly-grid widget, timeline strip,
   goals, locations, reminders-inbox. Check-in parity: the quick check-in
   also has Company/Location/Note steps with no widget yet.
-- [ ] **Manual arrangement is per-widget (v0.125.0).** If the owner wants
-  the same hand-built order on the ALTERS PAGE, promote settings.customOrder
-  to SystemSettings (e.g. alters_custom_order) and have Home.jsx read it —
-  the ArrangementField editor and the section-builder are reusable as-is.
+- [ ] **Manual alter order is SYSTEM-WIDE as of v0.126.0**
+  (SystemSettings.alter_order, src/lib/alterOrder.js, editor at
+  components/shared/AlterArrangementEditor). Wired: AlterGrid (alters
+  page — the hand-set order outranks even fronters-first for placed
+  alters), AlterSearchSelect, SetFrontSheet (alpha mode), alters_list
+  widget (falls back to the global order). NOT yet wired: GroupMembersModal,
+  FronterPicker, AlterDropdownPicker, AlterTreeSelect, chat SpeakerPicker,
+  the old SetFrontModal picker — do these when touched (one-liner each:
+  wrap the list in useAlterOrder().arrange).
+- [ ] **Widget catalogue is page-shaped (v0.126.0).** Long-term goal per
+  the owner: every classic page's functions reachable as widgets. Gaps by
+  section — Activity tracker (weekly grid, log/schedule composer), Tasks
+  (daily tasks, streaks), Timeline (no section yet), Analytics (fronting
+  leaders lives in the classic registry only; activity/plan analytics),
+  Support (grounding techniques, crisis card), Check-in (company,
+  location, note steps), Reminders (inbox with act/dismiss).
 - [ ] **Font pickers:** widget options + profile style now offer uploaded
   fonts; ProfileStyleEditor still uses a raw <select> (house rule says
   SearchableSelect) — convert when touched.
