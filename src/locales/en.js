@@ -93,6 +93,8 @@ export default {
   // ── Widgets ──
   "widget.presence.label": "Who's here",
   "widget.presence.desc": "Current {{fronters}}, with time since each arrived.",
+  "widget.pinned.label": "Pinned {{alters}}",
+  "widget.pinned.empty": "No pinned {{alters}} yet \u2014 pin them from their profile or the {{alters}} page.",
   "widget.presence.title": "Here now",
   "widget.presence.empty": "No {{fronter}} set.",
   "widget.presence.primary": "primary",

@@ -61,7 +61,11 @@ new one, add it. Update the date line above whenever you touch this file.*
   full-screen exercise has no control for it yet (widget-only today).
 - [ ] **Fronting levels follow-ups**: terms for the word "level" itself
   aren't customizable; consider level colors; wiki entry missing (see wiki
-  item below). v0.118.0 retired the primary star when levels are on
+  item below). v0.121.0 made levels THE system (always on; defaults =
+  Fronting/Co-fronting; legacy rows map primary→top, co→second at READ
+  time — no data migration). Dead code to sweep when touched: the
+  togglePrimaryFor fallbacks behind usePrimaryGesture, cfg.enabled
+  conditionals (now constant true). v0.118.0 retired the primary star when levels are on
   (is_primary now DERIVED: topmost occupied level, ties keep current lead —
   recomputePrimaryFromLevels in setFront.js) and replaced the set-primary
   swipe with the tap-to-pick spectrum on: AlterCard, AlterGridView,

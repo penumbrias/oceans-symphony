@@ -33,7 +33,6 @@ import JournalEditorModal from "@/components/journal/JournalEditorModal";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import useFormDraft from "@/hooks/useFormDraft";
 import CurrentFronters from "@/components/dashboard/CurrentFronters";
-import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
@@ -42,6 +41,8 @@ import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
+import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
+import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -1454,6 +1455,149 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
   );
 }
 
+
+// ── Pinned alters (v2-native) ──────────────────────────────────────
+// Built fresh for the widget board (owner call: don't adapt the classic
+// gallery, which never resized with its box). A row of avatars that
+// scales PROPORTIONALLY with the widget: the box is measured and the
+// avatar diameter follows its height. No scroll-lock and no swipe
+// gestures — set-front is the new hold gesture (hold an avatar → the
+// level spectrum with its Remove stop; holding a non-fronter adds them
+// at the picked level; with levels off, hold simply toggles front).
+// Tap = profile · double-tap = the action menu. Widget contract: Section
+// is the visible box; names via useAlterLabel; avatars resolved.
+function PinnedAvatar({ alter, size, fronting, isPrimary, blurAvatar }) {
+  const resolved = useResolvedAvatarUrl(alter.avatar_url);
+  const ring = fronting
+    ? (isPrimary ? "#f59e0b" : (alter.color || "var(--v2-accent)"))
+    : "hsl(var(--border))";
+  return (
+    <span
+      className={`rounded-full overflow-hidden flex items-center justify-center flex-shrink-0 ${blurAvatar ? "blur-sm" : ""}`}
+      style={{
+        width: size, height: size,
+        border: `2px solid ${ring}`,
+        backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
+        // Fronting alters render slightly larger via scale so the row
+        // doesn't reflow — same "who's active at a glance" cue as the
+        // classic gallery, minus its fixed sizing.
+        transform: fronting ? "scale(1.06)" : undefined,
+      }}
+    >
+      {resolved
+        ? <img src={resolved} alt="" className="w-full h-full object-cover" draggable={false} />
+        : <span className="font-semibold text-muted-foreground" style={{ fontSize: Math.max(10, size * 0.3) }}>
+            {(alter.name || "?").slice(0, 2)}
+          </span>}
+    </span>
+  );
+}
+
+function PinnedAltersWidget({ api, settings }) {
+  const tr = useT();
+  const t = useTerms();
+  const qc = useQueryClient();
+  const navigate = useNavigate();
+  const formatAlter = useAlterLabel();
+  const alters = (api?.alters || []).filter((a) => a.is_pinned && !a.is_archived);
+  const { data: sessions = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const sessionFor = (id) => sessions.find((s) => (s.alter_id || s.primary_alter_id) === id);
+  const showNames = settings?.showNames !== false;
+
+  // Proportional sizing: avatars follow the box height (single row), and
+  // wrap into more rows when the user makes the widget taller than wide.
+  const boxRef = React.useRef(null);
+  const [boxH, setBoxH] = React.useState(64);
+  React.useEffect(() => {
+    const node = boxRef.current;
+    if (!node) return undefined;
+    const measure = () => setBoxH(node.getBoundingClientRect().height || 64);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(node);
+    return () => ro.disconnect();
+  }, []);
+  const rowH = boxH; // one logical row; wrapping shares the same size
+  const size = Math.max(32, Math.min(rowH - (showNames ? 22 : 6), 96));
+
+  const levelCfg = useFrontLevels();
+  const suppressTapUntil = React.useRef(0);
+  const addOrLevel = async (alterId, levelId) => {
+    // Holding a non-fronter and picking a level ADDS them at that level.
+    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+    const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
+    if (!existing) {
+      const alter = alters.find((a) => a.id === alterId);
+      if (alter) await toggleFrontFor(alter, fresh, base44, qc, toast, t);
+    }
+    await commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg });
+  };
+  const { rail, getHoldProps } = useHoldDragLevel({
+    cfg: levelCfg,
+    onCommit: (alterId, levelId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      addOrLevel(alterId, levelId);
+    },
+    onRemove: (alterId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      const alter = alters.find((a) => a.id === alterId);
+      if (alter) toggleFrontFor(alter, sessions, base44, qc, toast, t);
+    },
+  });
+  const railAlter = rail ? alters.find((a) => a.id === rail.alterId) : null;
+
+  const [menuFor, setMenuFor] = React.useState(null);
+  const lastTap = React.useRef({});
+  const { mode: anonymize } = useAnonymizeMode();
+
+  return (
+    <Section label={applyTerms(tr("widget.pinned.label"), t)}>
+      <div ref={boxRef} className="h-full min-h-0 flex flex-wrap items-center content-center gap-x-3 gap-y-2">
+        {alters.length === 0 && <Muted>{applyTerms(tr("widget.pinned.empty"), t)}</Muted>}
+        {alters.map((alter) => {
+          const session = sessionFor(alter.id);
+          return (
+            <button
+              key={alter.id}
+              type="button"
+              {...getHoldProps(alter.id, session?.front_level)}
+              onClick={() => {
+                if (rail || Date.now() < suppressTapUntil.current) return;
+                const now = Date.now();
+                if (lastTap.current.id === alter.id && now - lastTap.current.t < 350) {
+                  lastTap.current = {};
+                  setMenuFor(alter);
+                  return;
+                }
+                lastTap.current = { id: alter.id, t: now };
+                navigate(`/alter/${alter.id}`);
+              }}
+              className="flex flex-col items-center select-none"
+              style={{ width: Math.max(size + 8, 44) }}
+              title={formatAlter(alter)}
+            >
+              <PinnedAvatar alter={alter} size={size} fronting={!!session}
+                isPrimary={!!session?.is_primary} blurAvatar={anonymizeBlurAvatars(anonymize)} />
+              {showNames && (
+                <span className={`text-[0.625em] text-center truncate w-full mt-0.5 ${anonymizeBlurNames(anonymize) ? "blur-sm" : "text-muted-foreground"}`}>
+                  {formatAlter(alter)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
+      <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
+      {menuFor && (
+        <AlterActionMenu alter={menuFor} activeSessions={sessions} onClose={() => setMenuFor(null)} />
+      )}
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
@@ -1654,11 +1798,14 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   pinned_alters: {
-    label: "Pinned {{alters}}", description: "Your pinned {{alters}}, as a gallery.",
+    label: "Pinned {{alters}}", description: "Your pinned {{alters}} as a row of avatars that scales with the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = set {{front}} (the level spectrum when levels are on).",
     icon: Pin, category: "system",
-    render: () => <PinnedAltersGallery showHeader={false} />,
+    render: ({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    configFields: [
+      { key: "showNames", type: "toggle", label: "Show names", default: true },
+    ],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   sleep_controls: {
     label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",

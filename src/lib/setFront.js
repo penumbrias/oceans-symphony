@@ -42,7 +42,7 @@ export async function recomputePrimaryFromLevels({ cfg, queryClient = null }) {
       .filter((s) => s.alter_id);
     if (active.length === 0) return;
     const levelIndex = (s) => {
-      if (!s.front_level) return 0;
+      if (!s.front_level) return s.is_primary ? 0 : Math.min(1, cfg.levels.length - 1);
       const i = cfg.levels.findIndex((l) => l.id === s.front_level);
       return i === -1 ? 0 : i;
     };

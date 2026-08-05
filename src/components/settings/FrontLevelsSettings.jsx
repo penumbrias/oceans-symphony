@@ -1,10 +1,10 @@
 // Fronting levels — Settings → Tracking setup.
 //
-// Opt-in closeness-to-front spectrum (src/lib/frontLevels.js). The list is
-// ordered closest-to-front first; each level has a label and a "counts as
-// {fronting} time" flag that analytics honour. Everything stays behind the
-// enable toggle so systems that don't experience fronting this way keep
-// today's simple front/co-front model untouched.
+// THE fronting system (always on since v0.121.0): the list is ordered
+// closest-to-front first; each level has a label and a "counts as
+// {fronting} time" flag that analytics honour. The default two levels ARE
+// the classic fronting/co-fronting pair, so simple systems keep exactly
+// the model they had.
 
 import React, { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -41,7 +41,7 @@ export default function FrontLevelsSettings() {
     }
   };
 
-  const save = (patch) => persist({ enabled: cfg.enabled, levels: cfg.levels, ...patch });
+  const save = (patch) => persist({ levels: cfg.levels, ...patch });
 
   const updateLevel = (id, change) =>
     save({ levels: cfg.levels.map((l) => (l.id === id ? { ...l, ...change } : l)) });
@@ -62,20 +62,17 @@ export default function FrontLevelsSettings() {
 
   return (
     <div className="space-y-3">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-sm font-semibold">{terms.Fronting} levels</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            A spectrum of closeness to {terms.front} — set per {terms.alter} instead
-            of the plain {terms.fronting}/co-{terms.fronting} pair. Off = the simple
-            model, unchanged.
-          </p>
-        </div>
-        <Switch checked={cfg.enabled} disabled={busy}
-          onCheckedChange={(v) => save({ enabled: !!v })} />
+      <div>
+        <p className="text-sm font-semibold">{terms.Fronting} levels</p>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          How close each {terms.alter} is to {terms.front}. The default two levels
+          are the classic {terms.fronting}/co-{terms.fronting} pair — add levels
+          (Close to {terms.front}, Observing, …) if your {terms.system} experiences
+          more of a spectrum. Whoever sits at the topmost level leads.
+        </p>
       </div>
 
-      {cfg.enabled && (
+      {(
         <>
           <p className="text-[0.6875rem] text-muted-foreground uppercase tracking-wide">
             Closest to {terms.front} first

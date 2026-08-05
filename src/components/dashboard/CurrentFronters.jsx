@@ -168,8 +168,10 @@ function FronterChip({ alter, isPrimary, startTime, session, onHold, coFronterLa
       <div className="min-w-0 flex-1">
         <p className={`text-sm font-semibold text-foreground truncate ${blurNames ? "blur-sm" : ""}`}>{alter.name}</p>
         <p className="text-[0.6875rem] text-muted-foreground truncate">
-          {isPrimary ? "Primary · " : `${coFronterLabel} · `}
-          {chipLevel ? `${chipLevel} · ` : ""}
+          {/* The level IS the role now (defaults read Fronting /
+              Co-{fronting}, so pre-levels users see the same words). The
+              lead still gets the ⚡ badge on their avatar. */}
+          {chipLevel ? `${chipLevel} · ` : (isPrimary ? "Primary · " : `${coFronterLabel} · `)}
           {startTime ? formatDistanceToNow(new Date(startTime), { addSuffix: false }) : "—"}
         </p>
       </div>

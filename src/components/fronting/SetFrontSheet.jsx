@@ -208,7 +208,10 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
         setDraft(sessions.map((s) => ({
           alterId: s.alter_id,
           isPrimary: !!s.is_primary,
-          level: levelCfg.enabled ? (s.front_level ?? levelCfg.levels[0]?.id) : undefined,
+          // Pre-levels rows map by their old role: primary → top level,
+          // co-fronter → the second (seamless migration, v0.121.0).
+          level: s.front_level
+            ?? (s.is_primary ? levelCfg.levels[0]?.id : (levelCfg.levels[1]?.id ?? levelCfg.levels[0]?.id)),
           startTime: s.start_time || null,
         })));
       } catch { setDraft([]); }
@@ -223,7 +226,9 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
     setDraft((prev) => [...prev, {
       alterId: id,
       isPrimary: prev.length === 0, // first in seeds primary
-      level: levelCfg.enabled ? levelCfg.levels[0]?.id : undefined,
+      // First added joins at the top level; everyone after at the second
+      // (the classic "adding a co-fronter" behaviour, generalised).
+      level: prev.length === 0 ? levelCfg.levels[0]?.id : (levelCfg.levels[1]?.id ?? levelCfg.levels[0]?.id),
       startTime: null,
     }]);
   };
@@ -235,7 +240,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const toggleFromView = (id) => (draftIds.has(id) ? removeAlter(id) : addAlter(id));
   const setSole = (id) => {
     setIsUnsure(false);
-    setDraft([{ alterId: id, isPrimary: true, level: levelCfg.enabled ? levelCfg.levels[0]?.id : undefined, startTime: null }]);
+    setDraft([{ alterId: id, isPrimary: true, level: levelCfg.levels[0]?.id, startTime: null }]);
   };
   const setMany = (arr, on) => {
     setIsUnsure(false);

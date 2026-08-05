@@ -5,9 +5,10 @@
 // the single source for that feature:
 //
 //   • The level catalogue lives in SystemSettings.front_levels
-//     ({ enabled, levels: [{ id, label, counts_as_front }] }), ordered
-//     closest-to-front first. OFF by default — systems that don't
-//     experience fronting this way never see any of it.
+//     ({ levels: [{ id, label, counts_as_front }] }), ordered
+//     closest-to-front first. ALWAYS ON since v0.121.0 — the default two
+//     levels ARE the old front/co-front model, so simple systems see
+//     nothing new until they add levels.
 //   • An active FrontingSession may carry `front_level` (a level id).
 //     Absent/null means full fronting — exactly the pre-feature
 //     semantics, so no data migration and no behaviour change for
@@ -28,11 +29,14 @@ import { useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 
+// Levels are THE fronting system (owner decision, v0.121.0) — the old
+// front/co-front binary is expressed as the DEFAULT two-level spectrum, so
+// existing users migrate seamlessly: same words, same analytics, same
+// derived lead. Systems that experience more gradation add levels
+// (Close to front, Observing, …) in Settings → Tracking setup.
 export const DEFAULT_FRONT_LEVELS = [
   { id: "front", label: "{{Fronting}}", counts_as_front: true },
-  { id: "close", label: "Close to {{front}}", counts_as_front: true },
-  { id: "nearby", label: "Nearby", counts_as_front: false },
-  { id: "observing", label: "Observing", counts_as_front: false },
+  { id: "cofront", label: "Co-{{fronting}}", counts_as_front: true },
 ];
 
 export function newFrontLevelId() {
@@ -52,7 +56,9 @@ export function resolveFrontLevels(settingsRow) {
         }))
     : DEFAULT_FRONT_LEVELS;
   return {
-    enabled: !!raw?.enabled,
+    // Always on — the binary model IS the default two-level spectrum now.
+    // Stored `enabled` from the opt-in era is deliberately ignored.
+    enabled: true,
     levels: levels.length > 0 ? levels : DEFAULT_FRONT_LEVELS,
   };
 }
@@ -77,11 +83,17 @@ export function useFrontLevels() {
   );
 }
 
-// The level of a session. null = the classic "just fronting" (level 0
-// semantics) — callers that only care about display can show nothing.
+// The level of a session. Rows from the pre-levels era have no
+// front_level — they map onto the spectrum by their old role (primary →
+// the top level, co-fronter → the second) so nothing changes for them
+// until the user picks something else. Never returns null for a session.
 export function getSessionLevel(session, cfg) {
-  if (!cfg?.enabled || !session?.front_level) return null;
-  return cfg.levels.find((l) => l.id === session.front_level) || null;
+  if (!cfg?.enabled || !session) return null;
+  if (session.front_level) {
+    const found = cfg.levels.find((l) => l.id === session.front_level);
+    if (found) return found;
+  }
+  return session.is_primary ? cfg.levels[0] : (cfg.levels[1] || cfg.levels[0]);
 }
 
 // Sessions that count toward fronting TIME (analytics, reports, leaders).
