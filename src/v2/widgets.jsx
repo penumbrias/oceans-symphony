@@ -40,6 +40,7 @@ import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
+import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -104,17 +105,26 @@ function PresenceWidget({ mode, api, settings }) {
   // Fronting levels (opt-in): each row shows its alter's level, and
   // press-and-hold a row → the vertical spectrum rail → drag → release.
   const levelCfg = useFrontLevels();
+  // A committed rail gesture must not ALSO count as a tap when the finger
+  // lifts — suppress the click that follows a hold.
+  const suppressTapUntil = React.useRef(0);
   const { rail, getHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
-    onCommit: (alterId, levelId) => commitFrontLevel({ alterId, levelId, queryClient: qc }),
+    onCommit: (alterId, levelId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      commitFrontLevel({ alterId, levelId, queryClient: qc });
+    },
   });
   const railAlter = rail ? byId[rail.alterId] : null;
-  // Tap opens the per-alter check-in panel (the same AlterPanel the classic
-  // Currently Fronting card uses — reused, not forked) or the profile.
-  const [panelFor, setPanelFor] = React.useState(null);
+  // Owner-specified gesture model (mirrors the classic Currently Fronting
+  // card): hold = level rail · tap = per-alter panel INLINE in the widget ·
+  // double-tap = the alter action menu (which carries its own level
+  // dropdown). Same 350ms double-tap window as FronterChip.
+  const [expandedId, setExpandedId] = React.useState(null);
+  const [menuFor, setMenuFor] = React.useState(null);
+  const lastTap = React.useRef({});
   const showAvatar = !!settings?.showAvatar;
   const showPronouns = !!settings?.showPronouns;
-  const tapAction = settings?.tapAction || "panel";
 
   return (
     <Section
@@ -127,7 +137,8 @@ function PresenceWidget({ mode, api, settings }) {
         const secondary = [showPronouns ? alter.pronouns : null, level ? frontLevelLabel(level, t) : null]
           .filter(Boolean).join(" · ") || undefined;
         return (
-        <div key={s.id} {...getHoldProps(alter.id, s.front_level)} className="select-none">
+        <React.Fragment key={s.id}>
+        <div {...getHoldProps(alter.id, s.front_level)} className="select-none">
         <Row
           // A ring marks the primary instead of a word — the name needs the
           // room more than the label does in a one-column widget.
@@ -139,31 +150,36 @@ function PresenceWidget({ mode, api, settings }) {
           right={s.start_time ? fmtElapsed(s.start_time) : undefined}
           title={s.is_primary ? applyTerms(tr("widget.presence.primaryOf"), t) : undefined}
           onClick={() => {
-            if (rail) return;
-            if (tapAction === "profile") navigate(`/alter/${alter.id}`);
-            else setPanelFor({ alter, session: s });
+            if (rail || Date.now() < suppressTapUntil.current) return;
+            const now = Date.now();
+            if (lastTap.current.id === alter.id && now - lastTap.current.t < 350) {
+              lastTap.current = {};
+              setMenuFor(alter);
+              return;
+            }
+            lastTap.current = { id: alter.id, t: now };
+            setExpandedId((prev) => (prev === alter.id ? null : alter.id));
           }}
         />
         </div>
+        {/* The per-alter panel opens INLINE under its row, exactly like the
+            classic Currently Fronting card — reused, not forked. */}
+        {expandedId === alter.id && (
+          <div className="-mx-1">
+            <AlterPanel
+              alter={alter}
+              session={s}
+              onClose={() => setExpandedId(null)}
+              onSaved={() => setExpandedId(null)}
+            />
+          </div>
+        )}
+        </React.Fragment>
         );
       })}
       <FrontLevelRail rail={rail} cfg={levelCfg} alterName={railAlter ? formatAlter(railAlter) : ""} />
-      {/* Per-alter check-in panel — feelings, symptoms, note for THIS alter's
-          current session, right from the widget. */}
-      {panelFor && (
-        <Drawer open onOpenChange={(v) => { if (!v) setPanelFor(null); }}>
-          <DrawerContent className="max-h-[85vh]">
-            <div className="overflow-y-auto px-2"
-              style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 16px)" }}>
-              <AlterPanel
-                alter={panelFor.alter}
-                session={panelFor.session}
-                onClose={() => setPanelFor(null)}
-                onSaved={() => setPanelFor(null)}
-              />
-            </div>
-          </DrawerContent>
-        </Drawer>
+      {menuFor && (
+        <AlterActionMenu alter={menuFor} activeSessions={sessions} onClose={() => setMenuFor(null)} />
       )}
     </Section>
   );
@@ -1432,18 +1448,13 @@ function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder
 
 export const V2_WIDGETS = {
   presence: {
-    label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Rows can show avatars and pronouns; tapping opens the per-{{alter}} panel (feelings, symptoms, note) or their profile.",
+    label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
     icon: Users, category: "system",
     render: ({ mode, api, settings }) => <PresenceWidget mode={mode} api={api} settings={settings} />,
     supportsModes: ["minimal", "normal"], supportsMultiInstance: false,
     configFields: [
       { key: "showAvatar", type: "toggle", label: "Show avatars", default: false },
       { key: "showPronouns", type: "toggle", label: "Show pronouns", default: false },
-      { key: "tapAction", type: "select", label: "Tapping an {{alter}} opens", default: "panel",
-        options: [
-          { value: "panel", label: "Their check-in panel (feelings, symptoms, note)" },
-          { value: "profile", label: "Their profile page" },
-        ] },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },

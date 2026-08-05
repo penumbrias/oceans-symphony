@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: who's-here gestures reworked \u2014 tap an alter to open their check-in panel right inside the widget, double-tap for their action menu, press-and-hold for the fronting-level spectrum. The action menu also gains a level dropdown beside the alter's name." },
       { type: "feature", text: "Set Fronters is rebuilt: everyone currently fronting appears as a card with their avatar, pronouns, time so far, a primary star, and (when enabled) their fronting level \u2014 no hidden gestures needed. List, avatar-grid, and by-group tree views for adding; Unsure and the journal/triggered options are all still there." },
       { type: "improve", text: "\ud83e\uddea New UI: the who's-here widget can show avatars and pronouns (widget options), and tapping an alter now opens their check-in panel \u2014 feelings, symptoms, and a note for their current session \u2014 right from the widget. A setting switches the tap back to opening their profile." },
       { type: "fix", text: "\ud83e\uddea New UI: dragging along the fronting-level spectrum no longer highlights text on the page behind it." },
