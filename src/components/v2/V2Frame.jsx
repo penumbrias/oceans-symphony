@@ -30,6 +30,7 @@ import {
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
+import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import { V2_COMMAND_KEYS, V2_TOKEN_DEFS, buildTokenVars } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -105,7 +106,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"}>
+      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -162,7 +163,7 @@ function QuickNoteSheet({ open, onClose }) {
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent>
+      <DrawerContent {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <DrawerTitle className="text-base">{t("note.title")}</DrawerTitle>
           <DrawerDescription className="text-xs">{t("note.subtitle")}</DrawerDescription>
@@ -199,7 +200,7 @@ function SearchSheet({ open, onClose }) {
   const terms = useTerms();
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className="max-h-[85vh]">
+      <DrawerContent className="max-h-[85vh]" {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <DrawerTitle className="text-base">{t("top.search")}</DrawerTitle>
           <DrawerDescription className="text-xs">{applyTerms(t("search.subtitle"), terms)}</DrawerDescription>

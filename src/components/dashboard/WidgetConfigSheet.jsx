@@ -37,6 +37,7 @@ import { getStyleShell } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
+import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 
 // Text inputs here commit as you type (debounced) AND flush on unmount.
 // Committing only onBlur loses whatever was typed when the sheet is closed
@@ -335,7 +336,7 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer open={open} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"}>
+      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -430,7 +431,7 @@ export default function WidgetConfigSheet({
               <div key={f.key}>
                 {f.type !== "toggle" && (
                   <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                    {f.label}
+                    {applyTerms(f.label, t)}
                   </label>
                 )}
                 {f.type === "text" && (
@@ -446,7 +447,7 @@ export default function WidgetConfigSheet({
                 )}
                 {f.type === "toggle" && (
                   <label className="flex items-center justify-between gap-3 text-sm cursor-pointer">
-                    <span>{f.label}</span>
+                    <span>{applyTerms(f.label, t)}</span>
                     <input type="checkbox" checked={val !== false && val !== ""} onChange={(e) => commit(e.target.checked)}
                       className="w-4 h-4 rounded accent-primary" />
                   </label>

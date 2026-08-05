@@ -718,7 +718,7 @@ function FolderWidget({ settings, mode }) {
       </button>
 
       <Drawer open={open} onOpenChange={(v) => { if (!v) setOpen(false); }}>
-        <DrawerContent className="max-h-[70vh]">
+        <DrawerContent className="max-h-[70vh]" {...sheetPortalGuards}>
           <DrawerHeader className="pb-1">
             <DrawerTitle className="text-base">{label}</DrawerTitle>
             <DrawerDescription className="text-xs">

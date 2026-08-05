@@ -78,6 +78,7 @@ function AnchoredPortal({ anchorRef, open, onClose, align = 'left', width, maxHe
   return createPortal(
     <div
       ref={popRef}
+      data-anchored-portal=""
       // pointerEvents must be explicit: inside the v2 Display-options
       // bottom sheet, vaul puts pointer-events:none on <body> while open,
       // and this portal lives on body — without the override every click
