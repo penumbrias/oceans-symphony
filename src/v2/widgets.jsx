@@ -41,6 +41,7 @@ import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLev
 import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
+import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -114,6 +115,13 @@ function PresenceWidget({ mode, api, settings }) {
       suppressTapUntil.current = Date.now() + 400;
       commitFrontLevel({ alterId, levelId, queryClient: qc });
     },
+    // One slot past the far end of the spectrum: remove from front (the
+    // canonical toggleFrontFor — refetch-before-write, ends the session).
+    onRemove: (alterId) => {
+      suppressTapUntil.current = Date.now() + 400;
+      const alter = byId[alterId];
+      if (alter) toggleFrontFor(alter, sessions, base44, qc, toast, t);
+    },
   });
   const railAlter = rail ? byId[rail.alterId] : null;
   // Owner-specified gesture model (mirrors the classic Currently Fronting
@@ -177,7 +185,7 @@ function PresenceWidget({ mode, api, settings }) {
         </React.Fragment>
         );
       })}
-      <FrontLevelRail rail={rail} cfg={levelCfg} alterName={railAlter ? formatAlter(railAlter) : ""} />
+      <FrontLevelRail rail={rail} cfg={levelCfg} withRemove alterName={railAlter ? formatAlter(railAlter) : ""} />
       {menuFor && (
         <AlterActionMenu alter={menuFor} activeSessions={sessions} onClose={() => setMenuFor(null)} />
       )}

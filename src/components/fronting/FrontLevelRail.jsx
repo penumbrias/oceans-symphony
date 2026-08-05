@@ -44,7 +44,7 @@ export async function commitFrontLevel({ alterId, levelId, queryClient }) {
   }
 }
 
-export function useHoldDragLevel({ cfg, onCommit }) {
+export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
   const [rail, setRail] = useState(null); // { alterId, x, y, pickedIndex }
   const timer = useRef(null);
   const origin = useRef(null);
@@ -84,23 +84,24 @@ export function useHoldDragLevel({ cfg, onCommit }) {
           const startIndex = Math.max(0, cfg.levels.findIndex((l) => l.id === currentLevelId));
           const state = { alterId, x: origin.current.x, y: origin.current.y, pickedIndex: startIndex, startIndex };
           setRail(state);
+          // With onRemove wired, one extra slot sits past the far end of
+          // the spectrum: drag all the way down to take them off front.
+          const maxIndex = cfg.levels.length - 1 + (onRemove ? 1 : 0);
           const pick = (ev) => {
             // The rail is centred on the press point at the CURRENT level's
             // row, so the finger starts on the level that's already set and
             // moving up/down walks the spectrum from there.
             const dy = ev.clientY - state.y;
-            const idx = Math.min(
-              cfg.levels.length - 1,
-              Math.max(0, Math.round(startIndex + dy / LEVEL_ROW_H))
-            );
+            const idx = Math.min(maxIndex, Math.max(0, Math.round(startIndex + dy / LEVEL_ROW_H)));
             setRail((r) => (r ? { ...r, pickedIndex: idx } : r));
             state.pickedIndex = idx;
           };
           const move = (ev) => pick(ev);
           const up = () => {
-            const picked = cfg.levels[state.pickedIndex];
+            const idx = state.pickedIndex;
             teardown();
-            if (picked) onCommit(alterId, picked.id);
+            if (onRemove && idx === cfg.levels.length) onRemove(alterId);
+            else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id);
           };
           const cancel = () => teardown();
           live.current = { move, up, cancel };
@@ -131,13 +132,14 @@ export function useHoldDragLevel({ cfg, onCommit }) {
   return { rail, getHoldProps };
 }
 
-export function FrontLevelRail({ rail, cfg, alterName }) {
+export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
   const terms = useTerms();
   if (!rail || !cfg?.enabled) return null;
   const { levels } = cfg;
+  const rowCount = levels.length + (withRemove ? 1 : 0);
   // Anchor so the CURRENT level's row sits under the press point; clamp the
   // whole rail into the viewport.
-  const railH = levels.length * LEVEL_ROW_H;
+  const railH = rowCount * LEVEL_ROW_H;
   const anchored = rail.y - ((rail.startIndex ?? 0) * LEVEL_ROW_H + LEVEL_ROW_H / 2);
   const top = Math.min(Math.max(8, anchored), window.innerHeight - railH - 8);
   const left = Math.min(Math.max(12, rail.x - 10), window.innerWidth - 190);
@@ -153,8 +155,9 @@ export function FrontLevelRail({ rail, cfg, alterName }) {
       <div className="absolute" style={{ left, top }}>
         {/* the spectrum line */}
         <div className="absolute left-[9px] top-[10px] bottom-[10px] w-0.5 rounded bg-border" />
-        {levels.map((level, i) => {
+        {[...levels, ...(withRemove ? [{ id: "__remove", label: `Remove from {{front}}`, _remove: true }] : [])].map((level, i) => {
           const picked = i === rail.pickedIndex;
+          const accent = level._remove ? "hsl(var(--destructive))" : "var(--color-primary)";
           return (
             <div key={level.id} className="relative flex items-center gap-2.5" style={{ height: LEVEL_ROW_H }}>
               <span
@@ -163,16 +166,16 @@ export function FrontLevelRail({ rail, cfg, alterName }) {
                   width: picked ? 20 : 10,
                   height: picked ? 20 : 10,
                   marginLeft: picked ? 0 : 5,
-                  background: picked
-                    ? "var(--color-primary)"
-                    : "color-mix(in srgb, var(--color-primary) 35%, transparent)",
+                  background: picked ? accent : `color-mix(in srgb, ${accent} 35%, transparent)`,
                 }}
               />
               <span
                 className={`px-2 py-0.5 rounded-md text-sm whitespace-nowrap border transition-colors ${
                   picked
-                    ? "bg-primary text-primary-foreground border-transparent font-medium"
-                    : "bg-background/90 text-muted-foreground border-border/60"
+                    ? (level._remove
+                        ? "bg-destructive text-destructive-foreground border-transparent font-medium"
+                        : "bg-primary text-primary-foreground border-transparent font-medium")
+                    : `bg-background/90 border-border/60 ${level._remove ? "text-destructive/80" : "text-muted-foreground"}`
                 }`}
               >
                 {frontLevelLabel(level, terms)}
