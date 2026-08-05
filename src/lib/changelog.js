@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 4, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: theme presets in Display options are selectable again \u2014 clicks on the dropdown were falling through onto the custom colour swatches beneath it (which is also why a stray \"Custom\" theme kept appearing)." },
+      { type: "fix", text: "\ud83e\uddea New UI: tapping \"Empty page \u2014 tap to add widgets\" now opens the Add-widget gallery in edit mode, instead of the apps list." },
       { type: "feature", text: "Profile songs \ud83c\udfb5 \u2014 MySpace style. Give an alter a song in their edit window (upload an audio file or paste a URL) and it plays when their page opens, with a floating mini-player to pause or stop. Uploaded songs live on your device and ride backups. Global off-switch in Settings \u2192 Alter setup." },
       { type: "feature", text: "With fronting levels on, the primary star retires: whoever sits closest to front leads automatically (ties keep the current lead). The star and \"make primary\" controls hide; everything that showed a primary still works." },
       { type: "improve", text: "The set-primary swipe on alter lists, chips, the pinned bar, and quick actions now opens a tap-to-pick fronting-level spectrum when levels are on \u2014 the same one everywhere, with Remove from front included." },

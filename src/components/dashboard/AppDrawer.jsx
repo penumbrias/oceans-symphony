@@ -6,7 +6,7 @@
 //                 instance to the current page. Single-instance widgets
 //                 already placed are disabled with an "added" tag.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { X, LayoutGrid, PlusSquare, Check, Plus, Folder, FolderOpen, FolderPlus, ChevronLeft, Trash2, Pencil } from "lucide-react";
 import {
@@ -221,10 +221,16 @@ export default function AppDrawer({
   folders = [], onSaveFolders,
   order = [], onSaveOrder,
   api = null, userStyles = [],
+  initialTab = null,
 }) {
   const t = useTerms();
   const navigate = useNavigate();
   const [tab, setTab] = useState("apps");
+  // Callers can steer which tab a given open lands on (the empty-page
+  // "tap to add widgets" placeholder wants the Add-widget tab, not Apps).
+  useEffect(() => {
+    if (open && initialTab) setTab(initialTab);
+  }, [open, initialTab]);
   const [search, setSearch] = useState("");
   const [openFolderId, setOpenFolderId] = useState(null);
   // Apps edit mode (hold any tile): reorder by drag, drop onto a folder to

@@ -340,6 +340,8 @@ export default function ExperimentalDashboard({
   const a11yStack = !!getAccessibilitySettings().a11yMode;
   const [editMode, setEditMode] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  // Which tab the NEXT drawer open should land on (null = drawer default).
+  const [drawerTabRequest, setDrawerTabRequest] = useState(null);
   // One AssetPickerModal serves wallpaper AND per-widget icon overrides:
   // null | "wallpaper" | { icon: instanceId }
   const [assetPickerFor, setAssetPickerFor] = useState(null);
@@ -937,7 +939,10 @@ export default function ExperimentalDashboard({
       {widgets.length === 0 && (
         <button
           type="button"
-          onClick={() => setDrawerOpen(true)}
+          // "Tap to add widgets" must actually land on adding widgets:
+          // enter edit mode (the drawer's Add-widget tab only exists there)
+          // and open the drawer straight onto that tab.
+          onClick={() => { setEditMode(true); setDrawerTabRequest("widgets"); setDrawerOpen(true); }}
           className="w-full py-16 rounded-2xl border-2 border-dashed border-border/50 text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors flex flex-col items-center gap-2"
         >
           <Grid2x2 className="w-8 h-8" />
@@ -1035,7 +1040,8 @@ export default function ExperimentalDashboard({
 
       <AppDrawer
         open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
+        onClose={() => { setDrawerOpen(false); setDrawerTabRequest(null); }}
+        initialTab={drawerTabRequest}
         placedWidgetIds={page.widgets.map((w) => w.widgetId)}
         registry={registry}
         onAddWidget={handleAddWidget}

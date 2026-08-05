@@ -78,7 +78,12 @@ function AnchoredPortal({ anchorRef, open, onClose, align = 'left', width, maxHe
   return createPortal(
     <div
       ref={popRef}
-      style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight, zIndex: 100000 }}
+      // pointerEvents must be explicit: inside the v2 Display-options
+      // bottom sheet, vaul puts pointer-events:none on <body> while open,
+      // and this portal lives on body — without the override every click
+      // passed THROUGH the dropdown onto whatever sat beneath it (the
+      // "can't select any theme preset" bug).
+      style={{ position: 'fixed', top: pos.top, left: pos.left, width: pos.width, maxHeight, zIndex: 100000, pointerEvents: 'auto' }}
     >
       {children}
     </div>,
