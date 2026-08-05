@@ -108,3 +108,28 @@ export const userStyleId = (id) => (isUserStyle(id) ? id.slice(USER_STYLE_PREFIX
 export function newStyleId() {
   return `s_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }
+
+// ── Classic themes → widget looks ──────────────────────────────────
+// The classic Appearance page's themes (built-in presets AND the user's
+// saved ones) translate into the widget look shape, so a look you already
+// designed for the whole app can be applied to a single widget (owner
+// request: "custom theme presets from the classic UI need to be migrated
+// and translated into this section of the style preset").
+//
+// Mapping: the widget's box sits ON the page, so `surface` is its
+// background, `primary` its accent + border tint, and text-primary its
+// text. Fonts ride along when the preset carries one.
+export function themeToLook(preset, isDark = true) {
+  if (!preset) return null;
+  const c = (isDark ? preset.dark : preset.light) || preset.light || preset.dark;
+  if (!c) return null;
+  const look = {};
+  if (c.surface) look.bg = c.surface;
+  if (c["text-primary"]) look.textColor = c["text-primary"];
+  if (c.primary) {
+    look.accent = c.primary;
+    look.borderColor = c.primary;
+  }
+  if (preset.font) look.font = preset.font;
+  return look;
+}

@@ -593,6 +593,7 @@ export const WIDGET_CATEGORIES = [
   // Page-design pieces (headings, text, dividers, spacers) — they carry no
   // data, they're what lets a user compose a page rather than fill one.
   { id: "layout", label: "Page design" },
+  { id: "analytics", label: "Analytics" },
   { id: "meta", label: "App" },
 ];
 

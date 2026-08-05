@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: five new widgets \u2014 Log a feeling (the emotion picker in place), Log symptoms (one tap per symptom), Diary card, Feelings analytics and Symptom analytics." },
+      { type: "improve", text: "\ud83e\uddea New UI: your app themes \u2014 built-in and your own saved ones \u2014 now appear in a widget's style presets, translated into that widget's look. Widget font pickers also list your uploaded fonts." },
+      { type: "fix", text: "Symptom analytics no longer errors when it loads on its own (it assumed another screen had already fetched its data)." },
       { type: "improve", text: "\ud83e\uddea New UI: who's-here display modes now mean something \u2014 minimal is just names and colours, normal adds avatars and status, expanded adds pronouns and whatever that session already holds (feelings, symptoms, note). The widget also gained the triggered-switch and journal-this-switch buttons." },
       { type: "improve", text: "\ud83e\uddea New UI: the alters-list widget can be ordered how you like \u2014 flat or split by group/subsystem, sorted by name, fronting time, switch count, when they joined, role, or recently updated, in either direction. Its new expanded mode shows avatars, emoji, pronouns, preference chips and each alter's current session details." },
       { type: "fix", text: "\ud83e\uddea New UI: colour and border controls in widget options no longer squash their buttons into unreadable single-letter columns on narrow screens." },

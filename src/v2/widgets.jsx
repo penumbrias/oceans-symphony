@@ -21,9 +21,9 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
-  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, AlertTriangle, ListTodo,
+  IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
-  Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash,
+  Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -44,6 +44,9 @@ import { parseSessionEmotions, parseSessionSymptoms, parseSessionNote } from "@/
 import { parsePreferences, PREF_LEVELS } from "@/lib/alterPreferences";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
+import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
+import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
@@ -1804,6 +1807,165 @@ function PinnedAltersWidget({ api, settings }) {
   );
 }
 
+
+// ── Check-in capture widgets ───────────────────────────────────────
+// The quick check-in's parts as widgets in their own right (owner: there
+// were none for emotions, symptoms or the diary). Each is the REAL
+// component/flow, not a lookalike: the emotion picker is
+// EmotionWheelPicker, symptoms write SymptomCheckIn rows the same way the
+// check-in does, and the diary widget opens the card for today.
+function LogEmotionWidget({ mode, settings }) {
+  const tr = useT();
+  const t = useTerms();
+  const qc = useQueryClient();
+  const [picked, setPicked] = React.useState([]);
+  const [intensity, setIntensity] = React.useState(3);
+  const [saving, setSaving] = React.useState(false);
+  const isExpanded = mode === "expanded";
+  const customEmotions = useList("customEmotions", "CustomEmotion");
+
+  const save = async () => {
+    if (picked.length === 0) return;
+    setSaving(true);
+    try {
+      // Attribute to whoever is closest to front, like the check-in does.
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      const lead = active.find((x) => x.is_primary) || active[0];
+      await base44.entities.EmotionCheckIn.create({
+        timestamp: new Date().toISOString(),
+        emotions: picked,
+        intensity: Number(intensity) || 3,
+        alter_id: lead?.alter_id || null,
+      });
+      qc.invalidateQueries({ queryKey: ["emotionCheckIns"] });
+      toast.success(applyTerms(tr("widget.logEmotion.saved"), t));
+      setPicked([]);
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save");
+    } finally { setSaving(false); }
+  };
+
+  return (
+    <Section label={tr("widget.logEmotion.label")}
+      action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-quick-checkin"))}>{tr("widget.logEmotion.full")}</TextAction>}>
+      <EmotionWheelPicker
+        selectedEmotions={picked}
+        onToggle={(e) => setPicked((prev) => prev.includes(e) ? prev.filter((x) => x !== e) : [...prev, e])}
+        customEmotions={customEmotions}
+      />
+      {isExpanded && (
+        <label className="flex items-center gap-2 text-xs text-muted-foreground">
+          <span className="flex-shrink-0">{tr("widget.logEmotion.intensity")}</span>
+          <input type="range" min={1} max={5} step={1} value={intensity}
+            onChange={(e) => setIntensity(parseInt(e.target.value, 10))} className="flex-1" />
+          <span className="tabular-nums w-4 text-right">{intensity}</span>
+        </label>
+      )}
+      <button type="button" onClick={save} disabled={saving || picked.length === 0}
+        className="w-full h-9 text-sm font-medium border disabled:opacity-50"
+        style={{ borderRadius: "var(--v2-radius, 8px)", borderColor: "color-mix(in srgb, var(--v2-accent) 50%, transparent)", color: "var(--v2-accent)" }}>
+        {saving ? "…" : tr("widget.logEmotion.save")}
+      </button>
+    </Section>
+  );
+}
+
+function LogSymptomWidget({ settings }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const symptoms = useList("symptoms", "Symptom");
+  const chosenIds = Array.isArray(settings?.symptomIds) ? settings.symptomIds : [];
+  const live = symptoms.filter((x) => !x.is_archived);
+  const shown = chosenIds.length ? live.filter((x) => chosenIds.includes(x.id)) : live.slice(0, 8);
+
+  const log = async (symptom, value) => {
+    try {
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      const lead = active.find((x) => x.is_primary) || active[0];
+      await base44.entities.SymptomCheckIn.create({
+        timestamp: new Date().toISOString(),
+        symptom_id: symptom.id,
+        intensity: value,
+        alter_id: lead?.alter_id || null,
+      });
+      qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success(symptom.label || symptom.name);
+    } catch (e) { toast.error(e?.message || "Couldn't log"); }
+  };
+
+  return (
+    <Section label={tr("widget.logSymptom.label")}
+      action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-quick-checkin"))}>{tr("widget.logEmotion.full")}</TextAction>}>
+      {shown.length === 0 && <Muted>{tr("widget.logSymptom.empty")}</Muted>}
+      {shown.map((sym) => (
+        <div key={sym.id} className="flex items-center gap-2">
+          <span className="text-sm truncate flex-1 min-w-0">{sym.label || sym.name}</span>
+          {sym.type === "rating" ? (
+            <span className="flex gap-1 flex-shrink-0">
+              {[1, 2, 3, 4, 5].map((n) => (
+                <button key={n} type="button" onClick={() => log(sym, n)}
+                  className="w-6 h-6 text-[0.6875em] border border-border/60 hover:border-primary/60"
+                  style={{ borderRadius: "var(--v2-radius, 8px)" }}>{n}</button>
+              ))}
+            </span>
+          ) : (
+            <button type="button" onClick={() => log(sym, true)}
+              className="text-[0.6875em] px-2 py-1 border border-border/60 hover:border-primary/60 flex-shrink-0"
+              style={{ borderRadius: "var(--v2-radius, 8px)" }}>{tr("widget.logSymptom.log")}</button>
+          )}
+        </div>
+      ))}
+    </Section>
+  );
+}
+
+function DiaryCardWidget() {
+  const tr = useT();
+  const navigate = useNavigate();
+  const cards = useList("diaryCards", "DiaryCard");
+  const today = new Date().toISOString().slice(0, 10);
+  const todays = cards.find((c) => (c.date || "").slice(0, 10) === today);
+  const filled = todays ? Object.values(todays.fields || {}).filter((v) => v !== null && v !== undefined && v !== "").length : 0;
+  return (
+    <Section label={tr("widget.diary.label")}
+      action={<TextAction onClick={() => navigate("/diary-cards")}>{tr("widget.today.open")}</TextAction>}>
+      <Row left={<Dot color={todays ? "var(--v2-accent)" : undefined} active={!!todays} />}
+        primary={todays ? tr("widget.diary.started") : tr("widget.diary.none")}
+        secondary={todays ? `${filled}` : undefined}
+        onClick={() => navigate("/diary-cards")} />
+    </Section>
+  );
+}
+
+// Analytics embeds — the real analytics components, scoped to a window.
+function EmotionAnalyticsWidget({ settings }) {
+  const tr = useT();
+  const days = parseInt(settings?.days, 10) || 30;
+  const to = React.useMemo(() => new Date(), []);
+  const from = React.useMemo(() => new Date(Date.now() - days * 86400000), [days]);
+  return (
+    <Section label={tr("widget.emotionAnalytics.label")}>
+      <div className="min-h-0">
+        <EmotionAnalytics from={from} to={to} />
+      </div>
+    </Section>
+  );
+}
+
+function SymptomAnalyticsWidget({ settings }) {
+  const tr = useT();
+  const days = parseInt(settings?.days, 10) || 30;
+  const endDate = React.useMemo(() => new Date(), []);
+  const startDate = React.useMemo(() => new Date(Date.now() - days * 86400000), [days]);
+  return (
+    <Section label={tr("widget.symptomAnalytics.label")}>
+      <div className="min-h-0">
+        <SymptomAnalytics startDate={startDate} endDate={endDate} />
+      </div>
+    </Section>
+  );
+}
+
 export const V2_WIDGETS = {
   presence: {
     label: "Who's here", description: "Current {{fronters}}, with time since each arrived. Tap = their check-in panel inline; double-tap = the action menu; press-and-hold = the {{fronting}}-level spectrum.",
@@ -1844,6 +2006,50 @@ export const V2_WIDGETS = {
     render: ({ settings }) => <RecentWidget settings={settings} />,
     supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
+  },
+  log_emotion: {
+    label: "Log a feeling", description: "The emotion picker, right on the page \u2014 pick and save without opening the check-in.",
+    icon: Smile, category: "tracking",
+    render: ({ mode, settings }) => <LogEmotionWidget mode={mode} settings={settings} />,
+    supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  log_symptom: {
+    label: "Log symptoms", description: "One-tap logging for the symptoms you track most.",
+    icon: Activity, category: "tracking",
+    render: ({ settings }) => <LogSymptomWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "symptomIds", type: "symptoms", label: "Which symptoms" },
+    ],
+    defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 3, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  diary_card: {
+    label: "Diary card", description: "Whether today's diary card is started, and a way in.",
+    icon: ClipboardList, category: "tracking",
+    render: () => <DiaryCardWidget />,
+    supportsModes: ["normal"], supportsMultiInstance: false,
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+  },
+  emotion_analytics: {
+    label: "Feelings analytics", description: "Your emotion patterns over a window you choose.",
+    icon: Smile, category: "analytics",
+    render: ({ settings }) => <EmotionAnalyticsWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "days", type: "number", label: "Days to include", min: 7, max: 365, default: 30 },
+    ],
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  symptom_analytics: {
+    label: "Symptom analytics", description: "Symptom frequency and intensity over a window you choose.",
+    icon: Activity, category: "analytics",
+    render: ({ settings }) => <SymptomAnalyticsWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "days", type: "number", label: "Days to include", min: 7, max: 365, default: 30 },
+    ],
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   capture: {
     label: "Capture", description: "One-tap buttons for the things you log most.",

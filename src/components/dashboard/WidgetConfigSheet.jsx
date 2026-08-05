@@ -18,7 +18,7 @@
 
 import React from "react";
 import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
-import { APP_FONT_OPTIONS } from "@/lib/useAccessibility";
+import { useFontOptions } from "@/lib/useFontOptions";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -27,12 +27,13 @@ import { HOME_MODES, effectiveMode } from "@/lib/experimentalHome";
 import { HOME_STYLES } from "@/lib/homeStyles";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { useTheme } from "@/lib/ThemeContext";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { buildGridItems } from "@/lib/navCatalogue";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
-import { pickLook, mergeLook, lookToStyle, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
+import { pickLook, mergeLook, lookToStyle, themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
 import { getStyleShell } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
@@ -225,7 +226,14 @@ const DYNAMIC_SOURCES = {
     },
     searchPlaceholder: "Search journals…",
   },
+  symptoms: {
+    queryKey: ["symptoms"],
+    queryFn: () => base44.entities.Symptom.list(),
+    toOptions: (rows) => rows.filter((x) => !x.is_archived).map((x) => ({ id: x.id, label: x.label || x.name || "Symptom" })),
+    searchPlaceholder: "Search symptoms…",
+  },
   boards: {
+    fallback: ["system"],
     queryKey: ["groups"],
     queryFn: () => base44.entities.Group.list(),
     toOptions: (rows, terms) => [
@@ -258,14 +266,17 @@ function DynamicMultiField({ field, value = [], onChange, terms }) {
   const src = DYNAMIC_SOURCES[field.source];
   const { data: rows = [] } = useQuery({ queryKey: src.queryKey, queryFn: src.queryFn });
   const options = src.toOptions(rows, terms);
+  // Some multi-fields must always hold something (a board widget with no
+  // board is nothing); others treat empty as "use the default set".
+  const fallback = field.fallback ?? src.fallback ?? [];
+  const current = value.length ? value : fallback;
   return (
     <SearchableMultiList
       options={options}
-      selectedIds={value.length ? value : ["system"]}
+      selectedIds={current}
       onToggle={(id) => {
-        const cur = value.length ? value : ["system"];
-        const next = cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id];
-        onChange(next.length ? next : ["system"]);
+        const next = current.includes(id) ? current.filter((x) => x !== id) : [...current, id];
+        onChange(next.length ? next : fallback);
       }}
       searchPlaceholder={src.searchPlaceholder}
     />
@@ -317,6 +328,16 @@ export default function WidgetConfigSheet({
   }, [open, peek, widget]);
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
+  const fontOptions = useFontOptions();
+  // Classic Appearance themes, offered as widget looks.
+  const { allPresets = {}, userCustomPresets = {} } = useTheme() || {};
+  // Which half of a theme to translate — the live document class is the
+  // honest signal (themeMode can be "system").
+  const isDarkMode = typeof document !== "undefined" && document.documentElement.classList.contains("dark");
+  const themeLookEntries = React.useMemo(() => [
+    ...Object.entries(userCustomPresets).map(([name, preset]) => ({ name, preset, mine: true })),
+    ...Object.entries(allPresets).map(([name, preset]) => ({ name, preset, mine: false })),
+  ].filter(({ preset }) => preset && (preset.light || preset.dark)), [allPresets, userCustomPresets]);
   const t = useTerms();
   if (!open) return null;
 
@@ -470,6 +491,10 @@ export default function WidgetConfigSheet({
                 {f.type === "dynamicSelect" && (
                   <DynamicSelectField field={f} value={val} onChange={commit} />
                 )}
+                {f.type === "symptoms" && (
+                  <DynamicMultiField field={{ ...f, source: "symptoms" }} value={Array.isArray(val) ? val : []}
+                    onChange={commit} terms={t} />
+                )}
                 {f.type === "dynamicMulti" && (
                   <DynamicMultiField field={f} value={Array.isArray(val) ? val : []} onChange={commit} terms={t} />
                 )}
@@ -510,10 +535,9 @@ export default function WidgetConfigSheet({
               <SearchableSelect
                 value={settings.font || ""}
                 onChange={(v) => onSettings(widget.instanceId, { font: v || "" })}
-                options={[
-                  { id: "", label: "Use the app font" },
-                  ...APP_FONT_OPTIONS.map((f) => ({ id: f.value, label: f.label })),
-                ]}
+                // Includes the user's own uploaded fonts, not just the
+                // built-in catalogue (owner rule).
+                options={fontOptions}
                 placeholder="Use the app font"
                 searchPlaceholder="Search fonts…"
                 renderOption={(o) => (
@@ -771,6 +795,34 @@ export default function WidgetConfigSheet({
                 <span className="font-medium">Inherit page style</span>
                 <span className="text-xs text-muted-foreground block">Currently “{pageStyleLabel}”</span>
               </button>
+              {/* The user's app themes, translated into widget looks
+                  (owner request). Applying one writes the look onto this
+                  widget, so it stays tweakable afterwards. */}
+              {themeLookEntries.length > 0 && (
+                <>
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                    From your app themes
+                  </p>
+                  {themeLookEntries.map(({ name, preset, mine }) => (
+                    <button
+                      key={`theme_${name}`}
+                      type="button"
+                      onClick={() => onSettings(widget.instanceId, { ...themeToLook(preset, isDarkMode), style: "" })}
+                      className="w-full text-left px-3 py-2 rounded-lg border border-border/40 hover:border-border text-sm transition-all flex items-center gap-2.5"
+                    >
+                      <span className="w-6 h-6 rounded-md border border-border/50 flex-shrink-0"
+                        style={{ backgroundImage: `linear-gradient(135deg, ${(preset.dark || preset.light)?.surface || "#222"}, ${(preset.dark || preset.light)?.primary || "#888"})` }} />
+                      <span className="min-w-0">
+                        <span className="font-medium capitalize block truncate">{name}</span>
+                        <span className="text-xs text-muted-foreground block">{mine ? "Your theme" : "Built-in theme"}</span>
+                      </span>
+                    </button>
+                  ))}
+                  <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground pt-2">
+                    Widget styles
+                  </p>
+                </>
+              )}
               {HOME_STYLES.map((s) => (
                 <button
                   key={s.id}

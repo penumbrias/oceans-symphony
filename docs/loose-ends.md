@@ -44,6 +44,13 @@ new one, add it. Update the date line above whenever you touch this file.*
   (picker overlay + menu dropdown cover that case; rail rows beyond the
   screen are pickable only blind). Consider scaling row height when
   railH > viewport.
+- [ ] **Widget catalogue follow-ups (v0.124.0 added 5):** still missing
+  activity/plan analytics embeds, a weekly-grid widget, timeline strip,
+  goals, locations, reminders-inbox. Check-in parity: the quick check-in
+  also has Company/Location/Note steps with no widget yet.
+- [ ] **Font pickers:** widget options + profile style now offer uploaded
+  fonts; ProfileStyleEditor still uses a raw <select> (house rule says
+  SearchableSelect) — convert when touched.
 - [ ] **dockPos syncs across devices** but is arguably per-device (a phone
   edge position makes little sense on a monitor). Layouts are already
   per-device; consider `dockPos` → device-class keyed like `ui_v2_home*`.
