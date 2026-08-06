@@ -335,9 +335,17 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           title={settingsRow?.system_name || terms.System}>
           {settingsRow?.system_name || terms.System}
         </button>
-        <button type="button" onClick={() => navigate("/")}
+        {/* Who's here → the Set Fronters window. The Dashboard hosts the
+            sheet, so away from home this navigates in with the action
+            param — same route the quick-action key takes. */}
+        <button type="button"
+          onClick={() => {
+            if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-set-front"));
+            else navigate("/?action=set-front");
+          }}
           className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground"
-          aria-label={presenceText}>
+          aria-label={`${presenceText} — ${applyTerms(t("capture.front"), terms)}`}
+          title={applyTerms(t("capture.front"), terms)}>
           <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
             style={{ background: fronters.length ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />
           <span className="truncate">{presenceText}</span>
