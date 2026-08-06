@@ -134,6 +134,13 @@ new one, add it. Update the date line above whenever you touch this file.*
   unkeyed. Fine while translations don't exist; becomes the long pole the day
   a locale lands.
 
+- [ ] **Portal-to-body trap (bit us in v0.133.7→.8):** anything portaled to
+  document.body whose ROOT element is `.fixed` gets pointer-events force-
+  enabled by the vaul guard rule (`body > .fixed {{ pointer-events: auto }}`
+  in index.css) — an invisible closed overlay then eats every touch. Always
+  wrap body portals in a plain non-fixed div. Check this FIRST when "nothing
+  scrolls / nothing taps" appears after adding an overlay.
+
 ## Standing rules distilled this cycle (also in Claude's memory)
 
 - Widgets are **building blocks**: a classic component converted to a widget
