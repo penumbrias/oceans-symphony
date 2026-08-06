@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: swiping between home pages works from anywhere again \u2014 widgets were swallowing the swipe. Sideways-scrolling widgets (the week grid, pinned alters) still scroll themselves, and up-down stays a scroll." },
       { type: "fix", text: "Guided breathing really does open on a growing inhale now \u2014 the previous fix had quietly fast-forwarded the first breath, so the first visible motion was still the exhale." },
       { type: "fix", text: "Guided breathing: the first step no longer starts oversized and shrinking (an inhale that looked like an exhale spilling out of the widget) \u2014 the circle is sized right from its very first frame, and resizing the widget snaps it instantly instead of drifting." },
       { type: "improve", text: "Custom-field layout is per profile now: the small chip beside a profile's Info heading cycles Stacked / Side by side / One line for that alter alone. The old system-wide switch left Settings; existing choices stay as each profile's starting point." },

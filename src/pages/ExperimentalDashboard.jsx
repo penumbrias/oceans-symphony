@@ -726,6 +726,47 @@ export default function ExperimentalDashboard({
     onPointerLeave: cancelHold,
   };
 
+  // ── Page-swipe detection (owner report: "the widgets are blocking me
+  // from scrolling between home screens"). Plain pointer tracking on the
+  // page wrapper: a clearly horizontal move flips the page. Gestures that
+  // belong to something else bow out: presses inside an element that can
+  // actually scroll sideways (the week grid, the pinned strip), inside a
+  // hold-owning element, or in a typing field.
+  const pageSwipe = useRef(null);
+  const canScrollSideways = (start, container) => {
+    let n = start;
+    while (n && n !== container) {
+      if (n.scrollWidth > n.clientWidth + 4) {
+        const o = getComputedStyle(n).overflowX;
+        if (o === "auto" || o === "scroll") return true;
+      }
+      n = n.parentElement;
+    }
+    return false;
+  };
+  const pageSwipeHandlers = {
+    onPointerDown: (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest?.("[data-own-hold], input, textarea, select, [contenteditable='true']")) return;
+      if (canScrollSideways(e.target, e.currentTarget)) return;
+      pageSwipe.current = { x: e.clientX, y: e.clientY, dead: false };
+    },
+    onPointerMove: (e) => {
+      const g = pageSwipe.current;
+      if (!g || g.dead) return;
+      const dx = e.clientX - g.x;
+      const dy = e.clientY - g.y;
+      // Vertical intent first → it's a scroll; leave it alone for good.
+      if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
+      if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+        g.dead = true;
+        goToPage(pageIdx + (dx < 0 ? 1 : -1));
+      }
+    },
+    onPointerUp: () => { pageSwipe.current = null; },
+    onPointerCancel: () => { pageSwipe.current = null; },
+  };
+
   const canvas = (
     <div
       ref={gridRef}
@@ -1001,8 +1042,12 @@ export default function ExperimentalDashboard({
       {a11yStack ? (
         canvas
       ) : !editMode ? (
-        // Swipe between pages (finger drag or trackpad); the key remount
-        // plays a directional slide when the page changes via dots too.
+        // Swipe between pages; the key remount plays a directional slide
+        // when the page changes via dots too. The swipe is detected by the
+        // pointer handlers below rather than framer's drag: a board full of
+        // widgets is a board full of scroll containers and gesture
+        // surfaces, and the drag gesture lost to every one of them — the
+        // manual detector only needs pointer events, which nothing eats.
         <motion.div
           key={page.id}
           // min-height so swipes register on the empty space of sparse pages,
@@ -1014,18 +1059,7 @@ export default function ExperimentalDashboard({
           initial={swipeDir === 0 ? false : { x: swipeDir * 72, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          {...(home.pages.length > 1
-            ? {
-                drag: "x",
-                dragDirectionLock: true,
-                dragConstraints: { left: 0, right: 0 },
-                dragElastic: 0.12,
-                onDragEnd: (_e, info) => {
-                  if (info.offset.x < -60 || info.velocity.x < -500) goToPage(pageIdx + 1);
-                  else if (info.offset.x > 60 || info.velocity.x > 500) goToPage(pageIdx - 1);
-                },
-              }
-            : {})}
+          {...(home.pages.length > 1 ? pageSwipeHandlers : {})}
         >
           {canvas}
         </motion.div>
