@@ -133,8 +133,18 @@ body {
    Settings → Accessibility. */
 @media (max-width: 1023px) {
   .app-content-main {
-    padding-bottom: calc(var(--bottom-nav-height, 56px) + 16px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
   }
+}
+
+/* UI v2's bottom bar is fixed at EVERY width (it only steps aside for the
+   desktop rail), so its clearance can't hang off the phone breakpoint the
+   way the classic bottom nav's does. --bottom-nav-height tracks the bar's
+   measured height, so this also grows when the quick-actions drawer is
+   pulled open — which is when the bar used to cover the last rows of a
+   page. */
+[data-ui-v2="1"] .app-content-main {
+  padding-bottom: calc(var(--bottom-nav-height, 56px) + 24px + env(safe-area-inset-bottom, 0px)) !important;
 }
 
 /* Text-effect keyframes for the formatting toolbar's "fun" effects.

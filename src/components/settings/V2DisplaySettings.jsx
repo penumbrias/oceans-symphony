@@ -17,11 +17,13 @@ import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { confirm } from "@/components/shared/ConfirmDialog";
-import { resolveUiV2, V2_TOKEN_DEFS } from "@/lib/uiV2";
+import { resolveUiV2, V2_TOKEN_DEFS, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 import { setAccessibilityFontSize } from "@/lib/useAccessibility";
 import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
 import { requestHomeAction } from "@/components/v2/V2Frame";
+import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 const LOOK_IDS = ["accent", "density", "radius", "borderW"];
 
@@ -113,6 +115,7 @@ function useV2Display() {
     enabled, uiV2, write,
     setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
     setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
+    setCommandKeys: (keys) => write({ commandKeys: keys }),
   };
 }
 
@@ -151,6 +154,7 @@ export function V2LayoutControls() {
   const navigate = useNavigate();
   const location = useLocation();
   const v2 = useV2Display();
+  const terms = useTerms();
   const appsIconUrl = useResolvedAvatarUrl(v2.uiV2.appsIcon || "");
   if (!v2.enabled) return null;
 
@@ -181,6 +185,46 @@ export function V2LayoutControls() {
             </label>
           ))}
           {!v2.uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
+        </div>
+      </SubSection>
+
+      {/* Which keys the quick-actions row holds, and in what order. */}
+      <SubSection title={t("options.sectionQuickActions")}>
+        <p className="text-[0.6875rem] text-muted-foreground pb-1">{t("options.quickActionsHint")}</p>
+        <div className="space-y-1">
+          {V2_COMMAND_KEYS.map((k) => {
+            const on = v2.uiV2.commandKeys.includes(k.id);
+            const idx = v2.uiV2.commandKeys.indexOf(k.id);
+            const move = (dir) => {
+              const next = [...v2.uiV2.commandKeys];
+              const to = idx + dir;
+              if (to < 0 || to >= next.length) return;
+              [next[idx], next[to]] = [next[to], next[idx]];
+              v2.setCommandKeys(next);
+            };
+            return (
+              <div key={k.id} className="flex items-center gap-2 py-1">
+                <label className="flex items-center gap-2 flex-1 min-w-0 text-xs font-medium cursor-pointer">
+                  <input type="checkbox" checked={on}
+                    onChange={(e) => v2.setCommandKeys(e.target.checked
+                      ? [...v2.uiV2.commandKeys, k.id]
+                      : v2.uiV2.commandKeys.filter((x) => x !== k.id))}
+                    className="w-4 h-4 rounded accent-primary" aria-label={applyTerms(k.label, terms)} />
+                  <span className="truncate">{applyTerms(k.label, terms)}</span>
+                </label>
+                {on && (
+                  <span className="flex gap-1 flex-shrink-0">
+                    <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
+                      aria-label={`Move ${applyTerms(k.label, terms)} earlier`}
+                      className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+                    <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
+                      aria-label={`Move ${applyTerms(k.label, terms)} later`}
+                      className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+                  </span>
+                )}
+              </div>
+            );
+          })}
         </div>
       </SubSection>
 

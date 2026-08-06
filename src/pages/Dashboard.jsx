@@ -352,6 +352,15 @@ export default function Dashboard() {
   const [holdProgress, setHoldProgress] = useState(0);
   const [showQuickActions, setShowQuickActions] = useState(false);
 
+  // The v2 frame (apps button / any quick-action key, held) asks for the
+  // saved Quick Actions menu through this event — same menu the classic
+  // long-press opens.
+  useEffect(() => {
+    const open = () => { showQuickActionsRef.current = true; setShowQuickActions(true); };
+    window.addEventListener("open-quick-actions", open);
+    return () => window.removeEventListener("open-quick-actions", open);
+  }, []);
+
   // Native home-screen shortcut deep-links here with ?openQuickActions=1.
   // Auto-trigger the in-app Quick Actions overlay so the long-press is
   // unnecessary — same UI, OS-level entry point.
@@ -830,7 +839,10 @@ export default function Dashboard() {
       quickTask: () => setShowQuickTask(true),
       quickPlan: () => setShowQuickPlan(true),
     },
-    quickActionsSlot: (
+    // In v2 the menu is hosted at page level (below) instead of inside the
+    // quick-checkin widget — that widget may not be on the board at all,
+    // which is why the new UI had no way to reach saved quick actions.
+    quickActionsSlot: uiV2On ? null : (
       <AnimatePresence>
         {showQuickActions && (
           <QuickActionsMenu
@@ -845,6 +857,27 @@ export default function Dashboard() {
 
   return (
     <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="pt-0 sm:pt-0">
+
+      {/* Saved Quick Actions in the new UI — opened by holding the apps
+          button or any quick-action key. The menu anchors below this
+          zero-height rail; the rail itself lets taps through so tapping
+          away still closes it and still reaches the page. */}
+      {uiV2On && (
+        <AnimatePresence>
+          {showQuickActions && (
+            <div className="fixed inset-x-0 z-[120] pointer-events-none"
+              style={{ top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 8px)" }}>
+              <div className="relative mx-auto w-[min(20rem,calc(100vw-1.5rem))] pointer-events-auto">
+                <QuickActionsMenu
+                  actions={sortedQuickActions}
+                  onAction={executeQuickAction}
+                  onClose={() => { showQuickActionsRef.current = false; setShowQuickActions(false); }}
+                />
+              </div>
+            </div>
+          )}
+        </AnimatePresence>
+      )}
 
       {!uiV2On && !experimentalOn && (
       <div className="mb-3 flex items-start justify-between">

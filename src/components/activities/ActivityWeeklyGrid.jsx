@@ -155,28 +155,68 @@ export default function ActivityWeeklyGrid({
   // filter row is hidden there and the grid draws straight away. The
   // tracker page never passes this.
   hideControls = false,
+  // Stretch the day columns to fill the container instead of using the
+  // saved pixel width — a tile is as wide as the user made it, and a
+  // single day should own that width rather than leaving a gap.
+  fitWidth = false,
+  // Controlled display settings. The widget keeps these in its own config
+  // (so they live with the rest of its options) and passes them down; the
+  // tracker page passes nothing and keeps its own local state.
+  display = null, // { showEmotions, showAlters, showQuickPlans, rowH, interval, timeFmt, weekStartsOn }
 }) {
-  const [rowH,         setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
-  const [colW,         setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
-  const [gridInterval, setGridInterval] = useState(() => lsGet(LS_INTERVAL,   60));
-  const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
-  const [timeFmt,      setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
+  const [rowHLocal,    setRowH]         = useState(() => lsGet(LS_ROW_H,      40));
+  const [colWLocal,    setColW]         = useState(() => lsGet(LS_COL_W,      defaultColWidth()));
+  const [gridIntervalLocal, setGridInterval] = useState(() => lsGet(LS_INTERVAL,   60));
+  const [weekStartsOnLocal, setWeekStartsOn] = useState(() => lsGet(LS_WEEK_START, 0));
+  const [timeFmtLocal, setTimeFmt]      = useState(() => lsGet(LS_TIME_FMT,   "24"));
   const [tickMode,     setTickMode]     = useState(() => lsGet(LS_TICK_MODE,  "auto"));
 
   const navigate = useNavigate();
+  // A controlled value wins; otherwise the grid's own (persisted) one.
+  const pick = (key, local) => (display && display[key] !== undefined && display[key] !== null ? display[key] : local);
   const [currentTime, setCurrentTime] = useState(() => new Date());
   useEffect(() => {
     const timer = setInterval(() => setCurrentTime(new Date()), 60000);
     return () => clearInterval(timer);
   }, []);
 
-  const [showAlters,     setShowAlters]     = useState(false);
-  const [showEmotions,   setShowEmotions]   = useState(false);
+  const [showAltersLocal,   setShowAlters]   = useState(false);
+  const [showEmotionsLocal, setShowEmotions] = useState(false);
   const [showSettings,   setShowSettings]   = useState(false);
   // Quick plans (date-only plans) overlay as pills. Persist the
   // visibility toggle so the user's preference survives reloads.
-  const [showQuickPlans, setShowQuickPlans] = useState(() => lsGet("symphony_act_quick_plans", true));
-  useEffect(() => { lsSet("symphony_act_quick_plans", showQuickPlans); }, [showQuickPlans]);
+  const [showQuickPlansLocal, setShowQuickPlans] = useState(() => lsGet("symphony_act_quick_plans", true));
+  useEffect(() => { lsSet("symphony_act_quick_plans", showQuickPlansLocal); }, [showQuickPlansLocal]);
+
+  // Fit-to-width: measure the grid and divide what's left after the time
+  // gutter between the day columns.
+  const [fittedColW, setFittedColW] = useState(null);
+  useEffect(() => {
+    if (!fitWidth) { setFittedColW(null); return undefined; }
+    const el = gridRef.current;
+    if (!el) return undefined;
+    const measure = () => {
+      const gutter = el.firstElementChild?.getBoundingClientRect().width || 56;
+      const usable = el.getBoundingClientRect().width - gutter - 2;
+      if (usable > 0) setFittedColW(Math.max(28, Math.floor(usable / Math.max(1, weekDays.length))));
+    };
+    measure();
+    if (typeof ResizeObserver === "undefined") return undefined;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [fitWidth, weekDays.length]);
+  // What the grid actually draws with: the widget's config when it supplies
+  // one, the user's saved grid settings otherwise.
+  const showQuickPlans = pick("showQuickPlans", showQuickPlansLocal);
+  const showAlters = pick("showAlters", showAltersLocal);
+  const showEmotions = pick("showEmotions", showEmotionsLocal);
+  const rowH = pick("rowH", rowHLocal);
+  const gridInterval = pick("interval", gridIntervalLocal);
+  const timeFmt = pick("timeFmt", timeFmtLocal);
+  const weekStartsOn = pick("weekStartsOn", weekStartsOnLocal);
+  const colW = fittedColW ?? colWLocal;
+
   const [pendingStart,   setPendingStart]   = useState(null);
   const [hoveredCell,    setHoveredCell]    = useState(null);
   // Long-press-drag selection state. When the user holds an empty
@@ -238,8 +278,8 @@ export default function ActivityWeeklyGrid({
   const [quickPlanDayPopup, setQuickPlanDayPopup] = useState(null);
   const quickPlanTapRef = useRef({ id: null, time: 0 });
 
-  useEffect(() => { lsSet(LS_ROW_H,      rowH);         }, [rowH]);
-  useEffect(() => { lsSet(LS_COL_W,      colW);         }, [colW]);
+  useEffect(() => { lsSet(LS_ROW_H,      rowHLocal);         }, [rowHLocal]);
+  useEffect(() => { lsSet(LS_COL_W,      colWLocal);         }, [colWLocal]);
 
   // Pinch-to-zoom — native listener with { passive: false } so
   // preventDefault on touchmove actually stops the browser's page
@@ -309,9 +349,9 @@ export default function ActivityWeeklyGrid({
     };
   }, []);
 
-  useEffect(() => { lsSet(LS_INTERVAL,   gridInterval); }, [gridInterval]);
-  useEffect(() => { lsSet(LS_WEEK_START, weekStartsOn); }, [weekStartsOn]);
-  useEffect(() => { lsSet(LS_TIME_FMT,   timeFmt);      }, [timeFmt]);
+  useEffect(() => { lsSet(LS_INTERVAL,   gridIntervalLocal); }, [gridIntervalLocal]);
+  useEffect(() => { lsSet(LS_WEEK_START, weekStartsOnLocal); }, [weekStartsOnLocal]);
+  useEffect(() => { lsSet(LS_TIME_FMT,   timeFmtLocal);      }, [timeFmtLocal]);
   useEffect(() => { lsSet(LS_TICK_MODE,  tickMode);     }, [tickMode]);
 
   const { data: emotionCheckIns = [] } = useQuery({
@@ -942,7 +982,7 @@ if (isSameCell) {
       <div
         ref={gridRef}
         className="border border-border rounded-lg overflow-hidden flex"
-        style={{ maxWidth: "100vw", touchAction: dragSelectActive ? "none" : "pan-x pan-y" }}
+        style={{ maxWidth: fitWidth ? "100%" : "100vw", touchAction: dragSelectActive ? "none" : "pan-x pan-y" }}
       >
         {/* Fixed time column */}
         <div className="flex-shrink-0 bg-muted border-r border-border flex flex-col z-10">

@@ -20,6 +20,12 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the activity grids now fill the width of their widget instead of leaving a gap, and their display settings (feelings, fronters, plans with no set time, row height, time steps, clock) moved into the widget's own options." },
+      { type: "feature", text: "Press and hold a day in the month or year view, then drag across days, to plan something spanning that whole stretch \u2014 the same gesture as dragging over hours in the week grid. Works on the Activity tracker and in the widgets." },
+      { type: "improve", text: "\ud83e\uddea New UI: pages, the sidebar and popups now reserve the real height of the bottom bar, so nothing hides behind it when the quick-actions row is open." },
+      { type: "improve", text: "\ud83e\uddea New UI: the quick-actions row can be configured \u2014 pick which keys it holds and their order in Display options. Plan and Set fronters are now included by default." },
+      { type: "feature", text: "\ud83e\uddea New UI: your saved quick actions are back \u2014 press and hold the apps button (or any quick-action key) to open them." },
+      { type: "improve", text: "\ud83e\uddea New UI: small widgets no longer take a full-size card in the Add-widget list \u2014 they're laid out as a compact grid." },
       { type: "feature", text: "\ud83e\uddea New UI: every quick-action key is now its own widget \u2014 check-in, quick note, start an activity, start a symptom, new to-do, new plan, set fronters, support. Put the ones you use on the board and hide the action bar if you'd rather." },
       { type: "improve", text: "\ud83e\uddea New UI: the activity widgets are a real way in to planning \u2014 every mode above minimal has a \"+ Plan\" (and \"Log\" when expanded) in its header, and the grids take the tracker's own tap and drag-a-range gestures." },
       { type: "feature", text: "\ud83e\uddea New UI: a Day view widget \u2014 the activity tracker's own day view (quick plans on top, quiet stretches folded away, entries as pills), on your home screen. The existing Day grid widget stays as the hour-by-hour column." },

@@ -5,6 +5,7 @@ import {
 } from "date-fns";
 import { countableMinutes, statusFor, visualForStatus, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { datesForDay } from "@/lib/importantDates";
+import useDayRangeDrag from "@/lib/useDayRangeDrag";
 
 /**
  * Calendar-grid view of a single month. Each day cell shows colored bars or
@@ -21,7 +22,12 @@ export default function ActivityMonthView({
   onDayClick,
   onActivityClick,
   importantDates = [],
+  // Press-and-hold a day then drag across days to select a span; release
+  // fires this with (firstDay, lastDay). Same gesture as the week grid's
+  // time-block selection, one zoom level out.
+  onRangeSelect,
 }) {
+  const drag = useDayRangeDrag({ onRangeSelect, enabled: typeof onRangeSelect === "function" });
   const monthStart = startOfMonth(monthDate);
   const monthEnd = endOfMonth(monthDate);
   const gridStart = startOfWeek(monthStart, { weekStartsOn });
@@ -73,9 +79,13 @@ export default function ActivityMonthView({
             <button
               key={key}
               type="button"
-              onClick={() => onDayClick?.(d)}
-              className={`relative text-left border-b border-r border-border/40 p-1.5 min-h-[72px] transition-colors hover:bg-accent/40 ${inMonth ? "" : "bg-muted/20"}`}
-              style={intensity > 0 ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.18})` } : undefined}
+              {...drag.cellProps(d)}
+              onClick={() => { if (!drag.suppressClick()) onDayClick?.(d); }}
+              className={`relative text-left border-b border-r border-border/40 p-1.5 min-h-[72px] transition-colors hover:bg-accent/40 ${inMonth ? "" : "bg-muted/20"} ${drag.inRange(d) ? "ring-2 ring-inset ring-primary/70" : ""}`}
+              style={{
+                ...(intensity > 0 ? { backgroundColor: `hsl(var(--primary) / ${0.06 + intensity * 0.18})` } : null),
+                ...(drag.dragging ? { touchAction: "none" } : null),
+              }}
             >
               <div className="flex items-center justify-between mb-1">
                 <span className={`text-xs font-semibold tabular-nums ${inMonth ? "text-foreground" : "text-muted-foreground/50"} ${today ? "bg-primary text-primary-foreground rounded-full w-5 h-5 inline-flex items-center justify-center" : ""}`}>

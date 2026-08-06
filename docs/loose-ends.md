@@ -149,6 +149,18 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Done (this cycle, for orientation)
 
+- v0.130.0: bottom-chrome clearance is now MEASURED — `V2BottomChrome`
+  publishes `--v2-bottom-chrome-h` (minus its safe-area padding) via a
+  ResizeObserver and `--bottom-nav-height` reads it, so every consumer
+  (page content at all widths, sidebar, sheets, floating buttons, dock
+  clamp) tracks the bar including the open quick-actions drawer. Also:
+  grid fit-to-width + controlled `display` props (widget config owns the
+  filters), `useDayRangeDrag` for month/year multi-day plan spans,
+  configurable command keys (+ plan/set-front by default), saved Quick
+  Actions reachable by holding the apps button or any key (hosted at
+  Dashboard level in v2 — it used to live inside the quick-checkin widget,
+  which a v2 board may not have), compact picker cards for key-sized
+  widgets.
 - v0.128.0: page-sized widgets — activity week/day/month/year (expanded =
   the tracker's real gestures via a shared modal host in
   `src/v2/activityWidgets.jsx`), timeline + day summary + check-in log +

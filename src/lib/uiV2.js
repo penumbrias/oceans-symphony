@@ -24,7 +24,10 @@ export const DEFAULT_UI_V2 = {
   // null = the dockSide token's edge at mid-height.
   dockPos: null,
   registerOrder: null, // null = catalogue order
-  commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task"],
+  // Every key the bar can hold; the user picks which in Display options →
+  // Quick actions. Plan and Set-front ship on by default because they were
+  // the two people went looking for first.
+  commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task", "quick_plan", "set_front"],
   tokens: {}, // { [tokenId]: value } — only overrides are stored
   // Per-bar visibility. When the top bar is off, a small floating button
   // keeps Display options reachable so no combination can strand the user.

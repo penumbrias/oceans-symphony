@@ -33,6 +33,24 @@ import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
 
+// The grid's display filters and sizing live in the WIDGET's options (gear
+// menu), not buried in a toolbar inside the tile. Only keys the user
+// actually set are passed down; the rest fall back to their saved
+// Activity-tracker settings.
+function displayFromSettings(settings = {}) {
+  const out = {};
+  for (const k of ["showEmotions", "showAlters", "showQuickPlans"]) {
+    if (typeof settings[k] === "boolean") out[k] = settings[k];
+  }
+  if (settings.rowH) out.rowH = Math.max(6, Math.min(80, parseInt(settings.rowH, 10) || 40));
+  if (settings.interval) out.interval = parseInt(settings.interval, 10) || 60;
+  if (settings.timeFmt) out.timeFmt = settings.timeFmt;
+  if (settings.weekStartsOn !== undefined && settings.weekStartsOn !== "") {
+    out.weekStartsOn = parseInt(settings.weekStartsOn, 10) || 0;
+  }
+  return Object.keys(out).length ? out : null;
+}
+
 const lsGet = (key, fallback) => {
   try { const v = localStorage.getItem(key); return v !== null ? JSON.parse(v) : fallback; }
   catch { return fallback; }
@@ -141,6 +159,14 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
 
   // Explicit openers for the widget header, so scheduling doesn't depend on
   // discovering the grid's double-tap.
+  // A dragged span of days becomes one plan from the first to the last —
+  // the calendar equivalent of dragging a block of hours.
+  const openPlanRange = (from, to) => {
+    if (!enabled) return;
+    setRange({ date: from, endDate: to || from, startHour: undefined, endHour: undefined, startMinute: 0, endMinute: 0 });
+    setEditingPlan(null);
+    setPlanOpen(true);
+  };
   const openPlan = (day) => {
     if (!enabled) return;
     const d = day || new Date();
@@ -157,7 +183,7 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
     setLogOpen(true);
   };
 
-  return { onTimeRangeSelect, onActivityClick, onEditPlan, setZoomedDate, openPlan, openLog, elements };
+  return { onTimeRangeSelect, onActivityClick, onEditPlan, setZoomedDate, openPlan, openPlanRange, openLog, elements };
 }
 
 // ── Text summaries (minimal mode) ──────────────────────────────────
@@ -258,10 +284,12 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
   const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
 
+  const cfgWeekStart = settings?.weekStartsOn !== undefined && settings?.weekStartsOn !== ""
+    ? parseInt(settings.weekStartsOn, 10) || 0 : null;
   const weekDays = useMemo(() => {
-    const start = startOfWeek(anchor, { weekStartsOn });
+    const start = startOfWeek(anchor, { weekStartsOn: cfgWeekStart ?? weekStartsOn });
     return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [anchor, weekStartsOn]);
+  }, [anchor, weekStartsOn, cfgWeekStart]);
   const atNow = weekDays.some((d) => isSameDay(d, new Date()));
 
   const nav = (
@@ -298,7 +326,9 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
             addMode={interactive ? addMode : false}
             onToggleAddMode={interactive ? () => setAddMode((v) => !v) : undefined}
             onWeekStartChange={setWeekStartsOn}
-            hideControls={mode !== "expanded"}
+            hideControls
+            fitWidth
+            display={displayFromSettings(settings)}
             onDayClick={interactive ? modals.setZoomedDate : undefined}
             onEditPlan={interactive ? modals.onEditPlan : undefined}
           />
@@ -366,7 +396,9 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
             onTimeRangeSelect={interactive ? modals.onTimeRangeSelect : undefined}
             addMode={interactive ? addMode : false}
             onToggleAddMode={interactive ? () => setAddMode((v) => !v) : undefined}
-            hideControls={mode !== "expanded"}
+            hideControls
+            fitWidth
+            display={displayFromSettings(settings)}
             onDayClick={interactive ? modals.setZoomedDate : undefined}
             onEditPlan={interactive ? modals.onEditPlan : undefined}
           />
@@ -488,6 +520,7 @@ export function ActivityMonthWidget({ mode = "normal", settings }) {
           importantDates={importantDates}
           onActivityClick={modals.onActivityClick}
           onDayClick={interactive ? modals.setZoomedDate : undefined}
+          onRangeSelect={interactive ? modals.openPlanRange : undefined}
         />
       </div>
       {modals.elements}
@@ -541,6 +574,7 @@ export function ActivityYearWidget({ mode = "normal", settings }) {
           weekStartsOn={weekStartsOn}
           onMonthClick={interactive ? (d) => setAnchor(d) : undefined}
           onDayClick={interactive ? modals.setZoomedDate : undefined}
+          onRangeSelect={interactive ? modals.openPlanRange : undefined}
         />
       </div>
       {modals.elements}

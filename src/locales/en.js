@@ -89,6 +89,8 @@ export default {
   "capture.plan": "Plan",
   "capture.front": "{{Front}}",
   "capture.support": "Support",
+  "options.sectionQuickActions": "Quick actions",
+  "options.quickActionsHint": "Which keys the quick-actions row holds, and in what order. Press and hold any of them (or the apps button) for your own saved quick actions.",
 
   // ── Widgets ──
   "widget.presence.label": "Who's here",

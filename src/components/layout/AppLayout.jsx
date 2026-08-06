@@ -536,11 +536,13 @@ const handleNotifClick = (mentionLog) => {
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
       style={uiV2On ? {
         ...uiV2Vars,
-        // Clearance for fixed elements (grounding bubble, sheets), derived
-        // from whichever v2 bars are visible.
-        // Quick actions are collapsed behind an 18px handle by default,
-        // so reserve the handle — not the whole row.
-        "--bottom-nav-height": `calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" ? "18px" : "0px"} + var(--v2-space))`,
+        // Clearance for fixed elements (grounding bubble, sheets) AND for
+        // page content. V2BottomChrome measures itself into
+        // --v2-bottom-chrome-h, so this follows the bar as the quick-actions
+        // drawer opens and closes; the calc below is only the fallback for
+        // the frame before its first measurement (and when it isn't
+        // mounted at all).
+        "--bottom-nav-height": `var(--v2-bottom-chrome-h, calc(${uiV2.bars.tabs ? "var(--v2-strip-h)" : "0px"} + ${uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" ? "18px" : "0px"} + var(--v2-space)))`,
         // Desktop rail clearance — 0 when the rail is off, and the media
         // query in index.css keeps it from applying on phones.
         "--v2-rail-pad": uiV2.bars.rail ? "var(--v2-rail-w)" : "0px",

@@ -168,7 +168,10 @@ export default function SidebarNav({ open, onClose }) {
             clear of it. */}
         <div
           className="flex-1 overflow-y-auto overscroll-contain px-3 pt-4 space-y-5"
-          style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 1rem)" }}
+          // Clear whatever bottom chrome is on screen (classic nav or the v2
+          // bar with its drawer open) plus room to breathe, so the last
+          // group is always reachable and never sits under the bar.
+          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 1.5rem)" }}
         >
           {groups.map(({ label, items }) => (
             <div key={label}>

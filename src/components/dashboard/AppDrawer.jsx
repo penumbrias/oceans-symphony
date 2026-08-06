@@ -57,6 +57,12 @@ function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [
   );
 }
 
+// A key-sized widget (a quick-action button, a clock) doesn't need a
+// full-height card with its own footer — it needs to look like the small
+// thing it is. Those get a dense grid; everything else keeps the big card.
+const isKeySized = (def) =>
+  (def?.defaultSpan?.cols ?? 4) <= 2 && (def?.defaultSpan?.rows ?? 1) <= 1;
+
 // Tapping a widget in the gallery opens this: flip through its display
 // modes, try a style, then add it configured that way — instead of adding
 // blind and fixing it afterwards.
@@ -534,8 +540,35 @@ export default function AppDrawer({
                       </span>
                       <span className="text-[0.6875rem] text-muted-foreground tabular-nums">{widgets.length}</span>
                     </button>
+                    {/* Key-sized widgets, densely — a row of little buttons
+                        rather than a column of mostly-empty cards. */}
+                    {open && widgets.some(([, d]) => isKeySized(d)) && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5 pb-2">
+                        {widgets.filter(([, d]) => isKeySized(d)).map(([id, def]) => {
+                          const already = !def.supportsMultiInstance && placed.has(id);
+                          return (
+                            <div key={id}
+                              className={`rounded-xl border overflow-hidden flex flex-col ${
+                                already ? "border-border/30 opacity-60" : "border-border/50 hover:border-primary/50"
+                              }`}>
+                              <button type="button" onClick={() => setDetailId(id)} className="px-1.5 pt-1.5" aria-label={`${widgetLabel(def, t)} options`}>
+                                <WidgetPreview def={def} mode={effectiveMode("normal", def.supportsModes)} api={api} userStyles={userStyles} maxHeight={44} />
+                              </button>
+                              <div className="flex items-center gap-1 px-1.5 pb-1.5 pt-1">
+                                <span className="text-[0.6875rem] text-muted-foreground truncate flex-1">{widgetLabel(def, t)}</span>
+                                <button type="button" disabled={already} onClick={() => onAddWidget?.(id)}
+                                  aria-label={`Add ${widgetLabel(def, t)}`}
+                                  className="text-xs px-2 py-0.5 rounded-full border border-primary/50 text-primary disabled:opacity-40 flex-shrink-0">
+                                  {already ? <Check className="w-3 h-3" /> : "Add"}
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
                     <div className={`grid grid-cols-1 sm:grid-cols-2 gap-2 ${open ? "" : "hidden"}`}>
-                      {widgets.map(([id, def]) => {
+                      {widgets.filter(([, d]) => !isKeySized(d)).map(([id, def]) => {
                         const already = !def.supportsMultiInstance && placed.has(id);
                         const cardMode = cardModes[id] || effectiveMode("normal", def.supportsModes);
                         const multiMode = (def.supportsModes || []).length > 1;

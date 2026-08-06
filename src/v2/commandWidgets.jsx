@@ -19,7 +19,7 @@ import { useT } from "@/lib/i18n";
 import { useTerms } from "@/lib/useTerms";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { boxStyle } from "@/v2/primitives";
-import { QuickNoteSheet } from "@/components/v2/V2Frame";
+import { QuickNoteSheet, useQuickActionsHold } from "@/components/v2/V2Frame";
 
 // id → { icon, i18n label key }. "support" isn't a command key (it's the
 // bar's own anchor) but belongs in the same set from the user's side.
@@ -47,6 +47,8 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
   const Icon = def.icon;
   const label = settings?.label || applyTerms(t(def.labelKey), terms);
 
+  const hold = useQuickActionsHold(() => fire());
+
   const fire = () => {
     if (def.id === "quick_note") return setNoteOpen(true);
     if (def.id === "support") return navigate("/grounding");
@@ -69,8 +71,8 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
     <>
       <button
         type="button"
-        onClick={fire}
-        title={label}
+        {...hold}
+        title={`${label} — hold for your quick actions`}
         aria-label={label}
         className="h-full w-full flex items-center justify-center gap-2 transition-colors hover:bg-muted/30"
         style={{ ...boxStyle({ borderFallback: false }), color: "var(--v2-accent, hsl(var(--primary)))" }}

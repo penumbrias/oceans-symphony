@@ -461,6 +461,12 @@ export default function ActivityTracker() {
                 onDayClick={setZoomedDate}
                 onActivityClick={handleActivityClick}
                 importantDates={importantDates}
+                onRangeSelect={(from, to) => {
+                  setSelectedDate(from); setSelectedEndDate(to);
+                  setSelectedStartHour(undefined); setSelectedEndHour(undefined);
+                  setSelectedStartMinute(0); setSelectedEndMinute(0);
+                  setPlanModalOpen(true);
+                }}
               />
             )}
             {viewMode === "year" && (

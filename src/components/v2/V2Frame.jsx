@@ -31,6 +31,7 @@ import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
+import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS, V2_TOKEN_DEFS, buildTokenVars } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
@@ -72,6 +73,41 @@ const DOCK_OPEN_KEY = "symphony_v2_dock_open";
 
 // The apps drawer and home-edit mode live on the home canvas; these fire
 // them from anywhere (event when already home, flag + navigate otherwise).
+// The classic UI's saved Quick Actions (the press-and-hold menu) had no v2
+// entry point — it's reachable now by holding the apps button or any
+// quick-action key. Dashboard hosts the menu, so this either pokes it in
+// place or navigates home with the param it already understands.
+export function openSavedQuickActions(navigate, pathname) {
+  if (pathname === "/") {
+    window.dispatchEvent(new CustomEvent("open-quick-actions"));
+  } else {
+    navigate("/?openQuickActions=1");
+  }
+}
+
+export function useQuickActionsHold(onTap) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  return useLongPress({
+    onLongPress: () => openSavedQuickActions(navigate, location.pathname),
+    onClick: onTap,
+    ms: 450,
+  });
+}
+
+// A quick-action key: tap fires it, hold opens the saved Quick Actions
+// menu (the classic press-and-hold, which v2 was missing).
+export function CommandKeyButton({ onTap, label, className, style, children }) {
+  const hold = useQuickActionsHold(onTap);
+  return (
+    <button type="button" {...hold} aria-label={label}
+      title={`${label} — hold for your quick actions`}
+      className={className} style={style}>
+      {children}
+    </button>
+  );
+}
+
 export function requestHomeAction(navigate, pathname, action) {
   if (pathname === "/") {
     window.dispatchEvent(new CustomEvent(`os-v2-${action}`));
@@ -226,6 +262,9 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
   const formatAlter = useAlterLabel();
   const clock = useClock();
   const appsIconUrl = useResolvedAvatarUrl(uiV2.appsIcon || "");
+  const appsHold = useQuickActionsHold(() => (uiV2.appsView === "sidebar"
+    ? setSidebarOpen(true)
+    : requestHomeAction(navigate, location.pathname, "open-apps")));
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -284,10 +323,8 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         {/* Apps — upper-left, where the classic sidebar trigger lives. The
             icon is the user's own if they've set one in Display options. */}
         <button type="button"
-          onClick={() => (uiV2.appsView === "sidebar"
-            ? setSidebarOpen(true)
-            : requestHomeAction(navigate, location.pathname, "open-apps"))}
-          aria-label={t("top.apps")} title={t("top.apps")}
+          {...appsHold}
+          aria-label={t("top.apps")} title={`${t("top.apps")} — hold for your quick actions`}
           className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
           {appsIconUrl
             ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
@@ -445,7 +482,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
               const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
               const onPress = () => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target));
               return iconsOnly ? (
-                <button key={k.id} type="button" onClick={onPress} title={label} aria-label={label}
+                <CommandKeyButton key={k.id} onTap={onPress} label={label}
                   className="flex items-center justify-center text-muted-foreground hover:text-foreground"
                   style={{
                     width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
@@ -453,13 +490,13 @@ export function V2SideRail({ uiV2, settingsRow }) {
                     border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
                   }}>
                   <Icon style={{ width: "45%", height: "45%" }} />
-                </button>
+                </CommandKeyButton>
               ) : (
-                <button key={k.id} type="button" onClick={onPress}
+                <CommandKeyButton key={k.id} onTap={onPress} label={label}
                   className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   style={{ borderRadius: "var(--v2-radius)" }}>
                   <Icon className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
-                </button>
+                </CommandKeyButton>
               );
             })}
             <button type="button" onClick={() => navigate("/grounding")}
@@ -634,9 +671,8 @@ export function V2QuickDock({ uiV2, settingsRow }) {
         const Icon = KEY_ICONS[k.id] || Heart;
         const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
         return (
-          <button key={k.id} type="button"
-            onClick={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
-            aria-label={label} title={label}
+          <CommandKeyButton key={k.id} label={label}
+            onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
             className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform bg-background/90 backdrop-blur"
             style={{
               width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
@@ -645,7 +681,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
               boxShadow: "0 2px 8px rgb(0 0 0 / 0.25)",
             }}>
             <Icon style={{ width: "45%", height: "45%" }} />
-          </button>
+          </CommandKeyButton>
         );
       })}
       {open && (
@@ -722,13 +758,45 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   };
 
   const { primary: items } = useNavItems(settingsRow);
-
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
-  if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
 
+  // Publish the bar's REAL height so everything that has to clear it —
+  // page content, the sidebar, sheets, the floating buttons — reserves the
+  // right amount. It changes with the quick-actions drawer, the tab strip,
+  // the user's size tokens and the breakpoint, so it's measured rather than
+  // computed from settings (the old estimate assumed the drawer was always
+  // shut, which is exactly when the bar covered things).
+  const navRef = useRef(null);
+  useEffect(() => {
+    const el = navRef.current;
+    const root = document.documentElement;
+    const publish = () => {
+      if (!el) return;
+      const box = el.getBoundingClientRect().height;
+      // The nav pads itself by the safe-area inset; consumers add that
+      // inset themselves, so report the height above it.
+      const inset = parseFloat(getComputedStyle(el).paddingBottom) || 0;
+      root.style.setProperty("--v2-bottom-chrome-h", `${Math.max(0, Math.round(box - inset))}px`);
+    };
+    publish();
+    if (!el || typeof ResizeObserver === "undefined") return () => root.style.removeProperty("--v2-bottom-chrome-h");
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    window.addEventListener("resize", publish);
+    window.addEventListener("orientationchange", publish);
+    return () => {
+      ro.disconnect();
+      window.removeEventListener("resize", publish);
+      window.removeEventListener("orientationchange", publish);
+      root.style.removeProperty("--v2-bottom-chrome-h");
+    };
+  }, [qaOpen, uiV2.bars.actions, uiV2.bars.tabs, uiV2.bars.rail, items.length, keys.length]);
+
+  if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
 
   return (
     <nav
+      ref={navRef}
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
       className={`fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
@@ -789,9 +857,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                     const Icon = KEY_ICONS[k.id] || Heart;
                     const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
                     return (
-                      <button key={k.id} type="button"
-                        onClick={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
-                        aria-label={label} title={label}
+                      <CommandKeyButton key={k.id} label={label}
+                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
                         className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
                         style={{
                           width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
@@ -799,7 +866,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                           border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
                         }}>
                         <Icon style={{ width: "45%", height: "45%" }} />
-                      </button>
+                      </CommandKeyButton>
                     );
                   })}
                   <button type="button" onClick={() => navigate("/grounding")}

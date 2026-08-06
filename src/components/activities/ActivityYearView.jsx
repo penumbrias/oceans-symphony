@@ -4,8 +4,9 @@ import {
   format, isSameMonth, isToday,
 } from "date-fns";
 import { countableMinutes } from "@/lib/activityStatus";
+import useDayRangeDrag from "@/lib/useDayRangeDrag";
 
-function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, onDayClick }) {
+function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, onDayClick, drag }) {
   const monthStart = startOfMonth(monthDate);
   const monthEnd = endOfMonth(monthDate);
   const gridStart = startOfWeek(monthStart, { weekStartsOn });
@@ -45,9 +46,10 @@ function MiniMonth({ monthDate, byDay, maxMinutes, weekStartsOn, onMonthClick, o
             <button
               key={key}
               type="button"
-              onClick={(e) => { e.stopPropagation(); onDayClick?.(d); }}
-              className={`aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""}`}
-              style={{ backgroundColor: bg }}
+              {...(drag ? drag.cellProps(d) : {})}
+              onClick={(e) => { e.stopPropagation(); if (!drag?.suppressClick()) onDayClick?.(d); }}
+              className={`aspect-square rounded-[2px] text-[0.4375rem] flex items-center justify-center hover:ring-1 hover:ring-primary/60 transition ${inMonth ? "text-foreground/80" : "text-transparent pointer-events-none"} ${today ? "ring-1 ring-primary" : ""} ${drag?.inRange(d) ? "ring-1 ring-primary" : ""}`}
+              style={{ backgroundColor: bg, ...(drag?.dragging ? { touchAction: "none" } : null) }}
               title={inMonth ? `${format(d, "MMM d")} — ${totalMin >= 60 ? (totalMin / 60).toFixed(1) + "h" : totalMin + "m"}` : undefined}
             >
               {inMonth ? format(d, "d") : ""}
@@ -71,7 +73,9 @@ export default function ActivityYearView({
   weekStartsOn = 0,
   onMonthClick,
   onDayClick,
+  onRangeSelect,
 }) {
+  const drag = useDayRangeDrag({ onRangeSelect, enabled: typeof onRangeSelect === "function" });
   const year = yearDate.getFullYear();
   const months = Array.from({ length: 12 }, (_, i) => new Date(year, i, 1));
 
@@ -105,6 +109,7 @@ export default function ActivityYearView({
           weekStartsOn={weekStartsOn}
           onMonthClick={onMonthClick}
           onDayClick={onDayClick}
+          drag={drag}
         />
       ))}
     </div>
