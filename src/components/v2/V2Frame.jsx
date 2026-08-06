@@ -23,7 +23,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import {
-  Heart, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays, Users,
+  Heart, Zap, Activity as ActivityIcon, CheckSquare, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
   Megaphone, ChevronUp, Eye, EyeOff, LayoutGrid, Pencil,
 } from "lucide-react";
@@ -58,13 +58,12 @@ const AdvancedAppearance = React.lazy(() => import("@/components/settings/Advanc
 
 const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
-  start_symptom: ActivityIcon, quick_task: CheckSquare,
-  quick_plan: CalendarDays, set_front: Users,
+  start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users,
 };
 const KEY_LABEL_KEYS = {
   quick_checkin: "capture.checkIn", quick_note: "capture.note",
   start_activity: "capture.activity", start_symptom: "capture.symptom",
-  quick_task: "capture.task", quick_plan: "capture.plan", set_front: "capture.front",
+  quick_thing: "capture.thing", set_front: "capture.front",
 };
 
 const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];

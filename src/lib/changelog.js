@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "One \"Add\" button instead of separate Task and Plan buttons \u2014 it's the same box either way, so it's one door now. If your quick-actions row had both, it keeps the single Add in their place." },
+      { type: "improve", text: "Adding a to-do from the To-Do List works the same way as everywhere else now: give it a day and a time and it becomes a plan too." },
       { type: "improve", text: "\"More options\" on the quick composer now opens the full plan form with what you already typed carried over, instead of just sending you to the Activity tracker." },
       { type: "feature", text: "To-dos and plans are one thing now: something to do, with an optional time. Add a day and a time and it also becomes a plan \u2014 on the tracker, the timeline and the day views \u2014 and ticking either side finishes it." },
       { type: "improve", text: "One composer instead of two: the bulletin board's separate quick-plan row is gone, and \"Plan\" and \"Task\" both open the same box (Plan just starts with the date showing). The full plan form is one tap away under \"More options\"." },

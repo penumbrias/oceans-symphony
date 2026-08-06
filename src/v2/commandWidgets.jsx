@@ -30,8 +30,7 @@ export const COMMAND_WIDGETS = [
   { id: "quick_note", icon: PenLine, label: "Quick note", labelKey: "capture.note", desc: "Jot a note without leaving the home screen." },
   { id: "start_activity", icon: Zap, label: "Start an activity", labelKey: "capture.activity", desc: "Start something and time it." },
   { id: "start_symptom", icon: ActivityIcon, label: "Start a symptom", labelKey: "capture.symptom", desc: "Start a symptom episode you can end later." },
-  { id: "quick_task", icon: CheckSquare, label: "New to-do", labelKey: "capture.task", desc: "Add a to-do." },
-  { id: "quick_plan", icon: CalendarDays, label: "New plan", labelKey: "capture.plan", desc: "Schedule something." },
+  { id: "quick_thing", icon: CheckSquare, label: "Add something to do", labelKey: "capture.thing", desc: "One box for anything you mean to do \u2014 give it a day and a time and it's a plan too." },
   { id: "set_front", icon: Users, label: "Set {{fronters}}", labelKey: "capture.front", desc: "Open the Set {{Fronters}} window." },
   { id: "support", icon: LifeBuoy, label: "Support", labelKey: "capture.support", desc: "Go straight to grounding and support." },
 ];
@@ -43,7 +42,9 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const [noteOpen, setNoteOpen] = useState(false);
-  const def = COMMAND_WIDGETS.find((c) => c.id === keyId) || COMMAND_WIDGETS[0];
+  // Boards saved before the merge may still hold the old two ids.
+  const wanted = (keyId === "quick_task" || keyId === "quick_plan") ? "quick_thing" : keyId;
+  const def = COMMAND_WIDGETS.find((c) => c.id === wanted) || COMMAND_WIDGETS[0];
   const Icon = def.icon;
   const label = settings?.label || applyTerms(t(def.labelKey), terms);
 
@@ -57,8 +58,7 @@ export function CommandWidget({ keyId, mode = "normal", settings, api }) {
     const on = api?.quickOn || {};
     if (def.id === "start_activity" && on.startActivity) return on.startActivity();
     if (def.id === "start_symptom" && on.startSymptom) return on.startSymptom();
-    if (def.id === "quick_task" && on.quickTask) return on.quickTask();
-    if (def.id === "quick_plan" && on.quickPlan) return on.quickPlan();
+    if (def.id === "quick_thing" && (on.quickThing || on.quickTask)) return (on.quickThing || on.quickTask)();
     if (def.id === "quick_checkin") return window.dispatchEvent(new CustomEvent("open-quick-checkin"));
     if (def.id === "set_front") return window.dispatchEvent(new CustomEvent("open-set-front"));
     if (TARGETS[def.id]) return navigate(TARGETS[def.id]);

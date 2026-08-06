@@ -27,7 +27,7 @@ export const DEFAULT_UI_V2 = {
   // Every key the bar can hold; the user picks which in Display options →
   // Quick actions. Plan and Set-front ship on by default because they were
   // the two people went looking for first.
-  commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_task", "quick_plan", "set_front"],
+  commandKeys: ["quick_checkin", "quick_note", "start_activity", "start_symptom", "quick_thing", "set_front"],
   tokens: {}, // { [tokenId]: value } — only overrides are stored
   // Per-bar visibility. When the top bar is off, a small floating button
   // keeps Display options reachable so no combination can strand the user.
@@ -75,8 +75,10 @@ export const V2_COMMAND_KEYS = [
   { id: "quick_note",     target: null,                      label: "Note" },
   { id: "start_activity", target: "/?action=start-activity", label: "Activity" },
   { id: "start_symptom",  target: "/?action=start-symptom",  label: "Symptom" },
-  { id: "quick_task",     target: "/?action=quick-task",     label: "Task" },
-  { id: "quick_plan",     target: "/?action=quick-plan",     label: "Plan" },
+  // One key for "something to do" — with or without a time. quick_task and
+  // quick_plan were the same room behind two doors; saved bars carrying
+  // either id are migrated to this one (see resolveUiV2).
+  { id: "quick_thing",    target: "/?action=quick-thing",    label: "Add" },
   { id: "set_front",      target: "/?action=set-front",      label: "Front" },
 ];
 
@@ -139,7 +141,11 @@ export function resolveUiV2(stored) {
       ? src.registerOrder.filter(knownRegister)
       : null,
     commandKeys: Array.isArray(src.commandKeys)
-      ? src.commandKeys.filter((id) => V2_COMMAND_KEYS.some((k) => k.id === id))
+      ? [...new Set(src.commandKeys
+          // Bars saved before the merge listed the task and plan keys
+          // separately; both become the one "Add" key, in place.
+          .map((id) => (id === "quick_task" || id === "quick_plan" ? "quick_thing" : id))
+          .filter((id) => V2_COMMAND_KEYS.some((k) => k.id === id)))]
       : [...DEFAULT_UI_V2.commandKeys],
     tokens,
     bars: {

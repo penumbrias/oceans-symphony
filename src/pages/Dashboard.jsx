@@ -100,8 +100,9 @@ export default function Dashboard() {
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showStartActivity, setShowStartActivity] = useState(false);
   const [showStartSymptom, setShowStartSymptom] = useState(false);
+  // One composer for anything you intend to do. The old quick-task and
+  // quick-plan links both land here.
   const [showQuickTask, setShowQuickTask] = useState(false);
-  const [showQuickPlan, setShowQuickPlan] = useState(false);
   // "More options" on the quick composer: the same thing, continued in the
   // full plan form (repeats, reminders, location, who it's for) with what
   // you already typed carried over.
@@ -226,10 +227,8 @@ export default function Dashboard() {
       setShowStartActivity(true);
     } else if (action === "start-symptom") {
       setShowStartSymptom(true);
-    } else if (action === "quick-task") {
+    } else if (action === "quick-task" || action === "quick-plan" || action === "quick-thing") {
       setShowQuickTask(true);
-    } else if (action === "quick-plan") {
-      setShowQuickPlan(true);
     } else if (action === "notifications") {
       setShowNotifHistory(true);
     }
@@ -841,7 +840,8 @@ export default function Dashboard() {
       startActivity: () => setShowStartActivity(true),
       startSymptom: () => setShowStartSymptom(true),
       quickTask: () => setShowQuickTask(true),
-      quickPlan: () => setShowQuickPlan(true),
+      quickPlan: () => setShowQuickTask(true),
+      quickThing: () => setShowQuickTask(true),
     },
     // In v2 the menu is hosted at page level (below) instead of inside the
     // quick-checkin widget — that widget may not be on the board at all,
@@ -1182,29 +1182,15 @@ export default function Dashboard() {
               <CheckSquare className="w-4 h-4" /> Add something to do
             </DialogTitle>
           </DialogHeader>
-          <QuickTaskComposer frontingAlterIds={frontingAlterIds} onSaved={() => setShowQuickTask(false)} hideCancelButton />
-        </DialogContent>
-      </Dialog>
-      {/* A plan is the same thing as a to-do, with a time on it — so this
-          opens the one composer, with the When section already open. The
-          full plan form (repeats, reminders, who it's for) is still one tap
-          away inside it. */}
-      <Dialog open={showQuickPlan} onOpenChange={(v) => !v && setShowQuickPlan(false)}>
-        <DialogContent className="max-w-md">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CalendarDays className="w-4 h-4" /> Plan something
-            </DialogTitle>
-          </DialogHeader>
           <QuickTaskComposer
             frontingAlterIds={frontingAlterIds}
-            onSaved={() => setShowQuickPlan(false)}
+            onSaved={() => setShowQuickTask(false)}
             hideCancelButton
-            startWithWhen
-            moreOptions={(draft) => { setShowQuickPlan(false); setPlanDraft(draft); }}
+            moreOptions={(draft) => { setShowQuickTask(false); setPlanDraft(draft); }}
           />
         </DialogContent>
       </Dialog>
+
 
       {planDraft && (
         <React.Suspense fallback={null}>

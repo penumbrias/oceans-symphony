@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { createTask } from "@/lib/taskCreate";
+import { saveThing } from "@/lib/thingSave";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,10 +117,30 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
         savedTask = await base44.entities.Task.update(editingTask.id, data);
         toast.success("Task updated!");
       } else {
-        // Shared create path (lib/taskCreate.js) — same semantics as the
-        // bulletin board's quick row.
-        savedTask = await createTask(data);
-        toast.success("Task created!");
+        // Same path as the quick composer (lib/thingSave.js): one thing,
+        // and if it has a day it's a plan as well.
+        const res = await saveThing({
+          title: formData.title,
+          when: {
+            dueDate: formData.due_date || null,
+            date: formData.scheduled_at ? String(formData.scheduled_at).slice(0, 10) : null,
+            time: formData.scheduled_at && String(formData.scheduled_at).includes("T")
+              ? String(formData.scheduled_at).slice(11, 16) : null,
+            durationMinutes: 60,
+          },
+          priority: formData.priority,
+          categoryIds: formData.activity_category_ids || [],
+          note: description,
+          pinned: !!formData.pinned_to_dashboard,
+          urgent: !!formData.is_urgent,
+          goalTarget: formData.goal_target,
+          goalUnit: formData.goal_unit,
+          // Everything else this form owns (subtask parent, and any field
+          // the quick composer doesn't have) rides through untouched.
+          taskFields: data,
+        });
+        savedTask = res.task;
+        toast.success(res.planned ? "Added — and it's on your plan" : "Task created!");
       }
 
       const fullContent = [formData.title, description].filter(Boolean).join(" ");

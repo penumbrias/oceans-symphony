@@ -2557,6 +2557,11 @@ export function seedV2Home() {
 // The command bar / dock is optional chrome; a user who hides it can put
 // any of its keys on the board instead. One entry each so they're all
 // browsable in the picker, all backed by the same component.
+// Boards saved before the two keys merged still name action_quick_task /
+// action_quick_plan; keep those ids resolving to the one widget so nothing
+// vanishes from anyone's home screen.
+V2_WIDGETS.action_quick_task = null; // placeholder, filled below
+V2_WIDGETS.action_quick_plan = null;
 for (const c of COMMAND_WIDGETS) {
   V2_WIDGETS[`action_${c.id}`] = {
     label: c.label,
@@ -2572,4 +2577,9 @@ for (const c of COMMAND_WIDGETS) {
     ],
     defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   };
+}
+// The legacy ids render the merged widget, but stay OUT of the picker
+// (hidden) so it lists one "Add something to do", not three.
+for (const legacy of ["action_quick_task", "action_quick_plan"]) {
+  V2_WIDGETS[legacy] = { ...V2_WIDGETS.action_quick_thing, hiddenFromDrawer: true };
 }

@@ -154,10 +154,13 @@ new one, add it. Update the date line above whenever you touch this file.*
   to open its options — regions that own a hold now mark themselves
   `data-own-hold` (the level rail, the hold-menu, the activity grid, day
   cells), which is the hook to reuse for any future in-widget hold.
-  NOT yet migrated to the unified thing: `TaskFormModal` (the To-Do List's
-  full form) still writes a Task with no plan side, and `QuickPlanComposer`
-  still exists though nothing renders it — decide whether to delete it or
-  keep it as the "more options" body.
+  v0.132.0 finished it: ONE command key (`quick_thing`, "Add") with saved
+  bars migrated in `resolveUiV2`, one quick-action widget (the legacy
+  `action_quick_task`/`action_quick_plan` ids alias it, hidden from the
+  picker), `TaskFormModal` routed through `saveThing` (with a `taskFields`
+  passthrough so subtasks/mentions keep their fields), and
+  `QuickPlanComposer.jsx` deleted. "More options" now opens
+  `ActivityPlanModal` seeded with the draft.
 - v0.130.0: bottom-chrome clearance is now MEASURED — `V2BottomChrome`
   publishes `--v2-bottom-chrome-h` (minus its safe-area padding) via a
   ResizeObserver and `--bottom-nav-height` reads it, so every consumer

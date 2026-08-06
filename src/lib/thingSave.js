@@ -59,6 +59,10 @@ export async function saveThing({
   // board post, as before
   companionBulletin = false,
   authorAlterIds = [],
+  // Anything else the caller's form owns (subtasks' parent_task_id,
+  // mentions, its own extra fields). Merged last so a fuller form never
+  // loses a field by coming through here.
+  taskFields = null,
 } = {}) {
   const clean = (title || "").trim();
   const timestamp = whenToTimestamp(when);
@@ -74,6 +78,7 @@ export async function saveThing({
     is_urgent: urgent,
     goal_target: goalTarget ? parseInt(goalTarget, 10) : null,
     goal_unit: (goalUnit || "").trim(),
+    ...(taskFields || {}),
   }, { companionBulletin, authorAlterIds });
 
   if (!timestamp) return { task, planned: false };

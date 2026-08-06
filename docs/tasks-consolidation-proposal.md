@@ -98,8 +98,11 @@ working, and completion already syncs both ways (Phase 1).
 composer on the bulletin board; the Plan quick action opens it with the
 date showing. `unscheduleThing()` retires a linked plan as `cancelled`
 rather than deleting it when the time comes off.
+v0.132.0 closed the remaining seams: one command key, one quick-action
+widget, `TaskFormModal` on the same path, `QuickPlanComposer` deleted.
 Still separate on purpose: `ActivityPlanModal` (the full plan form —
-repeats, reminders, who it's for), reachable as "More options".
+repeats, reminders, who it's for), reachable as "More options" with the
+draft carried in.
 
 ## What this does NOT change
 - No entity schema changes; no migrations; nothing existing is rewritten in

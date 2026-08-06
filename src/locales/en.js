@@ -87,6 +87,7 @@ export default {
   "capture.symptom": "Symptom",
   "capture.task": "Task",
   "capture.plan": "Plan",
+  "capture.thing": "Add",
   "capture.front": "{{Front}}",
   "capture.support": "Support",
   "options.sectionQuickActions": "Quick actions",
