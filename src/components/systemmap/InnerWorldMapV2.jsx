@@ -1122,8 +1122,8 @@ function EditRelFromPopover({ rel, alterMap, onClose, onSaved }) {
     } catch (err) { toast.error(err.message || "Failed to update"); } finally { setSaving(false); }
   };
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={onClose}>
-      <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm mx-4 space-y-4" onClick={(e) => e.stopPropagation()}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={onClose}>
+      <div className="bg-card border border-border rounded-xl p-5 shadow-xl w-full max-w-sm space-y-4 max-h-[85vh] overflow-y-auto overscroll-contain" onClick={(e) => e.stopPropagation()}>
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-foreground text-sm">Edit Relationship</h3>
           <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>

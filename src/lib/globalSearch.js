@@ -654,6 +654,38 @@ export function buildPresenceRecords({ items = [], alters = [] }) {
   });
 }
 
+// ── Settings ───────────────────────────────────────────────────────
+// Static, not entity-backed: settings is a fixed set of sections, and
+// people search for the THING they want to change ("backup", "font size",
+// "wallpaper") rather than the section's name. Each record deep-links to
+// /settings#<section>, which Settings.jsx honours on mount.
+export function buildSettingsRecords({ terms = {} } = {}) {
+  const Alter = terms.Alter || "Alter";
+  const Alters = terms.Alters || "Alters";
+  const Systems = terms.Systems || "Systems";
+  const fronting = terms.fronting || "fronting";
+  const SECTIONS = [
+    ["system", "Profile", `${terms.System || "System"} name, banner, identity, pronouns`],
+    ["appearance", "Appearance", "Theme, colours, fonts, wallpaper, presets, dashboard layout, navigation, corner style, home screen, widgets"],
+    ["notifications", "Notifications & reminders", "Reminders, push notifications, persistent notification, alerts"],
+    ["accessibility", "Accessibility", "Font size, text size, contrast, bottom bar height, motion"],
+    ["alters", `${Alter} setup`, `Custom fields, relationship types, archived ${Alters}, ${Alter} order, arrangement, labels, ${fronting} levels, profile songs, duplicates`],
+    ["checkin", "Tracking setup", "Custom emotions, symptoms, diary card templates, quick actions, triggers, check-in"],
+    ["systems", Systems, `Multiple ${Systems}, switching between ${Systems}`],
+    ["data", "Data & privacy", "Backup, export, import, restore, encryption, passphrase, storage mode, sync, panic hide, delete"],
+    ["about", "About & help", "Version, what's new, changelog, updates, feature tour, disclaimer, support"],
+  ];
+  return SECTIONS.map(([id, title, blurb]) => ({
+    type: "setting",
+    id: `setting_${id}`,
+    title,
+    subtitle: "Settings",
+    path: `/settings#${id}`,
+    searchableText: joinNonEmpty([title, "settings", blurb]).toLowerCase(),
+    sortDate: null,
+  }));
+}
+
 export function buildSearchIndex(sources = {}) {
   const {
     alters, customFieldDefs,
@@ -676,9 +708,11 @@ export function buildSearchIndex(sources = {}) {
     presences,
     contacts,
     systems,
+    terms,
   } = sources;
 
   const records = [];
+  records.push(...buildSettingsRecords({ terms: terms || {} }));
   records.push(...buildAlterRecords({ alters: alters || [], customFieldDefs: customFieldDefs || [] }));
   records.push(...buildJournalRecords({ items: journals || [] }));
   records.push(...buildSupportJournalRecords({ items: supportJournals || [] }));

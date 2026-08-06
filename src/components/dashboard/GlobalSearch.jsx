@@ -26,6 +26,7 @@ async function safeList(entity, ...args) {
 }
 
 const TYPE_ICONS = {
+  setting:   "⚙️",
   alter:     "👤",
   journal:   "📓",
   bulletin:  "📌",
@@ -52,6 +53,7 @@ const TYPE_ICONS = {
 
 function getTypeLabels(t) {
   return {
+    setting:   "Settings",
     alter:     t.Alters,
     journal:   "Journals",
     bulletin:  "Bulletins",
@@ -267,6 +269,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   });
 
   const index = useMemo(() => buildSearchIndex({
+    terms,
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
@@ -288,6 +291,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
     contacts,
     systems: listSystems(),
 }), [
+    terms,
     alters, customFieldDefs,
     journals, supportJournals,
     bulletins, bulletinComments, polls,
@@ -338,7 +342,7 @@ export default function GlobalSearch({ autoFocus = false, onNavigate }) {
   };
 
   const TYPE_ORDER = [
-    "alter", "journal", "status", "emotion", "bulletin", "note",
+    "setting", "alter", "journal", "status", "emotion", "bulletin", "note",
     "activity", "task", "reminder", "checkin", "diarycard",
     "location", "syschange", "symptom", "group", "contact", "chat", "grounding", "innerworld", "grocery", "presence", "system",
   ];

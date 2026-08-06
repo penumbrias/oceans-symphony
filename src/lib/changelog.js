@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "Editing a relationship on the map: the window scrolls now, so the colour picker and Save below it are reachable instead of cut off." },
+      { type: "improve", text: "Search finds settings now \u2014 type what you want to change (\"backup\", \"font size\", \"wallpaper\", \"encryption\") and it takes you to the right section." },
       { type: "feature", text: "\ud83e\uddea New UI: point the wallpaper at a folder of image assets instead of one picture and the home screen rotates through it \u2014 shuffled, or in order, a new one each time you open the app." },
       { type: "improve", text: "The pinned-alters bar has a Size slider now \u2014 the old Width setting only moved it sideways for one-handed reach, so there was no way to make a too-tall bar shorter." },
       { type: "fix", text: "\ud83e\uddea New UI: the edit bar's \"Bar\" row now changes your actual quick-action bar. It was editing a second, leftover bar \u2014 which is also gone, so there's one quick-action bar again instead of two." },
