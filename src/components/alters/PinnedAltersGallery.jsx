@@ -2,9 +2,8 @@ import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
-import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, GripHorizontal, Check, Move, Search, Plus } from "lucide-react";
+import { Pin, Star, Zap, Settings as SettingsIcon, GripVertical, Check, Move, Search, Plus } from "lucide-react";
 import { toast } from "sonner";
-import { Switch } from "@/components/ui/switch";
 import {
   DndContext, closestCenter, PointerSensor, TouchSensor, useSensor, useSensors,
 } from "@dnd-kit/core";
@@ -36,7 +35,7 @@ import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
 //   - Rearrange: drag/drop the pin order (persisted to
 //     SystemSettings.pinned_alters_config.order).
 //   - Width / align: narrow the strip and tuck it to one side for
-//     one-handed reach (config.width / config.cropSide).
+//     bar height + icon size (config.barHeight / config.chipSize).
 //   - (Scroll block — a no-vertical-gesture grab bar — is a later phase.)
 
 const V_SWIPE_THRESHOLD = 40;      // px up/down to trigger an action
@@ -52,11 +51,9 @@ let galleryRecentTouchUntil = 0;
 // real mouse drags are never suppressed.
 let galleryLastTouchAt = 0;
 
-// hideScrollBlock: the v2 board swipes pages across the whole surface,
-// so the strip's no-swipe spacer protects nothing there and just eats
-// room. showGear: hosts that hide the header still need a way into the
-// size/pins settings (owner: "no way to change the size").
-export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock = false, showGear = false, className = "" }) {
+// showGear: hosts that hide the header still need a way into the
+// size/pins settings.
+export default function PinnedAltersGallery({ showHeader = true, showGear = false, className = "" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
@@ -78,20 +75,12 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
   const settings = settingsList[0] || null;
   const config = (settings && settings.pinned_alters_config) || {};
   const savedOrder = Array.isArray(config.order) ? config.order : [];
-  const width = Number.isFinite(config.width) ? config.width : 100;
-  // Avatar diameter in px — the bar's height follows it. Owner: width
-  // alone "doesn't help", the strip is too TALL.
+  // Bar height in px (0 = fit the icons). Independent of icon size, so a
+  // roomy bar with small icons — or the reverse — is possible.
+  const barHeight = Number.isFinite(config.barHeight) ? config.barHeight : 0;
+  // Avatar diameter in px — the icons inside the bar, independent of how
+  // tall the bar itself is.
   const chipSize = Number.isFinite(config.chipSize) ? config.chipSize : 48;
-  const cropSide = config.cropSide === "left" ? "left" : "right";
-  // The "scroll block" is a safe, no-swipe zone the user drops INTO the pinned
-  // strip at a spot they naturally scroll — so a page-scroll gesture there
-  // scrolls the page instead of accidentally fronting an alter. It's an inline
-  // item: pins flow to BOTH sides of it, none are hidden. `position` is the
-  // insertion index across the strip (0 = far left … chip-count = far right),
-  // so it can sit anywhere, not just on one side.
-  const sb = (config.scrollBlock && typeof config.scrollBlock === "object") ? config.scrollBlock : {};
-  const sbEnabled = !hideScrollBlock && !!sb.enabled;
-  const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -133,11 +122,12 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
   // the gear's "Add or remove pins" manages the rest.
   if (pinned.length === 0) return null;
 
-  const stripWrapStyle = width < 100
+  const stripWrapStyle = barHeight > 0
     ? {
-        width: `${width}%`,
-        marginLeft: cropSide === "right" ? "auto" : undefined,
-        marginRight: cropSide === "left" ? "auto" : undefined,
+        height: barHeight,
+        display: "flex",
+        alignItems: "center",
+        overflowY: "hidden",
       }
     : undefined;
 
@@ -192,14 +182,7 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
               size={chipSize}
             />
           ));
-          // Drop the scroll block INTO the row at the chosen index — pins slide
-          // to either side of it, none hidden. It sits wherever the user placed
-          // it in the strip.
-          let rowChildren = chips;
-          if (sbEnabled) {
-            const pos = Math.max(0, Math.min(chips.length, Number.isFinite(sb.position) ? sb.position : Math.floor(chips.length / 2)));
-            rowChildren = [...chips.slice(0, pos), <ScrollBlockBar key="__scrollblock" width={sbWidth} />, ...chips.slice(pos)];
-          }
+          const rowChildren = chips;
           // pt-5 leaves room for the swipe-up hint label above a chip.
           return (
             <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
@@ -213,18 +196,14 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
         <PinnedAltersSettingsDialog
           open={gearOpen}
           onClose={() => setGearOpen(false)}
-          width={width}
+          barHeight={barHeight}
           chipSize={chipSize}
-          cropSide={cropSide}
           total={pinned.length}
-          scrollBlock={sb}
           alters={alters.filter((a) => !a.is_archived)}
           pinnedIds={new Set(pinned.map((a) => a.id))}
           onSetPinned={setPinnedAlter}
-          onWidthChange={(w) => persistConfig({ width: w })}
+          onBarHeightChange={(h) => persistConfig({ barHeight: h })}
           onChipSizeChange={(v) => persistConfig({ chipSize: v })}
-          onCropSideChange={(s) => persistConfig({ cropSide: s })}
-          onScrollBlockChange={(next) => persistConfig({ scrollBlock: next })}
           onRearrange={() => { setGearOpen(false); setRearrange(true); }}
         />
       )}
@@ -309,20 +288,6 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
 // the chips and scrolls with them; in "fixed" mode the gallery places it in a
 // reserved side gutter (a flex sibling of the scroll area), so chips scroll
 // BESIDE it rather than behind it.
-function ScrollBlockBar({ width }) {
-  return (
-    <div
-      aria-hidden="true"
-      title="Grab here to scroll the page without changing who's fronting"
-      className="flex-shrink-0 self-center rounded-2xl border border-dashed border-border/60 flex flex-col items-center justify-center gap-0.5 select-none bg-muted/50"
-      style={{ width: `${width}px`, height: 52, touchAction: "auto" }}
-    >
-      <GripVertical className="w-5 h-5 text-muted-foreground/70" />
-      <span className="text-[0.5rem] uppercase tracking-wider text-muted-foreground/60">scroll</span>
-    </div>
-  );
-}
-
 // One searchable row in the "Add alters" picker — its own component so the
 // avatar can resolve via the hook (can't call hooks in a map).
 function PinPickerRow({ alter, pinned, onToggle }) {
@@ -349,7 +314,7 @@ function PinPickerRow({ alter, pinned, onToggle }) {
   );
 }
 
-function PinnedAltersSettingsDialog({ open, onClose, width, chipSize = 48, onChipSizeChange, cropSide, total, scrollBlock, alters = [], pinnedIds, onSetPinned, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
+function PinnedAltersSettingsDialog({ open, onClose, barHeight = 0, onBarHeightChange, chipSize = 48, onChipSizeChange, total, alters = [], pinnedIds, onSetPinned, onRearrange }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
   const pinnedSet = pinnedIds instanceof Set ? pinnedIds : new Set();
@@ -361,10 +326,6 @@ function PinnedAltersSettingsDialog({ open, onClose, width, chipSize = 48, onChi
       if (pa !== pb) return pa - pb;
       return (a.name || "").localeCompare(b.name || "");
     });
-  const sb = scrollBlock || {};
-  const sbEnabled = !!sb.enabled;
-  const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
-  const sbPos = Math.max(0, Math.min(total, Number.isFinite(sb.position) ? sb.position : Math.floor(total / 2)));
   return (
     <Dialog open={open} onOpenChange={onClose}>
       <DialogContent className="max-w-sm">
@@ -407,68 +368,32 @@ function PinnedAltersSettingsDialog({ open, onClose, width, chipSize = 48, onChi
 
           <div>
             <label className="text-sm font-medium flex items-center justify-between">
-              Width <span className="text-xs text-muted-foreground">{width}%</span>
+              Height <span className="text-xs text-muted-foreground">{barHeight > 0 ? `${barHeight}px` : "fit the icons"}</span>
             </label>
             <input
-              type="range" min={40} max={100} step={5} value={width}
-              onChange={(e) => onWidthChange(Number(e.target.value))}
+              type="range" min={0} max={200} step={4} value={barHeight}
+              onChange={(e) => onBarHeightChange?.(Number(e.target.value))}
               className="w-full accent-primary mt-1"
+              aria-label="Pinned bar height"
             />
+            <p className="text-[0.6875rem] text-muted-foreground mt-1">How tall the bar is. 0 lets it hug the icons.</p>
           </div>
 
           {/* Height: the strip is as tall as its avatars, so this is the
               control for "the bar is massive". */}
           <div>
             <label className="text-sm font-medium flex items-center justify-between">
-              Size <span className="text-xs text-muted-foreground">{chipSize}px tall</span>
+              Icon size <span className="text-xs text-muted-foreground">{chipSize}px</span>
             </label>
             <input
               type="range" min={28} max={88} step={4} value={chipSize}
               onChange={(e) => onChipSizeChange?.(Number(e.target.value))}
               className="w-full accent-primary mt-1"
-              aria-label="Pinned bar size"
+              aria-label="Pinned icon size"
             />
           </div>
 
-          {width < 100 && (
-            <div>
-              <label className="text-sm font-medium block mb-1.5">Tuck to</label>
-              <div className="flex gap-1.5">
-                {["left", "right"].map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    onClick={() => onCropSideChange(s)}
-                    className={`flex-1 text-xs px-2.5 py-1.5 rounded-lg border capitalize transition-colors ${cropSide === s ? "border-primary/50 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:bg-muted/50"}`}
-                  >
-                    {s}
-                  </button>
-                ))}
-              </div>
-              <p className="text-[0.6875rem] text-muted-foreground mt-1">Narrow the pinned row and tuck it to one side — handy for one-handed (thumb) reach. Right by default for right-handed use.</p>
-            </div>
-          )}
 
-          <div className="pt-1 border-t border-border/40">
-            <label className="flex items-center justify-between gap-2 text-sm font-medium pt-3">
-              <span className="flex items-center gap-1.5"><GripHorizontal className="w-4 h-4" /> Scroll block</span>
-              <Switch checked={sbEnabled} onCheckedChange={(v) => onScrollBlockChange({ ...sb, enabled: v })} />
-            </label>
-            <p className="text-[0.6875rem] text-muted-foreground mt-1">A safe zone you can grab to scroll the page up/down past the pinned row without accidentally fronting anyone. Drop it wherever you usually scroll.</p>
-            {sbEnabled && (
-              <div className="mt-3 space-y-3">
-                <div>
-                  <label className="text-xs flex items-center justify-between">Position <span className="text-muted-foreground">{sbPos === 0 ? "far left" : sbPos >= total ? "far right" : `after pin #${sbPos}`}</span></label>
-                  <input type="range" min={0} max={total} step={1} value={sbPos} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, position: Number(e.target.value) })} className="w-full accent-primary mt-1" />
-                  <p className="text-[0.6875rem] text-muted-foreground mt-1">Slide it anywhere across the row — your pins move to either side of it, never hidden.</p>
-                </div>
-                <div>
-                  <label className="text-xs flex items-center justify-between">Bar width <span className="text-muted-foreground">{sbWidth}px</span></label>
-                  <input type="range" min={32} max={140} step={4} value={sbWidth} onChange={(e) => onScrollBlockChange({ ...sb, enabled: true, width: Number(e.target.value) })} className="w-full accent-primary mt-1" />
-                </div>
-              </div>
-            )}
-          </div>
         </div>
       </DialogContent>
     </Dialog>

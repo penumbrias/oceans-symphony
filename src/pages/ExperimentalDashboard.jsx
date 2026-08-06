@@ -1149,7 +1149,7 @@ export default function ExperimentalDashboard({
                 className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-              <PinnedAltersGallery showHeader={false} hideScrollBlock showGear />
+              <PinnedAltersGallery showHeader={false} showGear />
             </div>
           )}
         </div>
@@ -1347,7 +1347,7 @@ export default function ExperimentalDashboard({
               </button>
               {!altersCollapsed && (
                 <div className="min-w-0 overflow-x-auto">
-                  <PinnedAltersGallery showHeader={false} hideScrollBlock showGear />
+                  <PinnedAltersGallery showHeader={false} showGear />
                 </div>
               )}
             </div>
