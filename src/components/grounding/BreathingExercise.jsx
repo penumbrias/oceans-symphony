@@ -28,6 +28,10 @@ export default function BreathingExercise({
   const [phaseIdx, setPhaseIdx] = useState(0);
   const [countdown, setCountdown] = useState(pattern.phases[0].seconds);
   const [circleSize, setCircleSize] = useState(sizes.small);
+  // True while the last size change came from the WIDGET resizing (not a
+  // breath phase) — those snap in 0.15s instead of drifting over the
+  // phase's whole duration, which looked like a wrong-direction breath.
+  const snapRef = useRef(false);
 
   const timerRef = useRef(null);
   const pausedRef = useRef(false);
@@ -69,9 +73,21 @@ export default function BreathingExercise({
     }
   }, [pattern.phases, totalRounds, loop]);
 
+  // The widget resized (or settled its first real measurement): keep the
+  // circle at the CURRENT phase's target for the new size, quickly.
+  useEffect(() => {
+    if (!started || completed) return;
+    snapRef.current = true;
+    setCircleSize(getTargetSize());
+    const t = setTimeout(() => { snapRef.current = false; }, 200);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [maxSize]);
+
   useEffect(() => {
     if (!started || paused || completed) return;
 
+    snapRef.current = false;
     // Set target size immediately for smooth transition
     setCircleSize(getTargetSize());
 
@@ -170,7 +186,7 @@ export default function BreathingExercise({
     );
   }
 
-  const transitionDuration = (isInhale || isExhale) ? currentPhase.seconds * pace : 0.5;
+  const transitionDuration = snapRef.current ? 0.15 : ((isInhale || isExhale) ? currentPhase.seconds * pace : 0.5);
 
   if (embedded) {
     return (

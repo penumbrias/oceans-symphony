@@ -1374,7 +1374,11 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   const [box, setBox] = React.useState({ w: 200, h: 200 });
   const [running, setRunning] = React.useState(!!settings?.autoRun);
   React.useEffect(() => { setRunning(!!settings?.autoRun); }, [settings?.autoRun]);
-  React.useEffect(() => {
+  // useLayoutEffect: the first measurement must land BEFORE first paint —
+  // with a plain effect the circle's opening frame sized itself to the
+  // 200px placeholder, overflowed the tile, then slowly shrank to fit
+  // (which read as a phantom exhale on the first inhale step).
+  React.useLayoutEffect(() => {
     const node = boxRef.current;
     if (!node) return undefined;
     const measure = () => {
