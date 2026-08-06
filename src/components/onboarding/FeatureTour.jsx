@@ -431,10 +431,10 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     {
       section: "bulletin", sectionLabel: "Bulletin Board",
       emoji: "🗓️",
-      title: "Quick Plan",
-      body: `Above the board, "Plan something…" is a quick way to schedule a plan without opening the Activity Tracker. Tap it and it expands: keep it a Quick plan (no set time, shown as a pill on the day) or flip the toggle off to give it a start time and length — then optionally add a date, category, who it's for, or a note. Saving creates the matching plan in your Activity Tracker.`,
-      route: "/", target: "quick-plan",
-      look: `the highlighted "Plan something…" box just above the bulletin board`, action: null,
+      title: "Adding something to do",
+      body: `Above the board there's one box for anything you mean to do. Type it and it's a to-do. Open "When" and give it a day — and a time, if it has one — and it becomes a plan as well: it shows on the Activity Tracker and the timeline, and ticking it off in either place finishes it. "More options" carries what you typed into the full plan form for repeats, reminders and who it's for.`,
+      route: "/", target: "quick-task-button",
+      look: `the "What do you want to do?" box just above the bulletin board`, action: null,
     },
     {
       section: "bulletin", sectionLabel: "Bulletin Board",

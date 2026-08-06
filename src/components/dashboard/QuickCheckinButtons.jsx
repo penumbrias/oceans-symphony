@@ -10,7 +10,8 @@
 //   hold        — { onPointerDown, onPointerMove, onPointerUp } for the
 //                 Quick Check-In button's tap/hold gesture
 //   holdProgress, holdActive — visual fill + ring while holding
-//   show        — { start_activity, start_symptom, quick_task, quick_plan }
+//   show        — { start_activity, start_symptom, quick_task }
+//                 (quick_plan folded into quick_task: one thing, optional time)
 //                 booleans for the sibling buttons
 //   on          — { startActivity, startSymptom, quickTask, quickPlan }
 //   quickActionsSlot — rendered after the buttons (the AnimatePresence-
@@ -18,7 +19,7 @@
 //   dense       — action-bar styling: tighter buttons, no margins
 
 import React from "react";
-import { Heart, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays } from "lucide-react";
+import { Heart, Zap, Activity as ActivityIcon, CheckSquare } from "lucide-react";
 
 export default function QuickCheckinButtons({
   hold = {},
@@ -88,17 +89,7 @@ export default function QuickCheckinButtons({
           className={`bg-blue-500/10 text-blue-600 dark:text-blue-400 hover:bg-blue-500/20 ${btnBase}`}
         >
           <CheckSquare className="w-4 h-4" />
-          <span>Quick Task</span>
-        </button>
-      )}
-      {show.quick_plan && (
-        <button
-          data-tour="quick-plan-button"
-          onClick={on.quickPlan}
-          className={`bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 ${btnBase}`}
-        >
-          <CalendarDays className="w-4 h-4" />
-          <span>Quick Plan</span>
+          <span>Add to do</span>
         </button>
       )}
       {quickActionsSlot}

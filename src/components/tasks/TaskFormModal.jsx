@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { base44 } from "@/api/base44Client";
-import { saveThing } from "@/lib/thingSave";
+import { saveThing, updateThingSchedule } from "@/lib/thingSave";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -115,7 +115,15 @@ export default function TaskFormModal({ open, onClose, editingTask, parentTaskId
       let savedTask;
       if (editingTask) {
         savedTask = await base44.entities.Task.update(editingTask.id, data);
-        toast.success("Task updated!");
+        // Keep the plan side in step: a time added here now schedules it,
+        // and a time removed retires the plan instead of leaving it to nag.
+        const res = await updateThingSchedule(savedTask, {
+          date: formData.scheduled_at ? String(formData.scheduled_at).slice(0, 10) : null,
+          time: formData.scheduled_at && String(formData.scheduled_at).includes("T")
+            ? String(formData.scheduled_at).slice(11, 16) : null,
+          durationMinutes: 60,
+        }, { title: formData.title, note: description, categoryIds: formData.activity_category_ids || [] });
+        toast.success(res.planned ? "Updated — and it's on your plan" : "Task updated!");
       } else {
         // Same path as the quick composer (lib/thingSave.js): one thing,
         // and if it has a day it's a plan as well.

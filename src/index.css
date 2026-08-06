@@ -705,12 +705,20 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
    [data-ui-v2] .px-3 rule out-specifies a plain .pl-9 and the icon sits
    on top of the text (the recurring search-field overlap bug). Same
    specificity, declared later → the override wins again. */
+[data-ui-v2="1"] .pl-6  { padding-left: 1.5rem; }
+[data-ui-v2="1"] .pl-7  { padding-left: 1.75rem; }
 [data-ui-v2="1"] .pl-8  { padding-left: 2rem; }
 [data-ui-v2="1"] .pl-9  { padding-left: 2.25rem; }
 [data-ui-v2="1"] .pl-10 { padding-left: 2.5rem; }
+[data-ui-v2="1"] .pl-11 { padding-left: 2.75rem; }
+[data-ui-v2="1"] .pl-12 { padding-left: 3rem; }
+[data-ui-v2="1"] .pr-6  { padding-right: 1.5rem; }
+[data-ui-v2="1"] .pr-7  { padding-right: 1.75rem; }
 [data-ui-v2="1"] .pr-8  { padding-right: 2rem; }
 [data-ui-v2="1"] .pr-9  { padding-right: 2.25rem; }
 [data-ui-v2="1"] .pr-10 { padding-right: 2.5rem; }
+[data-ui-v2="1"] .pr-11 { padding-right: 2.75rem; }
+[data-ui-v2="1"] .pr-12 { padding-right: 3rem; }
 [data-ui-v2="1"] .space-y-2 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.5rem * var(--v2-density, 1)); }
 [data-ui-v2="1"] .space-y-3 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(0.75rem * var(--v2-density, 1)); }
 [data-ui-v2="1"] .space-y-4 > :not([hidden]) ~ :not([hidden]) { margin-top: calc(1rem * var(--v2-density, 1)); }

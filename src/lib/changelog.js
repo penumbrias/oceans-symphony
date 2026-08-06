@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "Search boxes with a magnifying-glass icon no longer had the icon sitting on top of the text (the activity picker, and anything else using that spacing)." },
+      { type: "fix", text: "Day view: the first hour label was clipped by the quick-plans strip above it, and the \"you are here\" line was drawn straight through the \"no activities\" text." },
+      { type: "fix", text: "The add-something-to-do box no longer runs off the edge of a narrow screen." },
+      { type: "improve", text: "The classic dashboard's Quick Task and Quick Plan buttons are one \"Add to do\" button, matching everywhere else." },
+      { type: "improve", text: "Editing something in the To-Do List keeps its plan in step: add a time and it schedules, take the time off and the plan retires instead of nagging." },
       { type: "improve", text: "One \"Add\" button instead of separate Task and Plan buttons \u2014 it's the same box either way, so it's one door now. If your quick-actions row had both, it keeps the single Add in their place." },
       { type: "improve", text: "Adding a to-do from the To-Do List works the same way as everywhere else now: give it a day and a time and it becomes a plan too." },
       { type: "improve", text: "\"More options\" on the quick composer now opens the full plan form with what you already typed carried over, instead of just sending you to the Activity tracker." },

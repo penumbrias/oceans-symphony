@@ -470,7 +470,12 @@ export default function ActivityDayView({
               )}
             </div>
           ) : (
-            segments.map((seg) => {
+            <>
+            {/* The first hour's label is drawn half a line ABOVE its row (it
+                marks the gridline, not the middle of the hour) — without
+                this gap the quick-plans block above paints over it. */}
+            <div aria-hidden="true" style={{ height: 10 }} />
+            {segments.map((seg) => {
               /* ── Collapsed empty band ── */
               if (seg.type === "empty") {
                 const nowInBand = nowHour !== null && nowHour >= seg.startHour && nowHour <= seg.endHour;
@@ -483,7 +488,7 @@ export default function ActivityDayView({
                     key={`empty-${seg.startHour}`}
                     ref={nowInBand ? nowLineRef : null}
                     className="relative flex items-start border-t border-b border-border/20 bg-muted/10 cursor-pointer hover:bg-primary/5 transition-colors"
-                    style={{ minHeight: 32 }}
+                    style={{ minHeight: nowInBand ? 48 : 32 }}
                     onClick={() => onTimeRangeSelect?.(date, seg.startHour, null, 0, null)}
                   >
                     {/* Hour label column — aligned to the TOP of the cell,
@@ -493,14 +498,17 @@ export default function ActivityDayView({
                       {formatHour(seg.startHour)}
                     </div>
                     {/* Band text */}
-                    <div className="flex-1 py-2">
-                      <span className="text-xs text-muted-foreground/40 select-none">{label}</span>
+                    <div className="flex-1 py-2 min-w-0">
+                      <span className="text-xs text-muted-foreground/40 select-none truncate block">{label}</span>
                     </div>
                     {/* Now line inside empty band */}
+                    {/* "You are here" inside a stretch with nothing in it.
+                        Sits BELOW the band's label rather than through it —
+                        it used to be drawn across the words. */}
                     {nowInBand && (
-                      <div className="absolute left-0 right-0 pointer-events-none flex items-center z-10" style={{ top: "50%" }}>
-                        <div className="w-2.5 h-2.5 rounded-full bg-primary flex-shrink-0 ml-11" />
-                        <div className="flex-1 h-0.5 bg-primary opacity-80" />
+                      <div className="absolute left-0 right-0 bottom-1.5 pointer-events-none flex items-center z-0">
+                        <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 ml-11 opacity-70" />
+                        <div className="flex-1 h-px bg-primary opacity-50" />
                       </div>
                     )}
                   </div>
@@ -576,7 +584,8 @@ export default function ActivityDayView({
                   </div>
                 </div>
               );
-            })
+            })}
+            </>
           )}
         </div>
       </div>

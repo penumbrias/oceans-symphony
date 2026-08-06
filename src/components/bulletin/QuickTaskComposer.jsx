@@ -188,7 +188,7 @@ export default function QuickTaskComposer({
           onFocus={() => setExpanded(true)}
           onChange={(e) => setTitle(e.target.value)}
           onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleSave(); } }}
-          placeholder="Quick task… press Enter to add"
+          placeholder="What do you want to do?"
           className="flex-1 bg-transparent outline-none text-sm text-foreground placeholder:text-muted-foreground min-w-0"
         />
         {expanded ? (
@@ -196,18 +196,6 @@ export default function QuickTaskComposer({
             <Button onClick={handleSave} disabled={!title.trim() || saving} size="sm" className="rounded-full px-3 flex-shrink-0 bg-primary">
               {justSaved ? <><Check className="w-4 h-4 mr-1" /> Added</> : <><Plus className="w-4 h-4 mr-1" /> Add</>}
             </Button>
-            {moreOptions && (
-              <button type="button"
-                onClick={() => moreOptions({
-                  title, note, categoryId, urgent,
-                  date: scheduledDate || null,
-                  time: scheduledTime || null,
-                  durationMinutes: scheduledTime ? (parseInt(durationMin, 10) || 60) : null,
-                })}
-                className="flex-shrink-0 text-xs text-primary hover:underline whitespace-nowrap">
-                More options
-              </button>
-            )}
             {!hideCancelButton && (
               <button type="button" onClick={collapse} aria-label="Cancel" className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1">
                 <X className="w-4 h-4" />
@@ -233,6 +221,7 @@ export default function QuickTaskComposer({
                   : "On your list for that day. Add a time and it becomes a plan too.")
                 : "Something to tick off. Give it a day (and a time) and it becomes a plan as well."}
             </p>
+
             {/* Optional detail pills (Pin + Urgent now live inside Priority) */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {pills.map((p) => {
@@ -253,6 +242,19 @@ export default function QuickTaskComposer({
                 );
               })}
             </div>
+
+            {moreOptions && (
+              <button type="button"
+                onClick={() => moreOptions({
+                  title, note, categoryId, urgent,
+                  date: scheduledDate || null,
+                  time: scheduledTime || null,
+                  durationMinutes: scheduledTime ? (parseInt(durationMin, 10) || 60) : null,
+                })}
+                className="mt-1.5 text-[0.6875rem] text-primary hover:underline text-left">
+                More options — repeats, reminders, who it&apos;s for
+              </button>
+            )}
 
             <AnimatePresence initial={false}>
               {activePill && (

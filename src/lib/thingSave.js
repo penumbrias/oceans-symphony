@@ -102,6 +102,51 @@ export async function saveThing({
   return { task, planned: true };
 }
 
+// Editing an existing thing: keep its plan side in step. Adding a time to
+// something that had none creates the plan; removing the time retires it;
+// moving it moves the plan with it. Without this, a thing edited in the
+// To-Do List quietly disagreed with the tracker.
+export async function updateThingSchedule(task, when, { title, note, categoryIds = [] } = {}) {
+  if (!task?.id) return { planned: false };
+  const timestamp = whenToTimestamp(when);
+  let plans = [];
+  try {
+    plans = await base44.entities.Activity.filter({ task_id: task.id });
+  } catch { /* treat as none */ }
+  const live = plans.filter((p) => !p.status || p.status === ACTIVITY_STATUSES.SCHEDULED);
+
+  if (!timestamp) {
+    await unscheduleThing(task.id);
+    return { planned: false };
+  }
+
+  const name = (title || task.title || "").trim();
+  if (live.length === 0) {
+    await createPlan({
+      records: [{ activity_name: name, activity_category_ids: categoryIds }],
+      timestamp,
+      durationMinutes: when?.durationMinutes ?? null,
+      notes: (note || "").trim() || null,
+      isQuickPlan: !when?.time,
+      recurrence: { interval: "none", count: 1 },
+      linkedTask: task,
+    });
+    return { planned: true };
+  }
+  // Move what's already there rather than making a second plan for the
+  // same thing. Only the next scheduled one — a series keeps its shape.
+  const next = [...live].sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+  try {
+    await base44.entities.Activity.update(next.id, {
+      timestamp: timestamp.toISOString(),
+      activity_name: name,
+      is_quick_plan: !when?.time,
+      ...(when?.durationMinutes ? { duration_minutes: when.durationMinutes } : {}),
+    });
+  } catch { /* best effort */ }
+  return { planned: true };
+}
+
 // Taking the time off a thing shouldn't destroy the plan record it made —
 // it retires it, the same way resolving a plan as cancelled does, so the
 // history stays honest and nothing nags.
