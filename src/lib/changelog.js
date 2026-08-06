@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: the edit bar's \"Bar\" row now changes your actual quick-action bar. It was editing a second, leftover bar \u2014 which is also gone, so there's one quick-action bar again instead of two." },
+      { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar folds away with a tap, and its settings (including size) are reachable from the bar itself. Its scroll-block spacer is gone \u2014 the board pages by swiping anywhere, so it wasn't protecting anything." },
       { type: "fix", text: "On a tablet or computer, the header cog's menu was missing entirely \u2014 so \"Customize dashboard\" and the other per-page settings could only be reached from a phone. The wide-screen header has the same menu now." },
       { type: "hotfix", text: "Hotfix: a widget's Content size only changed the Log-symptoms widget \u2014 it scales every widget now." },
       { type: "fix", text: "Sleep started from the Sleep controls widget now shows up in the Sleep tracker and analytics \u2014 those records were being filed without a date and went missing." },

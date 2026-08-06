@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
@@ -52,7 +52,11 @@ let galleryRecentTouchUntil = 0;
 // real mouse drags are never suppressed.
 let galleryLastTouchAt = 0;
 
-export default function PinnedAltersGallery({ showHeader = true, className = "" }) {
+// hideScrollBlock: the v2 board swipes pages across the whole surface,
+// so the strip's no-swipe spacer protects nothing there and just eats
+// room. showGear: hosts that hide the header still need a way into the
+// size/pins settings (owner: "no way to change the size").
+export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock = false, showGear = false, className = "" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
@@ -83,7 +87,7 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
   // insertion index across the strip (0 = far left … chip-count = far right),
   // so it can sit anywhere, not just on one side.
   const sb = (config.scrollBlock && typeof config.scrollBlock === "object") ? config.scrollBlock : {};
-  const sbEnabled = !!sb.enabled;
+  const sbEnabled = !hideScrollBlock && !!sb.enabled;
   const sbWidth = Number.isFinite(sb.width) ? sb.width : 56;
 
   const [gearOpen, setGearOpen] = useState(false);
@@ -135,7 +139,7 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
     : undefined;
 
   return (
-    <div data-tour="pinned-alters" className={`mb-3 ${className}`}>
+    <div data-tour="pinned-alters" className={`mb-3 relative ${className}`}>
       {showHeader && (
         <div className="flex items-center gap-2 mb-2 px-1">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -152,6 +156,14 @@ export default function PinnedAltersGallery({ showHeader = true, className = "" 
             </button>
           )}
         </div>
+      )}
+
+      {!showHeader && showGear && !rearrange && (
+        <button type="button" onClick={() => setGearOpen(true)}
+          aria-label="Pinned settings" title="Pinned settings"
+          className="absolute -top-1 right-0 z-10 p-1 rounded-full text-muted-foreground/70 hover:text-foreground bg-background/80">
+          <SettingsIcon className="w-3 h-3" />
+        </button>
       )}
 
       <div style={stripWrapStyle}>

@@ -106,6 +106,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
     altersBar: {
       enabled: src.altersBar?.enabled === true,
       position: src.altersBar?.position === "top" ? "top" : "bottom",
+      // Collapsed: the strip folds to a thin tab. Owner asked for it to be
+      // foldable away rather than permanently eating a row.
+      collapsed: src.altersBar?.collapsed === true,
     },
     wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
     grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },

@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
+import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 
 export const V2_HOME_FIELD = "ui_v2_home";
 export const V2_HOME_FIELD_DESKTOP = "ui_v2_home_desktop";
@@ -43,6 +44,9 @@ export default function HomeV2({ settingsRow, api }) {
   const qc = useQueryClient();
   const wide = useIsWide();
   const field = wide ? V2_HOME_FIELD_DESKTOP : V2_HOME_FIELD;
+  // The frame's command bar is THE quick-action bar under v2; the board's
+  // edit toolbar edits these keys (see ExperimentalDashboard's commandBar).
+  const uiV2 = resolveUiV2(settingsRow?.ui_v2);
   const seeded = useRef({});
 
   // First open of this device class: lay out a starting set instead of an
@@ -73,6 +77,17 @@ export default function HomeV2({ settingsRow, api }) {
       api={api}
       registry={V2_WIDGETS}
       settingsField={field}
+      commandBar={{
+        keys: uiV2.commandKeys,
+        catalogue: V2_COMMAND_KEYS,
+        setKeys: async (keys) => {
+          if (!settingsRow?.id) return;
+          await base44.entities.SystemSettings.update(settingsRow.id, {
+            ui_v2: { ...(settingsRow.ui_v2 || {}), commandKeys: keys },
+          });
+          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        },
+      }}
       onExitToClassic={async () => {
         try {
           await base44.entities.SystemSettings.update(settingsRow.id, {

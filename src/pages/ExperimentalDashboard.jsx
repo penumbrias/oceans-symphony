@@ -24,7 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2,
+  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2, ChevronUp, ChevronDown,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -40,6 +40,7 @@ import {
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
@@ -398,6 +399,11 @@ export default function ExperimentalDashboard({
   // v2 injects this: leaving "back to classic" must flip ui_v2.enabled,
   // not this layout blob's own enabled flag (which nothing reads in v2).
   onExitToClassic = null,
+  // v2 injects this too: under v2 THE quick-action bar is the frame's
+  // command bar (ui_v2.commandKeys), so the edit toolbar's Bar row edits
+  // that — and this page stops drawing its own duplicate strip. Without
+  // it (classic experimental home) the legacy actionBar is still ours.
+  commandBar = null,
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -654,12 +660,20 @@ export default function ExperimentalDashboard({
 
   const wallpaperUrl = useResolvedAvatarUrl(home.wallpaper?.url || "");
 
-  const barIds = home.actionBar.enabled ? home.actionBar.buttonIds : [];
+  // Under v2 the frame's command bar IS the quick-action bar; drawing
+  // this one too gave the user two bars, only one of which the Bar
+  // toggles moved.
+  const barIds = (!commandBar && home.actionBar.enabled) ? home.actionBar.buttonIds : [];
   // PinnedAltersGallery renders null with no pins — hide the bar chrome too
   // so an empty strip doesn't sit there (but keep it visible in edit mode so
   // the toggle has visible feedback).
   const hasPinnedAlters = (api?.alters || []).some((a) => a.is_pinned && !a.is_archived);
   const altersBarOn = home.altersBar.enabled && (hasPinnedAlters || editMode);
+  const altersCollapsed = home.altersBar.collapsed === true;
+  const toggleAltersCollapsed = () => persist({
+    ...home,
+    altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
+  });
   const altersTop = altersBarOn && home.altersBar.position === "top";
   const altersBottom = altersBarOn && home.altersBar.position === "bottom";
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
@@ -903,21 +917,31 @@ export default function ExperimentalDashboard({
             </button>
             <div className="flex items-center gap-1 px-2 py-1 rounded-full border border-border/50">
               <span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">Bar:</span>
-              {ACTION_BAR_BUTTONS.map((b) => (
-                <button
-                  key={b.id}
-                  type="button"
-                  onClick={() => toggleActionBarButton(b.id)}
-                  title={b.label}
-                  className={`text-[0.625rem] px-1.5 py-0.5 rounded-full border whitespace-nowrap transition-all ${
-                    home.actionBar.buttonIds.includes(b.id)
-                      ? "border-primary/50 bg-primary/10 text-primary"
-                      : "border-border/40 text-muted-foreground"
-                  }`}
-                >
-                  {b.label.replace("Quick ", "").replace("Start ", "▶")}
-                </button>
-              ))}
+              {(commandBar ? commandBar.catalogue : ACTION_BAR_BUTTONS).map((b) => {
+                const on = commandBar
+                  ? commandBar.keys.includes(b.id)
+                  : home.actionBar.buttonIds.includes(b.id);
+                const label = applyTerms(b.label, t);
+                return (
+                  <button
+                    key={b.id}
+                    type="button"
+                    onClick={() => (commandBar
+                      ? commandBar.setKeys(on
+                          ? commandBar.keys.filter((x) => x !== b.id)
+                          : [...commandBar.keys, b.id])
+                      : toggleActionBarButton(b.id))}
+                    title={label}
+                    className={`text-[0.625rem] px-1.5 py-0.5 rounded-full border whitespace-nowrap transition-all ${
+                      on
+                        ? "border-primary/50 bg-primary/10 text-primary"
+                        : "border-border/40 text-muted-foreground"
+                    }`}
+                  >
+                    {label.replace("Quick ", "").replace("Start ", "\u25b6")}
+                  </button>
+                );
+              })}
             </div>
             <button
               type="button"
@@ -1011,7 +1035,22 @@ export default function ExperimentalDashboard({
       {/* Pinned-alters bar (top position) — persists across page swipes. */}
       {altersTop && (
         <div className="mb-2 rounded-2xl border border-border/40 bg-card/50 px-2 py-1.5">
-          <PinnedAltersGallery showHeader={false} />
+          {altersCollapsed ? (
+            <button type="button" onClick={toggleAltersCollapsed}
+              aria-label={`Show pinned ${t.alters}`} aria-expanded="false"
+              className="w-full flex items-center justify-center py-1 text-muted-foreground hover:text-foreground">
+              <ChevronDown className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <div className="relative">
+              <button type="button" onClick={toggleAltersCollapsed}
+                aria-label={`Hide pinned ${t.alters}`} aria-expanded="true"
+                className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
+                <ChevronUp className="w-3.5 h-3.5" />
+              </button>
+              <PinnedAltersGallery showHeader={false} hideScrollBlock showGear />
+            </div>
+          )}
         </div>
       )}
 
@@ -1155,8 +1194,18 @@ export default function ExperimentalDashboard({
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
         >
           {altersBottom && (
-            <div className="pointer-events-auto max-w-full overflow-x-auto px-2 py-1 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
-              <PinnedAltersGallery showHeader={false} />
+            <div className="pointer-events-auto max-w-full px-2 py-1 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3 flex items-center gap-1">
+              <button type="button" onClick={toggleAltersCollapsed}
+                aria-label={altersCollapsed ? `Show pinned ${t.alters}` : `Hide pinned ${t.alters}`}
+                aria-expanded={!altersCollapsed}
+                className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground">
+                {altersCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+              </button>
+              {!altersCollapsed && (
+                <div className="min-w-0 overflow-x-auto">
+                  <PinnedAltersGallery showHeader={false} hideScrollBlock showGear />
+                </div>
+              )}
             </div>
           )}
           {barIds.length > 0 && (
