@@ -449,6 +449,9 @@ export default function WidgetConfigSheet({
 
           {/* Widget-specific options, declared by the registry entry. */}
           {(def.configFields || []).map((f) => {
+            // showIf: a field only appears when it means something for the
+            // current settings — the cure for option-soup config sheets.
+            if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
             const val = settings[f.key] ?? f.default ?? "";
             const commit = (v) => onSettings(widget.instanceId, { [f.key]: v });
             return (

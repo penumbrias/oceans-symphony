@@ -53,6 +53,7 @@ import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
+import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
 import { CreatePollModal } from "@/pages/Polls";
@@ -633,7 +634,10 @@ function AltersListWidget({ settings, api, mode }) {
   const formatAlter = useAlterLabel();
   const groups = useList("groups", "Group");
   const alters = api?.alters || [];
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
+  // 0 / empty = everyone. The widget scrolls, so a cap is a choice — not
+  // something the widget quietly imposes (it used to stop at six).
+  const capRaw = parseInt(settings?.limit, 10);
+  const limit = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
   // Ordering is the user's call (owner request): what to sort by, which
   // direction, and whether to break the list into their groups /
   // subsystems or keep it flat.
@@ -731,35 +735,60 @@ function AltersListWidget({ settings, api, mode }) {
       }).filter((sec) => sec.items.length > 0);
     }
 
-    if (arrangement !== "grouped" || group) {
-      return [{ id: "_all", label: null, items: sortAlters(pool).slice(0, limit) }];
-    }
-    const claimed = new Set();
-    const out = [];
-    for (const g of groups) {
-      const members = getMemberAlters(g, pool);
-      if (members.length === 0) continue;
-      members.forEach((m) => claimed.add(m.id));
-      out.push({ id: g.id, label: g.name || "Group", items: sortAlters(members) });
-    }
-    const rest = pool.filter((a) => !claimed.has(a.id));
-    if (rest.length) out.push({ id: "_rest", label: applyTerms(tr("widget.alters.ungrouped"), t), items: sortAlters(rest) });
-    // The limit applies across the whole widget, not per section.
-    let left = limit;
-    return out.map((sec) => {
-      const items = sec.items.slice(0, Math.max(0, left));
-      left -= items.length;
-      return { ...sec, items };
-    }).filter((sec) => sec.items.length > 0);
+    // grouped renders through the tree path below, not sections.
+    return [{ id: "_all", label: null, items: sortAlters(pool).slice(0, limit) }];
   }, [alters, groups, group, arrangement, sortAlters, limit, tr, t, settings?.customOrder, settings?.customRest, globalOrderEntries]);
+
+  // "Group / subsystem tree": the SAME nested structure as the house alter
+  // tree (buildSubsystemItems) — top-level {alters} with the subsystems they
+  // own folded beneath them, expandable — instead of a flat run of
+  // group-labelled sections that read as separate lists.
+  const [treeOpen, setTreeOpen] = React.useState(() => new Set());
+  const treeItems = React.useMemo(() => {
+    if (arrangement !== "grouped" || group) return null;
+    const pool = alters.filter((a) => !a.is_archived);
+    return buildSubsystemItems(sortAlters(pool), groups, treeOpen);
+  }, [arrangement, group, alters, groups, sortAlters, treeOpen]);
+  const toggleTree = (id) => setTreeOpen((prev) => {
+    const n = new Set(prev);
+    if (n.has(id)) n.delete(id); else n.add(id);
+    return n;
+  });
 
   const total = sections.reduce((n, sec) => n + sec.items.length, 0);
 
   return (
     <Section label={group ? group.name : applyTerms(tr("widget.alters.label"), t)}
       action={<TextAction onClick={() => navigate("/Home")}>{tr("widget.today.open")}</TextAction>}>
-      {total === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
-      {sections.map((sec) => (
+      {total === 0 && !treeItems && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
+      {treeItems && treeItems.length === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
+      {treeItems && treeItems.map((item, i) => {
+        if (item.type === "group") {
+          const open = treeOpen.has(item.group.id);
+          return (
+            <button key={`g-${item.group.id}-${i}`} type="button" onClick={() => toggleTree(item.group.id)}
+              className="w-full flex items-center gap-1.5 py-1 text-left"
+              style={{ paddingLeft: item.depth * 14 }}>
+              <ChevronRight className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0 transition-transform"
+                style={{ transform: open ? "rotate(90deg)" : "none" }} />
+              <span className="text-[0.6875em] font-semibold uppercase tracking-wide truncate"
+                style={{ color: item.group.color || undefined }}>{item.group.name}</span>
+              <span className="text-[0.625em] text-muted-foreground">{item.members?.length ?? ""}</span>
+            </button>
+          );
+        }
+        const a = item.alter;
+        const session = sessionFor(a.id);
+        return (
+          <div key={`a-${a.id}-${i}`} style={{ paddingLeft: item.depth * 14 }}>
+            {isExpanded
+              ? <ExpandedAlterRow alter={a} session={session} onOpen={() => navigate(`/alter/${a.id}`)} t={t} formatAlter={formatAlter} />
+              : <Row left={<Dot color={a.color} ring={!!session} />} primary={formatAlter(a)}
+                  right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />}
+          </div>
+        );
+      })}
+      {!treeItems && sections.map((sec) => (
         <React.Fragment key={sec.id}>
           {sec.label && (
             <p className="text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground pt-1">{sec.label}</p>
@@ -858,7 +887,10 @@ function TasksWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const tasks = useList("tasks", "Task");
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
+  // 0 / empty = everyone. The widget scrolls, so a cap is a choice — not
+  // something the widget quietly imposes (it used to stop at six).
+  const capRaw = parseInt(settings?.limit, 10);
+  const limit = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
   const open = tasks.filter((x) => !x.completed)
     .sort((a, b) => new Date(a.due_date || 8.64e15) - new Date(b.due_date || 8.64e15))
     .slice(0, limit);
@@ -1356,18 +1388,18 @@ function BreathingWidget({ settings, updateSettings, mode }) {
 
   const pattern = BREATHING_PATTERNS[settings?.pattern] ? settings.pattern : "Box breathing";
   const showChips = mode !== "minimal";
-  const chrome = (showChips ? 40 : 0) + (mode === "expanded" ? 20 : 0) + 22;
-  // Fit the circle to the SMALLER axis so resizing in either direction
-  // actually resizes the animation instead of cropping it.
-  const maxSize = Math.max(72, Math.min(box.w - 8, box.h - chrome, 260));
+  // The measured box IS the space left for the circle: the pattern picker
+  // and caption sit outside it as fixed-height rows, so nothing below the
+  // circle can be pushed past the widget's edge and clipped (the old
+  // estimate guessed their height and guessed low).
+  const maxSize = Math.max(72, Math.min(box.w - 8, box.h - 8, 260));
 
   return (
     // Section is this widget's visible box (widget contract) — without it,
     // border / background / shadow / padding looks had nothing to paint on.
-    // The measuring div sits inside, so the circle sizes to the box's
-    // content area and shrinks when the user adds padding or borders.
     <Section>
-    <div ref={boxRef} className="h-full w-full min-h-0 flex flex-col items-center justify-center gap-1.5">
+    <div className="h-full w-full min-h-0 flex flex-col items-center gap-1.5">
+    <div ref={boxRef} className="flex-1 min-h-0 w-full flex items-center justify-center">
       <BreathingExercise
         key={`${pattern}_${maxSize}_${running}_${settings?.pace || 1}`}
         embedded
@@ -1381,8 +1413,9 @@ function BreathingWidget({ settings, updateSettings, mode }) {
           if (!settings?.autoRun) setRunning(false);
         }}
       />
+      </div>
       {showChips && (
-        <div style={{ width: Math.max(160, maxSize) }}>
+        <div className="flex-shrink-0" style={{ width: Math.max(160, Math.min(maxSize, box.w - 8)) }}>
           <SearchableSelect
             value={pattern}
             onChange={(v) => { if (v) updateSettings?.({ pattern: v }); }}
@@ -1393,7 +1426,7 @@ function BreathingWidget({ settings, updateSettings, mode }) {
         </div>
       )}
       {mode === "expanded" && (
-        <p className="text-[0.625em] text-muted-foreground">{BREATHING_PATTERNS[pattern].pattern}</p>
+        <p className="flex-shrink-0 text-[0.625em] text-muted-foreground">{BREATHING_PATTERNS[pattern].pattern}</p>
       )}
     </div>
     </Section>
@@ -1436,7 +1469,10 @@ function RecentActivitiesWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const activities = useList("activities", "Activity");
-  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
+  // 0 / empty = everyone. The widget scrolls, so a cap is a choice — not
+  // something the widget quietly imposes (it used to stop at six).
+  const capRaw = parseInt(settings?.limit, 10);
+  const limit = Number.isFinite(capRaw) && capRaw > 0 ? capRaw : Infinity;
   const done = activities
     .filter((a) => ["logged", "done", "partial"].includes(a.status) && a.timestamp)
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1783,8 +1819,12 @@ function PinnedAltersWidget({ api, settings }) {
     ro.observe(node);
     return () => ro.disconnect();
   }, []);
-  const rowH = boxH; // one logical row; wrapping shares the same size
-  const size = Math.max(32, Math.min(rowH - (showNames ? 22 : 6), 96));
+  // The user's size wins; 0/empty means fit the widget's height (one row,
+  // wrapping into more when the box is taller than wide).
+  const cfgSize = parseInt(settings?.iconSize, 10) || 0;
+  const size = cfgSize > 0
+    ? Math.max(24, Math.min(cfgSize, 160))
+    : Math.max(32, Math.min(boxH - (showNames ? 22 : 6), 96));
 
   const levelCfg = useFrontLevels();
   const suppressTapUntil = React.useRef(0);
@@ -2262,12 +2302,15 @@ export const V2_WIDGETS = {
       { key: "arrangement", type: "select", label: "Arrangement", default: "flat",
         options: [
           { value: "flat", label: "One flat list" },
-          { value: "grouped", label: "Split by group / subsystem" },
+          { value: "grouped", label: "Group / subsystem tree" },
           { value: "custom", label: "My own order" },
         ] },
-      { key: "customOrder", type: "arrangement", label: "This widget\u2019s own order (leave empty to follow your {{system}}-wide order)" },
-      { key: "customRest", type: "toggle", label: "List everyone else after your order", default: true },
+      { key: "customOrder", type: "arrangement", label: "This widget\u2019s own order (leave empty to follow your {{system}}-wide order)",
+        showIf: (st) => st?.arrangement === "custom" },
+      { key: "customRest", type: "toggle", label: "List everyone else after your order", default: true,
+        showIf: (st) => st?.arrangement === "custom" },
       { key: "sort", type: "select", label: "Order by", default: "name",
+        showIf: (st) => (st?.arrangement || "flat") !== "custom",
         options: [
           { value: "name", label: "Name (A\u2013Z)" },
           { value: "front_time", label: "{{Fronting}} time" },
@@ -2276,9 +2319,10 @@ export const V2_WIDGETS = {
           { value: "created", label: "When they joined" },
           { value: "role", label: "Role" },
         ] },
-      { key: "reverse", type: "toggle", label: "Reverse the order", default: false },
+      { key: "reverse", type: "toggle", label: "Reverse the order", default: false,
+        showIf: (st) => (st?.arrangement || "flat") !== "custom" },
       { key: "groupId", type: "group", label: "Only show one group / subsystem" },
-      { key: "limit", type: "number", label: "How many to show", min: 1, max: 40, default: 6 },
+      { key: "limit", type: "number", label: "How many to show (0 = everyone)", min: 0, max: 40, default: 0 },
     ],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
@@ -2421,6 +2465,7 @@ export const V2_WIDGETS = {
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     configFields: [
       { key: "showNames", type: "toggle", label: "Show names", default: true },
+      { key: "iconSize", type: "number", label: "Avatar size (0 = fit the widget)", min: 0, max: 160, default: 0 },
     ],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },

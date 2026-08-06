@@ -65,7 +65,7 @@ function emitAlterWithSubsystems(items, alter, depth, alters, groups, subExpande
 
 // Subsystem tree (Members tab): top-level alters (NOT inside any subsystem),
 // each with their owned subsystems nested + collapsible.
-function buildSubsystemItems(alters, groups, expanded) {
+export function buildSubsystemItems(alters, groups, expanded) {
   const inside = getAltersInsideSubsystems(groups, alters);
   const top = alters.filter((a) => !inside.has(a.id));
   const renderedSubs = new Set();

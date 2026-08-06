@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: pinned alters \u2014 set the avatar size yourself (or leave it fitting the widget) and toggle names on or off, in the widget's options." },
+      { type: "fix", text: "\ud83e\uddea New UI: the breathing widget's pattern picker no longer gets pushed off the bottom edge \u2014 the circle now takes only the space that's actually left." },
+      { type: "fix", text: "\ud83e\uddea New UI: the alters list widget shows everyone by default instead of quietly stopping at six \u2014 a cap is now a choice (0 = everyone)." },
+      { type: "improve", text: "\ud83e\uddea New UI: the alters list's \"group / subsystem\" arrangement is the same nested tree as everywhere else \u2014 subsystems fold open under their owners. Its options only show the fields that apply to the arrangement you picked." },
       { type: "improve", text: "\ud83e\uddea New UI: the older widgets now have the same three sizes as the new ones \u2014 Active, Today, Status, To-dos, Plans, Sleep, Reminders, Polls, Pinned alters and the rest. Minimal is names and numbers only; expanded shows about twice as many rows." },
       { type: "fix", text: "A day with nothing logged said \"12am \u2013 12pm\" instead of \"Nothing logged all day\", and the \"now\" marker sat at a meaningless spot. It now reads as a quiet stretch with now marked in it." },
       { type: "fix", text: "Search boxes with a magnifying-glass icon no longer had the icon sitting on top of the text (the activity picker, and anything else using that spacing)." },
