@@ -40,6 +40,7 @@ import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
+const LazyActivityPlanModal = React.lazy(() => import("@/components/activities/ActivityPlanModal"));
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
@@ -101,6 +102,10 @@ export default function Dashboard() {
   const [showStartSymptom, setShowStartSymptom] = useState(false);
   const [showQuickTask, setShowQuickTask] = useState(false);
   const [showQuickPlan, setShowQuickPlan] = useState(false);
+  // "More options" on the quick composer: the same thing, continued in the
+  // full plan form (repeats, reminders, location, who it's for) with what
+  // you already typed carried over.
+  const [planDraft, setPlanDraft] = useState(null);
   const [showNotifHistory, setShowNotifHistory] = useState(false);
   const [highlightBulletinId, setHighlightBulletinId] = useState(null);
   const [showTour, setShowTour] = useState(false);
@@ -1196,10 +1201,31 @@ export default function Dashboard() {
             onSaved={() => setShowQuickPlan(false)}
             hideCancelButton
             startWithWhen
-            moreOptions={() => { setShowQuickPlan(false); navigate("/activities"); }}
+            moreOptions={(draft) => { setShowQuickPlan(false); setPlanDraft(draft); }}
           />
         </DialogContent>
       </Dialog>
+
+      {planDraft && (
+        <React.Suspense fallback={null}>
+          <LazyActivityPlanModal
+            isOpen
+            onClose={() => setPlanDraft(null)}
+            startDate={planDraft.date ? new Date(`${planDraft.date}T00:00:00`) : new Date()}
+            endDate={planDraft.date ? new Date(`${planDraft.date}T00:00:00`) : new Date()}
+            startHour={planDraft.time ? parseInt(planDraft.time.split(":")[0], 10) : undefined}
+            startMinute={planDraft.time ? parseInt(planDraft.time.split(":")[1], 10) : 0}
+            endHour={planDraft.time && planDraft.durationMinutes
+              ? parseInt(planDraft.time.split(":")[0], 10) + Math.floor(planDraft.durationMinutes / 60)
+              : undefined}
+            endMinute={0}
+            initialTitle={planDraft.title || ""}
+            initialNotes={planDraft.note || ""}
+            alters={alters}
+            onSave={() => setPlanDraft(null)}
+          />
+        </React.Suspense>
+      )}
 
       {/* "Customize dashboard" (header cog) → the section drag/drop layout
           editor in a popup. Reuses the exact component from Settings →

@@ -197,7 +197,13 @@ export default function QuickTaskComposer({
               {justSaved ? <><Check className="w-4 h-4 mr-1" /> Added</> : <><Plus className="w-4 h-4 mr-1" /> Add</>}
             </Button>
             {moreOptions && (
-              <button type="button" onClick={moreOptions}
+              <button type="button"
+                onClick={() => moreOptions({
+                  title, note, categoryId, urgent,
+                  date: scheduledDate || null,
+                  time: scheduledTime || null,
+                  durationMinutes: scheduledTime ? (parseInt(durationMin, 10) || 60) : null,
+                })}
                 className="flex-shrink-0 text-xs text-primary hover:underline whitespace-nowrap">
                 More options
               </button>

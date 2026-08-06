@@ -100,6 +100,10 @@ export default function ActivityPlanModal({
   // All activities — needed when editBranch is set so the helpers can
   // find the rest of the series.
   allActivities = null,
+  // Carried over from the quick composer's "More options" so continuing
+  // into the full form doesn't mean retyping what you already wrote.
+  initialTitle = "",
+  initialNotes = "",
 }) {
   const terms = useTerms();
   const queryClient = useQueryClient();
@@ -281,8 +285,8 @@ export default function ActivityPlanModal({
     }
     setSelectedActivityCategories([]);
     setSelectedAlters([]);
-    setNotes("");
-    setTitle("");
+    setNotes(initialNotes || "");
+    setTitle(initialTitle || "");
     setLocation("");
     setIsCritical(false);
     setLeadSteps(DEFAULT_LEAD_STEPS);

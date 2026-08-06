@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\"More options\" on the quick composer now opens the full plan form with what you already typed carried over, instead of just sending you to the Activity tracker." },
       { type: "feature", text: "To-dos and plans are one thing now: something to do, with an optional time. Add a day and a time and it also becomes a plan \u2014 on the tracker, the timeline and the day views \u2014 and ticking either side finishes it." },
       { type: "improve", text: "One composer instead of two: the bulletin board's separate quick-plan row is gone, and \"Plan\" and \"Task\" both open the same box (Plan just starts with the date showing). The full plan form is one tap away under \"More options\"." },
       { type: "feature", text: "\ud83e\uddea New UI: press and hold a quiet part of any widget to open its options. Spots that do something themselves \u2014 buttons, an alter row's fronting rail, the activity grid \u2014 keep their own hold." },
