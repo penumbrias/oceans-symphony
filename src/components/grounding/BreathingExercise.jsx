@@ -73,9 +73,15 @@ export default function BreathingExercise({
     }
   }, [pattern.phases, totalRounds, loop]);
 
-  // The widget resized (or settled its first real measurement): keep the
-  // circle at the CURRENT phase's target for the new size, quickly.
+  // The widget resized mid-exercise: keep the circle at the CURRENT
+  // phase's target for the new size, quickly. Skips the mount run — on
+  // mount this snapped the circle instantly to the inhale's full size, so
+  // the opening inhale had no visible growth and the first motion anyone
+  // saw was the exhale shrinking (the reported backwards first breath).
+  const maxSizeRef = useRef(maxSize);
   useEffect(() => {
+    if (maxSizeRef.current === maxSize) return;
+    maxSizeRef.current = maxSize;
     if (!started || completed) return;
     snapRef.current = true;
     setCircleSize(getTargetSize());

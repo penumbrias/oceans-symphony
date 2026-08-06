@@ -1371,7 +1371,10 @@ function SleepControlWidget() {
 function BreathingWidget({ settings, updateSettings, mode }) {
   const tr = useT();
   const boxRef = React.useRef(null);
-  const [box, setBox] = React.useState({ w: 200, h: 200 });
+  // null until measured — the exercise must never mount against the
+  // placeholder, because settling to the real size milliseconds later is
+  // indistinguishable from a resize and always corrupts the first breath.
+  const [box, setBox] = React.useState(null);
   const [running, setRunning] = React.useState(!!settings?.autoRun);
   React.useEffect(() => { setRunning(!!settings?.autoRun); }, [settings?.autoRun]);
   // useLayoutEffect: the first measurement must land BEFORE first paint —
@@ -1395,12 +1398,13 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   const showChips = mode !== "minimal";
   // The measured box IS the space left for the circle: the pattern picker
   // and caption sit outside it as fixed-height rows, so nothing below the
-  // circle can be pushed past the widget's edge and clipped (the old
-  // estimate guessed their height and guessed low).
+  // circle can be pushed past the widget's edge and clipped.
   // The step label under the circle is a fixed ~2.4em block (so it can't
   // bounce the circle); reserve it here so circle + label always fit.
   const labelH = 36;
-  const maxSize = Math.round(Math.max(56, Math.min(box.w - 8, box.h - labelH - 8, 260)));
+  const maxSize = box
+    ? Math.round(Math.max(56, Math.min(box.w - 8, box.h - labelH - 8, 260)))
+    : null;
 
   return (
     // Section is this widget's visible box (widget contract) — without it,
@@ -1408,6 +1412,7 @@ function BreathingWidget({ settings, updateSettings, mode }) {
     <Section>
     <div className="h-full w-full min-h-0 flex flex-col items-center gap-1.5">
     <div ref={boxRef} className="flex-1 min-h-0 w-full flex items-center justify-center">
+      {maxSize !== null && (
       <BreathingExercise
         key={`${pattern}_${running}`}
         embedded
@@ -1421,9 +1426,10 @@ function BreathingWidget({ settings, updateSettings, mode }) {
           if (!settings?.autoRun) setRunning(false);
         }}
       />
+      )}
       </div>
       {showChips && (
-        <div className="flex-shrink-0 w-full" style={{ maxWidth: Math.max(120, box.w - 4) }}>
+        <div className="flex-shrink-0 w-full" style={{ maxWidth: Math.max(120, (box?.w ?? 200) - 4) }}>
           <SearchableSelect
             value={pattern}
             onChange={(v) => { if (v) updateSettings?.({ pattern: v }); }}
