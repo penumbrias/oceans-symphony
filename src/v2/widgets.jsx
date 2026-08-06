@@ -47,6 +47,7 @@ import { useAlterOrder } from "@/lib/alterOrder";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
@@ -1987,6 +1988,93 @@ function LogEmotionWidget({ mode, settings }) {
   );
 }
 
+function LogSymptomFullWidget({ api }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const getterRef = React.useRef(null);
+  const [saving, setSaving] = React.useState(false);
+  const [dirtyTick, setDirtyTick] = React.useState(0);
+  // The check-ins created by the LAST save — Undo deletes exactly those.
+  const [lastSaved, setLastSaved] = React.useState(null);
+  const [saveGen, setSaveGen] = React.useState(0);
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const fronterIds = activeFront.map((x) => x.alter_id || x.primary_alter_id).filter(Boolean);
+  const pending = getterRef.current ? getterRef.current() : [];
+
+  const save = async () => {
+    const rows = getterRef.current ? getterRef.current() : [];
+    if (!rows.length || saving) return;
+    setSaving(true);
+    try {
+      const now = new Date().toISOString();
+      const ids = [];
+      // Same record shape the Quick Check-In writes, minus the parent
+      // check-in id (there is no emotion check-in here to attach to).
+      for (const sc of rows) {
+        const created = await base44.entities.SymptomCheckIn.create({
+          symptom_id: sc.symptom_id,
+          timestamp: now,
+          severity: sc.severity,
+          fronting_alter_ids: sc.alter_ids ?? fronterIds,
+        });
+        ids.push(created.id);
+      }
+      qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      setLastSaved({ ids, at: now });
+      // Remount the section so the form comes back clean — leaving the
+      // rows checked after a save read as "did that go through?", and it
+      // also kept the Undo hidden behind a still-armed Save.
+      setSaveGen((g) => g + 1);
+      getterRef.current = null;
+      toast.success(tr("widget.logSymptom.saved", { n: rows.length }));
+    } catch (e) { toast.error(e?.message || "Couldn't save"); }
+    finally { setSaving(false); }
+  };
+
+  const undo = async () => {
+    if (!lastSaved) return;
+    try {
+      for (const id of lastSaved.ids) await base44.entities.SymptomCheckIn.delete(id);
+      qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      setLastSaved(null);
+      toast.success(tr("widget.logSymptom.undone"));
+    } catch (e) { toast.error(e?.message || "Couldn't undo"); }
+  };
+
+  return (
+    <Section label={tr("widget.logSymptom.label")}
+      action={
+        <span className="flex items-center gap-2">
+          {lastSaved && !pending.length && (
+            <TextAction onClick={undo}>{tr("widget.logSymptom.undoSave")}</TextAction>
+          )}
+          {pending.length > 0 && (
+            <TextAction onClick={save}>{saving ? "…" : `${tr("widget.status.save")} (${pending.length})`}</TextAction>
+          )}
+        </span>
+      }>
+      {/* THE check-in symptom section, verbatim — tabs, search, severity
+          anchors, per-{alter} assignment, and the active-episode toggles
+          (those write immediately, exactly as they do in the check-in). */}
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"
+        // Deferred a tick: the section publishes its selections in an
+        // effect AFTER its own render — reading synchronously on click made
+        // the Save counter lag one tap behind.
+        onClickCapture={() => setTimeout(() => setDirtyTick((t) => t + 1), 0)} data-dirty-tick={dirtyTick}>
+        <SymptomsSection
+          key={saveGen}
+          onCheckInsReady={(fn) => { getterRef.current = fn; }}
+          alters={(api?.alters || []).filter((a) => !a.is_archived)}
+          assignDefaultIds={fronterIds}
+        />
+      </div>
+    </Section>
+  );
+}
+
 function LogSymptomWidget({ settings }) {
   const tr = useT();
   const qc = useQueryClient();
@@ -1995,43 +2083,96 @@ function LogSymptomWidget({ settings }) {
   const live = symptoms.filter((x) => !x.is_archived);
   const shown = chosenIds.length ? live.filter((x) => chosenIds.includes(x.id)) : live.slice(0, 8);
 
+  // What was just logged, per symptom: the tapped value stays lit on its
+  // button (so a tap visibly DID something) and the row grows an Undo that
+  // deletes exactly that check-in. Cleared when undone or re-logged;
+  // remembering it for the widget's whole mounted life doubles as a
+  // "what I last logged" readout.
+  const [recent, setRecent] = React.useState({}); // { [symptomId]: { id, value } }
+  const [busyId, setBusyId] = React.useState(null);
+
   const log = async (symptom, value) => {
+    if (busyId) return;
+    setBusyId(symptom.id);
     try {
       const active = await base44.entities.FrontingSession.filter({ is_active: true });
       const lead = active.find((x) => x.is_primary) || active[0];
-      await base44.entities.SymptomCheckIn.create({
+      const created = await base44.entities.SymptomCheckIn.create({
         timestamp: new Date().toISOString(),
         symptom_id: symptom.id,
         intensity: value,
         alter_id: lead?.alter_id || null,
       });
+      setRecent((prev) => ({ ...prev, [symptom.id]: { id: created.id, value } }));
       qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
       toast.success(symptom.label || symptom.name);
     } catch (e) { toast.error(e?.message || "Couldn't log"); }
+    finally { setBusyId(null); }
+  };
+
+  const undo = async (symptom) => {
+    const entry = recent[symptom.id];
+    if (!entry) return;
+    try {
+      await base44.entities.SymptomCheckIn.delete(entry.id);
+      setRecent((prev) => { const n = { ...prev }; delete n[symptom.id]; return n; });
+      qc.invalidateQueries({ queryKey: ["symptomCheckIns"] });
+      toast.success(tr("widget.logSymptom.undone"));
+    } catch (e) { toast.error(e?.message || "Couldn't undo"); }
   };
 
   return (
     <Section label={tr("widget.logSymptom.label")}
       action={<TextAction onClick={() => window.dispatchEvent(new CustomEvent("open-quick-checkin"))}>{tr("widget.logEmotion.full")}</TextAction>}>
       {shown.length === 0 && <Muted>{tr("widget.logSymptom.empty")}</Muted>}
-      {shown.map((sym) => (
-        <div key={sym.id} className="flex items-center gap-2">
-          <span className="text-sm truncate flex-1 min-w-0">{sym.label || sym.name}</span>
-          {sym.type === "rating" ? (
-            <span className="flex gap-1 flex-shrink-0">
-              {[1, 2, 3, 4, 5].map((n) => (
-                <button key={n} type="button" onClick={() => log(sym, n)}
-                  className="w-6 h-6 text-[0.6875em] border border-border/60 hover:border-primary/60"
-                  style={{ borderRadius: "var(--v2-radius, 8px)" }}>{n}</button>
-              ))}
-            </span>
-          ) : (
-            <button type="button" onClick={() => log(sym, true)}
-              className="text-[0.6875em] px-2 py-1 border border-border/60 hover:border-primary/60 flex-shrink-0"
-              style={{ borderRadius: "var(--v2-radius, 8px)" }}>{tr("widget.logSymptom.log")}</button>
-          )}
-        </div>
-      ))}
+      {shown.map((sym) => {
+        const done = recent[sym.id];
+        return (
+          <div key={sym.id} className="flex items-center gap-2">
+            <span className="text-sm truncate flex-1 min-w-0">{sym.label || sym.name}</span>
+            {done && (
+              <button type="button" onClick={() => undo(sym)}
+                className="text-[0.625em] text-muted-foreground hover:text-foreground underline flex-shrink-0">
+                {tr("widget.logSymptom.undo")}
+              </button>
+            )}
+            {sym.type === "rating" ? (
+              <span className="flex gap-1 flex-shrink-0">
+                {[1, 2, 3, 4, 5].map((n) => {
+                  const picked = done?.value === n;
+                  return (
+                    <button key={n} type="button" onClick={() => (picked ? undo(sym) : log(sym, n))}
+                      disabled={busyId === sym.id}
+                      aria-pressed={picked}
+                      className={`w-6 h-6 text-[0.6875em] border transition-all active:scale-90 disabled:opacity-50 ${
+                        picked
+                          ? "border-transparent font-semibold"
+                          : "border-border/60 hover:border-primary/60"
+                      }`}
+                      style={{
+                        borderRadius: "var(--v2-radius, 8px)",
+                        ...(picked ? { background: "var(--v2-accent, hsl(var(--primary)))", color: "hsl(var(--primary-foreground))" } : null),
+                      }}>{n}</button>
+                  );
+                })}
+              </span>
+            ) : (
+              <button type="button" onClick={() => (done ? undo(sym) : log(sym, true))}
+                disabled={busyId === sym.id}
+                aria-pressed={!!done}
+                className={`text-[0.6875em] px-2 py-1 border transition-all active:scale-95 disabled:opacity-50 flex-shrink-0 ${
+                  done ? "border-transparent font-semibold" : "border-border/60 hover:border-primary/60"
+                }`}
+                style={{
+                  borderRadius: "var(--v2-radius, 8px)",
+                  ...(done ? { background: "var(--v2-accent, hsl(var(--primary)))", color: "hsl(var(--primary-foreground))" } : null),
+                }}>
+                {done ? `\u2713 ${tr("widget.logSymptom.logged")}` : tr("widget.logSymptom.log")}
+              </button>
+            )}
+          </div>
+        );
+      })}
     </Section>
   );
 }
@@ -2318,9 +2459,11 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
   },
   log_symptom: {
-    label: "Log symptoms", description: "One-tap logging for the symptoms you track most.",
+    label: "Log symptoms", description: "The check-in's symptoms section on the board \u2014 tabs, search, severity, active episodes, per-{{alter}} assignment \u2014 with Save and undo. Minimal is one-tap rows for your usual few.",
     icon: Activity, category: "checkin",
-    render: sized(({ settings }) => <LogSymptomWidget settings={settings} />),
+    render: sized(({ settings, mode, api }) => (mode === "minimal"
+      ? <LogSymptomWidget settings={settings} />
+      : <LogSymptomFullWidget api={api} />)),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "symptomIds", type: "symptoms", label: "Which symptoms" },
