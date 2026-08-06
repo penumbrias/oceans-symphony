@@ -141,6 +141,12 @@ new one, add it. Update the date line above whenever you touch this file.*
   wrap body portals in a plain non-fixed div. Check this FIRST when "nothing
   scrolls / nothing taps" appears after adding an overlay.
 
+- [x] **src/v2 was outside eslint's coverage** — which is exactly why an
+  undefined identifier (`showStatus` leaked between widget functions)
+  shipped and crashed devices with an active symptom episode (v0.134.8).
+  eslint.config.js now includes `src/v2/**`; `no-undef` in that tree is a
+  shipped-crash class, never a style nit.
+
 ## Standing rules distilled this cycle (also in Claude's memory)
 
 - Widgets are **building blocks**: a classic component converted to a widget

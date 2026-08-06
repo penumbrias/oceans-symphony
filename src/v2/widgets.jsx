@@ -22,7 +22,7 @@ import { base44 } from "@/api/base44Client";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
-  Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, Plus, NotebookPen,
+  Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2,
 } from "lucide-react";
@@ -316,7 +316,7 @@ function ActiveWidget({ api }) {
         if (!def) return null;
         return (
           <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={def.label || def.name}
-            right={showStatus && s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
+            right={s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
         );
       })}
       {activeSleep && (

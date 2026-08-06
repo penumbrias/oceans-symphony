@@ -22,7 +22,6 @@ import { toast } from "sonner";
 import { base44, localEntities } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
-import { statusFor } from "@/lib/activityStatus";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
 } from "@/lib/dailyTaskSystem";

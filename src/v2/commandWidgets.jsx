@@ -10,7 +10,7 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import {
-  Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays,
+  Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare,
   Users, LifeBuoy,
 } from "lucide-react";
 

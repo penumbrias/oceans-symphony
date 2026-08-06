@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "Fixed a crash that hit the home screen whenever a symptom episode was running \u2014 the Active widget referenced something that didn't exist and took the whole page down with it." },
       { type: "fix", text: "\ud83e\uddea New UI: swiping between home pages works for real this time \u2014 from any widget, at any speed, and in the empty space under a short page. Sideways-scrolling widgets and the calendars' drag-to-plan keep their own gestures." },
       { type: "fix", text: "\ud83e\uddea New UI in landscape: a page you arranged by hand keeps its arrangement instead of squashing into the left half, and the top bar, tab strip and quick-action keys slim down so the screen isn't mostly chrome." },
     ],
