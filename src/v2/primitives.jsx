@@ -7,6 +7,21 @@
 
 import React from "react";
 
+// The display mode a widget is rendering at, so shared primitives can
+// answer it without every widget threading the prop through. Widgets that
+// implement their own minimal/expanded rendering just ignore this.
+export const WidgetModeContext = React.createContext("normal");
+export const useWidgetMode = () => React.useContext(WidgetModeContext);
+
+// "How many rows at this size" — one rule instead of each widget guessing:
+// minimal keeps it short, expanded shows about twice as much.
+export function rowsForMode(mode, base) {
+  const n = Math.max(1, parseInt(base, 10) || 5);
+  if (mode === "minimal") return Math.max(1, Math.min(3, n));
+  if (mode === "expanded") return n * 2;
+  return n;
+}
+
 export function Page({ title, sub, children }) {
   return (
     <div className="py-3" style={{ display: "flex", flexDirection: "column", gap: "calc(var(--v2-space, 6px) * 2)" }}>
@@ -70,6 +85,10 @@ export function Section({ label, action, center, children }) {
 // One list row: [left] primary — secondary [right]. Tappable if onClick.
 export function Row({ left, primary, secondary, right, onClick, title }) {
   const Tag = onClick ? "button" : "div";
+  // Minimal means the answer and nothing else: no icon or avatar column, no
+  // qualifier. The row keeps its name and its right-hand value.
+  const mode = useWidgetMode();
+  if (mode === "minimal") { left = null; secondary = null; }
   return (
     <Tag
       type={onClick ? "button" : undefined}

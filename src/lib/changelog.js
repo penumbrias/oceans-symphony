@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the older widgets now have the same three sizes as the new ones \u2014 Active, Today, Status, To-dos, Plans, Sleep, Reminders, Polls, Pinned alters and the rest. Minimal is names and numbers only; expanded shows about twice as many rows." },
+      { type: "fix", text: "A day with nothing logged said \"12am \u2013 12pm\" instead of \"Nothing logged all day\", and the \"now\" marker sat at a meaningless spot. It now reads as a quiet stretch with now marked in it." },
       { type: "fix", text: "Search boxes with a magnifying-glass icon no longer had the icon sitting on top of the text (the activity picker, and anything else using that spacing)." },
       { type: "fix", text: "Day view: the first hour label was clipped by the quick-plans strip above it, and the \"you are here\" line was drawn straight through the \"no activities\" text." },
       { type: "fix", text: "The add-something-to-do box no longer runs off the edge of a narrow screen." },

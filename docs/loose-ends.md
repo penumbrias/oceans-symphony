@@ -120,10 +120,12 @@ new one, add it. Update the date line above whenever you touch this file.*
 - [ ] **Wiki preview (`previewWiki.js`) knows nothing about v2.** The
   staleness banner is honest about it (WIKI_CONTENT_VERSION < APP_VERSION),
   but before v2 ships to main the wiki wants a v2 walkthrough entry.
-- [ ] **Older v2 widgets are still single-mode.** The tranche shipped in
-  v0.128.0 all read minimal/normal/expanded; several earlier ones
-  (`tasks`, `plans`, `sleep`, `status`, `recent`, `bulletin_board`) still
-  declare only `normal`. Give them the same ladder when touched.
+- [x] Older v2 widgets are single-mode no longer (v0.133.0): `WidgetModeContext`
+  + `rowsForMode` in `primitives.jsx`, a `sized()` wrapper in widgets.jsx, and
+  the shared `Row` drops its icon/qualifier at minimal. 17 widgets widened
+  this way without rewriting any of them. Still single-mode ON PURPOSE: the
+  layout primitives (heading/text/divider/spacer) and the full-surface ones
+  (chat channel, bulletin board, notebook, journal, new poll).
 - [ ] **New widget strings are unkeyed.** activityWidgets/moreWidgets write
   English directly instead of going through `useT()`, unlike the rest of
   `widgets.jsx`. Fold them into `src/locales/en.js` when the locale work

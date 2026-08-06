@@ -61,7 +61,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
-import { Section, Row, Muted, TextAction, Dot, boxStyle } from "@/v2/primitives";
+import { Section, Row, Muted, TextAction, Dot, boxStyle, WidgetModeContext, useWidgetMode, rowsForMode } from "@/v2/primitives";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -434,7 +434,7 @@ function StatusWidget() {
 function RecentWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
-  const limit = Math.max(1, Math.min(10, parseInt(settings?.limit, 10) || 4));
+  const limit = rowsForMode(useWidgetMode(), Math.max(1, Math.min(10, parseInt(settings?.limit, 10) || 4)));
   const checkIns = useList("emotionCheckIns", "EmotionCheckIn");
   const recent = [...checkIns]
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -633,7 +633,7 @@ function AltersListWidget({ settings, api, mode }) {
   const formatAlter = useAlterLabel();
   const groups = useList("groups", "Group");
   const alters = api?.alters || [];
-  const limit = parseInt(settings?.limit, 10) || 6;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
   // Ordering is the user's call (owner request): what to sort by, which
   // direction, and whether to break the list into their groups /
   // subsystems or keep it flat.
@@ -837,7 +837,7 @@ function JournalWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const entries = useList("journalEntries", "JournalEntry");
-  const limit = parseInt(settings?.limit, 10) || 4;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
   const list = [...entries]
     .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
     .slice(0, limit);
@@ -858,7 +858,7 @@ function TasksWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const tasks = useList("tasks", "Task");
-  const limit = parseInt(settings?.limit, 10) || 6;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
   const open = tasks.filter((x) => !x.completed)
     .sort((a, b) => new Date(a.due_date || 8.64e15) - new Date(b.due_date || 8.64e15))
     .slice(0, limit);
@@ -900,7 +900,7 @@ function BulletinsWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const bulletins = useList("bulletins", "Bulletin");
-  const limit = parseInt(settings?.limit, 10) || 4;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
   const list = [...bulletins]
     .sort((a, b) => new Date(b.timestamp || b.created_date || 0) - new Date(a.timestamp || a.created_date || 0))
     .slice(0, limit);
@@ -921,7 +921,7 @@ function RemindersWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const instances = useList("reminderInstances", "ReminderInstance");
-  const limit = parseInt(settings?.limit, 10) || 4;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
   const now = Date.now();
   const next = instances
     .filter((i) => i.status !== "acted" && i.status !== "dismissed" && i.scheduled_for)
@@ -1406,7 +1406,7 @@ function PlansWidget({ settings }) {
   const navigate = useNavigate();
   const activities = useList("activities", "Activity");
   const days = parseInt(settings?.days, 10) || 7;
-  const limit = parseInt(settings?.limit, 10) || 8;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 8);
   const now = Date.now();
   const upcoming = activities
     .filter((a) => a.status === "scheduled" && a.timestamp
@@ -1436,7 +1436,7 @@ function RecentActivitiesWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const activities = useList("activities", "Activity");
-  const limit = parseInt(settings?.limit, 10) || 6;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 6);
   const done = activities
     .filter((a) => ["logged", "done", "partial"].includes(a.status) && a.timestamp)
     .sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))
@@ -1555,7 +1555,7 @@ function PollsWidget({ settings }) {
   const tr = useT();
   const navigate = useNavigate();
   const polls = useList("polls", "Poll");
-  const limit = parseInt(settings?.limit, 10) || 4;
+  const limit = rowsForMode(useWidgetMode(), parseInt(settings?.limit, 10) || 4);
   const list = [...polls]
     .sort((a, b) => new Date(b.created_date || 0) - new Date(a.created_date || 0))
     .slice(0, limit);
@@ -2022,6 +2022,19 @@ function SymptomAnalyticsWidget({ settings }) {
   );
 }
 
+
+// Widgets written before display modes existed get the ladder here: the
+// mode goes into context, where the shared Row uses it to drop icons and
+// qualifiers at minimal, and the list widgets read it for how many rows to
+// show. Nothing else about them changes.
+function sized(render) {
+  return (props) => (
+    <WidgetModeContext.Provider value={props.mode || "normal"}>
+      {render(props)}
+    </WidgetModeContext.Provider>
+  );
+}
+
 export const V2_WIDGETS = {
   activity_week: {
     label: "Week grid", description: "The activity tracker's week, on your home screen. Minimal is a per-day readout; normal draws the grid; expanded gives you the tracker's own gestures \u2014 drag a time range to log or plan it.",
@@ -2157,29 +2170,29 @@ export const V2_WIDGETS = {
   running: {
     label: "Active", description: "What's running right now — activities, symptom episodes, sleep — and how long for.",
     icon: Timer, category: "home",
-    render: ({ api }) => <ActiveWidget api={api} />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ api }) => <ActiveWidget api={api} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
     label: "Today", description: "Today's schedule: plans at their times, anything due today, and anything left unresolved.",
     icon: CalendarCheck, category: "home",
-    render: () => <TodayWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(() => <TodayWidget />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   status: {
     label: "Status", description: "The latest status note.",
     icon: StickyNote, category: "home",
-    render: () => <StatusWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(() => <StatusWidget />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   recent: {
     label: "Recent check-ins", description: "Your most recent check-ins.",
     icon: History, category: "home",
-    render: ({ settings }) => <RecentWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <RecentWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   log_emotion: {
@@ -2192,8 +2205,8 @@ export const V2_WIDGETS = {
   log_symptom: {
     label: "Log symptoms", description: "One-tap logging for the symptoms you track most.",
     icon: Activity, category: "checkin",
-    render: ({ settings }) => <LogSymptomWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <LogSymptomWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "symptomIds", type: "symptoms", label: "Which symptoms" },
     ],
@@ -2202,8 +2215,8 @@ export const V2_WIDGETS = {
   diary_card: {
     label: "Diary card", description: "Whether today's diary card is started, and a way in.",
     icon: ClipboardList, category: "checkin",
-    render: () => <DiaryCardWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(() => <DiaryCardWidget />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   },
   emotion_analytics: {
@@ -2229,8 +2242,8 @@ export const V2_WIDGETS = {
   capture: {
     label: "Capture", description: "One-tap buttons for the things you log most.",
     icon: Heart, category: "home",
-    render: ({ api }) => <CaptureWidget api={api} />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ api }) => <CaptureWidget api={api} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   system_identity: {
@@ -2314,16 +2327,16 @@ export const V2_WIDGETS = {
   tasks: {
     label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",
     icon: ListTodo, category: "tasks",
-    render: ({ settings }) => <TasksWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <TasksWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   sleep: {
     label: "Sleep", description: "Last night's sleep, or the one in progress.",
     icon: Moon, category: "sleep",
-    render: () => <SleepWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(() => <SleepWidget />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   board: {
@@ -2337,8 +2350,8 @@ export const V2_WIDGETS = {
   reminders: {
     label: "Reminders", description: "What's coming up from your reminders.",
     icon: Bell, category: "reminders",
-    render: ({ settings }) => <RemindersWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <RemindersWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
@@ -2395,17 +2408,17 @@ export const V2_WIDGETS = {
     // hideStatusNote ALWAYS: the classic panel bundles the status bar for
     // dashboard convenience, but widgets are building blocks — status entry
     // is its own widget, so the panel carries only the fronting feature.
-    render: ({ api }) => (
+    render: sized(({ api }) => (
       <CurrentFronters alters={api?.alters || []} hideStatusNote />
-    ),
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    )),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   pinned_alters: {
     label: "Pinned {{alters}}", description: "Your pinned {{alters}} as a row of avatars that scales with the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = set {{front}} (the level spectrum when levels are on).",
     icon: Pin, category: "alters",
-    render: ({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     configFields: [
       { key: "showNames", type: "toggle", label: "Show names", default: true },
     ],
@@ -2414,8 +2427,8 @@ export const V2_WIDGETS = {
   sleep_controls: {
     label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",
     icon: Moon, category: "sleep",
-    render: () => <SleepControlWidget />,
-    supportsModes: ["normal"], supportsMultiInstance: false,
+    render: sized(() => <SleepControlWidget />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   breathing: {
@@ -2442,8 +2455,8 @@ export const V2_WIDGETS = {
   plans: {
     label: "Plans", description: "What's scheduled over the coming days.",
     icon: CalendarDays, category: "activities",
-    render: ({ settings }) => <PlansWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <PlansWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7 },
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8 },
@@ -2453,8 +2466,8 @@ export const V2_WIDGETS = {
   recent_activities: {
     label: "Recent activities", description: "The most recently logged activities, with durations.",
     icon: BarChart2, category: "activities",
-    render: ({ settings }) => <RecentActivitiesWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <RecentActivitiesWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -2472,8 +2485,8 @@ export const V2_WIDGETS = {
   polls: {
     label: "Polls", description: "The latest polls and their vote counts.",
     icon: Vote, category: "bulletins",
-    render: ({ settings }) => <PollsWidget settings={settings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings }) => <PollsWidget settings={settings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
@@ -2491,9 +2504,9 @@ export const V2_WIDGETS = {
   poll_results: {
     label: "Poll results", description: "One poll's live results as bars — pick which in the header.",
     icon: BarChart2, category: "bulletins",
-    render: ({ settings, updateSettings }) =>
-      <PollResultsWidget settings={settings} updateSettings={updateSettings} />,
-    supportsModes: ["normal"], supportsMultiInstance: true,
+    render: sized(({ settings, updateSettings }) =>
+      <PollResultsWidget settings={settings} updateSettings={updateSettings} />),
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
       { key: "pollId", type: "dynamicSelect", source: "polls", label: "Poll" },
     ],

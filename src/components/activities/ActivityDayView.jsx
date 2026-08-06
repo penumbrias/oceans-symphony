@@ -479,9 +479,15 @@ export default function ActivityDayView({
               /* ── Collapsed empty band ── */
               if (seg.type === "empty") {
                 const nowInBand = nowHour !== null && nowHour >= seg.startHour && nowHour <= seg.endHour;
-                const label = seg.startHour === seg.endHour
-                  ? `${formatHour(seg.startHour)} · no activities`
-                  : `${formatHour(seg.startHour)} – ${formatHour(seg.endHour + 1)} · no activities`;
+                // formatHour(24) used to come out as "12pm", so a day with
+                // nothing on it announced itself as "12am – 12pm". A band
+                // covering the whole day just says so.
+                const wholeDay = seg.startHour === 0 && seg.endHour === 23;
+                const label = wholeDay
+                  ? "Nothing logged all day"
+                  : seg.startHour === seg.endHour
+                    ? `${formatHour(seg.startHour)} · no activities`
+                    : `${formatHour(seg.startHour)} – ${seg.endHour === 23 ? "midnight" : formatHour(seg.endHour + 1)} · no activities`;
 
                 return (
                   <div
@@ -502,13 +508,14 @@ export default function ActivityDayView({
                       <span className="text-xs text-muted-foreground/40 select-none truncate block">{label}</span>
                     </div>
                     {/* Now line inside empty band */}
-                    {/* "You are here" inside a stretch with nothing in it.
-                        Sits BELOW the band's label rather than through it —
-                        it used to be drawn across the words. */}
+                    {/* "Now" inside a collapsed stretch. The band stands for
+                        hours of nothing, so the line doesn't pretend to mark
+                        an exact minute — it says now is somewhere in here. */}
                     {nowInBand && (
-                      <div className="absolute left-0 right-0 bottom-1.5 pointer-events-none flex items-center z-0">
-                        <div className="w-2 h-2 rounded-full bg-primary flex-shrink-0 ml-11 opacity-70" />
-                        <div className="flex-1 h-px bg-primary opacity-50" />
+                      <div className="absolute left-14 right-2 bottom-1 flex items-center gap-1.5 pointer-events-none">
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary opacity-80 flex-shrink-0" />
+                        <span className="h-px flex-1 bg-primary/40" />
+                        <span className="text-[0.5625rem] uppercase tracking-wide text-primary/70 flex-shrink-0">now</span>
                       </div>
                     )}
                   </div>
