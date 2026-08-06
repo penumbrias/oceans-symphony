@@ -911,7 +911,7 @@ export default function Settings() {
           <SubSection title="Tour & onboarding" defaultOpen={false}><PageTutorialsControls /></SubSection>
           <SubSection title="Medical disclaimer" defaultOpen={false}><MedicalDisclaimer /></SubSection>
           <SubSection title="Preview Mode" defaultOpen={false}><PreviewModeSection /></SubSection>
-          <SubSection title="What's new" defaultOpen={false}><RecentUpdates /></SubSection>
+          <SubSection title="What's new" defaultOpen={typeof window !== "undefined" && window.location.hash === "#about-updates"}><RecentUpdates /></SubSection>
         </Section>
 
       </div>
@@ -1005,6 +1005,10 @@ function SectionsAccordion({ children }) {
   const [openId, setOpenId] = useState(() => {
     try {
       const h = (window.location.hash || "").replace(/^#/, "");
+      // Deeper links target a subsection inside a section
+      // ("#about-updates" → open About & help, with What's new expanded
+      // by the subsection itself).
+      if (h === "about-updates") return "about";
       return h || null;
     } catch { return null; }
   });

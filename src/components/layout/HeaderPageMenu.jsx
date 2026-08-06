@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -46,6 +46,15 @@ export default function HeaderPageMenu({ className, v2Options = null }) {
       label: "Display options",
       icon: SlidersHorizontal,
       onSelect: () => v2Options.openDisplayOptions(),
+    });
+    // The classic dashboard surfaces the changelog as the "What's new"
+    // bar; a v2 board only has it if the user placed that widget — so the
+    // cog menu carries a way in regardless.
+    pageActions.push({
+      key: "v2-whats-new",
+      label: "What's new",
+      icon: Sparkles,
+      onSelect: () => navigate("/settings#about-updates"),
     });
   }
   if (!v2Options && path === "/") {

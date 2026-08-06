@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: \"What's new\" is in the cog menu now, so release notes stay reachable even without the What's-new widget on your board." },
       { type: "hotfix", text: "Hotfix: page swiping worked with a mouse but not a finger \u2014 the browser was claiming the touch as a scroll before the swipe could register. Real-touch swiping works everywhere on the board now." },
       { type: "fix", text: "\ud83e\uddea New UI: swiping between home pages works from anywhere again \u2014 widgets were swallowing the swipe. Sideways-scrolling widgets (the week grid, pinned alters) still scroll themselves, and up-down stays a scroll." },
       { type: "fix", text: "Guided breathing really does open on a growing inhale now \u2014 the previous fix had quietly fast-forwarded the first breath, so the first visible motion was still the exhale." },
