@@ -378,7 +378,14 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           filter, which clips fixed descendants and traps them inside the
           40px strip — the drawer looked like it opened "behind" the page. */}
       {createPortal(
-        <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />,
+        // The wrapper div matters: the sidebar's backdrop is `.fixed`, and a
+        // global guard rule force-enables pointer-events on body's DIRECT
+        // .fixed children (the vaul-sheet fix). Portaled bare, the closed
+        // backdrop became an invisible screen-wide touch eater — nothing
+        // scrolled. One plain div in between and the rule can't match.
+        <div data-v2-sidebar-root="">
+          <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        </div>,
         document.body,
       )}
     </header>
