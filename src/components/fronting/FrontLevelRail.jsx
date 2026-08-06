@@ -73,6 +73,9 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
   const getHoldProps = (alterId, currentLevelId) => {
     if (!cfg?.enabled) return {};
     return {
+      // This element answers a hold itself — the widget board checks for
+      // this attribute before opening a widget's options on hold.
+      "data-own-hold": "",
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
         origin.current = { x: e.clientX, y: e.clientY };
@@ -236,6 +239,7 @@ export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
   return {
     suppressed: () => Date.now() < suppress.current,
     bind: {
+      "data-own-hold": "",
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
         origin.current = { x: e.clientX, y: e.clientY };

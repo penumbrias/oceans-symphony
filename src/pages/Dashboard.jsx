@@ -40,7 +40,6 @@ import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
-import QuickPlanComposer from "@/components/bulletin/QuickPlanComposer";
 import QuickCheckInModal from "@/components/emotions/QuickCheckInModal";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
@@ -1175,20 +1174,30 @@ export default function Dashboard() {
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-blue-600 dark:text-blue-400">
-              <CheckSquare className="w-4 h-4" /> Quick Task
+              <CheckSquare className="w-4 h-4" /> Add something to do
             </DialogTitle>
           </DialogHeader>
           <QuickTaskComposer frontingAlterIds={frontingAlterIds} onSaved={() => setShowQuickTask(false)} hideCancelButton />
         </DialogContent>
       </Dialog>
+      {/* A plan is the same thing as a to-do, with a time on it — so this
+          opens the one composer, with the When section already open. The
+          full plan form (repeats, reminders, who it's for) is still one tap
+          away inside it. */}
       <Dialog open={showQuickPlan} onOpenChange={(v) => !v && setShowQuickPlan(false)}>
         <DialogContent className="max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-              <CalendarDays className="w-4 h-4" /> Quick Plan
+              <CalendarDays className="w-4 h-4" /> Plan something
             </DialogTitle>
           </DialogHeader>
-          <QuickPlanComposer onSaved={() => setShowQuickPlan(false)} hideCancelButton />
+          <QuickTaskComposer
+            frontingAlterIds={frontingAlterIds}
+            onSaved={() => setShowQuickPlan(false)}
+            hideCancelButton
+            startWithWhen
+            moreOptions={() => { setShowQuickPlan(false); navigate("/activities"); }}
+          />
         </DialogContent>
       </Dialog>
 

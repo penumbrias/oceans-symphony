@@ -149,6 +149,15 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Done (this cycle, for orientation)
 
+- v0.131.0: to-dos and plans merged into one thing with an optional time
+  (`src/lib/thingSave.js`; proposal Phase 6). Hold a quiet part of a widget
+  to open its options — regions that own a hold now mark themselves
+  `data-own-hold` (the level rail, the hold-menu, the activity grid, day
+  cells), which is the hook to reuse for any future in-widget hold.
+  NOT yet migrated to the unified thing: `TaskFormModal` (the To-Do List's
+  full form) still writes a Task with no plan side, and `QuickPlanComposer`
+  still exists though nothing renders it — decide whether to delete it or
+  keep it as the "more options" body.
 - v0.130.0: bottom-chrome clearance is now MEASURED — `V2BottomChrome`
   publishes `--v2-bottom-chrome-h` (minus its safe-area padding) via a
   ResizeObserver and `--bottom-nav-height` reads it, so every consumer

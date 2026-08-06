@@ -6,7 +6,6 @@ import TaskBulletinCard from "./TaskBulletinCard";
 import { Input } from "@/components/ui/input";
 import BulletinCard from "./BulletinCard";
 import BulletinComposer from "./BulletinComposer";
-import QuickPlanComposer from "./QuickPlanComposer";
 import QuickTaskComposer from "./QuickTaskComposer";
 import MentionAlertBanner from "./MentionAlertBanner";
 import PinnedPollCard from "./PinnedPollCard";
@@ -211,12 +210,12 @@ export default function BulletinBoard({
         </div>
       }
 
-      {/* Quick Task Add — system board only (tasks aren't group-scoped) */}
+      {/* One composer for anything you intend to do: a to-do on its own, or
+          — once you give it a day and a time — a plan as well. (It used to
+          be two rows, one per record type; the record types are still
+          there, but they're one thing to the user now.) System board only:
+          neither is group-scoped. */}
       {!groupId && !boardOnly && <QuickTaskComposer frontingAlterIds={frontingAlterIds} />}
-
-      {/* Quick Plan — schedules an Activity for today straight from the
-          board. System board only (plans aren't group-scoped). */}
-      {!groupId && !boardOnly && <QuickPlanComposer />}
 
       {/* Mention alerts */}
       {currentAlterId &&

@@ -75,6 +75,8 @@ export default function useDayRangeDrag({ onRangeSelect, holdMs = 450, enabled =
     cellsRef.current.set(key, date);
     return {
       "data-day-key": key,
+      // Owns its own hold (drag a span of days).
+      "data-own-hold": "",
       style: armed ? { touchAction: "none" } : undefined,
       onPointerDown: (e) => {
         if (typeof e.button === "number" && e.button !== 0) return;

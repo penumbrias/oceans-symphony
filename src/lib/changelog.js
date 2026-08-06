@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "To-dos and plans are one thing now: something to do, with an optional time. Add a day and a time and it also becomes a plan \u2014 on the tracker, the timeline and the day views \u2014 and ticking either side finishes it." },
+      { type: "improve", text: "One composer instead of two: the bulletin board's separate quick-plan row is gone, and \"Plan\" and \"Task\" both open the same box (Plan just starts with the date showing). The full plan form is one tap away under \"More options\"." },
+      { type: "feature", text: "\ud83e\uddea New UI: press and hold a quiet part of any widget to open its options. Spots that do something themselves \u2014 buttons, an alter row's fronting rail, the activity grid \u2014 keep their own hold." },
       { type: "improve", text: "\ud83e\uddea New UI: the activity grids now fill the width of their widget instead of leaving a gap, and their display settings (feelings, fronters, plans with no set time, row height, time steps, clock) moved into the widget's own options." },
       { type: "feature", text: "Press and hold a day in the month or year view, then drag across days, to plan something spanning that whole stretch \u2014 the same gesture as dragging over hours in the week grid. Works on the Activity tracker and in the widgets." },
       { type: "improve", text: "\ud83e\uddea New UI: pages, the sidebar and popups now reserve the real height of the bottom bar, so nothing hides behind it when the quick-actions row is open." },

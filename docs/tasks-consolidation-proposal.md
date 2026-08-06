@@ -87,6 +87,20 @@ Extract the four DailyProgress read-merge-write copies into
 `src/lib/dailyTasks.js` (or extend `dailyTaskSystem.js`), with the
 self-fire guard (`daily_task_completed`) living inside the helper.
 
+### Phase 6 — One thing with an optional time (SHIPPED v0.131.0)
+Owner call, 2026-08-05: "merge the two into a single thing with an optional
+time." A to-do and a plan are now one intent. `src/lib/thingSave.js` is the
+single write path: it creates the Task and, when the thing has a day, the
+linked scheduled Activity (`task_id`), so the pair can't disagree.
+No schema change and no migration — every existing Task and Activity keeps
+working, and completion already syncs both ways (Phase 1).
+`QuickTaskComposer` grew the time/duration fields and is now the only
+composer on the bulletin board; the Plan quick action opens it with the
+date showing. `unscheduleThing()` retires a linked plan as `cancelled`
+rather than deleting it when the time comes off.
+Still separate on purpose: `ActivityPlanModal` (the full plan form —
+repeats, reminders, who it's for), reachable as "More options".
+
 ## What this does NOT change
 - No entity schema changes; no migrations; nothing existing is rewritten in
   storage. All five phases are code-path consolidation plus two new buttons.

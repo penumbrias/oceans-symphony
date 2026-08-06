@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
-import { createTask } from "@/lib/taskCreate";
+import { saveThing } from "@/lib/thingSave";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -41,22 +41,31 @@ function formatDateLabel(iso) {
 // (target + unit), a note/description, plus Pin-to-dashboard and Mark-urgent
 // toggles. Minimal by default; tapping in expands to the optional pills so it
 // isn't overwhelming. Creating it posts the matching task-bulletin.
-export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hideCancelButton = false }) {
+export default function QuickTaskComposer({
+  frontingAlterIds = [], onSaved, hideCancelButton = false,
+  // Opened as "plan something": start expanded with the When panel showing
+  // and today filled in, so the time is the first thing in front of you.
+  startWithWhen = false,
+  // Escape hatch to the full plan form (repeats, reminders, who it's for).
+  moreOptions = null,
+}) {
   const queryClient = useQueryClient();
   const terms = useTerms();
 
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(startWithWhen);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("medium");
   const [dueDate, setDueDate] = useState("");
   const [scheduledDate, setScheduledDate] = useState("");
+  const [scheduledTime, setScheduledTime] = useState("");
+  const [durationMin, setDurationMin] = useState("60");
   const [categoryId, setCategoryId] = useState(null);
   const [goalTarget, setGoalTarget] = useState("");
   const [goalUnit, setGoalUnit] = useState("");
   const [note, setNote] = useState("");
   const [pinned, setPinned] = useState(false);
   const [urgent, setUrgent] = useState(false);
-  const [activePill, setActivePill] = useState(null);
+  const [activePill, setActivePill] = useState(startWithWhen ? "when" : null);
   const [saving, setSaving] = useState(false);
   const [justSaved, setJustSaved] = useState(false);
   const rootRef = useRef(null);
@@ -67,7 +76,7 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
   });
   const selectedCategory = useMemo(() => categories.find((c) => c.id === categoryId) || null, [categories, categoryId]);
 
-  const isPristine = !title.trim() && priority === "medium" && !dueDate && !scheduledDate
+  const isPristine = !title.trim() && priority === "medium" && !dueDate && !scheduledDate && !scheduledTime
     && !categoryId && !goalTarget && !goalUnit.trim() && !note.trim() && !pinned && !urgent;
 
   useEffect(() => {
@@ -83,8 +92,16 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
 
   const togglePill = (id) => setActivePill((prev) => (prev === id ? null : id));
 
+  useEffect(() => {
+    if (startWithWhen && !scheduledDate) {
+      const n = new Date();
+      setScheduledDate(`${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-${String(n.getDate()).padStart(2, "0")}`);
+    }
+  }, [startWithWhen]);
+
   const resetForm = () => {
     setTitle(""); setPriority("medium"); setDueDate(""); setScheduledDate("");
+    setScheduledTime(""); setDurationMin("60");
     setCategoryId(null); setGoalTarget(""); setGoalUnit("");
     setNote(""); setPinned(false); setUrgent(false); setActivePill(null);
   };
@@ -107,25 +124,37 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
       }
       // ONE task-create path (lib/taskCreate.js), shared with the full
       // TaskFormModal; the companion board post is an option of it.
-      await createTask({
+      // ONE path for a thing to do (lib/thingSave.js): it writes the Task
+      // and, when the thing has a day, the linked plan as well — so a to-do
+      // with a time IS the plan, instead of a second, separate record the
+      // user has to keep in sync by hand.
+      const { planned } = await saveThing({
         title,
+        when: {
+          dueDate: dueDate || null,
+          date: scheduledDate || null,
+          time: scheduledTime || null,
+          durationMinutes: scheduledTime ? (parseInt(durationMin, 10) || 60) : null,
+        },
         priority,
-        due_date: dueDate || null,
-        scheduled_at: scheduledDate || null,
-        activity_category_ids: categoryId ? [categoryId] : [],
-        description: note.trim() || "",
-        pinned_to_dashboard: pinned,
-        is_urgent: urgent,
-        goal_target: goalTarget ? parseInt(goalTarget, 10) : null,
-        goal_unit: goalUnit.trim() || "",
-      }, { companionBulletin: true, authorAlterIds: authorIds });
+        categoryIds: categoryId ? [categoryId] : [],
+        note,
+        pinned,
+        urgent,
+        goalTarget,
+        goalUnit,
+        alterIds: authorIds,
+        companionBulletin: true,
+        authorAlterIds: authorIds,
+      });
       queryClient.invalidateQueries({ queryKey: ["bulletins"] });
       queryClient.invalidateQueries({ queryKey: ["tasks"] });
+      queryClient.invalidateQueries({ queryKey: ["activities"] });
       resetForm();
       setExpanded(false);
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2200);
-      toast.success("✅ Task added!");
+      toast.success(planned ? "✅ Added — and it's on your plan" : "✅ Added to your list");
       onSaved?.();
     } catch (err) {
       console.error("Failed to save quick task:", err);
@@ -136,11 +165,11 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
   };
 
   const priorityMeta = PRIORITIES.find((p) => p.id === priority);
-  const whenLabel = dueDate
-    ? `Due ${formatDateLabel(dueDate)}`
-    : (scheduledDate ? `Do ${formatDateLabel(scheduledDate)}` : "Dates");
+  const whenLabel = scheduledDate
+    ? `${scheduledTime ? `${formatDateLabel(scheduledDate)} ${scheduledTime}` : `Do ${formatDateLabel(scheduledDate)}`}`
+    : (dueDate ? `Due ${formatDateLabel(dueDate)}` : "When");
   const pills = [
-    { id: "when", icon: CalendarDays, label: whenLabel, active: !!dueDate || !!scheduledDate },
+    { id: "when", icon: CalendarDays, label: whenLabel, active: !!dueDate || !!scheduledDate || !!scheduledTime },
     // Priority pill now also hosts the Pin-to-dashboard + Mark-urgent toggles.
     { id: "priority", icon: Flag, label: priority === "medium" ? "Priority" : priorityMeta.label, active: priority !== "medium" || pinned || urgent },
     { id: "category", icon: Tag, label: selectedCategory ? selectedCategory.name : "Activity", active: !!selectedCategory },
@@ -167,6 +196,12 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
             <Button onClick={handleSave} disabled={!title.trim() || saving} size="sm" className="rounded-full px-3 flex-shrink-0 bg-primary">
               {justSaved ? <><Check className="w-4 h-4 mr-1" /> Added</> : <><Plus className="w-4 h-4 mr-1" /> Add</>}
             </Button>
+            {moreOptions && (
+              <button type="button" onClick={moreOptions}
+                className="flex-shrink-0 text-xs text-primary hover:underline whitespace-nowrap">
+                More options
+              </button>
+            )}
             {!hideCancelButton && (
               <button type="button" onClick={collapse} aria-label="Cancel" className="flex-shrink-0 text-muted-foreground hover:text-foreground p-1 -mr-1">
                 <X className="w-4 h-4" />
@@ -185,7 +220,13 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
       <AnimatePresence initial={false}>
         {expanded && (
           <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="overflow-hidden">
-            <p className="text-[0.6875rem] text-muted-foreground mt-2">A to-do for your To-Do List — something to tick off when it's done.</p>
+            <p className="text-[0.6875rem] text-muted-foreground mt-2">
+              {scheduledDate
+                ? (scheduledTime
+                  ? "On your list and on your plan — it'll show on the tracker and timeline, and ticking either one finishes it."
+                  : "On your list for that day. Add a time and it becomes a plan too.")
+                : "Something to tick off. Give it a day (and a time) and it becomes a plan as well."}
+            </p>
             {/* Optional detail pills (Pin + Urgent now live inside Priority) */}
             <div className="flex items-center gap-1.5 mt-2 flex-wrap">
               {pills.map((p) => {
@@ -223,8 +264,30 @@ export default function QuickTaskComposer({ frontingAlterIds = [], onSaved, hide
                           <span className="text-[0.6875rem] text-muted-foreground w-[4.5rem]">Plan to do:</span>
                           <input type="date" value={scheduledDate} onChange={(e) => setScheduledDate(e.target.value)}
                             className="bg-background border border-input rounded-lg px-2 py-1 text-sm text-foreground" />
-                          {scheduledDate && <button type="button" onClick={() => setScheduledDate("")} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
+                          {scheduledDate && <button type="button" onClick={() => { setScheduledDate(""); setScheduledTime(""); }} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>}
                         </div>
+                        {/* Give it a time and this thing becomes a plan too —
+                            it appears on the tracker and the timeline, and can
+                            be resolved there. Leave it off and it's a to-do
+                            for that day. */}
+                        {scheduledDate && (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="text-[0.6875rem] text-muted-foreground w-[4.5rem]">At:</span>
+                            <input type="time" value={scheduledTime} onChange={(e) => setScheduledTime(e.target.value)}
+                              className="bg-background border border-input rounded-lg px-2 py-1 text-sm text-foreground" />
+                            {scheduledTime && (
+                              <>
+                                <span className="text-[0.6875rem] text-muted-foreground">for</span>
+                                <input type="number" min={5} max={1440} step={5} value={durationMin}
+                                  onChange={(e) => setDurationMin(e.target.value)}
+                                  className="w-16 bg-background border border-input rounded-lg px-2 py-1 text-sm text-foreground" />
+                                <span className="text-[0.6875rem] text-muted-foreground">min</span>
+                                <button type="button" onClick={() => setScheduledTime("")} className="text-xs text-muted-foreground hover:text-foreground">Clear</button>
+                              </>
+                            )}
+                            {!scheduledTime && <span className="text-[0.6875rem] text-muted-foreground">no set time</span>}
+                          </div>
+                        )}
                       </div>
                     )}
 

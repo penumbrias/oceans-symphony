@@ -981,6 +981,7 @@ if (isSameCell) {
           (React's synthetic touchmove is passive by default). */}
       <div
         ref={gridRef}
+        data-own-hold=""
         className="border border-border rounded-lg overflow-hidden flex"
         style={{ maxWidth: fitWidth ? "100%" : "100vw", touchAction: dragSelectActive ? "none" : "pan-x pan-y" }}
       >

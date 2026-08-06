@@ -18,7 +18,7 @@
 // styles, which the html.a11y-mode CSS collapse can't reach, so this
 // branch must live in JS.
 
-import React, { useMemo, useState, useCallback, useRef } from "react";
+import React, { useMemo, useState, useCallback, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -127,6 +127,42 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
   const mode = effectiveMode(widget.mode, def.supportsModes);
   const spanCols = Math.min(widget.span?.cols || def.defaultSpan?.cols || 4, gridCols);
   const spanRows = widget.span?.rows || def.defaultSpan?.rows || 1;
+
+  // Hold a quiet part of a widget to open its options. "Quiet" means the
+  // press didn't land on something that answers for itself — a button, a
+  // field, or a region that owns its own hold (an alter row's level rail,
+  // the activity grid's block selection). Only outside edit mode; in edit
+  // mode a hold lifts the widget instead.
+  const optionsHoldTimer = useRef(null);
+  const optionsHoldOrigin = useRef(null);
+  const cancelOptionsHold = () => {
+    if (optionsHoldTimer.current) clearTimeout(optionsHoldTimer.current);
+    optionsHoldTimer.current = null;
+    optionsHoldOrigin.current = null;
+  };
+  useEffect(() => cancelOptionsHold, []);
+  const optionsHold = editMode ? {} : {
+    onPointerDown: (e) => {
+      if (e.button !== undefined && e.button !== 0) return;
+      if (e.target.closest?.("button, a, input, textarea, select, [contenteditable='true'], [role='button'], [role='slider'], [data-own-hold], [data-cell-key], [data-day-key]")) return;
+      optionsHoldOrigin.current = { x: e.clientX, y: e.clientY };
+      if (optionsHoldTimer.current) clearTimeout(optionsHoldTimer.current);
+      optionsHoldTimer.current = setTimeout(() => {
+        optionsHoldTimer.current = null;
+        try { navigator.vibrate?.(10); } catch { /* no haptics */ }
+        onConfigure?.(widget.instanceId);
+      }, 600);
+    },
+    onPointerMove: (e) => {
+      if (!optionsHoldTimer.current || !optionsHoldOrigin.current) return;
+      const dx = e.clientX - optionsHoldOrigin.current.x;
+      const dy = e.clientY - optionsHoldOrigin.current.y;
+      if (dx * dx + dy * dy > 64) cancelOptionsHold();
+    },
+    onPointerUp: cancelOptionsHold,
+    onPointerCancel: cancelOptionsHold,
+    onPointerLeave: cancelOptionsHold,
+  };
 
   // Edge-resize (hold an edge 0.15s, then drag; snaps to grid cols / 80px
   // rows). Preview applies straight onto gridColumn/minHeight below.
@@ -267,7 +303,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         )}
         {/* While editing, the widget's own controls are inert — a hold to
             move should never also start an activity or save a status. */}
-        <div style={{ height: "100%", minHeight: 0, ...(editMode ? { pointerEvents: "none" } : null) }}>
+        <div {...optionsHold}
+          style={{ height: "100%", minHeight: 0, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
