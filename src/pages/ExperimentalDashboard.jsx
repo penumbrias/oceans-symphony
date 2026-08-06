@@ -740,89 +740,92 @@ export default function ExperimentalDashboard({
   // actually scroll sideways (the week grid, the pinned strip), inside a
   // hold-owning element, or in a typing field.
   const pageSwipe = useRef(null);
-  const swipeSurfaceRef = useRef(null);
-  const canScrollSideways = (start, container) => {
-    let n = start;
-    while (n && n !== container) {
-      if (n.scrollWidth > n.clientWidth + 4) {
-        const o = getComputedStyle(n).overflowX;
-        if (o === "auto" || o === "scroll") return true;
-      }
-      n = n.parentElement;
-    }
-    return false;
-  };
-  // TOUCH path: native, non-passive — pointer events die the moment the
-  // browser claims the touch as a scroll (real fingers, unlike synthetic
-  // tests, always trigger that). Once the movement reads horizontal we
-  // preventDefault, which is the one thing that keeps the touch ours.
+  // ── Page-swipe detection, at the DOCUMENT, in CAPTURE phase. Widgets
+  // stop propagation for their own gestures (chat, grids, hold menus), so
+  // listening on the board wrapper meant most of a full board was swipe-
+  // dead — capture-phase document listeners run before any of that.
+  // Bounds-checked to presses inside the board. Rules:
+  //   · vertical intent → it's a scroll, forever
+  //   · typing fields and truly sideways-scrollable content keep the touch
+  //   · a press that lingers past the hold threshold belongs to a hold
+  //   · once horizontal, TOUCH is claimed via non-passive preventDefault
   useEffect(() => {
-    const el = swipeSurfaceRef.current;
-    if (!el || editMode || a11yStack || home.pages.length < 2) return undefined;
-    const start = (e) => {
-      if (e.touches.length !== 1) { pageSwipe.current = null; return; }
-      const t = e.touches[0];
-      const dead =
-        !!e.target.closest?.("[data-own-hold], input, textarea, select, [contenteditable='true']") ||
-        canScrollSideways(e.target, el);
-      pageSwipe.current = { x: t.clientX, y: t.clientY, dead, horiz: false };
+    if (editMode || a11yStack || home.pages.length < 2) return undefined;
+    // Resolved by class, not ref — framer's motion.div doesn't reliably
+    // forward a spread ref, which left the surface "missing" and every
+    // press bailing.
+    const surface = () => document.querySelector(".os-home-swipe");
+    const insideSurface = (x, y) => {
+      const el = surface();
+      if (!el) return false;
+      const r = el.getBoundingClientRect();
+      // No bottom bound: a short page leaves empty screen under the board,
+      // and swiping there should page too — the whole column is the page.
+      return x >= r.left && x <= r.right && y >= r.top;
     };
-    const move = (e) => {
+    const blockedTarget = (t) => {
+      // Only the calendars' day cells run a HORIZONTAL press-then-drag of
+      // their own (the day-span selection) — those keep their gesture.
+      // Other hold elements (level rails, hold menus) drag vertically or
+      // not at all: a sideways move cancels their hold and reads as a
+      // page swipe, which is exactly right.
+      if (t.closest?.("[data-day-key], input, textarea, select, [contenteditable='true']")) return true;
+      const el = surface();
+      let n = t;
+      while (n && n !== el && n !== document.body) {
+        if (n.scrollWidth > n.clientWidth + 4) {
+          const o = getComputedStyle(n).overflowX;
+          if (o === "auto" || o === "scroll") return true;
+        }
+        n = n.parentElement;
+      }
+      return false;
+    };
+    const begin = (x, y, target) => {
+      if (!insideSurface(x, y) || blockedTarget(target)) { pageSwipe.current = null; return; }
+      pageSwipe.current = { x, y, t: Date.now(), dead: false, horiz: false };
+    };
+    const track = (x, y, claim) => {
       const g = pageSwipe.current;
       if (!g || g.dead) return;
-      const t = e.touches[0];
-      const dx = t.clientX - g.x;
-      const dy = t.clientY - g.y;
+      const dx = x - g.x;
+      const dy = y - g.y;
       if (!g.horiz) {
         if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
         if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy)) g.horiz = true;
       }
       if (g.horiz) {
-        e.preventDefault();
+        claim?.();
         if (Math.abs(dx) >= 56) {
           g.dead = true;
           goToPage(pageIdx + (dx < 0 ? 1 : -1));
         }
       }
     };
-    const end = () => { pageSwipe.current = null; };
-    el.addEventListener("touchstart", start, { passive: true });
-    el.addEventListener("touchmove", move, { passive: false });
-    el.addEventListener("touchend", end);
-    el.addEventListener("touchcancel", end);
+    const endAll = () => { pageSwipe.current = null; };
+
+    const onTouchStart = (e) => { if (e.touches.length === 1) begin(e.touches[0].clientX, e.touches[0].clientY, e.target); else endAll(); };
+    const onTouchMove = (e) => { if (e.touches.length === 1) track(e.touches[0].clientX, e.touches[0].clientY, () => e.cancelable && e.preventDefault()); };
+    const onPointerDown = (e) => { if (e.pointerType === "mouse" && e.button === 0) begin(e.clientX, e.clientY, e.target); };
+    const onPointerMove = (e) => { if (e.pointerType === "mouse") track(e.clientX, e.clientY, null); };
+
+    document.addEventListener("touchstart", onTouchStart, { capture: true, passive: true });
+    document.addEventListener("touchmove", onTouchMove, { capture: true, passive: false });
+    document.addEventListener("touchend", endAll, { capture: true });
+    document.addEventListener("touchcancel", endAll, { capture: true });
+    document.addEventListener("pointerdown", onPointerDown, { capture: true });
+    document.addEventListener("pointermove", onPointerMove, { capture: true });
+    document.addEventListener("pointerup", endAll, { capture: true });
     return () => {
-      el.removeEventListener("touchstart", start);
-      el.removeEventListener("touchmove", move);
-      el.removeEventListener("touchend", end);
-      el.removeEventListener("touchcancel", end);
+      document.removeEventListener("touchstart", onTouchStart, { capture: true });
+      document.removeEventListener("touchmove", onTouchMove, { capture: true });
+      document.removeEventListener("touchend", endAll, { capture: true });
+      document.removeEventListener("touchcancel", endAll, { capture: true });
+      document.removeEventListener("pointerdown", onPointerDown, { capture: true });
+      document.removeEventListener("pointermove", onPointerMove, { capture: true });
+      document.removeEventListener("pointerup", endAll, { capture: true });
     };
   }, [editMode, a11yStack, home.pages.length, pageIdx]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  // MOUSE path (desktop drag) — no native scroll to fight, so plain
-  // pointer events are enough. Touch is handled natively above.
-  const pageSwipeHandlers = {
-    ref: swipeSurfaceRef,
-    onPointerDown: (e) => {
-      if (e.pointerType !== "mouse" || e.button !== 0) return;
-      if (e.target.closest?.("[data-own-hold], input, textarea, select, [contenteditable='true']")) return;
-      if (canScrollSideways(e.target, e.currentTarget)) return;
-      pageSwipe.current = { x: e.clientX, y: e.clientY, dead: false };
-    },
-    onPointerMove: (e) => {
-      if (e.pointerType !== "mouse") return;
-      const g = pageSwipe.current;
-      if (!g || g.dead) return;
-      const dx = e.clientX - g.x;
-      const dy = e.clientY - g.y;
-      if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
-      if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy) * 1.5) {
-        g.dead = true;
-        goToPage(pageIdx + (dx < 0 ? 1 : -1));
-      }
-    },
-    onPointerUp: () => { pageSwipe.current = null; },
-    onPointerCancel: () => { pageSwipe.current = null; },
-  };
 
   const canvas = (
     <div
@@ -1116,7 +1119,6 @@ export default function ExperimentalDashboard({
           initial={swipeDir === 0 ? false : { x: swipeDir * 72, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          {...(home.pages.length > 1 ? pageSwipeHandlers : { ref: swipeSurfaceRef })}
         >
           {canvas}
         </motion.div>
