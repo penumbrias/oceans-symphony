@@ -293,6 +293,28 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
   }
 }
 
+// One-way "remove from front": ends the alter's active session if there is
+// one, and does NOTHING when they aren't fronting. The level rail's
+// "Remove from {front}" stop must use THIS, not toggleFrontFor — a toggle
+// ADDS a non-fronter, which is the opposite of what the gesture says.
+export async function removeFrontFor(alter, base44, queryClient, toast, terms = {}) {
+  const FR = terms.front || "front";
+  try {
+    const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
+    const mySession = fresh.find(s => (s.alter_id || s.primary_alter_id) === alter.id);
+    if (!mySession) return; // already out — keep them out
+    await base44.entities.FrontingSession.update(mySession.id, {
+      is_active: false,
+      end_time: new Date().toISOString(),
+    });
+    toast.success(`${alter.name} removed from ${FR}`);
+    queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
+  } catch (err) {
+    toast.error(err.message || "Failed to update front");
+  }
+}
+
 // "Left then up" corner gesture: clear the entire current front and make
 // `alter` the sole primary fronter. End every active session (including
 // the tapped alter's, if any) then create one fresh primary session.

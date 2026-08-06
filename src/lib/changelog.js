@@ -20,6 +20,13 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "Sleep started from the Sleep controls widget now shows up in the Sleep tracker and analytics \u2014 those records were being filed without a date and went missing." },
+      { type: "fix", text: "Dragging to \"Remove from front\" on the level rail no longer adds someone who wasn't fronting. It only ever removes now." },
+      { type: "fix", text: "Set Fronters no longer crashes when you press and hold an avatar in grid view." },
+      { type: "fix", text: "\ud83e\uddea New UI: tapping a running symptom in the Active widget opens the same severity / start-time / end menu the classic pill opens, instead of jumping to System Meeting." },
+      { type: "improve", text: "\ud83e\uddea New UI: widgets center their contents by default, and every widget's options now have an Alignment choice (top / center / bottom) plus a Control size slider for the buttons inside it." },
+      { type: "improve", text: "Assigning a symptom or feeling to specific alters now lists whoever it's already assigned to at the top, sorted the same way every other alter list is \u2014 with the sort toggle right there." },
+      { type: "improve", text: "\ud83e\uddea New UI: widget options dropped the small Preview box \u2014 Peek shows the real widget on the page while you change it." },
       { type: "fix", text: "Symptom episodes you'd already ended no longer reappear as \"active\" after switching pages or refreshing. Ending an episode now also closes any stray duplicate sessions for that symptom." },
       { type: "improve", text: "\ud83e\uddea New UI: active symptom episodes have an End button right on the Active widget." },
       { type: "hotfix", text: "Hotfix: the timeline, analytics and reminders could briefly work from another screen's shorter data list \u2014 each now keeps its own." },

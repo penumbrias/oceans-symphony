@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, Eye, EyeOff } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
@@ -34,8 +34,7 @@ import { buildGridItems } from "@/lib/navCatalogue";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
-import { pickLook, mergeLook, lookToStyle, themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX, userStyleId } from "@/lib/widgetLook";
-import { getStyleShell } from "@/lib/homeStyles";
+import { pickLook, themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX } from "@/lib/widgetLook";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
@@ -300,7 +299,6 @@ export default function WidgetConfigSheet({
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
-  api = null,        // live widget api, for the in-sheet preview
 }) {
   const open = !!widget && !!def;
   const [styleOpen, setStyleOpen] = React.useState(false);
@@ -312,13 +310,6 @@ export default function WidgetConfigSheet({
   // its options change under your finger (settings persist instantly, so
   // the page updates live).
   const [peek, setPeek] = React.useState(false);
-  const [previewOpen, setPreviewOpen] = React.useState(() => {
-    try { return localStorage.getItem("symphony_v2_widget_preview") !== "0"; } catch { return true; }
-  });
-  const togglePreview = (v) => {
-    setPreviewOpen(v);
-    try { localStorage.setItem("symphony_v2_widget_preview", v ? "1" : "0"); } catch { /* storage off */ }
-  };
   React.useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
@@ -352,9 +343,6 @@ export default function WidgetConfigSheet({
     setStyleName("");
   };
   const mode = effectiveMode(widget.mode, def.supportsModes);
-  const savedLook = userStyles.find((st) => `${USER_STYLE_PREFIX}${st.id}` === settings.style)?.look || {};
-  const previewLook = mergeLook(savedLook, pickLook(settings));
-  const previewShell = !userStyleId(settings.style) && settings.style ? getStyleShell(settings.style) : "";
   const styleOverride = HOME_STYLES.some((s) => s.id === settings.style) ? settings.style : "";
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
 
@@ -378,28 +366,6 @@ export default function WidgetConfigSheet({
             </button>
           </div>
         </DrawerHeader>
-        {!peek && (
-          <div className="px-4 pb-2">
-            <button type="button" onClick={() => togglePreview(!previewOpen)}
-              className="w-full flex items-center justify-between text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground py-1">
-              <span>Preview</span>
-              <ChevronUp className="w-3.5 h-3.5"
-                style={{ transform: previewOpen ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-            </button>
-            {previewOpen && (
-              <div className="rounded-xl border border-border/50 p-2 bg-background/40">
-                {settings.css && (
-                  <style dangerouslySetInnerHTML={{ __html: `[data-config-preview="1"]{${settings.css}}` }} />
-                )}
-                <div data-config-preview="1" aria-hidden="true"
-                  className={`pointer-events-none select-none overflow-hidden ${previewShell || ""}`}
-                  style={{ ...lookToStyle(previewLook), maxHeight: 200, borderRadius: "var(--v2-radius, 8px)" }}>
-                  {def.render({ mode, settings, instanceId: "config_preview", api })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
         <div
           className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
@@ -446,6 +412,47 @@ export default function WidgetConfigSheet({
               </div>
             </div>
           )}
+
+          {/* Content alignment within the widget's box. Centered by
+              default; overflowing content still starts at the top. */}
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Alignment
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onSettings(widget.instanceId, { valign: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                    (settings.valign || "center") === v
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Size of the widget's interactive parts (severity rows,
+              toggles) — independent of the text size. */}
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Control size — {Math.round(Number(settings.controlScale) || 100)}%
+            </label>
+            <input
+              type="range"
+              min={60}
+              max={200}
+              step={5}
+              value={Number(settings.controlScale) || 100}
+              onChange={(e) => onSettings(widget.instanceId, { controlScale: Number(e.target.value) })}
+              className="w-full accent-primary"
+            />
+          </div>
 
           {/* Widget-specific options, declared by the registry entry. */}
           {(def.configFields || []).map((f) => {

@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { formatDistanceToNow, format } from "date-fns";
 import { X, Clock } from "lucide-react";
 import { PENDING_SYMPTOM_MENU_KEY, OPEN_SYMPTOM_MENU_EVENT } from "@/lib/symptomMenuLink";
 import { toLocalDatetimeValue } from "@/lib/dateTimeInput";
+import { endSymptomSessions } from "@/lib/symptomSessions";
 
 function SeverityDots({ severity }) {
   return (
@@ -18,7 +20,9 @@ function SeverityDots({ severity }) {
   );
 }
 
-function SymptomActionMenu({ sess, symptom, onClose }) {
+// Exported for the v2 Active widget: pressing an active symptom row opens
+// this same menu (the classic pill behaviour) instead of navigating.
+export function SymptomActionMenu({ sess, symptom, onClose }) {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(false);
   const [editingStart, setEditingStart] = useState(false);
@@ -76,7 +80,9 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
   const handleEndSession = async () => {
     setSaving(true);
     try {
-      await base44.entities.SymptomSession.update(sess.id, { end_time: new Date().toISOString(), is_active: false });
+      // Ends every active session for this symptom (duplicates included),
+      // not just this row — same write path as everywhere else.
+      await endSymptomSessions(sess.symptom_id || sess.symptom_definition_id);
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       queryClient.invalidateQueries({ queryKey: ["symptomCheckIns"] });
     } finally {
@@ -85,7 +91,9 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
     }
   };
 
-  return (
+  // Portaled: inside the v2 board the pages are framer-transformed, which
+  // would re-anchor `fixed` to the page instead of the viewport.
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
@@ -222,7 +230,8 @@ function SymptomActionMenu({ sess, symptom, onClose }) {
           Cancel
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

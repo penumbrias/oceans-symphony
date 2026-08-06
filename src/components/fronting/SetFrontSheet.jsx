@@ -247,6 +247,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
       return [...prev, { alterId: id, isPrimary: prev.length === 0, level: levelId, startTime: null }];
     });
   };
+  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const suppressAddTap = useRef(0);
   const { rail: addRail, getHoldProps: getAddHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
@@ -282,7 +283,6 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
     return totals;
   }, [allSessions, sorter.mode]);
 
-  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
   const addList = useMemo(() => {
     const list = activeAlters.filter((a) =>
       !draftIds.has(a.id) && (a.name || "").toLowerCase().includes(search.toLowerCase()));

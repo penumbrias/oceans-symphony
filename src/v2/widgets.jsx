@@ -51,11 +51,12 @@ import SymptomsSection from "@/components/symptoms/SymptomsSection";
 import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
-import { toggleFrontFor } from "@/hooks/useSwipeActions";
+import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -138,12 +139,12 @@ function PresenceWidget({ mode, api, settings }) {
       suppressTapUntil.current = Date.now() + 400;
       commitFrontLevel({ alterId, levelId, queryClient: qc });
     },
-    // One slot past the far end of the spectrum: remove from front (the
-    // canonical toggleFrontFor — refetch-before-write, ends the session).
+    // One slot past the far end of the spectrum: remove from front.
+    // One-way removeFrontFor — a non-fronter stays out (never a toggle).
     onRemove: (alterId) => {
       suppressTapUntil.current = Date.now() + 400;
       const alter = byId[alterId];
-      if (alter) toggleFrontFor(alter, sessions, base44, qc, toast, t);
+      if (alter) removeFrontFor(alter, base44, qc, toast, t);
     },
   });
   const railAlter = rail ? byId[rail.alterId] : null;
@@ -292,6 +293,9 @@ function ActiveWidget({ api }) {
   const tr = useT();
   const navigate = useNavigate();
   const qc = useQueryClient();
+  // Pressing a symptom row opens the SAME menu the classic pill opens
+  // (severity / start time / note / end) — not a navigation.
+  const [symptomMenu, setSymptomMenu] = React.useState(null);
   const symptomSessions = useQuery({
     queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
@@ -335,12 +339,16 @@ function ActiveWidget({ api }) {
                 {tr("widget.active.end")}
               </button>
             }
-            onClick={() => navigate("/system-checkin")} />
+            onClick={() => setSymptomMenu({ sess: s, symptom: { ...def, label: def.label || def.name } })} />
         );
       })}
       {activeSleep && (
         <Row left={<Dot color="#6a7bd6" />} primary={tr("widget.active.sleep")} right={fmtElapsed(activeSleep.bedtime)}
           onClick={() => navigate("/sleep")} />
+      )}
+      {symptomMenu && (
+        <SymptomActionMenu sess={symptomMenu.sess} symptom={symptomMenu.symptom}
+          onClose={() => setSymptomMenu(null)} />
       )}
     </Section>
   );
@@ -1357,8 +1365,15 @@ function SleepControlWidget() {
     if (busy) return;
     setBusy(true);
     try {
-      if (active) await base44.entities.Sleep.update(active.id, { wake_time: new Date().toISOString() });
-      else await base44.entities.Sleep.create({ bedtime: new Date().toISOString() });
+      if (active) {
+        await base44.entities.Sleep.update(active.id, { wake_time: new Date().toISOString() });
+      } else {
+        // `date` is how the Sleep tracker files a record under a day —
+        // records without it are invisible there (owner bug, 2026-08-06).
+        const d = new Date();
+        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+        await base44.entities.Sleep.create({ date: dateStr, bedtime: d.toISOString() });
+      }
       qc.invalidateQueries({ queryKey: ["sleep"] });
     } finally { setBusy(false); }
   };
@@ -1884,7 +1899,7 @@ function PinnedAltersWidget({ api, settings }) {
     onRemove: (alterId) => {
       suppressTapUntil.current = Date.now() + 400;
       const alter = alters.find((a) => a.id === alterId);
-      if (alter) toggleFrontFor(alter, sessions, base44, qc, toast, t);
+      if (alter) removeFrontFor(alter, base44, qc, toast, t);
     },
   });
   const railAlter = rail ? alters.find((a) => a.id === rail.alterId) : null;

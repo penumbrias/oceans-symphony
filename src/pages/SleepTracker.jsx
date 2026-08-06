@@ -3,9 +3,7 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent } from "@/components/ui/card";
 import { Plus, Trash2, AlarmClock, Cloud, ZapOff, Pencil } from "lucide-react";
 import { toast } from "sonner";
 import { format, parseISO, startOfMonth, endOfMonth, eachDayOfInterval, formatDistanceToNow } from "date-fns";
@@ -32,9 +30,16 @@ export default function SleepTracker() {
   });
 
   const getSleepForDate = (date) => {
-    return sleepRecords.find(
-      (s) => format(parseISO(s.date), "yyyy-MM-dd") === format(date, "yyyy-MM-dd")
-    );
+    // Legacy/widget rows may lack `date` — fall back to the bedtime so
+    // they still land on a day instead of vanishing (and parseISO of
+    // undefined never gets to throw on render).
+    return sleepRecords.find((s) => {
+      const d = s.date || s.bedtime;
+      if (!d) return false;
+      const parsed = parseISO(d);
+      if (isNaN(parsed)) return false;
+      return format(parsed, "yyyy-MM-dd") === format(date, "yyyy-MM-dd");
+    });
   };
 
   const calculateDuration = (sleep) => {

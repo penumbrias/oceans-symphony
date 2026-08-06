@@ -23,7 +23,7 @@ import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
-import { toggleFrontFor } from "@/hooks/useSwipeActions";
+import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
 
 export const LEVEL_ROW_H = 44;
 const HOLD_MS = 350;
@@ -190,7 +190,7 @@ function LevelPickerOverlay({ alter, currentLevel, cfg, onClose, queryClient, te
               type="button"
               onClick={async () => {
                 onClose();
-                if (level._remove) toggleFrontFor(alter, [], base44, queryClient, toast, terms);
+                if (level._remove) removeFrontFor(alter, base44, queryClient, toast, terms);
                 else await commitFrontLevel({ alterId: alter.id, levelId: level.id, queryClient, cfg });
               }}
               className={`w-full flex items-center gap-2.5 px-2 py-2 rounded-lg text-left text-sm transition-colors ${
@@ -329,7 +329,7 @@ export function useFrontGesture() {
     onRemove: (alterId) => {
       suppress.current = Date.now() + 400;
       const alter = altersRef.current[alterId];
-      if (alter) toggleFrontFor(alter, [], base44, queryClient, toast, terms);
+      if (alter) removeFrontFor(alter, base44, queryClient, toast, terms);
     },
   });
 

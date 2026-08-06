@@ -23,8 +23,7 @@ import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
-import {
-  Pencil, Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
+import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2,
 } from "lucide-react";
 import {
@@ -44,7 +43,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
-  pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, isUserStyle, newStyleId,
+  pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, newStyleId,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -197,6 +196,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
   });
 
   const look = widgetLookFor(widget.settings, userStyles);
+  // Content alignment within the widget's box (owner request 2026-08-06):
+  // centered by default so a short widget never leaves all its blank space
+  // at the bottom; "safe" falls back to top when the content overflows so
+  // nothing becomes unscrollable.
+  const valign = widget.settings?.valign || "center";
+  const valignJustify = valign === "top" ? "flex-start" : valign === "bottom" ? "safe flex-end" : "safe center";
   const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
   const lookStyle = lookToStyle(look.bgImage ? { ...look, bgImage: bgUrl } : look);
   const handSized = widget.settings?.autoFit === false;
@@ -289,6 +294,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           ...(free || fixedHeight
             ? { height: "100%", overflowY: "auto" }
             : null),
+          // Per-widget content alignment, consumed by Section's row stack
+          // (and by the flex wrapper below for content-sized widgets).
+          "--v2-widget-valign": valignJustify,
+          // Per-widget control size — index.css scales anything marked
+          // data-widget-controls by this (severity rows, toggles…).
+          "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),
           ...(editMode ? {
             // pan-y: vertical scrolling passes through; the 300ms hold-still
             // sensors lift the widget instead. Callout/user-select suppression
@@ -319,7 +330,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
             optionsHold.onPointerDown?.(e);
             if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
           }}
-          style={{ height: "100%", minHeight: 0, ...(editMode ? { pointerEvents: "none" } : null) }}>
+          style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
@@ -825,7 +836,7 @@ export default function ExperimentalDashboard({
       document.removeEventListener("pointermove", onPointerMove, { capture: true });
       document.removeEventListener("pointerup", endAll, { capture: true });
     };
-  }, [editMode, a11yStack, home.pages.length, pageIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [editMode, a11yStack, home.pages.length, pageIdx]);  
 
   const canvas = (
     <div

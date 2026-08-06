@@ -61,7 +61,6 @@ export const BACKUP_LS_KEYS = [
   // v2 chrome state the user set deliberately.
   "symphony_v2_quickactions_open",
   "symphony_v2_dock_open",
-  "symphony_v2_widget_preview",
   // Alters-page view preferences.
   "alter_groups_display_mode",
 ];

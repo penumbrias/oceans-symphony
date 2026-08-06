@@ -21,7 +21,7 @@ import PrivateMessagesIndicator from "./PrivateMessagesIndicator";
 import { useTerms } from "@/lib/useTerms";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
-import { toggleFrontFor } from "@/hooks/useSwipeActions";
+import { removeFrontFor } from "@/hooks/useSwipeActions";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
 import { commitFrontLevel, useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import SearchableSelect from "@/components/shared/SearchableSelect";
@@ -633,7 +633,7 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
     onRemove: (alterId) => {
       window.__chipSuppressTapUntil = Date.now() + 400;
       const a = alters.find((x) => x.id === alterId);
-      if (a) toggleFrontFor(a, activeSessions, base44, queryClient, toast, terms);
+      if (a) removeFrontFor(a, base44, queryClient, toast, terms);
     },
   });
 

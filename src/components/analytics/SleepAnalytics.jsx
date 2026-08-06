@@ -2,7 +2,7 @@ import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from "recharts";
-import { startOfDay, endOfDay, eachDayOfInterval, format, isWithinInterval } from "date-fns";
+import { startOfDay, endOfDay, eachDayOfInterval, format } from "date-fns";
 import { AlarmClock, Cloud, ZapOff } from "lucide-react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -60,7 +60,8 @@ export default function SleepAnalytics({ sleepRecords = [], from, to }) {
     const fromMs = startOfDay(from).getTime();
     const toMs = endOfDay(to).getTime();
     return sleepRecords.filter(r => {
-      const ts = new Date(r.date).getTime();
+      // Widget/legacy rows may lack `date` — fall back to bedtime.
+      const ts = new Date(r.date || r.bedtime).getTime();
       return ts >= fromMs && ts <= toMs;
     });
   }, [sleepRecords, from, to]);
@@ -68,7 +69,7 @@ export default function SleepAnalytics({ sleepRecords = [], from, to }) {
   const durationData = useMemo(() => {
     const map = {};
     filtered.forEach(r => {
-      const key = format(new Date(r.date), "MMM dd");
+      const key = format(new Date(r.date || r.bedtime), "MMM dd");
       if (!map[key]) map[key] = { date: key, duration: 0, quality: null };
       if (r.bedtime && r.wake_time) {
         const hrs = (new Date(r.wake_time) - new Date(r.bedtime)) / 3600000;

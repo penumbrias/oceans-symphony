@@ -74,7 +74,12 @@ export function Section({ label, action, center, children }) {
           gap: "calc(var(--v2-space, 6px) * 0.75)",
           // For non-list content (the breathing circle) that should sit in
           // the middle of the box rather than stack from the top.
-          ...(center ? { alignItems: "center", justifyContent: "center" } : null),
+          // Otherwise the board's per-widget alignment decides where rows
+          // sit in the box (--v2-widget-valign, default centered; "safe"
+          // falls back to top when the content overflows).
+          ...(center
+            ? { alignItems: "center", justifyContent: "center" }
+            : { justifyContent: "var(--v2-widget-valign, flex-start)" }),
         }}>
         {children}
       </div>
