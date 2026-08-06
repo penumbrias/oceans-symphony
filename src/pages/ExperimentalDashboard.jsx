@@ -57,14 +57,20 @@ import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-function useGridCols(phoneCols = 4) {
+function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
   // icons can be quarter-width on phones; stored v1 spans are doubled on
   // read (see resolveExperimentalHome) so layouts keep their proportions.
   // Phones can opt into 5 columns (home.grid.phoneCols).
+  // lockToPhone (free-layout pages): the user placed each widget in a
+  // specific CELL of the phone grid — re-bucketing to 8/12 columns on a
+  // wider screen (landscape!) shoved everything into the left half. The
+  // arrangement keeps its column count; the cells just get wider.
   const calc = React.useCallback(
-    () => (typeof window === "undefined" ? phoneCols : window.innerWidth >= 1024 ? 12 : window.innerWidth >= 640 ? 8 : phoneCols),
-    [phoneCols]
+    () => (typeof window === "undefined" || lockToPhone
+      ? phoneCols
+      : window.innerWidth >= 1024 ? 12 : window.innerWidth >= 640 ? 8 : phoneCols),
+    [phoneCols, lockToPhone]
   );
   const [cols, setCols] = useState(calc);
   React.useEffect(() => {
@@ -421,7 +427,6 @@ export default function ExperimentalDashboard({
     () => resolveExperimentalHome(settingsRow?.[settingsField], registry),
     [settingsRow, settingsField, registry]
   );
-  const gridCols = useGridCols(home.grid?.phoneCols || 4);
   // The user's own saved styles live beside the layout, on the settings row,
   // so they travel with backups and device sync for free.
   const userStyles = useMemo(() => resolveUserStyles(settingsRow?.ui_v2_styles), [settingsRow?.ui_v2_styles]);
@@ -440,6 +445,8 @@ export default function ExperimentalDashboard({
     home.pages.find((p) => p.id === home.defaultPageId) ||
     home.pages[0];
   const pageIdx = home.pages.findIndex((p) => p.id === page.id);
+  // Free pages lock to the columns they were arranged on (see useGridCols).
+  const gridCols = useGridCols(home.grid?.phoneCols || 4, page.layoutMode === "free");
 
   const goToPage = useCallback((idx) => {
     if (idx < 0 || idx >= home.pages.length || home.pages[idx].id === page.id) return;

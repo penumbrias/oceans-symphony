@@ -785,3 +785,21 @@ body > .fixed { pointer-events: auto; }
   user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* Landscape phones: barely 375px of height, so the v2 bottom chrome slims
+   down — smaller tab strip and command keys. (The quick-actions drawer
+   still opens; it just costs less.) Scoped to the bars themselves because
+   the size tokens arrive as INLINE variables on the app root — a rule on
+   the root loses to them, but redefining on a descendant shadows the
+   inherited value. */
+@media (max-height: 480px) {
+  [data-ui-v2="1"] nav.fixed.bottom-0,
+  [data-ui-v2="1"] header {
+    --v2-strip-h: 38px;
+    --v2-cmd-size: 32px;
+    --v2-status-h: 32px;
+  }
+  [data-ui-v2="1"] nav.fixed.bottom-0 [role="tab"] span {
+    font-size: 0.5625rem;
+  }
+}

@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 6, 2026",
+    changes: [
+      { type: "fix", text: "\ud83e\uddea New UI in landscape: a page you arranged by hand keeps its arrangement instead of squashing into the left half, and the top bar, tab strip and quick-action keys slim down so the screen isn't mostly chrome." },
+    ],
+  },
+  {
     date: "August 5, 2026",
+    version: "0.134.5",
     changes: [
       { type: "improve", text: "\ud83e\uddea New UI: \"What's new\" is in the cog menu now, so release notes stay reachable even without the What's-new widget on your board." },
       { type: "hotfix", text: "Hotfix: page swiping worked with a mouse but not a finger \u2014 the browser was claiming the touch as a scroll before the swipe could register. Real-touch swiping works everywhere on the board now." },
