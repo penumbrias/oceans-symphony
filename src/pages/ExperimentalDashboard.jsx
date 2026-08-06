@@ -733,6 +733,7 @@ export default function ExperimentalDashboard({
   // actually scroll sideways (the week grid, the pinned strip), inside a
   // hold-owning element, or in a typing field.
   const pageSwipe = useRef(null);
+  const swipeSurfaceRef = useRef(null);
   const canScrollSideways = (start, container) => {
     let n = start;
     while (n && n !== container) {
@@ -744,19 +745,68 @@ export default function ExperimentalDashboard({
     }
     return false;
   };
+  // TOUCH path: native, non-passive — pointer events die the moment the
+  // browser claims the touch as a scroll (real fingers, unlike synthetic
+  // tests, always trigger that). Once the movement reads horizontal we
+  // preventDefault, which is the one thing that keeps the touch ours.
+  useEffect(() => {
+    const el = swipeSurfaceRef.current;
+    if (!el || editMode || a11yStack || home.pages.length < 2) return undefined;
+    const start = (e) => {
+      if (e.touches.length !== 1) { pageSwipe.current = null; return; }
+      const t = e.touches[0];
+      const dead =
+        !!e.target.closest?.("[data-own-hold], input, textarea, select, [contenteditable='true']") ||
+        canScrollSideways(e.target, el);
+      pageSwipe.current = { x: t.clientX, y: t.clientY, dead, horiz: false };
+    };
+    const move = (e) => {
+      const g = pageSwipe.current;
+      if (!g || g.dead) return;
+      const t = e.touches[0];
+      const dx = t.clientX - g.x;
+      const dy = t.clientY - g.y;
+      if (!g.horiz) {
+        if (Math.abs(dy) > 18 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
+        if (Math.abs(dx) > 18 && Math.abs(dx) > Math.abs(dy)) g.horiz = true;
+      }
+      if (g.horiz) {
+        e.preventDefault();
+        if (Math.abs(dx) >= 56) {
+          g.dead = true;
+          goToPage(pageIdx + (dx < 0 ? 1 : -1));
+        }
+      }
+    };
+    const end = () => { pageSwipe.current = null; };
+    el.addEventListener("touchstart", start, { passive: true });
+    el.addEventListener("touchmove", move, { passive: false });
+    el.addEventListener("touchend", end);
+    el.addEventListener("touchcancel", end);
+    return () => {
+      el.removeEventListener("touchstart", start);
+      el.removeEventListener("touchmove", move);
+      el.removeEventListener("touchend", end);
+      el.removeEventListener("touchcancel", end);
+    };
+  }, [editMode, a11yStack, home.pages.length, pageIdx]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // MOUSE path (desktop drag) — no native scroll to fight, so plain
+  // pointer events are enough. Touch is handled natively above.
   const pageSwipeHandlers = {
+    ref: swipeSurfaceRef,
     onPointerDown: (e) => {
-      if (e.button !== undefined && e.button !== 0) return;
+      if (e.pointerType !== "mouse" || e.button !== 0) return;
       if (e.target.closest?.("[data-own-hold], input, textarea, select, [contenteditable='true']")) return;
       if (canScrollSideways(e.target, e.currentTarget)) return;
       pageSwipe.current = { x: e.clientX, y: e.clientY, dead: false };
     },
     onPointerMove: (e) => {
+      if (e.pointerType !== "mouse") return;
       const g = pageSwipe.current;
       if (!g || g.dead) return;
       const dx = e.clientX - g.x;
       const dy = e.clientY - g.y;
-      // Vertical intent first → it's a scroll; leave it alone for good.
       if (Math.abs(dy) > 24 && Math.abs(dy) > Math.abs(dx)) { g.dead = true; return; }
       if (Math.abs(dx) >= 56 && Math.abs(dx) > Math.abs(dy) * 1.5) {
         g.dead = true;
@@ -1059,7 +1109,7 @@ export default function ExperimentalDashboard({
           initial={swipeDir === 0 ? false : { x: swipeDir * 72, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}
-          {...(home.pages.length > 1 ? pageSwipeHandlers : {})}
+          {...(home.pages.length > 1 ? pageSwipeHandlers : { ref: swipeSurfaceRef })}
         >
           {canvas}
         </motion.div>
