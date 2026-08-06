@@ -31,7 +31,6 @@ import PinnedDailyTasksWidget from "@/components/dashboard/PinnedDailyTasksWidge
 import CurrentSymptoms from "@/components/symptoms/CurrentSymptoms";
 import CurrentActivities from "@/components/activities/CurrentActivities";
 import StartActivityModal from "@/components/activities/StartActivityModal";
-import StartSymptomModal from "@/components/symptoms/StartSymptomModal";
 import CurrentContacts from "@/components/contacts/CurrentContacts";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
@@ -68,9 +67,10 @@ import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters"
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
 
-// v2-only host for the switch modal: listens for the same "open-set-front"
-// event the classic CurrentFronters handles, since that component isn't
-// mounted when the v2 home is on.
+// THE host for the "open-set-front" event — the only listener, whichever
+// UI is on. (It used to be v2-only while CurrentFronters also listened;
+// with the fronting panel placed on a v2 board both fired, and two sheets
+// opened stacked.)
 function V2SetFrontHost({ alters }) {
   const [open, setOpen] = useState(false);
   const { data: sessions = [] } = useQuery({
@@ -99,7 +99,6 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
   const [showEmotionModal, setShowEmotionModal] = useState(false);
   const [showStartActivity, setShowStartActivity] = useState(false);
-  const [showStartSymptom, setShowStartSymptom] = useState(false);
   // One composer for anything you intend to do. The old quick-task and
   // quick-plan links both land here.
   const [showQuickTask, setShowQuickTask] = useState(false);
@@ -182,7 +181,11 @@ export default function Dashboard() {
   const [showDashLayout, setShowDashLayout] = useState(false);
 
   useEffect(() => {
-    const open = () => setShowEmotionModal(true);
+    const open = (e) => {
+      // Widgets can ask for a specific section (diary, symptoms, …).
+      setEmotionModalInitialSection(e?.detail?.section || null);
+      setShowEmotionModal(true);
+    };
     const close = () => setShowEmotionModal(false);
     const openLayout = () => setShowDashLayout(true);
     // The UI-v2 status line's notification LED opens the inbox from any
@@ -226,7 +229,8 @@ export default function Dashboard() {
       // capture modals are hosted here, so keys navigate-with-param.
       setShowStartActivity(true);
     } else if (action === "start-symptom") {
-      setShowStartSymptom(true);
+      setEmotionModalInitialSection("symptoms");
+      setShowEmotionModal(true);
     } else if (action === "quick-task" || action === "quick-plan" || action === "quick-thing") {
       setShowQuickTask(true);
     } else if (action === "notifications") {
@@ -838,7 +842,7 @@ export default function Dashboard() {
     holdActive: showQuickActions,
     quickOn: {
       startActivity: () => setShowStartActivity(true),
-      startSymptom: () => setShowStartSymptom(true),
+      startSymptom: () => { setEmotionModalInitialSection("symptoms"); setShowEmotionModal(true); },
       quickTask: () => setShowQuickTask(true),
       quickPlan: () => setShowQuickTask(true),
       quickThing: () => setShowQuickTask(true),
@@ -985,7 +989,7 @@ export default function Dashboard() {
 
       {/* ── UI v2 Home (rebuilt from the function tree) ── */}
       {uiV2On && <HomeV2 settingsRow={settings[0] || null} api={homeApi} />}
-      {uiV2On && <V2SetFrontHost alters={alters} />}
+      <V2SetFrontHost alters={alters} />
 
       {/* ── Experimental phone-like homescreen (opt-in) ── */}
       {experimentalOn && (
@@ -1067,7 +1071,7 @@ export default function Dashboard() {
                 }}
                 on={{
                   startActivity: () => setShowStartActivity(true),
-                  startSymptom: () => setShowStartSymptom(true),
+                  startSymptom: () => { setEmotionModalInitialSection("symptoms"); setShowEmotionModal(true); },
                   quickTask: () => setShowQuickTask(true),
                   quickPlan: () => setShowQuickPlan(true),
                 }}
@@ -1167,12 +1171,6 @@ export default function Dashboard() {
           isOpen
           onClose={() => setShowStartActivity(false)}
           alters={alters}
-        />
-      )}
-      {showStartSymptom && (
-        <StartSymptomModal
-          isOpen
-          onClose={() => setShowStartSymptom(false)}
         />
       )}
       <Dialog open={showQuickTask} onOpenChange={(v) => !v && setShowQuickTask(false)}>

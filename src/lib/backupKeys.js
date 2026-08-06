@@ -48,6 +48,22 @@ export const BACKUP_LS_KEYS = [
   "symphony_bulletin_rich_mode",
   "symphony_bulletin_comment_rich_mode",
   "symphony_pk_use_display_name",
+  // Activity-grid display settings (row height, column width, time steps,
+  // week start, clock format, tick style, quick-plans toggle) — the user
+  // tuned these by hand; a new device should look the same.
+  "symphony_act_row_h",
+  "symphony_act_col_w",
+  "symphony_act_interval",
+  "symphony_act_week_start",
+  "symphony_act_time_fmt",
+  "symphony_act_tick_mode",
+  "symphony_act_quick_plans",
+  // v2 chrome state the user set deliberately.
+  "symphony_v2_quickactions_open",
+  "symphony_v2_dock_open",
+  "symphony_v2_widget_preview",
+  // Alters-page view preferences.
+  "alter_groups_display_mode",
 ];
 
 export function readBackupLocalSettings() {

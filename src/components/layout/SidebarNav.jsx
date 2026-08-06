@@ -72,7 +72,13 @@ export default function SidebarNav({ open, onClose }) {
   const groups = useMemo(() => buildSidebarGroups(terms.Alters, terms.System), [terms.Alters, terms.System]);
 
   // Close on navigation
-  useEffect(() => { onClose(); }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Close when the route CHANGES — not on mount. Running on mount too made
+  // any conditionally-mounted use of this drawer close itself instantly.
+  const firstRouteRef = React.useRef(true);
+  useEffect(() => {
+    if (firstRouteRef.current) { firstRouteRef.current = false; return; }
+    onClose();
+  }, [location.pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Close on Escape
   useEffect(() => {

@@ -109,6 +109,7 @@ export default {
   "widget.logSymptom.empty": "No symptoms set up yet.",
   "widget.logSymptom.log": "Log",
   "widget.diary.label": "Diary card",
+  "widget.diary.fill": "Fill in",
   "widget.diary.started": "Today's card started",
   "widget.diary.none": "No card for today yet",
   "widget.emotionAnalytics.label": "Feelings analytics",

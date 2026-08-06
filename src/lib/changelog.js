@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: tapping the apps button no longer makes the sidebar flash open and vanish." },
+      { type: "fix", text: "Opening Set Fronters from a quick action no longer opens two stacked windows when the fronting panel widget is on your board." },
+      { type: "improve", text: "The Symptom quick action now opens the same symptoms section you know from the Quick Check-In, instead of the separate start-an-episode box." },
+      { type: "fix", text: "\ud83e\uddea New UI: the Diary card widget actually opens the check-in's Diary section now \u2014 it used to lead nowhere." },
+      { type: "improve", text: "Backups now carry your activity-grid display settings (row height, time steps, clock and the rest), the new-UI bar states, and the alters-page group view choice to a new device." },
       { type: "fix", text: "\ud83e\uddea New UI: pinned alters are one row that scrolls sideways again \u2014 no more wrapping into a second, half-cut row." },
       { type: "fix", text: "The guided breathing timer no longer flashes 0 between steps \u2014 it counts straight into the next step's number. Resizing the widget also doesn't restart the exercise anymore." },
       { type: "improve", text: "Set Fronters: the add list and grid use the standard gesture now \u2014 tap to add, press and hold to place someone at a fronting level. The old swipe-to-set-primary gestures are gone from the grid." },

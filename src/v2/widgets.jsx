@@ -2027,18 +2027,21 @@ function LogSymptomWidget({ settings }) {
 
 function DiaryCardWidget() {
   const tr = useT();
-  const navigate = useNavigate();
   const cards = useList("diaryCards", "DiaryCard");
   const today = new Date().toISOString().slice(0, 10);
   const todays = cards.find((c) => (c.date || "").slice(0, 10) === today);
   const filled = todays ? Object.values(todays.fields || {}).filter((v) => v !== null && v !== undefined && v !== "").length : 0;
+  // The diary is a SECTION of the quick check-in, not a page — the widget
+  // opens the check-in with that section already showing. (It used to
+  // navigate to /diary-cards, a route that doesn't exist.)
+  const openDiary = () => window.dispatchEvent(new CustomEvent("open-quick-checkin", { detail: { section: "diary" } }));
   return (
     <Section label={tr("widget.diary.label")}
-      action={<TextAction onClick={() => navigate("/diary-cards")}>{tr("widget.today.open")}</TextAction>}>
+      action={<TextAction onClick={openDiary}>{tr("widget.diary.fill")}</TextAction>}>
       <Row left={<Dot color={todays ? "var(--v2-accent)" : undefined} active={!!todays} />}
         primary={todays ? tr("widget.diary.started") : tr("widget.diary.none")}
         secondary={todays ? `${filled}` : undefined}
-        onClick={() => navigate("/diary-cards")} />
+        onClick={openDiary} />
     </Section>
   );
 }

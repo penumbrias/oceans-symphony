@@ -370,7 +370,10 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
       <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
       {/* Classic sidebar, verbatim — the appsView="sidebar" mode is exactly
           the old UI's navigation, not an imitation of it. */}
-      {sidebarOpen && <SidebarNav open onClose={() => setSidebarOpen(false)} />}
+      {/* Always mounted, `open` toggles — SidebarNav closes itself when the
+          route changes via an effect that ALSO runs on first mount, so
+          mounting it only when open made it flash and vanish instantly. */}
+      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
     </header>
   );
 }

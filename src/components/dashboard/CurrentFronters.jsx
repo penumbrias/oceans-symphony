@@ -606,15 +606,14 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const [expandedAlterId, setExpandedAlterId] = useState(null);
   const navigate = useNavigate();
 
+  // The "open-set-front" event is handled by the Dashboard's single host
+  // now — this component only listens for the close broadcast, so a panel
+  // sitting on the v2 board can't open a SECOND sheet on top of the
+  // host's. Its own Switch button still opens its local sheet directly.
   useEffect(() => {
-    const open = () => setShowModal(true);
     const close = () => setShowModal(false);
-    window.addEventListener("open-set-front", open);
     window.addEventListener("open-set-front-close", close);
-    return () => {
-      window.removeEventListener("open-set-front", open);
-      window.removeEventListener("open-set-front-close", close);
-    };
+    return () => window.removeEventListener("open-set-front-close", close);
   }, []);
 
   const [editingStatus, setEditingStatus] = useState(false);
