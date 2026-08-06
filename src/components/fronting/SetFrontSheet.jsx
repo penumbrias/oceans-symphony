@@ -20,7 +20,7 @@
 // (meetings, activity/plan composers); every real set-front entry point
 // mounts this sheet.
 
-import React, { useState, useMemo, useEffect } from "react";
+import React, { useState, useMemo, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
@@ -43,6 +43,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useFrontLevels, frontLevelLabel } from "@/lib/frontLevels";
 import { useAlterSorter } from "@/lib/alterSort";
+import { useHoldDragLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
@@ -104,11 +105,12 @@ function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary,
 }
 
 // One alter in the add list.
-function AddRow({ alter, formatAlter, onAdd }) {
+function AddRow({ alter, formatAlter, onAdd, holdProps = null }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
   return (
     <button
       type="button"
+      {...(holdProps || {})}
       onClick={() => onAdd(alter.id)}
       className="w-full flex items-center gap-2 rounded-xl px-2 py-1.5 hover:bg-muted/40 text-left"
     >
@@ -235,6 +237,27 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
   const setLevel = (id, level) => setDraft((prev) => prev.map((d) =>
     d.alterId === id ? { ...d, level } : d));
   const toggleFromView = (id) => (draftIds.has(id) ? removeAlter(id) : addAlter(id));
+  // Hold an {alter} in the add list/grid → the level spectrum → they join
+  // the draft AT that level (the standard gesture, same as the board).
+  const addAtLevel = (id, levelId) => {
+    setIsUnsure(false);
+    setDraft((prev) => {
+      const existing = prev.find((d) => d.alterId === id);
+      if (existing) return prev.map((d) => (d.alterId === id ? { ...d, level: levelId } : d));
+      return [...prev, { alterId: id, isPrimary: prev.length === 0, level: levelId, startTime: null }];
+    });
+  };
+  const suppressAddTap = useRef(0);
+  const { rail: addRail, getHoldProps: getAddHoldProps } = useHoldDragLevel({
+    cfg: levelCfg,
+    onCommit: (alterId, levelId) => { suppressAddTap.current = Date.now() + 400; addAtLevel(alterId, levelId); },
+    onRemove: (alterId) => { suppressAddTap.current = Date.now() + 400; removeAlter(alterId); },
+  });
+  const addRailAlter = addRail ? activeAlters.find((a) => a.id === addRail.alterId) : null;
+  const guardedAdd = (id) => {
+    if (addRail || Date.now() < suppressAddTap.current) return;
+    addAlter(id);
+  };
   const setSole = (id) => {
     setIsUnsure(false);
     setDraft([{ alterId: id, isPrimary: true, level: levelCfg.levels[0]?.id, startTime: null }]);
@@ -409,21 +432,25 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                     {addList.map((a) => (
                       <SetFrontGridCard key={a.id} alter={a}
                         selected={false} isPrimary={false}
-                        onToggle={() => addAlter(a.id)}
-                        onSetPrimary={() => { addAlter(a.id); togglePrimary(a.id); }}
-                        onSolePrimary={() => setSole(a.id)} />
+                        onToggle={() => guardedAdd(a.id)}
+                        holdProps={getAddHoldProps(a.id, null)} />
                     ))}
                     {addList.length === 0 && <p className="col-span-3 text-xs text-muted-foreground text-center py-3">Everyone's already selected.</p>}
                   </div>
                 ) : (
                   <div className="space-y-0.5">
                     {addList.map((a) => (
-                      <AddRow key={a.id} alter={a} formatAlter={formatAlter} onAdd={addAlter} />
+                      <AddRow key={a.id} alter={a} formatAlter={formatAlter} onAdd={guardedAdd}
+                        holdProps={getAddHoldProps(a.id, null)} />
                     ))}
                     {addList.length === 0 && <p className="text-xs text-muted-foreground text-center py-3">Everyone's already selected.</p>}
                   </div>
                 )}
               </div>
+
+              {/* Hold-to-level rail for the add list/grid */}
+              <FrontLevelRail rail={addRail} cfg={levelCfg} withRemove
+                alterName={addRailAlter ? formatAlter(addRailAlter) : ""} />
 
               {/* Switch options */}
               <div className="space-y-2 flex-shrink-0 border-t border-border/40 pt-2">

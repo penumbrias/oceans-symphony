@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: pinned alters are one row that scrolls sideways again \u2014 no more wrapping into a second, half-cut row." },
+      { type: "fix", text: "The guided breathing timer no longer flashes 0 between steps \u2014 it counts straight into the next step's number. Resizing the widget also doesn't restart the exercise anymore." },
+      { type: "improve", text: "Set Fronters: the add list and grid use the standard gesture now \u2014 tap to add, press and hold to place someone at a fronting level. The old swipe-to-set-primary gestures are gone from the grid." },
       { type: "fix", text: "\ud83e\uddea New UI: the currently-fronting panel is a proper widget now \u2014 it has its box and border, and your widget look settings apply to it." },
       { type: "fix", text: "\ud83e\uddea New UI: swiping between pages no longer highlights widget text mid-swipe. Anything you type into stays selectable." },
       { type: "fix", text: "\ud83e\uddea New UI: pinned alters no longer clip in a short widget \u2014 the avatars shrink to fit, and names step aside when there genuinely isn't room for them." },

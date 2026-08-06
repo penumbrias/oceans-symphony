@@ -53,18 +53,26 @@ function getContrastColor(hex) {
 // (AlterGridView): tap = toggle selection, swipe right = toggle selection,
 // swipe left = toggle primary. The visual is also avatar-centric so the
 // modal's grid feels identical to the rest of the app.
-export function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary }) {
+export function SetFrontGridCard({ alter, selected, isPrimary, onToggle, onSetPrimary, onSolePrimary, holdProps = null }) {
   const alterColor = alter.color || "#9333ea";
   const resolvedUrl = useResolvedAvatarUrl(alter.avatar_url);
   const [imgError, setImgError] = useState(false);
   const formatAlter = useAlterLabel();
-  const { bind, dragX, swipeHint } = useSwipeActions({
+  // The standard gesture (v0.122.0): tap toggles, press-and-hold opens the
+  // level spectrum — supplied by the caller as holdProps. The swipe set
+  // below only remains for legacy callers that don't pass them.
+  const swipe = useSwipeActions({
     onTap: () => onToggle(),
     onSwipeRight: () => onToggle(),
     onSwipeLeft: () => onSetPrimary(),
     onSwipeLeftUp: () => onSolePrimary(),
     onLongPress: () => onSetPrimary(),
   });
+  const bind = holdProps
+    ? { ...holdProps, onClick: () => onToggle() }
+    : swipe.bind;
+  const dragX = holdProps ? 0 : swipe.dragX;
+  const swipeHint = holdProps ? null : swipe.swipeHint;
 
   const boxShadow = selected
     ? isPrimary

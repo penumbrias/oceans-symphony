@@ -1395,7 +1395,7 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   // The step label under the circle is a fixed ~2.4em block (so it can't
   // bounce the circle); reserve it here so circle + label always fit.
   const labelH = 36;
-  const maxSize = Math.max(56, Math.min(box.w - 8, box.h - labelH - 8, 260));
+  const maxSize = Math.round(Math.max(56, Math.min(box.w - 8, box.h - labelH - 8, 260)));
 
   return (
     // Section is this widget's visible box (widget contract) — without it,
@@ -1404,7 +1404,7 @@ function BreathingWidget({ settings, updateSettings, mode }) {
     <div className="h-full w-full min-h-0 flex flex-col items-center gap-1.5">
     <div ref={boxRef} className="flex-1 min-h-0 w-full flex items-center justify-center">
       <BreathingExercise
-        key={`${pattern}_${maxSize}_${running}_${settings?.pace || 1}`}
+        key={`${pattern}_${running}`}
         embedded
         loop
         autoStart={running}
@@ -1865,7 +1865,10 @@ function PinnedAltersWidget({ api, settings }) {
 
   return (
     <Section label={applyTerms(tr("widget.pinned.label"), t)}>
-      <div ref={boxRef} className="h-full min-h-0 flex flex-wrap items-center content-center gap-x-3 gap-y-2">
+      {/* One row, scrolling sideways — the widget IS a strip of avatars,
+          so more pins mean more to scroll, never a second, clipped row. */}
+      <div ref={boxRef} className="h-full min-h-0 flex flex-nowrap items-center overflow-x-auto overscroll-contain gap-x-3"
+        style={{ WebkitOverflowScrolling: "touch" }}>
         {alters.length === 0 && <Muted>{applyTerms(tr("widget.pinned.empty"), t)}</Muted>}
         {alters.map((alter) => {
           const session = sessionFor(alter.id);
@@ -1885,7 +1888,7 @@ function PinnedAltersWidget({ api, settings }) {
                 lastTap.current = { id: alter.id, t: now };
                 navigate(`/alter/${alter.id}`);
               }}
-              className="flex flex-col items-center select-none"
+              className="flex flex-col items-center select-none flex-shrink-0"
               style={{ width: Math.max(size + 8, 44) }}
               title={formatAlter(alter)}
             >

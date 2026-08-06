@@ -44,24 +44,29 @@ export default function BreathingExercise({
     return circleSize; // hold — stay at current size
   }, [isInhale, isExhale, circleSize]);
 
+  // Refs mirror the tick state so the interval handler never calls
+  // setState from inside another updater (which double-fires in dev and
+  // let the display flash "0" between a phase ending and the next one's
+  // seconds landing). The countdown now goes ...3, 2, 1, straight to the
+  // next phase's opening number — 0 is never shown.
+  const countRef = useRef(pattern.phases[0].seconds);
+  const phaseRef = useRef(0);
   const advance = useCallback(() => {
-    setPhaseIdx(prev => {
-      const nextIdx = (prev + 1) % pattern.phases.length;
-      const nextPhase = pattern.phases[nextIdx];
-      setCountdown(nextPhase.seconds);
-
-      if (nextIdx === 0) {
-        // completed a full round
-        setRound(r => {
-          if (!loop && r >= totalRounds) {
-            setCompleted(true);
-            return r;
-          }
-          return r + 1;
-        });
-      }
-      return nextIdx;
-    });
+    const nextIdx = (phaseRef.current + 1) % pattern.phases.length;
+    const nextPhase = pattern.phases[nextIdx];
+    phaseRef.current = nextIdx;
+    countRef.current = nextPhase.seconds;
+    setPhaseIdx(nextIdx);
+    setCountdown(nextPhase.seconds);
+    if (nextIdx === 0) {
+      setRound(r => {
+        if (!loop && r >= totalRounds) {
+          setCompleted(true);
+          return r;
+        }
+        return r + 1;
+      });
+    }
   }, [pattern.phases, totalRounds, loop]);
 
   useEffect(() => {
@@ -73,13 +78,12 @@ export default function BreathingExercise({
     // Countdown timer
     timerRef.current = setInterval(() => {
       if (pausedRef.current) return;
-      setCountdown(s => {
-        if (s <= 1) {
-          advance();
-          return 0;
-        }
-        return s - 1;
-      });
+      if (countRef.current <= 1) {
+        advance();
+      } else {
+        countRef.current -= 1;
+        setCountdown(countRef.current);
+      }
     }, Math.round(1000 * pace));
 
     return () => clearInterval(timerRef.current);
@@ -102,7 +106,7 @@ export default function BreathingExercise({
   if (!started && embedded) {
     return (
       <button type="button"
-        onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }}
+        onClick={() => { phaseRef.current = 0; countRef.current = pattern.phases[0].seconds; setPhaseIdx(0); setStarted(true); setCountdown(pattern.phases[0].seconds); }}
         className="relative flex items-center justify-center mx-auto"
         style={{ width: maxSize, height: maxSize }}
         aria-label={`Start ${patternName}`}>
@@ -135,7 +139,7 @@ export default function BreathingExercise({
           style={{ width: SIZES.small, height: SIZES.small, opacity: 0.5 }}
         />
 
-        <Button onClick={() => { setStarted(true); setCountdown(pattern.phases[0].seconds); }} size="lg" className="px-8">
+        <Button onClick={() => { phaseRef.current = 0; countRef.current = pattern.phases[0].seconds; setPhaseIdx(0); setStarted(true); setCountdown(pattern.phases[0].seconds); }} size="lg" className="px-8">
           Begin
         </Button>
         <button onClick={onStop} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
