@@ -110,7 +110,13 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // foldable away rather than permanently eating a row.
       collapsed: src.altersBar?.collapsed === true,
     },
-    wallpaper: { url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "" },
+    wallpaper: {
+      url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "",
+      // Point at a folder of image assets instead of one picture and
+      // the board rotates through it (src/lib/imageRotation.js).
+      folder: typeof src.wallpaper?.folder === "string" ? src.wallpaper.folder : "",
+      mode: src.wallpaper?.mode === "sequential" ? "sequential" : "random",
+    },
     grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
     drawer: {
       // User-chosen app order for the drawer grid (ids not listed keep

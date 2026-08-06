@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: point the wallpaper at a folder of image assets instead of one picture and the home screen rotates through it \u2014 shuffled, or in order, a new one each time you open the app." },
       { type: "improve", text: "The pinned-alters bar has a Size slider now \u2014 the old Width setting only moved it sideways for one-handed reach, so there was no way to make a too-tall bar shorter." },
       { type: "fix", text: "\ud83e\uddea New UI: the edit bar's \"Bar\" row now changes your actual quick-action bar. It was editing a second, leftover bar \u2014 which is also gone, so there's one quick-action bar again instead of two." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar folds away with a tap, and its settings (including size) are reachable from the bar itself. Its scroll-block spacer is gone \u2014 the board pages by swiping anywhere, so it wasn't protecting anything." },

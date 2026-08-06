@@ -56,6 +56,9 @@ import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useRotatingImageUrl } from "@/lib/imageRotation";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { useQuery } from "@tanstack/react-query";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -658,7 +661,25 @@ export default function ExperimentalDashboard({
     });
   };
 
-  const wallpaperUrl = useResolvedAvatarUrl(home.wallpaper?.url || "");
+  // A wallpaper FOLDER rotates through its images (one pick per page
+  // load, same engine the alter avatar/background pools use); a single
+  // picked image is the fallback when no folder is set.
+  const wallpaperPick = useRotatingImageUrl({
+    folder: home.wallpaper?.folder || "",
+    mode: home.wallpaper?.mode || "random",
+    scope: "wallpaper",
+    fallbackUrl: home.wallpaper?.url || "",
+  });
+  const wallpaperUrl = useResolvedAvatarUrl(wallpaperPick);
+  const { data: allAssets = [] } = useQuery({
+    queryKey: ["imageAssets"],
+    queryFn: () => base44.entities.ImageAsset.list(),
+    enabled: editMode,
+  });
+  const assetFolders = useMemo(() => {
+    const set = new Set(allAssets.map((a) => (a.folder || "").trim()).filter(Boolean));
+    return [...set].sort((a, b) => a.localeCompare(b));
+  }, [allAssets]);
 
   // Under v2 the frame's command bar IS the quick-action bar; drawing
   // this one too gave the user two bars, only one of which the Bar
@@ -982,6 +1003,36 @@ export default function ExperimentalDashboard({
               >
                 <ImageIcon className="w-3 h-3" /> Wallpaper
               </button>
+              {/* A folder instead of one image = rotating wallpaper. */}
+              {assetFolders.length > 0 && (
+                <span className="pl-1 pr-1 py-0.5 border-l border-border/40">
+                  <SearchableSelect
+                    value={home.wallpaper?.folder || null}
+                    onChange={(folder) => persist({
+                      ...home,
+                      wallpaper: { ...home.wallpaper, folder: folder || "" },
+                    })}
+                    options={assetFolders.map((f) => ({ id: f, label: f }))}
+                    placeholder="Rotate folder…"
+                    searchPlaceholder="Search folders…"
+                    allowClear
+                    className="text-[0.625rem] min-w-[7rem]"
+                  />
+                </span>
+              )}
+              {home.wallpaper?.folder && (
+                <button
+                  type="button"
+                  onClick={() => persist({
+                    ...home,
+                    wallpaper: { ...home.wallpaper, mode: home.wallpaper?.mode === "sequential" ? "random" : "sequential" },
+                  })}
+                  title="How the folder's images are picked on each app open"
+                  className="text-[0.625rem] px-1.5 py-1 text-muted-foreground hover:text-foreground whitespace-nowrap"
+                >
+                  {home.wallpaper?.mode === "sequential" ? "In order" : "Shuffle"}
+                </button>
+              )}
               {home.wallpaper?.url && (
                 <button
                   type="button"
