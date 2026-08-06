@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "Setting a fronting level by press-and-hold is reliable now: the labels can no longer get text-selected mid-hold (which was killing the picker), and when there's no room beside your finger the labels flip to the other side instead of shifting away from it." },
       { type: "improve", text: "\ud83e\uddea New UI: tapping the who's-here readout in the top bar (\"Echo +3\") opens Set Fronters." },
       { type: "hotfix", text: "Hotfix: scrolling stopped working after the last update \u2014 an invisible layer from the sidebar fix was catching every touch." },
       { type: "fix", text: "\ud83e\uddea New UI: holding an alter and dragging along the fronting-level spectrum works on the home board now \u2014 moving your finger no longer dismisses the level picker (the page was treating it as a scroll)." },

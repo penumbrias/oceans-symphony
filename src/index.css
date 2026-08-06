@@ -773,3 +773,15 @@ body > .fixed { pointer-events: auto; }
   -webkit-user-select: text;
   user-select: text;
 }
+
+/* Elements that own a press-and-hold gesture (level rails, hold menus,
+   drag-selection cells) mark themselves data-own-hold. Text selection or
+   the long-press callout starting DURING the hold cancels the pointer
+   stream and kills the gesture — so on these elements, and everything
+   inside them, selection is off at the stylesheet level where no inline
+   style can clobber it. */
+[data-own-hold], [data-own-hold] * {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}

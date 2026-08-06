@@ -91,17 +91,24 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
           document.body.style.webkitUserSelect = "none";
           try { window.getSelection()?.removeAllRanges(); } catch { /* fine */ }
           const startIndex = Math.max(0, cfg.levels.findIndex((l) => l.id === currentLevelId));
-          const state = { alterId, x: origin.current.x, y: origin.current.y, pickedIndex: startIndex, startIndex };
-          setRail(state);
-          // With onRemove wired, one extra slot sits past the far end of
-          // the spectrum: drag all the way down to take them off front.
           const maxIndex = cfg.levels.length - 1 + (onRemove ? 1 : 0);
+          // Anchor the current level's row under the press point, then clamp
+          // into the viewport ONCE, here — and from then on read the finger
+          // against where the rail actually IS. (Clamping only at render
+          // left the pick math assuming the unclamped position: near a
+          // screen edge the finger hovered a gap and nothing selected.)
+          const railH = (maxIndex + 1) * LEVEL_ROW_H;
+          const anchoredTop = origin.current.y - (startIndex * LEVEL_ROW_H + LEVEL_ROW_H / 2);
+          const top = Math.min(Math.max(8, anchoredTop), window.innerHeight - railH - 8);
+          const pickAt = (clientY) =>
+            Math.min(maxIndex, Math.max(0, Math.round((clientY - top - LEVEL_ROW_H / 2) / LEVEL_ROW_H)));
+          const state = {
+            alterId, x: origin.current.x, y: origin.current.y, top,
+            pickedIndex: pickAt(origin.current.y), startIndex,
+          };
+          setRail(state);
           const pick = (ev) => {
-            // The rail is centred on the press point at the CURRENT level's
-            // row, so the finger starts on the level that's already set and
-            // moving up/down walks the spectrum from there.
-            const dy = ev.clientY - state.y;
-            const idx = Math.min(maxIndex, Math.max(0, Math.round(startIndex + dy / LEVEL_ROW_H)));
+            const idx = pickAt(ev.clientY);
             setRail((r) => (r ? { ...r, pickedIndex: idx } : r));
             state.pickedIndex = idx;
           };
@@ -139,8 +146,18 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
         // Released before arming — normal tap, just drop the pending hold.
         if (timer.current) { clearTimeout(timer.current); timer.current = null; }
       },
-      onContextMenu: (e) => { if (rail) e.preventDefault(); },
-      style: { touchAction: rail ? "none" : undefined },
+      // Always, not just while armed: text selection and the long-press
+      // context menu/callout start DURING the hold, before the rail exists
+      // — once the OS begins selecting it cancels the pointer stream and
+      // the rail vanishes. These are gesture elements; selecting their
+      // text is never the intent.
+      onContextMenu: (e) => e.preventDefault(),
+      style: {
+        touchAction: rail ? "none" : undefined,
+        userSelect: "none",
+        WebkitUserSelect: "none",
+        WebkitTouchCallout: "none",
+      },
     };
   };
 
@@ -247,6 +264,8 @@ export function useHoldMenu(onHold, { holdMs = 350 } = {}) {
     suppressed: () => Date.now() < suppress.current,
     bind: {
       "data-own-hold": "",
+      onContextMenu: (e) => e.preventDefault(),
+      style: { userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" },
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
         origin.current = { x: e.clientX, y: e.clientY };
@@ -360,18 +379,24 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
   if (!rail || !cfg?.enabled) return null;
   const { levels } = cfg;
   const rowCount = levels.length + (withRemove ? 1 : 0);
-  // Anchor so the CURRENT level's row sits under the press point; clamp the
-  // whole rail into the viewport.
   const railH = rowCount * LEVEL_ROW_H;
-  const anchored = rail.y - ((rail.startIndex ?? 0) * LEVEL_ROW_H + LEVEL_ROW_H / 2);
-  const top = Math.min(Math.max(8, anchored), window.innerHeight - railH - 8);
-  const left = Math.min(Math.max(12, rail.x - 10), window.innerWidth - 190);
+  // The hook already anchored + clamped the top and picks against it;
+  // older callers without rail.top fall back to the previous computation.
+  const top = rail.top ?? Math.min(
+    Math.max(8, rail.y - ((rail.startIndex ?? 0) * LEVEL_ROW_H + LEVEL_ROW_H / 2)),
+    window.innerHeight - railH - 8,
+  );
+  // The dot column stays under the FINGER. When there's no room for the
+  // labels on the right (a press near the right edge — pinned bar, grids),
+  // they flip to the left instead of shoving the whole rail sideways.
+  const flip = rail.x + 200 > window.innerWidth;
+  const left = Math.min(Math.max(12, rail.x - 10), window.innerWidth - 32);
   return createPortal(
-    <div className="fixed inset-0 z-[80]" style={{ touchAction: "none" }} aria-hidden="true">
+    <div className="fixed inset-0 z-[80] select-none" style={{ touchAction: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }} aria-hidden="true">
       <div className="absolute inset-0 bg-background/50" />
       {alterName && (
-        <div className="absolute px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium"
-          style={{ left, top: Math.max(2, top - 26) }}>
+        <div className="absolute px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium whitespace-nowrap"
+          style={{ ...(flip ? { right: window.innerWidth - left - 20 } : { left }), top: Math.max(2, top - 26) }}>
           {alterName}
         </div>
       )}
@@ -382,7 +407,7 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
           const picked = i === rail.pickedIndex;
           const accent = level._remove ? "hsl(var(--destructive))" : "var(--color-primary)";
           return (
-            <div key={level.id} className="relative flex items-center gap-2.5" style={{ height: LEVEL_ROW_H }}>
+            <div key={level.id} className="relative flex items-center" style={{ height: LEVEL_ROW_H, width: 20 }}>
               <span
                 className="rounded-full flex-shrink-0 transition-all"
                 style={{
@@ -393,13 +418,14 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
                 }}
               />
               <span
-                className={`px-2 py-0.5 rounded-md text-sm whitespace-nowrap border transition-colors ${
+                className={`absolute px-2 py-0.5 rounded-md text-sm whitespace-nowrap border transition-colors ${
                   picked
                     ? (level._remove
                         ? "bg-destructive text-destructive-foreground border-transparent font-medium"
                         : "bg-primary text-primary-foreground border-transparent font-medium")
                     : `bg-background/90 border-border/60 ${level._remove ? "text-destructive/80" : "text-muted-foreground"}`
                 }`}
+                style={flip ? { right: 30 } : { left: 30 }}
               >
                 {frontLevelLabel(level, terms)}
               </span>
