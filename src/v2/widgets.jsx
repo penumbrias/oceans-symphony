@@ -1823,11 +1823,15 @@ function PinnedAltersWidget({ api, settings }) {
     return () => ro.disconnect();
   }, []);
   // The user's size wins; 0/empty means fit the widget's height (one row,
-  // wrapping into more when the box is taller than wide).
+  // wrapping into more when the box is taller than wide). In a tile too
+  // short for avatars AND names, the names bow out first — a clipped name
+  // under a clipped circle helps nobody.
   const cfgSize = parseInt(settings?.iconSize, 10) || 0;
+  const namesFit = boxH >= 54;
+  const showNamesNow = showNames && namesFit;
   const size = cfgSize > 0
     ? Math.max(24, Math.min(cfgSize, 160))
-    : Math.max(32, Math.min(boxH - (showNames ? 22 : 6), 96));
+    : Math.max(24, Math.min(boxH - (showNamesNow ? 22 : 4), 96));
 
   const levelCfg = useFrontLevels();
   const suppressTapUntil = React.useRef(0);
@@ -1887,7 +1891,7 @@ function PinnedAltersWidget({ api, settings }) {
             >
               <PinnedAvatar alter={alter} size={size} fronting={!!session}
                 isPrimary={!!session?.is_primary} blurAvatar={anonymizeBlurAvatars(anonymize)} />
-              {showNames && (
+              {showNamesNow && (
                 <span className={`text-[0.625em] text-center truncate w-full mt-0.5 ${anonymizeBlurNames(anonymize) ? "blur-sm" : "text-muted-foreground"}`}>
                   {formatAlter(alter)}
                 </span>
@@ -2455,8 +2459,13 @@ export const V2_WIDGETS = {
     // hideStatusNote ALWAYS: the classic panel bundles the status bar for
     // dashboard convenience, but widgets are building blocks — status entry
     // is its own widget, so the panel carries only the fronting feature.
+    // Wrapped in Section so it has the ONE visible box every widget owes
+    // the contract — without it the panel had no border and ignored the
+    // user's look settings.
     render: sized(({ api }) => (
-      <CurrentFronters alters={api?.alters || []} hideStatusNote />
+      <Section>
+        <CurrentFronters alters={api?.alters || []} hideStatusNote />
+      </Section>
     )),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },

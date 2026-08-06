@@ -763,3 +763,13 @@ body > .fixed { pointer-events: auto; }
    fall back to exactly the theme values the classes normally resolve to. */
 [data-widget-content] .text-foreground       { color: var(--v2-text, var(--color-text-primary)); }
 [data-widget-content] .text-muted-foreground { color: var(--v2-text-muted, var(--color-text-secondary)); }
+
+/* The home board swipes pages by dragging — text selection would fight the
+   gesture, so the board is select-none as a whole while anything the user
+   actually types into stays selectable. */
+.os-home-swipe input,
+.os-home-swipe textarea,
+.os-home-swipe [contenteditable="true"] {
+  -webkit-user-select: text;
+  user-select: text;
+}

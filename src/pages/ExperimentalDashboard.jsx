@@ -998,7 +998,10 @@ export default function ExperimentalDashboard({
           key={page.id}
           // min-height so swipes register on the empty space of sparse pages,
           // not just on the widgets themselves.
-          className={home.pages.length > 1 ? "min-h-[55vh]" : undefined}
+          // select-none: dragging across a widget's text is how pages swipe
+          // — without it the drag paints a text selection instead (typed
+          // fields opt back in via the CSS rule in index.css).
+          className={`os-home-swipe select-none ${home.pages.length > 1 ? "min-h-[55vh]" : ""}`}
           initial={swipeDir === 0 ? false : { x: swipeDir * 72, opacity: 0 }}
           animate={{ x: 0, opacity: 1 }}
           transition={{ duration: 0.18, ease: "easeOut" }}

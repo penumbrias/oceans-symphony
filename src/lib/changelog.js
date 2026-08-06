@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: the currently-fronting panel is a proper widget now \u2014 it has its box and border, and your widget look settings apply to it." },
+      { type: "fix", text: "\ud83e\uddea New UI: swiping between pages no longer highlights widget text mid-swipe. Anything you type into stays selectable." },
+      { type: "fix", text: "\ud83e\uddea New UI: pinned alters no longer clip in a short widget \u2014 the avatars shrink to fit, and names step aside when there genuinely isn't room for them." },
       { type: "fix", text: "\ud83e\uddea New UI: the breathing circle no longer jumps up and down when a step's text wraps onto two lines, and the pattern picker fits inside the widget at every size." },
       { type: "improve", text: "\ud83e\uddea New UI: pinned alters \u2014 set the avatar size yourself (or leave it fitting the widget) and toggle names on or off, in the widget's options." },
       { type: "fix", text: "\ud83e\uddea New UI: the breathing widget's pattern picker no longer gets pushed off the bottom edge \u2014 the circle now takes only the space that's actually left." },
