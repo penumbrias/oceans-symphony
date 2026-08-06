@@ -189,7 +189,15 @@ export default function BreathingExercise({
             </span>
           </span>
         </button>
-        <p className="text-xs font-medium text-foreground">{currentPhase.label}</p>
+        {/* Fixed two-line box: steps wrap to one line or two depending on
+            the pattern, and letting the box grow bounced the circle up and
+            down with every phase change. */}
+        <p className="text-xs font-medium text-foreground text-center leading-tight overflow-hidden"
+          style={{ height: "2.4em", display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <span style={{ display: "-webkit-box", WebkitLineClamp: 2, WebkitBoxOrient: "vertical", overflow: "hidden" }}>
+            {currentPhase.label}
+          </span>
+        </p>
       </div>
     );
   }

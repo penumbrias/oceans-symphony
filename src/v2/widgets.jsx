@@ -1392,7 +1392,10 @@ function BreathingWidget({ settings, updateSettings, mode }) {
   // and caption sit outside it as fixed-height rows, so nothing below the
   // circle can be pushed past the widget's edge and clipped (the old
   // estimate guessed their height and guessed low).
-  const maxSize = Math.max(72, Math.min(box.w - 8, box.h - 8, 260));
+  // The step label under the circle is a fixed ~2.4em block (so it can't
+  // bounce the circle); reserve it here so circle + label always fit.
+  const labelH = 36;
+  const maxSize = Math.max(56, Math.min(box.w - 8, box.h - labelH - 8, 260));
 
   return (
     // Section is this widget's visible box (widget contract) — without it,
@@ -1415,7 +1418,7 @@ function BreathingWidget({ settings, updateSettings, mode }) {
       />
       </div>
       {showChips && (
-        <div className="flex-shrink-0" style={{ width: Math.max(160, Math.min(maxSize, box.w - 8)) }}>
+        <div className="flex-shrink-0 w-full" style={{ maxWidth: Math.max(120, box.w - 4) }}>
           <SearchableSelect
             value={pattern}
             onChange={(v) => { if (v) updateSettings?.({ pattern: v }); }}
