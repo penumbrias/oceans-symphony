@@ -28,7 +28,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { useTerms } from "@/lib/useTerms";
-import { useCustomFieldsLayout, fieldLayoutClasses } from "@/lib/customFieldsLayout";
+import { useCustomFieldsLayout, fieldLayoutClasses, FIELD_LAYOUTS } from "@/lib/customFieldsLayout";
 import { needsHalo, getPageBackground, adjustForContrast, groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
 import { PRESET_ANSWER_LABELS } from "@/lib/unblendQuestions";
@@ -159,7 +159,7 @@ function contrastRatio(a, b) {
 export default function ProfileTab({ alter, editMode, onEditModeChange, systemFields = [], saveRef }) {
   // Custom-field layout (Settings → {Alter} setup → Custom fields):
   // stacked rows, side-by-side wrapping, or one sideways-scrolling line.
-  const fieldLayout = useCustomFieldsLayout();
+  const fieldLayout = useCustomFieldsLayout(alter);
   const fieldLayoutCls = fieldLayoutClasses(fieldLayout);
   const queryClient = useQueryClient();
   const t = useTerms();
@@ -888,7 +888,28 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           if (bodyFilled.length === 0 && bodyAdhoc.length === 0) return null;
           return (
             <div>
-              <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">Info</p>
+              <div className="flex items-center justify-between mb-2">
+                <p data-pf-chrome-label className="inline-block text-xs font-medium text-muted-foreground uppercase tracking-wider">Info</p>
+                {/* Per-PROFILE layout (moved here from Settings → Custom
+                    fields): each {alter} keeps their own arrangement. One
+                    tap cycles stacked → side by side → one line. */}
+                <button type="button"
+                  onClick={async () => {
+                    const ids = FIELD_LAYOUTS.map((l) => l.id);
+                    const next = ids[(ids.indexOf(fieldLayout) + 1) % ids.length];
+                    try {
+                      await base44.entities.Alter.update(alter.id, { custom_fields_layout: next });
+                      // The profile page reads THIS alter from its own
+                      // ["alter", id] query — refresh both.
+                      queryClient.invalidateQueries({ queryKey: ["alter", alter.id] });
+                      queryClient.invalidateQueries({ queryKey: ["alters"] });
+                    } catch { /* non-fatal */ }
+                  }}
+                  className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
+                  title="How this profile lays out its fields — tap to change">
+                  {FIELD_LAYOUTS.find((l) => l.id === fieldLayout)?.label || "Stacked"}
+                </button>
+              </div>
               <div className={`rounded-xl border border-border/40 bg-muted/10 ${fieldLayout === "stacked" ? "overflow-hidden" : `${fieldLayoutCls.container} p-2`}`} style={sectionCardStyle}>
                 {bodyFilled.map((field, i) => (
                   <div key={field.id} className={fieldLayout === "stacked"

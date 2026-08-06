@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "Custom-field layout is per profile now: the small chip beside a profile's Info heading cycles Stacked / Side by side / One line for that alter alone. The old system-wide switch left Settings; existing choices stay as each profile's starting point." },
       { type: "fix", text: "Setting a fronting level by press-and-hold is reliable now: the labels can no longer get text-selected mid-hold (which was killing the picker), and when there's no room beside your finger the labels flip to the other side instead of shifting away from it." },
       { type: "improve", text: "\ud83e\uddea New UI: tapping the who's-here readout in the top bar (\"Echo +3\") opens Set Fronters." },
       { type: "hotfix", text: "Hotfix: scrolling stopped working after the last update \u2014 an invisible layer from the sidebar fix was catching every touch." },

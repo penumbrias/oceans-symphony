@@ -1,14 +1,15 @@
 // How an alter profile lays out its custom fields (owner request via a
 // tester: a long vertical stack is a lot of scrolling when the values are
-// short). Three modes, system-wide:
+// short). Three modes, PER PROFILE (owner, v0.134.0):
 //
 //   stacked — one field per row, full width (the original layout)
 //   wrap    — fields sit side by side and WRAP onto more lines as needed
 //   scroll  — fields sit side by side on ONE line that scrolls sideways
 //
-// Stored on SystemSettings.custom_fields_layout. Reads ride the shared
-// ["systemSettings"] cache (same as useTerms / useFrontLevels) — no extra
-// fetch per profile.
+// Each alter can carry their own choice (Alter.custom_fields_layout, set
+// right on the profile page); an alter without one follows the old
+// system-wide SystemSettings.custom_fields_layout, so nobody's existing
+// setting changes out from under them.
 
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -25,11 +26,13 @@ export function resolveFieldLayout(settingsRow) {
   return FIELD_LAYOUTS.some((l) => l.id === raw) ? raw : DEFAULT_FIELD_LAYOUT;
 }
 
-export function useCustomFieldsLayout() {
+export function useCustomFieldsLayout(alter = null) {
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),
   });
+  const own = alter?.custom_fields_layout;
+  if (FIELD_LAYOUTS.some((l) => l.id === own)) return own;
   return resolveFieldLayout(settingsList[0]);
 }
 
