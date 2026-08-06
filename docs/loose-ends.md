@@ -149,6 +149,18 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Done (this cycle, for orientation)
 
+- v0.132.1 (pre-tester sweep): the `[data-ui-v2] .px-3` density rule was
+  out-specifying `.pl-7` (icon printed over the text) — the escape list now
+  covers pl/pr 6–12, so check it FIRST whenever an icon-in-field overlaps.
+  Day view's first hour label sat under the sticky quick-plans strip (spacer
+  added; the label is drawn half a line above its row on purpose) and the
+  now-line crossed the "no activities" text. `updateThingSchedule()` wires
+  the edit path — `unscheduleThing` is no longer dead code. Classic
+  dashboard has one Add button; the bulletin tour step no longer describes
+  the deleted plan composer.
+  Verified against the owner's own test record: one Task + one linked
+  scheduled Activity, `task_id` set — the merged create path works on real
+  data.
 - v0.131.0: to-dos and plans merged into one thing with an optional time
   (`src/lib/thingSave.js`; proposal Phase 6). Hold a quiet part of a widget
   to open its options — regions that own a hold now mark themselves
