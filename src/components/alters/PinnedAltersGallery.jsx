@@ -79,6 +79,9 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
   const config = (settings && settings.pinned_alters_config) || {};
   const savedOrder = Array.isArray(config.order) ? config.order : [];
   const width = Number.isFinite(config.width) ? config.width : 100;
+  // Avatar diameter in px — the bar's height follows it. Owner: width
+  // alone "doesn't help", the strip is too TALL.
+  const chipSize = Number.isFinite(config.chipSize) ? config.chipSize : 48;
   const cropSide = config.cropSide === "left" ? "left" : "right";
   // The "scroll block" is a safe, no-swipe zone the user drops INTO the pinned
   // strip at a spot they naturally scroll — so a page-scroll gesture there
@@ -186,6 +189,7 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
               anonymize={anonymize}
               formatAlter={formatAlter}
               queryClient={queryClient}
+              size={chipSize}
             />
           ));
           // Drop the scroll block INTO the row at the chosen index — pins slide
@@ -210,6 +214,7 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
           open={gearOpen}
           onClose={() => setGearOpen(false)}
           width={width}
+          chipSize={chipSize}
           cropSide={cropSide}
           total={pinned.length}
           scrollBlock={sb}
@@ -217,6 +222,7 @@ export default function PinnedAltersGallery({ showHeader = true, hideScrollBlock
           pinnedIds={new Set(pinned.map((a) => a.id))}
           onSetPinned={setPinnedAlter}
           onWidthChange={(w) => persistConfig({ width: w })}
+          onChipSizeChange={(v) => persistConfig({ chipSize: v })}
           onCropSideChange={(s) => persistConfig({ cropSide: s })}
           onScrollBlockChange={(next) => persistConfig({ scrollBlock: next })}
           onRearrange={() => { setGearOpen(false); setRearrange(true); }}
@@ -343,7 +349,7 @@ function PinPickerRow({ alter, pinned, onToggle }) {
   );
 }
 
-function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scrollBlock, alters = [], pinnedIds, onSetPinned, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
+function PinnedAltersSettingsDialog({ open, onClose, width, chipSize = 48, onChipSizeChange, cropSide, total, scrollBlock, alters = [], pinnedIds, onSetPinned, onWidthChange, onCropSideChange, onScrollBlockChange, onRearrange }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
   const pinnedSet = pinnedIds instanceof Set ? pinnedIds : new Set();
@@ -410,6 +416,20 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
             />
           </div>
 
+          {/* Height: the strip is as tall as its avatars, so this is the
+              control for "the bar is massive". */}
+          <div>
+            <label className="text-sm font-medium flex items-center justify-between">
+              Size <span className="text-xs text-muted-foreground">{chipSize}px tall</span>
+            </label>
+            <input
+              type="range" min={28} max={88} step={4} value={chipSize}
+              onChange={(e) => onChipSizeChange?.(Number(e.target.value))}
+              className="w-full accent-primary mt-1"
+              aria-label="Pinned bar size"
+            />
+          </div>
+
           {width < 100 && (
             <div>
               <label className="text-sm font-medium block mb-1.5">Tuck to</label>
@@ -461,7 +481,9 @@ function PinnedAltersSettingsDialog({ open, onClose, width, cropSide, total, scr
 const LONG_PRESS_MS = 450;
 
 
-function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient }) {
+// `size` is the base avatar diameter in px (config.chipSize). Fronting
+// chips render 4/3 of it, keeping the old 48/64 look at the default.
+function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48 }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
@@ -490,11 +512,14 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
       {...gesture.getHoldProps(alter, mySession?.front_level)}
       onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}
       title={`${label} — tap to open, press and hold to set their ${terms.fronting} level or remove from ${terms.front}`}
-      className="relative flex flex-col items-center gap-1 w-16 flex-shrink-0 select-none"
+      className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
+      style={{ width: Math.round(size * 4 / 3) }}
     >
       <div
-        className={`relative rounded-full overflow-hidden flex items-center justify-center ${fronting ? "w-16 h-16" : "w-12 h-12"}`}
+        className="relative rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
         style={{
+          width: fronting ? Math.round(size * 4 / 3) : size,
+          height: fronting ? Math.round(size * 4 / 3) : size,
           // Fronting alters render LARGER (like the alters grid) rather
           // than with a glow — clearer at-a-glance "who's active" and
           // less visual noise. A coloured border still tints them.
