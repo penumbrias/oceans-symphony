@@ -109,6 +109,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // Collapsed: the strip folds to a thin tab. Owner asked for it to be
       // foldable away rather than permanently eating a row.
       collapsed: src.altersBar?.collapsed === true,
+      // Same look fields a widget has (border/background/radius/text…),
+      // so the bar is editable in all the ways a widget is.
+      look: src.altersBar?.look && typeof src.altersBar.look === "object" ? src.altersBar.look : {},
     },
     wallpaper: {
       url: typeof src.wallpaper?.url === "string" ? src.wallpaper.url : "",

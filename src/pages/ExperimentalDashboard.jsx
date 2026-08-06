@@ -57,6 +57,7 @@ import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { boxStyle } from "@/v2/primitives";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
@@ -102,6 +103,19 @@ export function widgetLookFor(settings = {}, userStyles = []) {
 }
 
 const TRASH_ID = "__widget_trash";
+const BAR_CONFIG_ID = "__alters_bar";
+// Minimal registry-shaped def so WidgetConfigSheet can render the bar's
+// options without knowing it isn't a widget.
+const BAR_DEF = {
+  label: "Pinned alters bar",
+  description: "The persistent strip of pinned alters.",
+  supportsModes: ["normal"],
+  configFields: [],
+  defaultSpan: { cols: 4, rows: 1 },
+  minSpan: { cols: 1, rows: 1 },
+  maxSpan: { cols: 12, rows: 4 },
+  render: () => null,
+};
 
 // Drop target that only exists while a widget is being dragged — hold a
 // widget, drag it here, let go. Nothing to mis-tap the rest of the time.
@@ -421,6 +435,9 @@ export default function ExperimentalDashboard({
   // null | "wallpaper" | { icon: instanceId }
   const [assetPickerFor, setAssetPickerFor] = useState(null);
   const [configId, setConfigId] = useState(null);
+  // The pinned-alters bar reuses the widget config sheet verbatim: a shim
+  // widget whose "settings" ARE its look. No second options UI to drift.
+  const configuringBar = configId === BAR_CONFIG_ID;
   const [draggingId, setDraggingId] = useState(null);
   const [stylePickerOpen, setStylePickerOpen] = useState(false);
   const gridRef = React.useRef(null);
@@ -727,6 +744,10 @@ export default function ExperimentalDashboard({
   const hasPinnedAlters = (api?.alters || []).some((a) => a.is_pinned && !a.is_archived);
   const altersBarOn = home.altersBar.enabled && (hasPinnedAlters || editMode);
   const altersCollapsed = home.altersBar.collapsed === true;
+  // The bar is styled like a widget: same look fields, same pipeline, so
+  // border/background/radius/padding/text all behave as they do on a tile.
+  const altersLook = widgetLookFor(home.altersBar.look || {}, userStyles);
+  const altersLookStyle = lookToStyle(altersLook);
   const toggleAltersCollapsed = () => persist({
     ...home,
     altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
@@ -1338,7 +1359,27 @@ export default function ExperimentalDashboard({
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
         >
           {altersBottom && (
-            <div className="pointer-events-auto max-w-full px-2 py-1 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3 flex items-center gap-1">
+            <div data-widget-content="1"
+              className="pointer-events-auto max-w-full mx-3 flex items-center gap-1 backdrop-blur-xl"
+              style={{
+                // The look arrives as CSS VARIABLES (widget contract), so the
+                // bar must consume them through the same box helper a widget's
+                // Section uses — Tailwind border/bg classes would just ignore
+                // them. Defaults below keep today's look when nothing is set.
+                ...altersLookStyle,
+                ...boxStyle(),
+                background: "var(--v2-widget-bg, hsl(var(--background) / 0.9))",
+                borderRadius: "var(--v2-radius, 1rem)",
+                padding: "var(--v2-pad, 0.25rem 0.5rem)",
+                boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
+              }}>
+              {editMode && (
+                <button type="button" onClick={() => setConfigId(BAR_CONFIG_ID)}
+                  aria-label="Pinned bar options" title="Pinned bar options"
+                  className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground">
+                  <Settings2 className="w-3.5 h-3.5" />
+                </button>
+              )}
               <button type="button" onClick={toggleAltersCollapsed}
                 aria-label={altersCollapsed ? `Show pinned ${t.alters}` : `Hide pinned ${t.alters}`}
                 aria-expanded={!altersCollapsed}
@@ -1410,19 +1451,29 @@ export default function ExperimentalDashboard({
 
       {/* Per-widget options sheet — derived live from home state. */}
       <WidgetConfigSheet
-        onRemove={(id) => { handleRemove(id); setConfigId(null); }}
+        onRemove={(id) => {
+          if (id === BAR_CONFIG_ID) persist({ ...home, altersBar: { ...home.altersBar, enabled: false } });
+          else handleRemove(id);
+          setConfigId(null);
+        }}
         userStyles={userStyles}
         onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
         onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         api={widgetApi}
-        widget={widgets.find((w) => w.instanceId === configId) || null}
-        def={registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
+        widget={configuringBar
+          ? { instanceId: BAR_CONFIG_ID, widgetId: BAR_CONFIG_ID, mode: "normal", span: { cols: 4, rows: 1 }, settings: home.altersBar.look || {} }
+          : (widgets.find((w) => w.instanceId === configId) || null)}
+        def={configuringBar ? BAR_DEF : registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}
         onClose={() => setConfigId(null)}
         onMode={handleMode}
-        onSettings={handleSettings}
-        onResetWidget={handleResetWidget}
+        onSettings={(id, patch) => (id === BAR_CONFIG_ID
+          ? persist({ ...home, altersBar: { ...home.altersBar, look: { ...(home.altersBar.look || {}), ...patch } } })
+          : handleSettings(id, patch))}
+        onResetWidget={(id) => (id === BAR_CONFIG_ID
+          ? persist({ ...home, altersBar: { ...home.altersBar, look: {} } })
+          : handleResetWidget(id))}
         onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
       />
 

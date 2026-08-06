@@ -386,7 +386,7 @@ function PinnedAltersSettingsDialog({ open, onClose, barHeight = 0, onBarHeightC
               Icon size <span className="text-xs text-muted-foreground">{chipSize}px</span>
             </label>
             <input
-              type="range" min={28} max={88} step={4} value={chipSize}
+              type="range" min={14} max={88} step={2} value={chipSize}
               onChange={(e) => onChipSizeChange?.(Number(e.target.value))}
               className="w-full accent-primary mt-1"
               aria-label="Pinned icon size"
