@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: home screen pages can be addressed to specific alters \u2014 a page only shows while one of them is fronting. Good for a page that\u2019s just yours, or keeping someone to the pages meant for them. It hides pages, it doesn\u2019t lock them: nothing is deleted, everything still exports, and if whoever\u2019s fronting can\u2019t see any page you get all of them rather than a blank screen." },
       { type: "feature", text: "Appearance presets can carry your home screen now \u2014 widgets, wallpaper and all \u2014 so linking a preset to an alter restores THEIR home layout when they front, not just their colours. Tick \"Home & dashboard layout\" when saving a preset to include it, or leave it off for a design-only preset." },
       { type: "improve", text: "\ud83e\uddea New UI: every widget\u2019s options have a \"Reset all\" \u2014 size, display mode, name, look and its own settings go back to default in one tap." },
       { type: "improve", text: "\ud83e\uddea New UI: press and hold the Set Fronters key to fold the pinned-alters bar in or out, so it can live tucked away next to your quick actions." },

@@ -174,6 +174,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // default). "free": each widget sits at the cell the user put it in,
       // gaps and all.
       layoutMode: p.layoutMode === "free" ? "free" : "flow",
+      // Who this page is for. Empty = everyone. Non-empty = only shown
+      // while one of these alters is fronting (soft hiding, not a lock).
+      visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.filter((x) => typeof x === "string" && x) : [],
       widgets,
     });
   }

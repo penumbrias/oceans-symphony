@@ -40,6 +40,7 @@ import {
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
+import { useFrontingIds } from "@/lib/alterSort";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
@@ -58,6 +59,7 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { SearchableMultiList } from "@/v2/widgets";
 import { useQuery } from "@tanstack/react-query";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
@@ -460,20 +462,33 @@ export default function ExperimentalDashboard({
   // Phase 2: multiple pages. activePageId is transient (each visit starts
   // on the default page); the pages themselves live in experimental_home.
   const [activePageId, setActivePageId] = useState(null);
+  const [audienceOpen, setAudienceOpen] = useState(false);
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
+  // Pages can be addressed to specific alters. Outside edit mode the board
+  // only navigates the ones the current fronters can see — but if that
+  // would leave NOTHING, everyone sees everything. Being locked out of your
+  // own home screen is the one outcome this must never produce.
+  const frontingIds = useFrontingIds();
+  const visiblePages = useMemo(() => {
+    if (editMode) return home.pages;
+    const allowed = home.pages.filter(
+      (p) => !p.visibleTo?.length || p.visibleTo.some((id) => frontingIds.has(id))
+    );
+    return allowed.length ? allowed : home.pages;
+  }, [home.pages, editMode, frontingIds]);
   const page =
-    home.pages.find((p) => p.id === activePageId) ||
-    home.pages.find((p) => p.id === home.defaultPageId) ||
-    home.pages[0];
-  const pageIdx = home.pages.findIndex((p) => p.id === page.id);
+    visiblePages.find((p) => p.id === activePageId) ||
+    visiblePages.find((p) => p.id === home.defaultPageId) ||
+    visiblePages[0];
+  const pageIdx = visiblePages.findIndex((p) => p.id === page.id);
   // Free pages lock to the columns they were arranged on (see useGridCols).
   const gridCols = useGridCols(home.grid?.phoneCols || 4, page.layoutMode === "free");
 
   const goToPage = useCallback((idx) => {
-    if (idx < 0 || idx >= home.pages.length || home.pages[idx].id === page.id) return;
+    if (idx < 0 || idx >= visiblePages.length || visiblePages[idx].id === page.id) return;
     setSwipeDir(idx > pageIdx ? 1 : -1);
-    setActivePageId(home.pages[idx].id);
-  }, [home.pages, page.id, pageIdx]);
+    setActivePageId(visiblePages[idx].id);
+  }, [visiblePages, page.id, pageIdx]);
 
   const persist = useCallback(async (nextHome) => {
     try {
@@ -535,6 +550,9 @@ export default function ExperimentalDashboard({
         };
       })
     );
+  // Address this page to specific alters (empty = everyone sees it).
+  const setPageAudience = (ids) =>
+    persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, visibleTo: ids } : p)) });
   const handleMove = (instanceId, dir) =>
     updatePageWidgets((ws) => {
       const i = ws.findIndex((w) => w.instanceId === instanceId);
@@ -1138,9 +1156,9 @@ export default function ExperimentalDashboard({
       )}
 
       {/* Page dots — tappable; edit mode adds a "+" for a new page. */}
-      {(home.pages.length > 1 || editMode) && (
+      {(visiblePages.length > 1 || editMode) && (
         <div className="flex items-center justify-center gap-1.5 mb-2" role="tablist" aria-label="Homescreen pages">
-          {home.pages.map((p, i) => (
+          {visiblePages.map((p, i) => (
             <button
               key={p.id}
               type="button"
@@ -1191,6 +1209,21 @@ export default function ExperimentalDashboard({
           />
           <button
             type="button"
+            onClick={() => setAudienceOpen((v) => !v)}
+            aria-expanded={audienceOpen}
+            title={page.visibleTo?.length
+              ? `Only shown while these ${t.alters} are ${t.fronting}`
+              : `Shown to everyone \u2014 tap to limit this page to certain ${t.alters}`}
+            className={`h-7 px-2 rounded-lg border text-[0.625rem] whitespace-nowrap ${
+              page.visibleTo?.length
+                ? "border-primary/50 bg-primary/10 text-primary"
+                : "border-border/50 text-muted-foreground hover:text-foreground"
+            }`}
+          >
+            {page.visibleTo?.length ? `For ${page.visibleTo.length}` : "Everyone"}
+          </button>
+          <button
+            type="button"
             onClick={handleSetDefaultPage}
             aria-pressed={home.defaultPageId === page.id}
             aria-label="Make this the default page"
@@ -1212,6 +1245,34 @@ export default function ExperimentalDashboard({
               className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors"
             >
               <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      )}
+
+      {/* Who this page is for. Soft hiding: the page still exists, is still
+          in your backup, and if the current fronters can't see ANY page the
+          board shows them all rather than nothing. */}
+      {editMode && audienceOpen && (
+        <div className="mx-3 mb-3 p-2 rounded-xl border border-border/50 bg-background/80">
+          <p className="text-[0.625rem] text-muted-foreground mb-1.5">
+            {page.visibleTo?.length
+              ? `Only shown while one of these ${t.alters} is ${t.fronting}.`
+              : `Shown to everyone. Pick ${t.alters} to limit it to them.`}
+          </p>
+          <SearchableMultiList
+            options={(api?.alters || []).filter((a) => !a.is_archived).map((a) => ({ id: a.id, label: a.name || "?" }))}
+            selectedIds={page.visibleTo || []}
+            searchPlaceholder={`Search ${t.alters}...`}
+            onToggle={(id) => {
+              const cur = page.visibleTo || [];
+              setPageAudience(cur.includes(id) ? cur.filter((x) => x !== id) : [...cur, id]);
+            }}
+          />
+          {page.visibleTo?.length > 0 && (
+            <button type="button" onClick={() => setPageAudience([])}
+              className="mt-1 text-[0.625rem] text-primary hover:underline">
+              Show this page to everyone
             </button>
           )}
         </div>
