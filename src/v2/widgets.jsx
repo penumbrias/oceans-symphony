@@ -75,6 +75,7 @@ import {
   TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
   ChatChannelsWidget, GroundingWidget, LearnWidget,
 } from "@/v2/moreWidgets";
+import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 
 const fmtTime = (d) => new Date(d).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 // Compact "how long so far" — reads better than a clock time in a narrow
@@ -2527,5 +2528,26 @@ export function seedV2Home() {
       id: "p1", label: "Home",
       widgets: [mk("presence", 4, 1), mk("today", 4, 2), mk("running", 4, 1), mk("status", 4, 1)],
     }],
+  };
+}
+
+// ── Quick-action keys as widgets ───────────────────────────────────
+// The command bar / dock is optional chrome; a user who hides it can put
+// any of its keys on the board instead. One entry each so they're all
+// browsable in the picker, all backed by the same component.
+for (const c of COMMAND_WIDGETS) {
+  V2_WIDGETS[`action_${c.id}`] = {
+    label: c.label,
+    description: c.desc,
+    icon: c.icon,
+    category: "actions",
+    render: ({ mode, settings, api }) => (
+      <CommandWidget keyId={c.id} mode={mode} settings={settings} api={api} />
+    ),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "label", type: "text", label: "Button text", placeholder: "Leave empty for the default" },
+    ],
+    defaultSpan: { cols: 2, rows: 1 }, minSpan: { cols: 1, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
   };
 }

@@ -139,7 +139,25 @@ function useTrackerModals({ activities, alters, frontingHistory, importantDates,
     </>
   );
 
-  return { onTimeRangeSelect, onActivityClick, onEditPlan, setZoomedDate, elements };
+  // Explicit openers for the widget header, so scheduling doesn't depend on
+  // discovering the grid's double-tap.
+  const openPlan = (day) => {
+    if (!enabled) return;
+    const d = day || new Date();
+    setRange({ date: d, endDate: d, startHour: undefined, endHour: undefined, startMinute: 0, endMinute: 0 });
+    setEditingPlan(null);
+    setPlanOpen(true);
+  };
+  const openLog = (day) => {
+    if (!enabled) return;
+    const d = day || new Date();
+    const now = new Date();
+    setRange({ date: d, endDate: d, startHour: now.getHours(), endHour: undefined, startMinute: now.getMinutes(), endMinute: 0 });
+    setEditingPlan(null);
+    setLogOpen(true);
+  };
+
+  return { onTimeRangeSelect, onActivityClick, onEditPlan, setZoomedDate, openPlan, openLog, elements };
 }
 
 // ── Text summaries (minimal mode) ──────────────────────────────────
@@ -185,6 +203,29 @@ function TextDays({ days, activities, onDay }) {
   );
 }
 
+// "+ Plan" / "Log" — the widget's own way into the same modals the tracker
+// uses, so a board is a real entry point for scheduling and not just a
+// picture of one.
+function AddActions({ modals, day, compact = false }) {
+  return (
+    <span className="flex items-center gap-1">
+      <button type="button" onClick={() => modals.openPlan(day)}
+        title="Schedule something on this day" aria-label="Schedule something on this day"
+        className="px-1.5 py-0.5 rounded text-[0.6875em] font-medium hover:underline"
+        style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
+        + Plan
+      </button>
+      {!compact && (
+        <button type="button" onClick={() => modals.openLog(day)}
+          title="Log something on this day" aria-label="Log something on this day"
+          className="px-1.5 py-0.5 rounded text-[0.6875em] text-muted-foreground hover:text-foreground">
+          Log
+        </button>
+      )}
+    </span>
+  );
+}
+
 // Header nav shared by every window (‹ today ›).
 function WindowNav({ label, onPrev, onNext, onToday, atNow }) {
   return (
@@ -210,7 +251,11 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
   const [anchor, setAnchor] = useState(() => new Date());
   const [addMode, setAddMode] = useState(false);
   const [weekStartsOn, setWeekStartsOn] = useState(() => lsGet("symphony_act_week_start", 0));
-  const interactive = mode === "expanded";
+  // Anything but the text-only mode is a working tracker surface: tap an
+  // entry for details, double-tap empty time to select a range, and use the
+  // header's + Plan / Log. Expanded additionally shows the grid's own
+  // display-filter row.
+  const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
 
   const weekDays = useMemo(() => {
@@ -239,7 +284,7 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
   }
 
   return (
-    <Section label="Week" action={nav}>
+    <Section label="Week" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={atNow ? new Date() : weekDays[0]} compact={mode !== "expanded"} /></span>}>
       <ErrorBoundary fallback={<Muted>This week couldn't be drawn. Open the Activity tracker to sort it out.</Muted>} resetKeys={[activities.length]}>
         <div className="min-h-0 flex-1 overflow-auto -mx-1 px-1">
           <ActivityWeeklyGrid
@@ -272,7 +317,11 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
   const [addMode, setAddMode] = useState(false);
-  const interactive = mode === "expanded";
+  // Anything but the text-only mode is a working tracker surface: tap an
+  // entry for details, double-tap empty time to select a range, and use the
+  // header's + Plan / Log. Expanded additionally shows the grid's own
+  // display-filter row.
+  const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
   const days = useMemo(() => [anchor], [anchor]);
   const atNow = isSameDay(anchor, new Date());
@@ -304,7 +353,7 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
   }
 
   return (
-    <Section label="Day" action={nav}>
+    <Section label="Day" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={anchor} compact={mode !== "expanded"} /></span>}>
       <ErrorBoundary fallback={<Muted>This day couldn't be drawn. Open the Activity tracker to sort it out.</Muted>} resetKeys={[activities.length]}>
         <div className="min-h-0 flex-1 overflow-auto -mx-1 px-1">
           <ActivityWeeklyGrid
@@ -336,7 +385,11 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
-  const interactive = mode === "expanded";
+  // Anything but the text-only mode is a working tracker surface: tap an
+  // entry for details, double-tap empty time to select a range, and use the
+  // header's + Plan / Log. Expanded additionally shows the grid's own
+  // display-filter row.
+  const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
   const atNow = isSameDay(anchor, new Date());
 
@@ -367,7 +420,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
   }
 
   return (
-    <Section label="Day view" action={nav}>
+    <Section label="Day view" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={anchor} compact /></span>}>
       <ErrorBoundary fallback={<Muted>This day couldn't be drawn. Open the Activity tracker to sort it out.</Muted>} resetKeys={[activities.length]}>
         <div className="min-h-0 flex-1">
           <ActivityDayView
@@ -393,7 +446,11 @@ export function ActivityMonthWidget({ mode = "normal", settings }) {
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
   const weekStartsOn = lsGet("symphony_act_week_start", 0);
-  const interactive = mode === "expanded";
+  // Anything but the text-only mode is a working tracker surface: tap an
+  // entry for details, double-tap empty time to select a range, and use the
+  // header's + Plan / Log. Expanded additionally shows the grid's own
+  // display-filter row.
+  const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
   const atNow = isSameMonth(anchor, new Date());
 
@@ -421,7 +478,7 @@ export function ActivityMonthWidget({ mode = "normal", settings }) {
   }
 
   return (
-    <Section label="Month" action={nav}>
+    <Section label="Month" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={atNow ? new Date() : anchor} compact={mode !== "expanded"} /></span>}>
       <div className="min-h-0 flex-1 overflow-auto -mx-1 px-1">
         <ActivityMonthView
           monthDate={anchor}
@@ -444,7 +501,11 @@ export function ActivityYearWidget({ mode = "normal", settings }) {
   const { activities, alters, frontingHistory, importantDates } = useActivityData();
   const [anchor, setAnchor] = useState(() => new Date());
   const weekStartsOn = lsGet("symphony_act_week_start", 0);
-  const interactive = mode === "expanded";
+  // Anything but the text-only mode is a working tracker surface: tap an
+  // entry for details, double-tap empty time to select a range, and use the
+  // header's + Plan / Log. Expanded additionally shows the grid's own
+  // display-filter row.
+  const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
   const atNow = isSameYear(anchor, new Date());
 
@@ -472,7 +533,7 @@ export function ActivityYearWidget({ mode = "normal", settings }) {
   }
 
   return (
-    <Section label="Year" action={nav}>
+    <Section label="Year" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={atNow ? new Date() : anchor} compact={mode !== "expanded"} /></span>}>
       <div className="min-h-0 flex-1 overflow-auto -mx-1 px-1">
         <ActivityYearView
           yearDate={anchor}

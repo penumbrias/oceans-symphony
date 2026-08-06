@@ -139,7 +139,9 @@ function OptionsSheet({ open, onClose, uiV2 }) {
 }
 
 // ── Quick note ─────────────────────────────────────────────────────
-function QuickNoteSheet({ open, onClose }) {
+// Exported so the quick-action widgets open the SAME note sheet the
+// command bar does, rather than a second one that drifts.
+export function QuickNoteSheet({ open, onClose }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useT();

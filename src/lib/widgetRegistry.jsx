@@ -586,6 +586,7 @@ export const WIDGET_CATEGORIES = [
   // page's functions can be assembled on the home screen instead of
   // navigating to it, so the picker is organised the way the app is.
   { id: "home", label: "Home & dashboard" },
+  { id: "actions", label: "Quick actions" },
   { id: "alters", label: "{{Alters}} & {{fronting}}" },
   { id: "checkin", label: "Check-in & tracking" },
   { id: "timeline", label: "Timeline" },
@@ -602,7 +603,6 @@ export const WIDGET_CATEGORIES = [
   { id: "layout", label: "Page design" },
   // Anything not claimed above still shows, under these.
   { id: "chrome", label: "Header & chrome" },
-  { id: "actions", label: "Quick actions" },
   { id: "system", label: "{{System}}" },
   { id: "tracking", label: "Tracking" },
   { id: "activity", label: "Activities & plans" },

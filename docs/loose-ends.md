@@ -158,7 +158,12 @@ new one, add it. Update the date line above whenever you touch this file.*
   widgets. `ActivityWeeklyGrid` gained one additive prop (`hideControls`)
   so a tile doesn't spend its height on the filter row. v0.128.1 added
   `embedded` to `ActivityDayView` (no portal / no fixed shell / no
-  swipe-close) for the Day view widget — the overlay path is unchanged. DailyTallyPanel's
+  swipe-close) for the Day view widget — the overlay path is unchanged.
+  v0.129.0 made every activity widget above minimal interactive (the
+  tracker's gestures + a "+ Plan"/"Log" header) and added
+  `src/v2/commandWidgets.jsx`: one widget per quick-action key, firing the
+  same Dashboard-hosted modals the command bar fires (QuickNoteSheet is now
+  exported from V2Frame rather than duplicated). DailyTallyPanel's
   fronting split moved off primary/co onto the user's levels.
 - v0.115.0: consolidation Phases 3+4 — ONE task-create path
   (`src/lib/taskCreate.js`, used by QuickTaskComposer + TaskFormModal;

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: every quick-action key is now its own widget \u2014 check-in, quick note, start an activity, start a symptom, new to-do, new plan, set fronters, support. Put the ones you use on the board and hide the action bar if you'd rather." },
+      { type: "improve", text: "\ud83e\uddea New UI: the activity widgets are a real way in to planning \u2014 every mode above minimal has a \"+ Plan\" (and \"Log\" when expanded) in its header, and the grids take the tracker's own tap and drag-a-range gestures." },
       { type: "feature", text: "\ud83e\uddea New UI: a Day view widget \u2014 the activity tracker's own day view (quick plans on top, quiet stretches folded away, entries as pills), on your home screen. The existing Day grid widget stays as the hour-by-hour column." },
       { type: "feature", text: "\ud83e\uddea New UI: the activity tracker as widgets \u2014 week grid, single day, month calendar and year overview. Expanded gives you the tracker's own gestures, so you can drag a time range on the home screen and log or plan it there." },
       { type: "feature", text: "\ud83e\uddea New UI: new widgets for your timeline, a day's summary, the check-in log, daily/recurring tasks you can tick off, your chat channels, grounding techniques (they run in the widget) and the learning modules with progress." },
