@@ -6,6 +6,41 @@ new one, add it. Update the date line above whenever you touch this file.*
 
 ## Needs doing — high priority
 
+- [ ] **Alters-bar gesture pass (owner request, 2026-08-06 — NOT started).**
+  Four parts, one coherent job:
+  1. Move the alters-bar collapse chevron OUT of the bar and INTO the action
+     bar — in line with the existing dock chevron, ideally just above the
+     Set Fronters key, so the bar stops spending a row on its own control.
+  2. Swipe UP on the quick-action bar (or on the Set Fronters key) opens the
+     alters bar.
+  3. Swipe DOWN on the alters bar closes it.
+  4. The alters bar's open/closed state stays INDEPENDENT of the
+     quick-action bar's open/closed state, while still being openable
+     through it.
+
+  Already in place to build on: `altersBar.collapsed` persists in the board
+  config and is sanitized (`experimentalHome.js`); the
+  `os-v2-toggle-alters-bar` window event folds/unfolds it (listener in
+  `ExperimentalDashboard.jsx`, dispatched from `V2Frame.jsx`); Set Fronters
+  already has a per-key hold override via `useQuickActionsHold(onTap, onHold)`
+  — a swipe handler belongs alongside it.
+
+  **The hard part is gesture arbitration, not the state.** The board pages
+  sideways from ANYWHERE on its surface via document-level capture listeners
+  (`ExperimentalDashboard.jsx`, the page-swipe effect). A new vertical swipe
+  must not steal that, and must not be stolen by it. Read that effect first
+  — it is the reference for claiming a direction (axis lock at ~18px, the
+  `blockedTarget` exclusions, non-passive `touchmove` preventDefault).
+
+  **Verification is mandatory and specific:** gesture work in this repo has
+  been "obviously correct" and wrong four separate times. Synthetic
+  PointerEvents DO NOT prove a gesture. Drive it with the browser tool's
+  real input (`computer` drag) at a mobile viewport, and beware: a
+  `resize_window` viewport override desyncs the tool's input coordinates
+  from the page (clicks land hundreds of px away and silently hit `<html>`).
+  Verify the coordinate mapping with a temporary document-level listener
+  before trusting any drag result.
+
 - [ ] **Merge to main — ON HOLD by owner (2026-08-04: "I want to hold off on
   the update release").** Pre-checks all ran green on 2026-08-04: zero
   storage-layer diff vs main, versionCode strictly increasing (832 → current),
