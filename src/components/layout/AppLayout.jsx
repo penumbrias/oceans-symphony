@@ -421,6 +421,12 @@ useEffect(() => {
   if (Array.isArray(preset.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
   if (preset.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
   if (Array.isArray(preset.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
+  // Home layout, when the preset captured one. This is what makes an
+  // alter's linked preset restore THEIR home screen on fronting — picking
+  // the preset by hand already did it; the fronting path never did.
+  if (preset.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
+  if (preset.uiV2Home && typeof preset.uiV2Home === "object") settingsPatch.ui_v2_home = preset.uiV2Home;
+  if (preset.uiV2HomeDesktop && typeof preset.uiV2HomeDesktop === "object") settingsPatch.ui_v2_home_desktop = preset.uiV2HomeDesktop;
   if (Object.keys(settingsPatch).length > 0) {
     const settings = systemSettings?.[0];
     const op = settings?.id

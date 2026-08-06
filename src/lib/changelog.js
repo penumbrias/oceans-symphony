@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "Appearance presets can carry your home screen now \u2014 widgets, wallpaper and all \u2014 so linking a preset to an alter restores THEIR home layout when they front, not just their colours. Tick \"Home & dashboard layout\" when saving a preset to include it, or leave it off for a design-only preset." },
       { type: "improve", text: "\ud83e\uddea New UI: every widget\u2019s options have a \"Reset all\" \u2014 size, display mode, name, look and its own settings go back to default in one tap." },
       { type: "improve", text: "\ud83e\uddea New UI: press and hold the Set Fronters key to fold the pinned-alters bar in or out, so it can live tucked away next to your quick actions." },
       { type: "fix", text: "Editing a relationship on the map: the window scrolls now, so the colour picker and Save below it are reachable instead of cut off." },

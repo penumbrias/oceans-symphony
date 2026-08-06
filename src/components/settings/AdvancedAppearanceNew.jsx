@@ -413,7 +413,7 @@ const PRESET_PARTS = [
   { id: 'themeMode',  label: 'Theme mode (light/dark)' },
   { id: 'wave',       label: 'Wave colour' },
   { id: 'corner',     label: 'Corner style' },
-  { id: 'dashboard',  label: 'Dashboard layout' },
+  { id: 'dashboard',  label: 'Home & dashboard layout' },
   { id: 'navigation', label: 'Navigation' },
   { id: 'terms',      label: 'Terminology' },
   { id: 'banner',     label: 'System banner' },
@@ -686,6 +686,8 @@ export default function AdvancedAppearance() {
     if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
     if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
     if (preset?.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
+    if (preset?.uiV2Home && typeof preset.uiV2Home === "object") settingsPatch.ui_v2_home = preset.uiV2Home;
+    if (preset?.uiV2HomeDesktop && typeof preset.uiV2HomeDesktop === "object") settingsPatch.ui_v2_home_desktop = preset.uiV2HomeDesktop;
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
     // System banner config — only re-apply when the preset captured it.
@@ -774,6 +776,10 @@ export default function AdvancedAppearance() {
     if (presetParts.dashboard) {
       payload.dashboardLayout = systemSettings?.dashboard_layout;
       payload.experimentalHome = systemSettings?.experimental_home;
+      // The v2 board is a layout too — without these a preset restored the
+      // classic dashboard but left the new home screen untouched.
+      payload.uiV2Home = systemSettings?.ui_v2_home;
+      payload.uiV2HomeDesktop = systemSettings?.ui_v2_home_desktop;
       payload.upcomingPlansSurfaces = systemSettings?.upcoming_plans_surfaces;
     }
     if (presetParts.navigation) payload.navigationConfig = systemSettings?.navigation_config;
