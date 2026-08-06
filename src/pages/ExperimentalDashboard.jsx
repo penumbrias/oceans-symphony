@@ -304,6 +304,15 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         {/* While editing, the widget's own controls are inert — a hold to
             move should never also start an activity or save a status. */}
         <div {...optionsHold}
+          // A press on a hold-owning element (level rails, grid selection,
+          // day-span cells) is that element's gesture. Stop it on the way
+          // UP — after the element's own handler armed the hold — so the
+          // page-swipe drag above never sees it and can't cancel the rail.
+          // (Capture-phase stopping would have blocked the hold itself.)
+          onPointerDown={(e) => {
+            optionsHold.onPointerDown?.(e);
+            if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
+          }}
           style={{ height: "100%", minHeight: 0, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && (
           <style dangerouslySetInnerHTML={{

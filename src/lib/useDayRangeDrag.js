@@ -57,10 +57,15 @@ export default function useDayRangeDrag({ onRangeSelect, holdMs = 450, enabled =
       if (!d) return;
       setEnd((prev) => (prev && dayKey(prev) === dayKey(d) ? prev : d));
     };
+    // Non-passive touchmove preventDefault: the only way to stop native
+    // scrolling once the touch has already started (see FrontLevelRail).
+    const blockScroll = (ev) => ev.preventDefault();
+    window.addEventListener("touchmove", blockScroll, { passive: false });
     window.addEventListener("pointermove", move, { passive: true });
     window.addEventListener("pointerup", finish);
     window.addEventListener("pointercancel", finish);
     return () => {
+      window.removeEventListener("touchmove", blockScroll);
       window.removeEventListener("pointermove", move);
       window.removeEventListener("pointerup", finish);
       window.removeEventListener("pointercancel", finish);

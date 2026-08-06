@@ -17,6 +17,7 @@
 // tokens from uiV2.js, edited live in Display options.
 
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -372,8 +373,14 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           the old UI's navigation, not an imitation of it. */}
       {/* Always mounted, `open` toggles — SidebarNav closes itself when the
           route changes via an effect that ALSO runs on first mount, so
-          mounting it only when open made it flash and vanish instantly. */}
-      <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+          mounting it only when open made it flash and vanish instantly.
+          PORTALED to body: this header is overflow-hidden with a backdrop
+          filter, which clips fixed descendants and traps them inside the
+          40px strip — the drawer looked like it opened "behind" the page. */}
+      {createPortal(
+        <SidebarNav open={sidebarOpen} onClose={() => setSidebarOpen(false)} />,
+        document.body,
+      )}
     </header>
   );
 }

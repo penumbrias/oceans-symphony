@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: holding an alter and dragging along the fronting-level spectrum works on the home board now \u2014 moving your finger no longer dismisses the level picker (the page was treating it as a scroll)." },
+      { type: "fix", text: "\ud83e\uddea New UI: the sidebar opens in front of the home screen instead of being trapped behind the top bar." },
       { type: "improve", text: "\ud83e\uddea New UI: the Diary card widget holds the check-in's actual diary fields now \u2014 urges, body + mind, skills \u2014 fill them in and save right on the board, same as the Log-symptoms widget. Minimal stays a one-line status." },
       { type: "fix", text: "\ud83e\uddea New UI: tapping the apps button no longer makes the sidebar flash open and vanish." },
       { type: "fix", text: "Opening Set Fronters from a quick action no longer opens two stacked windows when the fronting panel widget is on your board." },

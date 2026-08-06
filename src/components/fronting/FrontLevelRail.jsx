@@ -63,6 +63,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
       window.removeEventListener("pointermove", live.current.move);
       window.removeEventListener("pointerup", live.current.up);
       window.removeEventListener("pointercancel", live.current.cancel);
+      if (live.current.blockScroll) window.removeEventListener("touchmove", live.current.blockScroll);
       live.current = null;
     }
     document.body.style.userSelect = "";
@@ -112,7 +113,13 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
             else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id);
           };
           const cancel = () => teardown();
-          live.current = { move, up, cancel };
+          // Native scroll fires pointercancel the moment the finger moves,
+          // killing the rail — touch-action is evaluated at touchstart, so
+          // setting it now is too late. preventDefault on touchmove (non-
+          // passive) is the one thing that still stops scrolling mid-touch.
+          const blockScroll = (ev) => ev.preventDefault();
+          window.addEventListener("touchmove", blockScroll, { passive: false });
+          live.current = { move, up, cancel, blockScroll };
           window.addEventListener("pointermove", move);
           window.addEventListener("pointerup", up);
           window.addEventListener("pointercancel", cancel);
