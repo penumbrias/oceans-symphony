@@ -232,6 +232,10 @@ export default function ActivityDayView({
   onClose,
   onActivityClick,
   onTimeRangeSelect,
+  // Widget use: render inline inside a tile instead of as the full-screen
+  // overlay — no portal, no fixed positioning, no swipe/ESC-to-close, and
+  // the add affordances only appear when the caller can act on them.
+  embedded = false,
 }) {
   const dayImportantDates = datesForDay(importantDates, date);
   const { data: emotionCheckIns = [] } = useQuery({
@@ -329,16 +333,18 @@ export default function ActivityDayView({
 
   // ESC to close
   useEffect(() => {
+    if (embedded || !onClose) return undefined;
     const handler = (e) => { if (e.key === "Escape") onClose(); };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
-  }, [onClose]);
+  }, [onClose, embedded]);
 
   // Swipe-down to close — only when scrolled to top
   const touchStartY = useRef(null);
   const scrollRef = useRef(null);
   const handleTouchStart = (e) => { touchStartY.current = e.touches[0].clientY; };
   const handleTouchEnd = (e) => {
+    if (embedded || !onClose) { touchStartY.current = null; return; }
     const scrollTop = scrollRef.current?.scrollTop ?? 0;
     const delta = e.changedTouches[0].clientY - (touchStartY.current ?? 0);
     if (scrollTop === 0 && delta > 80) onClose();
@@ -349,39 +355,56 @@ export default function ActivityDayView({
   const nowLineRef = useRef(null);
   const firstActivityRef = useRef(null);
   useEffect(() => {
-    setTimeout(() => {
-      if (isToday && nowLineRef.current) {
-        nowLineRef.current.scrollIntoView({ block: "center", behavior: "smooth" });
-      } else if (firstActivityRef.current) {
-        firstActivityRef.current.scrollIntoView({ block: "start", behavior: "smooth" });
+    const t = setTimeout(() => {
+      const target = (isToday && nowLineRef.current) ? nowLineRef.current : firstActivityRef.current;
+      if (!target) return;
+      if (embedded) {
+        // scrollIntoView would drag the whole home screen; move only our
+        // own scroller.
+        const box = scrollRef.current;
+        if (!box) return;
+        const top = target.offsetTop - box.clientHeight / 3;
+        box.scrollTo({ top: Math.max(0, top), behavior: "smooth" });
+        return;
       }
+      target.scrollIntoView({ block: isToday && nowLineRef.current ? "center" : "start", behavior: "smooth" });
     }, 120);
-  }, [isToday]);
+    return () => clearTimeout(t);
+  }, [isToday, embedded]);
 
+  const canAdd = typeof onTimeRangeSelect === "function";
   const handleAddNow = () => {
+    if (!canAdd) return;
     const now = new Date();
     onTimeRangeSelect(date, now.getHours(), null, now.getMinutes(), null);
   };
 
   let firstActivitySet = false;
 
-  return createPortal(
+  const body = (
     <div
-      className="fixed inset-0 bg-background z-50 flex flex-col"
+      className={embedded
+        ? "h-full min-h-0 flex flex-col"
+        : "fixed inset-0 bg-background z-50 flex flex-col"}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
       {/* Header */}
       <div
-        className="sticky top-0 z-10 bg-background border-b border-border px-4 py-3 flex items-center gap-3 flex-shrink-0"
-        style={{ paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
+        className={`sticky top-0 z-10 border-b border-border flex items-center gap-3 flex-shrink-0 ${
+          embedded ? "px-1 py-1.5 bg-transparent border-border/40" : "bg-background px-4 py-3"}`}
+        style={embedded ? undefined : { paddingTop: "calc(0.75rem + env(safe-area-inset-top, 0px))" }}
       >
-        <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
-          <ArrowLeft className="w-5 h-5" />
-        </Button>
+        {onClose && (
+          <Button variant="ghost" size="icon" onClick={onClose} className="flex-shrink-0">
+            <ArrowLeft className="w-5 h-5" />
+          </Button>
+        )}
         <div className="flex-1 min-w-0">
-          <h2 className="text-base font-bold text-foreground leading-tight">{format(date, "EEEE, MMMM d")}</h2>
-          <p className="text-xs text-muted-foreground">
+          <h2 className={`font-bold text-foreground leading-tight ${embedded ? "text-[0.875em]" : "text-base"}`}>
+            {format(date, embedded ? "EEE, MMM d" : "EEEE, MMMM d")}
+          </h2>
+          <p className={embedded ? "text-[0.6875em] text-muted-foreground" : "text-xs text-muted-foreground"}>
             {allEmpty
               ? "No activities"
               : `${dayActivities.length} activit${dayActivities.length !== 1 ? "ies" : "y"}${totalDuration > 0 ? ` · ${Math.floor(totalDuration / 60)}h${totalDuration % 60 > 0 ? ` ${totalDuration % 60}m` : ""}` : ""}`
@@ -404,14 +427,16 @@ export default function ActivityDayView({
             </div>
           )}
         </div>
-        <Button size="sm" onClick={handleAddNow} className="gap-1.5 flex-shrink-0">
-          <Plus className="w-4 h-4" /> Add
-        </Button>
+        {canAdd && (
+          <Button size="sm" onClick={handleAddNow} className="gap-1.5 flex-shrink-0">
+            <Plus className="w-4 h-4" /> Add
+          </Button>
+        )}
       </div>
 
       {/* Scrollable timeline */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto">
-        <div className="pb-32">
+      <div ref={scrollRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <div className={embedded ? "pb-2" : "pb-32"}>
 
           {/* Quick plans — date-only, "no set time". Their own section at the
               top of the day instead of being buried in the 11pm slot. */}
@@ -436,11 +461,13 @@ export default function ActivityDayView({
 
           {/* Full-day empty state */}
           {allEmpty ? (
-            <div className="flex flex-col items-center justify-center gap-4 py-24 px-8 text-center">
+            <div className={`flex flex-col items-center justify-center gap-4 text-center ${embedded ? "py-8 px-3" : "py-24 px-8"}`}>
               <p className="text-muted-foreground text-sm">No activities logged for this day</p>
-              <Button onClick={handleAddNow} className="gap-2">
-                <Plus className="w-4 h-4" /> Log an activity
-              </Button>
+              {canAdd && (
+                <Button onClick={handleAddNow} className="gap-2">
+                  <Plus className="w-4 h-4" /> Log an activity
+                </Button>
+              )}
             </div>
           ) : (
             segments.map((seg) => {
@@ -457,7 +484,7 @@ export default function ActivityDayView({
                     ref={nowInBand ? nowLineRef : null}
                     className="relative flex items-start border-t border-b border-border/20 bg-muted/10 cursor-pointer hover:bg-primary/5 transition-colors"
                     style={{ minHeight: 32 }}
-                    onClick={() => onTimeRangeSelect(date, seg.startHour, null, 0, null)}
+                    onClick={() => onTimeRangeSelect?.(date, seg.startHour, null, 0, null)}
                   >
                     {/* Hour label column — aligned to the TOP of the cell,
                         i.e. the demarcation line where this hour begins. */}
@@ -525,7 +552,7 @@ export default function ActivityDayView({
                     onClick={() => {
                       const allActs = [...timed, ...logged];
                       if (allActs.length > 0) onActivityClick?.(allActs);
-                      else onTimeRangeSelect(date, seg.hour, null, 0, null);
+                      else onTimeRangeSelect?.(date, seg.hour, null, 0, null);
                     }}
                   >
                     {timed.map(a => (
@@ -554,15 +581,19 @@ export default function ActivityDayView({
         </div>
       </div>
 
-      {/* Floating add button — above bottom nav */}
-      <button
-        onClick={handleAddNow}
-        className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-white z-20 hover:bg-primary/90 transition-colors"
-        aria-label="Add activity"
-      >
-        <Plus className="w-6 h-6" />
-      </button>
-    </div>,
-    document.body
+      {/* Floating add button — above bottom nav. A tile has its own header
+          button and no room to float one. */}
+      {!embedded && canAdd && (
+        <button
+          onClick={handleAddNow}
+          className="fixed bottom-20 right-4 w-14 h-14 rounded-full bg-primary shadow-lg flex items-center justify-center text-white z-20 hover:bg-primary/90 transition-colors"
+          aria-label="Add activity"
+        >
+          <Plus className="w-6 h-6" />
+        </button>
+      )}
+    </div>
   );
+
+  return embedded ? body : createPortal(body, document.body);
 }

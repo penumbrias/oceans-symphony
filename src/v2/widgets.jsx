@@ -68,7 +68,8 @@ import {
 import { useT } from "@/lib/i18n";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import {
-  ActivityWeekWidget, ActivityDayWidget, ActivityMonthWidget, ActivityYearWidget,
+  ActivityWeekWidget, ActivityDayWidget, ActivityDayViewWidget,
+  ActivityMonthWidget, ActivityYearWidget,
 } from "@/v2/activityWidgets";
 import {
   TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
@@ -2029,9 +2030,16 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 12, rows: 5 }, minSpan: { cols: 4, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   activity_day: {
-    label: "Day grid", description: "One day of the activity tracker, hour by hour. Step days with the arrows; expanded adds drag-to-log and the full day view.",
+    label: "Day grid", description: "One day as a single column of the week grid \u2014 every hour drawn to scale. Step days with the arrows; expanded adds drag-to-log.",
     icon: CalendarCheck, category: "activities",
     render: ({ mode, settings }) => <ActivityDayWidget mode={mode} settings={settings} />,
+    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  activity_dayview: {
+    label: "Day view", description: "The activity tracker's day view itself \u2014 quick plans on top, quiet stretches folded away, each hour's entries as pills. Expanded lets you add to the day from here.",
+    icon: CalendarClock, category: "activities",
+    render: ({ mode, settings }) => <ActivityDayViewWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },

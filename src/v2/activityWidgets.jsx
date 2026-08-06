@@ -328,6 +328,65 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
   );
 }
 
+// ── The tracker's day view ─────────────────────────────────────────
+// Not the grid with one column — this is the Activity Tracker's actual day
+// view (quick plans at the top, empty stretches collapsed into bands, each
+// hour's entries as pills), rendered inline instead of full-screen.
+export function ActivityDayViewWidget({ mode = "normal", settings }) {
+  const navigate = useNavigate();
+  const { activities, alters, frontingHistory, importantDates } = useActivityData();
+  const [anchor, setAnchor] = useState(() => new Date());
+  const interactive = mode === "expanded";
+  const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
+  const atNow = isSameDay(anchor, new Date());
+
+  const nav = (
+    <WindowNav
+      label={format(anchor, "EEE d MMM")}
+      onPrev={() => setAnchor((d) => addDays(d, -1))}
+      onNext={() => setAnchor((d) => addDays(d, 1))}
+      onToday={() => setAnchor(new Date())}
+      atNow={atNow}
+    />
+  );
+
+  if (mode === "minimal") {
+    const items = activities
+      .filter((a) => a.timestamp && isSameDay(new Date(a.timestamp), anchor))
+      .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp));
+    const mins = items.reduce((s, a) => s + countableMinutes(a), 0);
+    const planned = items.filter((a) => statusFor(a) === "scheduled");
+    return (
+      <Section label={format(anchor, "EEE d MMM")} action={<TextAction onClick={() => navigate("/activities")}>Open</TextAction>}>
+        {items.length === 0 && <Muted>Nothing logged.</Muted>}
+        {items.length > 0 && <Row primary="Logged" right={fmtHours(mins)} />}
+        {items.length > 0 && <Row primary="Entries" right={String(items.length - planned.length)} />}
+        {planned.length > 0 && <Row primary="Still planned" right={String(planned.length)} />}
+      </Section>
+    );
+  }
+
+  return (
+    <Section label="Day view" action={nav}>
+      <ErrorBoundary fallback={<Muted>This day couldn't be drawn. Open the Activity tracker to sort it out.</Muted>} resetKeys={[activities.length]}>
+        <div className="min-h-0 flex-1">
+          <ActivityDayView
+            embedded
+            date={anchor}
+            activities={activities}
+            alters={alters}
+            frontingHistory={frontingHistory}
+            importantDates={importantDates}
+            onActivityClick={modals.onActivityClick}
+            onTimeRangeSelect={interactive ? modals.onTimeRangeSelect : undefined}
+          />
+        </div>
+      </ErrorBoundary>
+      {modals.elements}
+    </Section>
+  );
+}
+
 // ── Month ──────────────────────────────────────────────────────────
 export function ActivityMonthWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();

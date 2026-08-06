@@ -156,7 +156,9 @@ new one, add it. Update the date line above whenever you touch this file.*
   (`src/v2/moreWidgets.jsx`). The timeline's 25 queries and per-day slicing
   moved to `src/lib/timelineData.js`, shared by Timeline.jsx and the
   widgets. `ActivityWeeklyGrid` gained one additive prop (`hideControls`)
-  so a tile doesn't spend its height on the filter row. DailyTallyPanel's
+  so a tile doesn't spend its height on the filter row. v0.128.1 added
+  `embedded` to `ActivityDayView` (no portal / no fixed shell / no
+  swipe-close) for the Day view widget — the overlay path is unchanged. DailyTallyPanel's
   fronting split moved off primary/co onto the user's levels.
 - v0.115.0: consolidation Phases 3+4 — ONE task-create path
   (`src/lib/taskCreate.js`, used by QuickTaskComposer + TaskFormModal;
