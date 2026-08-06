@@ -622,16 +622,12 @@ const handleNotifClick = (mentionLog) => {
                 </span>
               )}
             </Link>
-            <Link to="/settings"
-            aria-label="Settings"
-            aria-current={location.pathname.startsWith("/settings") ? "page" : undefined} className="text-muted-foreground px-3 text-sm font-medium rounded-lg flex items-center gap-2 transition-all duration-200 select-none min-h-[44px] hover:text-foreground hover:bg-muted/50">
-
-
-
-              
-              <Settings className="w-4 h-4" />
-              <span>Settings</span>
-            </Link>
+            {/* The SAME page-aware menu the phone header uses. Desktop had
+                a plain link straight into all of Settings, so the per-page
+                actions (Customize dashboard, {Alter} setup, Display
+                options) were unreachable above the lg breakpoint — the
+                phone header that hosts them is lg:hidden. */}
+            <HeaderPageMenu label="Settings" className="rounded-lg transition-all duration-200 select-none" />
           </nav>
         </div>
       </header>

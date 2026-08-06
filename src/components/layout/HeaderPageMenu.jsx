@@ -27,7 +27,10 @@ import {
 // v2Options: when the new UI hosts this menu, its own entries replace the
 // classic dashboard ones — Edit home screen + Display options on top, and
 // the per-page settings deep links below (those work identically in v2).
-export default function HeaderPageMenu({ className, v2Options = null }) {
+// `label` gives the trigger visible text next to the cog — the desktop
+// header's nav items are labelled, so the icon-only phone trigger would
+// read as a stray glyph there.
+export default function HeaderPageMenu({ className, v2Options = null, label = null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const terms = useTerms();
@@ -106,13 +109,15 @@ export default function HeaderPageMenu({ className, v2Options = null }) {
           aria-label="Settings & page options"
           className={cn(
             "flex items-center justify-center min-w-[44px] min-h-[44px] rounded-xl transition-colors",
+            label && "gap-2 px-3 text-sm font-medium",
             path.startsWith("/settings")
               ? "text-primary bg-primary/10"
               : "text-muted-foreground hover:bg-muted/50",
             className
           )}
         >
-          <Settings className="w-5 h-5" />
+          <Settings className={label ? "w-4 h-4" : "w-5 h-5"} />
+          {label && <span>{label}</span>}
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-56 z-[60]">

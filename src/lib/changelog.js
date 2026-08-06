@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "On a tablet or computer, the header cog's menu was missing entirely \u2014 so \"Customize dashboard\" and the other per-page settings could only be reached from a phone. The wide-screen header has the same menu now." },
       { type: "hotfix", text: "Hotfix: a widget's Content size only changed the Log-symptoms widget \u2014 it scales every widget now." },
       { type: "fix", text: "Sleep started from the Sleep controls widget now shows up in the Sleep tracker and analytics \u2014 those records were being filed without a date and went missing." },
       { type: "fix", text: "Dragging to \"Remove from front\" on the level rail no longer adds someone who wasn't fronting. It only ever removes now." },
