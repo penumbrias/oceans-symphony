@@ -37,7 +37,7 @@ export default function Reminders() {
   }, []);
 
   const { data: reminders = [], isLoading } = useQuery({
-    queryKey: ["reminders"],
+    queryKey: ["reminders", "active"],
     queryFn: () => base44.entities.Reminder.filter({ is_active: true }),
   });
 

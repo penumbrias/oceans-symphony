@@ -25,7 +25,7 @@ export default function BulletinPage() {
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
+    queryKey: ["frontHistory", "recent10"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 10),
   });
 

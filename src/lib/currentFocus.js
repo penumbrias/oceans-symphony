@@ -28,7 +28,7 @@ export function useCurrentFocus() {
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
     refetchInterval: 60000,
   });

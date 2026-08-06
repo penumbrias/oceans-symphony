@@ -161,6 +161,21 @@ new one, add it. Update the date line above whenever you touch this file.*
 - **One surface per job**: settings live integrated in Appearance (v2 pieces
   woven in by relevance); capture modals flip modes in place rather than
   swapping components.
+- **One react-query key = one fetcher shape** (v0.135.1, the symptom-
+  resurrection bug). Two `useQuery`s sharing a key but fetching different
+  slices (active-only vs full list, or different caps) share ONE cache
+  entry — whichever refetches last poisons the other, and when both are
+  mounted on the same screen (the v2 board!) it never self-heals. The bare
+  key means "the standard full list"; anything narrower gets a suffix:
+  `["symptomSessions","active"|"all"]`, `["frontHistory","recent50"]`,
+  `["reminders","active"]`, `["activities","recent5"]`, etc. Bare-prefix
+  `invalidateQueries` still hits every variant, so writers don't change.
+  Known benign leftovers (limit-only variants that never co-mount, self-
+  heal on mount refetch): `sleep`, `dailyProgress`, `diaryCards`,
+  `bulletins`, `emotionCheckIns`, `contactEncounters`, `symptomCheckIns`,
+  and `frontHistory` 2000 (most) vs 20000 (profile HistoryTab — matters
+  only past 2000 sessions). Audit script: grep queryKey/queryFn pairs and
+  diff fetchers per key (see v0.135.1 session).
 
 ## Done (this cycle, for orientation)
 

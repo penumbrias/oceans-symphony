@@ -649,7 +649,7 @@ export function useRemindersScheduler() {
   // Watch frontHistory so we can run the scheduler immediately when a new
   // session is created, rather than waiting for the 60-second interval.
   const { data: recentSessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
+    queryKey: ["frontHistory", "recent50"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 

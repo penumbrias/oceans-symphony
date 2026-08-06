@@ -31,7 +31,7 @@ export default function SymptomAnalytics({ startDate, endDate, symptomSessions =
   });
 
   const { data: rawFrontSessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
+    queryKey: ["frontHistory", "recent500"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 500),
   });
   // Augment real fronting sessions with inferred-from-authorship presence so

@@ -599,7 +599,7 @@ export function useNativeReminderSync() {
   // the most recent fronting change, so we watch the front history and
   // re-reconcile whenever it moves (which resets the N-minute timer).
   const { data: frontSessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
+    queryKey: ["frontHistory", "recent50"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 

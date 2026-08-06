@@ -55,6 +55,7 @@ import { toggleFrontFor } from "@/hooks/useSwipeActions";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
+import { endSymptomSessions } from "@/lib/symptomSessions";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
@@ -290,8 +291,9 @@ function PresenceWidget({ mode, api, settings }) {
 function ActiveWidget({ api }) {
   const tr = useT();
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const symptomSessions = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
   }).data || [];
   const symptoms = useList("symptoms", "Symptom");
@@ -317,7 +319,23 @@ function ActiveWidget({ api }) {
         if (!def) return null;
         return (
           <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={def.label || def.name}
-            right={s.start_time ? fmtElapsed(s.start_time) : undefined} onClick={() => navigate("/system-checkin")} />
+            secondary={s.start_time ? fmtElapsed(s.start_time) : undefined}
+            right={
+              <button type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  // Ends every active session for this symptom, duplicates
+                  // included (the "it came back after refresh" bug).
+                  await endSymptomSessions(s.symptom_id || s.symptom_definition_id);
+                  qc.invalidateQueries({ queryKey: ["symptomSessions"] });
+                  toast.success(`${def.label || def.name} ended`);
+                }}
+                className="text-[0.625em] px-1.5 py-0.5 border border-border/60 hover:border-primary/60"
+                style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+                {tr("widget.active.end")}
+              </button>
+            }
+            onClick={() => navigate("/system-checkin")} />
         );
       })}
       {activeSleep && (

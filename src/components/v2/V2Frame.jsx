@@ -26,28 +26,24 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp, Eye, EyeOff, LayoutGrid, Pencil,
+  Megaphone, ChevronUp, Eye, EyeOff,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useLongPress from "@/hooks/useLongPress";
-import { V2_COMMAND_KEYS, V2_TOKEN_DEFS, buildTokenVars } from "@/lib/uiV2";
+import { V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
-import { getAccessibilitySettings, setAccessibilityFontSize } from "@/lib/useAccessibility";
 import { applyTerms } from "@/lib/dailyTaskSystem";
-import { useT, LOCALES, getLocale, setLocale, localeCoverage } from "@/lib/i18n";
+import { useT } from "@/lib/i18n";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SidebarNav from "@/components/layout/SidebarNav";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
-import ColorPicker from "@/components/shared/ColorPicker";
-import { confirm } from "@/components/shared/ConfirmDialog";
-import { AssetButton } from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
@@ -274,7 +270,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
   });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
-  const { data: mentionLogs = [] } = useQuery({ queryKey: ["mentionLogs"], queryFn: () => base44.entities.MentionLog.list() });
+  const { data: mentionLogs = [] } = useQuery({ queryKey: ["mentionLogs"], queryFn: () => base44.entities.MentionLog.list("-created_date", 200) });
 
   const altersById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const fronters = activeSessions

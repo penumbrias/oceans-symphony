@@ -233,7 +233,7 @@ export default function CurrentSymptoms() {
   const [pendingSessId, setPendingSessId] = useState(null);
 
   const { data: activeSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
     refetchInterval: 60000,
   });

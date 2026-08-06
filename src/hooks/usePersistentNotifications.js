@@ -129,7 +129,7 @@ export default function usePersistentNotifications() {
     enabled: wantFronters,
   });
   const { data: activeSymptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
     enabled: wantSymptoms,
     refetchInterval: wantSymptoms ? 60000 : false,

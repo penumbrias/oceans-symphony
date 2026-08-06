@@ -7,7 +7,7 @@ import { LOCATION_CATEGORIES } from "@/lib/locationCategories";
 import { withHighlightParam } from "@/lib/useHighlightScroll";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
-import { Heart, Inbox, ChevronsUpDown, Zap, Activity as ActivityIcon, CheckSquare, CalendarDays, HelpCircle, Sparkles, Compass } from "lucide-react";
+import { Inbox, ChevronsUpDown, CheckSquare, HelpCircle, Sparkles, Compass } from "lucide-react";
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
@@ -46,7 +46,7 @@ import SystemSwitcherPanel from "@/components/systems/SystemSwitcherPanel";
 import { hasMultipleSystems } from "@/lib/systems";
 import DashboardLayoutSettings from "@/components/settings/DashboardLayoutSettings";
 import TourModal from "@/components/onboarding/TourModal";
-import { loadChecklist, checklistComplete, checklistProgress, CHECKLIST_ITEMS } from "@/components/onboarding/SetupChecklist";
+import { loadChecklist, checklistComplete, checklistProgress } from "@/components/onboarding/SetupChecklist";
 import { ClipboardList, X } from "lucide-react";
 
 // v0.84.9: terminology moved INTO the Guide (page 2 of the Welcome phase)
@@ -66,6 +66,7 @@ import { addActiveActivity } from "@/lib/activitySession";
 import { startEncounter, endEncounterForContact } from "@/lib/contactEncounters";
 import { contactDisplayName } from "@/lib/contacts";
 import { ALL_PAGES } from "@/utils/navigationConfig";
+import { startSymptomSession } from "@/lib/symptomSessions";
 
 // THE host for the "open-set-front" event — the only listener, whichever
 // UI is on. (It used to be v2-only while CurrentFronters also listened;
@@ -276,7 +277,7 @@ export default function Dashboard() {
   });
 
   const { data: sessions = [] } = useQuery({
-    queryKey: ["frontHistory"],
+    queryKey: ["frontHistory", "recent50"],
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50)
   });
 
@@ -508,24 +509,9 @@ export default function Dashboard() {
       if (!symptom_id) return;
       const severity = extraData.severity ?? null;
 
-      // Mirror SymptomsSection: create/update a SymptomSession so it shows on the dashboard
-      const activeSessions = await base44.entities.SymptomSession.filter({ is_active: true });
-      const existing = activeSessions.find(s => s.symptom_id === symptom_id);
-      if (existing) {
-        if (severity !== null) {
-          const snaps = existing.severity_snapshots || [];
-          await base44.entities.SymptomSession.update(existing.id, {
-            severity_snapshots: [...snaps, { severity, timestamp: now }],
-          });
-        }
-      } else {
-        await base44.entities.SymptomSession.create({
-          symptom_id,
-          start_time: now,
-          is_active: true,
-          severity_snapshots: severity !== null ? [{ severity, timestamp: now }] : [],
-        });
-      }
+      // ONE session write path (lib/symptomSessions) — reuses an active
+      // session and folds any pre-fix duplicates instead of stacking more.
+      await startSymptomSession(symptom_id, { startTime: now, severity });
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
 
       // Create a parent check-in to tie the symptom to fronting alters (mirrors QuickCheckInModal)

@@ -8,6 +8,7 @@ import { toast } from "sonner";
 import { Play, Search } from "lucide-react";
 import { toLocalDatetimeValue, fromLocalDatetimeValue } from "@/lib/dateTimeInput";
 import { seedSymptomDefaults } from "@/utils/symptomDefaults";
+import { startSymptomSession } from "@/lib/symptomSessions";
 
 const TABS = ["symptom", "habit"];
 const TAB_LABELS = { symptom: "Symptoms", habit: "Habits" };
@@ -85,14 +86,24 @@ export default function StartSymptomModal({ isOpen, onClose }) {
     }
     setStarting(true);
     try {
-      await base44.entities.SymptomSession.create({
-        symptom_id: selectedSymptomId,
-        start_time: startDate.toISOString(),
-        is_active: when !== "past",
-        ...(when === "past" ? { end_time: endDate.toISOString() } : {}),
-        severity_snapshots: severity !== null ? [{ severity, timestamp: startDate.toISOString() }] : [],
-        notes: notes.trim() || null,
-      });
+      if (when === "past") {
+        // A finished episode is a plain record — no active-session rules.
+        await base44.entities.SymptomSession.create({
+          symptom_id: selectedSymptomId,
+          start_time: startDate.toISOString(),
+          is_active: false,
+          end_time: endDate.toISOString(),
+          severity_snapshots: severity !== null ? [{ severity, timestamp: startDate.toISOString() }] : [],
+          notes: notes.trim() || null,
+        });
+      } else {
+        // Reuses an already-active session instead of stacking a duplicate.
+        await startSymptomSession(selectedSymptomId, {
+          startTime: startDate.toISOString(),
+          severity,
+          notes: notes.trim() || null,
+        });
+      }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       const sym = symptoms.find((s) => s.id === selectedSymptomId);
       toast.success(when === "past" ? `Logged ${sym?.label || "session"}` : `▶ Started ${sym?.label || "session"}`);

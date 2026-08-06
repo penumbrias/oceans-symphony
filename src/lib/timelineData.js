@@ -26,7 +26,7 @@ export function useTimelineSources() {
   const { data: bulletins = [] } = useQuery({ queryKey: ["bulletins"], queryFn: () => base44.entities.Bulletin.list("-created_date", 2000) });
   const { data: tasks = [] } = useQuery({ queryKey: ["tasks"], queryFn: () => base44.entities.Task.list("-created_date", 2000) });
   const { data: dailyProgress = [] } = useQuery({ queryKey: ["dailyProgress"], queryFn: () => base44.entities.DailyProgress.list("-date", 365) });
-  const { data: symptomSessions = [] } = useQuery({ queryKey: ["symptomSessions"], queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000) });
+  const { data: symptomSessions = [] } = useQuery({ queryKey: ["symptomSessions", "all"], queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000) });
   const { data: symptomCheckIns = [] } = useQuery({ queryKey: ["symptomCheckIns"], queryFn: () => base44.entities.SymptomCheckIn.list("-timestamp", 2000) });
   const { data: locationRecords = [] } = useQuery({ queryKey: ["locations"], queryFn: () => localEntities.Location.list() });
   const { data: statusNotes = [] } = useQuery({ queryKey: ["statusNotes"], queryFn: () => localEntities.StatusNote.list() });

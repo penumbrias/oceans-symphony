@@ -25,7 +25,7 @@ export function useAuthoredPresence() {
 
   // Shared query keys (already used elsewhere) so this rides the cache.
   const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"],
+    queryKey: ["mentionLogs", "bySource"],
     queryFn: () => base44.entities.MentionLog.list("-source_date", 5000),
   });
   const { data: journals = [] } = useQuery({

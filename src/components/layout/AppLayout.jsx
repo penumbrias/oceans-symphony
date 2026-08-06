@@ -237,7 +237,7 @@ const { data: alters = [] } = useQuery({
 });
 
 const { data: sessions = [] } = useQuery({
-  queryKey: ["frontHistory"],
+  queryKey: ["frontHistory", "recent50"],
   queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
 });
 

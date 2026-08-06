@@ -182,7 +182,7 @@ export default function Analytics() {
     queryFn: () => base44.entities.SystemCheckIn.list("-created_date", 500),
   });
   const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "all"],
     queryFn: () => base44.entities.SymptomSession.list("-start_time", 1000),
   });
   const { data: symptomCheckIns = [] } = useQuery({
@@ -206,7 +206,7 @@ export default function Analytics() {
     queryFn: () => base44.entities.Bulletin.list("-created_date", 500),
   });
   const { data: mentionLogs = [] } = useQuery({
-    queryKey: ["mentionLogs"],
+    queryKey: ["mentionLogs", "analytics"],
     queryFn: () => base44.entities.MentionLog.list("-source_date", 3000),
   });
   const { data: tasks = [] } = useQuery({

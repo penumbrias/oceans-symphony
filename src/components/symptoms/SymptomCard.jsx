@@ -3,6 +3,7 @@ import { Plus, Minus } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
+import { startSymptomSession, endSymptomSessions } from "@/lib/symptomSessions";
 
 const SEVERITY_LEVELS = ["—", "0", "1", "2", "3", "4", "5"];
 
@@ -42,18 +43,10 @@ export default function SymptomCard({ definition, activeSession, onSessionChange
     setToggling(true);
     try {
       if (isActive) {
-        await base44.entities.SymptomSession.update(activeSession.id, {
-          is_active: false,
-          end_time: new Date().toISOString(),
-        });
+        await endSymptomSessions(definition.id);
         toast.success(`${definition.name} session ended`);
       } else {
-        await base44.entities.SymptomSession.create({
-          symptom_definition_id: definition.id,
-          start_time: new Date().toISOString(),
-          is_active: true,
-          severity_snapshots: [],
-        });
+        await startSymptomSession(definition.id, { legacyDefinitionField: true });
         setChecked(true);
         toast.success(`${definition.name} set to active`);
       }

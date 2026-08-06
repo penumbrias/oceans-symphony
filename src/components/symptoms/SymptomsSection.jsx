@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
 import { SEVERITY_ANCHORS, SEVERITY_SKIP_LABEL, BIPOLAR_ANCHORS, BIPOLAR_DISPLAY, isBipolarScale, deriveDirection, isContextItem } from "@/lib/trackingModel";
 import AlterAssignChip from "@/components/shared/AlterAssignChip";
+import { startSymptomSession, endSymptomSessions } from "@/lib/symptomSessions";
 
 // "context" is a virtual tab: context-kind items live in category "symptom"
 // (legacy rows) but are triggers/factors, not symptoms — they get their own
@@ -35,7 +36,7 @@ export default function SymptomsSection({ onCheckInsReady, initialChecked = [], 
   });
 
   const { data: activeSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true })
   });
 
@@ -237,15 +238,12 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
     setToggling(true);
     try {
       if (isActive) {
-        await base44.entities.SymptomSession.update(activeSession.id, { is_active: false, end_time: new Date().toISOString() });
+        // Ends EVERY active session for this symptom — duplicates included,
+        // so "end" can never be undone by a hidden second session.
+        await endSymptomSessions(symptom.id);
         toast.success(`${symptom.label} session ended`);
       } else {
-        await base44.entities.SymptomSession.create({
-          symptom_id: symptom.id,
-          start_time: new Date().toISOString(),
-          is_active: true,
-          severity_snapshots: []
-        });
+        await startSymptomSession(symptom.id);
         updateState(true, severity);
         toast.success(`${symptom.label} set to active`);
       }

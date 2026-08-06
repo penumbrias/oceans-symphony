@@ -57,7 +57,7 @@ export default function ActivityGoalsPanel({ weekStart }) {
   const habitsById = useMemo(() => Object.fromEntries(habits.map((h) => [h.id, h])), [habits]);
 
   const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "all"],
     queryFn: () => base44.entities.SymptomSession.list("-start_time", 2000),
   });
 

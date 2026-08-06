@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Heart, Activity as ActivityIcon, CloudOff, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Sparkles, Settings2, CheckSquare, Loader2, Bell } from "lucide-react";
+import { Users, Heart, Activity as ActivityIcon, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Settings2, CheckSquare, Loader2, Bell } from "lucide-react";
 import { readPlanRemindersEnabled, writePlanRemindersEnabled } from "@/lib/planReminderScheduler";
 import { isNative } from "@/lib/platform";
 import { toast } from "sonner";
@@ -152,7 +152,7 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
     queryFn: () => base44.entities.Alter.list(),
   });
   const { data: activities = [] } = useQuery({
-    queryKey: ["activities"],
+    queryKey: ["activities", "recent5"],
     queryFn: () => base44.entities.Activity.list("-timestamp", 5),
   });
   const { data: taskTemplates = [] } = useQuery({

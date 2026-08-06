@@ -52,7 +52,7 @@ export default function TherapyReportPage() {
   });
 
   const { data: symptomSessions = [] } = useQuery({
-    queryKey: ["symptomSessions"],
+    queryKey: ["symptomSessions", "all"],
     queryFn: () => db.SymptomSession.list(),
   });
 

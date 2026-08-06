@@ -126,6 +126,7 @@ export default {
 
   "widget.active.label": "Active",
   "widget.active.empty": "Nothing active right now.",
+  "widget.active.end": "End",
   "widget.active.sleep": "Sleep",
   "widget.active.activity": "Activity",
 
