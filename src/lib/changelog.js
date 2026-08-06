@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 5, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the Diary card widget holds the check-in's actual diary fields now \u2014 urges, body + mind, skills \u2014 fill them in and save right on the board, same as the Log-symptoms widget. Minimal stays a one-line status." },
       { type: "fix", text: "\ud83e\uddea New UI: tapping the apps button no longer makes the sidebar flash open and vanish." },
       { type: "fix", text: "Opening Set Fronters from a quick action no longer opens two stacked windows when the fronting panel widget is on your board." },
       { type: "improve", text: "The Symptom quick action now opens the same symptoms section you know from the Quick Check-In, instead of the separate start-an-episode box." },

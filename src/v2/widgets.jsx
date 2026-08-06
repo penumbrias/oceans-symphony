@@ -47,6 +47,7 @@ import { useAlterOrder } from "@/lib/alterOrder";
 import TriggerEditModal from "@/components/fronting/TriggerEditModal";
 import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import EmotionWheelPicker from "@/components/emotions/EmotionWheelPicker";
+import DiarySection, { hasDiaryData } from "@/components/diary/DiarySection";
 import EmotionAnalytics from "@/components/emotions/EmotionAnalytics";
 import SymptomAnalytics from "@/components/analytics/SymptomAnalytics";
 import { toggleFrontFor } from "@/hooks/useSwipeActions";
@@ -2025,23 +2026,74 @@ function LogSymptomWidget({ settings }) {
   );
 }
 
-function DiaryCardWidget() {
+function DiaryCardWidget({ mode = "normal" }) {
   const tr = useT();
+  const qc = useQueryClient();
   const cards = useList("diaryCards", "DiaryCard");
   const today = new Date().toISOString().slice(0, 10);
-  const todays = cards.find((c) => (c.date || "").slice(0, 10) === today);
-  const filled = todays ? Object.values(todays.fields || {}).filter((v) => v !== null && v !== undefined && v !== "").length : 0;
-  // The diary is a SECTION of the quick check-in, not a page — the widget
-  // opens the check-in with that section already showing. (It used to
-  // navigate to /diary-cards, a route that doesn't exist.)
-  const openDiary = () => window.dispatchEvent(new CustomEvent("open-quick-checkin", { detail: { section: "diary" } }));
+  const todays = cards.filter((c) => (c.date || "").slice(0, 10) === today).length;
+  // The SAME fields as the check-in's Diary section, filled in right here —
+  // DiarySection is the one component both places render (owner: exactly
+  // like the Log-symptoms widget above it). Save creates a DiaryCard the
+  // same shape the check-in writes.
+  const [diaryData, setDiaryData] = React.useState({});
+  const [saving, setSaving] = React.useState(false);
+  const { data: activeFront = [] } = useQuery({
+    queryKey: ["activeFront"],
+    queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
+  });
+  const dirty = hasDiaryData(diaryData);
+  const save = async () => {
+    if (!dirty || saving) return;
+    setSaving(true);
+    try {
+      const now = new Date();
+      const pad = (n) => String(n).padStart(2, "0");
+      await base44.entities.DiaryCard.create({
+        card_type: "daily",
+        date: `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`,
+        name: `Daily — ${now.toLocaleDateString([], { month: "short", day: "numeric", year: "numeric" })}`,
+        fronting_alter_ids: activeFront.map((x) => x.alter_id || x.primary_alter_id).filter(Boolean),
+        emotions: [],
+        urges: diaryData.urges || null,
+        body_mind: diaryData.body_mind || null,
+        skills_practiced: diaryData.skills?.skills_practiced ?? null,
+        medication_safety: diaryData.skills ? {
+          rx_meds_taken: diaryData.skills.rx_meds_taken,
+          self_harm_occurred: diaryData.skills.self_harm_occurred,
+          substances_count: diaryData.skills.substances_count,
+        } : null,
+        notes: null,
+      });
+      qc.invalidateQueries({ queryKey: ["diaryCards"] });
+      setDiaryData({});
+      toast.success("Diary saved");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't save the diary card.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (mode === "minimal") {
+    const openDiary = () => window.dispatchEvent(new CustomEvent("open-quick-checkin", { detail: { section: "diary" } }));
+    return (
+      <Section label={tr("widget.diary.label")}
+        action={<TextAction onClick={openDiary}>{tr("widget.diary.fill")}</TextAction>}>
+        <Row primary={todays ? tr("widget.diary.started") : tr("widget.diary.none")}
+          right={todays ? String(todays) : undefined} onClick={openDiary} />
+      </Section>
+    );
+  }
+
   return (
     <Section label={tr("widget.diary.label")}
-      action={<TextAction onClick={openDiary}>{tr("widget.diary.fill")}</TextAction>}>
-      <Row left={<Dot color={todays ? "var(--v2-accent)" : undefined} active={!!todays} />}
-        primary={todays ? tr("widget.diary.started") : tr("widget.diary.none")}
-        secondary={todays ? `${filled}` : undefined}
-        onClick={openDiary} />
+      action={dirty
+        ? <TextAction onClick={save}>{saving ? "…" : tr("widget.status.save")}</TextAction>
+        : (todays > 0 ? <span className="text-[0.6875em] text-muted-foreground">{tr("widget.diary.started")}</span> : null)}>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+        <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
+      </div>
     </Section>
   );
 }
@@ -2266,11 +2318,11 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 3, rows: 1 }, maxSpan: { cols: 12, rows: 10 },
   },
   diary_card: {
-    label: "Diary card", description: "Whether today's diary card is started, and a way in.",
+    label: "Diary card", description: "The check-in's diary fields, right in the widget \u2014 urges, body + mind, skills \u2014 with Save. Minimal is just today's status.",
     icon: ClipboardList, category: "checkin",
-    render: sized(() => <DiaryCardWidget />),
+    render: ({ mode }) => <DiaryCardWidget mode={mode} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
-    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 4 },
+    defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   emotion_analytics: {
     label: "Feelings analytics", description: "Your emotion patterns over a window you choose.",
