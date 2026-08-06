@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: every widget\u2019s options have a \"Reset all\" \u2014 size, display mode, name, look and its own settings go back to default in one tap." },
+      { type: "improve", text: "\ud83e\uddea New UI: press and hold the Set Fronters key to fold the pinned-alters bar in or out, so it can live tucked away next to your quick actions." },
       { type: "fix", text: "Editing a relationship on the map: the window scrolls now, so the colour picker and Save below it are reachable instead of cut off." },
       { type: "improve", text: "Search finds settings now \u2014 type what you want to change (\"backup\", \"font size\", \"wallpaper\", \"encryption\") and it takes you to the right section." },
       { type: "feature", text: "\ud83e\uddea New UI: point the wallpaper at a folder of image assets instead of one picture and the home screen rotates through it \u2014 shuffled, or in order, a new one each time you open the app." },

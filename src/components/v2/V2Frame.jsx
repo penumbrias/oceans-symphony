@@ -81,11 +81,14 @@ export function openSavedQuickActions(navigate, pathname) {
   }
 }
 
-export function useQuickActionsHold(onTap) {
+// onHold overrides the default (saved Quick Actions) for keys that have a
+// more useful hold of their own — Set Fronters folds the pinned-alters bar
+// in and out, so the bar can live collapsed inside the quick-action row.
+export function useQuickActionsHold(onTap, onHold = null) {
   const navigate = useNavigate();
   const location = useLocation();
   return useLongPress({
-    onLongPress: () => openSavedQuickActions(navigate, location.pathname),
+    onLongPress: () => (onHold ? onHold() : openSavedQuickActions(navigate, location.pathname)),
     onClick: onTap,
     ms: 450,
   });
@@ -93,11 +96,11 @@ export function useQuickActionsHold(onTap) {
 
 // A quick-action key: tap fires it, hold opens the saved Quick Actions
 // menu (the classic press-and-hold, which v2 was missing).
-export function CommandKeyButton({ onTap, label, className, style, children }) {
-  const hold = useQuickActionsHold(onTap);
+export function CommandKeyButton({ onTap, label, className, style, children, onHold = null, holdHint = null }) {
+  const hold = useQuickActionsHold(onTap, onHold);
   return (
     <button type="button" {...hold} aria-label={label}
-      title={`${label} — hold for your quick actions`}
+      title={`${label} — hold ${holdHint || "for your quick actions"}`}
       className={className} style={style}>
       {children}
     </button>
@@ -692,6 +695,8 @@ export function V2QuickDock({ uiV2, settingsRow }) {
         const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
         return (
           <CommandKeyButton key={k.id} label={label}
+            onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
+            holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
             onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
             className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform bg-background/90 backdrop-blur"
             style={{
@@ -878,6 +883,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                     const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
                     return (
                       <CommandKeyButton key={k.id} label={label}
+                        onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
+                        holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
                         onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
                         className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
                         style={{

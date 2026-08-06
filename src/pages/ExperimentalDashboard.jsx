@@ -517,6 +517,24 @@ export default function ExperimentalDashboard({
     updatePageWidgets((ws) =>
       ws.map((w) => (w.instanceId === instanceId ? { ...w, settings: { ...w.settings, ...patch } } : w))
     );
+  // Put a widget back to how it ships: registry span + mode, and every
+  // per-widget setting (label, look, alignment, content size, its own
+  // options) cleared. Position stays — this resets the widget, not where
+  // the user put it.
+  const handleResetWidget = (instanceId) =>
+    updatePageWidgets((ws) =>
+      ws.map((w) => {
+        if (w.instanceId !== instanceId) return w;
+        const def = registry[w.widgetId];
+        if (!def) return w;
+        return {
+          ...w,
+          span: { cols: def.defaultSpan?.cols ?? 4, rows: def.defaultSpan?.rows ?? 1 },
+          mode: effectiveMode(undefined, def.supportsModes),
+          settings: {},
+        };
+      })
+    );
   const handleMove = (instanceId, dir) =>
     updatePageWidgets((ws) => {
       const i = ws.findIndex((w) => w.instanceId === instanceId);
@@ -695,6 +713,20 @@ export default function ExperimentalDashboard({
     ...home,
     altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
   });
+  // Holding the Set Fronters key folds the pinned-alters bar in or out, so
+  // it can live collapsed inside the quick-action row (owner's idea).
+  useEffect(() => {
+    const onToggle = () => persist({
+      ...home,
+      altersBar: {
+        ...home.altersBar,
+        enabled: true,
+        collapsed: home.altersBar.enabled ? !home.altersBar.collapsed : false,
+      },
+    });
+    window.addEventListener("os-v2-toggle-alters-bar", onToggle);
+    return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
+  }, [home, persist]);
   const altersTop = altersBarOn && home.altersBar.position === "top";
   const altersBottom = altersBarOn && home.altersBar.position === "bottom";
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
@@ -1329,6 +1361,7 @@ export default function ExperimentalDashboard({
         onClose={() => setConfigId(null)}
         onMode={handleMode}
         onSettings={handleSettings}
+        onResetWidget={handleResetWidget}
         onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
       />
 

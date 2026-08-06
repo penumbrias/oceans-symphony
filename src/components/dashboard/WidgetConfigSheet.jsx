@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
@@ -295,6 +295,7 @@ export default function WidgetConfigSheet({
   onSettings,        // (instanceId, patch)
   onPickIcon,        // (instanceId) → opens the shared AssetPickerModal
   onRemove,          // (instanceId) → delete this widget
+  onResetWidget,     // (instanceId) → back to registry defaults
   userStyles = [],   // the user's own saved styles
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
@@ -890,7 +891,23 @@ export default function WidgetConfigSheet({
               </div>
             </div>
           )}
-          <div className="pt-2 border-t border-border/50">
+          <div className="pt-2 border-t border-border/50 space-y-2">
+            {/* Undo every tweak at once — size, mode, name, look, alignment,
+                content size and this widget's own options. */}
+            <button
+              type="button"
+              onClick={async () => {
+                const ok = await confirm({
+                  title: `Reset ${settings.label || defLabel} to default?`,
+                  body: "Its size, display mode, name, look and options all go back to how the widget ships. It stays on the page, and none of your data changes.",
+                  confirmLabel: "Reset",
+                });
+                if (ok) onResetWidget?.(widget.instanceId);
+              }}
+              className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50"
+            >
+              <RotateCcw className="w-4 h-4" /> Reset all
+            </button>
             <button
               type="button"
               onClick={async () => {
