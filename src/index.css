@@ -55,12 +55,13 @@
 [data-widget-content] * {
   scrollbar-width: none;
 }
-/* Per-widget control size (widget options → "Control size"). A cluster of
-   interactive parts marked data-widget-controls scales with the widget's
-   own --v2-control-scale; zoom (not transform) so neighbours reflow around
-   the new size instead of overlapping it. Only applies inside a widget, so
-   the same component on a classic page is untouched. */
-[data-widget-content] [data-widget-controls] {
+/* Per-widget content size (widget options → "Content size"). Scales
+   everything the widget draws — rows, buttons, avatars, spacing — from the
+   widget's own --v2-control-scale. zoom, not transform, so the content
+   reflows at its new size instead of overlapping its neighbours; and it
+   sits on the body wrapper so every widget responds without needing to opt
+   in. Default 1 = untouched, including on every classic page. */
+[data-widget-content] > [data-widget-body] {
   zoom: var(--v2-control-scale, 1);
 }
 

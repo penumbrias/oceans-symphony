@@ -301,7 +301,7 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
             }
           </div>
           {isRating &&
-          <div className="flex gap-1 mt-1" data-widget-controls="">
+          <div className="flex gap-1 mt-1">
               {LABELS.map((lbl, idx) => {
               const sel = idx === 0 ? severity === null : severity === idx - 1;
               // Anchor labels give the numbers a stable meaning ("3" drifts
@@ -331,7 +331,6 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
 
         {/* Session toggle */}
         <button onClick={handleToggleSession} disabled={toggling}
-        data-widget-controls=""
         className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-all border"
         style={{ borderColor: isActive ? color : "hsl(var(--border))", backgroundColor: isActive ? color : "transparent", color: isActive ? "#fff" : color }}
         title={isActive ? "End session" : "Start session"}>

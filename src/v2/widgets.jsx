@@ -1419,8 +1419,8 @@ function BreathingWidget({ settings, updateSettings, mode }) {
     const node = boxRef.current;
     if (!node) return undefined;
     const measure = () => {
-      const r = node.getBoundingClientRect();
-      if (r.width && r.height) setBox({ w: r.width, h: r.height });
+      const w = node.offsetWidth, h = node.offsetHeight;
+      if (w && h) setBox({ w, h });
     };
     measure();
     const ro = new ResizeObserver(measure);
@@ -1861,7 +1861,7 @@ function PinnedAltersWidget({ api, settings }) {
   React.useEffect(() => {
     const node = boxRef.current;
     if (!node) return undefined;
-    const measure = () => setBoxH(node.getBoundingClientRect().height || 64);
+    const measure = () => setBoxH(node.offsetHeight || 64);
     measure();
     const ro = new ResizeObserver(measure);
     ro.observe(node);

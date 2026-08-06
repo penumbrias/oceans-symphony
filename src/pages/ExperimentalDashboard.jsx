@@ -297,8 +297,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
           // Per-widget content alignment, consumed by Section's row stack
           // (and by the flex wrapper below for content-sized widgets).
           "--v2-widget-valign": valignJustify,
-          // Per-widget control size — index.css scales anything marked
-          // data-widget-controls by this (severity rows, toggles…).
+          // Per-widget content size — index.css zooms the widget's body
+          // wrapper by this, so every widget scales, not just tagged ones.
           "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),
           ...(editMode ? {
             // pan-y: vertical scrolling passes through; the 300ms hold-still
@@ -321,6 +321,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         {/* While editing, the widget's own controls are inert — a hold to
             move should never also start an activity or save a status. */}
         <div {...optionsHold}
+          data-widget-body=""
           // A press on a hold-owning element (level rails, grid selection,
           // day-span cells) is that element's gesture. Stop it on the way
           // UP — after the element's own handler armed the hold — so the

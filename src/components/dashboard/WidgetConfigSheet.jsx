@@ -437,11 +437,11 @@ export default function WidgetConfigSheet({
             </div>
           </div>
 
-          {/* Size of the widget's interactive parts (severity rows,
-              toggles) — independent of the text size. */}
+          {/* Scales everything the widget draws (rows, buttons, avatars,
+              spacing), on top of whatever text size is set. */}
           <div>
             <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Control size — {Math.round(Number(settings.controlScale) || 100)}%
+              Content size — {Math.round(Number(settings.controlScale) || 100)}%
             </label>
             <input
               type="range"
