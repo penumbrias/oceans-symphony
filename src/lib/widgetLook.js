@@ -17,7 +17,7 @@
 
 export const LOOK_KEYS = [
   "font", "fontScale", "radius", "borderW", "borderColor", "borderStyle",
-  "accent", "bg", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
+  "accent", "bg", "bgOpacity", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
 ];
 
 export const SHADOW_PRESETS = {
@@ -73,7 +73,14 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} 72%, transparent)`;
   }
   if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
-  if (isSet(look.bg)) s["--v2-widget-bg"] = look.bg;
+  if (isSet(look.bg)) {
+    // Opacity is a separate key so the colour picker stays a plain colour;
+    // they're combined here via color-mix rather than making the user hand-
+    // write rgba().
+    s["--v2-widget-bg"] = isSet(look.bgOpacity) && Number(look.bgOpacity) < 100
+      ? `color-mix(in srgb, ${look.bg} ${Number(look.bgOpacity)}%, transparent)`
+      : look.bg;
+  }
   if (isSet(look.bgImage)) {
     // The image sits on the wrapper and shows through the box, so it can
     // sit behind an icon AND its name (the encapsulating-frame ask).

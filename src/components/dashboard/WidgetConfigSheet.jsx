@@ -286,6 +286,42 @@ function DynamicMultiField({ field, value = [], onChange, terms }) {
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
 
+// The colour pickers used to fall back to hardcoded hexes, so before you
+// customised anything they showed a generic blue/grey rather than the
+// colour actually on screen — which makes "nudge this slightly" impossible.
+// Read the live widget's computed colours instead and seed the pickers with
+// those. Probed once per sheet-open.
+function useLiveColors(open, instanceId) {
+  return React.useMemo(() => {
+    if (!open || typeof document === "undefined") return {};
+    const toHex = (c) => {
+      const str = String(c || "");
+      const m = str.match(/[\d.]+/g);
+      if (!m || m.length < 3) return null;
+      let [r, g, b] = m.map(Number);
+      const a = m.length > 3 ? Number(m[3]) : 1;
+      if (a === 0) return null; // transparent tells us nothing
+      // Chrome reports modern colours as `color(srgb 1 0 0 / .25)` with
+      // 0-1 components — scaling those as 0-255 gave near-black swatches.
+      if (/^color\(/i.test(str)) { r *= 255; g *= 255; b *= 255; }
+      const clamp = (x) => Math.max(0, Math.min(255, Math.round(x)));
+      return "#" + [r, g, b].map((x) => clamp(x).toString(16).padStart(2, "0")).join("");
+    };
+    const wrap = instanceId ? document.querySelector(`[data-widget-id="${instanceId}"]`) : null;
+    const box = wrap?.querySelector("section") || wrap?.querySelector("[data-widget-content]") || wrap;
+    const root = getComputedStyle(document.documentElement);
+    const body = getComputedStyle(document.body);
+    const cs = box ? getComputedStyle(box) : null;
+    const accentVar = (root.getPropertyValue("--v2-accent") || root.getPropertyValue("--color-primary") || "").trim();
+    return {
+      bg: (cs && toHex(cs.backgroundColor)) || toHex(body.backgroundColor) || undefined,
+      textColor: (cs && toHex(cs.color)) || toHex(body.color) || undefined,
+      borderColor: (cs && toHex(cs.borderTopColor)) || undefined,
+      accent: accentVar.startsWith("#") ? accentVar : undefined,
+    };
+  }, [open, instanceId]);
+}
+
 export default function WidgetConfigSheet({
   widget,            // live widget object or null (sheet closed)
   def,               // registry entry for widget.widgetId
@@ -302,6 +338,7 @@ export default function WidgetConfigSheet({
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
 }) {
   const open = !!widget && !!def;
+  const live = useLiveColors(open, widget?.instanceId);
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
@@ -630,7 +667,7 @@ export default function WidgetConfigSheet({
             <div>
               <label className="text-xs font-medium block mb-1">Highlight colour</label>
               <div className="flex items-center gap-2">
-                <ColorPicker value={settings.accent || "#3b82f6"}
+                <ColorPicker value={settings.accent || live.accent || "#3b82f6"}
                   onChange={(v) => onSettings(widget.instanceId, { accent: v })} />
                 <button type="button" onClick={() => onSettings(widget.instanceId, { accent: "" })}
                   className={`text-xs px-2.5 py-1 rounded-full border ${!settings.accent ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
@@ -643,16 +680,29 @@ export default function WidgetConfigSheet({
               <div>
                 <label className="text-xs font-medium block mb-1">Background</label>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.bg || "#111827"}
+                  <ColorPicker value={settings.bg || live.bg || "#111827"}
                     onChange={(v) => onSettings(widget.instanceId, { bg: v })} />
-                  <button type="button" onClick={() => onSettings(widget.instanceId, { bg: "" })}
+                  <button type="button" onClick={() => onSettings(widget.instanceId, { bg: "", bgOpacity: "" })}
                     className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
                 </div>
+                {/* See-through backgrounds: the wallpaper shows through at
+                    anything under 100%. Only meaningful once a colour is set. */}
+                {settings.bg && (
+                  <div className="mt-1.5">
+                    <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
+                      Opacity <span>{settings.bgOpacity ?? 100}%</span>
+                    </label>
+                    <input type="range" min={0} max={100} step={5}
+                      value={settings.bgOpacity ?? 100}
+                      onChange={(e) => onSettings(widget.instanceId, { bgOpacity: Number(e.target.value) })}
+                      className="w-full accent-primary" aria-label="Background opacity" />
+                  </div>
+                )}
               </div>
               <div>
                 <label className="text-xs font-medium block mb-1">Text colour</label>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.textColor || "#e5e7eb"}
+                  <ColorPicker value={settings.textColor || live.textColor || "#e5e7eb"}
                     onChange={(v) => onSettings(widget.instanceId, { textColor: v })} />
                   <button type="button" onClick={() => onSettings(widget.instanceId, { textColor: "" })}
                     className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
@@ -705,7 +755,7 @@ export default function WidgetConfigSheet({
               <div>
                 <label className="text-xs font-medium block mb-1">Border colour</label>
                 <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.borderColor || "#3b82f6"}
+                  <ColorPicker value={settings.borderColor || live.borderColor || "#3b82f6"}
                     onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
                   <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
                     className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: widget backgrounds have an opacity slider, so the wallpaper can show through." },
+      { type: "fix", text: "\ud83e\uddea New UI: the colour pickers in a widget\u2019s options now start on the colours it\u2019s actually showing instead of a generic preset, so you can nudge a colour slightly instead of starting over." },
       { type: "fix", text: "\ud83e\uddea New UI: setting a fronting level by press-and-hold no longer collapses the pinned-alters bar, the closed bar no longer leaves an empty box behind, and the bar\u2019s alignment setting actually moves it instead of always sitting at the top." },
       { type: "improve", text: "\ud83e\uddea New UI: a home page\u2019s audience can now be \"everyone except\" the alters you pick, not just \"only\" them." },
       { type: "improve", text: "\ud83e\uddea New UI: \"What\u2019s new\" in the cog menu opens the release notes as a popup \u2014 the same one the classic dashboard shows, with older releases, the bug-report link and the full changelog link \u2014 instead of dropping you into Settings." },
