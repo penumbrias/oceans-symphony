@@ -5,7 +5,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User, Music } from "lucide-react";
+import { Loader2, Save, Trash2, Archive, ArchiveRestore, Users, Upload, Pin, X, Link2, Palette, User } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "sonner";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -20,7 +20,6 @@ import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
-import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
 import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
@@ -524,17 +523,11 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
             />
           </SubSection>
 
-          {/* Profile song — the MySpace touch: plays when their page opens.
-              Upload goes to the local blob store (rides backups); a direct
-              audio URL streams instead. Global kill-switch lives in
-              Settings → {Alter} setup. */}
-          <SubSection title="Profile song" icon={Music} defaultOpen={false}>
-            <ProfileSongPicker
-              value={form.profile_song}
-              onChange={(v) => set("profile_song", v)}
-              subjectLabel={`${t.alter}'s page`}
-            />
-          </SubSection>
+          {/* No song section here on purpose: a song belongs to the PROFILE
+              STYLE, not to creating an {alter}. The ProfileStyleEditor above
+              carries it, so it's editable here AND on every profile page,
+              any time — rather than only at creation. Existing alters keep
+              their original profile_song field; it still plays. */}
 
           {/* Pin shortcut — surfaces this {alter} in a quick-access gallery at
               the top of the {alters} page (and the Set Front modal). */}
