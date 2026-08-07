@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s options are organised into collapsible sections \u2014 Layout & size, This widget, Appearance \u2014 matching the Display options panel instead of one long scroll." },
       { type: "improve", text: "\ud83e\uddea New UI: a \"Close gaps\" button while editing a free-placement page pulls widgets back up, so resizing one no longer leaves you dragging the rest back into place." },
       { type: "improve", text: "\ud83e\uddea New UI: the page-audience picker follows the same rules as every other alter list \u2014 whoever\u2019s fronting first, your own arrangement, and a one-tap sort switch." },
       { type: "improve", text: "\ud83e\uddea New UI: widget backgrounds have an opacity slider, so the wallpaper can show through." },

@@ -17,8 +17,11 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2 } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
+// Same collapsible section shell Display options uses, so the two editors
+// read as one system rather than two conventions.
+import { SubSection } from "@/components/settings/SettingsUI";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -426,6 +429,7 @@ export default function WidgetConfigSheet({
             />
           </div>
 
+          <SubSection title="Layout & size" icon={LayoutGrid} defaultOpen>
           {/* Display mode */}
           {def.supportsModes.length > 1 && (
             <div>
@@ -492,6 +496,8 @@ export default function WidgetConfigSheet({
             />
           </div>
 
+          </SubSection>
+          <SubSection title="This widget" icon={Settings2}>
           {/* Widget-specific options, declared by the registry entry. */}
           {(def.configFields || []).map((f) => {
             // showIf: a field only appears when it means something for the
@@ -589,6 +595,8 @@ export default function WidgetConfigSheet({
             );
           })}
 
+          </SubSection>
+          <SubSection title="Appearance" icon={Palette}>
           {/* Appearance overrides. These write CSS variables onto the widget
               wrapper, so the whole-app settings apply by default and this
               widget alone departs from them where the user says so. */}
@@ -955,6 +963,7 @@ export default function WidgetConfigSheet({
               </div>
             </div>
           )}
+          </SubSection>
           <div className="pt-2 border-t border-border/50 space-y-2">
             {/* Undo every tweak at once — size, mode, name, look, alignment,
                 content size and this widget's own options. */}
