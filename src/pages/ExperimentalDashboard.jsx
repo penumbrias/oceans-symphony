@@ -40,7 +40,8 @@ import {
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
-import { useFrontingIds } from "@/lib/alterSort";
+import { useFrontingIds, useAlterSorter } from "@/lib/alterSort";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
@@ -493,6 +494,9 @@ export default function ExperimentalDashboard({
   // would leave NOTHING, everyone sees everything. Being locked out of your
   // own home screen is the one outcome this must never produce.
   const frontingIds = useFrontingIds();
+  // House ordering for the page-audience list (fronters first, the user's
+  // own arrangement, one-tap sort switch).
+  const audienceSorter = useAlterSorter("pageAudience_sort", { frontingIds });
   const visiblePages = useMemo(() => {
     if (editMode) return home.pages;
     const allowed = home.pages.filter((p) => {
@@ -669,6 +673,25 @@ export default function ExperimentalDashboard({
     );
 
   // Switching a page to free placement seeds every widget with the cell it
+  // Resizing a widget on a free page pushes its neighbours down and leaves
+  // holes behind; dragging each one back up is the hassle. This packs the
+  // page from the top using the SAME helper the flow->free switch uses.
+  const collapseGaps = () => {
+    const measured = {};
+    if (gridRef.current) {
+      for (const node of gridRef.current.querySelectorAll("[data-widget-id]")) {
+        const h = node.getBoundingClientRect().height;
+        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / 92));
+      }
+    }
+    persist({
+      ...home,
+      pages: home.pages.map((p) => (p.id !== page.id ? p : {
+        ...p, widgets: packPositions(p.widgets, gridCols, measured),
+      })),
+    });
+    toast.success("Gaps closed up");
+  };
   // already occupies, so the switch itself never rearranges anything.
   const toggleLayoutMode = () => {
     const next = page.layoutMode === "free" ? "flow" : "free";
@@ -1049,6 +1072,16 @@ export default function ExperimentalDashboard({
                 );
               })}
             </div>
+            {pageIsFree && (
+              <button
+                type="button"
+                onClick={collapseGaps}
+                title="Pull widgets up to close empty gaps on this page"
+                className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground whitespace-nowrap"
+              >
+                Close gaps
+              </button>
+            )}
             <button
               type="button"
               onClick={toggleLayoutMode}
@@ -1312,8 +1345,12 @@ export default function ExperimentalDashboard({
                 ? `Hidden while one of these ${t.alters} is ${t.fronting}.`
                 : `Only shown while one of these ${t.alters} is ${t.fronting}.`}
           </p>
+          <div className="flex items-center justify-end pb-1">
+            <AlterSortToggle sorter={audienceSorter} showLabel className="text-[0.625rem] py-1" />
+          </div>
           <SearchableMultiList
-            options={(api?.alters || []).filter((a) => !a.is_archived).map((a) => ({ id: a.id, label: a.name || "?" }))}
+            options={audienceSorter.sort((api?.alters || []).filter((a) => !a.is_archived))
+              .map((a) => ({ id: a.id, label: a.name || "?", color: a.color }))}
             selectedIds={page.visibleTo || []}
             searchPlaceholder={`Search ${t.alters}...`}
             onToggle={(id) => {

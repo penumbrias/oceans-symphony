@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: a \"Close gaps\" button while editing a free-placement page pulls widgets back up, so resizing one no longer leaves you dragging the rest back into place." },
+      { type: "improve", text: "\ud83e\uddea New UI: the page-audience picker follows the same rules as every other alter list \u2014 whoever\u2019s fronting first, your own arrangement, and a one-tap sort switch." },
       { type: "improve", text: "\ud83e\uddea New UI: widget backgrounds have an opacity slider, so the wallpaper can show through." },
       { type: "fix", text: "\ud83e\uddea New UI: the colour pickers in a widget\u2019s options now start on the colours it\u2019s actually showing instead of a generic preset, so you can nudge a colour slightly instead of starting over." },
       { type: "fix", text: "\ud83e\uddea New UI: setting a fronting level by press-and-hold no longer collapses the pinned-alters bar, the closed bar no longer leaves an empty box behind, and the bar\u2019s alignment setting actually moves it instead of always sitting at the top." },
