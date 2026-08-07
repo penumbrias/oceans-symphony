@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: setting a fronting level by press-and-hold no longer collapses the pinned-alters bar, the closed bar no longer leaves an empty box behind, and the bar\u2019s alignment setting actually moves it instead of always sitting at the top." },
+      { type: "improve", text: "\ud83e\uddea New UI: a home page\u2019s audience can now be \"everyone except\" the alters you pick, not just \"only\" them." },
       { type: "improve", text: "\ud83e\uddea New UI: \"What\u2019s new\" in the cog menu opens the release notes as a popup \u2014 the same one the classic dashboard shows, with older releases, the bug-report link and the full changelog link \u2014 instead of dropping you into Settings." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar\u2019s control moved into the quick-action bar, next to the drawer handle \u2014 tap it to show or hide the bar, drag it up to open, down to close. Swiping down on the bar itself closes it too, and it stays open or closed independently of the quick-action drawer." },
       { type: "improve", text: "\ud83e\uddea New UI: icon size and bar height in the pinned-alters options are sliders now instead of number boxes, matching the other size controls." },

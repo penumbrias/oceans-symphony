@@ -180,6 +180,8 @@ export function resolveExperimentalHome(stored, registry = {}) {
       // Who this page is for. Empty = everyone. Non-empty = only shown
       // while one of these alters is fronting (soft hiding, not a lock).
       visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.filter((x) => typeof x === "string" && x) : [],
+      // "only" = just these alters see it; "except" = everyone BUT them.
+      visibleMode: p.visibleMode === "except" ? "except" : "only",
       widgets,
     });
   }

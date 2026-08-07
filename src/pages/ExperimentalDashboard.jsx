@@ -486,6 +486,7 @@ export default function ExperimentalDashboard({
   const [audienceOpen, setAudienceOpen] = useState(false);
   const barDragStart = useRef(null);
   const barSwiped = useRef(false);
+  const barDragAt = useRef(null);
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
   // Pages can be addressed to specific alters. Outside edit mode the board
   // only navigates the ones the current fronters can see — but if that
@@ -494,9 +495,11 @@ export default function ExperimentalDashboard({
   const frontingIds = useFrontingIds();
   const visiblePages = useMemo(() => {
     if (editMode) return home.pages;
-    const allowed = home.pages.filter(
-      (p) => !p.visibleTo?.length || p.visibleTo.some((id) => frontingIds.has(id))
-    );
+    const allowed = home.pages.filter((p) => {
+      if (!p.visibleTo?.length) return true;
+      const matches = p.visibleTo.some((id) => frontingIds.has(id));
+      return p.visibleMode === "except" ? !matches : matches;
+    });
     return allowed.length ? allowed : home.pages;
   }, [home.pages, editMode, frontingIds]);
   const page =
@@ -754,6 +757,11 @@ export default function ExperimentalDashboard({
   // border/background/radius/padding/text all behave as they do on a tile.
   const altersLook = widgetLookFor(home.altersBar.look || {}, userStyles);
   const altersLookStyle = lookToStyle(altersLook);
+  // The options sheet offers Alignment for the bar too; it was writing a
+  // value nothing read, so the strip always sat at the top of a tall bar.
+  const altersValign = home.altersBar.look?.valign || "center";
+  const altersJustify = altersValign === "top" ? "flex-start"
+    : altersValign === "bottom" ? "flex-end" : "center";
   const toggleAltersCollapsed = () => persist({
     ...home,
     altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
@@ -1247,7 +1255,9 @@ export default function ExperimentalDashboard({
                 : "border-border/50 text-muted-foreground hover:text-foreground"
             }`}
           >
-            {page.visibleTo?.length ? `For ${page.visibleTo.length}` : "Everyone"}
+            {page.visibleTo?.length
+              ? (page.visibleMode === "except" ? `Not ${page.visibleTo.length}` : `For ${page.visibleTo.length}`)
+              : "Everyone"}
           </button>
           <button
             type="button"
@@ -1282,10 +1292,25 @@ export default function ExperimentalDashboard({
           board shows them all rather than nothing. */}
       {editMode && audienceOpen && (
         <div className="mx-3 mb-3 p-2 rounded-xl border border-border/50 bg-background/80">
+          <div className="flex items-center gap-1 mb-1.5">
+            {[["only", "Only these"], ["except", "Everyone except"]].map(([m, label]) => (
+              <button key={m} type="button"
+                onClick={() => persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, visibleMode: m } : p)) })}
+                className={`text-[0.625rem] px-2 py-1 rounded-full border transition-all ${
+                  (page.visibleMode || "only") === m
+                    ? "border-primary/50 bg-primary/10 text-primary"
+                    : "border-border/50 text-muted-foreground hover:text-foreground"
+                }`}>
+                {label}
+              </button>
+            ))}
+          </div>
           <p className="text-[0.625rem] text-muted-foreground mb-1.5">
-            {page.visibleTo?.length
-              ? `Only shown while one of these ${t.alters} is ${t.fronting}.`
-              : `Shown to everyone. Pick ${t.alters} to limit it to them.`}
+            {!page.visibleTo?.length
+              ? `Shown to everyone. Pick ${t.alters} below.`
+              : page.visibleMode === "except"
+                ? `Hidden while one of these ${t.alters} is ${t.fronting}.`
+                : `Only shown while one of these ${t.alters} is ${t.fronting}.`}
           </p>
           <SearchableMultiList
             options={(api?.alters || []).filter((a) => !a.is_archived).map((a) => ({ id: a.id, label: a.name || "?" }))}
@@ -1364,13 +1389,23 @@ export default function ExperimentalDashboard({
           className="fixed left-0 right-0 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
         >
-          {altersBottom && (
+          {altersBottom && !altersCollapsed && (
             <div data-widget-content="1"
-              onPointerDownCapture={(e) => { barDragStart.current = e.clientY; barSwiped.current = false; }}
+              onPointerDownCapture={(e) => {
+                barDragStart.current = e.clientY;
+                barDragAt.current = Date.now();
+                barSwiped.current = false;
+              }}
               onPointerUpCapture={(e) => {
                 const dy = barDragStart.current == null ? 0 : e.clientY - barDragStart.current;
+                const dt = barDragAt.current ? Date.now() - barDragAt.current : 0;
                 barDragStart.current = null;
-                if (dy > 24) {
+                barDragAt.current = null;
+                // A swipe is fast. The fronting-level rail arms on a 350ms
+                // STATIONARY hold and then drags vertically to pick a level —
+                // without this bound, finishing that gesture downward also
+                // collapsed the bar.
+                if (dy > 24 && dt < 320) {
                   // Without this the swipe falls through to the chip under
                   // the finger and opens that alter's profile.
                   barSwiped.current = true;
@@ -1395,12 +1430,11 @@ export default function ExperimentalDashboard({
                 borderRadius: "var(--v2-radius, 1rem)",
                 padding: "var(--v2-pad, 0.25rem 0.5rem)",
                 boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
+                alignItems: altersJustify,
               }}>
-              {!altersCollapsed && (
-                <div className="min-w-0 overflow-x-auto">
-                  <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
-                </div>
-              )}
+              <div className="min-w-0 overflow-x-auto flex-1">
+                <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
+              </div>
             </div>
           )}
           {barIds.length > 0 && (
