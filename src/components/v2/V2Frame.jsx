@@ -775,6 +775,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     try { return localStorage.getItem(QA_OPEN_KEY) === "1"; } catch { return false; }
   });
   const dragStart = useRef(null);
+  const altersDragStart = useRef(null);
   const swiped = useRef(false);
 
   const toggleQa = (next) => {
@@ -836,6 +837,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     >
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
         <>
+          <div className="relative">
           {/* Pull handle — tap, or swipe up/down, to reveal or hide. */}
           <button
             type="button"
@@ -866,6 +868,32 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
             <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
             <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
           </button>
+          {/* The pinned-alters bar's control, in line with the drawer handle
+              so the bar doesn't spend a row on its own chevron. Tap toggles;
+              drag up opens, drag down closes. Its state is independent of
+              the drawer's — this only ever talks to the bar. */}
+          <button
+            type="button"
+            aria-label="Show or hide the pinned alters bar"
+            title="Show or hide the pinned alters bar"
+            onPointerDown={(e) => {
+              altersDragStart.current = e.clientY;
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+            }}
+            onPointerUp={(e) => {
+              const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
+              altersDragStart.current = null;
+              try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+              if (dy < -14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }));
+              else if (dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
+              else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
+            }}
+            className="absolute right-2 top-0 flex items-center justify-center text-muted-foreground hover:text-foreground"
+            style={{ height: 18, width: 28, touchAction: "none" }}
+          >
+            <Users className="w-3 h-3" />
+          </button>
+          </div>
           <AnimatePresence initial={false}>
             {qaOpen && (
               <motion.div

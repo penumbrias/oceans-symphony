@@ -484,6 +484,8 @@ export default function ExperimentalDashboard({
   // on the default page); the pages themselves live in experimental_home.
   const [activePageId, setActivePageId] = useState(null);
   const [audienceOpen, setAudienceOpen] = useState(false);
+  const barDragStart = useRef(null);
+  const barSwiped = useRef(false);
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
   // Pages can be addressed to specific alters. Outside edit mode the board
   // only navigates the ones the current fronters can see — but if that
@@ -759,14 +761,14 @@ export default function ExperimentalDashboard({
   // Holding the Set Fronters key folds the pinned-alters bar in or out, so
   // it can live collapsed inside the quick-action row (owner's idea).
   useEffect(() => {
-    const onToggle = () => persist({
-      ...home,
-      altersBar: {
-        ...home.altersBar,
-        enabled: true,
-        collapsed: home.altersBar.enabled ? !home.altersBar.collapsed : false,
-      },
-    });
+    const onToggle = (e) => {
+      // detail.open states a direction (a drag); absent = plain toggle (a tap).
+      const want = e?.detail?.open;
+      const collapsed = want === true ? false
+        : want === false ? true
+        : (home.altersBar.enabled ? !home.altersBar.collapsed : false);
+      persist({ ...home, altersBar: { ...home.altersBar, enabled: true, collapsed } });
+    };
     window.addEventListener("os-v2-toggle-alters-bar", onToggle);
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
   }, [home, persist]);
@@ -1364,6 +1366,23 @@ export default function ExperimentalDashboard({
         >
           {altersBottom && (
             <div data-widget-content="1"
+              onPointerDownCapture={(e) => { barDragStart.current = e.clientY; barSwiped.current = false; }}
+              onPointerUpCapture={(e) => {
+                const dy = barDragStart.current == null ? 0 : e.clientY - barDragStart.current;
+                barDragStart.current = null;
+                if (dy > 24) {
+                  // Without this the swipe falls through to the chip under
+                  // the finger and opens that alter's profile.
+                  barSwiped.current = true;
+                  persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } });
+                }
+              }}
+              onClickCapture={(e) => {
+                if (!barSwiped.current) return;
+                barSwiped.current = false;
+                e.preventDefault();
+                e.stopPropagation();
+              }}
               className="pointer-events-auto max-w-full mx-3 flex items-center gap-1 backdrop-blur-xl"
               style={{
                 // The look arrives as CSS VARIABLES (widget contract), so the
@@ -1377,12 +1396,6 @@ export default function ExperimentalDashboard({
                 padding: "var(--v2-pad, 0.25rem 0.5rem)",
                 boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
               }}>
-              <button type="button" onClick={toggleAltersCollapsed}
-                aria-label={altersCollapsed ? `Show pinned ${t.alters}` : `Hide pinned ${t.alters}`}
-                aria-expanded={!altersCollapsed}
-                className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground">
-                {altersCollapsed ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
-              </button>
               {!altersCollapsed && (
                 <div className="min-w-0 overflow-x-auto">
                   <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
