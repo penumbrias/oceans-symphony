@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: in a widget\u2019s options, all four colours now sit together in a grid (border colour was stranded further down), and the size sliders have the same minus/plus steppers as Display options." },
+      { type: "fix", text: "\ud83e\uddea New UI: the \"What\u2019s new\" popup showed a raw code name as its title." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s options are organised into collapsible sections \u2014 Layout & size, This widget, Appearance \u2014 matching the Display options panel instead of one long scroll." },
       { type: "improve", text: "\ud83e\uddea New UI: a \"Close gaps\" button while editing a free-placement page pulls widgets back up, so resizing one no longer leaves you dragging the rest back into place." },
       { type: "improve", text: "\ud83e\uddea New UI: the page-audience picker follows the same rules as every other alter list \u2014 whoever\u2019s fronting first, your own arrangement, and a one-tap sort switch." },

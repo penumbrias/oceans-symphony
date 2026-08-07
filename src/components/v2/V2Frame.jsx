@@ -385,7 +385,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
       <Drawer open={whatsNewOpen} modal={false} onOpenChange={(v) => { if (!v) setWhatsNewOpen(false); }}>
         <DrawerContent className="max-h-[85vh]" {...sheetPortalGuards}>
           <DrawerHeader className="pb-1">
-            <DrawerTitle className="text-base">{t("options.whatsNew") || "What's new"}</DrawerTitle>
+            <DrawerTitle className="text-base">{"What's new"}</DrawerTitle>
           </DrawerHeader>
           <div className="px-3 pb-6 overflow-y-auto overscroll-contain"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>

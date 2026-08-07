@@ -325,6 +325,37 @@ function useLiveColors(open, instanceId) {
   }, [open, instanceId]);
 }
 
+// Mirrors the TokenRow slider in Display options (− / range / + / readout)
+// so both editors handle a size the same way, plus this sheet's own Reset
+// (a widget value can be unset = follow the app).
+function SliderRow({ label, value, fallback, min, max, step = 1, unit = "px", onChange, onReset }) {
+  const unset = value === undefined || value === "";
+  const shown = unset ? "app default" : `${value}${unit}`;
+  const current = unset ? fallback : Number(value);
+  const bump = (dir) => onChange(Math.min(max, Math.max(min, current + dir * step)));
+  return (
+    <div className="py-1">
+      <label className="flex items-center justify-between text-xs font-medium mb-1">
+        <span>{label}</span>
+        <span className="text-muted-foreground tabular-nums">{shown}</span>
+      </label>
+      <div className="flex items-center gap-2">
+        <button type="button" aria-label={`${label} −`} onClick={() => bump(-1)}
+          className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">−</button>
+        <input type="range" min={min} max={max} step={step} value={current}
+          onChange={(e) => onChange(parseInt(e.target.value, 10))}
+          className="flex-1" aria-label={label} />
+        <button type="button" aria-label={`${label} +`} onClick={() => bump(1)}
+          className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">+</button>
+        {onReset && (
+          <button type="button" onClick={onReset}
+            className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function WidgetConfigSheet({
   widget,            // live widget object or null (sheet closed)
   def,               // registry entry for widget.widgetId
@@ -621,57 +652,24 @@ export default function WidgetConfigSheet({
               />
             </div>
 
-            <div>
-              <label className="flex items-center justify-between text-xs font-medium mb-1">
-                <span>Corner radius</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {settings.radius === undefined || settings.radius === "" ? "app default" : `${settings.radius}px`}
-                </span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input type="range" min={0} max={32} step={1}
-                  value={settings.radius === undefined || settings.radius === "" ? 12 : settings.radius}
-                  onChange={(e) => onSettings(widget.instanceId, { radius: parseInt(e.target.value, 10) })}
-                  className="flex-1" aria-label="Corner radius" />
-                <button type="button" onClick={() => onSettings(widget.instanceId, { radius: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-              </div>
-            </div>
+            <SliderRow label="Corner radius" value={settings.radius} fallback={12}
+              min={0} max={32} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { radius: v })}
+              onReset={() => onSettings(widget.instanceId, { radius: "" })} />
 
-            <div>
-              <label className="flex items-center justify-between text-xs font-medium mb-1">
-                <span>Border width</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {settings.borderW === undefined || settings.borderW === "" ? "app default" : `${settings.borderW}px`}
-                </span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input type="range" min={0} max={6} step={1}
-                  value={settings.borderW === undefined || settings.borderW === "" ? 0 : settings.borderW}
-                  onChange={(e) => onSettings(widget.instanceId, { borderW: parseInt(e.target.value, 10) })}
-                  className="flex-1" aria-label="Border width" />
-                <button type="button" onClick={() => onSettings(widget.instanceId, { borderW: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-              </div>
-            </div>
+            <SliderRow label="Border width" value={settings.borderW} fallback={1}
+              min={0} max={8} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { borderW: v })}
+              onReset={() => onSettings(widget.instanceId, { borderW: "" })} />
 
-            <div>
-              <label className="flex items-center justify-between text-xs font-medium mb-1">
-                <span>Text size</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {settings.fontScale ? `${settings.fontScale}%` : "app default"}
-                </span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input type="range" min={70} max={160} step={5}
-                  value={settings.fontScale || 100}
-                  onChange={(e) => onSettings(widget.instanceId, { fontScale: parseInt(e.target.value, 10) })}
-                  className="flex-1" aria-label="Text size" />
-                <button type="button" onClick={() => onSettings(widget.instanceId, { fontScale: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-              </div>
-            </div>
+            <SliderRow label="Text size" value={settings.fontScale} fallback={100}
+              min={70} max={160} unit="%"
+              onChange={(v) => onSettings(widget.instanceId, { fontScale: v })}
+              onReset={() => onSettings(widget.instanceId, { fontScale: "" })} />
 
+            {/* Every colour in one place, two-up — they were spread down the
+                panel with the border colour stranded under the sizes. */}
+            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
             <div>
               <label className="text-xs font-medium block mb-1">Highlight colour</label>
               <div className="flex items-center gap-2">
@@ -717,6 +715,16 @@ export default function WidgetConfigSheet({
                 </div>
               </div>
             </div>
+              <div>
+                <label className="text-xs font-medium block mb-1">Border colour</label>
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ColorPicker value={settings.borderColor || live.borderColor || "#3b82f6"}
+                    onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
+                  <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
+                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
+                </div>
+              </div>
+            </div>
 
             <div>
               <label className="text-xs font-medium block mb-1">Background image</label>
@@ -742,33 +750,12 @@ export default function WidgetConfigSheet({
               </div>
             </div>
 
-            <div>
-              <label className="flex items-center justify-between text-xs font-medium mb-1">
-                <span>Inner spacing</span>
-                <span className="text-muted-foreground tabular-nums">
-                  {settings.padding === undefined || settings.padding === "" ? "app default" : `${settings.padding}px`}
-                </span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input type="range" min={0} max={32} step={1}
-                  value={settings.padding === undefined || settings.padding === "" ? 9 : settings.padding}
-                  onChange={(e) => onSettings(widget.instanceId, { padding: parseInt(e.target.value, 10) })}
-                  className="flex-1" aria-label="Inner spacing" />
-                <button type="button" onClick={() => onSettings(widget.instanceId, { padding: "" })}
-                  className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-              </div>
-            </div>
+            <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
+              min={0} max={32} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { padding: v })}
+              onReset={() => onSettings(widget.instanceId, { padding: "" })} />
 
             <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Border colour</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.borderColor || live.borderColor || "#3b82f6"}
-                    onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
-                  <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
-                </div>
-              </div>
               <div>
                 <label className="text-xs font-medium block mb-1">Border style</label>
                 <div className="flex flex-wrap gap-1">
