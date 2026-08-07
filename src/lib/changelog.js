@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: \"What\u2019s new\" in the cog menu opens the release notes as a popup \u2014 the same one the classic dashboard shows, with older releases, the bug-report link and the full changelog link \u2014 instead of dropping you into Settings." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar\u2019s control moved into the quick-action bar, next to the drawer handle \u2014 tap it to show or hide the bar, drag it up to open, down to close. Swiping down on the bar itself closes it too, and it stays open or closed independently of the quick-action drawer." },
       { type: "improve", text: "\ud83e\uddea New UI: icon size and bar height in the pinned-alters options are sliders now instead of number boxes, matching the other size controls." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar is much slimmer \u2014 it was reserving space for swipe hints that no longer exist, and names are hidden at tiny icon sizes. Its cog now opens everything in one place: height, icon size, and the widget-style look options." },

@@ -43,6 +43,7 @@ import { buildNavGroups } from "@/lib/navCatalogue";
 import HeaderWaveBlock from "@/components/layout/HeaderWaveBlock";
 import SidebarNav from "@/components/layout/SidebarNav";
 import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
+import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -266,6 +267,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
     : requestHomeAction(navigate, location.pathname, "open-apps")));
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [whatsNewOpen, setWhatsNewOpen] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
   const { data: activeSessions = [] } = useQuery({
@@ -371,11 +373,26 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           v2Options={{
             editHome: () => requestHomeAction(navigate, location.pathname, "edit-home"),
             openDisplayOptions: () => setOptionsOpen(true),
+            openWhatsNew: () => setWhatsNewOpen(true),
           }}
         />
       </div>
       {options}
       <SearchSheet open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {/* What's new, as a popup — the SAME panel the classic dashboard bar
+          shows (entries, older releases, bug report, the links), not a
+          second copy of it. */}
+      <Drawer open={whatsNewOpen} modal={false} onOpenChange={(v) => { if (!v) setWhatsNewOpen(false); }}>
+        <DrawerContent className="max-h-[85vh]" {...sheetPortalGuards}>
+          <DrawerHeader className="pb-1">
+            <DrawerTitle className="text-base">{t("options.whatsNew") || "What's new"}</DrawerTitle>
+          </DrawerHeader>
+          <div className="px-3 pb-6 overflow-y-auto overscroll-contain"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            <NewFeaturesBar embedded />
+          </div>
+        </DrawerContent>
+      </Drawer>
       {/* Classic sidebar, verbatim — the appsView="sidebar" mode is exactly
           the old UI's navigation, not an imitation of it. */}
       {/* Always mounted, `open` toggles — SidebarNav closes itself when the

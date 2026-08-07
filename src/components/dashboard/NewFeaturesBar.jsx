@@ -36,7 +36,7 @@ const TYPE_ICON = {
   fix:     "🔧",
 };
 
-export default function NewFeaturesBar() {
+export default function NewFeaturesBar({ embedded = false }) {
   // Start hidden so the bar doesn't flash in before the effect
   // resolves the user's dismissal state.
   const [dismissed, setDismissed] = useState(true);
@@ -44,7 +44,7 @@ export default function NewFeaturesBar() {
   // The bar opens as a slim banner that just says "What's new in
   // vX.Y.Z" plus the entry count — the user expands it to read.
   // Keeps the dashboard quiet for users who don't care.
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(embedded);
   // Number of OLDER date blocks the user has chosen to reveal in
   // addition to the headline (most-recent) block. Reset every mount.
   const [extraBlocks, setExtraBlocks] = useState(0);
@@ -88,7 +88,9 @@ export default function NewFeaturesBar() {
     catch { /* ignore — bar stays dismissed for this session */ }
   };
 
-  if (dismissed || !block) return null;
+  // Embedded hosts show it because the user asked for it — the
+  // dashboard bar's dismissal doesn't apply.
+  if ((!embedded && dismissed) || !block) return null;
 
   // Older blocks revealed via "Show older changes". Slice picks up
   // starting at index 1 (the second-most-recent block) since index 0
@@ -123,18 +125,20 @@ export default function NewFeaturesBar() {
           <span className="text-[0.6875rem] text-muted-foreground flex-shrink-0">
             · {changeCount} {changeCount === 1 ? "change" : "changes"}
           </span>
-          {expanded
+          {embedded ? null : expanded
             ? <ChevronUp className="w-4 h-4 text-muted-foreground flex-shrink-0 ml-auto" />
             : <ChevronDown className="w-4 h-4 text-muted-foreground flex-shrink-0 ml-auto" />}
         </button>
-        <button
-          type="button"
-          onClick={handleDismiss}
-          aria-label="Dismiss What's new"
-          className="text-muted-foreground hover:text-foreground p-1 -m-1 rounded-md flex-shrink-0"
-        >
-          <X className="w-4 h-4" />
-        </button>
+        {!embedded && (
+          <button
+            type="button"
+            onClick={handleDismiss}
+            aria-label="Dismiss What's new"
+            className="text-muted-foreground hover:text-foreground p-1 -m-1 rounded-md flex-shrink-0"
+          >
+            <X className="w-4 h-4" />
+          </button>
+        )}
       </div>
 
       {expanded && (

@@ -57,7 +57,9 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
       key: "v2-whats-new",
       label: "What's new",
       icon: Sparkles,
-      onSelect: () => navigate("/settings#about-updates"),
+      onSelect: () => (v2Options.openWhatsNew
+        ? v2Options.openWhatsNew()
+        : navigate("/settings#about-updates")),
     });
   }
   if (!v2Options && path === "/") {
