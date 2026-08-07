@@ -42,6 +42,9 @@ export const PS = {
   HIDE_HEADER: "_hide_header",
   PAGE_TEXT: "_page_text_color",
   PAGE_FONT: "_page_font",
+  // Profile song ({ ref, title, loop }). Alters ALSO have a top-level
+  // profile_song from before this was shared; readers check both.
+  SONG: "_profile_song",
   // Per-profile theme palette (8 colours + wave).
   THEME_BG: "_theme_bg",
   THEME_SURFACE: "_theme_surface",

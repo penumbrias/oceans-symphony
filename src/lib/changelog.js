@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "Profile songs work on every profile page now \u2014 alters, groups and inner-world locations \u2014 and can be set any time from the page\u2019s style editor, not just while creating an alter." },
+      { type: "feature", text: "\ud83e\uddea New UI: home screen pages can have their own song too. Set it while editing the page; it plays when that page is showing and swaps when you swipe to another." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s colours are four swatches on one line now. The name, hex box, Clear and \"use the app colour\" appear when you open a swatch, instead of crowding the panel and squashing the labels." },
       { type: "improve", text: "\ud83e\uddea New UI: in a widget\u2019s options, all four colours now sit together in a grid (border colour was stranded further down), and the size sliders have the same minus/plus steppers as Display options." },
       { type: "fix", text: "\ud83e\uddea New UI: the \"What\u2019s new\" popup showed a raw code name as its title." },

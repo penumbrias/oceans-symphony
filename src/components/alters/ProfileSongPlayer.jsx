@@ -17,8 +17,10 @@ import { Play, Pause, X, Music } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
-export default function ProfileSongPlayer({ alter }) {
-  const song = alter?.profile_song;
+// `song` lets any surface drive this (group/location profiles, the v2 home
+// board); `alter` stays supported so existing callers are untouched.
+export default function ProfileSongPlayer({ alter, song: songProp }) {
+  const song = songProp || alter?.profile_song;
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
     queryFn: () => base44.entities.SystemSettings.list(),

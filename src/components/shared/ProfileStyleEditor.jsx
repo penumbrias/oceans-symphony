@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Upload, X, Palette, Eye, ArrowRight, ArrowLeft, Lock, Unlock } from "lucide-react";
+import { Upload, X, Palette, Eye, ArrowRight, ArrowLeft, Lock, Unlock, Music } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -11,7 +11,8 @@ import { useProfileFonts, fontStackFor } from "@/lib/profileFonts";
 import { isLocalMode } from "@/lib/storageMode";
 import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { saveLocalImage, createLocalImageUrl, processUploadedImage } from "@/lib/localImageStorage";
-import { profileThemeCss, profileSurfaceCss } from "@/lib/profileStyle";
+import { profileThemeCss, profileSurfaceCss, PS } from "@/lib/profileStyle";
+import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import RotationModeControl from "@/components/shared/RotationModeControl";
 import AlterImagePoolManager from "@/components/alters/AlterImagePoolManager";
 
@@ -535,6 +536,16 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
           onClose={() => setColorPickerFor(null)}
         />
       )}
+
+      {/* Every profile page can have a song, not just alters (and not just
+          at creation time — this editor is the shared one). */}
+      <SubSection title="Profile song" icon={Music} defaultOpen={false}>
+        <ProfileSongPicker
+          value={cf[PS.SONG] || null}
+          onChange={(v) => (v ? setField(PS.SONG, v) : clearField(PS.SONG))}
+          subjectLabel="page"
+        />
+      </SubSection>
 
       {rotationConfig && (
         <AlterImagePoolManager

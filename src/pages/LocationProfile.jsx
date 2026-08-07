@@ -39,7 +39,8 @@ import SearchableSelect from "@/components/shared/SearchableSelect";
 import AlterCard from "@/components/alters/AlterCard";
 import { groupNameColor } from "@/lib/contrast";
 import { fontStackFor } from "@/lib/profileFonts";
-import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars } from "@/lib/profileStyle";
+import { readProfileBg, profileSurfaceCss, profileThemeCss, headerThemeStyleVars, PS } from "@/lib/profileStyle";
+import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { setPageWaveOverride } from "@/lib/pageWaveOverride";
 import { useUndoRedo } from "@/hooks/useUndoRedo";
 
@@ -411,6 +412,8 @@ function LocationProfileInner() {
       <PageBackground bgColor={formPs.bgColor} bgImage={formPs.bgImage} bgOpacity={formPs.bgOpacity} />
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
+      {/* This page's song, set in its style editor like any other profile. */}
+      {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
       <div className="relative z-10 os-pf space-y-4">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>

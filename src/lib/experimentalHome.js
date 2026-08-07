@@ -182,6 +182,9 @@ export function resolveExperimentalHome(stored, registry = {}) {
       visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.filter((x) => typeof x === "string" && x) : [],
       // "only" = just these alters see it; "except" = everyone BUT them.
       visibleMode: p.visibleMode === "except" ? "except" : "only",
+      // A song for this home page — same { ref, title, loop } shape a
+      // profile song uses, played by the same component.
+      song: p.song && typeof p.song === "object" && p.song.ref ? p.song : null,
       widgets,
     });
   }
