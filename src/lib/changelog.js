@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar is much slimmer \u2014 it was reserving space for swipe hints that no longer exist, and names are hidden at tiny icon sizes. Its cog now opens everything in one place: height, icon size, and the widget-style look options." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar is editable like a widget \u2014 tap its cog while editing the home screen for border, background, corners, padding, shadow and the rest. Icons can also go much smaller now (down to 14px)." },
       { type: "improve", text: "Pinned-alters bar settings are now Height (how tall the bar is) and Icon size (how big the avatars in it are), set separately. The old Width/tuck-to-one-side setting and the scroll block are gone." },
       { type: "feature", text: "\ud83e\uddea New UI: home screen pages can be addressed to specific alters \u2014 a page only shows while one of them is fronting. Good for a page that\u2019s just yours, or keeping someone to the pages meant for them. It hides pages, it doesn\u2019t lock them: nothing is deleted, everything still exports, and if whoever\u2019s fronting can\u2019t see any page you get all of them rather than a blank screen." },

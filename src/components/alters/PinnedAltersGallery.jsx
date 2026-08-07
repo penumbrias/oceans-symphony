@@ -53,7 +53,9 @@ let galleryLastTouchAt = 0;
 
 // showGear: hosts that hide the header still need a way into the
 // size/pins settings.
-export default function PinnedAltersGallery({ showHeader = true, showGear = false, className = "" }) {
+// onGear: the host can take over the cog (the v2 bar opens its own
+// options sheet, which carries size AND look — one cog, not two).
+export default function PinnedAltersGallery({ showHeader = true, showGear = false, onGear = null, className = "" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
@@ -132,7 +134,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
     : undefined;
 
   return (
-    <div data-tour="pinned-alters" className={`mb-3 relative ${className}`}>
+    <div data-tour="pinned-alters" className={`relative ${showHeader ? "mb-3" : ""} ${className}`}>
       {showHeader && (
         <div className="flex items-center gap-2 mb-2 px-1">
           <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-1">
@@ -152,7 +154,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
       )}
 
       {!showHeader && showGear && !rearrange && (
-        <button type="button" onClick={() => setGearOpen(true)}
+        <button type="button" onClick={() => (onGear ? onGear() : setGearOpen(true))}
           aria-label="Pinned settings" title="Pinned settings"
           className="absolute -top-1 right-0 z-10 p-1 rounded-full text-muted-foreground/70 hover:text-foreground bg-background/80">
           <SettingsIcon className="w-3 h-3" />
@@ -183,9 +185,10 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
             />
           ));
           const rowChildren = chips;
-          // pt-5 leaves room for the swipe-up hint label above a chip.
+          // The old pt-5/pb-5 gutters existed for swipe-hint labels that the
+          // gesture rework retired — pure wasted height now.
           return (
-            <div className="flex gap-3 overflow-x-auto pt-5 pb-5 scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
+            <div className="flex gap-2 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
               {rowChildren}
             </div>
           );
@@ -271,7 +274,9 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
           <GripVertical className="w-4 h-4 text-white drop-shadow" />
         </span>
       </div>
-      <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>{label}</span>
+      {size >= 30 && (
+        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>{label}</span>
+      )}
     </div>
   );
 }

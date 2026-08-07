@@ -110,7 +110,10 @@ const BAR_DEF = {
   label: "Pinned alters bar",
   description: "The persistent strip of pinned alters.",
   supportsModes: ["normal"],
-  configFields: [],
+  configFields: [
+    { key: "barHeight", type: "number", label: "Bar height (0 = hug the icons)", min: 0, max: 200, default: 0 },
+    { key: "chipSize", type: "number", label: "Icon size", min: 14, max: 88, default: 48 },
+  ],
   defaultSpan: { cols: 4, rows: 1 },
   minSpan: { cols: 1, rows: 1 },
   maxSpan: { cols: 12, rows: 4 },
@@ -1170,7 +1173,7 @@ export default function ExperimentalDashboard({
                 className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-              <PinnedAltersGallery showHeader={false} showGear />
+              <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
             </div>
           )}
         </div>
@@ -1373,13 +1376,6 @@ export default function ExperimentalDashboard({
                 padding: "var(--v2-pad, 0.25rem 0.5rem)",
                 boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
               }}>
-              {editMode && (
-                <button type="button" onClick={() => setConfigId(BAR_CONFIG_ID)}
-                  aria-label="Pinned bar options" title="Pinned bar options"
-                  className="flex-shrink-0 p-1 text-muted-foreground hover:text-foreground">
-                  <Settings2 className="w-3.5 h-3.5" />
-                </button>
-              )}
               <button type="button" onClick={toggleAltersCollapsed}
                 aria-label={altersCollapsed ? `Show pinned ${t.alters}` : `Hide pinned ${t.alters}`}
                 aria-expanded={!altersCollapsed}
@@ -1388,7 +1384,7 @@ export default function ExperimentalDashboard({
               </button>
               {!altersCollapsed && (
                 <div className="min-w-0 overflow-x-auto">
-                  <PinnedAltersGallery showHeader={false} showGear />
+                  <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
                 </div>
               )}
             </div>
@@ -1462,15 +1458,35 @@ export default function ExperimentalDashboard({
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
         api={widgetApi}
         widget={configuringBar
-          ? { instanceId: BAR_CONFIG_ID, widgetId: BAR_CONFIG_ID, mode: "normal", span: { cols: 4, rows: 1 }, settings: home.altersBar.look || {} }
+          ? { instanceId: BAR_CONFIG_ID, widgetId: BAR_CONFIG_ID, mode: "normal", span: { cols: 4, rows: 1 },
+              settings: { ...(home.altersBar.look || {}),
+                barHeight: settingsRow?.pinned_alters_config?.barHeight ?? 0,
+                chipSize: settingsRow?.pinned_alters_config?.chipSize ?? 48 } }
           : (widgets.find((w) => w.instanceId === configId) || null)}
         def={configuringBar ? BAR_DEF : registry[widgets.find((w) => w.instanceId === configId)?.widgetId]}
         pageStyleId={home.styleMode}
         onClose={() => setConfigId(null)}
         onMode={handleMode}
-        onSettings={(id, patch) => (id === BAR_CONFIG_ID
-          ? persist({ ...home, altersBar: { ...home.altersBar, look: { ...(home.altersBar.look || {}), ...patch } } })
-          : handleSettings(id, patch))}
+        onSettings={(id, patch) => {
+          if (id !== BAR_CONFIG_ID) return handleSettings(id, patch);
+          // barHeight/chipSize live with the pins (shared with classic), the
+          // rest is the bar's look.
+          const { barHeight, chipSize, ...look } = patch;
+          if (barHeight !== undefined || chipSize !== undefined) {
+            const cfg = settingsRow?.pinned_alters_config || {};
+            const next = { ...cfg };
+            if (barHeight !== undefined) next.barHeight = barHeight;
+            if (chipSize !== undefined) next.chipSize = chipSize;
+            if (settingsRow?.id) {
+              base44.entities.SystemSettings.update(settingsRow.id, { pinned_alters_config: next })
+                .then(() => qc.invalidateQueries({ queryKey: ["systemSettings"] }))
+                .catch(() => {});
+            }
+          }
+          if (Object.keys(look).length) {
+            persist({ ...home, altersBar: { ...home.altersBar, look: { ...(home.altersBar.look || {}), ...look } } });
+          }
+        }}
         onResetWidget={(id) => (id === BAR_CONFIG_ID
           ? persist({ ...home, altersBar: { ...home.altersBar, look: {} } })
           : handleResetWidget(id))}
