@@ -667,63 +667,42 @@ export default function WidgetConfigSheet({
               onChange={(v) => onSettings(widget.instanceId, { fontScale: v })}
               onReset={() => onSettings(widget.instanceId, { fontScale: "" })} />
 
-            {/* Every colour in one place, two-up — they were spread down the
-                panel with the border colour stranded under the sizes. */}
-            <div className="grid grid-cols-2 gap-x-3 gap-y-2">
+            {/* Four swatches on one line. The name, hex field, Clear and
+                "use the app colour" all live inside each picker's popover —
+                labelling them in the row squeezed the text into unreadable
+                vertical slivers on a narrow sheet. */}
             <div>
-              <label className="text-xs font-medium block mb-1">Highlight colour</label>
-              <div className="flex items-center gap-2">
-                <ColorPicker value={settings.accent || live.accent || "#3b82f6"}
-                  onChange={(v) => onSettings(widget.instanceId, { accent: v })} />
-                <button type="button" onClick={() => onSettings(widget.instanceId, { accent: "" })}
-                  className={`text-xs px-2.5 py-1 rounded-full border ${!settings.accent ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
-                  Use the app colour
-                </button>
+              <label className="text-xs font-medium block mb-1.5">Colours</label>
+              <div className="flex items-center gap-3">
+                <ColorPicker compact label="Highlight colour"
+                  value={settings.accent || live.accent || "#3b82f6"}
+                  onChange={(v) => onSettings(widget.instanceId, { accent: v })}
+                  onClear={() => onSettings(widget.instanceId, { accent: "" })}
+                  extraAction={{ label: "Use the app colour", onClick: () => onSettings(widget.instanceId, { accent: "" }) }} />
+                <ColorPicker compact label="Background"
+                  value={settings.bg || live.bg || "#111827"}
+                  onChange={(v) => onSettings(widget.instanceId, { bg: v })}
+                  onClear={() => onSettings(widget.instanceId, { bg: "", bgOpacity: "" })} />
+                <ColorPicker compact label="Text colour"
+                  value={settings.textColor || live.textColor || "#e5e7eb"}
+                  onChange={(v) => onSettings(widget.instanceId, { textColor: v })}
+                  onClear={() => onSettings(widget.instanceId, { textColor: "" })} />
+                <ColorPicker compact label="Border colour"
+                  value={settings.borderColor || live.borderColor || "#3b82f6"}
+                  onChange={(v) => onSettings(widget.instanceId, { borderColor: v })}
+                  onClear={() => onSettings(widget.instanceId, { borderColor: "" })} />
               </div>
-            </div>
-
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Background</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.bg || live.bg || "#111827"}
-                    onChange={(v) => onSettings(widget.instanceId, { bg: v })} />
-                  <button type="button" onClick={() => onSettings(widget.instanceId, { bg: "", bgOpacity: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
+              {settings.bg && (
+                <div className="mt-2">
+                  <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
+                    Background opacity <span>{settings.bgOpacity ?? 100}%</span>
+                  </label>
+                  <input type="range" min={0} max={100} step={5}
+                    value={settings.bgOpacity ?? 100}
+                    onChange={(e) => onSettings(widget.instanceId, { bgOpacity: Number(e.target.value) })}
+                    className="w-full accent-primary" aria-label="Background opacity" />
                 </div>
-                {/* See-through backgrounds: the wallpaper shows through at
-                    anything under 100%. Only meaningful once a colour is set. */}
-                {settings.bg && (
-                  <div className="mt-1.5">
-                    <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
-                      Opacity <span>{settings.bgOpacity ?? 100}%</span>
-                    </label>
-                    <input type="range" min={0} max={100} step={5}
-                      value={settings.bgOpacity ?? 100}
-                      onChange={(e) => onSettings(widget.instanceId, { bgOpacity: Number(e.target.value) })}
-                      className="w-full accent-primary" aria-label="Background opacity" />
-                  </div>
-                )}
-              </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Text colour</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.textColor || live.textColor || "#e5e7eb"}
-                    onChange={(v) => onSettings(widget.instanceId, { textColor: v })} />
-                  <button type="button" onClick={() => onSettings(widget.instanceId, { textColor: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
-                </div>
-              </div>
-            </div>
-              <div>
-                <label className="text-xs font-medium block mb-1">Border colour</label>
-                <div className="flex items-center gap-2 flex-wrap">
-                  <ColorPicker value={settings.borderColor || live.borderColor || "#3b82f6"}
-                    onChange={(v) => onSettings(widget.instanceId, { borderColor: v })} />
-                  <button type="button" onClick={() => onSettings(widget.instanceId, { borderColor: "" })}
-                    className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Clear</button>
-                </div>
-              </div>
+              )}
             </div>
 
             <div>
