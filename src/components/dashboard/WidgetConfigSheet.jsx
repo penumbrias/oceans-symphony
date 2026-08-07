@@ -524,6 +524,20 @@ export default function WidgetConfigSheet({
                   <AppListField value={Array.isArray(val) ? val : []}
                     onChange={(next) => commit(next)} terms={t} />
                 )}
+                {/* A range reads as "drag me"; a number box reads as "type an
+                    exact value", which is the wrong affordance for a size. */}
+                {f.type === "range" && (
+                  <div>
+                    <input type="range" value={Number(val) || 0}
+                      min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1}
+                      onChange={(e) => commit(Number(e.target.value))}
+                      aria-label={f.label}
+                      className="w-full accent-primary" />
+                    <span className="text-[0.6875rem] text-muted-foreground">
+                      {f.format ? f.format(Number(val) || 0) : `${Number(val) || 0}${f.unit || "px"}`}
+                    </span>
+                  </div>
+                )}
                 {f.type === "number" && (
                   <input type="number" key={`${widget.instanceId}:${f.key}`} defaultValue={val}
                     min={f.min} max={f.max}

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: icon size and bar height in the pinned-alters options are sliders now instead of number boxes, matching the other size controls." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar is much slimmer \u2014 it was reserving space for swipe hints that no longer exist, and names are hidden at tiny icon sizes. Its cog now opens everything in one place: height, icon size, and the widget-style look options." },
       { type: "improve", text: "\ud83e\uddea New UI: the pinned-alters bar is editable like a widget \u2014 tap its cog while editing the home screen for border, background, corners, padding, shadow and the rest. Icons can also go much smaller now (down to 14px)." },
       { type: "improve", text: "Pinned-alters bar settings are now Height (how tall the bar is) and Icon size (how big the avatars in it are), set separately. The old Width/tuck-to-one-side setting and the scroll block are gone." },

@@ -111,8 +111,9 @@ const BAR_DEF = {
   description: "The persistent strip of pinned alters.",
   supportsModes: ["normal"],
   configFields: [
-    { key: "barHeight", type: "number", label: "Bar height (0 = hug the icons)", min: 0, max: 200, default: 0 },
-    { key: "chipSize", type: "number", label: "Icon size", min: 14, max: 88, default: 48 },
+    { key: "barHeight", type: "range", label: "Bar height", min: 0, max: 200, step: 4, default: 0,
+      format: (v) => (v > 0 ? `${v}px` : "hug the icons") },
+    { key: "chipSize", type: "range", label: "Icon size", min: 14, max: 88, step: 2, default: 48 },
   ],
   defaultSpan: { cols: 4, rows: 1 },
   minSpan: { cols: 1, rows: 1 },
