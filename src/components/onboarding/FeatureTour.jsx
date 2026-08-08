@@ -223,7 +223,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "📋",
       title: `${t.Alter} Profile — Tab Bar`,
-      body: `Tap any ${t.alter} card to open their profile. The tab bar at the top gives access to: Profile (bio + custom fields), Info, Board (${t.system}-wide messages to this ${t.alter}), Messages (private messages), History (${t.fronting} sessions), Notes, Lineage, Relationships, Locations (inner-world locations this ${t.alter} is in), and Options. Swipe the tab bar to see all tabs. An ${t.alter} can even have a profile song (set in their edit window) that plays when their page opens — MySpace style.`,
+      body: `Tap any ${t.alter} card to open their profile. The tab bar at the top gives access to: Profile (bio + custom fields), Info, Board (${t.system}-wide messages to this ${t.alter}), Messages (private messages), History (${t.fronting} sessions), Notes, Lineage, Relationships, Locations (inner-world locations this ${t.alter} is in), and Options. Swipe the tab bar to see all tabs. An ${t.alter} can have a song that plays when their page opens, set in their profile style.`,
       route: ai ? `/alter/${ai}` : "/Home",
       target: ai ? "alter-profile-tabs" : "alters-grid",
       look: ai ? `the highlighted tab bar at the top of the ${t.alter} profile` : `tap any ${t.alter} card to open their profile and see the tab bar`, action: null,

@@ -63,7 +63,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         </div>
       ) : (
         <p className="text-xs text-muted-foreground">
-          No song yet — when set, it plays whenever this {subjectLabel} opens (MySpace style).
+          Plays when this {subjectLabel} opens.
         </p>
       )}
       <div className="flex flex-wrap items-center gap-2">

@@ -367,6 +367,7 @@ export default function WidgetConfigSheet({
   onPickIcon,        // (instanceId) → opens the shared AssetPickerModal
   onRemove,          // (instanceId) → delete this widget
   onResetWidget,     // (instanceId) → back to registry defaults
+  onEditLayout,      // () → turn on home-screen edit mode (move/resize)
   userStyles = [],   // the user's own saved styles
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
@@ -935,6 +936,18 @@ export default function WidgetConfigSheet({
           )}
           </SubSection>
           <div className="pt-2 border-t border-border/50 space-y-2">
+            {/* Reached by holding a widget, where the user often wants to
+                MOVE it rather than restyle it — without this they had to
+                close the sheet and find edit mode themselves. */}
+            {onEditLayout && (
+              <button
+                type="button"
+                onClick={onEditLayout}
+                className="w-full flex items-center justify-center gap-2 h-10 rounded-lg border border-border/60 text-sm font-medium hover:bg-muted/50"
+              >
+                <LayoutGrid className="w-4 h-4" /> Move &amp; resize widgets
+              </button>
+            )}
             {/* Undo every tweak at once — size, mode, name, look, alignment,
                 content size and this widget's own options. */}
             <button

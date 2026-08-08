@@ -33,7 +33,7 @@ export default function ProfileSongsSettings() {
         <p className="text-sm font-semibold">Play profile songs</p>
         <p className="text-xs text-muted-foreground mt-0.5">
           An {terms.alter} with a profile song (set in their edit window) plays it
-          when their page opens — MySpace style, with a floating player to pause
+          when their page opens, with a floating player to pause
           or stop. Off silences every profile.
         </p>
       </div>

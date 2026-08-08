@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s options now include \"Move & resize widgets\", so holding a widget to open its options can lead straight into rearranging the page." },
+      { type: "improve", text: "Trimmed chatty explanations out of the interface \u2014 settings say what they do, without the aside." },
       { type: "improve", text: "\ud83e\uddea New UI: the home screen song is a widget now instead of a page setting \u2014 add it to any page (or more than one), and it sits with your other widgets." },
       { type: "improve", text: "A profile song is part of a page\u2019s style now rather than something you set while creating an alter \u2014 so it lives in the same place as the page\u2019s colours and background, on every profile and on home screen pages. Songs already set keep playing." },
       { type: "feature", text: "Profile songs work on every profile page now \u2014 alters, groups and inner-world locations \u2014 and can be set any time from the page\u2019s style editor, not just while creating an alter." },
