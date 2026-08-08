@@ -1692,12 +1692,12 @@ export default function ExperimentalDashboard({
           ? persist({ ...home, altersBar: { ...home.altersBar, look: {} } })
           : handleResetWidget(id))}
         onPickIcon={(instanceId) => setAssetPickerFor({ icon: instanceId })}
+        onEditLayout={() => { setEditMode(true); setConfigId(null); }}
+        onApplyLook={handleApplyLook}
       />
 
       {/* Page style picker */}
       <Drawer open={stylePickerOpen} onOpenChange={(v) => { if (!v) setStylePickerOpen(false); }}>
-        onEditLayout={() => { setEditMode(true); setConfigId(null); }}
-        onApplyLook={handleApplyLook}
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader className="pb-1">
             <DrawerTitle className="text-base">Homescreen style</DrawerTitle>

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: stray code text (\"onEditLayout=onApplyLook=\") appeared on the home screen, and the two options it belonged to \u2014 \"Move & resize widgets\" and \"Apply this look to\u2026\" \u2014 were missing from widget options. Both are back." },
       { type: "improve", text: "The new widget home screen now announces itself on the dashboard with a one-tap \"Try it\", instead of only being findable in Settings. Dismiss it and it stays gone." },
       { type: "improve", text: "\ud83e\uddea New UI: the row of pills across the top of the edit screen is one \"Home screen\" menu now \u2014 layout, columns, style, wallpaper, quick-action keys and the pinned bar all live together instead of crowding the bar." },
       { type: "improve", text: "\ud83e\uddea New UI: the style list shows a real preview of each style, includes your own saved ones, is searchable, and each has a \"Use as a base\" option so you can start from one and change it instead of only picking it." },
