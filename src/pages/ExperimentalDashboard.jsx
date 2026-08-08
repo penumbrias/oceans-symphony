@@ -521,6 +521,8 @@ export default function ExperimentalDashboard({
   // on the default page); the pages themselves live in experimental_home.
   const [activePageId, setActivePageId] = useState(null);
   const [audienceOpen, setAudienceOpen] = useState(false);
+  const [homeSettingsOpen, setHomeSettingsOpen] = useState(false);
+  const [styleQuery, setStyleQuery] = useState("");
   const barDragStart = useRef(null);
   const barSwiped = useRef(false);
   const barDragAt = useRef(null);
@@ -1114,8 +1116,47 @@ export default function ExperimentalDashboard({
       {/* Edit-mode toolbar */}
       {editMode && (
       <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">
-        {editMode && (
-          <>
+        {/* One menu instead of a row of pills — every home-screen setting
+            now lives in the sheet below, so the bar stays a bar. */}
+        <button type="button" onClick={() => setHomeSettingsOpen(true)}
+          aria-label="Home screen settings" title="Home screen settings"
+          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors">
+          <Settings2 className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setDrawerOpen(true)}
+          aria-label="Open app drawer"
+          title="Apps & widgets"
+          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <LayoutGrid className="w-4 h-4" />
+        </button>
+        <button
+          type="button"
+          onClick={() => setEditMode((v) => !v)}
+          aria-pressed={editMode}
+          aria-label={editMode ? "Done editing" : "Edit homescreen"}
+          title={editMode ? "Done" : "Edit homescreen"}
+          className={`min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl transition-colors ${
+            editMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
+          }`}
+        >
+          <Check className="w-4 h-4" />
+        </button>
+      </div>
+      )}
+
+      {/* Home screen settings — what used to be the toolbar pills. */}
+      <Drawer open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
+        <DrawerContent className="max-h-[85vh]">
+          <DrawerHeader className="pb-1">
+            <DrawerTitle className="text-base">Home screen</DrawerTitle>
+            <DrawerDescription className="text-xs">Layout, look and bars for this board.</DrawerDescription>
+          </DrawerHeader>
+          <div className="px-4 overflow-y-auto overscroll-contain"
+            style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
               onClick={handleBackToClassic}
@@ -1254,31 +1295,10 @@ export default function ExperimentalDashboard({
             >
               {t.Alters} bar: {home.altersBar.enabled ? (home.altersBar.position === "top" ? "Top" : "Bottom") : "Off"}
             </button>
-          </>
-        )}
-        <button
-          type="button"
-          onClick={() => setDrawerOpen(true)}
-          aria-label="Open app drawer"
-          title="Apps & widgets"
-          className="min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <LayoutGrid className="w-4 h-4" />
-        </button>
-        <button
-          type="button"
-          onClick={() => setEditMode((v) => !v)}
-          aria-pressed={editMode}
-          aria-label={editMode ? "Done editing" : "Edit homescreen"}
-          title={editMode ? "Done" : "Edit homescreen"}
-          className={`min-w-[34px] min-h-[34px] flex items-center justify-center rounded-xl transition-colors ${
-            editMode ? "bg-primary text-primary-foreground" : "hover:bg-muted/50 text-muted-foreground hover:text-foreground"
-          }`}
-        >
-          <Check className="w-4 h-4" />
-        </button>
-      </div>
-      )}
+            </div>
+          </div>
+        </DrawerContent>
+      </Drawer>
 
       {/* Pinned-alters bar (top position) — persists across page swipes. */}
       {altersTop && (
@@ -1689,21 +1709,53 @@ export default function ExperimentalDashboard({
             className="px-4 pb-6 space-y-1 overflow-y-auto overscroll-contain"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
           >
-            {HOME_STYLES.map((s) => (
-              <button
-                key={s.id}
-                type="button"
-                onClick={() => { persist({ ...home, styleMode: s.id }); setStylePickerOpen(false); }}
-                className={`w-full text-left px-3 py-2 rounded-lg border text-sm transition-all ${
-                  home.styleMode === s.id
-                    ? "border-primary/60 bg-primary/10"
-                    : "border-border/40 hover:border-border"
-                }`}
-              >
-                <span className="font-medium">{s.label}</span>
-                <span className="text-xs text-muted-foreground block">{s.description}</span>
-              </button>
-            ))}
+            {/* Each row previews the real thing: a style is just look values
+                now, so the swatch is rendered by the same pipeline a widget
+                uses. Searchable because the library is meant to grow. */}
+            <input
+              value={styleQuery}
+              onChange={(e) => setStyleQuery(e.target.value)}
+              placeholder="Search styles…"
+              className="w-full h-9 px-3 mb-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+            />
+            {[
+              ...HOME_STYLES.map((st) => ({ id: st.id, label: st.label, description: st.description, look: getStyleLook(st.id), mine: false })),
+              ...userStyles.map((st) => ({ id: `${USER_STYLE_PREFIX}${st.id}`, label: st.label, description: "Your saved style", look: st.look || {}, mine: true })),
+            ]
+              .filter((st) => !styleQuery.trim() || st.label.toLowerCase().includes(styleQuery.trim().toLowerCase()))
+              .map((st) => (
+                <div key={st.id}
+                  className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg border text-sm transition-all ${
+                    home.styleMode === st.id ? "border-primary/60 bg-primary/10" : "border-border/40"
+                  }`}>
+                  <span aria-hidden="true" className="w-10 h-10 flex-shrink-0"
+                    style={{ ...lookToStyle(st.look), ...boxStyle() }} />
+                  <button type="button"
+                    onClick={() => { persist({ ...home, styleMode: st.id }); setStylePickerOpen(false); }}
+                    className="flex-1 min-w-0 text-left">
+                    <span className="font-medium">{st.label}</span>
+                    <span className="text-xs text-muted-foreground block truncate">{st.description}</span>
+                  </button>
+                  {/* Start from any style instead of from nothing. */}
+                  <button type="button"
+                    title={`Copy ${st.label} into this page's widgets to edit`}
+                    onClick={() => {
+                      persist({
+                        ...home,
+                        styleMode: "current",
+                        pages: home.pages.map((p) => (p.id !== page.id ? p : {
+                          ...p,
+                          widgets: p.widgets.map((w) => ({ ...w, settings: { ...w.settings, ...st.look } })),
+                        })),
+                      });
+                      setStylePickerOpen(false);
+                      toast.success(`${st.label} copied onto this page — edit any widget to tweak it`);
+                    }}
+                    className="text-[0.625rem] px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+                    Use as a base
+                  </button>
+                </div>
+              ))}
           </div>
         </DrawerContent>
       </Drawer>

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the row of pills across the top of the edit screen is one \"Home screen\" menu now \u2014 layout, columns, style, wallpaper, quick-action keys and the pinned bar all live together instead of crowding the bar." },
+      { type: "improve", text: "\ud83e\uddea New UI: the style list shows a real preview of each style, includes your own saved ones, is searchable, and each has a \"Use as a base\" option so you can start from one and change it instead of only picking it." },
       { type: "improve", text: "The setup guide now walks you through your fronting levels and offers the new widget-based home screen, so neither is something you have to find on your own. New systems start with Fronting, Influencing and Observing instead of a fronting/co-fronting pair \u2014 rename or replace them freely. Existing setups are untouched." },
       { type: "fix", text: "Security: removed a rich-text library the app no longer uses, which carried published vulnerabilities." },
       { type: "feature", text: "\ud83e\uddea New UI: widgets get gradient and frosted-blur controls, so the glossy and frosted looks the built-in styles use are yours to build, mix and change on any widget." },
