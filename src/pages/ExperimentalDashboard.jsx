@@ -48,7 +48,7 @@ import { useFreeMove } from "@/hooks/useFreeMove";
 import {
   pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, newStyleId,
 } from "@/lib/widgetLook";
-import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
+import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -97,10 +97,14 @@ function useGridCols(phoneCols = 4, lockToPhone = false) {
 // A widget's visual layer = its saved style (if it uses one) with its own
 // overrides on top, emitted as CSS variables on its wrapper so everything
 // inside inherits them. See src/lib/widgetLook.js.
-export function widgetLookFor(settings = {}, userStyles = []) {
+export function widgetLookFor(settings = {}, userStyles = [], pageStyleId = "current") {
   const styleId = userStyleId(settings.style);
   const saved = styleId ? userStyles.find((s) => s.id === styleId) : null;
-  return mergeLook(saved?.look || {}, pickLook(settings));
+  // Base: the built-in style (the widget's override, else the page's) —
+  // then a saved user style, then the widget's own fields. One box, one
+  // border: styles no longer paint a second one behind the widget.
+  const builtinId = HOME_STYLE_IDS.includes(settings.style) ? settings.style : pageStyleId;
+  return mergeLook(mergeLook(getStyleLook(builtinId), saved?.look || {}), pickLook(settings));
 }
 
 const TRASH_ID = "__widget_trash";
@@ -220,13 +224,16 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
     onRemove: () => onRemove(widget.instanceId),
   });
 
-  const look = widgetLookFor(widget.settings, userStyles);
+  const look = widgetLookFor(widget.settings, userStyles, styleMode);
   // Content alignment within the widget's box (owner request 2026-08-06):
   // centered by default so a short widget never leaves all its blank space
   // at the bottom; "safe" falls back to top when the content overflows so
   // nothing becomes unscrollable.
   const valign = widget.settings?.valign || "center";
   const valignJustify = valign === "top" ? "flex-start" : valign === "bottom" ? "safe flex-end" : "safe center";
+  // Horizontal too — a narrow widget's content can hug either edge.
+  const halign = widget.settings?.halign || "stretch";
+  const halignItems = halign === "left" ? "flex-start" : halign === "right" ? "flex-end" : halign === "center" ? "center" : "stretch";
   const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
   const lookStyle = lookToStyle(look.bgImage ? { ...look, bgImage: bgUrl } : look);
   const handSized = widget.settings?.autoFit === false;
@@ -385,7 +392,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
             optionsHold.onPointerDown?.(e);
             if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
           }}
-          style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, ...(editMode ? { pointerEvents: "none" } : null) }}>
+          style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, alignItems: halignItems, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,

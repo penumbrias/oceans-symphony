@@ -17,54 +17,66 @@ export const HOME_STYLES = [
     label: "Current",
     description: "Widgets keep their normal app look.",
     shell: "",
+    look: {},
   },
   {
     id: "glass",
     label: "Glass",
     description: "Frosted translucent cards — pairs well with a wallpaper.",
-    shell: "rounded-2xl bg-card/45 backdrop-blur-sm border border-border/30 p-2 h-full",
+    // `shell` is now ONLY for what a CSS variable can't express (blur,
+    // gradients). Everything box-shaped moved into `look`, so a style and a
+    // widget's own settings live on one axis instead of painting two boxes.
+    shell: "backdrop-blur-sm",
+    look: { radius: 16, borderW: 1, borderColor: "#8a8a9a55", bg: "#20202b", bgOpacity: 45, padding: 8 },
   },
   {
     id: "social",
     label: "Social feed",
     description: "Flat cards with soft shadows, like a social timeline.",
-    shell: "rounded-xl bg-card border border-border/30 shadow-md p-2.5 h-full",
+    shell: "",
+    look: { radius: 12, borderW: 1, borderColor: "#8a8a9a33", bg: "#1a1a24", padding: 10, shadow: "soft" },
   },
   {
     id: "toybox",
     label: "Toybox",
-    description: "Chunky borders and hard offset shadows (neobrutalism).",
-    shell: "rounded-xl bg-card border-[3px] border-foreground/80 shadow-[4px_4px_0_0_rgba(0,0,0,0.85)] dark:shadow-[4px_4px_0_0_rgba(255,255,255,0.28)] p-2 h-full",
+    description: "Chunky borders and hard offset shadows.",
+    shell: "",
+    look: { radius: 12, borderW: 3, borderColor: "#e8e8f0cc", bg: "#1a1a24", padding: 8, shadow: "hard" },
   },
   {
     id: "forum",
     label: "Old forum",
-    description: "Beveled parchment boxes and serif type, early-web style.",
-    shell: "rounded-none bg-amber-100/70 dark:bg-amber-950/30 border-2 border-amber-900/40 [border-style:outset] font-serif p-2 h-full",
+    description: "Beveled parchment boxes and serif type.",
+    shell: "",
+    look: { radius: 0, borderW: 2, borderColor: "#8a6a3a66", borderStyle: "double", bg: "#2a2318", padding: 8, font: "serif" },
   },
   {
     id: "terminal",
     label: "Terminal",
-    description: "Monospace, square corners, a faint green phosphor glow.",
-    shell: "rounded-none bg-black/50 border border-green-500/40 font-mono shadow-[0_0_10px_rgba(63,191,63,0.12)] p-2 h-full",
+    description: "Monospace, square corners, a faint green glow.",
+    shell: "",
+    look: { radius: 0, borderW: 1, borderColor: "#3fbf3f66", bg: "#050805", padding: 8, font: "monospace", accent: "#3fbf3f", shadow: "glow" },
   },
   {
     id: "spreadsheet",
     label: "Spreadsheet",
-    description: "Tight gridline cells, no rounding — very Excel.",
-    shell: "rounded-none bg-background border border-emerald-700/40 p-1.5 h-full",
+    description: "Tight gridline cells, no rounding.",
+    shell: "",
+    look: { radius: 0, borderW: 1, borderColor: "#3f7f5f66", bg: "#101418", padding: 6 },
   },
   {
     id: "aero",
     label: "Aero",
-    description: "Glossy blue-green gradients (Frutiger Aero nostalgia).",
-    shell: "rounded-2xl bg-gradient-to-br from-sky-400/25 via-cyan-300/15 to-emerald-300/25 border border-white/30 dark:border-white/15 shadow-inner backdrop-blur-sm p-2 h-full",
+    description: "Glossy gradients and soft glass.",
+    shell: "os-style-aero backdrop-blur-sm",
+    look: { radius: 16, borderW: 1, borderColor: "#ffffff40", padding: 8 },
   },
   {
     id: "barebones",
     label: "Barebones",
     description: "No shell at all, tighter spacing.",
     shell: "",
+    look: { radius: 0, borderW: 0, padding: 0 },
   },
 ];
 
@@ -76,4 +88,9 @@ export function getHomeStyle(id) {
 
 export function getStyleShell(id) {
   return getHomeStyle(id).shell;
+}
+
+// A style's box values, used as the BASE layer under a widget's own look.
+export function getStyleLook(id) {
+  return getHomeStyle(id).look || {};
 }

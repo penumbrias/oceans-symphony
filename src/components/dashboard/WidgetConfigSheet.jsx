@@ -494,7 +494,26 @@ export default function WidgetConfigSheet({
               default; overflowing content still starts at the top. */}
           <div>
             <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Alignment
+              Across
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[["stretch", "Fill"], ["left", "Left"], ["center", "Center"], ["right", "Right"]].map(([v, label]) => (
+                <button key={v} type="button"
+                  onClick={() => onSettings(widget.instanceId, { halign: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                    (settings.halign || "stretch") === v
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Down
             </label>
             <div className="flex flex-wrap gap-1.5">
               {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (

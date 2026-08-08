@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: widgets drew two boxes \u2014 the page style painted its own border, background and shadow behind the one your settings control, so the outer edge ignored your changes and shadows could appear inside the widget. There\u2019s one box now, and a style just sets its starting values." },
+      { type: "improve", text: "\ud83e\uddea New UI: widget contents can be aligned across as well as down \u2014 fill, left, centre or right." },
       { type: "feature", text: "\ud83e\uddea New UI: \"Apply this look to\u2026\" at the bottom of a widget\u2019s options copies its appearance to every widget on the page, every widget everywhere, or ones you pick by tapping them. Names, sizes and each widget\u2019s own settings are left alone." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s options now include \"Move & resize widgets\", so holding a widget to open its options can lead straight into rearranging the page." },
       { type: "improve", text: "Trimmed chatty explanations out of the interface \u2014 settings say what they do, without the aside." },
