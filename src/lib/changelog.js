@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "Write a bulletin post from a popup, the way a new journal entry works. The board you\u2019re posting to sits at the top so you can switch it, and you can star boards to keep them first in the list." },
       { type: "feature", text: "Audio you upload for a song is saved to your asset library, so you can reuse the same track anywhere without uploading it again \u2014 pick it with \"From library\". Songs and images stay in their own pickers." },
       { type: "fix", text: "\ud83e\uddea New UI: stray code text (\"onEditLayout=onApplyLook=\") appeared on the home screen, and the two options it belonged to \u2014 \"Move & resize widgets\" and \"Apply this look to\u2026\" \u2014 were missing from widget options. Both are back." },
       { type: "improve", text: "The new widget home screen now announces itself on the dashboard with a one-tap \"Try it\", instead of only being findable in Settings. Dismiss it and it stays gone." },

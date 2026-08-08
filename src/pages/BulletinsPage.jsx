@@ -1,10 +1,11 @@
-import React from "react";
+import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate, useLocation } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
-import { ChevronLeft } from "lucide-react";
+import { ChevronLeft, Plus } from "lucide-react";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
+import BulletinComposerModal from "@/components/bulletin/BulletinComposerModal";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 // Full-screen Bulletin Board view. Same component the dashboard
@@ -18,6 +19,7 @@ import { UI_V2_ENABLED } from "@/lib/featureFlags";
 // the user adds it back to the grid, or from any link that targets
 // `/bulletins`.
 export default function BulletinsPage() {
+  const [composerOpen, setComposerOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const highlightId = new URLSearchParams(location.search).get("id");
@@ -60,6 +62,21 @@ export default function BulletinsPage() {
         <h1 className="text-xl sm:text-2xl font-semibold">Bulletin Board</h1>
         <div className="w-16" aria-hidden /> {/* spacer to balance header */}
       </div>
+
+      {/* Compose from the page header, like a new journal entry — the board
+          is chosen inside the popup. */}
+      <div className="flex justify-end mb-2">
+        <Button size="sm" onClick={() => setComposerOpen(true)} className="gap-1.5 text-xs">
+          <Plus className="w-3.5 h-3.5" /> New post
+        </Button>
+      </div>
+      <BulletinComposerModal
+        open={composerOpen}
+        onClose={() => setComposerOpen(false)}
+        alters={alters}
+        authorAlterId={currentAlterId}
+        frontingAlterIds={frontingAlterIds}
+      />
 
       <BulletinBoard
         alters={alters}
