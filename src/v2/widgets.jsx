@@ -24,7 +24,7 @@ import {
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
-  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2,
+  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -56,6 +56,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -2731,6 +2732,20 @@ export const V2_WIDGETS = {
     render: sized(() => <SleepControlWidget />),
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
+  },
+  song: {
+    label: "Song", description: "A song that plays while this page is open.",
+    icon: Music, category: "support",
+    render: sized(({ settings }) => (
+      <Section label={settings?.label || "Song"}>
+        {settings?.song?.ref
+          ? <ProfileSongPlayer inline song={settings.song} />
+          : <Muted>Pick a song in this widget's options.</Muted>}
+      </Section>
+    )),
+    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    configFields: [{ key: "song", type: "song", label: "Song" }],
+    defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
   breathing: {
     label: "Breathing", description: "The guided breathing animation, right on the page.",

@@ -56,8 +56,6 @@ import {
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
-import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
-import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { boxStyle } from "@/v2/primitives";
@@ -1030,10 +1028,6 @@ export default function ExperimentalDashboard({
       {...holdHandlers}>
       {/* Wallpaper — fixed under everything in this stacking context; the
           isolate on the root keeps the negative z-index from escaping. */}
-      {/* This page's song. Keyed by page so switching pages swaps the
-          track instead of leaving the old one playing. */}
-      {page.song?.ref && <ProfileSongPlayer key={page.id} song={page.song} />}
-
       {wallpaperUrl && (
         <div className="fixed inset-0 -z-10 pointer-events-none" aria-hidden="true">
           <img src={wallpaperUrl} alt="" className="w-full h-full object-cover" />
@@ -1331,19 +1325,6 @@ export default function ExperimentalDashboard({
       {/* Who this page is for. Soft hiding: the page still exists, is still
           in your backup, and if the current fronters can't see ANY page the
           board shows them all rather than nothing. */}
-      {editMode && (
-        <div className="mx-3 mb-3 p-2 rounded-xl border border-border/50 bg-background/80">
-          <p className="text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground mb-1.5">
-            Page song
-          </p>
-          <ProfileSongPicker
-            value={page.song || null}
-            onChange={(v) => persist({ ...home, pages: home.pages.map((p) => (p.id === page.id ? { ...p, song: v } : p)) })}
-            subjectLabel="home page"
-          />
-        </div>
-      )}
-
       {editMode && audienceOpen && (
         <div className="mx-3 mb-3 p-2 rounded-xl border border-border/50 bg-background/80">
           <div className="flex items-center gap-1 mb-1.5">

@@ -19,7 +19,10 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
 // `song` lets any surface drive this (group/location profiles, the v2 home
 // board); `alter` stays supported so existing callers are untouched.
-export default function ProfileSongPlayer({ alter, song: songProp }) {
+// `inline` renders the controls in normal flow (for the home-screen song
+// WIDGET, which supplies its own box) instead of the floating chip a
+// profile page gets.
+export default function ProfileSongPlayer({ alter, song: songProp, inline = false }) {
   const song = songProp || alter?.profile_song;
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -56,7 +59,7 @@ export default function ProfileSongPlayer({ alter, song: songProp }) {
 
   if (!enabled || !song?.ref || state === "dismissed") return null;
 
-  const title = song.title || `${alter.name}'s song`;
+  const title = song.title || alter?.name ? (song.title || `${alter?.name}'s song`) : "Song";
   const toggle = () => {
     const el = audioRef.current;
     if (!el) return;
@@ -70,8 +73,10 @@ export default function ProfileSongPlayer({ alter, song: songProp }) {
 
   return (
     <div
-      className="fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm max-w-[85vw]"
-      style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
+      className={inline
+        ? "flex items-center gap-1.5 w-full min-w-0"
+        : "fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm max-w-[85vw]"}
+      style={inline ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
     >
       <Music className={`w-3.5 h-3.5 flex-shrink-0 ${state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
       <span className="text-xs font-medium truncate min-w-0">{title}</span>

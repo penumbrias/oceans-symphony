@@ -182,9 +182,8 @@ export function resolveExperimentalHome(stored, registry = {}) {
       visibleTo: Array.isArray(p.visibleTo) ? p.visibleTo.filter((x) => typeof x === "string" && x) : [],
       // "only" = just these alters see it; "except" = everyone BUT them.
       visibleMode: p.visibleMode === "except" ? "except" : "only",
-      // A song for this home page — same { ref, title, loop } shape a
-      // profile song uses, played by the same component.
-      song: p.song && typeof p.song === "object" && p.song.ref ? p.song : null,
+      // (A page-level song lived here briefly in v0.148.0; it's the `song`
+      // WIDGET now, so a page can have one, several, or none.)
       widgets,
     });
   }
