@@ -7,7 +7,10 @@
 // URL streams instead. The global kill-switch stays in Settings.
 
 import React, { useRef, useState } from "react";
-import { Music, Upload, Loader2, X } from "lucide-react";
+import { Music, Upload, Loader2, X, FolderOpen } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { base44 } from "@/api/base44Client";
+import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -17,7 +20,9 @@ import { isLocalMode } from "@/lib/storageMode";
 
 export default function ProfileSongPicker({ value, onChange, subjectLabel = "page" }) {
   const [uploading, setUploading] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const fileRef = useRef(null);
+  const qc = useQueryClient();
 
   const handleUpload = async (e) => {
     const file = e.target.files?.[0];
@@ -30,6 +35,18 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
       if (file.size > 10 * 1024 * 1024) toast.warning(`${(file.size / 1024 / 1024).toFixed(1)}MB — large songs grow your storage and backups.`);
       const audioId = `song-${Date.now()}-${Math.random().toString(36).slice(2)}`;
       await saveLocalImage(audioId, file, file.type);
+      // Also record it in the asset library so the same audio can be reused
+      // elsewhere without re-uploading, and can sit in a folder to rotate.
+      try {
+        await base44.entities.ImageAsset.create({
+          name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Audio",
+          image_url: createLocalImageUrl(audioId),
+          folder: "Audio",
+          kind: "audio",
+          created_date: new Date().toISOString(),
+        });
+        qc.invalidateQueries({ queryKey: ["imageAssets"] });
+      } catch { /* the song still works even if the library row fails */ }
       onChange({
         ...(value || {}),
         ref: createLocalImageUrl(audioId),
@@ -72,6 +89,10 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
           {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Upload className="w-3.5 h-3.5" />}
           Upload audio
         </Button>
+        <Button type="button" size="sm" variant="outline" className="gap-1.5 text-xs"
+          onClick={() => setPickerOpen(true)}>
+          <FolderOpen className="w-3.5 h-3.5" /> From library
+        </Button>
         <Input
           placeholder="…or paste a direct audio URL"
           defaultValue={value?.ref?.startsWith("http") ? value.ref : ""}
@@ -92,6 +113,15 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         </label>
       )}
       <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
+      <AssetPickerModal
+        open={pickerOpen}
+        kind="audio"
+        onClose={() => setPickerOpen(false)}
+        onSelect={(url) => {
+          onChange({ ...(value || {}), ref: url, title: value?.title || "Song", loop: value?.loop !== false });
+          setPickerOpen(false);
+        }}
+      />
     </div>
   );
 }

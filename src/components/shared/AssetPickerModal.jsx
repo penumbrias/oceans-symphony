@@ -39,7 +39,10 @@ function AssetThumb({ item, onSelect }) {
   );
 }
 
-export default function AssetPickerModal({ open, onClose, onSelect }) {
+// `kind` keeps audio and images out of each other's pickers. Audio lives in
+// the same blob store, so without this a song shows up in the wallpaper
+// picker as a broken image.
+export default function AssetPickerModal({ open, onClose, onSelect, kind = "image" }) {
   const qc = useQueryClient();
   const t = useTerms();
   const [rawImages, setRawImages] = useState({});
@@ -92,6 +95,8 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
         name: asset?.name || id,
         folder: ownerFolderFor(asset) || (asset?.folder || "").trim() || autoFolderFor(id),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
+        isAudio: asset?.kind === "audio" || id.startsWith("song-")
+          || (typeof data === "string" && data.startsWith("data:audio")),
       });
     }
     for (const a of assets) {
@@ -122,10 +127,11 @@ export default function AssetPickerModal({ open, onClose, onSelect }) {
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
     return items.filter((i) =>
+      (kind === "audio" ? i.isAudio : !i.isAudio) &&
       (folder === "all" || i.folder === folder) &&
       (!q || (i.name || "").toLowerCase().includes(q))
     );
-  }, [items, folder, search]);
+  }, [items, folder, search, kind]);
 
   const handleFiles = async (e) => {
     const files = [...(e.target.files || [])];
