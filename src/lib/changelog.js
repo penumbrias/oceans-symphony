@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: \"Apply this look to\u2026\" at the bottom of a widget\u2019s options copies its appearance to every widget on the page, every widget everywhere, or ones you pick by tapping them. Names, sizes and each widget\u2019s own settings are left alone." },
       { type: "improve", text: "\ud83e\uddea New UI: a widget\u2019s options now include \"Move & resize widgets\", so holding a widget to open its options can lead straight into rearranging the page." },
       { type: "improve", text: "Trimmed chatty explanations out of the interface \u2014 settings say what they do, without the aside." },
       { type: "improve", text: "\ud83e\uddea New UI: the home screen song is a widget now instead of a page setting \u2014 add it to any page (or more than one), and it sits with your other widgets." },

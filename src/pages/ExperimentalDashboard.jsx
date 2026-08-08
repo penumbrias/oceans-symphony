@@ -147,7 +147,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [] }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -277,6 +277,35 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
         }} />
     )}
     <div ref={setNodeRef} data-widget-id={widget.instanceId} style={style} className="relative min-w-0">
+      {/* Look-copy selection: a full-tile button so the whole widget is the
+          target, not a fiddly corner checkbox. */}
+      {pickLookMode && !pickLookIsSource && (
+        <button
+          type="button"
+          onClick={onPickLookToggle}
+          aria-pressed={pickLookSelected}
+          aria-label={pickLookSelected ? "Deselect this widget" : "Select this widget"}
+          className="absolute inset-0 z-40 rounded-xl flex items-start justify-end p-1.5"
+          style={{
+            background: pickLookSelected ? "color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 22%, transparent)" : "transparent",
+            border: pickLookSelected
+              ? "2px solid var(--v2-accent, hsl(var(--primary)))"
+              : "2px dashed color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 45%, transparent)",
+          }}
+        >
+          {pickLookSelected && (
+            <span className="w-5 h-5 rounded-full flex items-center justify-center text-[0.625rem] font-bold"
+              style={{ background: "var(--v2-accent, hsl(var(--primary)))", color: "hsl(var(--primary-foreground))" }}>✓</span>
+          )}
+        </button>
+      )}
+      {pickLookMode && pickLookIsSource && (
+        <div className="absolute inset-0 z-40 rounded-xl pointer-events-none flex items-start justify-end p-1.5"
+          style={{ border: "2px solid var(--v2-accent, hsl(var(--primary)))" }}>
+          <span className="text-[0.5625rem] uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-background/90">from</span>
+        </div>
+      )}
+
       {editMode && (
         <div className="absolute -top-2 -right-2 z-30 flex items-center gap-1">
           {/* Widget options (rename / mode / style / icon) */}
@@ -562,6 +591,42 @@ export default function ExperimentalDashboard({
     updatePageWidgets((ws) =>
       ws.map((w) => (w.instanceId === instanceId ? { ...w, settings: { ...w.settings, ...patch } } : w))
     );
+  // Copying a look = the LOOK_KEYS only (colours/shape/spacing/font/css) —
+  // never a widget's own options, its name or its size, which are not
+  // "how it looks".
+  const [pickLookFrom, setPickLookFrom] = useState(null);   // instanceId
+  const [pickLookIds, setPickLookIds] = useState([]);       // chosen targets
+  const applyLookTo = (sourceId, targetIds) => {
+    const source = home.pages.flatMap((p) => p.widgets).find((w) => w.instanceId === sourceId);
+    if (!source) return;
+    const look = pickLook(source.settings || {});
+    const ids = new Set(targetIds);
+    persist({
+      ...home,
+      pages: home.pages.map((p) => ({
+        ...p,
+        widgets: p.widgets.map((w) => (ids.has(w.instanceId) && w.instanceId !== sourceId
+          ? { ...w, settings: { ...w.settings, ...look } }
+          : w)),
+      })),
+    });
+    toast.success(`Look applied to ${ids.size} widget${ids.size === 1 ? "" : "s"}`);
+  };
+  const handleApplyLook = (scope) => {
+    if (scope === "pick") {
+      setPickLookFrom(configId);
+      setPickLookIds([]);
+      setConfigId(null);
+      return;
+    }
+    const targets = (scope === "page" ? [page] : home.pages)
+      .flatMap((p) => p.widgets)
+      .map((w) => w.instanceId)
+      .filter((id) => id !== configId);
+    applyLookTo(configId, targets);
+    setConfigId(null);
+  };
+
   // Put a widget back to how it ships: registry span + mode, and every
   // per-widget setting (label, look, alignment, content size, its own
   // options) cleared. Position stays — this resets the widget, not where
@@ -1014,6 +1079,11 @@ export default function ExperimentalDashboard({
           onSettings={handleSettings}
           onMove={handleMove}
           onConfigure={setConfigId}
+          pickLookMode={!!pickLookFrom}
+          pickLookSelected={pickLookIds.includes(w.instanceId)}
+          pickLookIsSource={pickLookFrom === w.instanceId}
+          onPickLookToggle={() => setPickLookIds((prev) =>
+            prev.includes(w.instanceId) ? prev.filter((x) => x !== w.instanceId) : [...prev, w.instanceId])}
           styleMode={home.styleMode}
           free={freeMode}
           onPos={handlePos}
@@ -1509,6 +1579,23 @@ export default function ExperimentalDashboard({
         />
       )}
 
+      {/* Pick-widgets overlay: tap widgets to include, then apply. */}
+      {pickLookFrom && (
+        <div className="fixed left-0 right-0 z-[70] px-3 flex items-center gap-2"
+          style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}>
+          <div className="flex-1 rounded-2xl border border-border/60 bg-background/95 backdrop-blur-xl shadow-lg px-3 py-2 flex items-center gap-2">
+            <span className="text-xs flex-1 min-w-0 truncate">
+              {pickLookIds.length ? `${pickLookIds.length} selected` : "Tap widgets to apply the look to"}
+            </span>
+            <button type="button" onClick={() => { setPickLookFrom(null); setPickLookIds([]); }}
+              className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
+            <button type="button" disabled={!pickLookIds.length}
+              onClick={() => { applyLookTo(pickLookFrom, pickLookIds); setPickLookFrom(null); setPickLookIds([]); }}
+              className="text-xs px-2.5 py-1.5 rounded-lg bg-primary text-primary-foreground disabled:opacity-40">Apply</button>
+          </div>
+        </div>
+      )}
+
       <AppDrawer
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); setDrawerTabRequest(null); }}
@@ -1583,6 +1670,7 @@ export default function ExperimentalDashboard({
       {/* Page style picker */}
       <Drawer open={stylePickerOpen} onOpenChange={(v) => { if (!v) setStylePickerOpen(false); }}>
         onEditLayout={() => { setEditMode(true); setConfigId(null); }}
+        onApplyLook={handleApplyLook}
         <DrawerContent className="max-h-[85vh]">
           <DrawerHeader className="pb-1">
             <DrawerTitle className="text-base">Homescreen style</DrawerTitle>

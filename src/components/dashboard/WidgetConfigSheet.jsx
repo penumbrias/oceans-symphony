@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2 } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
 // read as one system rather than two conventions.
@@ -368,6 +368,7 @@ export default function WidgetConfigSheet({
   onRemove,          // (instanceId) → delete this widget
   onResetWidget,     // (instanceId) → back to registry defaults
   onEditLayout,      // () → turn on home-screen edit mode (move/resize)
+  onApplyLook,       // (scope: "all" | "page" | "pick") → copy this look out
   userStyles = [],   // the user's own saved styles
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
@@ -378,6 +379,7 @@ export default function WidgetConfigSheet({
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
+  const [applyOpen, setApplyOpen] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
   // Same viewing affordances as Display options: a collapsible live sample,
   // and Peek — a short undimmed sheet so the REAL widget is visible while
@@ -936,6 +938,37 @@ export default function WidgetConfigSheet({
           )}
           </SubSection>
           <div className="pt-2 border-t border-border/50 space-y-2">
+            {/* Copy this widget's look onto others — the alternative is
+                re-setting eight fields per widget by hand. */}
+            {onApplyLook && (
+              <div className="rounded-lg border border-border/40 overflow-hidden">
+                <button type="button" onClick={() => setApplyOpen((v) => !v)}
+                  aria-expanded={applyOpen}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 text-left">
+                  <Copy className="w-3.5 h-3.5 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+                    Apply this look to…
+                  </span>
+                  <ChevronDown className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${applyOpen ? "rotate-180" : ""}`} />
+                </button>
+                {applyOpen && (
+                  <div className="px-3 py-3 space-y-1.5 border-t border-border/30">
+                    {[
+                      ["page", "All widgets on this page"],
+                      ["all", "All widgets, every page"],
+                      ["pick", "Pick widgets…"],
+                    ].map(([scope, label]) => (
+                      <button key={scope} type="button"
+                        onClick={() => { setApplyOpen(false); onApplyLook(scope); }}
+                        className="w-full text-left text-sm px-3 h-9 rounded-lg border border-border/50 hover:bg-muted/40">
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
             {/* Reached by holding a widget, where the user often wants to
                 MOVE it rather than restyle it — without this they had to
                 close the sheet and find edit mode themselves. */}
