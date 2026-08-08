@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "The new widget home screen now announces itself on the dashboard with a one-tap \"Try it\", instead of only being findable in Settings. Dismiss it and it stays gone." },
       { type: "improve", text: "\ud83e\uddea New UI: the row of pills across the top of the edit screen is one \"Home screen\" menu now \u2014 layout, columns, style, wallpaper, quick-action keys and the pinned bar all live together instead of crowding the bar." },
       { type: "improve", text: "\ud83e\uddea New UI: the style list shows a real preview of each style, includes your own saved ones, is searchable, and each has a \"Use as a base\" option so you can start from one and change it instead of only picking it." },
       { type: "improve", text: "The setup guide now walks you through your fronting levels and offers the new widget-based home screen, so neither is something you have to find on your own. New systems start with Fronting, Influencing and Observing instead of a fronting/co-fronting pair \u2014 rename or replace them freely. Existing setups are untouched." },

@@ -35,6 +35,7 @@ import CurrentContacts from "@/components/contacts/CurrentContacts";
 import NotificationHistoryModal from "@/components/dashboard/NotificationHistoryModal";
 import QuickNavMenu from "@/components/dashboard/QuickNavMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
+import NewUiBanner from "@/components/dashboard/NewUiBanner";
 import InsightSpotlight from "@/components/dashboard/InsightSpotlight";
 import { markQuickActionUsedToday } from "@/lib/dailyTaskSystem";
 import BulletinBoard from "@/components/bulletin/BulletinBoard";
@@ -1075,7 +1076,12 @@ export default function Dashboard() {
               />
             );
           case "new_features_bar":
-            return <NewFeaturesBar key="new_features_bar" />;
+            return (
+              <React.Fragment key="new_features_bar">
+                <NewUiBanner />
+                <NewFeaturesBar />
+              </React.Fragment>
+            );
           case "insight_spotlight":
             return <InsightSpotlight key="insight_spotlight" />;
           case "quick_nav_menu":
