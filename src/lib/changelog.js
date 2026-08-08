@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "fix", text: "Tapping a group in Manage Groups opens that group now, instead of only selecting it. Press and hold a group to get its inline edit controls." },
+      { type: "fix", text: "\ud83e\uddea New UI: background opacity is back in a widget\u2019s options \u2014 it was hidden unless you had already set a background colour by hand." },
       { type: "improve", text: "\ud83e\uddea New UI: the cog while editing the home screen opens one menu with everything \u2014 this board\u2019s layout, style and bars, plus all the display options \u2014 instead of splitting them across two." },
       { type: "feature", text: "Write a bulletin post from a popup, the way a new journal entry works. The board you\u2019re posting to sits at the top so you can switch it, and you can star boards to keep them first in the list." },
       { type: "feature", text: "Audio you upload for a song is saved to your asset library, so you can reuse the same track anywhere without uploading it again \u2014 pick it with \"From library\". Songs and images stay in their own pickers." },

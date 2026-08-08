@@ -45,6 +45,8 @@ export default function GroupTreeRow({
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+  const holdTimer = useRef(null);
+  const held = useRef(false);
   const autoExpandTimeoutRef = useRef(null);
   const isCreatingSubgroup = creatingSubgroupFor === group.id;
 
@@ -129,7 +131,29 @@ export default function GroupTreeRow({
           draggedGroupId === group.id ? "opacity-50" : ""
         }`}
         style={{ paddingLeft: `${level * 24 + 8}px` }}
-        onClick={() => onSelectGroup(group.id)}
+        // Tap opens the group, matching the rest of the app (tap = the
+        // thing itself). Selecting — which reveals the inline edit icons —
+        // moved onto press-and-hold, the house gesture for "act on this".
+        onClick={() => navigate(`/group/${group.id}`)}
+        onContextMenu={(e) => { e.preventDefault(); onSelectGroup(group.id); }}
+        onPointerDown={(e) => {
+          if (e.button !== undefined && e.button !== 0) return;
+          holdTimer.current = setTimeout(() => {
+            holdTimer.current = null;
+            held.current = true;
+            onSelectGroup(group.id);
+          }, 450);
+        }}
+        onPointerUp={() => {
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+        }}
+        onPointerLeave={() => {
+          if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+        }}
+        onClickCapture={(e) => {
+          // A hold already acted; don't let the trailing tap navigate away.
+          if (held.current) { held.current = false; e.preventDefault(); e.stopPropagation(); }
+        }}
         draggable
         onDragStart={handleDragStart}
         onDragOver={handleDragOver}

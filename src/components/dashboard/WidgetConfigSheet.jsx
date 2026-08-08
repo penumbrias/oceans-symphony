@@ -718,17 +718,23 @@ export default function WidgetConfigSheet({
                   onChange={(v) => onSettings(widget.instanceId, { borderColor: v })}
                   onClear={() => onSettings(widget.instanceId, { borderColor: "" })} />
               </div>
-              {settings.bg && (
-                <div className="mt-2">
-                  <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
-                    Background opacity <span>{settings.bgOpacity ?? 100}%</span>
-                  </label>
-                  <input type="range" min={0} max={100} step={5}
-                    value={settings.bgOpacity ?? 100}
-                    onChange={(e) => onSettings(widget.instanceId, { bgOpacity: Number(e.target.value) })}
-                    className="w-full accent-primary" aria-label="Background opacity" />
-                </div>
-              )}
+              {/* Always available. Gating this on settings.bg made it vanish
+                  for every widget the user hadn't explicitly given a colour
+                  — which is most of them, since the swatch shows the live
+                  colour rather than a stored one. Dragging it anchors to
+                  that same live colour so there's something to fade. */}
+              <div className="mt-2">
+                <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
+                  Background opacity <span>{settings.bgOpacity ?? 100}%</span>
+                </label>
+                <input type="range" min={0} max={100} step={5}
+                  value={settings.bgOpacity ?? 100}
+                  onChange={(e) => onSettings(widget.instanceId, {
+                    bgOpacity: Number(e.target.value),
+                    ...(settings.bg ? {} : { bg: live.bg || "#111827" }),
+                  })}
+                  className="w-full accent-primary" aria-label="Background opacity" />
+              </div>
             </div>
 
             {/* Effects — the same two the built-in styles use, so a user can
