@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "The setup guide now walks you through your fronting levels and offers the new widget-based home screen, so neither is something you have to find on your own. New systems start with Fronting, Influencing and Observing instead of a fronting/co-fronting pair \u2014 rename or replace them freely. Existing setups are untouched." },
+      { type: "fix", text: "Security: removed a rich-text library the app no longer uses, which carried published vulnerabilities." },
       { type: "feature", text: "\ud83e\uddea New UI: widgets get gradient and frosted-blur controls, so the glossy and frosted looks the built-in styles use are yours to build, mix and change on any widget." },
       { type: "fix", text: "Security: updated two libraries with published vulnerabilities \u2014 the one that cleans up text you paste or import, and the one that makes PDF reports." },
       { type: "fix", text: "\ud83e\uddea New UI: widgets drew two boxes \u2014 the page style painted its own border, background and shadow behind the one your settings control, so the outer edge ignored your changes and shadows could appear inside the widget. There\u2019s one box now, and a style just sets its starting values." },

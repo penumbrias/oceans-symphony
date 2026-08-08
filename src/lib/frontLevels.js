@@ -39,6 +39,20 @@ export const DEFAULT_FRONT_LEVELS = [
   { id: "cofront", label: "Co-{{fronting}}", counts_as_front: true },
 ];
 
+// What a NEW system starts with. "Co-fronting" stopped earning its place
+// once levels existed — it only says "also fronting" — so the starting
+// spectrum describes degrees instead. Labels seed from the user's
+// terminology via {{Fronting}} but are plain text once edited, so renaming
+// a level doesn't tie it to the terminology setting forever.
+//
+// NOT the fallback for existing systems: their sessions may carry
+// front_level "cofront", and DEFAULT_FRONT_LEVELS keeps that id resolvable.
+export const NEW_SYSTEM_FRONT_LEVELS = [
+  { id: "front", label: "{{Fronting}}", counts_as_front: true },
+  { id: "influencing", label: "Influencing", counts_as_front: true },
+  { id: "observing", label: "Observing", counts_as_front: false },
+];
+
 export function newFrontLevelId() {
   return `fl_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 }

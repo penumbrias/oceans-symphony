@@ -5,6 +5,7 @@ import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { base44 } from "@/api/base44Client";
+import { NEW_SYSTEM_FRONT_LEVELS } from "@/lib/frontLevels";
 import { useQueryClient } from "@tanstack/react-query";
 import { pluralize, gerund, agent } from "@/lib/useTerms";
 
@@ -179,7 +180,13 @@ export function TermsSetupContent({ onSaved, existingSettingsId, existingSetting
       if (existingSettingsId) {
         await base44.entities.SystemSettings.update(existingSettingsId, data);
       } else {
-        await base44.entities.SystemSettings.create(data);
+        // A brand-new system starts on the three-level spectrum. Only here:
+        // an existing system's saved (or defaulted) levels are never
+        // rewritten, because their sessions may reference the old ids.
+        await base44.entities.SystemSettings.create({
+          ...data,
+          front_levels: { levels: NEW_SYSTEM_FRONT_LEVELS },
+        });
       }
       try { localStorage.setItem("terms_setup_done", "1"); } catch { /* storage off */ }
       // Await the refetch (not just invalidate) so the next Guide step

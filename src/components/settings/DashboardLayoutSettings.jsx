@@ -147,6 +147,41 @@ function SortablePill({ entry, idx, total, onToggle, onBulletinBatchChange, bull
   );
 }
 
+// The New-UI opt-in, on its own so onboarding can offer it too. Same
+// record, same write, one implementation.
+export function NewUiToggle() {
+  const queryClient = useQueryClient();
+  const { data: rows = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const record = rows[0];
+  const on = record?.ui_v2?.enabled === true;
+  const toggle = async (next) => {
+    try {
+      const patch = { ...(record?.ui_v2 || {}), enabled: next };
+      if (record?.id) await base44.entities.SystemSettings.update(record.id, { ui_v2: patch });
+      else await base44.entities.SystemSettings.create({ ui_v2: patch });
+      queryClient.invalidateQueries({ queryKey: ["systemSettings"] });
+      toast.success(next ? "New UI on" : "Classic navigation restored");
+    } catch (e) {
+      toast.error(e?.message || "Couldn't switch");
+    }
+  };
+  if (!UI_V2_ENABLED) return null;
+  return (
+    <label className="flex items-center justify-between gap-3 rounded-xl border border-primary/30 bg-primary/5 px-3 py-2.5 cursor-pointer">
+      <div className="min-w-0">
+        <span className="text-sm font-medium">New home screen</span>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Build your home screen from widgets. Switch back any time.
+        </p>
+      </div>
+      <Switch checked={on} onCheckedChange={toggle} />
+    </label>
+  );
+}
+
 export default function DashboardLayoutSettings() {
   const queryClient = useQueryClient();
   const { data: settings = [] } = useQuery({

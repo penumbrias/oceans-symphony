@@ -8,7 +8,7 @@
 
 import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Users, Heart, Activity as ActivityIcon, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Settings2, CheckSquare, Loader2, Bell } from "lucide-react";
+import { Users, Heart, Activity as ActivityIcon, Check, ChevronDown, ChevronRight, Download, Plus, ExternalLink, ShieldAlert, Settings2, CheckSquare, Loader2, Bell, Layers, Sparkles } from "lucide-react";
 import { readPlanRemindersEnabled, writePlanRemindersEnabled } from "@/lib/planReminderScheduler";
 import { isNative } from "@/lib/platform";
 import { toast } from "sonner";
@@ -21,6 +21,8 @@ import { useTerms } from "@/lib/useTerms";
 import CustomEmotionsManager from "@/components/settings/CustomEmotionsManager";
 import AutoBackupSettings from "@/components/settings/AutoBackupSettings";
 import ImportAltersModal from "@/components/alters/ImportAltersModal";
+import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
+import { NewUiToggle } from "@/components/settings/DashboardLayoutSettings";
 import { BundleList } from "@/components/symptoms/BundlePicker";
 import ActivityCustomizationMenu from "@/components/activities/ActivityCustomizationMenu";
 import ActivityPackPicker from "@/components/activities/ActivityPackPicker";
@@ -32,7 +34,7 @@ import { psGetItem, psSetItem } from "@/lib/perSystemStorage";
 // psGetItem falls back to the legacy unscoped key when the registry has
 // ≤1 system, so pre-existing single-system users' progress carries over.
 export const CHECKLIST_KEY = "symphony_setup_checklist_v1";
-export const CHECKLIST_ITEMS = ["alters", "tracking", "activity", "tasks", "reminders", "backup"];
+export const CHECKLIST_ITEMS = ["alters", "levels", "tracking", "activity", "tasks", "reminders", "newui", "backup"];
 
 export function loadChecklist() {
   try {
@@ -267,6 +269,37 @@ export default function SetupChecklist({ onCloseGuide, bundleProps = null }) {
             </Button>
           </div>
           <ImportAltersModal open={showImport} onClose={() => setShowImport(false)} />
+        </div>
+      ),
+    },
+    {
+      id: "newui",
+      icon: Sparkles,
+      title: "Try the new home screen",
+      description: "Build your home screen out of widgets you arrange yourself.",
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            The new interface lets you build your own home screen from widgets — what's on it,
+            where each piece sits, how big it is and how it looks. You can switch back at any
+            time, and nothing you've recorded changes either way.
+          </p>
+          <NewUiToggle />
+        </div>
+      ),
+    },
+    {
+      id: "levels",
+      icon: Layers,
+      title: `${t.Fronting} levels`,
+      description: `How close to ${t.front} someone is — rename or add your own.`,
+      content: (
+        <div className="space-y-3">
+          <p className="text-xs text-muted-foreground">
+            New {t.systems} start with {t.fronting}, Influencing and Observing. Rename them to
+            your own words, add more, or remove the ones you don't use.
+          </p>
+          <FrontLevelsSettings />
         </div>
       ),
     },
