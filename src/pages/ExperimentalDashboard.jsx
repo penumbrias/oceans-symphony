@@ -50,6 +50,7 @@ import {
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
+const AdvancedAppearance = React.lazy(() => import("@/components/settings/AdvancedAppearanceNew"));
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -1156,6 +1157,9 @@ export default function ExperimentalDashboard({
           </DrawerHeader>
           <div className="px-4 overflow-y-auto overscroll-contain"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+              This home screen
+            </p>
             <div className="flex flex-wrap items-center gap-1.5">
             <button
               type="button"
@@ -1295,6 +1299,16 @@ export default function ExperimentalDashboard({
             >
               {t.Alters} bar: {home.altersBar.enabled ? (home.altersBar.position === "top" ? "Top" : "Bottom") : "Off"}
             </button>
+            </div>
+
+            {/* The rest of Display options, so this cog IS the menu rather
+                than half of it living somewhere else. */}
+            <div className="mt-4 pt-3 border-t border-border/40">
+              {homeSettingsOpen && (
+                <React.Suspense fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
+                  <AdvancedAppearance />
+                </React.Suspense>
+              )}
             </div>
           </div>
         </DrawerContent>

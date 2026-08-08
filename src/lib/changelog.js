@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "improve", text: "\ud83e\uddea New UI: the cog while editing the home screen opens one menu with everything \u2014 this board\u2019s layout, style and bars, plus all the display options \u2014 instead of splitting them across two." },
       { type: "feature", text: "Write a bulletin post from a popup, the way a new journal entry works. The board you\u2019re posting to sits at the top so you can switch it, and you can star boards to keep them first in the list." },
       { type: "feature", text: "Audio you upload for a song is saved to your asset library, so you can reuse the same track anywhere without uploading it again \u2014 pick it with \"From library\". Songs and images stay in their own pickers." },
       { type: "fix", text: "\ud83e\uddea New UI: stray code text (\"onEditLayout=onApplyLook=\") appeared on the home screen, and the two options it belonged to \u2014 \"Move & resize widgets\" and \"Apply this look to\u2026\" \u2014 were missing from widget options. Both are back." },
