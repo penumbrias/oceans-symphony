@@ -26,8 +26,8 @@ export const HOME_STYLES = [
     // `shell` is now ONLY for what a CSS variable can't express (blur,
     // gradients). Everything box-shaped moved into `look`, so a style and a
     // widget's own settings live on one axis instead of painting two boxes.
-    shell: "backdrop-blur-sm",
-    look: { radius: 16, borderW: 1, borderColor: "#8a8a9a55", bg: "#20202b", bgOpacity: 45, padding: 8 },
+    shell: "",
+    look: { radius: 16, borderW: 1, borderColor: "#8a8a9a55", bg: "#20202b", bgOpacity: 45, padding: 8, blur: 6 },
   },
   {
     id: "social",
@@ -68,8 +68,9 @@ export const HOME_STYLES = [
     id: "aero",
     label: "Aero",
     description: "Glossy gradients and soft glass.",
-    shell: "os-style-aero backdrop-blur-sm",
-    look: { radius: 16, borderW: 1, borderColor: "#ffffff40", padding: 8 },
+    shell: "",
+    look: { radius: 16, borderW: 1, borderColor: "#ffffff40", padding: 8,
+            gradFrom: "#38bdf840", gradTo: "#6ee7b740", gradAngle: 135, blur: 6 },
   },
   {
     id: "barebones",

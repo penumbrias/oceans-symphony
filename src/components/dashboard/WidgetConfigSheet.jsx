@@ -731,6 +731,36 @@ export default function WidgetConfigSheet({
               )}
             </div>
 
+            {/* Effects — the same two the built-in styles use, so a user can
+                build Aero (or anything else) themselves. */}
+            <div>
+              <label className="text-xs font-medium block mb-1.5">Gradient</label>
+              <div className="flex items-center gap-3">
+                <ColorPicker compact label="Gradient start"
+                  value={settings.gradFrom || live.bg || "#38bdf8"}
+                  onChange={(v) => onSettings(widget.instanceId, { gradFrom: v })}
+                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "" })} />
+                <ColorPicker compact label="Gradient end"
+                  value={settings.gradTo || "#6ee7b7"}
+                  onChange={(v) => onSettings(widget.instanceId, { gradTo: v })}
+                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "" })} />
+                <span className="text-[0.6875rem] text-muted-foreground">
+                  {settings.gradFrom && settings.gradTo ? "on" : "pick both"}
+                </span>
+              </div>
+              {settings.gradFrom && settings.gradTo && (
+                <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={135}
+                  min={0} max={360} step={15} unit="°"
+                  onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
+                  onReset={() => onSettings(widget.instanceId, { gradAngle: "" })} />
+              )}
+            </div>
+
+            <SliderRow label="Frosted blur" value={settings.blur} fallback={0}
+              min={0} max={24} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { blur: v })}
+              onReset={() => onSettings(widget.instanceId, { blur: "" })} />
+
             <div>
               <label className="text-xs font-medium block mb-1">Background image</label>
               <div className="flex items-center gap-2 flex-wrap">

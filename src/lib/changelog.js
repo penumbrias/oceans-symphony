@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 6, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: widgets get gradient and frosted-blur controls, so the glossy and frosted looks the built-in styles use are yours to build, mix and change on any widget." },
+      { type: "fix", text: "Security: updated two libraries with published vulnerabilities \u2014 the one that cleans up text you paste or import, and the one that makes PDF reports." },
       { type: "fix", text: "\ud83e\uddea New UI: widgets drew two boxes \u2014 the page style painted its own border, background and shadow behind the one your settings control, so the outer edge ignored your changes and shadows could appear inside the widget. There\u2019s one box now, and a style just sets its starting values." },
       { type: "improve", text: "\ud83e\uddea New UI: widget contents can be aligned across as well as down \u2014 fill, left, centre or right." },
       { type: "feature", text: "\ud83e\uddea New UI: \"Apply this look to\u2026\" at the bottom of a widget\u2019s options copies its appearance to every widget on the page, every widget everywhere, or ones you pick by tapping them. Names, sizes and each widget\u2019s own settings are left alone." },

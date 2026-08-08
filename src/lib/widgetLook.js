@@ -18,6 +18,9 @@
 export const LOOK_KEYS = [
   "font", "fontScale", "radius", "borderW", "borderColor", "borderStyle",
   "accent", "bg", "bgOpacity", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
+  // Effects the user can build themselves — the same ones the built-in
+  // styles use, so nothing is reserved for presets.
+  "gradFrom", "gradTo", "gradAngle", "blur",
 ];
 
 export const SHADOW_PRESETS = {
@@ -93,6 +96,13 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   if (isSet(look.borderColor)) s["--v2-border-color"] = look.borderColor;
   if (isSet(look.borderStyle)) s["--v2-border-style"] = look.borderStyle;
   if (isSet(look.shadow)) s["--v2-shadow"] = SHADOW_PRESETS[look.shadow] ?? look.shadow;
+  // A gradient layers OVER the flat background colour, so the two combine
+  // rather than one silently winning.
+  if (isSet(look.gradFrom) && isSet(look.gradTo)) {
+    const angle = isSet(look.gradAngle) ? Number(look.gradAngle) : 135;
+    s["--v2-widget-gradient"] = `linear-gradient(${angle}deg, ${look.gradFrom}, ${look.gradTo})`;
+  }
+  if (isSet(look.blur) && Number(look.blur) > 0) s["--v2-widget-blur"] = `blur(${Number(look.blur)}px)`;
   return s;
 }
 

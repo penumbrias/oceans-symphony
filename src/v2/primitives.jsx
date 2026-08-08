@@ -51,6 +51,10 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
     borderRadius: "var(--v2-radius, 8px)",
     boxShadow: "var(--v2-shadow, none)",
     background: "var(--v2-widget-bg, transparent)",
+    // User-built effects (Appearance → Effects). Both no-ops when unset.
+    backgroundImage: "var(--v2-widget-gradient, none)",
+    backdropFilter: "var(--v2-widget-blur, none)",
+    WebkitBackdropFilter: "var(--v2-widget-blur, none)",
     // padFallback: false = flush until the user sets padding (text widgets).
     padding: padFallback ? "var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))" : "var(--v2-pad, 0px)",
   };
