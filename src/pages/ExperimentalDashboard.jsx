@@ -47,6 +47,7 @@ import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
   pickLook, mergeLook, lookToStyle, resolveUserStyles, userStyleId, newStyleId,
+  USER_STYLE_PREFIX, lookCoverage, OFF,
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
@@ -394,7 +395,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
             if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
           }}
           style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, alignItems: halignItems, ...(editMode ? { pointerEvents: "none" } : null) }}>
-        {look.css && (
+        {look.css && look.css !== OFF && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,
           }} />
@@ -524,6 +525,7 @@ export default function ExperimentalDashboard({
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [homeSettingsOpen, setHomeSettingsOpen] = useState(false);
   const [styleQuery, setStyleQuery] = useState("");
+  const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
   const barDragStart = useRef(null);
   const barSwiped = useRef(false);
   const barDragAt = useRef(null);
@@ -609,7 +611,11 @@ export default function ExperimentalDashboard({
   const applyLookTo = (sourceId, targetIds) => {
     const source = home.pages.flatMap((p) => p.widgets).find((w) => w.instanceId === sourceId);
     if (!source) return;
-    const look = pickLook(source.settings || {});
+    // The style REFERENCE has to travel with the explicit keys. Most of a
+    // widget's colour usually comes from the style it points at, so copying
+    // only its own keys moved the shape and spacing across and left the
+    // colours behind — which is exactly what it looked like.
+    const look = { style: source.settings?.style || "", ...pickLook(source.settings || {}) };
     const ids = new Set(targetIds);
     persist({
       ...home,
@@ -1668,6 +1674,10 @@ export default function ExperimentalDashboard({
           setConfigId(null);
         }}
         userStyles={userStyles}
+        resolvedLook={widgetLookFor(
+          configuringBar ? (home.altersBar.look || {}) : (widgets.find((w) => w.instanceId === configId)?.settings || {}),
+          userStyles, home.styleMode
+        )}
         onSaveStyle={(label, look) => persistStyles([...userStyles, { id: newStyleId(), label, look }])}
         onDeleteStyle={(id) => persistStyles(userStyles.filter((x) => x.id !== id))}
         onPickBackground={(instanceId) => setAssetPickerFor({ bg: instanceId })}
@@ -1748,8 +1758,27 @@ export default function ExperimentalDashboard({
                     onClick={() => { persist({ ...home, styleMode: st.id }); setStylePickerOpen(false); }}
                     className="flex-1 min-w-0 text-left">
                     <span className="font-medium">{st.label}</span>
-                    <span className="text-xs text-muted-foreground block truncate">{st.description}</span>
+                    <span className="text-xs text-muted-foreground block truncate">
+                      {styleNotes === st.id
+                        ? (() => {
+                            const cov = lookCoverage(st.look);
+                            return `Changes ${cov.covers.map((g) => g.label.toLowerCase()).join(", ") || "nothing"} \u00b7 leaves ${cov.leaves.map((g) => g.label.toLowerCase()).join(", ")} alone`;
+                          })()
+                        : st.description}
+                    </span>
                   </button>
+                  {/* A style that decides every part of the look needs no
+                      caveat. A partial one says so, and the star spells out
+                      what it will and won't change. */}
+                  {!lookCoverage(st.look).complete && (
+                    <button type="button"
+                      aria-label={`What ${st.label} changes`}
+                      title="Partial style — see what it changes"
+                      onClick={() => setStyleNotes(styleNotes === st.id ? null : st.id)}
+                      className={`p-1 flex-shrink-0 ${styleNotes === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                      <Star className="w-3.5 h-3.5" />
+                    </button>
+                  )}
                   {/* Start from any style instead of from nothing. */}
                   <button type="button"
                     title={`Copy ${st.label} into this page's widgets to edit`}

@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 8, 2026",
     changes: [
+      { type: "fix", text: "Fixed a crash when saving a widget's look as a style, and seven more crashes of the same kind hiding in other screens (pinned members, the timeline, quick plan on the home screen, journal filters, location profiles)." },
+      { type: "feature", text: "\ud83e\uddea New UI: every widget colour has its own opacity now \u2014 ghost the text, see through the border, or fade a gradient out to nothing." },
+      { type: "feature", text: "\ud83e\uddea New UI: when you save a style you choose what it carries \u2014 shape, fonts, colours, effects, custom CSS. Styles that only cover part of the look show a star; tap it to see what they change and what they leave alone." },
+      { type: "fix", text: "\ud83e\uddea New UI: \"Apply this look\" now brings the colours across too, not just the shape and spacing." },
       { type: "feature", text: "\ud83e\uddea New UI: \"Coming up\" is now a widget \u2014 the same upcoming plans panel from the classic home screen, placeable on any board." },
     ],
   },

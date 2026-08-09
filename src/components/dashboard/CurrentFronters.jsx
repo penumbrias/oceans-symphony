@@ -740,7 +740,6 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
       queryClient.invalidateQueries({ queryKey: ["activeFront"] });
       toast.success(`${alter.name} removed from ${terms.front}`);
     } catch { toast.error("Failed to remove"); }
-    setHoldMenuAlter(null);
   };
 
   // Refetch active sessions at click-time, then open the switch-journal

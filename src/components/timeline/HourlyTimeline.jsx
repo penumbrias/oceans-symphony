@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { format, differenceInMinutes } from "date-fns";
 import { Activity, Heart } from "lucide-react";

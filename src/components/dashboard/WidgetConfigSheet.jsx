@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
 // read as one system rather than two conventions.
@@ -38,7 +38,10 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
-import { pickLook, themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX } from "@/lib/widgetLook";
+import {
+  themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
+  LOOK_GROUPS, lookCoverage, lookForGroups, OFF,
+} from "@/lib/widgetLook";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
@@ -317,11 +320,24 @@ function useLiveColors(open, instanceId) {
     const body = getComputedStyle(document.body);
     const cs = box ? getComputedStyle(box) : null;
     const accentVar = (root.getPropertyValue("--v2-accent") || root.getPropertyValue("--color-primary") || "").trim();
+    const num = (v, fallback) => { const n = parseFloat(v); return Number.isFinite(n) ? Math.round(n) : fallback; };
     return {
       bg: (cs && toHex(cs.backgroundColor)) || toHex(body.backgroundColor) || undefined,
       textColor: (cs && toHex(cs.color)) || toHex(body.color) || undefined,
       borderColor: (cs && toHex(cs.borderTopColor)) || undefined,
       accent: accentVar.startsWith("#") ? accentVar : undefined,
+      // Shape and type are probed too, because "save this look as a style"
+      // has to capture what the widget ACTUALLY looks like. Most widgets
+      // store no radius/border/font of their own — those come from the app
+      // theme through CSS and never appear in the look object, so saving
+      // from stored values alone produced a style that set almost nothing.
+      radius: cs ? num(cs.borderTopLeftRadius, undefined) : undefined,
+      borderW: cs ? num(cs.borderTopWidth, undefined) : undefined,
+      borderStyle: cs && cs.borderTopStyle !== "none" ? cs.borderTopStyle : undefined,
+      padding: cs ? num(cs.paddingTop, undefined) : undefined,
+      shadow: cs && cs.boxShadow && cs.boxShadow !== "none" ? cs.boxShadow : "none",
+      font: cs?.fontFamily || undefined,
+      fontScale: 100,
     };
   }, [open, instanceId]);
 }
@@ -369,6 +385,7 @@ export default function WidgetConfigSheet({
   onResetWidget,     // (instanceId) → back to registry defaults
   onEditLayout,      // () → turn on home-screen edit mode (move/resize)
   onApplyLook,       // (scope: "all" | "page" | "pick") → copy this look out
+  resolvedLook = {}, // what this widget actually looks like right now
   userStyles = [],   // the user's own saved styles
   onSaveStyle,       // (label, look) → save the current look as a style
   onDeleteStyle,     // (styleId)
@@ -381,6 +398,10 @@ export default function WidgetConfigSheet({
   const [naming, setNaming] = React.useState(false);
   const [applyOpen, setApplyOpen] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
+  // Which parts of the look a saved style should carry. All of them by
+  // default — a preset that covers everything needs no caveats.
+  const [saveGroups, setSaveGroups] = React.useState(LOOK_GROUPS.map((g) => g.id));
+  const [exclusionsFor, setExclusionsFor] = React.useState(null); // style id
   // Same viewing affordances as Display options: a collapsible live sample,
   // and Peek — a short undimmed sheet so the REAL widget is visible while
   // its options change under your finger (settings persist instantly, so
@@ -411,10 +432,28 @@ export default function WidgetConfigSheet({
   if (!open) return null;
 
   const defLabel = widgetLabel(def, t);
+  // Setting an opacity on a colour the widget only INHERITS has nothing to
+  // fade, so pin the live colour at the same time — otherwise the slider
+  // moves and nothing happens.
+  const setAlpha = (colorKey, opacityKey, value, fallbackColor) =>
+    onSettings(widget.instanceId, {
+      [opacityKey]: value,
+      ...(settings[colorKey] ? {} : { [colorKey]: fallbackColor }),
+    });
+  // OFF is a real stored value ("this style has no gradient"), not a colour.
+  const gradHex = (v) => (v && v !== OFF ? v : "");
+  const gradOn = gradHex(settings.gradFrom) && gradHex(settings.gradTo);
+  // A style can carry "no custom CSS" as an explicit value; that's an
+  // empty editor, not the literal word.
+  const ownCss = settings.css && settings.css !== OFF ? settings.css : "";
+
   const saveStyle = () => {
     const label = styleName.trim();
-    if (!label) return;
-    onSaveStyle?.(label.slice(0, 40), pickLook(settings));
+    if (!label || saveGroups.length === 0) return;
+    // Save from what the widget actually LOOKS like, not only the keys it
+    // happens to store — a colour inherited from the page style is still
+    // part of the look the user is naming.
+    onSaveStyle?.(label.slice(0, 40), lookForGroups(resolvedLook, settings, saveGroups, live));
     setNaming(false);
     setStyleName("");
   };
@@ -693,47 +732,38 @@ export default function WidgetConfigSheet({
               onChange={(v) => onSettings(widget.instanceId, { fontScale: v })}
               onReset={() => onSettings(widget.instanceId, { fontScale: "" })} />
 
-            {/* Four swatches on one line. The name, hex field, Clear and
-                "use the app colour" all live inside each picker's popover —
-                labelling them in the row squeezed the text into unreadable
-                vertical slivers on a narrow sheet. */}
+            {/* Four swatches on one line. The name, hex field, opacity,
+                Clear and "use the app colour" all live inside each picker's
+                popover — labelling them in the row squeezed the text into
+                unreadable vertical slivers on a narrow sheet.
+                Opacity sits with its OWN colour rather than applying to the
+                whole widget, so you can ghost the text, see through the
+                border, or fade a gradient out independently. Dragging one
+                anchors to the live colour so there's something to fade. */}
             <div>
               <label className="text-xs font-medium block mb-1.5">Colours</label>
               <div className="flex items-center gap-3">
                 <ColorPicker compact label="Highlight colour"
                   value={settings.accent || live.accent || "#3b82f6"}
                   onChange={(v) => onSettings(widget.instanceId, { accent: v })}
-                  onClear={() => onSettings(widget.instanceId, { accent: "" })}
-                  extraAction={{ label: "Use the app colour", onClick: () => onSettings(widget.instanceId, { accent: "" }) }} />
+                  opacity={{ value: settings.accentOpacity, onChange: (v) => setAlpha("accent", "accentOpacity", v, live.accent || "#3b82f6") }}
+                  onClear={() => onSettings(widget.instanceId, { accent: "", accentOpacity: "" })}
+                  extraAction={{ label: "Use the app colour", onClick: () => onSettings(widget.instanceId, { accent: "", accentOpacity: "" }) }} />
                 <ColorPicker compact label="Background"
                   value={settings.bg || live.bg || "#111827"}
                   onChange={(v) => onSettings(widget.instanceId, { bg: v })}
+                  opacity={{ value: settings.bgOpacity, onChange: (v) => setAlpha("bg", "bgOpacity", v, live.bg || "#111827") }}
                   onClear={() => onSettings(widget.instanceId, { bg: "", bgOpacity: "" })} />
                 <ColorPicker compact label="Text colour"
                   value={settings.textColor || live.textColor || "#e5e7eb"}
                   onChange={(v) => onSettings(widget.instanceId, { textColor: v })}
-                  onClear={() => onSettings(widget.instanceId, { textColor: "" })} />
+                  opacity={{ value: settings.textOpacity, onChange: (v) => setAlpha("textColor", "textOpacity", v, live.textColor || "#e5e7eb") }}
+                  onClear={() => onSettings(widget.instanceId, { textColor: "", textOpacity: "" })} />
                 <ColorPicker compact label="Border colour"
                   value={settings.borderColor || live.borderColor || "#3b82f6"}
                   onChange={(v) => onSettings(widget.instanceId, { borderColor: v })}
-                  onClear={() => onSettings(widget.instanceId, { borderColor: "" })} />
-              </div>
-              {/* Always available. Gating this on settings.bg made it vanish
-                  for every widget the user hadn't explicitly given a colour
-                  — which is most of them, since the swatch shows the live
-                  colour rather than a stored one. Dragging it anchors to
-                  that same live colour so there's something to fade. */}
-              <div className="mt-2">
-                <label className="text-[0.6875rem] text-muted-foreground flex items-center justify-between">
-                  Background opacity <span>{settings.bgOpacity ?? 100}%</span>
-                </label>
-                <input type="range" min={0} max={100} step={5}
-                  value={settings.bgOpacity ?? 100}
-                  onChange={(e) => onSettings(widget.instanceId, {
-                    bgOpacity: Number(e.target.value),
-                    ...(settings.bg ? {} : { bg: live.bg || "#111827" }),
-                  })}
-                  className="w-full accent-primary" aria-label="Background opacity" />
+                  opacity={{ value: settings.borderOpacity, onChange: (v) => setAlpha("borderColor", "borderOpacity", v, live.borderColor || "#3b82f6") }}
+                  onClear={() => onSettings(widget.instanceId, { borderColor: "", borderOpacity: "" })} />
               </div>
             </div>
 
@@ -743,18 +773,20 @@ export default function WidgetConfigSheet({
               <label className="text-xs font-medium block mb-1.5">Gradient</label>
               <div className="flex items-center gap-3">
                 <ColorPicker compact label="Gradient start"
-                  value={settings.gradFrom || live.bg || "#38bdf8"}
+                  value={gradHex(settings.gradFrom) || live.bg || "#38bdf8"}
                   onChange={(v) => onSettings(widget.instanceId, { gradFrom: v })}
-                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "" })} />
+                  opacity={{ value: settings.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, live.bg || "#38bdf8") }}
+                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
                 <ColorPicker compact label="Gradient end"
-                  value={settings.gradTo || "#6ee7b7"}
+                  value={gradHex(settings.gradTo) || "#6ee7b7"}
                   onChange={(v) => onSettings(widget.instanceId, { gradTo: v })}
-                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "" })} />
+                  opacity={{ value: settings.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, "#6ee7b7") }}
+                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
                 <span className="text-[0.6875rem] text-muted-foreground">
-                  {settings.gradFrom && settings.gradTo ? "on" : "pick both"}
+                  {gradOn ? "on" : "pick both"}
                 </span>
               </div>
-              {settings.gradFrom && settings.gradTo && (
+              {gradOn && (
                 <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={135}
                   min={0} max={360} step={15} unit="°"
                   onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
@@ -828,12 +860,12 @@ export default function WidgetConfigSheet({
             <div>
               <button type="button" onClick={() => setCssOpen((v) => !v)}
                 className="w-full flex items-center justify-between text-xs font-medium py-1">
-                <span>Your own CSS{settings.css ? " — in use" : ""}</span>
+                <span>Your own CSS{ownCss ? " — in use" : ""}</span>
                 <ChevronDown className="w-3.5 h-3.5" style={{ transform: cssOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
               </button>
               {cssOpen && (
                 <>
-                  <DebouncedText multiline rows={5} value={settings.css || ""}
+                  <DebouncedText multiline rows={5} value={ownCss}
                     placeholder={"border-image: url(...) 30 round;\nletter-spacing: .04em;"}
                     onCommit={(v) => onSettings(widget.instanceId, { css: v })}
                     className="w-full px-3 py-2 rounded-lg border border-input bg-background text-xs font-mono resize-y focus:outline-none focus:ring-1 focus:ring-ring" />
@@ -855,15 +887,34 @@ export default function WidgetConfigSheet({
             </button>
             <div className="space-y-1" hidden={!styleOpen}>
               {naming ? (
-                <div className="flex gap-1.5 pb-1">
-                  <input autoFocus value={styleName} onChange={(e) => setStyleName(e.target.value)}
-                    onKeyDown={(e) => { if (e.key === "Enter") saveStyle(); if (e.key === "Escape") setNaming(false); }}
-                    placeholder="Name this style" maxLength={40}
-                    className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
-                  <button type="button" onClick={saveStyle} disabled={!styleName.trim()}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
-                  <button type="button" onClick={() => setNaming(false)}
-                    className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
+                <div className="space-y-2 pb-1">
+                  <div className="flex gap-1.5">
+                    <input autoFocus value={styleName} onChange={(e) => setStyleName(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") saveStyle(); if (e.key === "Escape") setNaming(false); }}
+                      placeholder="Name this style" maxLength={40}
+                      className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm focus:outline-none focus:ring-1 focus:ring-ring" />
+                    <button type="button" onClick={saveStyle} disabled={!styleName.trim() || saveGroups.length === 0}
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-primary/50 text-primary disabled:opacity-40">Save</button>
+                    <button type="button" onClick={() => setNaming(false)}
+                      className="text-xs px-2.5 py-1.5 rounded-lg border border-border/50 text-muted-foreground">Cancel</button>
+                  </div>
+                  {/* What the style carries. Leave them all on and it's a
+                      whole look; untick some and it becomes a partial style
+                      you can lay over anything — which is why saved styles
+                      show what they touch. */}
+                  <div className="flex flex-wrap gap-1">
+                    {LOOK_GROUPS.map((g) => {
+                      const on = saveGroups.includes(g.id);
+                      return (
+                        <button key={g.id} type="button"
+                          onClick={() => setSaveGroups((prev) => (on ? prev.filter((x) => x !== g.id) : [...prev, g.id]))}
+                          aria-pressed={on}
+                          className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
+                            on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                          }`}>{g.label}</button>
+                      );
+                    })}
+                  </div>
                 </div>
               ) : (
                 <div className="flex gap-1.5 pb-1">
@@ -875,15 +926,29 @@ export default function WidgetConfigSheet({
               )}
               {userStyles.map((st) => {
                 const on = settings.style === `${USER_STYLE_PREFIX}${st.id}`;
+                const cov = lookCoverage(st.look || {});
                 return (
-                  <div key={st.id} className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
+                  <div key={st.id}>
+                  <div className={`flex items-center gap-2 px-3 py-2 rounded-lg border ${
                     on ? "border-primary/60 bg-primary/10" : "border-border/40"
                   }`}>
-                    <button type="button" className="flex-1 text-left text-sm font-medium"
+                    <button type="button" className="flex-1 text-left text-sm font-medium min-w-0"
                       onClick={() => onSettings(widget.instanceId, { style: `${USER_STYLE_PREFIX}${st.id}` })}>
-                      {st.label}
+                      <span className="truncate block">{st.label}</span>
                       <span className="text-xs text-muted-foreground block">Yours</span>
                     </button>
+                    {/* A style that decides everything needs no caveat. One
+                        that leaves parts alone says so, and the star opens
+                        exactly what it does and doesn't touch. */}
+                    {!cov.complete && (
+                      <button type="button"
+                        aria-label={`What "${st.label}" changes`}
+                        title="Partial style — see what it changes"
+                        onClick={() => setExclusionsFor(exclusionsFor === st.id ? null : st.id)}
+                        className={`p-1 flex-shrink-0 ${exclusionsFor === st.id ? "text-primary" : "text-muted-foreground hover:text-foreground"}`}>
+                        <Star className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button type="button" aria-label={`Delete ${st.label}`}
                       onClick={async () => {
                         const ok = await confirm({
@@ -896,6 +961,19 @@ export default function WidgetConfigSheet({
                       className="p-1 text-muted-foreground hover:text-destructive">
                       <Trash2 className="w-3.5 h-3.5" />
                     </button>
+                  </div>
+                  {exclusionsFor === st.id && (
+                    <div className="mt-1 mb-1 px-3 py-2 rounded-lg border border-border/40 bg-muted/30 space-y-1.5">
+                      <div>
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Changes</p>
+                        <p className="text-xs">{cov.covers.map((g) => g.label).join(", ") || "nothing"}</p>
+                      </div>
+                      <div>
+                        <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Leaves alone</p>
+                        <p className="text-xs">{cov.leaves.map((g) => g.label).join(", ")}</p>
+                      </div>
+                    </div>
+                  )}
                   </div>
                 );
               })}

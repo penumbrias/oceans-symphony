@@ -37,6 +37,12 @@ export default [
     },
     rules: {
       "no-unused-vars": "off",
+      // Spreading pluginJs.configs.recommended above sets `rules`, and this
+      // block then REPLACES it wholesale — so no-undef was silently off.
+      // esbuild does no scope checking either, which is how a missing
+      // import (USER_STYLE_PREFIX) built clean and crashed the home screen
+      // on a real device. Keep this on.
+      "no-undef": "error",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",
       "unused-imports/no-unused-imports": "error",

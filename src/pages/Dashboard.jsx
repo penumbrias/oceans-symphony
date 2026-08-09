@@ -1060,7 +1060,7 @@ export default function Dashboard() {
                   startActivity: () => setShowStartActivity(true),
                   startSymptom: () => { setEmotionModalInitialSection("symptoms"); setShowEmotionModal(true); },
                   quickTask: () => setShowQuickTask(true),
-                  quickPlan: () => setShowQuickPlan(true),
+                  quickPlan: () => setShowQuickTask(true),
                 }}
                 quickActionsSlot={
                   <AnimatePresence>

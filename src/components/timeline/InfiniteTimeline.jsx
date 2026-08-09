@@ -1370,10 +1370,7 @@ export default function InfiniteTimeline({
             end_time: session.end_time || null,
             is_active: !session.end_time,
           });
-      // Active new sessions settle the lead through the shared recompute.
-      if (!endDate) {
-        await recomputePrimaryFromLevels({ cfg: levelCfgTimeline, queryClient: null });
-      }
+          // Active new sessions settle the lead through the shared recompute.
           if (!session.end_time) {
             await recomputePrimaryFromLevels({ cfg: levelCfgTimeline, queryClient: null });
           }

@@ -21,7 +21,17 @@ export const LOOK_KEYS = [
   // Effects the user can build themselves — the same ones the built-in
   // styles use, so nothing is reserved for presets.
   "gradFrom", "gradTo", "gradAngle", "blur",
+  // Translucency belongs to each COLOUR, not to the widget as a whole:
+  // a gradient that fades to transparent, a solid box with ghosted text,
+  // a border you can see through. Kept as separate keys so the colour
+  // picker stays a plain hex field (the native picker has no alpha).
+  "accentOpacity", "textOpacity", "borderOpacity", "gradFromOpacity", "gradToOpacity",
 ];
+
+// An explicit "this style turns the effect OFF" value, as distinct from
+// "this style doesn't say" (unset = inherit). Without it a preset can add
+// a gradient but never take one away.
+export const OFF = "none";
 
 export const SHADOW_PRESETS = {
   none: "none",
@@ -34,6 +44,15 @@ export const SHADOW_PRESETS = {
 export const BORDER_STYLES = ["solid", "dashed", "dotted", "double", "none"];
 
 const isSet = (v) => v !== undefined && v !== null && v !== "";
+
+// Fold a colour and its own opacity into one CSS colour. color-mix keeps
+// the stored value a plain hex, so the picker and the hex field still work.
+function withAlpha(color, pct) {
+  if (!isSet(color) || color === OFF) return color;
+  const n = Number(pct);
+  if (!isSet(pct) || !Number.isFinite(n) || n >= 100) return color;
+  return `color-mix(in srgb, ${color} ${Math.max(0, n)}%, transparent)`;
+}
 
 // Pull just the look out of a widget's settings (settings also carry
 // non-visual things like `label`, `journal`, `appIds`).
@@ -63,7 +82,10 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
   // Re-declaring the APP token (--color-primary) at widget scope is what
   // makes accent reach everything inside that already follows the theme
   // (bg-primary, the breathing circle, buttons) — same trick as --radius.
-  if (isSet(look.accent)) { s["--v2-accent"] = look.accent; s["--color-primary"] = look.accent; }
+  if (isSet(look.accent)) {
+    const a = withAlpha(look.accent, look.accentOpacity);
+    s["--v2-accent"] = a; s["--color-primary"] = a;
+  }
   if (isSet(look.font)) s.fontFamily = look.font;
   if (isSet(look.fontScale)) s.fontSize = `${look.fontScale}%`;
   if (isSet(look.textColor)) {
@@ -71,19 +93,15 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     // widget carries text-foreground / text-muted-foreground, which win over
     // `color`. These two vars feed the [data-widget-content] remaps in
     // index.css so classed text follows too (muted = same hue, softened).
-    s.color = look.textColor;
-    s["--v2-text"] = look.textColor;
-    s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} 72%, transparent)`;
+    const tc = withAlpha(look.textColor, look.textOpacity);
+    s.color = tc;
+    s["--v2-text"] = tc;
+    // Muted text keeps its own softening on top of whatever the user chose.
+    const mutedPct = isSet(look.textOpacity) ? Math.round(Number(look.textOpacity) * 0.72) : 72;
+    s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} ${mutedPct}%, transparent)`;
   }
   if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
-  if (isSet(look.bg)) {
-    // Opacity is a separate key so the colour picker stays a plain colour;
-    // they're combined here via color-mix rather than making the user hand-
-    // write rgba().
-    s["--v2-widget-bg"] = isSet(look.bgOpacity) && Number(look.bgOpacity) < 100
-      ? `color-mix(in srgb, ${look.bg} ${Number(look.bgOpacity)}%, transparent)`
-      : look.bg;
-  }
+  if (isSet(look.bg)) s["--v2-widget-bg"] = withAlpha(look.bg, look.bgOpacity);
   if (isSet(look.bgImage)) {
     // The image sits on the wrapper and shows through the box, so it can
     // sit behind an icon AND its name (the encapsulating-frame ask).
@@ -93,17 +111,102 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s.backgroundRepeat = look.bgSize === "repeat" ? "repeat" : "no-repeat";
     s.borderRadius = "var(--v2-radius, 8px)";
   }
-  if (isSet(look.borderColor)) s["--v2-border-color"] = look.borderColor;
+  if (isSet(look.borderColor)) s["--v2-border-color"] = withAlpha(look.borderColor, look.borderOpacity);
   if (isSet(look.borderStyle)) s["--v2-border-style"] = look.borderStyle;
   if (isSet(look.shadow)) s["--v2-shadow"] = SHADOW_PRESETS[look.shadow] ?? look.shadow;
   // A gradient layers OVER the flat background colour, so the two combine
-  // rather than one silently winning.
-  if (isSet(look.gradFrom) && isSet(look.gradTo)) {
+  // rather than one silently winning. Each stop carries its own opacity, so
+  // a gradient can fade out to nothing instead of only between two solids.
+  if (look.gradFrom === OFF || look.gradTo === OFF) {
+    s["--v2-widget-gradient"] = "none";
+  } else if (isSet(look.gradFrom) && isSet(look.gradTo)) {
     const angle = isSet(look.gradAngle) ? Number(look.gradAngle) : 135;
-    s["--v2-widget-gradient"] = `linear-gradient(${angle}deg, ${look.gradFrom}, ${look.gradTo})`;
+    const from = withAlpha(look.gradFrom, look.gradFromOpacity);
+    const to = withAlpha(look.gradTo, look.gradToOpacity);
+    s["--v2-widget-gradient"] = `linear-gradient(${angle}deg, ${from}, ${to})`;
   }
   if (isSet(look.blur) && Number(look.blur) > 0) s["--v2-widget-blur"] = `blur(${Number(look.blur)}px)`;
   return s;
+}
+
+// ── What a style covers ────────────────────────────────────────────
+// A saved style doesn't have to be a whole look. You can save just the
+// shape, or just the colours, and apply it over anything without
+// disturbing the rest. So every style needs to say what it touches.
+//
+// `required` is what a group must set to genuinely COVER that dimension.
+// Anything outside `required` is a modifier (an opacity, an angle) that
+// only means something alongside its colour, so it doesn't gate coverage.
+export const LOOK_GROUPS = [
+  {
+    id: "shape", label: "Shape & spacing",
+    keys: ["radius", "borderW", "borderStyle", "padding", "shadow"],
+    required: ["radius", "borderW", "padding", "shadow"],
+  },
+  {
+    id: "type", label: "Font & text size",
+    keys: ["font", "fontScale"],
+    required: ["font", "fontScale"],
+  },
+  {
+    id: "colour", label: "Colours",
+    keys: ["accent", "accentOpacity", "bg", "bgOpacity", "textColor", "textOpacity", "borderColor", "borderOpacity"],
+    required: ["accent", "bg", "textColor", "borderColor"],
+  },
+  {
+    id: "effects", label: "Gradient & blur",
+    keys: ["gradFrom", "gradTo", "gradAngle", "gradFromOpacity", "gradToOpacity", "blur", "bgImage", "bgSize"],
+    // A style that says "no gradient" (the OFF sentinel) covers this just
+    // as much as one that sets a gradient — both decide what you get.
+    required: ["gradFrom", "gradTo", "blur"],
+  },
+  {
+    id: "css", label: "Custom CSS",
+    keys: ["css"],
+    required: ["css"],
+  },
+];
+
+export function groupCovered(look = {}, group) {
+  return group.required.every((k) => isSet(look[k]));
+}
+
+// Which dimensions this style decides, and which it leaves to whatever
+// the widget already had. A style covering everything needs no caveat;
+// anything less gets a marker and this list behind it.
+export function lookCoverage(look = {}) {
+  const covers = LOOK_GROUPS.filter((g) => groupCovered(look, g));
+  const leaves = LOOK_GROUPS.filter((g) => !groupCovered(look, g));
+  return { covers, leaves, complete: leaves.length === 0 };
+}
+
+// Build the look to SAVE: the chosen groups, filled from what the widget
+// actually looks like right now rather than only the keys it happens to
+// store. Saving "colours" off a widget that inherits its background from
+// the page style should still capture that background — otherwise the
+// preset silently covers less than the name says.
+export function lookForGroups(resolved = {}, own = {}, groupIds = [], live = {}) {
+  const out = {};
+  for (const g of LOOK_GROUPS) {
+    if (!groupIds.includes(g.id)) continue;
+    for (const k of g.keys) {
+      // What the widget stores, then what its style resolves to, then what
+      // it actually renders as. Without the last one a style saved off a
+      // widget that inherits everything would set nothing at all.
+      const v = isSet(own[k]) ? own[k] : isSet(resolved[k]) ? resolved[k] : live[k];
+      if (isSet(v)) out[k] = v;
+    }
+    // "No gradient" / "no custom CSS" are complete answers, not silence —
+    // record them explicitly so the style genuinely decides that dimension
+    // (and so a style the user marked as covering everything reads as
+    // covering everything, rather than wearing a star for a blank field).
+    if (g.id === "effects") {
+      if (!isSet(out.gradFrom) || !isSet(out.gradTo)) { out.gradFrom = OFF; out.gradTo = OFF; }
+      if (!isSet(out.blur)) out.blur = 0;
+    }
+    if (g.id === "css" && !isSet(out.css)) out.css = OFF;
+  }
+  return out;
 }
 
 // ── Saved styles (SystemSettings.ui_v2_styles) ─────────────────────

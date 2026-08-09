@@ -274,9 +274,7 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
           <GripVertical className="w-4 h-4 text-white drop-shadow" />
         </span>
       </div>
-      {size >= 30 && (
-        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>{label}</span>
-      )}
+      <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>{label}</span>
     </div>
   );
 }

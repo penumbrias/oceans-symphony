@@ -403,6 +403,7 @@ function LocationProfileInner() {
   }
 
   // ---------- EDIT MODE ----------
+  const formCf = form.custom_fields || {};
   const formPs = readProfileBg(form.custom_fields || {});
   const formThemeCss = profileThemeCss("os-pf", form.custom_fields || {});
   const formSurfaceCss = profileSurfaceCss("os-pf", form.custom_fields || {});
@@ -413,7 +414,7 @@ function LocationProfileInner() {
       {formThemeCss && <style>{formThemeCss}</style>}
       {formSurfaceCss && <style>{formSurfaceCss}</style>}
       {/* This page's song, set in its style editor like any other profile. */}
-      {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
+      {formCf[PS.SONG]?.ref && <ProfileSongPlayer song={formCf[PS.SONG]} />}
       <div className="relative z-10 os-pf space-y-4">
         <div className="flex items-center justify-between">
           <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => setEditMode(false)}>

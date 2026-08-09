@@ -5,7 +5,10 @@ import { HexColorPicker } from 'react-colorful';
 // actions (Clear, "use the app colour") live inside the popover, which is
 // what the user sees once they've opened it anyway. Lets a panel show four
 // colours side by side instead of four labelled rows.
-export default function ColorPicker({ value, onChange, label, compact = false, onClear, extraAction }) {
+// `opacity` (optional) makes translucency a property of THIS colour rather
+// than of the whole element — so a gradient stop can fade to nothing while
+// the rest of the widget stays solid. Shape: { value, onChange }.
+export default function ColorPicker({ value, onChange, label, compact = false, onClear, extraAction, opacity }) {
   const [open, setOpen] = useState(false);
   const [hex, setHex] = useState(value || '#6366f1');
   const containerRef = useRef(null);
@@ -68,6 +71,20 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
             className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
             maxLength={7}
           />
+          {opacity && (
+            <div className='mt-2'>
+              <label className='text-[0.6875rem] text-muted-foreground flex items-center justify-between'>
+                Opacity <span className='tabular-nums'>{opacity.value ?? 100}%</span>
+              </label>
+              <input
+                type='range' min={0} max={100} step={5}
+                value={opacity.value ?? 100}
+                onChange={(e) => opacity.onChange(Number(e.target.value))}
+                className='w-full accent-primary'
+                aria-label={`${label || 'Colour'} opacity`}
+              />
+            </div>
+          )}
           {(onClear || extraAction) && (
             <div className='mt-2 flex items-center gap-1.5'>
               {extraAction && (

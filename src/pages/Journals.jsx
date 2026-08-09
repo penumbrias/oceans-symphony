@@ -415,7 +415,6 @@ export default function Journals() {
       setFronterFilterIds(new Set(preselect));
     }
     setFronterMenuOpen(true);
-    setFronterMenuSearch("");
   };
 
   const toggleFronterFilterAlter = (id) => {
