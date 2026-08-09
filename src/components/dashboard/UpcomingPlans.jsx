@@ -89,7 +89,11 @@ export default function UpcomingPlans({ placement, limit, filterByAlterId = null
 
   // Per-alter panel ignores the surface gate (it's the contextual default
   // and the per-alter panel itself controls when it renders).
-  if (placement !== "alter_panel" && !isSurfaceEnabled(settings, placement)) return null;
+  // "widget" joins alter_panel in bypassing the surface toggles: putting
+  // the widget on a board IS the opt-in, so a Settings switch gating it
+  // would just make a placed widget mysteriously render nothing.
+  if (placement !== "alter_panel" && placement !== "widget"
+      && !isSurfaceEnabled(settings, placement)) return null;
 
   // Filter for assigned alter if needed
   const visibleActivities = filterByAlterId

@@ -24,7 +24,7 @@ import {
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
-  CalendarRange, Grid2X2, CalendarClock, ListChecks, GraduationCap, CheckCircle2, Music
+  CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -57,6 +57,7 @@ import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/ho
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
@@ -2767,6 +2768,24 @@ export const V2_WIDGETS = {
         ] },
     ],
     defaultSpan: { cols: 4, rows: 4 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
+  },
+  upcoming_plans: {
+    label: "Coming up", description: "The classic Upcoming plans panel, with its own reminder window.",
+    icon: AlarmClock, category: "activities",
+    // The classic component verbatim — it fetches, groups by day, offers
+    // the inline window cog and the resolve actions. Section supplies the
+    // one visible box; UpcomingPlans keeps its own header (it carries the
+    // window label and cog), so Section is label-less to avoid two titles.
+    render: sized(({ settings }) => (
+      <Section>
+        {/* No limit prop: that keeps the panel's own cog visible, so how
+            many plans / how far ahead stays the one control users already
+            know from the classic dashboard rather than a second copy of it. */}
+        <UpcomingPlans placement="widget" title={settings?.label || "Coming up"} />
+      </Section>
+    )),
+    supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
+    defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
   plans: {
     label: "Plans", description: "What's scheduled over the coming days.",

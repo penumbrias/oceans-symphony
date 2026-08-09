@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "August 8, 2026",
+    changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: \"Coming up\" is now a widget \u2014 the same upcoming plans panel from the classic home screen, placeable on any board." },
+    ],
+  },
+  {
     date: "August 6, 2026",
     changes: [
       { type: "fix", text: "Tapping a group in Manage Groups opens that group now, instead of only selecting it. Press and hold a group to get its inline edit controls." },
