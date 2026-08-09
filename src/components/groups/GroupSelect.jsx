@@ -1,6 +1,6 @@
 import React, { useState, useRef, useLayoutEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, Folder, Crown, Check, Search } from "lucide-react";
+import { ChevronDown, Crown, Check, Search } from "lucide-react";
 
 // Single-select, nested, parent-respecting group/subsystem dropdown — the
 // single-select sibling of GroupTreeSelect. Used as the "Parent group" picker

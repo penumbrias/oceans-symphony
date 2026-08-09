@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 9, 2026",
     changes: [
+      { type: "fix", text: "Group membership changes stick now. Adding or removing members could silently do nothing, or a removed member would reappear, because the three places you could edit a group each saved it differently." },
+      { type: "fix", text: "Groups you created with members already picked showed up empty. Those members are visible again \u2014 nothing was lost." },
       { type: "fix", text: "A profile's music now plays when you VIEW the page. It was only ever starting in edit mode, so a song went quiet the moment you saved." },
       { type: "feature", text: "Songs have their own volume and a \u201cstart on its own\u201d switch \u2014 set per song, so a loud track and a quiet one can sit on different pages." },
       { type: "fix", text: "Reminders set to restart their clock after your last check-in never arrived as a push \u2014 they only fired with the app open. They\u2019re scheduled properly now." },

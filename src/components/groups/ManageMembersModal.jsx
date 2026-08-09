@@ -1,5 +1,4 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Loader2, Save, Search, User } from "lucide-react";
 import { toast } from "sonner";
+import { setGroupMembers } from "@/lib/groupMembership";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 
@@ -78,34 +78,7 @@ export default function ManageMembersModal({ group, allAlters, open, onClose }) 
   const handleSave = async () => {
     setSaving(true);
     try {
-      // Build new member_sp_ids: use sp_id when available, else id
-       const newMemberIds = allAlters
-         .filter((a) => selectedIds.has(a.id))
-         .map((a) => a.sp_id || a.id);
-
-       await base44.entities.Group.update(group.id, { member_sp_ids: newMemberIds });
-
-       // Update each alter's groups array
-       const groupKey = group.sp_id || group.id;
-       for (const alter of allAlters) {
-         const wasIn = (alter.groups || []).some((g) => g.id === groupKey || g.sp_id === groupKey);
-         const isIn = selectedIds.has(alter.id);
-        if (wasIn === isIn) continue;
-
-        const currentGroups = alter.groups || [];
-        let newGroups;
-        if (isIn) {
-          // Add this group
-          newGroups = [
-            ...currentGroups.filter((g) => g.id !== (group.sp_id || group.id)),
-            { id: group.sp_id || group.id, name: group.name, color: group.color || "" },
-          ];
-        } else {
-          // Remove this group
-          newGroups = currentGroups.filter((g) => g.id !== (group.sp_id || group.id));
-        }
-        await base44.entities.Alter.update(alter.id, { groups: newGroups });
-      }
+      await setGroupMembers({ group, alterIds: [...selectedIds], alters: allAlters });
 
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });

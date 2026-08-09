@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Loader2, Save, Folder, Upload, X, Link2, Users, Crown, Search, Palette, Settings2, Check } from "lucide-react";
+import { Loader2, Save, Folder, Upload, X, Link2, Users, Crown, Palette, Settings2 } from "lucide-react";
 import { toast } from "sonner";
+import { setGroupMembers } from "@/lib/groupMembership";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import AlterSearchSelect from "@/components/shared/AlterSearchSelect";
@@ -103,20 +104,23 @@ export default function CreateGroupModal({ open, onClose, parentGroup = null }) 
     if (!name.trim()) { toast.error("Name is required"); return; }
     setSaving(true);
     try {
-      const member_sp_ids = [...selectedMembers]
-        .map((id) => { const a = liveAlters.find((x) => x.id === id); return a ? (a.sp_id || a.id) : null; })
-        .filter(Boolean);
-      await base44.entities.Group.create({
+      const created = await base44.entities.Group.create({
         name: name.trim(),
         color,
         avatar_url: avatarUrl,
         description,
         owner_alter_id: isSub ? (ownerAlterId || "") : "",
         parent: parent || "",
-        member_sp_ids,
         custom_fields: customFields,
         ...pickGroupConfig(config),
       });
+      // Membership goes through the one write path, so a brand-new group's
+      // members are stored the same way an edit stores them — creating a
+      // group used to write only the group side, which left the members
+      // invisible to anything reading the alter side.
+      if (selectedMembers.size) {
+        await setGroupMembers({ group: created, alterIds: [...selectedMembers], alters: liveAlters });
+      }
       queryClient.invalidateQueries({ queryKey: ["groups"] });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
       toast.success("Group created!");

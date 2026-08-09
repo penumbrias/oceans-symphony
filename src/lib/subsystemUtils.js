@@ -38,7 +38,12 @@ export function getMemberAlters(group, alters) {
   const groupId = group.id;
   return (alters || []).filter((a) => {
     if (a.id === group.owner_alter_id) return false; // owner is parent, not child
-    const inGroupMembers = a.sp_id && memberSpIds.has(a.sp_id);
+    // member_sp_ids holds the alter's sp_id when they came from an import and
+    // their LOCAL id otherwise — every writer has always stored
+    // `sp_id || id`. Matching only on sp_id meant locally-created alters (i.e.
+    // most people's) were never recognised through the group's own member
+    // list, so a group whose members were recorded there read as empty.
+    const inGroupMembers = (!!a.sp_id && memberSpIds.has(a.sp_id)) || memberSpIds.has(a.id);
     // Guard the sp_id comparison: local groups have no sp_id, so an
     // unguarded `g.sp_id === group.sp_id` is `undefined === undefined`
     // === true, which matched every alter that's in ANY sp_id-less

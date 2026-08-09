@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Grid3X3, List, Ban } from "lucide-react";
 import { toast } from "sonner";
+import { addGroupMember, removeGroupMember } from "@/lib/groupMembership";
 import { useTerms } from "@/lib/useTerms";
 import { wouldAddingMemberCycle, isSubsystem } from "@/lib/subsystemUtils";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -150,17 +151,13 @@ export default function GroupMembersModal({ group, allGroups, isOpen, onClose, s
         return;
       }
 
-      let updatedGroups = alter.groups || [];
-      if (isAdding) {
-        if (!updatedGroups.find((g) => g.id === group.id || g.sp_id === group.id)) {
-          updatedGroups = [...updatedGroups, { id: group.id, name: group.name, color: group.color }];
-        }
-      } else {
-        updatedGroups = updatedGroups.filter((g) => g.id !== group.id && g.sp_id !== group.id);
-      }
-
-      await base44.entities.Alter.update(alterId, { groups: updatedGroups });
+      // One write path for both sides of membership. Writing only the alter
+      // side (what this modal used to do) left the group's own member list
+      // untouched, so a removed member came straight back on the next read.
+      if (isAdding) await addGroupMember({ group, alterId, alters });
+      else await removeGroupMember({ group, alterId, alters });
       queryClient.invalidateQueries({ queryKey: ["alters"] });
+      queryClient.invalidateQueries({ queryKey: ["groups"] });
       toast.success(isAdding ? "Alter added!" : "Alter removed!");
     } catch (err) {
       toast.error(err.message || "Failed to update alter");
