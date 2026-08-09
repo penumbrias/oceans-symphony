@@ -38,7 +38,7 @@ import BreathingExercise from "@/components/grounding/BreathingExercise";
 import { BREATHING_PATTERNS } from "@/utils/groundingDefaults";
 import { markGroundingTechniqueUsedToday } from "@/lib/dailyTaskSystem";
 import { useFrontLevels, getSessionLevel, frontLevelLabel } from "@/lib/frontLevels";
-import { useHoldDragLevel, commitFrontLevel, FrontLevelRail } from "@/components/fronting/FrontLevelRail";
+import { useHoldDragLevel, commitFrontLevel, FrontLevelRail, useFrontGesture } from "@/components/fronting/FrontLevelRail";
 import { AlterPanel } from "@/components/dashboard/CurrentFronters";
 import AlterActionMenu from "@/components/alters/AlterActionMenu";
 import { parseSessionEmotions, parseSessionSymptoms, parseSessionNote } from "@/lib/perAlterSessionEntries";
@@ -683,6 +683,10 @@ function AltersListWidget({ settings, api, mode }) {
   });
   const { entries: globalOrderEntries } = useAlterOrder();
   const sessionFor = (id) => sessions.find((x) => (x.alter_id || x.primary_alter_id) === id);
+  // Same gesture grammar as everywhere else: tap opens the profile, press and
+  // hold brings up the level rail (with the Remove stop). Holding someone who
+  // isn't here adds them at the level you release on.
+  const gesture = useFrontGesture();
   // Fronting frequency needs history, and only when that sort is chosen.
   const { data: allSessions = [] } = useQuery({
     queryKey: ["frontSessionsAll"],
@@ -790,6 +794,7 @@ function AltersListWidget({ settings, api, mode }) {
   return (
     <Section label={group ? group.name : applyTerms(tr("widget.alters.label"), t)}
       action={<TextAction onClick={() => navigate("/Home")}>{tr("widget.today.open")}</TextAction>}>
+      {gesture.node}
       {total === 0 && !treeItems && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
       {treeItems && treeItems.length === 0 && <Muted>{applyTerms(tr("widget.alters.empty"), t)}</Muted>}
       {treeItems && treeItems.map((item, i) => {
@@ -812,9 +817,13 @@ function AltersListWidget({ settings, api, mode }) {
         return (
           <div key={`a-${a.id}-${i}`} style={{ paddingLeft: item.depth * 14 }}>
             {isExpanded
-              ? <ExpandedAlterRow alter={a} session={session} onOpen={() => navigate(`/alter/${a.id}`)} t={t} formatAlter={formatAlter} />
+              ? <ExpandedAlterRow alter={a} session={session} t={t} formatAlter={formatAlter}
+                  holdProps={gesture.getHoldProps(a, session?.front_level)}
+                  onOpen={() => { if (!gesture.suppressed()) navigate(`/alter/${a.id}`); }} />
               : <Row left={<Dot color={a.color} ring={!!session} />} primary={formatAlter(a)}
-                  right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />}
+                  right={a.role || undefined}
+                  holdProps={gesture.getHoldProps(a, session?.front_level)}
+                  onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${a.id}`); }} />}
           </div>
         );
       })}
@@ -828,10 +837,14 @@ function AltersListWidget({ settings, api, mode }) {
             if (!isExpanded) {
               return (
                 <Row key={a.id} left={<Dot color={a.color} ring={!!session} />} primary={formatAlter(a)}
-                  right={a.role || undefined} onClick={() => navigate(`/alter/${a.id}`)} />
+                  right={a.role || undefined}
+                  holdProps={gesture.getHoldProps(a, session?.front_level)}
+                  onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${a.id}`); }} />
               );
             }
-            return <ExpandedAlterRow key={a.id} alter={a} session={session} onOpen={() => navigate(`/alter/${a.id}`)} t={t} formatAlter={formatAlter} />;
+            return <ExpandedAlterRow key={a.id} alter={a} session={session} t={t} formatAlter={formatAlter}
+              holdProps={gesture.getHoldProps(a, session?.front_level)}
+              onOpen={() => { if (!gesture.suppressed()) navigate(`/alter/${a.id}`); }} />;
           })}
         </React.Fragment>
       ))}
@@ -842,7 +855,7 @@ function AltersListWidget({ settings, api, mode }) {
 // Expanded alters-list row: avatar, emoji + name (alias per the label
 // mode), role, pronouns/preferences, and whatever this {alter} has going
 // right now (level, feelings, symptoms, note) when they're {fronting}.
-function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter }) {
+function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter, holdProps }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
   const levelCfg = useFrontLevels();
   const level = session ? getSessionLevel(session, levelCfg) : null;
@@ -854,7 +867,7 @@ function ExpandedAlterRow({ alter, session, onOpen, t, formatAlter }) {
   ] : [];
   const note = session ? (parseSessionNote(session.note).slice(-1)[0]?.text || "") : "";
   return (
-    <button type="button" onClick={onOpen}
+    <button type="button" onClick={onOpen} {...(holdProps || {})}
       className="w-full flex items-start gap-2 text-left rounded-lg px-1 py-1 hover:bg-muted/40">
       <span className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center mt-0.5"
         style={{

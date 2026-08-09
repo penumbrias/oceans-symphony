@@ -18,6 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "August 9, 2026",
+    changes: [
+      { type: "fix", text: "A profile's music now plays when you VIEW the page. It was only ever starting in edit mode, so a song went quiet the moment you saved." },
+      { type: "feature", text: "Songs have their own volume and a \u201cstart on its own\u201d switch \u2014 set per song, so a loud track and a quiet one can sit on different pages." },
+      { type: "fix", text: "Reminders set to restart their clock after your last check-in never arrived as a push \u2014 they only fired with the app open. They\u2019re scheduled properly now." },
+      { type: "fix", text: "A brand-new repeating reminder could keep pushing its first alert back and never arrive." },
+      { type: "improve", text: "\ud83e\uddea New UI: press and hold anyone in the {{Alters}} list widget to set their {{fronting}} level, the same as everywhere else." },
+    ],
+  },
+  {
     date: "August 8, 2026",
     changes: [
       { type: "fix", text: "Fixed a crash when saving a widget's look as a style, and seven more crashes of the same kind hiding in other screens (pinned members, the timeline, quick plan on the home screen, journal filters, location profiles)." },

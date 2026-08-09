@@ -92,7 +92,9 @@ export function Section({ label, action, center, children }) {
 }
 
 // One list row: [left] primary — secondary [right]. Tappable if onClick.
-export function Row({ left, primary, secondary, right, onClick, title }) {
+// `holdProps` lets a caller attach the press-and-hold gesture grammar (the
+// fronting-level rail) to a row without every list re-implementing the row.
+export function Row({ left, primary, secondary, right, onClick, title, holdProps }) {
   const Tag = onClick ? "button" : "div";
   // Minimal means the answer and nothing else: no icon or avatar column, no
   // qualifier. The row keeps its name and its right-hand value.
@@ -103,6 +105,7 @@ export function Row({ left, primary, secondary, right, onClick, title }) {
       type={onClick ? "button" : undefined}
       onClick={onClick}
       title={title}
+      {...(holdProps || {})}
       className={`flex items-center gap-2 text-left w-full min-h-[32px] ${onClick ? "hover:bg-muted/40 -mx-1 px-1" : ""}`}
       style={onClick ? { borderRadius: "var(--v2-radius, 8px)" } : undefined}
     >

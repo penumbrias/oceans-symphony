@@ -185,13 +185,28 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
   }
 
   if (reminder.trigger_type === "interval") {
-    // after_last: "check_in" needs live data to compute baseline — leave
-    // it on the polling path.
-    if (cfg.after_last === "check_in") return [];
-
     const everyMs = (cfg.every_minutes || 60) * 60 * 1000;
     if (everyMs < 60 * 1000) return []; // sub-minute intervals are nonsense
-    let baseline = reminder.last_fired_at ? new Date(reminder.last_fired_at).getTime() : now.getTime();
+    // "Restart clock after: last check-in" used to bail out here, which left
+    // those reminders on the in-app polling path — so they only ever fired
+    // with the app open, and never as a push. The baseline is live data, but
+    // it's the same KIND of live data the front-based reminder already takes
+    // through `context`, so it pre-schedules the same way: anchor on the last
+    // check-in and re-reconcile whenever a new one lands.
+    let baseline;
+    if (cfg.after_last === "check_in") {
+      if (!context.lastCheckInMs) return [];
+      baseline = context.lastCheckInMs;
+    } else {
+      // A reminder that has never fired anchored on `now`, so every reconcile
+      // re-based the whole series and pushed the first fire another full
+      // interval into the future — an hourly reminder could keep resetting to
+      // "in an hour" and never arrive. Anchoring on when it was CREATED gives
+      // a stable grid that survives re-reconciling.
+      baseline = reminder.last_fired_at
+        ? new Date(reminder.last_fired_at).getTime()
+        : (reminder.created_date ? new Date(reminder.created_date).getTime() : now.getTime());
+    }
     let next = baseline + everyMs;
 
     // active_window: HH:MM range in user's tz. Skip fires outside it.
@@ -267,11 +282,23 @@ export function computePrescheduledFires(reminder, settings, now = new Date(), c
 export function isPrescheduleableType(reminder) {
   const t = reminder?.trigger_type;
   if (t === "scheduled" || t === "event") return true;
-  if (t === "interval" && reminder?.trigger_config?.after_last !== "check_in") return true;
+  // Interval reminders pre-schedule either way now — "after last check-in"
+  // anchors on the newest check-in instead of the last fire.
+  if (t === "interval") return true;
   // "No front update for N minutes" anchors off the latest front change, so
   // its fire times are computable ahead of time (see computePrescheduledFires).
   if (isRollingFrontReminder(reminder)) return true;
   return false;
+}
+
+// Reminders whose clock RESETS on an event (a front change, a check-in)
+// can't be handed to the relay as a static schedule, because the relay only
+// learns about them at sync time. They keep the local OS pre-schedule even
+// when server push owns everything else — no overlap, so no double-buzz.
+export function isRollingReminder(reminder) {
+  if (isRollingFrontReminder(reminder)) return true;
+  return reminder?.trigger_type === "interval"
+    && reminder?.trigger_config?.after_last === "check_in";
 }
 
 // The "no front update for N minutes" reminder is special: it RESETS every
@@ -356,7 +383,7 @@ export async function reconcileNativeSchedule(reminders, settings, context = {})
     if (!channels.includes("push")) return false;
     // When server push owns delivery, the relay covers every static schedule
     // type. Only the rolling front reminder stays local.
-    if (serverPushActive && !isRollingFrontReminder(r)) return false;
+    if (serverPushActive && !isRollingReminder(r)) return false;
     return true;
   });
 
@@ -603,6 +630,13 @@ export function useNativeReminderSync() {
     queryFn: () => base44.entities.FrontingSession.list("-start_time", 50),
   });
 
+  // Same idea for "restart the clock after my last check-in": the newest
+  // check-in is the anchor, so a new one has to re-reconcile the schedule.
+  const { data: recentCheckIns = [] } = useQuery({
+    queryKey: ["emotionCheckIns", "recent1"],
+    queryFn: () => base44.entities.EmotionCheckIn.list("-timestamp", 1),
+  });
+
   useEffect(() => {
     if (!isNative()) return;
 
@@ -619,6 +653,18 @@ export function useNativeReminderSync() {
     // Last fronting "update" = the most recent of start/end/created on the
     // latest session, mirroring the in-app no_front_update evaluator so the
     // two delivery paths agree on the baseline.
+    const hasCheckInInterval = (reminders || []).some(r => {
+      if (!r.is_active) return false;
+      if (r.trigger_type !== "interval" || r.trigger_config?.after_last !== "check_in") return false;
+      const channels = r.delivery_channels?.length ? r.delivery_channels : ["in_app"];
+      return channels.includes("push");
+    });
+    let lastCheckInMs = 0;
+    if (hasCheckInInterval && recentCheckIns.length) {
+      const c = recentCheckIns[0];
+      lastCheckInMs = new Date(c.timestamp || c.created_date || 0).getTime();
+    }
+
     let lastFrontActivityMs = 0;
     if (hasNoFrontUpdate && frontSessions.length) {
       const s = frontSessions[0];
@@ -651,11 +697,12 @@ export function useNativeReminderSync() {
       // Only let the front baseline into the signature when something
       // actually depends on it, so unrelated switches don't trigger churn.
       f: hasNoFrontUpdate ? lastFrontActivityMs : null,
+      c: hasCheckInInterval ? lastCheckInMs : null,
     });
     if (sig === lastSigRef.current) return;
     lastSigRef.current = sig;
-    reconcileNativeSchedule(reminders, settings, { lastFrontActivityMs }).catch(() => {});
-  }, [reminders, settings, frontSessions]);
+    reconcileNativeSchedule(reminders, settings, { lastFrontActivityMs, lastCheckInMs }).catch(() => {});
+  }, [reminders, settings, frontSessions, recentCheckIns]);
 }
 
 // Tap handler — called from nativeBootstrap.js when the user taps a

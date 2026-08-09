@@ -2,6 +2,8 @@ import { useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
+import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 const TYPE_STYLES = {
   feature: { dot: "bg-primary", label: "New", labelCls: "text-primary bg-primary/10" },
@@ -13,6 +15,9 @@ const TYPE_STYLES = {
 const INITIAL_SHOW = 2;
 
 export default function RecentUpdates() {
+  // Changelog text carries {{Alter}} / {{fronting}} placeholders so release
+  // notes read in the user's own words, like the rest of the app.
+  const t = useTerms();
   const [expanded, setExpanded] = useState(false);
 
   const visible = expanded ? CHANGELOG : CHANGELOG.slice(0, INITIAL_SHOW);
@@ -40,7 +45,7 @@ export default function RecentUpdates() {
                 <div key={ci} className="flex items-start gap-2.5">
                   <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 mt-1.5 ${style.dot}`} />
                   <div className="flex-1 min-w-0">
-                    <span className="text-sm text-foreground leading-snug">{c.text}</span>
+                    <span className="text-sm text-foreground leading-snug">{applyTerms(c.text, t)}</span>
                   </div>
                   {style.label && (
                     <span className={`flex-shrink-0 text-[0.625rem] font-semibold px-1.5 py-0.5 rounded-md ${style.labelCls}`}>

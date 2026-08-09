@@ -5,6 +5,8 @@ import { CHANGELOG } from "@/lib/changelog";
 import { APP_VERSION } from "@/lib/appVersion";
 import { openExternalUrl } from "@/lib/openExternalUrl";
 import BugReportModal from "@/components/settings/BugReportModal";
+import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 // Google Play listing for the app (the "leave a review" target).
 const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=app.oceans_symphony.twa";
@@ -37,6 +39,9 @@ const TYPE_ICON = {
 };
 
 export default function NewFeaturesBar({ embedded = false }) {
+  // Changelog text carries {{Alter}} / {{fronting}} placeholders so release
+  // notes read in the user's own words, like the rest of the app.
+  const t = useTerms();
   // Start hidden so the bar doesn't flash in before the effect
   // resolves the user's dismissal state.
   const [dismissed, setDismissed] = useState(true);
@@ -157,7 +162,7 @@ export default function NewFeaturesBar({ embedded = false }) {
                 <span className="text-[0.6875rem] flex-shrink-0 mt-px" aria-hidden="true">
                   {TYPE_ICON[c.type] || "•"}
                 </span>
-                <span>{c.text}</span>
+                <span>{applyTerms(c.text, t)}</span>
               </li>
             ))}
           </ul>
@@ -178,7 +183,7 @@ export default function NewFeaturesBar({ embedded = false }) {
                         <span className="text-[0.6875rem] flex-shrink-0 mt-px" aria-hidden="true">
                           {TYPE_ICON[c.type] || "•"}
                         </span>
-                        <span>{c.text}</span>
+                        <span>{applyTerms(c.text, t)}</span>
                       </li>
                     ))}
                   </ul>

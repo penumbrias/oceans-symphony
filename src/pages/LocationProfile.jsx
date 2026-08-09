@@ -322,6 +322,10 @@ function LocationProfileInner() {
         <PageBackground bgColor={ps.bgColor} bgImage={ps.bgImage} bgOpacity={ps.bgOpacity} />
         {themeCss && <style>{themeCss}</style>}
         {surfaceCss && <style>{surfaceCss}</style>}
+        {/* The song belongs to VIEWING the page — it was only ever mounted in
+            the edit branch, so a profile's music played while you were
+            editing it and went silent the moment you saved. */}
+        {cf[PS.SONG]?.ref && <ProfileSongPlayer song={cf[PS.SONG]} />}
         <div className="relative z-10 os-pf space-y-6" style={{ ...(pageTextColor ? { color: pageTextColor } : {}), ...(pageFont ? { fontFamily: pageFont } : {}) }}>
           <div data-pf-chrome className="flex items-center justify-between px-2 py-1.5">
             <Button variant="ghost" size="sm" className="-ml-2 text-muted-foreground" onClick={() => navigate(-1)} aria-label="Back" title="Back">

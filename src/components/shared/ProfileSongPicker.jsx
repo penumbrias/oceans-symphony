@@ -106,11 +106,30 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
         />
       </div>
       {value?.ref && (
-        <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
-          <span>Loop while the page is open</span>
-          <Switch checked={value.loop !== false}
-            onCheckedChange={(v) => onChange({ ...value, loop: !!v })} />
-        </label>
+        <>
+          <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>Loop while the page is open</span>
+            <Switch checked={value.loop !== false}
+              onCheckedChange={(v) => onChange({ ...value, loop: !!v })} />
+          </label>
+          <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+            <span>Start on its own</span>
+            <Switch checked={value.autoplay !== false}
+              onCheckedChange={(v) => onChange({ ...value, autoplay: !!v })} />
+          </label>
+          {/* Volume is saved with the SONG, so a loud track and a quiet one
+              can live on two pages without re-adjusting the device each time. */}
+          <div className="space-y-1">
+            <label className="flex items-center justify-between text-xs text-muted-foreground">
+              <span>Volume</span>
+              <span className="tabular-nums">{value.volume ?? 100}%</span>
+            </label>
+            <input type="range" min={0} max={100} step={5}
+              value={value.volume ?? 100}
+              onChange={(e) => onChange({ ...value, volume: Number(e.target.value) })}
+              aria-label="Song volume" className="w-full accent-primary" />
+          </div>
+        </>
       )}
       <input ref={fileRef} type="file" accept="audio/*" className="hidden" onChange={handleUpload} />
       <AssetPickerModal
