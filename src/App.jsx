@@ -81,6 +81,7 @@ import { useNativeQuickActionsSync } from '@/lib/nativeQuickActions';
 import { useFriendsFrontChangeNotifications } from '@/lib/useFriendsFrontNotifications';
 import { useNavigate, useLocation } from 'react-router-dom';
 import ErrorBoundary from '@/components/shared/ErrorBoundary';
+import { recordCrash } from '@/lib/lastCrash';
 import { restorePreviewIfActive, isPreviewActive } from '@/lib/previewMode';
 import { cleanupBrokenSessionsOnce } from '@/lib/frontingUtils';
 import { cleanupLegacyCardEntryOnce } from '@/lib/dailyTaskSystem';
@@ -167,6 +168,11 @@ const AuthenticatedApp = () => {
       <CornerModeApplier />
       <ErrorBoundary
         resetKeys={[location.pathname]}
+        // Stash the trace so the bug-report form can carry it. By the time
+        // someone opens that form they've navigated away and the details
+        // behind "Show error details" are gone, so reports arrived with no
+        // way to locate the crash.
+        onError={(error, info) => recordCrash(error, info, location.pathname)}
         fallback={(error, reset) => (
           <div className="fixed inset-0 z-[100] bg-background overflow-y-auto flex items-center justify-center p-5">
             <div className="max-w-md w-full text-center space-y-4">

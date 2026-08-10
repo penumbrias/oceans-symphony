@@ -18,6 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 10, 2026",
+    changes: [
+      { type: "fix", text: "\ud83e\uddea New UI: \u201cClose gaps\u201d now only slides widgets straight up into empty space. It was re-flowing the whole page \u2014 moving widgets sideways and resizing them." },
+      { type: "fix", text: "Sharing a level that includes groups shared an empty list. Your friends can see group names now." },
+      { type: "improve", text: "If a screen crashes, the bug report form offers to attach what actually went wrong \u2014 with a preview of exactly what gets sent." },
+    ],
+  },
+  {
     date: "August 9, 2026",
     changes: [
       { type: "fix", text: "Group membership changes stick now. Adding or removing members could silently do nothing, or a removed member would reappear, because the three places you could edit a group each saved it differently." },

@@ -37,6 +37,7 @@ import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, ACTION_BAR_BUTTONS, packPositions, resolveOverlaps, hasOverlaps,
+  compactVertically,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
@@ -753,26 +754,22 @@ export default function ExperimentalDashboard({
       )
     );
 
-  // Switching a page to free placement seeds every widget with the cell it
   // Resizing a widget on a free page pushes its neighbours down and leaves
-  // holes behind; dragging each one back up is the hassle. This packs the
-  // page from the top using the SAME helper the flow->free switch uses.
+  // holes behind; dragging each one back up is the hassle. Closing the gaps
+  // is pure gravity — each widget falls straight up into the empty space
+  // above it, keeping its column, its size and its place in the order. It
+  // used to run packPositions, which re-flows the page from scratch and so
+  // also moved widgets sideways and resized them to their measured height.
   const collapseGaps = () => {
-    const measured = {};
-    if (gridRef.current) {
-      for (const node of gridRef.current.querySelectorAll("[data-widget-id]")) {
-        const h = node.getBoundingClientRect().height;
-        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / 92));
-      }
-    }
     persist({
       ...home,
       pages: home.pages.map((p) => (p.id !== page.id ? p : {
-        ...p, widgets: packPositions(p.widgets, gridCols, measured),
+        ...p, widgets: compactVertically(p.widgets, gridCols),
       })),
     });
     toast.success("Gaps closed up");
   };
+  // Switching a page to free placement seeds every widget with the cell it
   // already occupies, so the switch itself never rearranges anything.
   const toggleLayoutMode = () => {
     const next = page.layoutMode === "free" ? "flow" : "free";

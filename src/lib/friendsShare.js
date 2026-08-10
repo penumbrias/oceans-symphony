@@ -37,7 +37,17 @@ export function buildSharePayload({ alters, levels, visibility, groupsById = {} 
     if (fields.has("color")) o.color = alter.color || "";
     if (fields.has("bio")) o.bio = stripHtml(alter.description || "").slice(0, 2000);
     if (fields.has("groups")) {
-      o.groups = (Array.isArray(alter.groups) ? alter.groups : []).map((id) => groupsById[id]).filter(Boolean);
+      // Alter.groups holds ENTRY OBJECTS ({ id, name, color }), not bare ids.
+      // Looking each one up as if it were an id produced groupsById[object] —
+      // always undefined, then filtered out — so granting a friend a level
+      // that includes groups shared an empty list every time. Accept either
+      // shape, and fall back to the name stored on the entry.
+      o.groups = (Array.isArray(alter.groups) ? alter.groups : [])
+        .map((g) => {
+          if (g && typeof g === "object") return groupsById[g.id] || groupsById[g.sp_id] || g.name || null;
+          return groupsById[g] || null;
+        })
+        .filter(Boolean);
     }
     if (fields.has("customFields") && alter.alter_custom_fields) {
       o.customFields = Object.entries(alter.alter_custom_fields)

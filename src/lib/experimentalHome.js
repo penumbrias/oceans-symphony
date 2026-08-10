@@ -288,6 +288,54 @@ export function packPositions(widgets, gridCols, measuredRows = {}) {
   });
 }
 
+// "Close gaps" is GRAVITY, not a re-flow. Every widget keeps its column and
+// its size; it only slides UP into empty space directly above it, and the
+// array order is preserved so nothing about the arrangement changes.
+//
+// packPositions (above) re-packs from scratch — it reassigns x, reorders as
+// it goes, and rewrites span.rows from the measured height. That's right for
+// switching a page into free placement, and wrong for closing gaps, which
+// should never resize or rearrange anything.
+export function compactVertically(widgets, gridCols) {
+  const taken = new Set();
+  const key = (x, y) => `${x},${y}`;
+  const moved = new Map();
+
+  // Top-down, left-to-right: a widget can only settle onto what's already
+  // been placed above it, which is what makes the result stable.
+  const ordered = [...(widgets || [])].sort(
+    (a, b) => (a.pos?.y || 0) - (b.pos?.y || 0) || (a.pos?.x || 0) - (b.pos?.x || 0)
+  );
+
+  for (const w of ordered) {
+    const c = Math.min(Math.max(1, w.span?.cols || 1), gridCols);
+    const r = Math.max(1, w.span?.rows || 1);
+    const x = Math.max(0, Math.min(w.pos?.x || 0, gridCols - c));
+    const free = (yy) => {
+      if (yy < 0) return false;
+      for (let dy = 0; dy < r; dy += 1) {
+        for (let dx = 0; dx < c; dx += 1) if (taken.has(key(x + dx, yy + dy))) return false;
+      }
+      return true;
+    };
+
+    let y = Math.max(0, w.pos?.y || 0);
+    // Overlapping already? Settle downward first so gravity can't stack two
+    // widgets in the same cells.
+    while (!free(y)) y += 1;
+    // Then fall as far up as there's room.
+    while (free(y - 1)) y -= 1;
+
+    for (let dy = 0; dy < r; dy += 1) {
+      for (let dx = 0; dx < c; dx += 1) taken.add(key(x + dx, y + dy));
+    }
+    // span is deliberately untouched.
+    moved.set(w.instanceId, { ...w, pos: { x, y } });
+  }
+  // Original array order — "close gaps" must not reshuffle the list.
+  return (widgets || []).map((w) => moved.get(w.instanceId) || w);
+}
+
 // ── Free-placement collision handling ──────────────────────────────
 // Free placement means "put it where I want, gaps and all" — it does NOT
 // mean widgets get to sit on top of each other. When one is moved or grown

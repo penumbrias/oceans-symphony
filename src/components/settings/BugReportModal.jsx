@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Bug, ExternalLink, Mail } from "lucide-react";
 import { APP_VERSION } from "@/lib/appVersion";
+import { readLastCrash, formatCrash } from "@/lib/lastCrash";
 
 const REPO = "penumbrias/oceans-symphony";
 const FALLBACK_EMAIL = "pesturedrawing@gmail.com";
@@ -25,6 +26,12 @@ export default function BugReportModal({ open, onClose }) {
   const [whatHappened, setWhatHappened] = useState("");
   const [expected, setExpected] = useState("");
   const [steps, setSteps] = useState("");
+  // If a screen crashed recently, offer its trace — that's the one thing a
+  // report can't be reconstructed without, and it's gone from the screen by
+  // the time anyone opens this form.
+  const [lastCrash] = useState(() => readLastCrash());
+  const [includeCrash, setIncludeCrash] = useState(true);
+  const [showCrash, setShowCrash] = useState(false);
 
   const reset = () => {
     setSummary("");
@@ -52,6 +59,10 @@ export default function BugReportModal({ open, onClose }) {
     }
     lines.push("---");
     lines.push("");
+    if (includeCrash && lastCrash) {
+      lines.push(formatCrash(lastCrash));
+      lines.push("");
+    }
     lines.push("**Environment** (auto-filled)");
     lines.push(`- App version: \`${APP_VERSION}\``);
     if (typeof window !== "undefined") {
@@ -146,6 +157,31 @@ export default function BugReportModal({ open, onClose }) {
               className="text-sm font-mono"
             />
           </div>
+
+          {lastCrash && (
+            <div className="rounded-lg border border-border/50 bg-muted/20 p-2.5 space-y-1.5">
+              <label className="flex items-start gap-2 text-xs cursor-pointer">
+                <input type="checkbox" checked={includeCrash}
+                  onChange={(e) => setIncludeCrash(e.target.checked)}
+                  className="mt-0.5 accent-primary" />
+                <span>
+                  Include the last crash
+                  <span className="text-muted-foreground block text-[11px]">
+                    {lastCrash.message} — on {lastCrash.route}
+                  </span>
+                </span>
+              </label>
+              <button type="button" onClick={() => setShowCrash((v) => !v)}
+                className="text-[11px] text-primary hover:underline">
+                {showCrash ? "Hide" : "See exactly what this sends"}
+              </button>
+              {showCrash && (
+                <pre className="text-[10px] leading-snug bg-background/60 rounded p-2 overflow-x-auto whitespace-pre-wrap break-words max-h-40">
+                  {formatCrash(lastCrash)}
+                </pre>
+              )}
+            </div>
+          )}
 
           <p className="text-[11px] text-muted-foreground italic">
             Your app version, URL, and browser info are appended automatically so we don't have to ask.
