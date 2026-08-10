@@ -138,7 +138,13 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
   // amends a later wake time they can.
   useEffect(() => {
     if (!isOpen) return;
-    setWakeTime(toLocalDatetime(new Date().toISOString()));
+    // The field is minute-precision, so "now" for a sleep started seconds
+    // ago rounds DOWN to before the bedtime — and ending a short nap was
+    // refused with "wake time must be after the bedtime", which reads like
+    // the app is broken. Never offer a default the form would reject.
+    const bed = sleep?.bedtime ? new Date(sleep.bedtime).getTime() : 0;
+    const now = Date.now();
+    setWakeTime(toLocalDatetime(new Date(Math.max(now, bed + 60_000)).toISOString()));
     setQuality(0);
     setNotes("");
     setIsInterrupted(false);
@@ -147,7 +153,7 @@ export default function SleepEndModal({ sleep, isOpen, onClose, onSave }) {
     setDreamed(false);
     setHadNightmare(false);
     setSaveAsDream(false);
-  }, [isOpen]);
+  }, [isOpen, sleep?.bedtime]);
 
   const bedtimeDate = sleep?.bedtime ? new Date(sleep.bedtime) : null;
   const liveDurationLabel = bedtimeDate

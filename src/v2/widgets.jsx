@@ -57,6 +57,7 @@ import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/ho
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
+import SleepEndModal from "@/components/sleep/SleepEndModal";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
 import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
@@ -1366,29 +1367,34 @@ function BulletinBoardWidget({ api, settings, updateSettings }) {
 
 
 // ── Sleep controls ─────────────────────────────────────────────────
-// Start sleeping / wake up, right on the page. Ending sets wake_time on
-// the running record — that's this entity's own lifecycle, not an
-// immutable log like status notes.
+// Start sleeping / wake up, right on the page — running the SAME flow the
+// Sleep page runs, not a shortcut version of it.
+//
+// Ending used to just stamp wake_time straight onto the record. That
+// skipped everything the Sleep page's End modal does: quality, notes,
+// interruptions, whether you dreamed, saving a dream to the journal, and
+// the linked Sleep activity that mirrors the record into the tracker. So a
+// night ended from the widget was a bare pair of timestamps, and the
+// details were gone with no way to add them.
 function SleepControlWidget() {
   const tr = useT();
   const qc = useQueryClient();
   const sleeps = useList("sleep", "Sleep");
   const [busy, setBusy] = React.useState(false);
+  const [ending, setEnding] = React.useState(null);
   const active = sleeps.find((x) => x.bedtime && !x.wake_time);
 
   const act = async () => {
     if (busy) return;
+    // Waking up opens the full entry, exactly like the Sleep page.
+    if (active) { setEnding(active); return; }
     setBusy(true);
     try {
-      if (active) {
-        await base44.entities.Sleep.update(active.id, { wake_time: new Date().toISOString() });
-      } else {
-        // `date` is how the Sleep tracker files a record under a day —
-        // records without it are invisible there (owner bug, 2026-08-06).
-        const d = new Date();
-        const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-        await base44.entities.Sleep.create({ date: dateStr, bedtime: d.toISOString() });
-      }
+      // `date` is how the Sleep tracker files a record under a day —
+      // records without it are invisible there (owner bug, 2026-08-06).
+      const d = new Date();
+      const dateStr = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+      await base44.entities.Sleep.create({ date: dateStr, bedtime: d.toISOString() });
       qc.invalidateQueries({ queryKey: ["sleep"] });
     } finally { setBusy(false); }
   };
@@ -1407,6 +1413,22 @@ function SleepControlWidget() {
         }}>
         {active ? tr("widget.sleepCtl.wake") : tr("widget.sleepCtl.start")}
       </button>
+      {/* Same modal the Sleep page uses — it owns the writes (dream journal
+          entry, linked activity), so there's one place that knows how a
+          night is finished. It portals to the body, so the v2 board's
+          transform can't strand it. */}
+      <SleepEndModal
+        isOpen={!!ending}
+        sleep={ending}
+        onClose={() => setEnding(null)}
+        onSave={() => {
+          setEnding(null);
+          qc.invalidateQueries({ queryKey: ["sleep"] });
+          qc.invalidateQueries({ queryKey: ["activities"] });
+          qc.invalidateQueries({ queryKey: ["journalEntries"] });
+          toast.success("✅ Sleep logged!");
+        }}
+      />
     </Section>
   );
 }
