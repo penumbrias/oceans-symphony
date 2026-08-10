@@ -49,6 +49,7 @@ import CheckInLog from '@/pages/CheckInLog';
 import SystemHistory from '@/pages/SystemHistory';
 import LocationHistory from '@/pages/LocationHistory';
 import FriendsPage from '@/pages/Friends';
+import PlannerPage from '@/pages/Planner';
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
@@ -249,6 +250,8 @@ const AuthenticatedApp = () => {
         <Route path="/system-history" element={<SystemHistory />} />
         <Route path="/location-history" element={<LocationHistory />} />
         <Route path="/friends" element={<FriendsPage />} />
+        {/* New planner — lives alongside the old tracker until it replaces it. */}
+        <Route path="/planner" element={<PlannerPage />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
