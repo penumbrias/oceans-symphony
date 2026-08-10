@@ -25,6 +25,10 @@ const HOLD_MS = 300;
 const SLOP_PX = 8;
 
 export const HOUR_PX = 44;
+// Fixed so the hour gutter's offset always matches the grid. It used to be a
+// min-height that grew with the day's untimed items, which slid the hour
+// labels out of line with their own rows.
+export const UNTIMED_STRIP_PX = 30;
 
 function minutesToLabel(min) {
   const h = Math.floor(min / 60);
@@ -70,14 +74,20 @@ function DayColumn({
     const startY = e.clientY;
     const startX = e.clientX;
     const startMin = minuteAt(startY);
+    const node = ref.current;
     gesture.current = {
-      armed: false, startX, startY, startMin,
+      armed: false, startX, startY, startMin, pointerId: e.pointerId,
       timer: setTimeout(() => {
-        if (gesture.current) {
-          gesture.current.armed = true;
-          setDraft({ fromMin: snap(startMin), toMin: snap(startMin) + 30 });
-          if (navigator.vibrate) navigator.vibrate(8);
-        }
+        if (!gesture.current) return;
+        gesture.current.armed = true;
+        // Take the pointer once the hold lands. Without this the browser
+        // claims the gesture for scrolling the moment the finger moves and
+        // fires pointercancel — which used to run the commit path, so the
+        // modal opened as soon as you started dragging instead of when you
+        // let go.
+        try { node?.setPointerCapture(e.pointerId); } catch { /* mouse, or already captured */ }
+        setDraft({ fromMin: snap(startMin), toMin: snap(startMin) + 30 });
+        if (navigator.vibrate) navigator.vibrate(8);
       }, HOLD_MS),
     };
   };
@@ -104,8 +114,12 @@ function DayColumn({
     }
   };
 
-  const onPointerUp = () => {
+  // Release = commit. This is the ONLY path that creates anything.
+  const onPointerUp = (e) => {
     const g = gesture.current;
+    if (g?.pointerId != null) {
+      try { ref.current?.releasePointerCapture(g.pointerId); } catch { /* already gone */ }
+    }
     if (g?.armed && draft) {
       const from = draft.fromMin;
       const to = Math.max(draft.toMin, from + 15);
@@ -115,7 +129,25 @@ function DayColumn({
     endGesture();
     setDraft(null);
     setResizing(null);
+    if (e?.preventDefault) e.preventDefault();
   };
+
+  // Cancel = throw the gesture away. Never commit.
+  const onPointerCancel = () => {
+    endGesture();
+    setDraft(null);
+    setResizing(null);
+  };
+
+  // React attaches touch listeners passively, so e.preventDefault() in the
+  // pointer handler can't stop a scroll on its own. This one is explicit.
+  React.useEffect(() => {
+    const node = ref.current;
+    if (!node) return undefined;
+    const block = (e) => { if (gesture.current?.armed || resizing) e.preventDefault(); };
+    node.addEventListener("touchmove", block, { passive: false });
+    return () => node.removeEventListener("touchmove", block);
+  }, [resizing]);
 
   const pct = (min) => `${(min / MINUTES_PER_DAY) * 100}%`;
   const live = resizing;
@@ -123,7 +155,8 @@ function DayColumn({
   return (
     <div className="flex-1 border-l border-border/40 first:border-l-0" style={{ minWidth }}>
       {/* Untimed strip — today's intentions, draggable down into the hours. */}
-      <div className="min-h-[26px] border-b border-border/40 p-0.5 space-y-0.5">
+      <div className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto"
+        style={{ height: UNTIMED_STRIP_PX }}>
         {untimed.map((u) => (
           <button key={u.id} type="button" onClick={() => onOpenBlock(u)}
             className="w-full text-left text-[0.625rem] leading-tight px-1 py-0.5 rounded truncate"
@@ -140,7 +173,7 @@ function DayColumn({
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={onPointerCancel}
       >
         {/* hour rules */}
         {Array.from({ length: 24 }, (_, h) => (
@@ -313,10 +346,10 @@ export default function WeekCanvas({
           </div>
 
           <div className="flex overflow-y-auto overscroll-contain min-h-0" style={{ maxHeight: "70vh" }}>
-            <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: 26 }}>
+            <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} className="absolute right-1 text-[0.5625rem] text-muted-foreground tabular-nums"
-                  style={{ top: h * HOUR_PX - 4 }}>
+                  style={{ top: h * HOUR_PX, transform: "translateY(-50%)" }}>
                   {String(h).padStart(2, "0")}
                 </div>
               ))}
