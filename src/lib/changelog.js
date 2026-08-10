@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 10, 2026",
     changes: [
+      { type: "feature", text: "New Planner: a Mon\u2013Sun week grid where activities sit at their real times. Press and hold empty time and drag to log or plan a slot." },
+      { type: "feature", text: "Plan a day from your to-do list, then optionally give those items times \u2014 or just tick them off. Ticking one off in the planner ticks the to-do too." },
+      { type: "feature", text: "Tap anything on the grid to set who was doing it, change the time or duration, or move it to another day. Week totals show time per activity and per {{alter}}, with your goals measured against them." },
+      { type: "feature", text: "\u201cCopy last week\u201d brings last week\u2019s entries forward as plans \u2014 for a work rota that changes weekly." },
       { type: "fix", text: "Tapping a group shows what you can do with it again \u2014 open, manage members, and the rest. It had moved behind a press-and-hold. (tester report)" },
       { type: "improve", text: "Manage Groups has its Groups and Sub{{systems}} tabs back \u2014 nesting, moving, renaming and members work the same in both." },
       { type: "fix", text: "The \u201cmove into another group\u201d popup no longer sits under the bottom bar on a phone." },

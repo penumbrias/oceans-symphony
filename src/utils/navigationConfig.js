@@ -1,4 +1,4 @@
-import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact } from "lucide-react";
+import { Home, Users, Sparkles, BookOpen, CheckSquare, Clock, FileText, GitFork, BarChart2, Zap, Activity, Heart, Users2, Settings, Shield, Vote, Bell, GitMerge, MapPin, ClipboardList, UserRound, Pin, MessageSquare, Images, Contact, CalendarRange } from "lucide-react";
 
 export const ALL_PAGES = [
   { id: "home", label: "Home", path: "/", icon: Home },
@@ -23,6 +23,7 @@ export const ALL_PAGES = [
   { id: "system-history", label: "System History", path: "/system-history", icon: GitMerge },
   { id: "location-history", label: "Location History", path: "/location-history", icon: MapPin },
   { id: "friends", label: "Friends", path: "/friends", icon: UserRound },
+  { id: "planner", label: "Planner", path: "/planner", icon: CalendarRange },
   { id: "contacts", label: "Contacts", path: "/contacts", icon: Contact },
   { id: "bulletins", label: "Bulletin Board", path: "/bulletins", icon: Pin },
   { id: "unblend", label: "Help me unblend", path: "/unblend", icon: Heart },

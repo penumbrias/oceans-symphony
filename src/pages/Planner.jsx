@@ -389,6 +389,27 @@ export default function Planner() {
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
+            {/* Move to another day — a row of taps rather than a sideways
+                drag, so it works the same on a phone. Keeps the time. */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.moveToDay")}</p>
+              <div className="flex gap-1">
+                {Array.from({ length: 7 }, (_, i) => {
+                  const d = new Date(startOfWeek(anchor, { weekStartsOn: 1 }).getTime() + i * 86400000);
+                  const on = new Date(timing.day).toDateString() === d.toDateString();
+                  return (
+                    <button key={i} type="button" aria-pressed={on}
+                      onClick={() => setTiming((prev) => ({ ...prev, day: d }))}
+                      className={`flex-1 text-[0.6875rem] py-1 rounded border ${
+                        on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                      }`}>
+                      {format(d, "EEEEE")}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex items-end gap-2">
               <label className="flex-1 text-xs text-muted-foreground">
                 {tr("planner.giveTime")}

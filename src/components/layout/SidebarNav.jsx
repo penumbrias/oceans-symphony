@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useTerms } from "@/lib/useTerms";
-import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact } from "lucide-react";
+import { Users, Clock, BarChart2, Settings, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Bell, Vote, Shield, X, MapPin, UserRound, ShoppingCart, HelpCircle, MessageSquare, Images, ClipboardList, Megaphone, Contact, CalendarRange } from "lucide-react";
 import { usePendingReminderInstances } from "@/lib/remindersScheduler";
 import { cn } from "@/lib/utils";
 
@@ -25,6 +25,7 @@ function buildSidebarGroups(altersLabel, systemLabel) {
       items: [
         { id: "checkin-log", label: "Check-In Log",            icon: Heart,       path: "/checkin-log" },
         { id: "activities",  label: "Activities",              icon: Zap,         path: "/activities" },
+        { id: "planner",     label: "Planner",                 icon: CalendarRange, path: "/planner" },
         { id: "tasks",       label: "Daily Tasks",             icon: CheckSquare, path: "/tasks" },
         { id: "todo",        label: "To-Do List",              icon: ClipboardList, path: "/todo" },
         { id: "sleep",             label: "Sleep",            icon: Activity, path: "/sleep" },
