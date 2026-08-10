@@ -251,6 +251,15 @@ export default {
   "planner.untitled": "Untitled",
   "planner.tracked": "{amount} tracked",
   "planner.moveFailed": "Couldn't move that",
+  "planner.totals": "Totals",
+  "planner.byActivity": "By activity",
+  "planner.byMember": "By {members}",
+  "planner.goals": "Goals",
+  "planner.noGoals": "No weekly goals set.",
+  "planner.copyWeek": "Copy last week",
+  "planner.copied": "{count} copied from last week",
+  "planner.copyNothing": "Nothing to copy from last week",
+  "planner.nothingTracked": "Nothing tracked this week yet.",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",
