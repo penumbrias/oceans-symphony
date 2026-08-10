@@ -941,6 +941,20 @@ Alphabetical. "Storage" reflects which Proxy is conventionally used in source (b
 - **New entity → backup wiring in the same commit.** Add to `ENTITY_NAMES` AND `EXPORT_CATEGORIES` in `DataBackupRestore.jsx`. If it's device-bound, document the exclusion instead.
 - **New feature surface → tour step in the same commit.** Add the `data-tour="…"` anchor and the matching `buildSteps()` entry.
 
+### UI v2 — follow the standards doc
+
+**`docs/v2-ui-standards.md` is the contract for every v2 surface.** Read it
+before building or changing one. It covers language and terms, the shared
+data spine, destructive-action rules, component reuse, list/picker rules,
+the widget contract, platform and gesture rules, accessibility, scale, the
+registration checklist, and the engineering guardrails that exist because
+each one already shipped a bug.
+
+The framing that matters most: **v2 rebuilds FUNCTIONS, not pages.** The
+classic UI is the reference for what a feature needs — inputs, config, edge
+cases — never for how it's drawn. Where two classic surfaces do the same job
+differently, v2 picks one and both use it.
+
 ### UI v2 widgets — follow the Widget Contract
 
 **Every v2 widget follows `docs/widget-contract.md` — read it before writing or
