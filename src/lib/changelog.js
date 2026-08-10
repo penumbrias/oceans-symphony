@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 10, 2026",
     changes: [
+      { type: "feature", text: "Manage Groups is rebuilt. Groups and sub{{systems}} live in one tree now, nest inside each other freely, and every action is a tap \u2014 rename in place, move with a searchable picker, manage members, or tap a name to open it. No dragging, so it works on a phone." },
+      { type: "fix", text: "A group with a broken or looping parent no longer disappears \u2014 it shows at the top level with a note explaining why." },
+      { type: "fix", text: "Pasting a link that isn\u2019t an audio file used to give you a play button that silently did nothing. It now says so, and checks the link when you paste it." },
       { type: "fix", text: "\ud83e\uddea New UI: \u201cClose gaps\u201d now only slides widgets straight up into empty space. It was re-flowing the whole page \u2014 moving widgets sideways and resizing them." },
       { type: "fix", text: "Sharing a level that includes groups shared an empty list. Your friends can see group names now." },
       { type: "improve", text: "If a screen crashes, the bug report form offers to attach what actually went wrong \u2014 with a preview of exactly what gets sent." },

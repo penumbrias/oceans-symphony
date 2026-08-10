@@ -199,7 +199,7 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
       section: "alters", sectionLabel: t.Alters,
       emoji: "📁",
       title: "Groups & Folders",
-      body: `${t.Alters} can be organized into named groups. The 👁 eye icon toggles the folder tree view on and off. The grid icon next to it cycles the Groups section's own list/2-5 column view, independently of the ${t.Alters} section's view below. The + icon creates a new group. The ⚙️ gear opens the full Groups Manager page where you can nest groups, reorder them, and assign ${t.alters} to multiple groups. The folder-minus icon in the toolbar hides ${t.alters} that already appear in a group from the flat list below — useful for keeping the directory tidy when everyone is grouped.`,
+      body: `${t.Alters} can be organized into named groups. The 👁 eye icon toggles the folder tree view on and off. The grid icon next to it cycles the Groups section's own list/2-5 column view, independently of the ${t.Alters} section's view below. The + icon creates a new group. The ⚙️ gear opens the full Groups Manager, where groups and sub${t.systems} sit in one tree — rename in place, move a group into another with the Move button, manage members, or tap a name to open it. The folder-minus icon in the toolbar hides ${t.alters} that already appear in a group from the flat list below — useful for keeping the directory tidy when everyone is grouped.`,
       route: "/Home", target: "alter-groups-controls",
       look: `the highlighted group control icons (👁 + ⚙️) in the ${t.Alters} section header`, action: null,
     },

@@ -50,6 +50,12 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     el.volume = volume / 100;
     audioRef.current = el;
     let cancelled = false;
+    // A link that isn't a playable audio file (a YouTube/Spotify page, a
+    // dead link) used to fail silently: play() rejected, we fell into the
+    // "autoplay blocked" state, and the user got a play button that did
+    // nothing forever. Say what happened instead.
+    const onError = () => { if (!cancelled) setState("error"); };
+    el.addEventListener("error", onError);
     // "Don't start on its own" is a real choice, not a failure to start — it
     // shows the same play control the blocked case does, without trying.
     if (!autoplay) {
@@ -64,6 +70,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     }
     return () => {
       cancelled = true;
+      el.removeEventListener("error", onError);
       el.pause();
       el.src = "";
       audioRef.current = null;
@@ -77,7 +84,13 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
     const el = audioRef.current;
     if (!el) return;
     if (state === "playing") { el.pause(); setState("paused"); }
-    else el.play().then(() => setState("playing")).catch(() => setState("blocked"));
+    else {
+      el.play()
+        .then(() => setState("playing"))
+        // An element that already failed to load can't be "unblocked" by a
+        // tap — distinguish the two so the message stays truthful.
+        .catch(() => setState(el.error ? "error" : "blocked"));
+    }
   };
   const stop = () => {
     audioRef.current?.pause();
@@ -95,11 +108,16 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
         : "fixed left-1/2 -translate-x-1/2 z-40 flex items-center gap-1.5 pl-3 pr-1.5 py-1.5 rounded-full border border-border/60 bg-background/95 shadow-lg backdrop-blur-sm max-w-[85vw]"}
       style={inline ? undefined : { bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)" }}
     >
-      <Music className={`w-3.5 h-3.5 flex-shrink-0 ${state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"}`} />
-      <span className="text-xs font-medium truncate min-w-0">{title}</span>
+      <Music className={`w-3.5 h-3.5 flex-shrink-0 ${
+        state === "error" ? "text-destructive" : state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"
+      }`} />
+      <span className="text-xs font-medium truncate min-w-0">
+        {state === "error" ? "Couldn't play this link" : title}
+      </span>
       <button
         type="button"
         onClick={toggle}
+        hidden={state === "error"}
         aria-label={state === "playing" ? "Pause song" : "Play song"}
         className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0"
       >

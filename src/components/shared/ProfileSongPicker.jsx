@@ -19,6 +19,27 @@ import { saveLocalImage, createLocalImageUrl } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 
 export default function ProfileSongPicker({ value, onChange, subjectLabel = "page" }) {
+  // null | "checking" | "ok" | "bad" — result of probing a pasted URL.
+  const [urlState, setUrlState] = React.useState(null);
+  const checkUrl = React.useCallback((url) => {
+    setUrlState("checking");
+    const a = new Audio();
+    let done = false;
+    const finish = (ok) => {
+      if (done) return;
+      done = true;
+      setUrlState(ok ? "ok" : "bad");
+      a.src = "";
+    };
+    a.addEventListener("canplay", () => finish(true));
+    a.addEventListener("loadedmetadata", () => finish(true));
+    a.addEventListener("error", () => finish(false));
+    a.preload = "metadata";
+    a.src = url;
+    // A link that never resolves is no use either — don't leave the user
+    // watching a spinner.
+    setTimeout(() => finish(false), 8000);
+  }, []);
   const [uploading, setUploading] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const fileRef = useRef(null);
@@ -94,17 +115,36 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
           <FolderOpen className="w-3.5 h-3.5" /> From library
         </Button>
         <Input
-          placeholder="…or paste a direct audio URL"
+          placeholder="…or paste a link to an audio file"
           defaultValue={value?.ref?.startsWith("http") ? value.ref : ""}
           onBlur={(e) => {
             const v = e.target.value.trim();
             if (v && /^https?:\/\//.test(v)) {
               onChange({ ...(value || {}), ref: v, title: value?.title || "", loop: value?.loop !== false });
+              checkUrl(v);
             }
           }}
           className="h-8 text-xs flex-1 min-w-[160px]"
         />
       </div>
+      {/* A pasted link is only a song if it's the audio FILE. A YouTube or
+          Spotify page is a web page, so the browser can't play it — and the
+          old behaviour was a play button that silently did nothing. Check it
+          here, while the fix is still one paste away. */}
+      {urlState === "checking" && (
+        <p className="text-[0.6875rem] text-muted-foreground flex items-center gap-1.5">
+          <Loader2 className="w-3 h-3 animate-spin" /> Checking that link…
+        </p>
+      )}
+      {urlState === "ok" && (
+        <p className="text-[0.6875rem] text-primary">That link plays. 🎵</p>
+      )}
+      {urlState === "bad" && (
+        <p className="text-[0.6875rem] text-destructive">
+          Not an audio file. YouTube and Spotify links are web pages \u2014 use a link ending in .mp3,
+          .ogg or .m4a, or upload the file.
+        </p>
+      )}
       {value?.ref && (
         <>
           <label className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
