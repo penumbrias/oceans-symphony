@@ -15,6 +15,7 @@
 
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import PlannerSurface from "@/components/planner/PlannerSurface";
 import { useQuery } from "@tanstack/react-query";
 import { format, startOfWeek, addDays, addWeeks, addMonths, addYears, isSameDay, isSameMonth, isSameYear, startOfDay, endOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, CalendarRange, CalendarCheck, Grid2X2 } from "lucide-react";
@@ -341,6 +342,17 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
     );
   }
 
+  // The planner canvas draws blocks at their real times and handles its own
+  // gestures, so the widget and the Planner page can't diverge.
+  if (mode !== "minimal") {
+    return (
+      <Section label="Week" action={nav}>
+        <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
+          maxHeight="100%" applyPageLook={false} />
+      </Section>
+    );
+  }
+
   return (
     <Section label="Week" action={<span className="flex items-center gap-2">{nav}<AddActions modals={modals} day={atNow ? new Date() : weekDays[0]} compact={mode !== "expanded"} /></span>}>
       <ErrorBoundary fallback={<Muted>This week couldn't be drawn. Open the Activity tracker to sort it out.</Muted>} resetKeys={[activities.length]}>
@@ -481,6 +493,15 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
         {items.length > 0 && <Row primary="Logged" right={fmtHours(mins)} />}
         {items.length > 0 && <Row primary="Entries" right={String(items.length - planned.length)} />}
         {planned.length > 0 && <Row primary="Still planned" right={String(planned.length)} />}
+      </Section>
+    );
+  }
+
+  if (mode !== "minimal") {
+    return (
+      <Section label="Day" action={nav}>
+        <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
+          maxHeight="100%" applyPageLook={false} />
       </Section>
     );
   }

@@ -267,6 +267,9 @@ function DayColumn({
 
 export default function WeekCanvas({
   anchor,
+  // 7 = the week; 1 = just the anchor day. Same canvas either way, so the
+  // day widget and the week widget can't drift apart.
+  dayCount = 7,
   weekStartsOn = 1,
   activities = [],
   frontingHistory = [],
@@ -279,11 +282,13 @@ export default function WeekCanvas({
   onResize,
   onAddToDay,
   onOpenUntimed,
+  maxHeight,
 }) {
   const days = useMemo(() => {
+    if (dayCount === 1) return [new Date(anchor)];
     const start = startOfWeek(anchor, { weekStartsOn });
-    return Array.from({ length: 7 }, (_, i) => addDays(start, i));
-  }, [anchor, weekStartsOn]);
+    return Array.from({ length: dayCount }, (_, i) => addDays(start, i));
+  }, [anchor, weekStartsOn, dayCount]);
 
   const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const colorFor = useCallback(
@@ -336,7 +341,7 @@ export default function WeekCanvas({
   // A day column narrower than this can't hold a readable block, so on a
   // phone the week scrolls sideways rather than shrinking to slivers. The
   // Mon–Sun shape is kept either way.
-  const MIN_DAY_PX = 74;
+  const MIN_DAY_PX = dayCount === 1 ? 0 : 74;
 
   return (
     <div className="flex flex-col min-h-0">
@@ -368,7 +373,8 @@ export default function WeekCanvas({
           <div className="flex overflow-y-auto overscroll-contain min-h-0"
             style={{
               paddingTop: 8,
-              maxHeight: "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
+              maxHeight: maxHeight
+                || "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
             }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
