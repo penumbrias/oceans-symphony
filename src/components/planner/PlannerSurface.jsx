@@ -26,6 +26,9 @@ import { widgetLookFor } from "@/pages/ExperimentalDashboard";
 import { MINUTES_PER_DAY } from "@/lib/planner/layout";
 import { rollup, goalProgress } from "@/lib/planner/rollup";
 import { useAlterLabel } from "@/lib/useAlterLabel";
+import { SearchableMultiList } from "@/v2/widgets";
+import AlterSortToggle from "@/components/shared/AlterSortToggle";
+import { useAlterSorter } from "@/lib/alterSort";
 import { BarChart3, CopyPlus, ChevronDown } from "lucide-react";
 
 const lsGet = (k, d) => {
@@ -91,6 +94,14 @@ export default function PlannerSurface({
   }, [settingsRow]);
 
   const { data: goals = [] } = useQuery({ queryKey: ["activityGoals"], queryFn: () => base44.entities.ActivityGoal.list() });
+
+  // Fronters first, then whatever order the user picked — the standard
+  // arrangement for every member list in the app.
+  const sorter = useAlterSorter("symphony_planner_alter_sort");
+  const memberOptions = useMemo(
+    () => sorter.sort(alters.filter((a) => !a.is_archived)).map((a) => ({ id: a.id, label: formatAlter(a) })),
+    [alters, sorter, formatAlter]
+  );
 
   const weekRange = useMemo(() => {
     const from = startOfWeek(anchor, { weekStartsOn: 1 });
@@ -420,7 +431,7 @@ export default function PlannerSurface({
                   return (
                     <button key={i} type="button" aria-pressed={on}
                       onClick={() => setTiming((prev) => ({ ...prev, day: d }))}
-                      className={`flex-1 text-[0.6875rem] py-1 rounded border ${
+                      className={`flex-1 text-[0.6875em] py-1 rounded border ${
                         on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
                       }`}>
                       {format(d, "EEEEE")}
@@ -444,24 +455,22 @@ export default function PlannerSurface({
               </label>
             </div>
             {/* Who was doing it — this is what makes the per-member totals
-                answer "is everyone getting fair time". */}
+                answer "is everyone getting fair time".
+                House rule: never a bare list of members. Searchable and
+                scrollable, whoever is fronting first, one-tap sort toggle —
+                the same picker every other member list uses. A flat chip row
+                is unusable once a system has more than a handful. */}
             <div>
-              <p className="text-xs text-muted-foreground mb-1">{tr("planner.who")}</p>
-              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                {alters.filter((a) => !a.is_archived).map((a) => {
-                  const on = (timing.item.fronting_alter_ids || []).includes(a.id);
-                  return (
-                    <button key={a.id} type="button" aria-pressed={on}
-                      onClick={() => toggleAlter(a.id)}
-                      className={`text-xs px-2 py-1 rounded-full border ${
-                        on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
-                      }`}
-                      style={on ? { background: `${a.color || "#888"}22` } : undefined}>
-                      {formatAlter(a)}
-                    </button>
-                  );
-                })}
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-xs text-muted-foreground">{tr("planner.who")}</p>
+                <AlterSortToggle sorter={sorter} />
               </div>
+              <SearchableMultiList
+                options={memberOptions}
+                selectedIds={timing.item.fronting_alter_ids || []}
+                onToggle={toggleAlter}
+                searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
+              />
             </div>
 
             <div className="flex gap-2">

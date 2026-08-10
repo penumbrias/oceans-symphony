@@ -98,7 +98,7 @@ export default function DayPlanSheet({ day, open, onClose }) {
         </div>
 
         <div className="max-h-64 overflow-y-auto overscroll-contain space-y-0.5">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1 pt-1">
+          <p className="text-[0.6875em] font-semibold uppercase tracking-wide text-muted-foreground flex items-center gap-1 pt-1">
             <ListTodo className="w-3 h-3" /> {tr("planner.fromTodo")}
           </p>
           {shown.length === 0 && (

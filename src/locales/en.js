@@ -273,6 +273,7 @@ export default {
   "planner.openItem": "Open",
   "planner.doneToast": "Done",
   "planner.who": "Who",
+  "planner.searchMembers": "Search {members}…",
   "planner.moveToDay": "Day",
 
   // ── Shared ──
