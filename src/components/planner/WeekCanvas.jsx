@@ -164,7 +164,7 @@ function DayColumn({
         style={{ height: UNTIMED_STRIP_PX }}>
         {untimed.map((u) => (
           <button key={u.id} type="button" onClick={() => onOpenBlock(u)}
-            className="w-full text-left text-[0.625rem] leading-tight px-1 py-0.5 rounded truncate"
+            className="w-full text-left text-[0.625em] leading-tight px-1 py-0.5 rounded truncate"
             style={{ background: `${colorFor(u)}22`, color: colorFor(u) }}>
             {u.activity_name || tr("planner.untitled")}
           </button>
@@ -203,8 +203,9 @@ function DayColumn({
             <div
               key={b.id}
               data-block
-              className="absolute rounded-md overflow-hidden text-[0.625rem] leading-tight"
+              className="absolute overflow-hidden text-[0.625em] leading-tight"
               style={{
+                borderRadius: "var(--v2-radius, 6px)",
                 top: pct(top), height: pct(bottom - top),
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
                 background: `${colorFor(b)}2e`,
@@ -239,9 +240,14 @@ function DayColumn({
         })}
 
         {draft && (
-          <div className="absolute left-0 right-0 rounded-md border-2 border-dashed border-primary bg-primary/15 pointer-events-none flex items-start justify-center"
-            style={{ top: pct(draft.fromMin), height: pct(Math.max(draft.toMin - draft.fromMin, 15)) }}>
-            <span className="text-[0.625rem] text-primary font-medium mt-0.5">
+          <div className="absolute left-0 right-0 border-2 border-dashed pointer-events-none flex items-start justify-center"
+            style={{
+              top: pct(draft.fromMin), height: pct(Math.max(draft.toMin - draft.fromMin, 15)),
+              borderRadius: "var(--v2-radius, 6px)",
+              borderColor: "var(--v2-accent)",
+              background: "color-mix(in srgb, var(--v2-accent) 15%, transparent)",
+            }}>
+            <span className="text-[0.625em] font-medium mt-0.5" style={{ color: "var(--v2-accent)" }}>
               {minutesToLabel(draft.fromMin)}–{minutesToLabel(Math.max(draft.toMin, draft.fromMin + 15))}
             </span>
           </div>
@@ -335,10 +341,10 @@ export default function WeekCanvas({
               return (
                 <div key={day.toISOString()} className="text-center px-0.5 flex-1"
                   style={{ minWidth: MIN_DAY_PX }}>
-                  <div className={`text-[0.6875rem] leading-tight ${today ? "font-bold text-primary" : "font-medium"}`}>
+                  <div className={`text-[0.6875em] leading-tight ${today ? "font-bold text-[var(--v2-accent)]" : "font-medium"}`}>
                     {format(day, "EEE")} {format(day, "d")}
                   </div>
-                  <div className="text-[0.625rem] text-muted-foreground tabular-nums leading-tight">
+                  <div className="text-[0.625em] text-muted-foreground tabular-nums leading-tight">
                     {total ? formatDuration(total) : "·"}
                   </div>
                 </div>
@@ -356,7 +362,7 @@ export default function WeekCanvas({
             }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="absolute right-1 text-[0.5625rem] text-muted-foreground tabular-nums"
+                <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums"
                   style={{ top: h * HOUR_PX, transform: "translateY(-50%)" }}>
                   {String(h).padStart(2, "0")}
                 </div>

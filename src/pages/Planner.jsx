@@ -16,6 +16,8 @@ import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
+import { lookToStyle, resolveUserStyles } from "@/lib/widgetLook";
+import { widgetLookFor } from "@/pages/ExperimentalDashboard";
 import { MINUTES_PER_DAY } from "@/lib/planner/layout";
 
 const lsGet = (k, d) => {
@@ -43,6 +45,19 @@ export default function Planner() {
     queryKey: ["emotionCheckIns"], queryFn: () => base44.entities.EmotionCheckIn.list(),
     enabled: overlays.emotions,
   });
+
+  // The planner wears the same look the v2 widgets do, so a style preset
+  // set on the home screen carries here: accent, radius, borders, fonts and
+  // colours all arrive as CSS variables and the markup below reads them.
+  const { data: settingsRows = [] } = useQuery({
+    queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(),
+  });
+  const settingsRow = settingsRows[0];
+  const pageLook = useMemo(() => {
+    const userStyles = resolveUserStyles(settingsRow?.ui_v2_styles);
+    const styleMode = settingsRow?.ui_v2_home?.styleMode || "current";
+    return lookToStyle(widgetLookFor({}, userStyles, styleMode));
+  }, [settingsRow]);
 
   const catColor = useMemo(() => {
     const byId = Object.fromEntries(categories.map((c) => [c.id, c]));
@@ -113,7 +128,7 @@ export default function Planner() {
   }, [anchor, activities]);
 
   return (
-    <div className="min-h-screen p-2 sm:p-4">
+    <div className="min-h-screen p-2 sm:p-4" style={pageLook} data-widget-content>
       <div className="os-page-shell space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1">
@@ -132,14 +147,14 @@ export default function Planner() {
             <button type="button" onClick={() => setOverlay("alters", !overlays.alters)}
               aria-pressed={overlays.alters}
               className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                overlays.alters ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                overlays.alters ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
               }`}>
-              <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", t)}
+              <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", { term: t.Fronting })}
             </button>
             <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
               aria-pressed={overlays.emotions}
               className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
-                overlays.emotions ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                overlays.emotions ? "border-[var(--v2-accent)] bg-[color-mix(in_srgb,var(--v2-accent)_12%,transparent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
               }`}>
               <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
             </button>

@@ -246,10 +246,10 @@ export default {
   "planner.today": "Today",
   "planner.prevWeek": "Previous week",
   "planner.nextWeek": "Next week",
-  "planner.overlay.fronting": "{{Fronting}}",
+  "planner.overlay.fronting": "{term}",
   "planner.overlay.checkins": "Check-ins",
   "planner.untitled": "Untitled",
-  "planner.tracked": "{{amount}} tracked",
+  "planner.tracked": "{amount} tracked",
   "planner.moveFailed": "Couldn't move that",
 
   // ── Shared ──
