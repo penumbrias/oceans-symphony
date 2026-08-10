@@ -16,7 +16,7 @@
 import React, { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import { format, startOfWeek, addDays, addWeeks, addMonths, addYears, isSameDay, isSameMonth, isSameYear } from "date-fns";
+import { format, startOfWeek, addDays, addWeeks, addMonths, addYears, isSameDay, isSameMonth, isSameYear, startOfDay, endOfDay } from "date-fns";
 import { ChevronLeft, ChevronRight, CalendarDays, CalendarRange, CalendarCheck, Grid2X2 } from "lucide-react";
 
 import { base44 } from "@/api/base44Client";
@@ -69,6 +69,29 @@ function useActivityData() {
 
 // The tracker's editing surfaces, hosted by the widget. Returns the
 // handlers to hand the view, plus the elements to render.
+// Sessions that actually touch the window on screen.
+//
+// The day grid asks "who was fronting" once per hour SLOT, and each of those
+// asks scans the whole fronting history — so a system with a few thousand
+// sessions did a few thousand comparisons twenty-four times over, on every
+// render. And because switching pages remounts the board, that whole cost
+// landed on every swipe. Narrowing once per render turns 24 full scans into
+// one, and the grid then walks a handful of rows instead of the archive.
+function useFrontingWindow(frontingHistory, from, to) {
+  return useMemo(() => {
+    if (!from || !to) return frontingHistory;
+    const start = from.getTime();
+    const end = to.getTime();
+    return (frontingHistory || []).filter((s) => {
+      const b = s.start_time ? new Date(s.start_time).getTime() : 0;
+      if (!b || b > end) return false;
+      // An open session (still fronting) has no end — it reaches the present.
+      const e = s.end_time ? new Date(s.end_time).getTime() : Infinity;
+      return e >= start;
+    });
+  }, [frontingHistory, from, to]);
+}
+
 function useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled }) {
   const [logOpen, setLogOpen] = useState(false);
   const [planOpen, setPlanOpen] = useState(false);
@@ -283,6 +306,13 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
   // display-filter row.
   const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
+  // Windowed once per render, above any early return so the hook order
+  // never changes with the display mode.
+  const weekWindowDays = useMemo(() => {
+    const start = startOfWeek(anchor, { weekStartsOn: 0 });
+    return [startOfDay(start), endOfDay(addDays(start, 6))];
+  }, [anchor]);
+  const frontingWindow = useFrontingWindow(frontingHistory, weekWindowDays[0], weekWindowDays[1]);
 
   const cfgWeekStart = settings?.weekStartsOn !== undefined && settings?.weekStartsOn !== ""
     ? parseInt(settings.weekStartsOn, 10) || 0 : null;
@@ -319,7 +349,7 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
             weekDays={weekDays}
             activities={activities}
             alters={alters}
-            frontingHistory={frontingHistory}
+            frontingHistory={frontingWindow}
             importantDates={importantDates}
             onActivityClick={modals.onActivityClick}
             onTimeRangeSelect={interactive ? modals.onTimeRangeSelect : undefined}
@@ -353,6 +383,8 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
   // display-filter row.
   const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
+  const dayWindow = useMemo(() => [startOfDay(anchor), endOfDay(anchor)], [anchor]);
+  const frontingWindow = useFrontingWindow(frontingHistory, dayWindow[0], dayWindow[1]);
   const days = useMemo(() => [anchor], [anchor]);
   const atNow = isSameDay(anchor, new Date());
 
@@ -390,7 +422,7 @@ export function ActivityDayWidget({ mode = "normal", settings }) {
             weekDays={days}
             activities={activities}
             alters={alters}
-            frontingHistory={frontingHistory}
+            frontingHistory={frontingWindow}
             importantDates={importantDates}
             onActivityClick={modals.onActivityClick}
             onTimeRangeSelect={interactive ? modals.onTimeRangeSelect : undefined}
@@ -423,6 +455,8 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
   // display-filter row.
   const interactive = mode !== "minimal";
   const modals = useTrackerModals({ activities, alters, frontingHistory, importantDates, enabled: interactive });
+  const dayWindow = useMemo(() => [startOfDay(anchor), endOfDay(anchor)], [anchor]);
+  const frontingWindow = useFrontingWindow(frontingHistory, dayWindow[0], dayWindow[1]);
   const atNow = isSameDay(anchor, new Date());
 
   const nav = (
@@ -460,7 +494,7 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
             date={anchor}
             activities={activities}
             alters={alters}
-            frontingHistory={frontingHistory}
+            frontingHistory={frontingWindow}
             importantDates={importantDates}
             onActivityClick={modals.onActivityClick}
             onTimeRangeSelect={interactive ? modals.onTimeRangeSelect : undefined}

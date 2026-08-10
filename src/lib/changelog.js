@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 10, 2026",
     changes: [
+      { type: "improve", text: "Manage Groups has its Groups and Sub{{systems}} tabs back \u2014 nesting, moving, renaming and members work the same in both." },
+      { type: "fix", text: "The \u201cmove into another group\u201d popup no longer sits under the bottom bar on a phone." },
+      { type: "improve", text: "\ud83e\uddea New UI: the activity tracker widgets are lighter to draw, so swiping between pages is smoother." },
       { type: "fix", text: "\ud83e\uddea New UI: the sleep widget\u2019s \u201cI\u2019m awake\u201d now opens the full end-of-sleep entry \u2014 quality, interruptions, dreams, notes \u2014 the same as the Sleep page. It was only stamping a wake time and dropping everything else." },
       { type: "fix", text: "Ending a short nap was refused with \u201cwake time must be after the bedtime\u201d." },
       { type: "feature", text: "Manage Groups is rebuilt. Groups and sub{{systems}} live in one tree now, nest inside each other freely, and every action is a tap \u2014 rename in place, move with a searchable picker, manage members, or tap a name to open it. No dragging, so it works on a phone." },

@@ -5,10 +5,11 @@
 // which is unusable on a phone. Nesting rules lived in three files with
 // three different cycle guards.
 //
-// This is ONE tree. A subsystem is just a group an alter owns, so it sits in
-// the same list wearing its owner's name, and nests exactly like anything
-// else. Every action is reachable by tap — no drag required — so the page
-// works the same on a phone and a desktop.
+// Groups and subsystems keep their own tabs (owner request — that's how
+// people look for them), but they're the same thing underneath: a subsystem
+// is just a group an alter owns. So nesting, moving, renaming and members
+// work identically in both, and every action is reachable by tap — no drag
+// required — so the page works the same on a phone and a desktop.
 //
 // Nesting rules come from src/lib/groupTree.js; membership writes go through
 // src/lib/groupMembership.js. Neither is duplicated here.
@@ -141,6 +142,10 @@ export default function GroupsManager() {
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
 
+  // Two tabs, the way the old manager had them: plain groups in one,
+  // {t.system}s owned by someone in the other. They nest the same way and
+  // share every action — the split is just how people look for them.
+  const [tab, setTab] = useState("groups");
   const [query, setQuery] = useState("");
   const [collapsed, setCollapsed] = useState(() => new Set());
   const [createOpen, setCreateOpen] = useState(false);
@@ -165,8 +170,15 @@ export default function GroupsManager() {
   // Searching flattens the tree: when you're looking for a group you want to
   // find it, not navigate to it.
   const needle = query.trim().toLowerCase();
+  // Each tab is its own tree, so nesting still works inside it. A subsystem
+  // nested under a plain folder keeps its indent in the Sub-tab relative to
+  // the other subsystems.
+  const scoped = useMemo(
+    () => groups.filter((g) => (tab === "subsystems" ? !!g.owner_alter_id : !g.owner_alter_id)),
+    [groups, tab]
+  );
   const rows = useMemo(() => {
-    const flat = flattenGroupTree(groups);
+    const flat = flattenGroupTree(scoped);
     if (needle) {
       return flat
         .filter((g) => (g.name || "").toLowerCase().includes(needle))
@@ -182,7 +194,7 @@ export default function GroupsManager() {
       if (collapsed.has(g.id)) hidden.add(g.id);
     }
     return out;
-  }, [groups, needle, collapsed]);
+  }, [scoped, needle, collapsed]);
 
   const refresh = () => {
     qc.invalidateQueries({ queryKey: ["groups"] });
@@ -259,13 +271,27 @@ export default function GroupsManager() {
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <div>
             <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Manage groups</h1>
-            <p className="text-muted-foreground text-sm">
-              Groups and sub{t.systems} together. Tap a name to open it.
-            </p>
+            <p className="text-muted-foreground text-sm">Tap a name to open it.</p>
           </div>
           <Button onClick={() => { setCreateParent(null); setCreateOpen(true); }} className="gap-1.5">
             <Plus className="w-4 h-4" /> New group
           </Button>
+        </div>
+
+        <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
+          {[
+            ["groups", "Groups", groups.filter((g) => !g.owner_alter_id).length],
+            ["subsystems", `Sub${t.systems}`, groups.filter((g) => !!g.owner_alter_id).length],
+          ].map(([id, label, count], i) => (
+            <button key={id} type="button" onClick={() => setTab(id)}
+              aria-pressed={tab === id}
+              className={`px-3 py-1.5 transition-colors ${i > 0 ? "border-l border-border" : ""} ${
+                tab === id ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted/50"
+              }`}>
+              {id === "subsystems" && <Crown className="w-3.5 h-3.5 inline-block mr-1 -mt-0.5" />}
+              {label}{count > 0 ? ` (${count})` : ""}
+            </button>
+          ))}
         </div>
 
         <div className="relative">
@@ -284,7 +310,11 @@ export default function GroupsManager() {
         <div className="rounded-xl border border-border/60 bg-card overflow-hidden">
           {rows.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-10">
-              {needle ? "No groups match that." : "No groups yet."}
+              {needle
+                ? "No groups match that."
+                : tab === "subsystems"
+                  ? `No sub${t.systems} yet — make one by giving a group an owner.`
+                  : "No groups yet."}
             </p>
           ) : rows.map((g) => {
             const owner = g.owner_alter_id ? alterById[g.owner_alter_id] : null;
@@ -320,6 +350,10 @@ export default function GroupsManager() {
       {/* Move — a searchable, indented picker rather than a drag target. */}
       {movingGroup && (
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center p-0 sm:p-4"
+          // The sheet sits above the bottom nav — anchored to the bottom of
+          // the screen it was partly hidden behind it, and the nav height is
+          // user-configurable so it can't be a fixed number.
+          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
           // Only a click on the backdrop ITSELF dismisses. React portals
           // propagate events through the React tree rather than the DOM, so
           // a plain onClick here also fires for clicks inside the picker's
