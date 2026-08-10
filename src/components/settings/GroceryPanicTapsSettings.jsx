@@ -17,7 +17,7 @@ import { base44 } from "@/api/base44Client";
 //   "off" = gesture disabled
 
 export const DEFAULT_PANIC_TAPS = 3;
-const OPTIONS = [
+export const PANIC_TAP_OPTIONS = [
   { value: 2, label: "2 taps", description: "More sensitive — fires faster." },
   { value: 3, label: "3 taps", description: "Default. The original three-quick-taps gesture." },
   { value: 4, label: "4 taps", description: "Less sensitive — avoids accidental triggers." },
@@ -31,6 +31,14 @@ export function readPanicTapsSetting(systemSettings) {
   const n = Number(raw);
   if (Number.isFinite(n) && n >= 2 && n <= 6) return n;
   return DEFAULT_PANIC_TAPS;
+}
+
+// One writer for the setting, so the copy in Settings and the control in
+// the grocery list itself can never drift apart.
+export async function writePanicTapsSetting(value, { settings, qc }) {
+  if (settings?.id) await base44.entities.SystemSettings.update(settings.id, { panic_taps_required: value });
+  else await base44.entities.SystemSettings.create({ panic_taps_required: value });
+  qc?.invalidateQueries({ queryKey: ["systemSettings"] });
 }
 
 export default function GroceryPanicTapsSettings() {
@@ -69,7 +77,7 @@ export default function GroceryPanicTapsSettings() {
       </div>
 
       <div className="grid gap-2">
-        {OPTIONS.map((opt) => {
+        {PANIC_TAP_OPTIONS.map((opt) => {
           const active = current === opt.value || (opt.value === DEFAULT_PANIC_TAPS && current === DEFAULT_PANIC_TAPS);
           const isCurrent = current === opt.value;
           return (

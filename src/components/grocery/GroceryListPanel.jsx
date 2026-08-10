@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { localEntities } from "@/api/base44Client";
-import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil } from "lucide-react";
+import { Trash2, Plus, X, Check, Lock, Unlock, Star, Undo2, ChevronDown, Pencil, Hand } from "lucide-react";
+import {
+  readPanicTapsSetting, writePanicTapsSetting, PANIC_TAP_OPTIONS,
+} from "@/components/settings/GroceryPanicTapsSettings";
 import { format, isToday, isYesterday } from "date-fns";
 import { toast } from "sonner";
 import { isEncryptionEnabled } from "@/lib/storageMode";
@@ -97,6 +100,21 @@ export default function GroceryListPanel({ lockedMode = false }) {
   const encryptionOn = isEncryptionEnabled();
   const dbReady = isDbInitialized();
 
+  // The gesture that OPENS this cover is adjustable from inside the cover —
+  // that's where you are when you discover it fires too easily (or not at
+  // all). Same setting as Settings -> Data & privacy, one writer.
+  const [tapsOpen, setTapsOpen] = useState(false);
+  const { data: settingsList = [] } = useQuery({
+    queryKey: ["systemSettings"],
+    queryFn: () => localEntities.SystemSettings.list(),
+  });
+  const currentTaps = readPanicTapsSetting(settingsList?.[0]);
+  const setTaps = async (value) => {
+    try {
+      await writePanicTapsSetting(value, { settings: settingsList?.[0], qc });
+      toast.success(value === "off" ? "Quick-tap disabled" : `${value} taps to open`);
+    } catch (e) { toast.error(e?.message || "Couldn't save"); }
+  };
   const [lockOnClose, setLockOnClose] = useState(() => {
     try { return localStorage.getItem(LOCK_PREF_KEY) === "true"; }
     catch { return false; }
@@ -603,6 +621,19 @@ export default function GroceryListPanel({ lockedMode = false }) {
             </button>
           )}
           <button
+            onClick={() => setTapsOpen((v) => !v)}
+            aria-label="How many taps open this list"
+            aria-expanded={tapsOpen}
+            title="How many quick taps open this list"
+            className={`p-2 rounded-md transition-colors ${
+              tapsOpen
+                ? "text-neutral-900 dark:text-neutral-100 bg-neutral-100 dark:bg-neutral-800"
+                : "text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100 hover:bg-neutral-100 dark:hover:bg-neutral-800"
+            }`}
+          >
+            <Hand className="w-5 h-5" />
+          </button>
+          <button
             onClick={handleCloseClick}
             aria-label="Close"
             className="p-2 -mr-2 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
@@ -613,6 +644,32 @@ export default function GroceryListPanel({ lockedMode = false }) {
       </div>
 
       {/* List switcher overlay */}
+      {tapsOpen && (
+        <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 px-3 py-2 space-y-1.5">
+          <p className="text-[11px] text-neutral-500">Quick taps anywhere to open this list</p>
+          <div className="flex flex-wrap gap-1">
+            {PANIC_TAP_OPTIONS.map((o) => {
+              const on = currentTaps === o.value;
+              return (
+                <button
+                  key={String(o.value)}
+                  type="button"
+                  aria-pressed={on}
+                  onClick={() => setTaps(o.value)}
+                  className={`text-xs px-2.5 py-1 rounded-full border transition-colors ${
+                    on
+                      ? "border-emerald-500 text-emerald-600 dark:text-emerald-400 bg-emerald-500/10"
+                      : "border-neutral-300 dark:border-neutral-700 text-neutral-500 hover:text-neutral-900 dark:hover:text-neutral-100"
+                  }`}
+                >
+                  {o.label}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
       {switcherOpen && (
         <div className="border-b border-neutral-200 dark:border-neutral-800 bg-neutral-50 dark:bg-neutral-950 max-h-[60vh] overflow-y-auto">
           <ul className="py-1">

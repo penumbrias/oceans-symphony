@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "August 11, 2026",
+    changes: [
+      { type: "improve", text: "Change how many quick taps open the grocery list from inside the list itself \u2014 tap the hand icon in its header. Same setting as Settings, just reachable where you notice it misfiring." },
+    ],
+  },
+  {
     date: "August 10, 2026",
     changes: [
       { type: "feature", text: "New Planner: a Mon\u2013Sun week grid where activities sit at their real times. Press and hold empty time and drag to log or plan a slot." },
