@@ -8,6 +8,7 @@ import { pushAlterShares } from "@/lib/friendsShare";
 import PrivacyLevelsManager from "@/components/friends/PrivacyLevelsManager";
 import LevelMembersModal from "@/components/friends/LevelMembersModal";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
+import { useFrontersFirst } from "@/lib/alterSort";
 
 // Friends-page hub for member sharing: define privacy levels and assign members
 // to them in one place (previously only reachable from each member's profile).
@@ -24,7 +25,10 @@ export default function MemberSharingPanel() {
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const levels = sortedLevels(getPrivacyLevels(settingsList[0]));
 
-  const liveAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // Whoever is fronting first, then the user's arrangement — the
+  // standard order for every list that names members.
+  const sortAlters = useFrontersFirst();
+  const liveAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
   const altersById = useMemo(() => Object.fromEntries(liveAlters.map((a) => [a.id, a])), [liveAlters]);
 
   const sharedCount = liveAlters.filter((a) => Array.isArray(a.privacy_levels) && a.privacy_levels.length).length;

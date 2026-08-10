@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { X } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useFrontersFirst } from "@/lib/alterSort";
 
 // Resolve legacy local-image:// avatars before rendering — a raw <img src>
 // on those renders broken. Rendered inside .map()s, so it must be a child.
@@ -40,7 +41,10 @@ export default function AlterSelector({ alters, selected, onChange }) {
   const terms = useTerms();
   const [alterInput, setAlterInput] = useState("");
 
-  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // Whoever is fronting first, then the user's arrangement — the
+  // standard order for every list that names members.
+  const sortAlters = useFrontersFirst();
+  const activeAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
 
   const filteredAlters = useMemo(() => {
     if (!alterInput.trim()) return [];

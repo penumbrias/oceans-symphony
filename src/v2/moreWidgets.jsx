@@ -34,6 +34,7 @@ import GuidedTechniqueView from "@/components/grounding/GuidedTechniqueView";
 import { CURRICULUM } from "@/components/support/TopicView";
 import { DEFAULT_TECHNIQUES } from "@/utils/groundingDefaults";
 import ErrorBoundary from "@/components/shared/ErrorBoundary";
+import { useFrontersFirst } from "@/lib/alterSort";
 
 // localEntities IS the entity proxy (localEntities.X), while base44 wraps
 // one (base44.entities.X) — both land in the same store.
@@ -389,6 +390,7 @@ export function GroundingWidget({ mode = "normal", settings }) {
   const techniques = useList("groundingTechniques", "GroundingTechnique");
   const prefs = useList("groundingPreferences", "GroundingPreference");
   const alters = useList("alters", "Alter");
+  const sortAlters = useFrontersFirst();
   const { data: activeFront = [] } = useQuery({
     queryKey: ["activeFront"],
     queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }),
@@ -438,7 +440,7 @@ export function GroundingWidget({ mode = "normal", settings }) {
                 technique={running}
                 preference={prefMap[running.id]}
                 currentAlter={currentAlter}
-                alters={alters.filter((a) => !a.is_archived)}
+                alters={sortAlters(alters.filter((a) => !a.is_archived))}
                 onBack={() => setRunning(null)}
                 backLabel="Close"
               />

@@ -50,6 +50,33 @@ const read = (key, fallback) => {
 // frontingFirst (default true) floats whoever is currently here to the top
 // of every mode. Pass frontingIds when the caller already has them; pass
 // frontingFirst: false for lists where "who's here" is irrelevant.
+// The DEFAULT order, for lists that can't host a sort toggle: whoever is
+// fronting first, then the user's own arrangement, then alphabetical.
+//
+// Presence outranks arrangement everywhere — if someone is here right now,
+// they belong at the top of any list that names them. Surfaces that DO have
+// room for a toggle should use useAlterSorter instead; this is the same
+// ordering it starts from.
+export function useFrontersFirst({ enabled = true } = {}) {
+  const { placedIndex, hasOrder } = useAlterOrder();
+  const fronting = useFrontingIds(enabled);
+  return useMemo(() => {
+    const rank = (a) => {
+      if (fronting?.has?.(a.id)) return -1;
+      if (hasOrder) {
+        const i = placedIndex?.[a.id];
+        if (i !== undefined) return i;
+      }
+      return Number.MAX_SAFE_INTEGER;
+    };
+    return (list) => [...(list || [])].sort((a, b) => {
+      const ra = rank(a), rb = rank(b);
+      if (ra !== rb) return ra - rb;
+      return (a.name || "").localeCompare(b.name || "");
+    });
+  }, [fronting, hasOrder, placedIndex]);
+}
+
 export function useAlterSorter(storageKey, { frontingIds = null, totals = null, frontingFirst = true } = {}) {
   const { placedIndex, hasOrder } = useAlterOrder();
   const liveFronting = useFrontingIds(frontingFirst && !frontingIds);

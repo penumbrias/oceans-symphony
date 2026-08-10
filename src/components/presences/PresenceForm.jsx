@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import AlterTreeSelect from "@/components/shared/AlterTreeSelect";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
+import { useFrontersFirst } from "@/lib/alterSort";
 
 // Self-contained create/edit form for a "presence" — a sensed-but-not-yet-
 // identified fragment/alter. Reuses the SAME colour picker (ColorPickerModal)
@@ -35,7 +36,10 @@ export default function PresenceForm({ presence = null, onSaved, onCancel }) {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
   const { data: relTypes = [] } = useQuery({ queryKey: ["relationshipTypes"], queryFn: () => base44.entities.RelationshipType.list() });
-  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // Whoever is fronting first, then the user's arrangement — the
+  // standard order for every list that names members.
+  const sortAlters = useFrontersFirst();
+  const activeAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
 
   const hasAnything = !!(label.trim() || vibe.trim() || color || emoji.trim() || notes.trim());
 

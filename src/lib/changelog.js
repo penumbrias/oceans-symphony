@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "improve", text: "Whoever\u2019s {{fronting}} now comes first in every list that names {{alters}} \u2014 widgets, check-ins, diary, presences, grounding and friend sharing, not just the pickers that already did it." },
       { type: "fix", text: "Planner: picking who was doing something is a proper searchable list now, whoever\u2019s {{fronting}} first \u2014 it was a flat row of every {{alter}}, which falls apart past a handful." },
       { type: "improve", text: "\ud83e\uddea New UI: the Week and Day activity widgets now use the new Planner canvas \u2014 real times, overlapping entries side by side, and press-and-hold to log or plan without leaving the home screen." },
       { type: "improve", text: "Change how many quick taps open the grocery list from inside the list itself \u2014 tap the hand icon in its header. Same setting as Settings, just reachable where you notice it misfiring." },

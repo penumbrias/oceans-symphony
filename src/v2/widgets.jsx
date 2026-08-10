@@ -684,6 +684,10 @@ function AltersListWidget({ settings, api, mode }) {
   });
   const { entries: globalOrderEntries } = useAlterOrder();
   const sessionFor = (id) => sessions.find((x) => (x.alter_id || x.primary_alter_id) === id);
+  const frontingIds = React.useMemo(
+    () => new Set(sessions.map((x) => x.alter_id || x.primary_alter_id).filter(Boolean)),
+    [sessions]
+  );
   // Same gesture grammar as everywhere else: tap opens the profile, press and
   // hold brings up the level rail (with the Remove stop). Holding someone who
   // isn't here adds them at the level you release on.
@@ -719,8 +723,16 @@ function AltersListWidget({ settings, api, mode }) {
       role: (a, b) => (a.role || "~").localeCompare(b.role || "~"),
     }[sort] || ((a, b) => (formatAlter(a) || "").localeCompare(formatAlter(b) || ""));
     const out = [...pool].sort(cmp);
-    return reverse ? out.reverse() : out;
-  }, [sort, reverse, frontStats, formatAlter]);
+    if (reverse) out.reverse();
+    // Presence outranks arrangement: whoever is here right now floats to the
+    // top of whatever order was chosen (including after a reverse), so the
+    // list always answers "who's around" before "how did I sort this".
+    if (!frontingIds?.size) return out;
+    return [
+      ...out.filter((a) => frontingIds.has(a.id)),
+      ...out.filter((a) => !frontingIds.has(a.id)),
+    ];
+  }, [sort, reverse, frontStats, formatAlter, frontingIds]);
 
   // Flat → one sorted list. Grouped → a section per group/subsystem the
   // user has, with anyone ungrouped gathered at the end.

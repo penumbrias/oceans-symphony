@@ -29,6 +29,7 @@ import SwitchJournalModal from "@/components/journal/SwitchJournalModal";
 import { getCurrentPositionWithPrompt } from "@/lib/locationPermission";
 import useSwipeActions from "@/hooks/useSwipeActions";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useFrontersFirst } from "@/lib/alterSort";
 
 // One row in the Quick Check-In "Who's fronting?" picker. Same gesture model
 // as the Set Fronters modal so the muscle memory carries over — operating on
@@ -307,7 +308,10 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
     setShowSliderPicker(false);
   };
 
-  const activeAlters = useMemo(() => alters.filter((a) => !a.is_archived), [alters]);
+  // Whoever is fronting first, then the user's arrangement — the
+  // standard order for every list that names members.
+  const sortAlters = useFrontersFirst();
+  const activeAlters = useMemo(() => sortAlters(alters.filter((a) => !a.is_archived)), [alters, sortAlters]);
   // "Who's fronting" list view: flat search list vs the standard
   // by-subsystem/group tree (AlterTreeSelect).
   const [frontTreeView, setFrontTreeView] = useState(false);
