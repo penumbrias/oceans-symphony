@@ -20,6 +20,7 @@
 import React, { useMemo, useRef, useState, useCallback } from "react";
 import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
+import { useT } from "@/lib/i18n";
 
 const HOLD_MS = 300;
 const SLOP_PX = 8;
@@ -51,6 +52,7 @@ function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
 }) {
+  const tr = useT();
   const ref = useRef(null);
   const gesture = useRef(null);
   const [draft, setDraft] = useState(null);      // { fromMin, toMin }
@@ -164,7 +166,7 @@ function DayColumn({
           <button key={u.id} type="button" onClick={() => onOpenBlock(u)}
             className="w-full text-left text-[0.625rem] leading-tight px-1 py-0.5 rounded truncate"
             style={{ background: `${colorFor(u)}22`, color: colorFor(u) }}>
-            {u.activity_name || "Untitled"}
+            {u.activity_name || tr("planner.untitled")}
           </button>
         ))}
       </div>
@@ -224,7 +226,7 @@ function DayColumn({
               <button type="button" onClick={() => onOpenBlock(b)}
                 className="w-full h-full text-left px-1 py-0.5">
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
-                  {b.activity_name || "Untitled"}
+                  {b.activity_name || tr("planner.untitled")}
                 </span>
                 {bottom - top >= 40 && (
                   <span className="block truncate opacity-70">
@@ -344,8 +346,14 @@ export default function WeekCanvas({
             })}
           </div>
 
+          {/* Height is what's actually left on screen: the viewport minus this
+              page's chrome above and the bottom nav below. A flat 70vh left
+              the last hours of the day underneath the nav bar. */}
           <div className="flex overflow-y-auto overscroll-contain min-h-0"
-            style={{ maxHeight: "70vh", paddingTop: 8 }}>
+            style={{
+              paddingTop: 8,
+              maxHeight: "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
+            }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} className="absolute right-1 text-[0.5625rem] text-muted-foreground tabular-nums"

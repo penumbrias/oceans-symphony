@@ -242,6 +242,16 @@ export default {
   "widget.pollResults.pick": "Pick a poll",
   "widget.pollNew.start": "Start a poll",
 
+  // ── Planner ──
+  "planner.today": "Today",
+  "planner.prevWeek": "Previous week",
+  "planner.nextWeek": "Next week",
+  "planner.overlay.fronting": "{{Fronting}}",
+  "planner.overlay.checkins": "Check-ins",
+  "planner.untitled": "Untitled",
+  "planner.tracked": "{{amount}} tracked",
+  "planner.moveFailed": "Couldn't move that",
+
   // ── Shared ──
   "common.switch": "{{Switch}}",
   "common.loading": "Loading…",

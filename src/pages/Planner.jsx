@@ -15,6 +15,7 @@ import ActivityLogModal from "@/components/activities/ActivityLogModal";
 import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import { useTerms } from "@/lib/useTerms";
+import { useT } from "@/lib/i18n";
 import { MINUTES_PER_DAY } from "@/lib/planner/layout";
 
 const lsGet = (k, d) => {
@@ -24,6 +25,7 @@ const lsSet = (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)); } ca
 
 export default function Planner() {
   const t = useTerms();
+  const tr = useT();
   const qc = useQueryClient();
   const [anchor, setAnchor] = useState(() => new Date());
   const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
@@ -77,7 +79,7 @@ export default function Planner() {
           : { duration_minutes: minutes }),
       });
       qc.invalidateQueries({ queryKey: ["activities"] });
-    } catch (e) { toast.error(e.message || "Couldn't move that"); }
+    } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
   };
 
   const done = () => {
@@ -115,14 +117,14 @@ export default function Planner() {
       <div className="os-page-shell space-y-2">
         <div className="flex items-center justify-between gap-2 flex-wrap">
           <div className="flex items-center gap-1">
-            <Button variant="ghost" size="sm" aria-label="Previous week" onClick={() => setAnchor((d) => addWeeks(d, -1))}>
+            <Button variant="ghost" size="sm" aria-label={tr("planner.prevWeek")} onClick={() => setAnchor((d) => addWeeks(d, -1))}>
               <ChevronLeft className="w-4 h-4" />
             </Button>
             <span className="text-sm font-medium tabular-nums">{weekLabel}</span>
-            <Button variant="ghost" size="sm" aria-label="Next week" onClick={() => setAnchor((d) => addWeeks(d, 1))}>
+            <Button variant="ghost" size="sm" aria-label={tr("planner.nextWeek")} onClick={() => setAnchor((d) => addWeeks(d, 1))}>
               <ChevronRight className="w-4 h-4" />
             </Button>
-            <Button variant="ghost" size="sm" onClick={() => setAnchor(new Date())}>Today</Button>
+            <Button variant="ghost" size="sm" onClick={() => setAnchor(new Date())}>{tr("planner.today")}</Button>
             <span className="text-xs text-muted-foreground tabular-nums ml-1">{weekTotalLabel}</span>
           </div>
 
@@ -132,14 +134,14 @@ export default function Planner() {
               className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
                 overlays.alters ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
               }`}>
-              <Users className="w-3 h-3" /> {t.Fronting}
+              <Users className="w-3 h-3" /> {tr("planner.overlay.fronting", t)}
             </button>
             <button type="button" onClick={() => setOverlay("emotions", !overlays.emotions)}
               aria-pressed={overlays.emotions}
               className={`text-xs px-2 py-1 rounded-full border flex items-center gap-1 ${
                 overlays.emotions ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
               }`}>
-              <Heart className="w-3 h-3" /> Check-ins
+              <Heart className="w-3 h-3" /> {tr("planner.overlay.checkins")}
             </button>
           </div>
         </div>
