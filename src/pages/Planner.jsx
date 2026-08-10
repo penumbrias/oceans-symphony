@@ -194,6 +194,19 @@ export default function Planner() {
     } catch (e) { toast.error(e.message || "Failed"); }
   };
 
+  // Toggle a member on the open entry. Writes straight through so the totals
+  // update without needing a save step.
+  const toggleAlter = async (alterId) => {
+    if (!timing) return;
+    const current = timing.item.fronting_alter_ids || [];
+    const next = current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId];
+    setTiming((prev) => ({ ...prev, item: { ...prev.item, fronting_alter_ids: next } }));
+    try {
+      await base44.entities.Activity.update(timing.item.id, { fronting_alter_ids: next });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
   const done = () => {
     setCreating(null);
     setOpened(null);
@@ -327,7 +340,12 @@ export default function Planner() {
           categoryColor={catColor}
           overlays={overlays}
           onCreate={handleCreate}
-          onOpenBlock={setOpened}
+          onOpenBlock={(item) => {
+            const start = item.timestamp ? new Date(item.timestamp) : null;
+            setTiming({ item, day: start || anchor });
+            setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
+            setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
+          }}
           onResize={handleResize}
           onAddToDay={(day) => setPlanDay(day)}
           onOpenUntimed={(item, day) => { setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); }}
@@ -384,6 +402,27 @@ export default function Planner() {
                   className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
               </label>
             </div>
+            {/* Who was doing it — this is what makes the per-member totals
+                answer "is everyone getting fair time". */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.who")}</p>
+              <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                {alters.filter((a) => !a.is_archived).map((a) => {
+                  const on = (timing.item.fronting_alter_ids || []).includes(a.id);
+                  return (
+                    <button key={a.id} type="button" aria-pressed={on}
+                      onClick={() => toggleAlter(a.id)}
+                      className={`text-xs px-2 py-1 rounded-full border ${
+                        on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                      }`}
+                      style={on ? { background: `${a.color || "#888"}22` } : undefined}>
+                      {formatAlter(a)}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="flex gap-2">
               <Button size="sm" className="flex-1" onClick={applyTime}>{tr("planner.giveTime")}</Button>
               <Button size="sm" variant="outline" className="flex-1"

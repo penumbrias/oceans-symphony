@@ -272,6 +272,8 @@ export default {
   "planner.markDone": "Mark done",
   "planner.openItem": "Open",
   "planner.doneToast": "Done",
+  "planner.who": "Who",
+  "planner.moveToDay": "Day",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",
