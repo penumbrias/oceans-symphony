@@ -51,6 +51,7 @@ export function formatDuration(min) {
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
+  onAddToDay, onOpenUntimed,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -160,15 +161,22 @@ function DayColumn({
   return (
     <div className="flex-1 border-l border-border/40 first:border-l-0" style={{ minWidth }}>
       {/* Untimed strip — today's intentions, draggable down into the hours. */}
-      <div className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto"
+      <div className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto relative group/strip"
         style={{ height: UNTIMED_STRIP_PX }}>
         {untimed.map((u) => (
-          <button key={u.id} type="button" onClick={() => onOpenBlock(u)}
+          <button key={u.id} type="button" onClick={() => onOpenUntimed?.(u, day)}
             className="w-full text-left text-[0.625em] leading-tight px-1 py-0.5 rounded truncate"
             style={{ background: `${colorFor(u)}22`, color: colorFor(u) }}>
             {u.activity_name || tr("planner.untitled")}
           </button>
         ))}
+        {/* Always reachable, even on a day that already has items — it sits
+            over the strip rather than taking a row from it. */}
+        <button type="button" onClick={() => onAddToDay?.(day)}
+          aria-label={tr("planner.addToDay")}
+          className="absolute top-0 right-0 w-5 h-5 flex items-center justify-center text-muted-foreground hover:text-foreground opacity-60">
+          <span className="text-[0.75em] leading-none">+</span>
+        </button>
       </div>
 
       <div
@@ -269,6 +277,8 @@ export default function WeekCanvas({
   onCreate,
   onOpenBlock,
   onResize,
+  onAddToDay,
+  onOpenUntimed,
 }) {
   const days = useMemo(() => {
     const start = startOfWeek(anchor, { weekStartsOn });
@@ -384,6 +394,8 @@ export default function WeekCanvas({
                 onCreate={onCreate}
                 onOpenBlock={onOpenBlock}
                 onResize={onResize}
+                onAddToDay={onAddToDay}
+                onOpenUntimed={onOpenUntimed}
               />
             ))}
           </div>

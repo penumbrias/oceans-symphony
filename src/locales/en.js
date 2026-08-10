@@ -260,6 +260,18 @@ export default {
   "planner.copied": "{count} copied from last week",
   "planner.copyNothing": "Nothing to copy from last week",
   "planner.nothingTracked": "Nothing tracked this week yet.",
+  "planner.planDay": "Plan this day",
+  "planner.addPlaceholder": "Add something…",
+  "planner.add": "Add",
+  "planner.fromTodo": "From your to-do list",
+  "planner.noTasks": "Nothing open to pull in.",
+  "planner.addFailed": "Couldn't add that",
+  "planner.close": "Close",
+  "planner.addToDay": "Plan this day",
+  "planner.giveTime": "Give it a time",
+  "planner.markDone": "Mark done",
+  "planner.openItem": "Open",
+  "planner.doneToast": "Done",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

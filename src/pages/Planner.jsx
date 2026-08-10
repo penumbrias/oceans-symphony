@@ -11,6 +11,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import WeekCanvas from "@/components/planner/WeekCanvas";
+import DayPlanSheet from "@/components/planner/DayPlanSheet";
 import ActivityLogModal from "@/components/activities/ActivityLogModal";
 import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
@@ -43,6 +44,10 @@ export default function Planner() {
   const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
   const [creating, setCreating] = useState(null);   // { day, fromMin, toMin, plan }
   const [opened, setOpened] = useState(null);
+  const [planDay, setPlanDay] = useState(null);       // day whose list is open
+  const [timing, setTiming] = useState(null);          // { item, day } being scheduled
+  const [timeValue, setTimeValue] = useState("09:00");
+  const [durValue, setDurValue] = useState(60);
 
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
@@ -149,6 +154,44 @@ export default function Planner() {
       });
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
+  };
+
+  // Give an untimed intention a slot: the SAME record gains a timestamp, so
+  // it moves from the strip into the grid without losing its identity (or
+  // its link back to the to-do it came from).
+  const applyTime = async () => {
+    if (!timing) return;
+    const [h, m] = String(timeValue).split(":").map(Number);
+    const when = new Date(timing.day);
+    when.setHours(h || 0, m || 0, 0, 0);
+    try {
+      await base44.entities.Activity.update(timing.item.id, {
+        timestamp: when.toISOString(),
+        duration_minutes: Math.max(5, Number(durValue) || 60),
+      });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      setTiming(null);
+    } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
+  };
+
+  // Done from the strip. If it came from a to-do, tick that off too so the
+  // two can't disagree.
+  const markUntimedDone = async (item) => {
+    try {
+      await base44.entities.Activity.update(item.id, {
+        status: "done",
+        timestamp: item.timestamp || new Date().toISOString(),
+      });
+      if (item.task_id) {
+        await base44.entities.Task.update(item.task_id, {
+          completed: true, is_complete: true, completed_date: new Date().toISOString(),
+        }).catch(() => {});
+      }
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      setTiming(null);
+      toast.success(tr("planner.doneToast"));
+    } catch (e) { toast.error(e.message || "Failed"); }
   };
 
   const done = () => {
@@ -286,6 +329,8 @@ export default function Planner() {
           onCreate={handleCreate}
           onOpenBlock={setOpened}
           onResize={handleResize}
+          onAddToDay={(day) => setPlanDay(day)}
+          onOpenUntimed={(item, day) => { setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); }}
         />
       </div>
 
@@ -317,6 +362,39 @@ export default function Planner() {
           onSave={done}
         />
       )}
+      <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
+
+      {timing && (
+        <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
+          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setTiming(null); }}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3"
+            style={{ borderRadius: "var(--v2-radius, 16px)" }}>
+            <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
+            <div className="flex items-end gap-2">
+              <label className="flex-1 text-xs text-muted-foreground">
+                {tr("planner.giveTime")}
+                <input type="time" value={timeValue} onChange={(e) => setTimeValue(e.target.value)}
+                  className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+              </label>
+              <label className="w-24 text-xs text-muted-foreground">
+                min
+                <input type="number" min={5} step={5} value={durValue}
+                  onChange={(e) => setDurValue(e.target.value)}
+                  className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+              </label>
+            </div>
+            <div className="flex gap-2">
+              <Button size="sm" className="flex-1" onClick={applyTime}>{tr("planner.giveTime")}</Button>
+              <Button size="sm" variant="outline" className="flex-1"
+                onClick={() => markUntimedDone(timing.item)}>{tr("planner.markDone")}</Button>
+            </div>
+            <Button size="sm" variant="ghost" className="w-full"
+              onClick={() => { setOpened(timing.item); setTiming(null); }}>{tr("planner.openItem")}</Button>
+          </div>
+        </div>
+      )}
+
       {opened && (
         <ActivityDetailsModal
           isOpen
