@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { toast } from "sonner";
-import { Users, Crown, FolderTree, X, ArrowLeft, ArrowRightLeft } from "lucide-react";
+import { Users, Crown, FolderTree, X, ArrowLeft, ArrowRightLeft, FolderOpen } from "lucide-react";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import TransferToSystemModal from "@/components/systems/TransferToSystemModal";
 import { hasMultipleSystems } from "@/lib/systems";
@@ -16,7 +16,7 @@ import { wouldCreateOwnershipCycle } from "@/lib/subsystemUtils";
 // Popup for acting on a regular group folder (parity with the alter and
 // subsystem menus): manage members, assign a "root" (turns it into a
 // subsystem), or open the group's profile.
-export default function GroupActionMenu({ group, onClose }) {
+export default function GroupActionMenu({ group, onClose, onOpen }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useTerms();
@@ -97,6 +97,9 @@ export default function GroupActionMenu({ group, onClose }) {
           </div>
         ) : (
           <div className="py-1">
+            {/* Open first: tapping a group brings up this menu now, so
+                browsing into it must stay one tap away. */}
+            <Item icon={FolderOpen} label="Open" onClick={() => { onOpen ? onOpen(group) : navigate(`/group/${group.id}`); close(); }} />
             <Item icon={Users} label="Manage members" onClick={() => setShowMembers(true)} />
             <Item icon={Crown} label={group.owner_alter_id ? "Change root" : "Assign root"} onClick={() => setAssigning(true)} />
             {hasMultipleSystems() && (

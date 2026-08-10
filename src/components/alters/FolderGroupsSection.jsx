@@ -359,13 +359,13 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
           displayMode === "list" ? (
             <div className="space-y-2">
               {childGroups.map((g) => (
-                <FolderRow key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+                <FolderRow key={g.id} group={g} onClick={(grp) => setMenuGroup(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
               ))}
             </div>
           ) : (
             <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${parseInt(displayMode) || 3}, minmax(0,1fr))` }}>
               {childGroups.map((g) => (
-                <FolderTile key={g.id} group={g} onClick={navigateTo} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
+                <FolderTile key={g.id} group={g} onClick={(grp) => setMenuGroup(grp)} onLongOpen={(grp) => setMenuGroup(grp)} anonymize={anonymize} />
               ))}
             </div>
           )
@@ -404,7 +404,16 @@ export default function FolderGroupsSection({ alters, sortDir = "asc", activeSes
         }
       </motion.div>
 
-      {menuGroup && <GroupActionMenu group={menuGroup} onClose={() => setMenuGroup(null)} />}
+      {/* Tapping a group shows what you can do with it (tester report: the
+          buttons disappearing behind a press-and-hold was a regression).
+          "Open" browses into it, so nothing got further away. */}
+      {menuGroup && (
+        <GroupActionMenu
+          group={menuGroup}
+          onOpen={(grp) => { setMenuGroup(null); navigateTo(grp); }}
+          onClose={() => setMenuGroup(null)}
+        />
+      )}
 
       {/* Modals */}
       <CreateGroupModal

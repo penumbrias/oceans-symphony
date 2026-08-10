@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 10, 2026",
     changes: [
+      { type: "fix", text: "Tapping a group shows what you can do with it again \u2014 open, manage members, and the rest. It had moved behind a press-and-hold. (tester report)" },
       { type: "improve", text: "Manage Groups has its Groups and Sub{{systems}} tabs back \u2014 nesting, moving, renaming and members work the same in both." },
       { type: "fix", text: "The \u201cmove into another group\u201d popup no longer sits under the bottom bar on a phone." },
       { type: "improve", text: "\ud83e\uddea New UI: the activity tracker widgets are lighter to draw, so swiping between pages is smoother." },
