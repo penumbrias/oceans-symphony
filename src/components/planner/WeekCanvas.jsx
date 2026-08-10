@@ -31,8 +31,9 @@ export const HOUR_PX = 44;
 export const UNTIMED_STRIP_PX = 30;
 
 function minutesToLabel(min) {
-  const h = Math.floor(min / 60);
-  const m = min % 60;
+  const whole = Math.round(min);
+  const h = Math.floor(whole / 60) % 24;
+  const m = whole % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
@@ -76,7 +77,7 @@ function DayColumn({
     const startMin = minuteAt(startY);
     const node = ref.current;
     gesture.current = {
-      armed: false, startX, startY, startMin, pointerId: e.pointerId,
+      armed: false, startX, startY, startMin: snap(startMin), pointerId: e.pointerId,
       timer: setTimeout(() => {
         if (!gesture.current) return;
         gesture.current.armed = true;
@@ -102,7 +103,9 @@ function DayColumn({
     if (g?.armed) {
       e.preventDefault();
       const now = snap(minuteAt(e.clientY));
-      setDraft({ fromMin: Math.min(g.startMin, now), toMin: Math.max(snap(g.startMin), now) });
+      // Both ends are already snapped whole minutes, so the label can never
+      // show a fraction and the block edges land on the grain.
+      setDraft({ fromMin: Math.min(g.startMin, now), toMin: Math.max(g.startMin, now) });
       return;
     }
     if (resizing) {
@@ -319,33 +322,30 @@ export default function WeekCanvas({
 
   return (
     <div className="flex flex-col min-h-0">
-      <div className="flex items-baseline justify-between px-1 pb-1">
-        <span className="text-xs text-muted-foreground">
-          {format(days[0], "d MMM")} – {format(days[6], "d MMM")}
-        </span>
-        <span className="text-xs tabular-nums">{formatDuration(weekTotal)} tracked</span>
-      </div>
-
       {/* One scroller for headers + grid so they can never drift apart. The
           hour gutter is sticky so it stays put while the week scrolls. */}
       <div className="overflow-x-auto overscroll-x-contain min-h-0">
         <div className="min-w-max">
-          <div className="flex">
+          <div className="flex border-b border-border/60 pb-1 mb-0.5">
             <div className="w-10 flex-shrink-0 sticky left-0 z-20 bg-background" />
-            {perDay.map(({ day, total }) => (
-              <div key={day.toISOString()} className="text-center px-0.5 flex-1"
-                style={{ minWidth: MIN_DAY_PX }}>
-                <div className="text-[0.6875rem] font-medium leading-tight">
-                  {format(day, "EEE")} {format(day, "d")}
+            {perDay.map(({ day, total }) => {
+              const today = isSameDay(day, new Date());
+              return (
+                <div key={day.toISOString()} className="text-center px-0.5 flex-1"
+                  style={{ minWidth: MIN_DAY_PX }}>
+                  <div className={`text-[0.6875rem] leading-tight ${today ? "font-bold text-primary" : "font-medium"}`}>
+                    {format(day, "EEE")} {format(day, "d")}
+                  </div>
+                  <div className="text-[0.625rem] text-muted-foreground tabular-nums leading-tight">
+                    {total ? formatDuration(total) : "·"}
+                  </div>
                 </div>
-                <div className="text-[0.625rem] text-muted-foreground tabular-nums leading-tight">
-                  {total ? formatDuration(total) : "—"}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
-          <div className="flex overflow-y-auto overscroll-contain min-h-0" style={{ maxHeight: "70vh" }}>
+          <div className="flex overflow-y-auto overscroll-contain min-h-0"
+            style={{ maxHeight: "70vh", paddingTop: 8 }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} className="absolute right-1 text-[0.5625rem] text-muted-foreground tabular-nums"

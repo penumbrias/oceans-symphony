@@ -86,7 +86,29 @@ export default function Planner() {
     qc.invalidateQueries({ queryKey: ["activities"] });
   };
 
-  const weekLabel = format(startOfWeek(anchor, { weekStartsOn: 1 }), "'w/c' d MMM yyyy");
+  // Plain range rather than "w/c" — that's British shorthand for "week
+  // commencing" and means nothing to most people.
+  const weekLabel = useMemo(() => {
+    const start = startOfWeek(anchor, { weekStartsOn: 1 });
+    const end = new Date(start.getTime() + 6 * 86400000);
+    const sameMonth = start.getMonth() === end.getMonth();
+    return sameMonth
+      ? `${format(start, "d")}–${format(end, "d MMM")}`
+      : `${format(start, "d MMM")} – ${format(end, "d MMM")}`;
+  }, [anchor]);
+  // The canvas used to print its own range line under this one, saying the
+  // same thing twice. One heading row.
+  const weekTotalLabel = useMemo(() => {
+    const start = startOfWeek(anchor, { weekStartsOn: 1 });
+    const end = new Date(start.getTime() + 7 * 86400000);
+    const mins = activities.reduce((n, a) => {
+      const t = a.timestamp ? new Date(a.timestamp) : null;
+      if (!t || t < start || t >= end) return n;
+      return n + (Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0);
+    }, 0);
+    const h = Math.floor(mins / 60), m = mins % 60;
+    return mins ? `· ${h ? `${h}h ` : ""}${m ? `${m}m` : ""}`.trim() : "";
+  }, [anchor, activities]);
 
   return (
     <div className="min-h-screen p-2 sm:p-4">
@@ -101,6 +123,7 @@ export default function Planner() {
               <ChevronRight className="w-4 h-4" />
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setAnchor(new Date())}>Today</Button>
+            <span className="text-xs text-muted-foreground tabular-nums ml-1">{weekTotalLabel}</span>
           </div>
 
           <div className="flex items-center gap-1">
