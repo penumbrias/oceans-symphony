@@ -161,7 +161,8 @@ function DayColumn({
   return (
     <div className="flex-1 border-l border-border/40 first:border-l-0" style={{ minWidth }}>
       {/* Untimed strip — today's intentions, draggable down into the hours. */}
-      <div className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto relative group/strip"
+      <div data-own-hold
+        className="border-b border-border/40 p-0.5 space-y-0.5 overflow-y-auto relative group/strip"
         style={{ height: UNTIMED_STRIP_PX }}>
         {untimed.map((u) => (
           <button key={u.id} type="button" onClick={() => onOpenUntimed?.(u, day)}
@@ -181,6 +182,11 @@ function DayColumn({
 
       <div
         ref={ref}
+        // This surface runs its own press-and-hold (create by dragging a time
+        // range), so the widget shell must not ALSO arm its options sheet on
+        // the same press — otherwise the sheet opens mid-drag, which reads as
+        // the action firing before you let go.
+        data-own-hold
         className="relative select-none"
         style={{ height: 24 * HOUR_PX, touchAction: "pan-y" }}
         onPointerDown={onPointerDown}
@@ -371,7 +377,12 @@ export default function WeekCanvas({
           {/* Height is what's actually left on screen: the viewport minus this
               page's chrome above and the bottom nav below. A flat 70vh left
               the last hours of the day underneath the nav bar. */}
-          <div className={`flex overflow-y-auto overscroll-contain min-h-0 ${fill ? "flex-1" : ""}`}
+          {/* items-start: in a SCROLLING flex row, the default `stretch` sizes
+              children to the container's visible height, not the content's —
+              so each day column's left border stopped where the viewport did
+              while the 24h grid inside kept going. Sizing to content makes
+              the day separators run the full day. */}
+          <div className={`flex items-start overflow-y-auto overscroll-contain min-h-0 ${fill ? "flex-1" : ""}`}
             style={{
               paddingTop: 8,
               // `fill` = live inside a widget box: take the height the box
