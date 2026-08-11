@@ -712,9 +712,17 @@ const handleNotifClick = (mentionLog) => {
           background/border stretch to the screen edges. Cards that need
           breathing room (like Base44MigrationBanner) stay inside
           <main> where the px-4 gutter wraps them. */}
-      <PreviewModeBanner />
-      <AnnouncementBanner />
-      <LandscapeHintBanner />
+      {/* App chrome that sits ABOVE the page. The v2 home board paints a
+          full-viewport wallpaper from inside its own stacking context, and
+          because the board comes later in the DOM that context covered these
+          banners — leaving them invisible but still taking their space and,
+          since the wallpaper is pointer-events-none, still tappable. An
+          invisible live control is the worst of both. Own stacking layer. */}
+      <div className="relative z-10">
+        <PreviewModeBanner />
+        <AnnouncementBanner />
+        <LandscapeHintBanner />
+      </div>
 
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}
       <div className="flex flex-1 overflow-hidden">
