@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "feature", text: "\ud83e\uddea New UI: deleting a home screen or removing a widget can be undone \u2014 the toast has an Undo button for 12 seconds." },
+      { type: "fix", text: "\ud83e\uddea New UI: the Week and Day planner widgets can be scrolled now." },
+      { type: "fix", text: "\ud83e\uddea New UI: empty rows above everything on a freely-arranged page no longer push the whole board down." },
+
       { type: "improve", text: "Whoever\u2019s {{fronting}} now comes first in every list that names {{alters}} \u2014 widgets, check-ins, diary, presences, grounding and friend sharing, not just the pickers that already did it." },
       { type: "fix", text: "Planner: picking who was doing something is a proper searchable list now, whoever\u2019s {{fronting}} first \u2014 it was a flat row of every {{alter}}, which falls apart past a handful." },
       { type: "improve", text: "\ud83e\uddea New UI: the Week and Day activity widgets now use the new Planner canvas \u2014 real times, overlapping entries side by side, and press-and-hold to log or plan without leaving the home screen." },

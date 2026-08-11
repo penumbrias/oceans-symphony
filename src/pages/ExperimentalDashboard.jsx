@@ -154,7 +154,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -216,7 +216,13 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, onRemov
 
   // Free placement: hold, drag to a cell, drop. Only wired when the page is
   // in free mode — flow pages keep dnd-kit's reordering.
-  const cell = widget.pos || { x: 0, y: 0 };
+  // Empty rows above the topmost widget are not a layout choice — nothing
+  // can be placed there. Rendering them just pushes the whole board down
+  // behind a band of wallpaper. Stored positions are untouched; only the
+  // shared offset is dropped, so relative arrangement is preserved and
+  // dragging still writes real coordinates.
+  const rawCell = widget.pos || { x: 0, y: 0 };
+  const cell = { ...rawCell, y: Math.max(0, rawCell.y - (topRowOffset || 0)) };
   const move = useFreeMove({
     gridRef,
     gridCols,
@@ -562,7 +568,12 @@ export default function ExperimentalDashboard({
     setActivePageId(visiblePages[idx].id);
   }, [visiblePages, page.id, pageIdx]);
 
-  const persist = useCallback(async (nextHome) => {
+  // Every write keeps the version it replaced, so anything destructive can
+  // be handed back. Losing a home screen you spent time arranging is not a
+  // thing the user should have to rebuild from memory.
+  const undoRef = useRef(null);
+  const persist = useCallback(async (nextHome, opts = {}) => {
+    const previous = home;
     try {
       if (settingsRow?.id) {
         await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: nextHome });
@@ -570,10 +581,34 @@ export default function ExperimentalDashboard({
         await base44.entities.SystemSettings.create({ [settingsField]: nextHome });
       }
       qc.invalidateQueries({ queryKey: ["systemSettings"] });
+      if (opts.undoLabel) {
+        undoRef.current = previous;
+        toast(opts.undoLabel, {
+          duration: 12000,
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              const snapshot = undoRef.current;
+              if (!snapshot) return;
+              undoRef.current = null;
+              try {
+                if (settingsRow?.id) {
+                  await base44.entities.SystemSettings.update(settingsRow.id, { [settingsField]: snapshot });
+                } else {
+                  await base44.entities.SystemSettings.create({ [settingsField]: snapshot });
+                }
+                qc.invalidateQueries({ queryKey: ["systemSettings"] });
+                if (opts.restorePageId) setActivePageId(opts.restorePageId);
+                toast.success("Restored");
+              } catch (e) { toast.error(e?.message || "Couldn't undo"); }
+            },
+          },
+        });
+      }
     } catch (e) {
       toast.error(e?.message || "Couldn't save the homescreen");
     }
-  }, [settingsRow?.id, qc, settingsField]);
+  }, [settingsRow?.id, qc, settingsField, home]);
 
   const updatePageWidgets = useCallback((mutate) => {
     const next = {
@@ -584,7 +619,16 @@ export default function ExperimentalDashboard({
   }, [home, page.id, persist]);
 
   // ── Edit operations ────────────────────────────────────────────
-  const handleRemove = (instanceId) => updatePageWidgets((ws) => ws.filter((w) => w.instanceId !== instanceId));
+  const handleRemove = (instanceId) => {
+    const gone = widgets.find((w) => w.instanceId === instanceId);
+    const label = gone ? widgetLabel(registry[gone.widgetId], t) : "Widget";
+    persist({
+      ...home,
+      pages: home.pages.map((p) => (p.id !== page.id ? p : {
+        ...p, widgets: p.widgets.filter((w) => w.instanceId !== instanceId),
+      })),
+    }, { undoLabel: `Removed ${label}` });
+  };
   const pageIsFree = page.layoutMode === "free";
   const handleSpan = (instanceId, patch, opts = {}) =>
     updatePageWidgets((ws) => {
@@ -737,11 +781,13 @@ export default function ExperimentalDashboard({
       remaining[0] = { ...remaining[0], widgets: [...remaining[0].widgets, ...page.widgets] };
       toast.info(`Widgets moved to "${remaining[0].label || "Page 1"}"`);
     }
+    const deletedId = page.id;
+    const deletedName = page.label || "Page";
     persist({
       ...home,
       pages: remaining,
       defaultPageId: home.defaultPageId === page.id ? remaining[0].id : home.defaultPageId,
-    });
+    }, { undoLabel: `Deleted "${deletedName}"`, restorePageId: deletedId });
     setSwipeDir(-1);
     setActivePageId(remaining[0].id);
   };
@@ -920,8 +966,13 @@ export default function ExperimentalDashboard({
     return () => clearTimeout(id);
   }, [freeMode, page.id, page.widgets, gridCols, registry, settingsRow?.id, updatePageWidgets]);
   // Enough rows to hold everything plus room to move things down into.
+  // Shared empty rows at the top get folded away (see SortableWidget). In
+  // edit mode they stay, so a deliberate gap can still be dragged into.
+  const topRowOffset = freeMode && !editMode && widgets.length
+    ? Math.min(...widgets.map((w) => w.pos?.y || 0))
+    : 0;
   const freeRows = freeMode
-    ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) + (w.span?.rows || 1))) + (editMode ? 4 : 0)
+    ? Math.max(6, ...widgets.map((w) => (w.pos?.y || 0) - topRowOffset + (w.span?.rows || 1))) + (editMode ? 4 : 0)
     : 0;
   // Widgets that embed sub-surfaces need to know what else is placed —
   // e.g. CurrentFronters hides its inline status note when the standalone
@@ -1080,6 +1131,7 @@ export default function ExperimentalDashboard({
         <SortableWidget
           key={w.instanceId}
           widget={w}
+          topRowOffset={topRowOffset}
           def={registry[w.widgetId]}
           editMode={editMode}
           gridCols={gridCols}

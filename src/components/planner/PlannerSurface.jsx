@@ -364,6 +364,7 @@ export default function PlannerSurface({
           anchor={anchor}
           dayCount={dayCount}
           maxHeight={maxHeight}
+          fill={!chrome}
           activities={activities}
           frontingHistory={frontingHistory}
           emotionCheckIns={emotionCheckIns}

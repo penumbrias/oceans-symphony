@@ -283,6 +283,7 @@ export default function WeekCanvas({
   onAddToDay,
   onOpenUntimed,
   maxHeight,
+  fill = false,
 }) {
   const days = useMemo(() => {
     if (dayCount === 1) return [new Date(anchor)];
@@ -344,11 +345,11 @@ export default function WeekCanvas({
   const MIN_DAY_PX = dayCount === 1 ? 0 : 74;
 
   return (
-    <div className="flex flex-col min-h-0">
+    <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>
       {/* One scroller for headers + grid so they can never drift apart. The
           hour gutter is sticky so it stays put while the week scrolls. */}
-      <div className="overflow-x-auto overscroll-x-contain min-h-0">
-        <div className="min-w-max">
+      <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}>
+        <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
             <div className="w-10 flex-shrink-0 sticky left-0 z-20 bg-background" />
             {perDay.map(({ day, total }) => {
@@ -370,11 +371,17 @@ export default function WeekCanvas({
           {/* Height is what's actually left on screen: the viewport minus this
               page's chrome above and the bottom nav below. A flat 70vh left
               the last hours of the day underneath the nav bar. */}
-          <div className="flex overflow-y-auto overscroll-contain min-h-0"
+          <div className={`flex overflow-y-auto overscroll-contain min-h-0 ${fill ? "flex-1" : ""}`}
             style={{
               paddingTop: 8,
-              maxHeight: maxHeight
-                || "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
+              // `fill` = live inside a widget box: take the height the box
+              // gives us and scroll within it. A percentage max-height has
+              // nothing to resolve against there, which is why the widget
+              // wouldn't scroll at all.
+              ...(fill ? {} : {
+                maxHeight: maxHeight
+                  || "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
+              }),
             }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
               {Array.from({ length: 24 }, (_, h) => (
