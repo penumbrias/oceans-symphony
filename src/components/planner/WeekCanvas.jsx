@@ -357,7 +357,8 @@ export default function WeekCanvas({
       <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}>
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
-            <div className="w-10 flex-shrink-0 sticky left-0 z-20 bg-background" />
+            <div className="w-10 flex-shrink-0 sticky left-0 z-20"
+              style={{ background: "var(--v2-widget-bg, hsl(var(--background)))" }} />
             {perDay.map(({ day, total }) => {
               const today = isSameDay(day, new Date());
               return (
@@ -394,7 +395,8 @@ export default function WeekCanvas({
                   || "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
               }),
             }}>
-            <div className="w-10 flex-shrink-0 relative sticky left-0 z-20 bg-background" style={{ marginTop: UNTIMED_STRIP_PX }}>
+            <div className="w-10 flex-shrink-0 relative sticky left-0 z-20"
+              style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, hsl(var(--background)))" }}>
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums"
                   style={{ top: h * HOUR_PX, transform: "translateY(-50%)" }}>

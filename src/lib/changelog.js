@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "fix", text: "Planner: the hour column no longer sits there as an unstyleable dark block \u2014 it follows the widget\u2019s background like the rest of it." },
       { type: "fix", text: "\ud83e\uddea New UI: banners like \u201cyou have X planned in 10 minutes\u201d were being painted over by the home screen wallpaper \u2014 invisible, but still taking up space at the top and still tappable. They sit above it now." },
       { type: "fix", text: "Planner: the day divider lines run the full 24 hours instead of stopping partway down." },
       { type: "fix", text: "Planner widget: pressing and holding to draw a time range no longer pops the widget\u2019s options sheet open mid-drag." },
