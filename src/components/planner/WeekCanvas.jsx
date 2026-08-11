@@ -51,7 +51,7 @@ export function formatDuration(min) {
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
-  onAddToDay, onOpenUntimed,
+  onAddToDay, onOpenUntimed, nowMin,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -157,6 +157,11 @@ function DayColumn({
 
   const pct = (min) => `${(min / MINUTES_PER_DAY) * 100}%`;
   const live = resizing;
+  // A day in the past is entirely behind us; today is behind us up to now;
+  // a day ahead has nothing behind us yet.
+  const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+  const thisDay = new Date(day); thisDay.setHours(0, 0, 0, 0);
+  const pastMin = thisDay < startOfToday ? MINUTES_PER_DAY : (nowMin != null ? nowMin : 0);
 
   return (
     <div className="flex-1 border-l border-border/40 first:border-l-0" style={{ minWidth }}>
@@ -200,6 +205,21 @@ function DayColumn({
             style={{ top: h * HOUR_PX }} />
         ))}
 
+        {/* Time already spent reads back dimmer than time still ahead, so a
+            glance separates "what happened" from "what's coming". Drawn
+            under the blocks and inert. */}
+        {pastMin > 0 && (
+          <div className="absolute left-0 right-0 top-0 pointer-events-none"
+            style={{ height: pct(pastMin), background: "rgb(0 0 0 / 0.16)" }} />
+        )}
+        {nowMin != null && (
+          <div className="absolute left-0 right-0 z-10 pointer-events-none"
+            style={{ top: pct(nowMin), borderTop: "2px solid var(--v2-accent, #ef4444)" }}>
+            <span className="absolute -left-0.5 -top-1 w-2 h-2 rounded-full"
+              style={{ background: "var(--v2-accent, #ef4444)" }} />
+          </div>
+        )}
+
         {showOverlays.alters && overlayBands.map((b, i) => (
           <div key={`band-${i}`} className="absolute left-0 right-0 pointer-events-none"
             style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), background: `${b.color}14` }} />
@@ -224,7 +244,7 @@ function DayColumn({
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
                 background: `${colorFor(b)}2e`,
                 borderLeft: `2px solid ${colorFor(b)}`,
-                opacity: b.status === "scheduled" ? 0.72 : 1,
+                opacity: (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
                 borderStyle: b.status === "scheduled" ? "dashed" : "solid",
               }}
             >
@@ -296,6 +316,13 @@ export default function WeekCanvas({
     const start = startOfWeek(anchor, { weekStartsOn });
     return Array.from({ length: dayCount }, (_, i) => addDays(start, i));
   }, [anchor, weekStartsOn, dayCount]);
+
+  // Re-render on the minute so the now line actually moves.
+  const [nowTick, setNowTick] = useState(() => new Date());
+  React.useEffect(() => {
+    const id = setInterval(() => setNowTick(new Date()), 60000);
+    return () => clearInterval(id);
+  }, []);
 
   const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const colorFor = useCallback(
@@ -410,6 +437,7 @@ export default function WeekCanvas({
               <DayColumn
                 key={day.toISOString()}
                 day={day}
+                nowMin={isSameDay(day, nowTick) ? nowTick.getHours() * 60 + nowTick.getMinutes() : null}
                 minWidth={MIN_DAY_PX}
                 blocks={blocks}
                 untimed={untimed}

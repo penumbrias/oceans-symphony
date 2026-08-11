@@ -8,6 +8,7 @@
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
 import { ChevronLeft, ChevronRight, Users, Heart } from "lucide-react";
@@ -455,11 +456,18 @@ export default function PlannerSurface({
       )}
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
 
-      {timing && (
+      {/* Portaled to the body: a v2 board is framer-transformed, which
+          re-anchors `position: fixed` to the board instead of the viewport —
+          so an un-portaled sheet renders inside the widget and gets clipped
+          by it, which is why its buttons did nothing. */}
+      {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
           style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setTiming(null); }}>
-          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3"
+          {/* A sheet taller than the screen must scroll, not overflow off the
+              top — with member list, notes and outcomes it can exceed a short
+              viewport. */}
+          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
             {/* Move to another day — a row of taps rather than a sideways
@@ -552,7 +560,7 @@ export default function PlannerSurface({
               onClick={() => { setOpened(timing.item); setTiming(null); }}>{tr("planner.openItem")}</Button>
           </div>
         </div>
-      )}
+      ), document.body)}
 
       {opened && (
         <ActivityDetailsModal

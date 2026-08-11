@@ -8,6 +8,7 @@
 // text, so ticking one off can find the other.
 
 import React, { useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Plus, Search, Check, X, ListTodo } from "lucide-react";
 import { toast } from "sonner";
@@ -71,11 +72,13 @@ export default function DayPlanSheet({ day, open, onClose }) {
 
   if (!open) return null;
 
-  return (
+  // Portaled: inside a widget on a framer-transformed board, `fixed` anchors
+  // to the board and the sheet gets clipped by the widget box.
+  return createPortal((
     <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
       style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="bg-card w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2"
+      <div className="bg-card w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-2 max-h-full overflow-y-auto overscroll-contain"
         style={{ borderRadius: "var(--v2-radius, 16px)" }}>
         <div className="flex items-center justify-between gap-2">
           <h2 className="text-sm font-semibold">{tr("planner.planDay")}</h2>
@@ -115,5 +118,5 @@ export default function DayPlanSheet({ day, open, onClose }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }

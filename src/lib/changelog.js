@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "fix", text: "Planner: editing from a widget works now \u2014 the popups were being clipped inside the widget, so their buttons did nothing." },
+      { type: "feature", text: "Planner: a line marks the current time, and time that has already passed is shaded so what happened reads apart from what is coming." },
       { type: "fix", text: "Planner: the hour column no longer sits there as an unstyleable dark block \u2014 it follows the widget\u2019s background like the rest of it." },
       { type: "fix", text: "\ud83e\uddea New UI: banners like \u201cyou have X planned in 10 minutes\u201d were being painted over by the home screen wallpaper \u2014 invisible, but still taking up space at the top and still tappable. They sit above it now." },
       { type: "fix", text: "Planner: the day divider lines run the full 24 hours instead of stopping partway down." },
