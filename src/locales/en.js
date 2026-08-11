@@ -275,6 +275,15 @@ export default {
   "planner.who": "Who",
   "planner.searchMembers": "Search {members}…",
   "planner.moveToDay": "Day",
+  "planner.notes": "Notes",
+  "planner.notesPlaceholder": "How did it go?",
+  "planner.outcome": "Outcome",
+  "planner.done": "Done",
+  "planner.partial": "Partly",
+  "planner.skipped": "Skipped",
+  "planner.cancelled": "Cancelled",
+  "planner.reschedule": "Reschedule",
+  "planner.rescheduled": "Moved to {when}",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

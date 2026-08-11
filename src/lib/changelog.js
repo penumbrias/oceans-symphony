@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "feature", text: "Planner: mark a plan done, partly done, skipped or cancelled, add notes to any entry, and reschedule \u2014 moving a plan keeps it a plan and records the move." },
       { type: "feature", text: "\ud83e\uddea New UI: deleting a home screen or removing a widget can be undone \u2014 the toast has an Undo button for 12 seconds." },
       { type: "fix", text: "\ud83e\uddea New UI: the Week and Day planner widgets can be scrolled now." },
       { type: "fix", text: "\ud83e\uddea New UI: empty rows above everything on a freely-arranged page no longer push the whole board down." },

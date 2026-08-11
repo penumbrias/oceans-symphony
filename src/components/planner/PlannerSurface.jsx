@@ -67,6 +67,7 @@ export default function PlannerSurface({
   const [timing, setTiming] = useState(null);          // { item, day } being scheduled
   const [timeValue, setTimeValue] = useState("09:00");
   const [durValue, setDurValue] = useState(60);
+  const [noteValue, setNoteValue] = useState("");
 
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
@@ -192,9 +193,16 @@ export default function PlannerSurface({
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
     try {
+      const wasScheduled = timing.item.status === "scheduled";
+      const from = timing.item.timestamp;
       await base44.entities.Activity.update(timing.item.id, {
         timestamp: when.toISOString(),
         duration_minutes: Math.max(5, Number(durValue) || 60),
+        // Moving a plan is a reschedule, not a new plan: status stays
+        // `scheduled` and the move is recorded, matching the tracker's model.
+        ...(wasScheduled && from && from !== when.toISOString()
+          ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
+          : {}),
       });
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
@@ -230,6 +238,36 @@ export default function PlannerSurface({
     setTiming((prev) => ({ ...prev, item: { ...prev.item, fronting_alter_ids: next } }));
     try {
       await base44.entities.Activity.update(timing.item.id, { fronting_alter_ids: next });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  // Resolve a plan: what actually became of it. The lifecycle enum exists so
+  // a plan that didn't happen stays honest instead of counting as time spent.
+  const setOutcome = async (status) => {
+    if (!timing) return;
+    try {
+      await base44.entities.Activity.update(timing.item.id, {
+        status,
+        // A resolved entry needs a time to sit at; keep its own if it has one.
+        timestamp: timing.item.timestamp || new Date().toISOString(),
+      });
+      if (timing.item.task_id && status === "done") {
+        await base44.entities.Task.update(timing.item.task_id, {
+          completed: true, is_complete: true, completed_date: new Date().toISOString(),
+        }).catch(() => {});
+      }
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+      setTiming(null);
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  const saveNote = async (text) => {
+    if (!timing) return;
+    try {
+      await base44.entities.Activity.update(timing.item.id, { notes: text });
+      setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
   };
@@ -377,10 +415,13 @@ export default function PlannerSurface({
             setTiming({ item, day: start || anchor });
             setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
             setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
+            setNoteValue(item.notes || "");
           }}
           onResize={handleResize}
           onAddToDay={(day) => setPlanDay(day)}
-          onOpenUntimed={(item, day) => { setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); }}
+          onOpenUntimed={(item, day) => {
+            setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); setNoteValue(item.notes || "");
+          }}
         />
       </div>
 
@@ -474,11 +515,39 @@ export default function PlannerSurface({
               />
             </div>
 
-            <div className="flex gap-2">
-              <Button size="sm" className="flex-1" onClick={applyTime}>{tr("planner.giveTime")}</Button>
-              <Button size="sm" variant="outline" className="flex-1"
-                onClick={() => markUntimedDone(timing.item)}>{tr("planner.markDone")}</Button>
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.notes")}</p>
+              <textarea
+                value={noteValue}
+                onChange={(e) => setNoteValue(e.target.value)}
+                onBlur={() => { if (noteValue !== (timing.item.notes || "")) saveNote(noteValue); }}
+                rows={2}
+                placeholder={tr("planner.notesPlaceholder")}
+                className="w-full rounded-lg border border-input bg-background text-sm p-2"
+              />
             </div>
+
+            {/* What became of it. A plan that didn't happen must be sayable —
+                otherwise it either nags forever or quietly counts as done. */}
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
+              <div className="flex flex-wrap gap-1">
+                {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
+                  ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={timing.item.status === id}
+                    onClick={() => setOutcome(id)}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      timing.item.status === id
+                        ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                        : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </div>
+            </div>
+
+            <Button size="sm" className="w-full" onClick={applyTime}>
+              {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
+            </Button>
             <Button size="sm" variant="ghost" className="w-full"
               onClick={() => { setOpened(timing.item); setTiming(null); }}>{tr("planner.openItem")}</Button>
           </div>
