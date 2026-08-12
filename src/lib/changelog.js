@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "feature", text: "Planner: a + button creates an entry by tap \u2014 no drag needed. Creating uses the same popup as editing: name, day, time, length, category, who, notes, and it logs or plans by whether the time is past or ahead." },
+      { type: "improve", text: "Planner: creating from a drag opens the new popup too \u2014 the old log/plan screens are gone from the planner." },
+      { type: "fix", text: "Fixed four screens that could quietly corrupt their own state when a list item had broken data (activity categories, relationship types, task posts, symptom patterns)." },
       { type: "improve", text: "Planner: rename, category and delete live in the entry popup itself \u2014 the \u201cOpen\u201d hop to the old activity details screen is gone." },
       { type: "fix", text: "Planner: category colours and per-category totals now include recently logged entries, not just older ones." },
       { type: "improve", text: "The Planner has its own step in the feature tour." },

@@ -292,6 +292,12 @@ export default {
   "planner.deleteTitle": "Delete \"{name}\"?",
   "planner.deleteBody": "Removes this entry from the planner. A linked to-do stays on your list.",
   "planner.deleted": "Deleted",
+  "planner.new": "New",
+  "planner.log": "Log",
+  "planner.plan": "Plan",
+  "planner.logged": "Logged",
+  "planner.planned": "Planned",
+  "planner.namePlaceholder": "What is it?",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

@@ -11,7 +11,7 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -21,8 +21,6 @@ import { confirm } from "@/components/shared/ConfirmDialog";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { categoryIdOf } from "@/lib/planner/rollup";
-import ActivityLogModal from "@/components/activities/ActivityLogModal";
-import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
 import { lookToStyle, resolveUserStyles } from "@/lib/widgetLook";
@@ -65,7 +63,6 @@ export default function PlannerSurface({
     if (onAnchorChange) onAnchorChange(next); else setOwnAnchor(next);
   };
   const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
-  const [creating, setCreating] = useState(null);   // { day, fromMin, toMin, plan }
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
   const [timing, setTiming] = useState(null);          // { item, day } being scheduled
   const [timeValue, setTimeValue] = useState("09:00");
@@ -161,12 +158,51 @@ export default function PlannerSurface({
     lsSet("symphony_planner_overlays_v1", next);
   };
 
-  const handleCreate = (day, fromMin, toMin) => {
-    const start = new Date(day);
-    start.setHours(Math.floor(fromMin / 60), fromMin % 60, 0, 0);
-    // Future ranges are plans, past ranges are logs — the same split the
-    // tracker already makes, so the right fields appear.
-    setCreating({ day, fromMin, toMin, plan: start.getTime() > Date.now() });
+  // Creating uses the SAME sheet as editing (one implementation, rule 16),
+  // opened with an unsaved draft item. Whether it becomes a log or a plan is
+  // decided at commit from the chosen time — the split the tracker makes.
+  const openCreate = (day, fromMin, toMin) => {
+    const pad = (n) => String(n).padStart(2, "0");
+    setTiming({
+      create: true,
+      day,
+      item: { activity_name: "", fronting_alter_ids: [], notes: "", activity_category_ids: [] },
+    });
+    setTimeValue(`${pad(Math.floor(fromMin / 60))}:${pad(fromMin % 60)}`);
+    setDurValue(Math.max(15, toMin - fromMin));
+    setNoteValue("");
+  };
+  const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
+  // Tap-first route (rule 28): the toolbar + opens a create for the next
+  // whole hour today, and every field is adjustable in the sheet.
+  const openCreateNow = () => {
+    const d = new Date();
+    const startMin = Math.min(23 * 60, (d.getHours() + 1) * 60);
+    openCreate(d, startMin, startMin + 60);
+  };
+
+  const commitCreate = async () => {
+    if (!timing?.create) return;
+    const name = (timing.item.activity_name || "").trim();
+    if (!name) return;
+    const [h, m] = String(timeValue).split(":").map(Number);
+    const when = new Date(timing.day);
+    when.setHours(h || 0, m || 0, 0, 0);
+    const isPlan = when.getTime() > Date.now();
+    try {
+      await base44.entities.Activity.create({
+        activity_name: name,
+        timestamp: when.toISOString(),
+        duration_minutes: Math.max(5, Number(durValue) || 60),
+        status: isPlan ? "scheduled" : "logged",
+        fronting_alter_ids: timing.item.fronting_alter_ids || [],
+        activity_category_ids: timing.item.activity_category_ids || [],
+        ...(noteValue.trim() ? { notes: noteValue.trim() } : {}),
+      });
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      setTiming(null);
+      toast.success(isPlan ? tr("planner.planned") : tr("planner.logged"));
+    } catch (e) { toast.error(e.message || "Failed"); }
   };
 
   // Dragging an edge only ever changes when it started and how long it ran.
@@ -248,6 +284,7 @@ export default function PlannerSurface({
     const current = timing.item.fronting_alter_ids || [];
     const next = current.includes(alterId) ? current.filter((x) => x !== alterId) : [...current, alterId];
     setTiming((prev) => ({ ...prev, item: { ...prev.item, fronting_alter_ids: next } }));
+    if (timing.create) return;
     try {
       await base44.entities.Activity.update(timing.item.id, { fronting_alter_ids: next });
       qc.invalidateQueries({ queryKey: ["activities"] });
@@ -277,6 +314,7 @@ export default function PlannerSurface({
 
   const saveNote = async (text) => {
     if (!timing) return;
+    if (timing.create) return; // held in noteValue until commit
     try {
       await base44.entities.Activity.update(timing.item.id, { notes: text });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
@@ -287,6 +325,15 @@ export default function PlannerSurface({
   // Has the user actually changed day / time / duration? The commit button
   // only renders when this is true — an always-on "Reschedule" invited
   // pressing it with nothing to do, which read as the button being broken.
+  // Log or Plan? Follows the picked day+time against now, live.
+  const createIsPlan = useMemo(() => {
+    if (!timing?.create) return false;
+    const [h, m] = String(timeValue).split(":").map(Number);
+    const when = new Date(timing.day);
+    when.setHours(h || 0, m || 0, 0, 0);
+    return when.getTime() > Date.now();
+  }, [timing, timeValue]);
+
   const timingDirty = useMemo(() => {
     if (!timing) return false;
     const orig = timing.item.timestamp ? new Date(timing.item.timestamp) : null;
@@ -301,6 +348,10 @@ export default function PlannerSurface({
   // Rename / recategorise write straight through, like the member toggle.
   const saveField = async (patch) => {
     if (!timing) return;
+    if (timing.create) {
+      setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
+      return;
+    }
     try {
       await base44.entities.Activity.update(timing.item.id, patch);
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
@@ -333,11 +384,6 @@ export default function PlannerSurface({
     })),
     [categories]
   );
-
-  const done = () => {
-    setCreating(null);
-    qc.invalidateQueries({ queryKey: ["activities"] });
-  };
 
   // Plain range rather than "w/c" — that's British shorthand for "week
   // commencing" and means nothing to most people.
@@ -380,6 +426,10 @@ export default function PlannerSurface({
             </Button>
             <Button variant="ghost" size="sm" onClick={() => setAnchor(new Date())}>{tr("planner.today")}</Button>
             <span className="text-xs text-muted-foreground tabular-nums ml-1">{weekTotalLabel}</span>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={openCreateNow}
+              aria-label={tr("planner.new")} title={tr("planner.new")}>
+              <Plus className="w-4 h-4" />
+            </Button>
             <Button variant="ghost" size="sm" className="gap-1" onClick={copyLastWeek}
               title={tr("planner.copyWeek")}>
               <CopyPlus className="w-3.5 h-3.5" />
@@ -487,34 +537,6 @@ export default function PlannerSurface({
         />
       </div>
 
-      {creating && !creating.plan && (
-        <ActivityLogModal
-          isOpen
-          onClose={() => setCreating(null)}
-          startDate={creating.day}
-          endDate={creating.day}
-          startHour={Math.floor(creating.fromMin / 60)}
-          startMinute={creating.fromMin % 60}
-          endHour={Math.floor(creating.toMin / 60)}
-          endMinute={creating.toMin % 60}
-          alters={alters}
-          onSave={done}
-        />
-      )}
-      {creating && creating.plan && (
-        <ActivityPlanModal
-          isOpen
-          onClose={() => setCreating(null)}
-          startDate={creating.day}
-          endDate={creating.day}
-          startHour={Math.floor(creating.fromMin / 60)}
-          startMinute={creating.fromMin % 60}
-          endHour={Math.floor(creating.toMin / 60)}
-          endMinute={creating.toMin % 60}
-          alters={alters}
-          onSave={done}
-        />
-      )}
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
 
       {/* Portaled to the body: a v2 board is framer-transformed, which
@@ -532,16 +554,20 @@ export default function PlannerSurface({
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <div className="flex items-start justify-between gap-2">
               <input
-                defaultValue={timing.item.activity_name || ""}
-                placeholder={tr("planner.untitled")}
+                value={timing.item.activity_name || ""}
+                placeholder={timing.create ? tr("planner.namePlaceholder") : tr("planner.untitled")}
+                autoFocus={!!timing.create}
+                onChange={(e) => setTiming((prev) => (prev
+                  ? { ...prev, item: { ...prev.item, activity_name: e.target.value } }
+                  : prev))}
                 onBlur={(e) => {
                   const v = e.target.value.trim();
-                  if (v && v !== timing.item.activity_name) saveField({ activity_name: v });
+                  if (!timing.create && v && v !== timing.item.activity_name) saveField({ activity_name: v });
                 }}
                 className="flex-1 min-w-0 bg-transparent text-sm font-semibold focus:outline-none focus:border-b focus:border-[var(--v2-accent)]"
               />
               <span className="text-[0.625em] uppercase tracking-wide text-muted-foreground border border-border/50 rounded-full px-2 py-0.5 flex-shrink-0">
-                {tr("planner.edit")}
+                {timing.create ? tr("planner.new") : tr("planner.edit")}
               </span>
             </div>
             {/* Move to another day — a row of taps rather than a sideways
@@ -630,6 +656,7 @@ export default function PlannerSurface({
 
             {/* What became of it. A plan that didn't happen must be sayable —
                 otherwise it either nags forever or quietly counts as done. */}
+            {!timing.create && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
               <div className="flex flex-wrap gap-1">
@@ -645,8 +672,14 @@ export default function PlannerSurface({
                 ))}
               </div>
             </div>
+            )}
 
-            {timingDirty && (
+            {timing.create ? (
+              <Button size="sm" className="w-full" disabled={!(timing.item.activity_name || "").trim()}
+                onClick={commitCreate}>
+                {createIsPlan ? tr("planner.plan") : tr("planner.log")}
+              </Button>
+            ) : timingDirty && (
               <Button size="sm" className="w-full" onClick={applyTime}>
                 {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
               </Button>
@@ -654,9 +687,11 @@ export default function PlannerSurface({
             {/* Deleting states its blast radius (rule 12) and leaves any
                 linked to-do untouched — removing a plan is not un-wanting
                 the task. */}
-            <Button size="sm" variant="ghost"
-              className="w-full text-destructive hover:text-destructive"
-              onClick={deleteEntry}>{tr("planner.delete")}</Button>
+            {!timing.create && (
+              <Button size="sm" variant="ghost"
+                className="w-full text-destructive hover:text-destructive"
+                onClick={deleteEntry}>{tr("planner.delete")}</Button>
+            )}
           </div>
         </div>
       ), document.body)}

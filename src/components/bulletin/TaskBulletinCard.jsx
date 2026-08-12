@@ -33,6 +33,12 @@ export default function TaskBulletinCard({ bulletin, alters, currentAlterId, fro
     queryFn: () => base44.entities.Task.list(),
   });
 
+  // Long-press state — declared before the parsed guard below, so the hook
+  // order can't change when a bulletin fails to parse.
+  const longPressTimer = useRef(null);
+  const pressStart = useRef({ x: 0, y: 0 });
+  const [showActions, setShowActions] = useState(false);
+
   const parsed = parseTaskBulletin(bulletin.content);
   if (!parsed) return null;
 
@@ -88,11 +94,6 @@ const timeAgo = `${format(dateObj, "MMM d 'at' h:mm a")} · ${formatDistanceToNo
     qc.invalidateQueries({ queryKey: ["bulletins"] });
   };
 
-  // Long-press anywhere on the card body opens the shared action menu
-  // (board pin / dashboard pin / delete).
-  const longPressTimer = useRef(null);
-  const pressStart = useRef({ x: 0, y: 0 });
-  const [showActions, setShowActions] = useState(false);
   const onPressStart = (e) => {
     const t = e.touches?.[0] || e;
     pressStart.current = { x: t.clientX, y: t.clientY };

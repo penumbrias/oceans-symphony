@@ -50,25 +50,7 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
     [alters, correlation]
   );
 
-  if (!altersWithData.length) {
-    return (
-      <div className="py-10 text-center">
-        <p className="text-sm text-muted-foreground">Not enough data yet.</p>
-        <p className="text-xs text-muted-foreground mt-1">
-          This analysis needs fronting sessions that overlap with symptom check-ins. Log symptoms during or near fronting periods.
-        </p>
-      </div>
-    );
-  }
-
   const isSystemView = selectedAlterId === SYSTEM_VIEW_ID;
-  const selectedAlter = selectedAlterId && !isSystemView
-    ? alters.find(a => a.id === selectedAlterId)
-    : null;
-
-  const activeAlter = isSystemView ? null : (selectedAlter || altersWithData[0]);
-  const activeData = isSystemView ? {} : (correlation[activeAlter?.id] || {});
-
   // Build system-wide rows: for each rating symptom, surface the
   // baseline mean (averaged across all check-ins regardless of who
   // was fronting), so the same chart structure still reads as "data
@@ -86,6 +68,24 @@ export default function AlterSymptomCorrelation({ frontingSessions, alters, symp
       })
       .filter(Boolean);
   }, [isSystemView, ratingSymptoms, correlation]);
+
+  if (!altersWithData.length) {
+    return (
+      <div className="py-10 text-center">
+        <p className="text-sm text-muted-foreground">Not enough data yet.</p>
+        <p className="text-xs text-muted-foreground mt-1">
+          This analysis needs fronting sessions that overlap with symptom check-ins. Log symptoms during or near fronting periods.
+        </p>
+      </div>
+    );
+  }
+
+  const selectedAlter = selectedAlterId && !isSystemView
+    ? alters.find(a => a.id === selectedAlterId)
+    : null;
+
+  const activeAlter = isSystemView ? null : (selectedAlter || altersWithData[0]);
+  const activeData = isSystemView ? {} : (correlation[activeAlter?.id] || {});
 
   // Compute a stress/calm score for each alter: average delta across all tracked symptoms
   const alterScores = altersWithData.map(a => {

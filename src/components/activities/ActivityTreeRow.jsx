@@ -38,7 +38,6 @@ export default function ActivityTreeRow({
   // Cycle guard — if a malformed parent_category_id chain made the same
   // id appear higher in the render stack, refuse to recurse so we don't
   // blow the JS stack.
-  if (seen && seen.has(category.id)) return null;
   const atDepthLimit = level >= MAX_RENDER_DEPTH;
   const nextSeen = seen ? new Set(seen) : new Set();
   nextSeen.add(category.id);
@@ -60,6 +59,12 @@ export default function ActivityTreeRow({
   const isCreatingSub = creatingSubFor === category.id;
 
   useEffect(() => () => { if (autoExpandRef.current) clearTimeout(autoExpandRef.current); }, []);
+
+  // Cycle guard — malformed parent chains must not recurse forever. Sits
+  // AFTER the hooks: an early return above them made React's hook order
+  // change between renders, which corrupts hook state the moment the
+  // condition flips mid-session.
+  if (seen && seen.has(category.id)) return null;
 
   const handleDragStart = (e) => {
     setDraggedId(category.id);
