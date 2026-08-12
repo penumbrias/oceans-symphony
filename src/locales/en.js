@@ -284,6 +284,7 @@ export default {
   "planner.cancelled": "Cancelled",
   "planner.reschedule": "Reschedule",
   "planner.rescheduled": "Moved to {when}",
+  "planner.noChange": "Already at that time",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

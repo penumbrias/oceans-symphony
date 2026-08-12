@@ -196,6 +196,9 @@ export default function PlannerSurface({
     try {
       const wasScheduled = timing.item.status === "scheduled";
       const from = timing.item.timestamp;
+      const prevMins = Number(timing.item.actual_duration_minutes) || Number(timing.item.duration_minutes) || 0;
+      const unchanged = from === when.toISOString()
+        && prevMins === Math.max(5, Number(durValue) || 60);
       await base44.entities.Activity.update(timing.item.id, {
         timestamp: when.toISOString(),
         duration_minutes: Math.max(5, Number(durValue) || 60),
@@ -207,6 +210,11 @@ export default function PlannerSurface({
       });
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
+      // Say what happened. A move of one column at the same time is easy to
+      // miss — especially if it lands outside the scrolled view — and the
+      // sheet closing with no word for it reads as the button doing nothing.
+      if (unchanged) toast.info(tr("planner.noChange"));
+      else toast.success(tr("planner.rescheduled", { when: format(when, "EEE d MMM, HH:mm") }));
     } catch (e) { toast.error(e.message || tr("planner.moveFailed")); }
   };
 
