@@ -298,6 +298,7 @@ export default {
   "planner.logged": "Logged",
   "planner.planned": "Planned",
   "planner.namePlaceholder": "What is it?",
+  "planner.groupView": "Group view",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

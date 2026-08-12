@@ -1838,28 +1838,45 @@ function MultiListRowIcon({ option }) {
   );
 }
 
-export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
+// `sections` (optional) renders the list under the user's own group /
+// subsystem headings, indented by nesting depth. Searching flattens back to
+// `options` — when you're typing a name you want to find it, not navigate
+// to it (same behaviour as the groups manager).
+export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder, sections }) {
   const [q, setQ] = React.useState("");
   const needle = q.trim().toLowerCase();
   const shown = needle ? options.filter((o) => o.label.toLowerCase().includes(needle)) : options;
+  const renderRow = (o) => {
+    const on = selectedIds.includes(o.id);
+    return (
+      <button key={o.id} type="button" onClick={() => onToggle(o.id)}
+        className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left text-xs ${
+          on ? "border-primary/60 bg-primary/10" : "border-transparent hover:bg-muted/40"
+        }`}>
+        <MultiListRowIcon option={o} />
+        <span className="flex-1 truncate">{o.label}</span>
+        {on && <span className="flex-shrink-0" style={{ color: "var(--v2-accent)" }}>✓</span>}
+      </button>
+    );
+  };
   return (
     <div className="space-y-1 pb-1">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder}
         className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
       <div className="max-h-40 overflow-y-auto overscroll-contain space-y-0.5">
-        {shown.map((o) => {
-          const on = selectedIds.includes(o.id);
-          return (
-            <button key={o.id} type="button" onClick={() => onToggle(o.id)}
-              className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left text-xs ${
-                on ? "border-primary/60 bg-primary/10" : "border-transparent hover:bg-muted/40"
-              }`}>
-              <MultiListRowIcon option={o} />
-              <span className="flex-1 truncate">{o.label}</span>
-              {on && <span className="flex-shrink-0" style={{ color: "var(--v2-accent)" }}>✓</span>}
-            </button>
-          );
-        })}
+        {sections && !needle
+          ? sections.map((sec) => (
+              <React.Fragment key={sec.id}>
+                {sec.label && (
+                  <p className="text-[0.625em] font-semibold uppercase tracking-wide truncate pt-1"
+                    style={{ paddingLeft: (sec.depth || 0) * 10, color: sec.color || "var(--v2-text-muted, hsl(var(--muted-foreground)))" }}>
+                    {sec.label}
+                  </p>
+                )}
+                {sec.options.map(renderRow)}
+              </React.Fragment>
+            ))
+          : shown.map(renderRow)}
       </div>
     </div>
   );

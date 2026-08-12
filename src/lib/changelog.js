@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "feature", text: "Planner: the Who list can display your group and sub{{system}} arrangement \u2014 tap the tree icon next to the sort toggle. Searching still finds anyone directly. (Your own order was already in the sort toggle as \u201cMy order\u201d.)" },
       { type: "feature", text: "Planner: a + button creates an entry by tap \u2014 no drag needed. Creating uses the same popup as editing: name, day, time, length, category, who, notes, and it logs or plans by whether the time is past or ahead." },
       { type: "improve", text: "Planner: creating from a drag opens the new popup too \u2014 the old log/plan screens are gone from the planner." },
       { type: "fix", text: "Fixed four screens that could quietly corrupt their own state when a list item had broken data (activity categories, relationship types, task posts, symptom patterns)." },

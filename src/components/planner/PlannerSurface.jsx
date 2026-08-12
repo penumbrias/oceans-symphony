@@ -11,7 +11,7 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus, FolderTree } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -31,6 +31,7 @@ import { useAlterLabel } from "@/lib/useAlterLabel";
 import { SearchableMultiList } from "@/v2/widgets";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterSorter } from "@/lib/alterSort";
+import { groupedAlterSections } from "@/lib/alterSections";
 import { BarChart3, CopyPlus, ChevronDown } from "lucide-react";
 
 const lsGet = (k, d) => {
@@ -99,6 +100,21 @@ export default function PlannerSurface({
   // Fronters first, then whatever order the user picked — the standard
   // arrangement for every member list in the app.
   const sorter = useAlterSorter("symphony_planner_alter_sort");
+  // Nested view (rule 23): the same sections every grouped member list uses,
+  // built from the user's own group/subsystem tree. Remembered.
+  const [whoGrouped, setWhoGrouped] = useState(() => lsGet("symphony_planner_who_grouped", false));
+  const toggleWhoGrouped = () => {
+    setWhoGrouped((v) => { lsSet("symphony_planner_who_grouped", !v); return !v; });
+  };
+  const { data: groups = [] } = useQuery({ queryKey: ["groups"], queryFn: () => base44.entities.Group.list() });
+  const toMemberOption = useMemo(
+    () => (a) => ({ id: a.id, label: formatAlter(a), color: a.color, avatarUrl: a.avatar_url }),
+    [formatAlter]
+  );
+  const memberSections = useMemo(
+    () => (whoGrouped ? groupedAlterSections({ alters, groups, sort: sorter.sort, toOption: toMemberOption }) : undefined),
+    [whoGrouped, alters, groups, sorter, toMemberOption]
+  );
   const memberOptions = useMemo(
     () => sorter.sort(alters.filter((a) => !a.is_archived))
       .map((a) => ({ id: a.id, label: formatAlter(a), color: a.color, avatarUrl: a.avatar_url })),
@@ -613,10 +629,20 @@ export default function PlannerSurface({
             <div>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-xs text-muted-foreground">{tr("planner.who")}</p>
-                <AlterSortToggle sorter={sorter} />
+                <span className="flex items-center gap-1">
+                  <button type="button" onClick={toggleWhoGrouped}
+                    aria-pressed={whoGrouped} aria-label={tr("planner.groupView")} title={tr("planner.groupView")}
+                    className={`p-1.5 rounded-lg border ${
+                      whoGrouped ? "border-[var(--v2-accent)] text-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                    }`}>
+                    <FolderTree className="w-3.5 h-3.5" />
+                  </button>
+                  <AlterSortToggle sorter={sorter} />
+                </span>
               </div>
               <SearchableMultiList
                 options={memberOptions}
+                sections={memberSections}
                 selectedIds={timing.item.fronting_alter_ids || []}
                 onToggle={toggleAlter}
                 searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
