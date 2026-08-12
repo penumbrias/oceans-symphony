@@ -182,7 +182,16 @@ export function buildTokenVars(uiV2) {
   for (const def of V2_TOKEN_DEFS) {
     const v = uiV2.tokens[def.id] ?? def.default;
     if (def.type === "range") {
-      if (def.id === "contentW" && (!v || v === 0)) vars[def.cssVar] = "100%";
+      if (def.id === "contentW") {
+        // 0 = full width. Any other value gets a floor: below ~480px the
+        // whole app — including the Settings page holding this slider —
+        // collapses into an unusable strip, and the control to undo it is
+        // inside that strip. A layout setting must never be able to make
+        // its own undo unreachable. The floor applies at APPLY time, so
+        // anyone already stuck is rescued on update without their stored
+        // value being rewritten.
+        vars[def.cssVar] = (!v || v === 0) ? "100%" : `${Math.max(480, v)}px`;
+      }
       else vars[def.cssVar] = `${v}${def.unit || "px"}`;
     } else if (def.type === "select") {
       const opt = def.options.find((o) => o.v === v) || def.options[0];

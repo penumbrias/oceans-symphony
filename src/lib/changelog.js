@@ -18,6 +18,12 @@
 
 export const CHANGELOG = [
   {
+    date: "August 12, 2026",
+    changes: [
+      { type: "fix", text: "The \u201cContent width\u201d display setting can no longer squeeze the whole app into an unusable strip \u2014 anything below 480px now applies as 480px. If you were stuck, updating un-sticks you." },
+    ],
+  },
+  {
     date: "August 11, 2026",
     changes: [
       { type: "feature", text: "Planner: the Who list can display your group and sub{{system}} arrangement \u2014 tap the tree icon next to the sort toggle. Searching still finds anyone directly. (Your own order was already in the sort toggle as \u201cMy order\u201d.)" },

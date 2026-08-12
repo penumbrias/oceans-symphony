@@ -242,7 +242,12 @@ These exist because each one shipped a bug:
     snapshots go stale across a hold delay.
 47. **Verify against realistic data**, including the empty case, the broken
     case (cycles, dangling pointers) and the large case.
-48. **Reproduce with the data state that makes conditional chrome appear.**
+48. **A layout setting must never be able to make its own undo unreachable.**
+    Any user-adjustable size/width/scale gets an apply-time floor above the
+    point where the app — including the control itself — stops being usable.
+    (Content width at 40px collapsed everything, Settings included, into a
+    strip.)
+49. **Reproduce with the data state that makes conditional chrome appear.**
     Banners, reminders and review cards render only under data conditions —
     an empty preview proves nothing about them. (The invisible tappable
     banner was unreproducible for three rounds because the preview had no
