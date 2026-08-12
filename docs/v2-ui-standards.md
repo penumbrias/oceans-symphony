@@ -83,10 +83,17 @@ one and both use it. Never carry a disagreement forward.
 
 ## 4. Components and reuse
 
-15. **Reuse before rebuilding.** Before writing a new picker / modal / list /
-    card, find the existing one and parameterise it. When the owner says
-    "like the X", that means literally reuse X's component. Forking a pattern
-    means fixing the same bug in N places forever.
+15. **Reuse before rebuilding — v2 components only.** Before writing a new
+    picker / modal / list / card, find the existing V2 one and parameterise
+    it. When the owner says "like the X", that means literally reuse X's
+    component. Forking a pattern means fixing the same bug in N places
+    forever.
+
+    Classic (v1) components are a FUNCTIONAL reference, not a parts bin: a
+    v2 surface may import one only as a stopgap, flagged as debt at the time.
+    If no v2 equivalent exists yet, build it under v2 structure (i18n, terms,
+    look variables, portaled overlays) — that new component then becomes the
+    one everything else reuses.
 16. **One implementation across surfaces.** A function that appears as both a
     page and a widget is ONE component rendered twice with different props
     (see `PlannerSurface`: `dayCount`, `chrome`). Never a page version and a

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "improve", text: "Member lists in widget pickers show each {{alter}}\u2019s colour and picture, not just a name." },
       { type: "fix", text: "Planner: rescheduling tells you where it moved something, and says so when the time you picked is the one it already had." },
       { type: "fix", text: "Planner: editing from a widget works now \u2014 the popups were being clipped inside the widget, so their buttons did nothing." },
       { type: "feature", text: "Planner: a line marks the current time, and time that has already passed is shaded so what happened reads apart from what is coming." },

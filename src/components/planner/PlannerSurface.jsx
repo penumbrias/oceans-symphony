@@ -101,7 +101,8 @@ export default function PlannerSurface({
   // arrangement for every member list in the app.
   const sorter = useAlterSorter("symphony_planner_alter_sort");
   const memberOptions = useMemo(
-    () => sorter.sort(alters.filter((a) => !a.is_archived)).map((a) => ({ id: a.id, label: formatAlter(a) })),
+    () => sorter.sort(alters.filter((a) => !a.is_archived))
+      .map((a) => ({ id: a.id, label: formatAlter(a), color: a.color, avatarUrl: a.avatar_url })),
     [alters, sorter, formatAlter]
   );
 

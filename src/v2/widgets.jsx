@@ -1825,6 +1825,19 @@ function PollComposerWidget({ api }) {
 // House picker rules apply INSIDE widgets too: anything with an unbounded
 // option list (journals, groups, boards) is searchable and scrollable —
 // never a wrap of pills that becomes unnavigable in a large system.
+// Option rows can carry identity: `color` draws the dot, `avatarUrl` draws
+// the picture over it (resolved per row — local-image URLs need the hook).
+function MultiListRowIcon({ option }) {
+  const resolved = useResolvedAvatarUrl(option.avatarUrl || null);
+  if (!option.color && !option.avatarUrl) return null;
+  return (
+    <span className="w-5 h-5 rounded-full overflow-hidden flex-shrink-0"
+      style={{ backgroundColor: option.color || "hsl(var(--muted))" }}>
+      {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" /> : null}
+    </span>
+  );
+}
+
 export function SearchableMultiList({ options, selectedIds, onToggle, searchPlaceholder }) {
   const [q, setQ] = React.useState("");
   const needle = q.trim().toLowerCase();
@@ -1833,7 +1846,7 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
     <div className="space-y-1 pb-1">
       <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={searchPlaceholder}
         className="w-full h-8 px-2 rounded-lg border border-input bg-background text-xs focus:outline-none focus:ring-1 focus:ring-ring" />
-      <div className="max-h-40 overflow-y-auto space-y-0.5">
+      <div className="max-h-40 overflow-y-auto overscroll-contain space-y-0.5">
         {shown.map((o) => {
           const on = selectedIds.includes(o.id);
           return (
@@ -1841,8 +1854,9 @@ export function SearchableMultiList({ options, selectedIds, onToggle, searchPlac
               className={`w-full flex items-center gap-2 px-2 py-1.5 rounded-lg border text-left text-xs ${
                 on ? "border-primary/60 bg-primary/10" : "border-transparent hover:bg-muted/40"
               }`}>
+              <MultiListRowIcon option={o} />
               <span className="flex-1 truncate">{o.label}</span>
-              {on && <span className="text-primary flex-shrink-0">✓</span>}
+              {on && <span className="flex-shrink-0" style={{ color: "var(--v2-accent)" }}>✓</span>}
             </button>
           );
         })}
