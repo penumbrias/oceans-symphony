@@ -106,6 +106,8 @@ function DayColumn({
     }
     if (g?.armed) {
       e.preventDefault();
+      lastYRef.current = e.clientY;
+      startAutoScroll();
       const now = snap(minuteAt(e.clientY));
       // Both ends are already snapped whole minutes, so the label can never
       // show a fraction and the block edges land on the grain.
@@ -114,6 +116,8 @@ function DayColumn({
     }
     if (resizing) {
       e.preventDefault();
+      lastYRef.current = e.clientY;
+      startAutoScroll();
       const now = snap(minuteAt(e.clientY));
       setResizing((r) => (r.edge === "top"
         ? { ...r, startMin: Math.min(now, r.endMin - 15) }
@@ -133,6 +137,7 @@ function DayColumn({
       onCreate(day, from, to);
     }
     if (resizing) onResize(resizing.id, day, resizing.startMin, resizing.endMin);
+    stopAutoScroll();
     endGesture();
     setDraft(null);
     setResizing(null);
@@ -141,10 +146,69 @@ function DayColumn({
 
   // Cancel = throw the gesture away. Never commit.
   const onPointerCancel = () => {
+    stopAutoScroll();
     endGesture();
     setDraft(null);
     setResizing(null);
   };
+
+  // While a drag is live, a finger held near the top or bottom of the
+  // scroll viewport scrolls it gradually — a duration isn't limited to the
+  // hours that happen to be on screen. Works for create-drags and edge
+  // resizes, in the page (the app's main scroller) and in a widget (the
+  // canvas's own fill scroller): whichever scrollable ancestor is nearest.
+  const lastYRef = useRef(0);
+  const scrollLoopRef = useRef(null);
+  const findScrollParent = () => {
+    let n = ref.current?.parentElement;
+    while (n && n !== document.body) {
+      const cs = getComputedStyle(n);
+      if (/(auto|scroll)/.test(cs.overflowY) && n.scrollHeight > n.clientHeight + 4) return n;
+      n = n.parentElement;
+    }
+    return document.scrollingElement || document.documentElement;
+  };
+  const stopAutoScroll = useCallback(() => {
+    if (scrollLoopRef.current) cancelAnimationFrame(scrollLoopRef.current);
+    scrollLoopRef.current = null;
+  }, []);
+  const startAutoScroll = useCallback(() => {
+    if (scrollLoopRef.current) return;
+    const scroller = findScrollParent();
+    const EDGE = 48;   // px band near each edge that engages scrolling
+    const MAX = 14;    // px per frame at the very edge
+    const tick = () => {
+      const active = gesture.current?.armed || resizingRef.current;
+      if (!active) { scrollLoopRef.current = null; return; }
+      const r = scroller === document.scrollingElement || scroller === document.documentElement
+        ? { top: 0, bottom: window.innerHeight }
+        : scroller.getBoundingClientRect();
+      const y = lastYRef.current;
+      let dy = 0;
+      if (y > r.bottom - EDGE) dy = Math.min(MAX, ((y - (r.bottom - EDGE)) / EDGE) * MAX + 2);
+      else if (y < r.top + EDGE) dy = -Math.min(MAX, (((r.top + EDGE) - y) / EDGE) * MAX + 2);
+      if (dy !== 0) {
+        scroller.scrollTop += dy;
+        // The grid moved under the stationary finger — recompute the minute
+        // from the same clientY so the selection keeps growing.
+        const now = snap(minuteAt(y));
+        if (gesture.current?.armed) {
+          const startMin = gesture.current.startMin;
+          setDraft({ fromMin: Math.min(startMin, now), toMin: Math.max(startMin, now) });
+        } else if (resizingRef.current) {
+          setResizing((prev) => (prev ? (prev.edge === "top"
+            ? { ...prev, startMin: Math.min(now, prev.endMin - 15) }
+            : { ...prev, endMin: Math.max(now, prev.startMin + 15) }) : prev));
+        }
+      }
+      scrollLoopRef.current = requestAnimationFrame(tick);
+    };
+    scrollLoopRef.current = requestAnimationFrame(tick);
+  }, [minuteAt]);
+  // The rAF loop reads resize state without re-subscribing per frame.
+  const resizingRef = useRef(null);
+  React.useEffect(() => { resizingRef.current = resizing; }, [resizing]);
+  React.useEffect(() => stopAutoScroll, [stopAutoScroll]);
 
   // React attaches touch listeners passively, so e.preventDefault() in the
   // pointer handler can't stop a scroll on its own. This one is explicit.
@@ -411,17 +475,14 @@ export default function WeekCanvas({
               so each day column's left border stopped where the viewport did
               while the 24h grid inside kept going. Sizing to content makes
               the day separators run the full day. */}
-          <div className={`flex items-start overflow-y-auto overscroll-contain min-h-0 ${fill ? "flex-1" : ""}`}
+          <div className={`flex items-start min-h-0 ${fill ? "flex-1 overflow-y-auto overscroll-contain" : ""}`}
             style={{
               paddingTop: 8,
-              // `fill` = live inside a widget box: take the height the box
-              // gives us and scroll within it. A percentage max-height has
-              // nothing to resolve against there, which is why the widget
-              // wouldn't scroll at all.
-              ...(fill ? {} : {
-                maxHeight: maxHeight
-                  || "calc(100vh - var(--planner-chrome, 190px) - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px))",
-              }),
+              // `fill` = inside a widget box: take the box's height and
+              // scroll within it. On the PAGE there is no inner cap at all —
+              // the grid runs its full 24h and the page scrolls it, so the
+              // planner isn't a small window onto itself.
+              ...(fill && maxHeight ? { maxHeight } : {}),
             }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20"
               style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, hsl(var(--background)))" }}>
