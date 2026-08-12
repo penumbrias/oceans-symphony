@@ -83,17 +83,20 @@ one and both use it. Never carry a disagreement forward.
 
 ## 4. Components and reuse
 
-15. **Reuse before rebuilding — v2 components only.** Before writing a new
-    picker / modal / list / card, find the existing V2 one and parameterise
-    it. When the owner says "like the X", that means literally reuse X's
-    component. Forking a pattern means fixing the same bug in N places
-    forever.
+15. **Reuse the established v2 element; never import classic UI.** The reuse
+    rule is about ELEMENT CLASSES, not files. When a surface needs an alter
+    picker, a tree select, a multi-list, a sheet — v2 has an established one;
+    use it. Rebuilding that element from scratch is a violation. Forking it
+    is a violation. Both mean fixing the same bug in N places forever.
 
-    Classic (v1) components are a FUNCTIONAL reference, not a parts bin: a
-    v2 surface may import one only as a stopgap, flagged as debt at the time.
-    If no v2 equivalent exists yet, build it under v2 structure (i18n, terms,
-    look variables, portaled overlays) — that new component then becomes the
-    one everything else reuses.
+    The other direction is equally binding: **classic (v1) components do not
+    get imported into v2 surfaces.** The classic UI is a reference for what a
+    function needs — never a source of parts. A v2 surface that opens a v1
+    modal (the planner's "Open" → old popout) is broken under this rule, even
+    if it works: it drags the old structure, styling and gaps into the new
+    UI. If no v2 equivalent exists yet, build one under v2 structure (i18n,
+    terms, look variables, portaled overlays, tap-first) — and that component
+    becomes the established one everything after it reuses.
 16. **One implementation across surfaces.** A function that appears as both a
     page and a widget is ONE component rendered twice with different props
     (see `PlannerSurface`: `dayCount`, `chrome`). Never a page version and a

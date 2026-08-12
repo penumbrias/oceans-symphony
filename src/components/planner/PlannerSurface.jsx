@@ -282,6 +282,20 @@ export default function PlannerSurface({
     } catch (e) { toast.error(e.message || "Failed"); }
   };
 
+  // Has the user actually changed day / time / duration? The commit button
+  // only renders when this is true — an always-on "Reschedule" invited
+  // pressing it with nothing to do, which read as the button being broken.
+  const timingDirty = useMemo(() => {
+    if (!timing) return false;
+    const orig = timing.item.timestamp ? new Date(timing.item.timestamp) : null;
+    if (!orig) return true; // untimed: any chosen time is a change
+    const pad = (n) => String(n).padStart(2, "0");
+    const origTime = `${pad(orig.getHours())}:${pad(orig.getMinutes())}`;
+    const origDur = Number(timing.item.actual_duration_minutes) || Number(timing.item.duration_minutes) || 60;
+    const sameDay = new Date(timing.day).toDateString() === orig.toDateString();
+    return !sameDay || timeValue !== origTime || Number(durValue) !== origDur;
+  }, [timing, timeValue, durValue]);
+
   const done = () => {
     setCreating(null);
     setOpened(null);
@@ -478,7 +492,12 @@ export default function PlannerSurface({
               viewport. */}
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
-            <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
+              <span className="text-[0.625em] uppercase tracking-wide text-muted-foreground border border-border/50 rounded-full px-2 py-0.5 flex-shrink-0">
+                {tr("planner.edit")}
+              </span>
+            </div>
             {/* Move to another day — a row of taps rather than a sideways
                 drag, so it works the same on a phone. Keeps the time. */}
             <div>
@@ -562,9 +581,11 @@ export default function PlannerSurface({
               </div>
             </div>
 
-            <Button size="sm" className="w-full" onClick={applyTime}>
-              {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
-            </Button>
+            {timingDirty && (
+              <Button size="sm" className="w-full" onClick={applyTime}>
+                {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
+              </Button>
+            )}
             <Button size="sm" variant="ghost" className="w-full"
               onClick={() => { setOpened(timing.item); setTiming(null); }}>{tr("planner.openItem")}</Button>
           </div>
