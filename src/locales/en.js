@@ -286,6 +286,12 @@ export default {
   "planner.rescheduled": "Moved to {when}",
   "planner.noChange": "Already at that time",
   "planner.edit": "Edit",
+  "planner.category": "Category",
+  "planner.noCategory": "No category",
+  "planner.delete": "Delete",
+  "planner.deleteTitle": "Delete \"{name}\"?",
+  "planner.deleteBody": "Removes this entry from the planner. A linked to-do stays on your list.",
+  "planner.deleted": "Deleted",
 
   // ── Shared ──
   "common.switch": "{{Switch}}",

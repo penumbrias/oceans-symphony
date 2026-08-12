@@ -138,7 +138,11 @@ one and both use it. Never carry a disagreement forward.
     - Text uses `em`, never bracketed `rem`, so per-widget text size works.
     - Look values arrive as CSS variables via `lookToStyle()`. Never read
       look fields off `settings` directly.
-    - Chrome colours use `var(--v2-accent)`.
+    - Chrome colours use `var(--v2-accent)`. **No theme tokens
+      (`bg-background`, `bg-card`, `text-foreground`, `border-border`) in a
+      widget's own chrome** — opaque chrome reads `--v2-widget-bg`, with the
+      theme token only as the CSS fallback. (The hour gutter shipped as an
+      unstyleable slab because of this.)
     - **Compliance test:** set border width, background, text size, text
       colour and accent in the widget's options — all five must visibly
       change.
@@ -182,6 +186,10 @@ one and both use it. Never carry a disagreement forward.
 35. **Gesture grammar is consistent app-wide.** Tap = open the thing.
     Press-and-hold = act on the thing (level rail, action menu). Don't invent
     per-surface variants.
+36. **A surface that owns a hold gesture declares it** (`data-own-hold`), and
+    every container hold-gesture (widget options, board edit mode) excludes
+    declared surfaces. Two timers arming on one press is how the options
+    sheet opened mid-drag.
 
 ## 9. Accessibility
 
@@ -234,3 +242,8 @@ These exist because each one shipped a bug:
     snapshots go stale across a hold delay.
 47. **Verify against realistic data**, including the empty case, the broken
     case (cycles, dangling pointers) and the large case.
+48. **Reproduce with the data state that makes conditional chrome appear.**
+    Banners, reminders and review cards render only under data conditions —
+    an empty preview proves nothing about them. (The invisible tappable
+    banner was unreproducible for three rounds because the preview had no
+    upcoming plan.)

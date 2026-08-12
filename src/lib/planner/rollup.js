@@ -17,6 +17,17 @@ import { getAncestorIds, indexById } from "@/lib/categoryTreeUtils";
 
 const COUNTS = new Set(["logged", "done", "partial"]);
 
+// The ONE way to read an activity's category. The classic editors write
+// activity_category_ids (an array); older records carry parent_category_id.
+// Reading only the old field made totals and colours silently skip every
+// newly-logged entry.
+export function categoryIdOf(activity) {
+  if (Array.isArray(activity?.activity_category_ids) && activity.activity_category_ids.length) {
+    return activity.activity_category_ids[0];
+  }
+  return activity?.parent_category_id || null;
+}
+
 export function countsTowardTotals(activity) {
   const status = activity?.status;
   // Legacy rows have no status: a past timestamp means it happened.
@@ -59,7 +70,7 @@ export function rollup({ activities = [], from, to, categories = [], alterIds = 
     const name = a.activity_name || "Untitled";
     byActivity.set(name, (byActivity.get(name) || 0) + mins);
 
-    const cat = a.parent_category_id;
+    const cat = categoryIdOf(a);
     if (cat) {
       // The category itself, then every ancestor — cycle-guarded by the
       // shared walker, so one bad parent pointer can't spin here.

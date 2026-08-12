@@ -17,9 +17,12 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import WeekCanvas from "@/components/planner/WeekCanvas";
 import DayPlanSheet from "@/components/planner/DayPlanSheet";
+import { confirm } from "@/components/shared/ConfirmDialog";
+import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
+import { categoryIdOf } from "@/lib/planner/rollup";
 import ActivityLogModal from "@/components/activities/ActivityLogModal";
 import ActivityPlanModal from "@/components/activities/ActivityPlanModal";
-import ActivityDetailsModal from "@/components/activities/ActivityDetailsModal";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
 import { lookToStyle, resolveUserStyles } from "@/lib/widgetLook";
@@ -63,7 +66,6 @@ export default function PlannerSurface({
   };
   const [overlays, setOverlays] = useState(() => lsGet("symphony_planner_overlays_v1", { alters: false, emotions: false }));
   const [creating, setCreating] = useState(null);   // { day, fromMin, toMin, plan }
-  const [opened, setOpened] = useState(null);
   const [planDay, setPlanDay] = useState(null);       // day whose list is open
   const [timing, setTiming] = useState(null);          // { item, day } being scheduled
   const [timeValue, setTimeValue] = useState("09:00");
@@ -296,9 +298,44 @@ export default function PlannerSurface({
     return !sameDay || timeValue !== origTime || Number(durValue) !== origDur;
   }, [timing, timeValue, durValue]);
 
+  // Rename / recategorise write straight through, like the member toggle.
+  const saveField = async (patch) => {
+    if (!timing) return;
+    try {
+      await base44.entities.Activity.update(timing.item.id, patch);
+      setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
+      qc.invalidateQueries({ queryKey: ["activities"] });
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  const deleteEntry = async () => {
+    if (!timing) return;
+    const item = timing.item;
+    const ok = await confirm({
+      title: tr("planner.deleteTitle", { name: item.activity_name || tr("planner.untitled") }),
+      body: tr("planner.deleteBody"),
+      confirmLabel: tr("planner.delete"),
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await base44.entities.Activity.delete(item.id);
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      setTiming(null);
+      toast.success(tr("planner.deleted"));
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  // Depth-tagged category options from the shared cycle-guarded flattener.
+  const categoryOptions = useMemo(
+    () => flattenCategoryTree(categories).map((c) => ({
+      id: c.id, label: c.name || "Category", color: c.color, _depth: c._depth,
+    })),
+    [categories]
+  );
+
   const done = () => {
     setCreating(null);
-    setOpened(null);
     qc.invalidateQueries({ queryKey: ["activities"] });
   };
 
@@ -328,6 +365,7 @@ export default function PlannerSurface({
 
   return (
     <div className={chrome ? "min-h-screen p-2 sm:p-4" : "flex flex-col min-h-0 h-full"}
+      {...(chrome ? { "data-tour": "planner" } : {})}
       style={applyPageLook ? pageLook : undefined}
       {...(applyPageLook ? { "data-widget-content": true } : {})}>
       <div className={chrome ? "os-page-shell space-y-2" : "flex flex-col min-h-0 h-full"}>
@@ -493,7 +531,15 @@ export default function PlannerSurface({
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <div className="flex items-start justify-between gap-2">
-              <p className="text-sm font-semibold truncate">{timing.item.activity_name}</p>
+              <input
+                defaultValue={timing.item.activity_name || ""}
+                placeholder={tr("planner.untitled")}
+                onBlur={(e) => {
+                  const v = e.target.value.trim();
+                  if (v && v !== timing.item.activity_name) saveField({ activity_name: v });
+                }}
+                className="flex-1 min-w-0 bg-transparent text-sm font-semibold focus:outline-none focus:border-b focus:border-[var(--v2-accent)]"
+              />
               <span className="text-[0.625em] uppercase tracking-wide text-muted-foreground border border-border/50 rounded-full px-2 py-0.5 flex-shrink-0">
                 {tr("planner.edit")}
               </span>
@@ -552,6 +598,25 @@ export default function PlannerSurface({
             </div>
 
             <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.category")}</p>
+              <SearchableSelect
+                value={categoryIdOf(timing.item) || ""}
+                onChange={(id) => saveField({ activity_category_ids: id ? [id] : [] })}
+                options={categoryOptions}
+                allowClear
+                placeholder={tr("planner.noCategory")}
+                searchPlaceholder={tr("planner.category")}
+                renderOption={(o) => (
+                  <span className="flex items-center gap-1.5" style={{ paddingLeft: (o._depth || 0) * 12 }}>
+                    {(o._depth || 0) > 0 && <span className="text-muted-foreground">↳</span>}
+                    {o.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />}
+                    <span className="truncate">{o.label}</span>
+                  </span>
+                )}
+              />
+            </div>
+
+            <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.notes")}</p>
               <textarea
                 value={noteValue}
@@ -586,21 +651,15 @@ export default function PlannerSurface({
                 {timing.item.timestamp ? tr("planner.reschedule") : tr("planner.giveTime")}
               </Button>
             )}
-            <Button size="sm" variant="ghost" className="w-full"
-              onClick={() => { setOpened(timing.item); setTiming(null); }}>{tr("planner.openItem")}</Button>
+            {/* Deleting states its blast radius (rule 12) and leaves any
+                linked to-do untouched — removing a plan is not un-wanting
+                the task. */}
+            <Button size="sm" variant="ghost"
+              className="w-full text-destructive hover:text-destructive"
+              onClick={deleteEntry}>{tr("planner.delete")}</Button>
           </div>
         </div>
       ), document.body)}
-
-      {opened && (
-        <ActivityDetailsModal
-          isOpen
-          activity={opened}
-          alters={alters}
-          onClose={() => setOpened(null)}
-          onSave={done}
-        />
-      )}
     </div>
   );
 }

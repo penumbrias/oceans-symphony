@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 11, 2026",
     changes: [
+      { type: "improve", text: "Planner: rename, category and delete live in the entry popup itself \u2014 the \u201cOpen\u201d hop to the old activity details screen is gone." },
+      { type: "fix", text: "Planner: category colours and per-category totals now include recently logged entries, not just older ones." },
+      { type: "improve", text: "The Planner has its own step in the feature tour." },
       { type: "improve", text: "Planner: the entry popup is labelled Edit, and Reschedule only appears once you\u2019ve actually changed the day, time or length." },
       { type: "improve", text: "Member lists in widget pickers show each {{alter}}\u2019s colour and picture, not just a name." },
       { type: "fix", text: "Planner: rescheduling tells you where it moved something, and says so when the time you picked is the one it already had." },

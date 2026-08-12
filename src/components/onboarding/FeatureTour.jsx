@@ -498,6 +498,14 @@ export function buildSteps(t, alterId = null, tourAlterWasCreated = false, uiV2O
     // ─── ACTIVITIES ─────────────────────────────────────────────────────────
     {
       section: "activities", sectionLabel: "Activities",
+      emoji: "📅",
+      title: "Planner",
+      body: `A Mon–Sun week where entries sit at their real times. Press and hold empty time and drag to log something past or plan something ahead. Tap an entry to edit it — name, day, time, category, who was doing it, notes, and its outcome (done / partly / skipped / cancelled). The + on a day pulls from your to-do list; the chart button shows the week's totals per activity and per ${t.alter}, with your goals against them; the copy button brings last week forward as plans. A line marks now, and time already passed is shaded.`,
+      route: "/planner", target: "planner",
+      look: `the week grid with the hour gutter on the left`, action: null,
+    },
+    {
+      section: "activities", sectionLabel: "Activities",
       emoji: "🏃",
       title: "Activity Tracker",
       body: `The Activity Tracker shows a weekly grid view — each day is a column, each activity block spans its time range. Tap any empty time slot to log a new activity there. Tap an existing block to edit it. Navigate weeks with the ← → arrows in the header. Toggling "Active — start now, end later" inside Log Activity times it live like start/end sleep — pick what you're doing, and when you tap End it's logged automatically with the elapsed time. Every Log Activity entry also has a "Who are you with?" field to tag contacts you were with, right alongside who was fronting.`,

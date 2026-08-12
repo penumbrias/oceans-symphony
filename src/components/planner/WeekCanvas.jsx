@@ -20,6 +20,7 @@
 import React, { useMemo, useRef, useState, useCallback } from "react";
 import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
+import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
 
 const HOLD_MS = 300;
@@ -326,7 +327,7 @@ export default function WeekCanvas({
 
   const alterById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a])), [alters]);
   const colorFor = useCallback(
-    (a) => a?.color || categoryColor(a?.parent_category_id) || "#6366f1",
+    (a) => a?.color || categoryColor(categoryIdOf(a)) || "#6366f1",
     [categoryColor]
   );
 

@@ -84,6 +84,31 @@ export function walkAncestors(catId, byId, visit) {
  *
  * Returns ancestor ids in order from nearest parent to root.
  */
+/**
+ * The whole tree as a depth-tagged flat list — what nesting-aware pickers
+ * consume (house rule: hierarchies never render as a bare select). Parents
+ * are immediately followed by their children; cycles and orphans that can't
+ * be reached from a root are appended flat at the end so they stay pickable.
+ */
+export function flattenCategoryTree(categories) {
+  const out = [];
+  const visited = new Set();
+  const walk = (list, depth) => {
+    if (depth > MAX_RENDER_DEPTH) return;
+    for (const c of list) {
+      if (!c || visited.has(c.id)) continue;
+      visited.add(c.id);
+      out.push({ ...c, _depth: depth });
+      walk(getChildren(c.id, categories), depth + 1);
+    }
+  };
+  walk(getRootCategories(categories), 0);
+  for (const c of categories || []) {
+    if (c && !visited.has(c.id)) out.push({ ...c, _depth: 0, _orphaned: true });
+  }
+  return out;
+}
+
 export function getAncestorIds(catId, byId) {
   const out = [];
   walkAncestors(catId, byId, (pid) => out.push(pid));
