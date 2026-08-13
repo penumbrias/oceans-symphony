@@ -963,9 +963,13 @@ export default function Dashboard() {
 
       {/* Critical/unresolved plans + the notification modal are SHARED
           between the classic and experimental views — safety surfaces
-          shouldn't depend on which homescreen is active. */}
-      <CriticalPinnedPlans />
-      <UnresolvedPlansCard />
+          shouldn't depend on which homescreen is active. Under v2 the
+          board's own notice stack (V2Notices) carries both, inside the
+          board's stacking context where the wallpaper can't cover them —
+          these classic cards sit outside it and would render invisibly
+          under the wallpaper. */}
+      {!uiV2On && <CriticalPinnedPlans />}
+      {!uiV2On && <UnresolvedPlansCard />}
       <NotificationHistoryModal
         open={showNotifHistory}
         onClose={() => setShowNotifHistory(false)}

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 12, 2026",
     changes: [
+      { type: "feature", text: "New UI: reminders, plan alerts, critical plans, mentions and unresolved plans now appear as cards at the top of the home screen — the wallpaper can no longer cover them." },
+      { type: "improve", text: "Backup page: success and error messages stay on screen (with a time stamp) until you dismiss them, instead of vanishing after five seconds." },
       { type: "improve", text: "Planner: the page shows the full 24-hour grid — scroll the page itself instead of a boxed-in strip." },
       { type: "feature", text: "Planner: while dragging out a time (creating or resizing), holding your finger near the top or bottom edge scrolls the grid gradually, so a duration isn’t limited to the hours on screen." },
       { type: "fix", text: "The \u201cContent width\u201d display setting can no longer squeeze the whole app into an unusable strip \u2014 anything below 480px now applies as 480px. If you were stuck, updating un-sticks you." },

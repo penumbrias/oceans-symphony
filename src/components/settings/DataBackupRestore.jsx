@@ -2,7 +2,8 @@ import React, { useState, useRef, useCallback } from "react";
 import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2 } from "lucide-react";
+import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
+import { format } from "date-fns";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
@@ -441,9 +442,13 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const [multiPartChunks, setMultiPartChunks] = useState([]);
   const [multiPartTotal, setMultiPartTotal] = useState(null);
 
+  // Outcomes stay on screen until dismissed. This surface is the one
+  // place where "did it work?" really matters, and a message that
+  // vanishes after five seconds is gone by the time an amnesiac or
+  // dissociating user looks back — exactly the "I don't know if my
+  // export worked" confusion testers reported.
   const showStatus = (type, message) => {
-    setStatus({ type, message });
-    setTimeout(() => setStatus(null), 5000);
+    setStatus({ type, message, at: new Date() });
   };
 
   const [selectiveOpen, setSelectiveOpen] = useState(false);
@@ -1375,15 +1380,26 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const inner = (
     <>
         {status && (
-          <div className={`flex items-center gap-2 rounded-xl px-3 py-2 text-sm ${
+          <div className={`flex items-start gap-2 rounded-xl px-3 py-2 text-sm ${
             status.type === "success"
               ? "bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400"
               : "bg-destructive/5 text-destructive"
           }`}>
             {status.type === "success"
-              ? <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-              : <AlertCircle className="w-4 h-4 flex-shrink-0" />}
-            {status.message}
+              ? <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              : <AlertCircle className="w-4 h-4 flex-shrink-0 mt-0.5" />}
+            <span className="flex-1 min-w-0">
+              {status.message}
+              {status.at && (
+                <span className="block text-[0.6875em] opacity-70 mt-0.5">
+                  {format(status.at, "p")}
+                </span>
+              )}
+            </span>
+            <button type="button" aria-label="Dismiss" onClick={() => setStatus(null)}
+              className="flex-shrink-0 p-0.5 opacity-70 hover:opacity-100">
+              <X className="w-3.5 h-3.5" />
+            </button>
           </div>
         )}
 

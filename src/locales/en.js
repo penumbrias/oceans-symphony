@@ -300,6 +300,22 @@ export default {
   "planner.namePlaceholder": "What is it?",
   "planner.groupView": "Group view",
 
+  // ── V2 home notices ──
+  "notices.done": "Done",
+  "notices.snooze": "Snooze",
+  "notices.dismiss": "Dismiss",
+  "notices.moreActions": "More",
+  "notices.critical": "Critical",
+  "notices.dismissStep": "Dismiss until the next step",
+  "notices.inTime": "in {when}",
+  "notices.now": "now",
+  "notices.planSoon": "{name} planned in {when}",
+  "notices.unresolvedOne": "“{name}” is waiting for an outcome",
+  "notices.unresolved": "{count} plans are waiting for an outcome",
+  "notices.mentioned": "{name} was mentioned",
+  "notices.mentionSource": "In {source}",
+  "notices.more": "{count} more — open Reminders",
+
   // ── Shared ──
   "common.switch": "{{Switch}}",
   "common.loading": "Loading…",

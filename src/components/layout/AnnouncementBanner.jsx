@@ -5,19 +5,7 @@ import { Calendar, X } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurfaces";
-import { readPlanRemindersDefaultOffset } from "@/lib/planReminderScheduler";
-import { statusFor, ACTIVITY_STATUSES } from "@/lib/activityStatus";
-
-const ACK_KEY = "symphony_upcoming_plan_acks";
-
-function getAcks() {
-  try { return JSON.parse(localStorage.getItem(ACK_KEY) || "{}"); } catch { return {}; }
-}
-function setAck(id) {
-  const m = getAcks();
-  m[id] = Date.now();
-  try { localStorage.setItem(ACK_KEY, JSON.stringify(m)); } catch {}
-}
+import { duePlanReminder, ackPlan } from "@/lib/planBannerAcks";
 
 export default function AnnouncementBanner() {
   const navigate = useNavigate();
@@ -43,32 +31,13 @@ export default function AnnouncementBanner() {
 
   if (!isSurfaceEnabled(settings, SURFACE_IN_APP_BANNER)) return null;
 
-  // Find the soonest upcoming activity that is within its reminder window
-  // and hasn't been acknowledged.
-  const acks = getAcks();
-  const defaultOffset = readPlanRemindersDefaultOffset();
-  const dueSoon = activities
-    .filter(a => {
-      if (!a?.timestamp) return false;
-      const ts = new Date(a.timestamp).getTime();
-      if (isNaN(ts) || ts <= now) return false;
-      // Only nag the user about plans that are still actually upcoming.
-      // Without this, a record the user has already marked done /
-      // skipped / cancelled (or one that was logged with a future
-      // timestamp from a weird recurrence path) would still pop the
-      // banner — leading to "you have X planned in 8 minutes" alerts
-      // for things that aren't actually scheduled anymore.
-      const st = statusFor(a);
-      if (st !== ACTIVITY_STATUSES.SCHEDULED) return false;
-      const offsetMs = (a.reminder_offset_minutes ?? defaultOffset) * 60_000;
-      const windowOpens = ts - offsetMs;
-      return now >= windowOpens && !acks[a.id];
-    })
-    .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))[0];
+  // Selector + ack store shared with the v2 home notices (lib/planBannerAcks)
+  // so dismissing the reminder in either UI settles it in both.
+  const dueSoon = duePlanReminder(activities, now);
 
   if (!dueSoon) return null;
 
-  const dismiss = () => { setAck(dueSoon.id); setNow(Date.now() + 1); };
+  const dismiss = () => { ackPlan(dueSoon.id); setNow(Date.now() + 1); };
 
   return (
     <div

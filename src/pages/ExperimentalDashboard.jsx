@@ -473,6 +473,11 @@ export default function ExperimentalDashboard({
   // that — and this page stops drawing its own duplicate strip. Without
   // it (classic experimental home) the legacy actionBar is still ours.
   commandBar = null,
+  // v2 injects the home notice stack here so it renders INSIDE this
+  // root's stacking context — the wallpaper is fixed at -z-10 in the
+  // same context, so notices mounted here can never be painted over
+  // (the fate of every banner that lived outside the board).
+  notices = null,
 }) {
   const qc = useQueryClient();
   const t = useTerms();
@@ -1169,6 +1174,9 @@ export default function ExperimentalDashboard({
           <div className="absolute inset-0 bg-background/55" />
         </div>
       )}
+      {/* Notices sit above the widgets in flow; hidden while editing so
+          the layout canvas stays clean and nothing eats a drag. */}
+      {!editMode && notices}
       {/* Edit-mode toolbar */}
       {editMode && (
       <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">

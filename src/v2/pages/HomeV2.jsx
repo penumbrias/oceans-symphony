@@ -20,6 +20,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
 import { V2_WIDGETS, seedV2Home } from "@/v2/widgets";
+import V2Notices from "@/v2/notices";
 import { resolveUiV2, V2_COMMAND_KEYS } from "@/lib/uiV2";
 
 export const V2_HOME_FIELD = "ui_v2_home";
@@ -77,6 +78,7 @@ export default function HomeV2({ settingsRow, api }) {
       api={api}
       registry={V2_WIDGETS}
       settingsField={field}
+      notices={<V2Notices />}
       commandBar={{
         keys: uiV2.commandKeys,
         catalogue: V2_COMMAND_KEYS,

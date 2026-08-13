@@ -265,6 +265,12 @@ const settings0 = systemSettings?.[0];
 const uiV2 = useMemo(() => resolveUiV2(settings0?.ui_v2), [settings0?.ui_v2]);
 const uiV2On = UI_V2_ENABLED && uiV2.enabled;
 const uiV2Vars = useMemo(() => (uiV2On ? buildTokenVars(uiV2) : null), [uiV2On, uiV2]);
+// On the v2 home the board's own notice stack (V2Notices) carries plan
+// reminders, fired reminders and mentions — the classic overlays are
+// suppressed there so nothing double-surfaces or fights the wallpaper's
+// stacking context. Everywhere else (no wallpaper) the classic surfaces
+// still run, even under v2.
+const v2HomeNotices = uiV2On && location.pathname === "/";
 
 // Dialogs, drawers and dropdowns are portaled to <body>, OUTSIDE the app
 // root div — tokens set only there never reach them (the "popups ignore
@@ -720,7 +726,7 @@ const handleNotifClick = (mentionLog) => {
           invisible live control is the worst of both. Own stacking layer. */}
       <div className="relative z-10">
         <PreviewModeBanner />
-        <AnnouncementBanner />
+        {!v2HomeNotices && <AnnouncementBanner />}
         <LandscapeHintBanner />
       </div>
 
@@ -922,7 +928,7 @@ const handleNotifClick = (mentionLog) => {
           bubble comes back rather than leaving no support entry at all. */}
       {!(uiV2On && uiV2.bars.actions) && <FloatingGroundingButton />}
       <GroceryListPanel />
-      <ReminderToast />
+      {!v2HomeNotices && <ReminderToast />}
       {showFeatureTour && <FeatureTour onClose={() => setShowFeatureTour(false)} />}
       {pageScopedTourRoute && !showFeatureTour && (
         <FeatureTour
@@ -930,12 +936,14 @@ const handleNotifClick = (mentionLog) => {
           onClose={() => setPageScopedTourRoute(null)}
         />
       )}
-      <NotificationPopups
-        mentionLogs={mentionLogs}
-        alters={alters}
-        frontingAlterIds={frontingAlterIds}
-        onNotifClick={handleNotifClick}
-      />
+      {!v2HomeNotices && (
+        <NotificationPopups
+          mentionLogs={mentionLogs}
+          alters={alters}
+          frontingAlterIds={frontingAlterIds}
+          onNotifClick={handleNotifClick}
+        />
+      )}
     </div>);
 
 }
