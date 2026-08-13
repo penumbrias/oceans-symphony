@@ -150,67 +150,76 @@ one and both use it. Never carry a disagreement forward.
     in-widget controls, because widgets are inert in edit mode.
 26. **Widgets are cheap to mount.** Scope queries to the visible window;
     don't load an entire history to render one day.
+27. **Home-screen alerts go through `V2Notices`** (`src/v2/notices.jsx`),
+    the board's notice stack — never a new banner, toast or fixed overlay.
+    It renders INSIDE the board root, where the wallpaper is `-z-10` in the
+    same stacking context, so nothing mounted there can ever be covered
+    (every surface that lived outside the board lost that fight). New
+    notice types are new cards in the stack, sharing the classic surface's
+    state store (acks, dismissals, instance status) so acting in either UI
+    settles both. Evergreen nags sort last so they can't crowd out
+    time-sensitive cards.
 
 ## 7. Platform and layout
 
-27. **One codebase, four targets: web, desktop, iOS, Android, tablet.**
+28. **One codebase, four targets: web, desktop, iOS, Android, tablet.**
     Branch at runtime via `isNative()`, never at build time. Native-only
     imports go inside an `isNative()` guard so they tree-shake out of web.
-28. **Every interaction must work by tap.** Drag may be an accelerator, never
+29. **Every interaction must work by tap.** Drag may be an accelerator, never
     the only route — it is unusable on touch and for many motor
     accessibility needs. (Groups and the planner both had to be fixed for
     this.)
-29. **Reserve the chrome.** Bottom-anchored sheets and fixed elements must
+30. **Reserve the chrome.** Bottom-anchored sheets and fixed elements must
     account for `var(--bottom-nav-height)` (user-configurable — never
     hardcode) plus `env(safe-area-inset-bottom)`.
-30. **Overlays portal to `document.body`.** v2 boards are framer-transformed,
+31. **Overlays portal to `document.body`.** v2 boards are framer-transformed,
     which re-anchors `position: fixed` to the page. Also: React portals
     propagate events through the REACT tree, so a backdrop dismiss handler
     must check `e.target === e.currentTarget` or a portaled dropdown will
     close the dialog that owns it.
-31. **Responsive by content, not breakpoint guesses.** If a column can't hold
+32. **Responsive by content, not breakpoint guesses.** If a column can't hold
     its content at a given width, scroll the container rather than shrinking
     to slivers — and keep the structure the user expects (the week stays
     Mon–Sun at every width).
 
 ## 8. Gestures
 
-32. **Hold-to-arm, then act.** Press-and-hold is the house gesture for "act
+33. **Hold-to-arm, then act.** Press-and-hold is the house gesture for "act
     on this". Moving before the hold completes is a scroll and must cancel.
-33. **`pointercancel` ABORTS. Only `pointerup` commits.** Wiring cancel to
+34. **`pointercancel` ABORTS. Only `pointerup` commits.** Wiring cancel to
     the commit path means the browser stealing the gesture for a scroll fires
     the action.
-34. **An armed gesture takes pointer capture** plus a non-passive `touchmove`
+35. **An armed gesture takes pointer capture** plus a non-passive `touchmove`
     blocker — React attaches touch listeners passively, so `preventDefault`
     in a pointer handler cannot stop a scroll on its own.
-35. **Gesture grammar is consistent app-wide.** Tap = open the thing.
+36. **Gesture grammar is consistent app-wide.** Tap = open the thing.
     Press-and-hold = act on the thing (level rail, action menu). Don't invent
     per-surface variants.
-36. **A surface that owns a hold gesture declares it** (`data-own-hold`), and
+37. **A surface that owns a hold gesture declares it** (`data-own-hold`), and
     every container hold-gesture (widget options, board edit mode) excludes
     declared surfaces. Two timers arming on one press is how the options
     sheet opened mid-drag.
 
 ## 9. Accessibility
 
-36. **Accessibility is the foundation, not a pass at the end.** Real labels
+37. **Accessibility is the foundation, not a pass at the end.** Real labels
     (`aria-label`, `aria-pressed`, `aria-expanded`), keyboard paths for
     everything (Escape closes overlays), focus that doesn't escape modals,
     and a non-gesture route to every action.
-37. **Respect the user's settings** — font size, contrast halo, reduced
+38. **Respect the user's settings** — font size, contrast halo, reduced
     motion, nav height, large touch targets. Minimum 44px for primary touch
     targets.
-38. **Never rely on colour alone** to carry meaning.
-39. **Content is not clipped by the interface** at any supported size.
+39. **Never rely on colour alone** to carry meaning.
+40. **Content is not clipped by the interface** at any supported size.
 
 ## 10. Scale and performance
 
-40. **Design for large systems.** Hundreds of members, thousands of entries.
+41. **Design for large systems.** Hundreds of members, thousands of entries.
     Filter before you render, memoise derived work, and never scan a full
     history inside a render loop.
-41. **Fetch what's on screen.** Window queries by the visible range; gate
+42. **Fetch what's on screen.** Window queries by the visible range; gate
     optional data behind the toggle that reveals it.
-42. **Heavy or optional modules load lazily** so they stay out of the main
+43. **Heavy or optional modules load lazily** so they stay out of the main
     bundle.
 
 ## 11. Registration checklist
@@ -231,23 +240,23 @@ A new v2 surface isn't done until:
 
 These exist because each one shipped a bug:
 
-43. **`no-undef` stays on.** esbuild does no scope checking — a missing
+44. **`no-undef` stays on.** esbuild does no scope checking — a missing
     import or a deleted variable builds perfectly clean and crashes at
     runtime. This rule has caught several.
-44. **Every scripted edit asserts its match.** A silent no-op replacement
+45. **Every scripted edit asserts its match.** A silent no-op replacement
     looks like success and ships nothing.
-45. **Anchor edits on the element, not the line number.** Line-indexed
+46. **Anchor edits on the element, not the line number.** Line-indexed
     insertion has landed JSX inside the wrong element more than once.
-46. **Refetch before write** for fronting-session state — closure-captured
+47. **Refetch before write** for fronting-session state — closure-captured
     snapshots go stale across a hold delay.
-47. **Verify against realistic data**, including the empty case, the broken
+48. **Verify against realistic data**, including the empty case, the broken
     case (cycles, dangling pointers) and the large case.
-48. **A layout setting must never be able to make its own undo unreachable.**
+49. **A layout setting must never be able to make its own undo unreachable.**
     Any user-adjustable size/width/scale gets an apply-time floor above the
     point where the app — including the control itself — stops being usable.
     (Content width at 40px collapsed everything, Settings included, into a
     strip.)
-49. **Reproduce with the data state that makes conditional chrome appear.**
+50. **Reproduce with the data state that makes conditional chrome appear.**
     Banners, reminders and review cards render only under data conditions —
     an empty preview proves nothing about them. (The invisible tappable
     banner was unreproducible for three rounds because the preview had no
