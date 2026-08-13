@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 12, 2026",
     changes: [
+      { type: "feature", text: "Planner: schedule onto any date — the entry popup has a date field alongside this week's day chips." },
+      { type: "feature", text: "Planner: repeating plans, critical pinning with lead-time windows, per-plan reminder timing and location are back in the entry popup — same behavior as the classic tracker." },
+      { type: "improve", text: "Planner: deleting a repeating plan asks how far the delete reaches, and marking Partly asks for the actual minutes." },
       { type: "feature", text: "New UI: reminders, plan alerts, critical plans, mentions and unresolved plans now appear as cards at the top of the home screen — the wallpaper can no longer cover them." },
       { type: "improve", text: "Backup page: success and error messages stay on screen (with a time stamp) until you dismiss them, instead of vanishing after five seconds." },
       { type: "improve", text: "Planner: the page shows the full 24-hour grid — scroll the page itself instead of a boxed-in strip." },

@@ -11,13 +11,22 @@ import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus, FolderTree } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus, FolderTree, Repeat, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import WeekCanvas from "@/components/planner/WeekCanvas";
 import DayPlanSheet from "@/components/planner/DayPlanSheet";
 import { confirm } from "@/components/shared/ConfirmDialog";
+import { createPlan } from "@/lib/planCreate";
+import { LEAD_STEPS, DEFAULT_LEAD_STEPS } from "@/lib/criticalPins";
+import {
+  PLAN_REMINDER_OFFSETS,
+  readPlanRemindersEnabled,
+  writePlanRemindersEnabled,
+} from "@/lib/planReminderScheduler";
+import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recurrenceUtils";
+import { isNative } from "@/lib/platform";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
 import { categoryIdOf } from "@/lib/planner/rollup";
@@ -69,6 +78,18 @@ export default function PlannerSurface({
   const [timeValue, setTimeValue] = useState("09:00");
   const [durValue, setDurValue] = useState(60);
   const [noteValue, setNoteValue] = useState("");
+  // The tracker functions beyond name/time/who: repeat cadence (create
+  // only, like the classic modal — editing one instance never changes a
+  // series' cadence), critical pinning, per-plan reminder offset, location.
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [recur, setRecur] = useState({ interval: "none", count: 8 });
+  const [extra, setExtra] = useState({
+    is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS,
+    reminder_offset_minutes: null, location: "",
+  });
+  const [planRemOn, setPlanRemOn] = useState(() => readPlanRemindersEnabled());
+  // Deleting a series member must ask how far the delete reaches.
+  const [branchAsk, setBranchAsk] = useState(null); // { item }
 
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
@@ -187,6 +208,20 @@ export default function PlannerSurface({
     setTimeValue(`${pad(Math.floor(fromMin / 60))}:${pad(fromMin % 60)}`);
     setDurValue(Math.max(15, toMin - fromMin));
     setNoteValue("");
+    setRecur({ interval: "none", count: 8 });
+    setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
+    setMoreOpen(false);
+  };
+  // Editing seeds the extras from the record, and the More section starts
+  // open when any of them is set — a critical plan's flag must not hide.
+  const seedExtras = (item) => {
+    setExtra({
+      is_critical: !!item.is_critical,
+      critical_lead_steps: item.critical_lead_steps || DEFAULT_LEAD_STEPS,
+      reminder_offset_minutes: item.reminder_offset_minutes ?? null,
+      location: item.location || "",
+    });
+    setMoreOpen(!!(item.is_critical || item.location || item.reminder_offset_minutes != null));
   };
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -197,6 +232,10 @@ export default function PlannerSurface({
     openCreate(d, startMin, startMin + 60);
   };
 
+  // Creation goes through THE shared plan writer (rule 6) — the same one
+  // the classic modal calls — so recurrence expansion, critical pinning,
+  // reminder offsets and location behave identically in both UIs instead
+  // of drifting. Native reminders reconcile globally (usePlanReminderSync).
   const commitCreate = async () => {
     if (!timing?.create) return;
     const name = (timing.item.activity_name || "").trim();
@@ -205,19 +244,30 @@ export default function PlannerSurface({
     const when = new Date(timing.day);
     when.setHours(h || 0, m || 0, 0, 0);
     const isPlan = when.getTime() > Date.now();
+    const catId = (timing.item.activity_category_ids || [])[0] || null;
+    const cat = catId ? categories.find((c) => c.id === catId) : null;
     try {
-      await base44.entities.Activity.create({
-        activity_name: name,
-        timestamp: when.toISOString(),
-        duration_minutes: Math.max(5, Number(durValue) || 60),
-        status: isPlan ? "scheduled" : "logged",
-        fronting_alter_ids: timing.item.fronting_alter_ids || [],
-        activity_category_ids: timing.item.activity_category_ids || [],
-        ...(noteValue.trim() ? { notes: noteValue.trim() } : {}),
+      const { occurrences } = await createPlan({
+        records: [{
+          activity_name: name,
+          activity_category_ids: timing.item.activity_category_ids || [],
+          ...(cat?.color ? { color: cat.color } : {}),
+        }],
+        timestamp: when,
+        durationMinutes: Math.max(5, Number(durValue) || 60),
+        alterIds: timing.item.fronting_alter_ids || [],
+        notes: noteValue.trim() || null,
+        location: extra.location.trim() || null,
+        isCritical: extra.is_critical,
+        leadSteps: extra.is_critical ? extra.critical_lead_steps : null,
+        reminderOffset: extra.reminder_offset_minutes,
+        recurrence: recur,
       });
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
-      toast.success(isPlan ? tr("planner.planned") : tr("planner.logged"));
+      toast.success(occurrences.length > 1
+        ? tr("planner.createdCount", { count: occurrences.length })
+        : (isPlan ? tr("planner.planned") : tr("planner.logged")));
     } catch (e) { toast.error(e.message || "Failed"); }
   };
 
@@ -378,6 +428,12 @@ export default function PlannerSurface({
   const deleteEntry = async () => {
     if (!timing) return;
     const item = timing.item;
+    // A series member: deleting must ask how far it reaches (rule 14) —
+    // one occurrence, this-and-future, or the whole series.
+    if (item.recurrence_group_id) {
+      setBranchAsk({ item });
+      return;
+    }
     const ok = await confirm({
       title: tr("planner.deleteTitle", { name: item.activity_name || tr("planner.untitled") }),
       body: tr("planner.deleteBody"),
@@ -391,6 +447,36 @@ export default function PlannerSurface({
       setTiming(null);
       toast.success(tr("planner.deleted"));
     } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  // The chosen reach for a series delete. Same helpers the classic details
+  // modal uses, so both UIs agree on which records each branch covers.
+  const deleteBranch = async (branch) => {
+    const item = branchAsk?.item;
+    setBranchAsk(null);
+    if (!item) return;
+    try {
+      const members = branch === RECURRENCE_BRANCHES.THIS_ONLY
+        ? [item]
+        : membersForBranch(activities, item, branch);
+      const count = await deleteSeries(members);
+      qc.invalidateQueries({ queryKey: ["activities"] });
+      setTiming(null);
+      toast.success(tr("planner.deletedCount", { count }));
+    } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  const enablePlanReminders = async () => {
+    writePlanRemindersEnabled(true);
+    setPlanRemOn(true);
+    try {
+      if (isNative()) {
+        const { requestNativePermission } = await import("@/lib/nativeNotifications");
+        await requestNativePermission();
+      } else if ("Notification" in window && Notification.permission === "default") {
+        await Notification.requestPermission();
+      }
+    } catch { /* permission stays whatever it is; reconcile respects it */ }
   };
 
   // Depth-tagged category options from the shared cycle-guarded flattener.
@@ -544,11 +630,13 @@ export default function PlannerSurface({
             setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
             setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
             setNoteValue(item.notes || "");
+            seedExtras(item);
           }}
           onResize={handleResize}
           onAddToDay={(day) => setPlanDay(day)}
           onOpenUntimed={(item, day) => {
             setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); setNoteValue(item.notes || "");
+            seedExtras(item);
           }}
         />
       </div>
@@ -586,11 +674,20 @@ export default function PlannerSurface({
                 {timing.create ? tr("planner.new") : tr("planner.edit")}
               </span>
             </div>
-            {/* Move to another day — a row of taps rather than a sideways
-                drag, so it works the same on a phone. Keeps the time. */}
+            {/* Series membership is a fact the user must see before editing —
+                per-field edits and reschedules apply to THIS occurrence only
+                (matching the tracker); delete asks how far to reach. */}
+            {!timing.create && timing.item.recurrence_group_id && (
+              <p className="text-[0.6875em] text-muted-foreground flex items-center gap-1">
+                <Repeat className="w-3 h-3 flex-shrink-0" /> {tr("planner.series")}
+              </p>
+            )}
+            {/* Move to another day — this week's chips are the fast path;
+                the date field schedules onto ANY date (next month's
+                appointment, not just the visible seven days). */}
             <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.moveToDay")}</p>
-              <div className="flex gap-1">
+              <div className="flex gap-1 items-center">
                 {Array.from({ length: 7 }, (_, i) => {
                   const d = new Date(startOfWeek(anchor, { weekStartsOn: 1 }).getTime() + i * 86400000);
                   const on = new Date(timing.day).toDateString() === d.toDateString();
@@ -605,6 +702,15 @@ export default function PlannerSurface({
                   );
                 })}
               </div>
+              <input type="date"
+                aria-label={tr("planner.date")}
+                value={format(new Date(timing.day), "yyyy-MM-dd")}
+                onChange={(e) => {
+                  const [y, mo, da] = String(e.target.value).split("-").map(Number);
+                  if (!y || !mo || !da) return;
+                  setTiming((prev) => (prev ? { ...prev, day: new Date(y, mo - 1, da) } : prev));
+                }}
+                className="mt-1 w-full h-8 px-2 rounded-lg border border-input bg-background text-xs" />
             </div>
 
             <div className="flex items-end gap-2">
@@ -697,8 +803,160 @@ export default function PlannerSurface({
                     }`}>{label}</button>
                 ))}
               </div>
+              {/* Partly done wants to know how much actually happened — the
+                  totals count the actual, not the intention. */}
+              {timing.item.status === "partial" && (
+                <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                  {tr("planner.actualMin")}
+                  <input type="number" min={1} step={5}
+                    defaultValue={timing.item.actual_duration_minutes ?? ""}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      saveField({ actual_duration_minutes: Number.isFinite(n) && n > 0 ? n : null });
+                    }}
+                    className="w-20 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+                </label>
+              )}
             </div>
             )}
+
+            {/* The tracker's remaining plan machinery: repeat, reminder
+                offset, critical pinning, location. Collapsed so the common
+                path stays short; opens itself when an edit target already
+                uses any of it. */}
+            <div>
+              <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
+                className="text-xs text-muted-foreground flex items-center gap-1">
+                <ChevronDown className="w-3 h-3" style={{ transform: moreOpen ? "rotate(180deg)" : "none" }} />
+                {tr("planner.more")}
+              </button>
+              {moreOpen && (
+                <div className="space-y-3 mt-2">
+                  {timing.create && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                        <Repeat className="w-3 h-3" /> {tr("planner.repeat")}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {["none", "daily", "weekly", "biweekly", "monthly"].map((iv) => (
+                          <button key={iv} type="button" aria-pressed={recur.interval === iv}
+                            onClick={() => setRecur((r) => ({ ...r, interval: iv }))}
+                            className={`text-xs px-2.5 py-1 rounded-full border ${
+                              recur.interval === iv
+                                ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                                : "border-border/50 text-muted-foreground"
+                            }`}>{tr(`planner.repeat.${iv}`)}</button>
+                        ))}
+                      </div>
+                      {recur.interval !== "none" && (
+                        <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                          {tr("planner.repeatCount")}
+                          <input type="number" min={1} max={52} value={recur.count}
+                            onChange={(e) => {
+                              const n = parseInt(e.target.value, 10);
+                              setRecur((r) => ({ ...r, count: Number.isFinite(n) ? Math.max(1, Math.min(52, n)) : 1 }));
+                            }}
+                            className="w-16 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+                        </label>
+                      )}
+                    </div>
+                  )}
+
+                  {(timing.create || timing.item.status === "scheduled") && (
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-1">{tr("planner.reminder")}</p>
+                      {planRemOn ? (
+                        <div className="flex flex-wrap gap-1">
+                          <button type="button" aria-pressed={extra.reminder_offset_minutes == null}
+                            onClick={() => {
+                              setExtra((x) => ({ ...x, reminder_offset_minutes: null }));
+                              if (!timing.create) saveField({ reminder_offset_minutes: null });
+                            }}
+                            className={`text-xs px-2.5 py-1 rounded-full border ${
+                              extra.reminder_offset_minutes == null
+                                ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                                : "border-border/50 text-muted-foreground"
+                            }`}>{tr("planner.reminderDefault")}</button>
+                          {PLAN_REMINDER_OFFSETS.map((o) => (
+                            <button key={o.value} type="button" aria-pressed={extra.reminder_offset_minutes === o.value}
+                              onClick={() => {
+                                setExtra((x) => ({ ...x, reminder_offset_minutes: o.value }));
+                                if (!timing.create) saveField({ reminder_offset_minutes: o.value });
+                              }}
+                              className={`text-xs px-2.5 py-1 rounded-full border ${
+                                extra.reminder_offset_minutes === o.value
+                                  ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                                  : "border-border/50 text-muted-foreground"
+                              }`}>{tr(`planner.offset.${o.value}`)}</button>
+                          ))}
+                        </div>
+                      ) : (
+                        <Button size="sm" variant="outline" className="text-xs h-7" onClick={enablePlanReminders}>
+                          {tr("planner.reminderEnable")}
+                        </Button>
+                      )}
+                    </div>
+                  )}
+
+                  {(timing.create || timing.item.status === "scheduled") && (
+                    <div>
+                      <button type="button" aria-pressed={extra.is_critical}
+                        onClick={() => {
+                          const on = !extra.is_critical;
+                          setExtra((x) => ({ ...x, is_critical: on }));
+                          if (!timing.create) saveField({ is_critical: on, critical_lead_steps: on ? extra.critical_lead_steps : null });
+                        }}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${
+                          extra.is_critical
+                            ? "text-amber-500 border-amber-500"
+                            : "border-border/50 text-muted-foreground"
+                        }`}>⚡ {tr("planner.critical")}</button>
+                      {extra.is_critical && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {LEAD_STEPS.map((s) => {
+                            const on = (extra.critical_lead_steps || []).includes(s.key);
+                            return (
+                              <button key={s.key} type="button" aria-pressed={on}
+                                onClick={() => {
+                                  const cur = extra.critical_lead_steps || [];
+                                  const next = on ? cur.filter((k) => k !== s.key) : [...cur, s.key];
+                                  setExtra((x) => ({ ...x, critical_lead_steps: next }));
+                                  if (!timing.create) saveField({ critical_lead_steps: next });
+                                }}
+                                className={`text-[0.6875em] px-2 py-0.5 rounded-full border ${
+                                  on ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                                }`}>{tr(`planner.lead.${s.key}`)}</button>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
+                      <MapPin className="w-3 h-3" /> {tr("planner.location")}
+                    </p>
+                    <input value={extra.location}
+                      onChange={(e) => setExtra((x) => ({ ...x, location: e.target.value }))}
+                      onBlur={() => {
+                        if (!timing.create && (extra.location.trim() || null) !== (timing.item.location || null)) {
+                          saveField({ location: extra.location.trim() || null });
+                        }
+                      }}
+                      className="w-full h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+                    {!timing.create && timing.item.location && (
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(timing.item.location)}`}
+                        target="_blank" rel="noopener noreferrer"
+                        className="text-[0.6875em] mt-0.5 inline-block hover:underline"
+                        style={{ color: "var(--v2-accent)" }}>
+                        {tr("planner.openMap")}
+                      </a>
+                    )}
+                  </div>
+                </div>
+              )}
+            </div>
 
             {timing.create ? (
               <Button size="sm" className="w-full" disabled={!(timing.item.activity_name || "").trim()}
@@ -718,6 +976,36 @@ export default function PlannerSurface({
                 className="w-full text-destructive hover:text-destructive"
                 onClick={deleteEntry}>{tr("planner.delete")}</Button>
             )}
+          </div>
+        </div>
+      ), document.body)}
+
+      {/* Series delete: how far does it reach? Rendered on its own (never
+          stacked over the entry sheet's controls) and portaled like every
+          v2 overlay. */}
+      {branchAsk && createPortal((
+        <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center"
+          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          onClick={(e) => { if (e.target === e.currentTarget) setBranchAsk(null); }}>
+          <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-4 space-y-2"
+            style={{ borderRadius: "var(--v2-radius, 16px)" }}>
+            <p className="text-sm font-semibold">{tr("planner.branchTitle")}</p>
+            <p className="text-xs text-muted-foreground">
+              {tr("planner.branchBody", { name: branchAsk.item.activity_name || tr("planner.untitled") })}
+            </p>
+            {[
+              [RECURRENCE_BRANCHES.THIS_ONLY, tr("planner.branchThis")],
+              [RECURRENCE_BRANCHES.THIS_AND_FUTURE, tr("planner.branchFuture")],
+              [RECURRENCE_BRANCHES.ALL, tr("planner.branchAll")],
+            ].map(([branch, label]) => (
+              <Button key={branch} size="sm" variant="outline" className="w-full justify-start"
+                onClick={() => deleteBranch(branch)}>
+                {label}
+              </Button>
+            ))}
+            <Button size="sm" variant="ghost" className="w-full" onClick={() => setBranchAsk(null)}>
+              {tr("planner.cancel")}
+            </Button>
           </div>
         </div>
       ), document.body)}
