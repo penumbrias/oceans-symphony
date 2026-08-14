@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Upload, X, Palette, Eye, ArrowRight, ArrowLeft, Lock, Unlock, Music } from "lucide-react";
+import { Upload, X, Palette, Eye, ArrowRight, ArrowLeft, Lock, Unlock, Music, SlidersHorizontal } from "lucide-react";
 import { toast } from "sonner";
 import ColorPickerModal from "@/components/shared/ColorPickerModal";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -168,6 +168,38 @@ const HEADER_PALETTE = [
   { key: HEADER_TEXT_KEY, label: "Text" },
   { key: "_header_theme_text2", label: "Text 2nd" },
 ];
+
+// Edit-menu anatomy (docs/v2-edit-menu-spec.md): a slider shows its name
+// and value with a visible "set" button; the control itself appears only
+// after that tap, so scrolling the editor can't nudge an opacity.
+function RevealSlider({ label, value, fallback, onChange, ariaLabel }) {
+  const [open, setOpen] = useState(false);
+  const v = value ?? fallback;
+  return (
+    <div className="py-0.5">
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
+        <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{Math.round(v * 100)}%</span>
+        <button type="button" aria-label={`${label} — set`} aria-expanded={open}
+          onClick={() => setOpen((x) => !x)}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border flex-shrink-0 ${
+            open ? "border-primary/60 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+          }`}>
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+        </button>
+      </div>
+      {open && (
+        <input
+          type="range" min={0.02} max={1} step={0.01}
+          value={v}
+          onChange={(e) => onChange(parseFloat(e.target.value))}
+          className="w-full h-1 accent-primary mt-1.5"
+          aria-label={ariaLabel || label}
+        />
+      )}
+    </div>
+  );
+}
 
 function FontSelect({ value, onChange, ariaLabel }) {
   const fonts = useProfileFonts(); // built-ins + the user's uploaded fonts
@@ -340,20 +372,6 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
   const headerImageSet = !!cf[HEADER_IMAGE_KEY];
   const bgImageSet = !!cf[BG_IMAGE_KEY];
 
-  const slider = (label, key, fallback, ariaLabel) => (
-    <div className="flex items-center gap-3">
-      <Label className="text-xs flex-shrink-0 w-28">{label}</Label>
-      <input
-        type="range" min={0.02} max={1} step={0.01}
-        value={cf[key] ?? fallback}
-        onChange={(e) => setField(key, parseFloat(e.target.value))}
-        className="flex-1 h-1 accent-primary"
-        aria-label={ariaLabel || label}
-      />
-      <span className="text-xs text-muted-foreground flex-shrink-0 w-9 text-right">{Math.round((cf[key] ?? fallback) * 100)}%</span>
-    </div>
-  );
-
   // One-tap copy of the palette colours + font + opacity between header and
   // body (uses the module-level SYNC_PAIRS). Reuses setField / clearField so it
   // writes straight into the profile's custom_fields.
@@ -375,88 +393,36 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
     // No data-pf-surface here — the enclosing "Profile style" SubSection
     // already provides the readable backing over a bg image. A second one here
     // produced a doubled backer + extra padding inset.
-    <div className="space-y-0 rounded-xl">
+    <div className="space-y-2 rounded-xl">
       {/* Live preview: re-apply the profile theme + surface tint from the
           IN-PROGRESS edits so colour changes show on the page immediately,
           before saving. Scoped to .os-pf and injected after the page-level
           style so these win. No-op outside a profile context (returns ""). */}
       {profileThemeCss("os-pf", cf) && <style>{profileThemeCss("os-pf", cf)}</style>}
       {profileSurfaceCss("os-pf", cf) && <style>{profileSurfaceCss("os-pf", cf)}</style>}
-      {/* HEADER */}
-      {/* Collapsed by default (tester: the expanded header section pushed
-          the actual profile fields below the fold on phones). */}
-      <SubSection title="Header" defaultOpen={false}>
-        <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="ps-header-visible" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
-            <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Show header on profile
-          </Label>
-          <Switch
-            id="ps-header-visible"
-            checked={!hideHeader}
-            onCheckedChange={(v) => (v ? clearField(HIDE_HEADER_KEY) : setField(HIDE_HEADER_KEY, true))}
-          />
-        </div>
-        {/* Header colour palette — the full custom-colour set EXCEPT the wave
-            (it doesn't render in the header). These colours apply only to the
-            header banner, independent of the body. */}
-        {paletteGrid(HEADER_PALETTE)}
-        {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
-        {headerImageSet && slider("Image opacity", HEADER_OPACITY_KEY, 0.45, "Header image opacity")}
-        {cf[HEADER_BG_KEY] && slider("Background opacity", HEADER_BG_OPACITY_KEY, 1, "Header background colour opacity")}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Font style</Label>
-          <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
-        </div>
 
-        {/* Sync header ↔ body — lives at the bottom of the Header card.
-            "Sync" copies the palette + font + opacity in the arrow's
-            direction; tap the arrow to flip; tap the lock to live-link so any
-            change to one side mirrors to the other as you edit. */}
-        <div className="flex items-center gap-2 pt-3 mt-1 border-t border-border/40 flex-wrap">
-          <button
-            type="button"
-            onClick={() => syncStyles(syncDir)}
-            className="px-2.5 py-1.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
-          >
-            Sync
-          </button>
-          <span className="text-xs text-muted-foreground">Header</span>
-          <button
-            type="button"
-            onClick={() => setSyncDir((d) => (d === "headerToBody" ? "bodyToHeader" : "headerToBody"))}
-            aria-label={syncDir === "headerToBody" ? "Direction: header to body — tap to flip" : "Direction: body to header — tap to flip"}
-            title="Tap to flip direction"
-            className="w-7 h-7 flex items-center justify-center rounded-md border border-border bg-muted/20 hover:bg-muted/40 text-foreground transition-colors"
-          >
-            {syncDir === "headerToBody" ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
-          </button>
-          <span className="text-xs text-muted-foreground">Body</span>
-          <button
-            type="button"
-            onClick={() => setSyncLocked((v) => !v)}
-            aria-pressed={syncLocked}
-            aria-label={syncLocked ? "Live link on — tap to unlink" : "Live link off — tap to link"}
-            title={syncLocked ? "Live-linked: colour changes mirror both ways" : "Tap to live-link header & body colours"}
-            className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${syncLocked ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted/20 hover:bg-muted/40 text-muted-foreground"}`}
-          >
-            {syncLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
-          </button>
+      {/* Unified edit-menu anatomy (docs/v2-edit-menu-spec.md): the same
+          UI size / Colors / Background sections as Display options and the
+          widget sheet, with this editor's header/body pairing kept as
+          labelled blocks inside each. All collapsed by default so the
+          profile's own fields stay above the fold. */}
+      <SubSection title="UI size" defaultOpen={false}>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Font — body</Label>
+          <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Font — header</Label>
+          <FontSelect value={cf[HEADER_FONT_KEY] || ""} onChange={(v) => setField(HEADER_FONT_KEY, v)} ariaLabel="Header font style" />
         </div>
       </SubSection>
 
-      {/* BODY — rendered inline within "Profile style" (NOT its own collapsible
-          dropdown; only the Header collapses). */}
-      <div className="space-y-3 pt-3 mt-1 border-t border-border/40">
+      <SubSection title="Colors" defaultOpen={false}>
         <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Body</p>
         {/* Body colour palette — the full custom-colour set INCLUDING the wave
             (tall swatch on the right). Same layout as Settings → Appearance.
             The Wave swatch opens a palette picker (not the raw colour picker). */}
         {paletteGrid(BODY_PALETTE, WAVE_ENTRY, () => setWaveMenuOpen((v) => !v))}
-
-        {/* Wave colour picker — pick one of the profile's custom colours (stored
-            as a var() reference so the wave follows that colour), a custom hex,
-            or none. The wave renders on the profile's header banner. Uses
-            data-pf-surface so it stays solid/legible over a background image. */}
         {waveMenuOpen && (
           <div data-pf-surface className="rounded-xl border border-border/40 space-y-2">
             <p className="text-[0.625rem] font-semibold uppercase tracking-wider text-muted-foreground">Wave colour</p>
@@ -497,6 +463,49 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
             </div>
           </div>
         )}
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-1">Header</p>
+        {/* Header colour palette — the full custom-colour set EXCEPT the wave
+            (it doesn't render in the header). These colours apply only to the
+            header banner, independent of the body. */}
+        {paletteGrid(HEADER_PALETTE)}
+
+        {/* Sync header ↔ body — "Sync" copies the palette + font + opacity
+            in the arrow's direction; tap the arrow to flip; tap the lock to
+            live-link so any change to one side mirrors to the other. */}
+        <div className="flex items-center gap-2 pt-3 mt-1 border-t border-border/40 flex-wrap">
+          <button
+            type="button"
+            onClick={() => syncStyles(syncDir)}
+            className="px-2.5 py-1.5 rounded-lg border border-border bg-muted/20 hover:bg-muted/40 text-xs font-medium transition-colors"
+          >
+            Sync
+          </button>
+          <span className="text-xs text-muted-foreground">Header</span>
+          <button
+            type="button"
+            onClick={() => setSyncDir((d) => (d === "headerToBody" ? "bodyToHeader" : "headerToBody"))}
+            aria-label={syncDir === "headerToBody" ? "Direction: header to body — tap to flip" : "Direction: body to header — tap to flip"}
+            title="Tap to flip direction"
+            className="w-7 h-7 flex items-center justify-center rounded-md border border-border bg-muted/20 hover:bg-muted/40 text-foreground transition-colors"
+          >
+            {syncDir === "headerToBody" ? <ArrowRight className="w-3.5 h-3.5" /> : <ArrowLeft className="w-3.5 h-3.5" />}
+          </button>
+          <span className="text-xs text-muted-foreground">Body</span>
+          <button
+            type="button"
+            onClick={() => setSyncLocked((v) => !v)}
+            aria-pressed={syncLocked}
+            aria-label={syncLocked ? "Live link on — tap to unlink" : "Live link off — tap to link"}
+            title={syncLocked ? "Live-linked: colour changes mirror both ways" : "Tap to live-link header & body colours"}
+            className={`w-7 h-7 flex items-center justify-center rounded-md border transition-colors ${syncLocked ? "border-primary bg-primary/15 text-primary" : "border-border bg-muted/20 hover:bg-muted/40 text-muted-foreground"}`}
+          >
+            {syncLocked ? <Lock className="w-3.5 h-3.5" /> : <Unlock className="w-3.5 h-3.5" />}
+          </button>
+        </div>
+      </SubSection>
+
+      <SubSection title="Background" defaultOpen={false}>
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Page</p>
         {bgImageSet && cf[BG_COLOR_KEY] && (
           <p className="text-[0.625rem] text-muted-foreground leading-snug -mt-1">
             With a background image set, this colour fills the cards and entry windows (bio, sections, inputs) — not the whole page. Use "Surface opacity" below to let the image show through them.
@@ -514,19 +523,39 @@ export default function ProfileStyleEditor({ customFields, setField, clearField,
             hint="When not Off, the background shown cycles through a pool of images — randomly, or in order — each time the app reloads."
           />
         )}
-        <div className="space-y-1.5">
-          <Label className="text-xs">Font style</Label>
-          <FontSelect value={cf[PAGE_FONT_KEY] || ""} onChange={(v) => setField(PAGE_FONT_KEY, v)} ariaLabel="Body font style" />
-        </div>
         {bgImageSet ? (
           <>
-            {slider("Image opacity", BG_OPACITY_KEY, 0.5, "Background image opacity")}
-            {slider("Surface opacity", SECTION_BG_KEY, 0.9, "Surface (card/input) fill opacity")}
+            <RevealSlider label="Image opacity" value={cf[BG_OPACITY_KEY]} fallback={0.5}
+              onChange={(v) => setField(BG_OPACITY_KEY, v)} ariaLabel="Background image opacity" />
+            <RevealSlider label="Surface opacity" value={cf[SECTION_BG_KEY]} fallback={0.9}
+              onChange={(v) => setField(SECTION_BG_KEY, v)} ariaLabel="Surface (card/input) fill opacity" />
           </>
         ) : cf[BG_COLOR_KEY] ? (
-          slider("Background opacity", BG_OPACITY_KEY, 0.15, "Background colour opacity")
+          <RevealSlider label="Background opacity" value={cf[BG_OPACITY_KEY]} fallback={0.15}
+            onChange={(v) => setField(BG_OPACITY_KEY, v)} ariaLabel="Background colour opacity" />
         ) : null}
-      </div>
+
+        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground pt-1">Header banner</p>
+        <div className="flex items-center justify-between gap-3">
+          <Label htmlFor="ps-header-visible" className="flex items-center gap-1.5 cursor-pointer text-sm font-medium">
+            <Eye className="w-3.5 h-3.5 text-muted-foreground" /> Show header on profile
+          </Label>
+          <Switch
+            id="ps-header-visible"
+            checked={!hideHeader}
+            onCheckedChange={(v) => (v ? clearField(HIDE_HEADER_KEY) : setField(HIDE_HEADER_KEY, true))}
+          />
+        </div>
+        {imageRow("Image", HEADER_IMAGE_KEY, headerFileRef, uploadingHeader, (e) => { uploadImage(e.target.files?.[0], HEADER_IMAGE_KEY, setUploadingHeader, 1200, 0.85); e.target.value = ""; }, resolvedHeaderImg)}
+        {headerImageSet && (
+          <RevealSlider label="Image opacity" value={cf[HEADER_OPACITY_KEY]} fallback={0.45}
+            onChange={(v) => setField(HEADER_OPACITY_KEY, v)} ariaLabel="Header image opacity" />
+        )}
+        {cf[HEADER_BG_KEY] && (
+          <RevealSlider label="Background opacity" value={cf[HEADER_BG_OPACITY_KEY]} fallback={1}
+            onChange={(v) => setField(HEADER_BG_OPACITY_KEY, v)} ariaLabel="Header background colour opacity" />
+        )}
+      </SubSection>
 
       {colorPickerFor && (
         <ColorPickerModal

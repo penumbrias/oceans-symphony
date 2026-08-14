@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "improve", text: "Profile style editors ({{alter}}, group, location pages) now use the same sections as every other edit menu — UI size, Colors, Background — with sliders behind set buttons. Header/body colors and sync work as before." },
       { type: "feature", text: "Display options: a Bar sizes & layout section — every bar (top, bottom, side, quick actions, {{alter}} bar) with its show/hide, size, placement, wave color, bottom-tab arrangement and quick-action buttons in one place." },
       { type: "fix", text: "Sleep page no longer crashes when a record is missing its date or bedtime — those rows show a dash instead." },
       { type: "fix", text: "The “plans waiting for an outcome” card now expands to list each plan with Done / Partly / Skipped / Cancelled right there — including plans from past weeks the planner view wasn't showing." },
