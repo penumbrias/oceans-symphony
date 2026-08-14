@@ -82,8 +82,22 @@ with the same volume + autoplay controls as alter profile music.
 
 ## Rollout
 
-1. Popup shell + SIZE + COLORS + BACKGROUND + PRESETS, mounted on page-level
-   Display Options as the testbed.
-2. Same popup on widget options (no bars section).
-3. BAR SIZES + LAYOUT section.
-4. Every remaining UI edit menu migrates onto the popup.
+1. ✅ v0.167.0 — popup shell + SIZE + COLORS + BACKGROUND + PRESETS on
+   page-level Display Options.
+2. ✅ v0.168.0 — same anatomy on widget options (no bars section).
+3. ✅ v0.169.0 — BAR SIZES + LAYOUT section (page-level).
+4. ✅ v0.169.1 — profile style editors (alter / group / location) regrouped
+   onto the same sections.
+
+Every new edit menu from here on uses this anatomy from day one.
+
+## Recorded gaps (need engine work or the user's intent)
+
+- Per-side touch target spacing (top|bottom|left|right) — engine is
+  all-sides today; the row ships sides when the engine can honor them.
+- Vertical content alignment — control reserved (alignY token exists);
+  waiting on the user's intended behavior before shipping a consumer.
+- "Apply preset to specific widgets" — the expanded apply-to flow.
+- Per-color opacity on PROFILE palettes — profile colors use the
+  nested-dialog-safe ColorPickerModal, which has no opacity control yet.
+- Font "style" beyond bold/italic (e.g. underline/small-caps) if wanted.
