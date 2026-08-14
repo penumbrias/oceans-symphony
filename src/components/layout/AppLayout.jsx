@@ -547,6 +547,8 @@ const handleNotifClick = (mentionLog) => {
       data-ui-v2={uiV2On ? "1" : undefined}
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
       data-v2-align-x={uiV2On && uiV2.tokens.alignX && uiV2.tokens.alignX !== "center" ? uiV2.tokens.alignX : undefined}
+      data-v2-bstyle={uiV2On && uiV2.tokens.bodyStyle && uiV2.tokens.bodyStyle !== "normal" ? uiV2.tokens.bodyStyle : undefined}
+      data-v2-hstyle={uiV2On && uiV2.tokens.headerStyle && uiV2.tokens.headerStyle !== "normal" ? uiV2.tokens.headerStyle : undefined}
       style={uiV2On ? {
         ...uiV2Vars,
         // Clearance for fixed elements (grounding bubble, sheets) AND for

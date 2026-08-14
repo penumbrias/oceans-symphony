@@ -170,11 +170,16 @@ function SizeSection({ v2, alignX }) {
             placeholder={tr("editSheet.fontHeader")}
           />
         </div>
-        <SetRow label={tr("editSheet.fontSize")} valueLabel={SIZE_STEPS[sizeIdx]} alignX={alignX}>
+        <SetRow label={tr("editSheet.fontSizeBody")} valueLabel={SIZE_STEPS[sizeIdx]} alignX={alignX}>
           <input type="range" min={0} max={SIZE_STEPS.length - 1} step={1} value={sizeIdx}
             onChange={(e) => { setAccessibilityFontSize(SIZE_STEPS[parseInt(e.target.value, 10)]); refresh(); }}
-            className="w-full" aria-label={tr("editSheet.fontSize")} />
+            className="w-full" aria-label={tr("editSheet.fontSizeBody")} />
         </SetRow>
+        {tokenRow("headerScale")}
+        <PillRow label={tr("editSheet.styleBody")} options={tokenById.bodyStyle.options.map((o) => ({ v: o.v, label: o.label }))}
+          value={v2.uiV2.tokens.bodyStyle ?? "normal"} onChange={(val) => v2.setToken("bodyStyle", val)} alignX={alignX} />
+        <PillRow label={tr("editSheet.styleHeader")} options={tokenById.headerStyle.options.map((o) => ({ v: o.v, label: o.label }))}
+          value={v2.uiV2.tokens.headerStyle ?? "normal"} onChange={(val) => v2.setToken("headerStyle", val)} alignX={alignX} />
       </div>
     </SubSection>
   );
@@ -391,7 +396,7 @@ function BackgroundSection({ background, onChange }) {
 // ── PRESETS section ────────────────────────────────────────────────────
 // Rides the theme-preset store — the store that already applies a linked
 // preset when an alter starts fronting.
-const SIZE_TOKEN_IDS = ["contentW", "radius", "borderW", "density", "stripH", "cmdSize", "railW", "statusH", "alignX", "alignY"];
+const SIZE_TOKEN_IDS = ["contentW", "radius", "borderW", "density", "stripH", "cmdSize", "railW", "statusH", "alignX", "alignY", "headerScale", "bodyStyle", "headerStyle"];
 
 function PresetsSection({ v2 }) {
   const tr = useT();

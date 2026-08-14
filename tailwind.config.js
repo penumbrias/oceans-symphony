@@ -3,6 +3,26 @@ module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
   theme: {
+  	// Every text-* size multiplies by --v2-hmult, which is 1 everywhere
+  	// EXCEPT on headings (index.css sets it from the user's Header size
+  	// token on h1–h6/.font-display). Headings scale in proportion —
+  	// each keeps its own designed size — and body text is untouched.
+  	// Line heights scale with them so big headings don't clip.
+  	fontSize: {
+  		xs:   ['calc(0.75rem * var(--v2-hmult, 1))',  { lineHeight: 'calc(1rem * var(--v2-hmult, 1))' }],
+  		sm:   ['calc(0.875rem * var(--v2-hmult, 1))', { lineHeight: 'calc(1.25rem * var(--v2-hmult, 1))' }],
+  		base: ['calc(1rem * var(--v2-hmult, 1))',     { lineHeight: 'calc(1.5rem * var(--v2-hmult, 1))' }],
+  		lg:   ['calc(1.125rem * var(--v2-hmult, 1))', { lineHeight: 'calc(1.75rem * var(--v2-hmult, 1))' }],
+  		xl:   ['calc(1.25rem * var(--v2-hmult, 1))',  { lineHeight: 'calc(1.75rem * var(--v2-hmult, 1))' }],
+  		'2xl': ['calc(1.5rem * var(--v2-hmult, 1))',  { lineHeight: 'calc(2rem * var(--v2-hmult, 1))' }],
+  		'3xl': ['calc(1.875rem * var(--v2-hmult, 1))', { lineHeight: 'calc(2.25rem * var(--v2-hmult, 1))' }],
+  		'4xl': ['calc(2.25rem * var(--v2-hmult, 1))', { lineHeight: 'calc(2.5rem * var(--v2-hmult, 1))' }],
+  		'5xl': ['calc(3rem * var(--v2-hmult, 1))',    { lineHeight: '1' }],
+  		'6xl': ['calc(3.75rem * var(--v2-hmult, 1))', { lineHeight: '1' }],
+  		'7xl': ['calc(4.5rem * var(--v2-hmult, 1))',  { lineHeight: '1' }],
+  		'8xl': ['calc(6rem * var(--v2-hmult, 1))',    { lineHeight: '1' }],
+  		'9xl': ['calc(8rem * var(--v2-hmult, 1))',    { lineHeight: '1' }],
+  	},
   	extend: {
   		fontFamily: {
   			sans: ['var(--font-sans)'],

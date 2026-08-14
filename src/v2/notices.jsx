@@ -36,6 +36,7 @@ import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurf
 import { statusFor, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCard";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
+import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -218,6 +219,70 @@ function MentionNotice({ mention, alter, formatAlter, onDismiss, onOpen }) {
         )}
       </div>
       <DismissX label={tr("notices.dismiss")} onClick={onDismiss} />
+    </NoticeCard>
+  );
+}
+
+// ── Unresolved plans — tap to see WHICH, resolve each in place ──────
+// The compact card used to just point at the planner, but a plan from a
+// past week isn't on the planner's current view — "I get a notif that
+// there are unresolved plans but can't see which". Expanding lists every
+// one with its own outcome chips (same write path as the planner sheet).
+function UnresolvedNotice({ rows, onResolved }) {
+  const tr = useT();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
+  const [busyId, setBusyId] = useState(null);
+
+  const resolve = async (item, status) => {
+    setBusyId(item.id);
+    try {
+      await resolveOutcome(item, status);
+      onResolved();
+    } finally { setBusyId(null); }
+  };
+
+  return (
+    <NoticeCard onClick={open ? undefined : () => setOpen(true)}
+      label={tr("notices.unresolved", { count: rows.length })}>
+      <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm">
+          {rows.length === 1
+            ? tr("notices.unresolvedOne", { name: rows[0].activity_name || tr("planner.untitled") })
+            : tr("notices.unresolved", { count: rows.length })}
+        </p>
+        {open && (
+          <div className="mt-1.5 space-y-1.5">
+            {rows.map((item) => (
+              <div key={item.id} className="border-t border-border/30 pt-1.5">
+                <div className="flex items-baseline gap-2">
+                  <button type="button" className="text-xs font-medium truncate text-left hover:underline"
+                    onClick={() => navigate("/planner")}>
+                    {item.activity_name || tr("planner.untitled")}
+                  </button>
+                  <span className="text-[0.625em] text-muted-foreground flex-shrink-0 ml-auto tabular-nums">
+                    {item.timestamp ? format(new Date(item.timestamp), "EEE d MMM, HH:mm") : ""}
+                  </span>
+                </div>
+                <div className="flex flex-wrap gap-1 mt-1">
+                  {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
+                    ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
+                    <button key={id} type="button" disabled={busyId === item.id}
+                      onClick={(e) => { e.stopPropagation(); resolve(item, id); }}
+                      className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-40">
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      {open && (
+        <DismissX label={tr("notices.collapse")} onClick={() => setOpen(false)} />
+      )}
     </NoticeCard>
   );
 }
@@ -409,16 +474,11 @@ export default function V2Notices() {
         }
         if (n.type === "unresolved") {
           return (
-            <NoticeCard key={n.key}
-              label={tr("notices.unresolved", { count: n.rows.length })}
-              onClick={() => navigate("/planner")}>
-              <Calendar className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
-              <p className="flex-1 min-w-0 text-sm">
-                {n.rows.length === 1
-                  ? tr("notices.unresolvedOne", { name: n.rows[0].activity_name || tr("planner.untitled") })
-                  : tr("notices.unresolved", { count: n.rows.length })}
-              </p>
-            </NoticeCard>
+            <UnresolvedNotice key={n.key} rows={n.rows}
+              onResolved={() => {
+                qc.invalidateQueries({ queryKey: ["activities"] });
+                qc.invalidateQueries({ queryKey: ["tasks"] });
+              }} />
           );
         }
         if (n.type === "plan") {

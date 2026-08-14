@@ -29,6 +29,16 @@ export default function SleepTracker() {
     queryFn: () => base44.entities.Sleep.list(),
   });
 
+  // EVERY render-time date read goes through this. A record missing
+  // `date` or `bedtime` (older widget rows, imports) must degrade to a
+  // dash — parseISO(undefined) THROWS, and one such row used to crash
+  // the whole page, locking the user out of the data that could fix it.
+  const safeDate = (iso, fmt, fallback = "—") => {
+    if (!iso) return fallback;
+    const d = parseISO(iso);
+    return isNaN(d) ? fallback : format(d, fmt);
+  };
+
   const getSleepForDate = (date) => {
     // Legacy/widget rows may lack `date` — fall back to the bedtime so
     // they still land on a day instead of vanishing (and parseISO of
@@ -46,7 +56,8 @@ export default function SleepTracker() {
     if (!sleep.bedtime || !sleep.wake_time) return 0;
     const bedTime = parseISO(sleep.bedtime);
     const wakeTime = parseISO(sleep.wake_time);
-    return (wakeTime - bedTime) / (1000 * 60 * 60); // hours
+    const hours = (wakeTime - bedTime) / (1000 * 60 * 60);
+    return Number.isFinite(hours) ? hours : 0; // corrupted timestamps read as 0, not "NaN hours"
   };
 
   // An "in-progress" sleep is the record created by Start sleep —
@@ -225,7 +236,7 @@ export default function SleepTracker() {
                     End sleep
                   </Button>
                   <p className="text-[0.6875rem] text-center text-muted-foreground">
-                    In progress since {format(parseISO(inProgressSleep.bedtime), "h:mm a")}
+                    In progress since {safeDate(inProgressSleep.bedtime, "h:mm a")}
                     {" · "}
                     <button
                       type="button"
@@ -287,12 +298,12 @@ export default function SleepTracker() {
                       <div className="flex items-start justify-between gap-4">
                         <div className="flex-1">
                           <div className="font-semibold text-foreground">
-                            {format(parseISO(sleep.date), "EEEE, MMMM d")}
+                            {safeDate(sleep.date || sleep.bedtime, "EEEE, MMMM d")}
                           </div>
                           <div className="text-sm text-muted-foreground mt-1">
-                            {format(parseISO(sleep.bedtime), "h:mm a")} -{" "}
+                            {safeDate(sleep.bedtime, "h:mm a")} -{" "}
                             {sleep.wake_time
-                              ? format(parseISO(sleep.wake_time), "h:mm a")
+                              ? safeDate(sleep.wake_time, "h:mm a")
                               : <span className="italic text-primary">in progress</span>}
                           </div>
                           <div className="text-sm mt-2 flex gap-4">
@@ -302,7 +313,9 @@ export default function SleepTracker() {
                               </span>
                             ) : (
                               <span className="text-primary font-medium italic">
-                                {formatDistanceToNow(parseISO(sleep.bedtime), { addSuffix: false })} so far
+                                {sleep.bedtime && !isNaN(parseISO(sleep.bedtime))
+                                  ? `${formatDistanceToNow(parseISO(sleep.bedtime), { addSuffix: false })} so far`
+                                  : "—"}
                               </span>
                             )}
                             {sleep.quality && (

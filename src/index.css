@@ -748,6 +748,23 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
    margin-inline above; left/right pin the matching edge. */
 [data-ui-v2="1"][data-v2-align-x="left"] main.app-content-main { margin-left: 0; }
 [data-ui-v2="1"][data-v2-align-x="right"] main.app-content-main { margin-right: 0; }
+/* Font size & style, body + header (unified edit popup, SIZE section).
+   Headings pick up the header multiplier for tailwind's calc()-based
+   sizes. Styles apply via data attributes that only EXIST when the user
+   picked one — so the app's own designed weights stay untouched by
+   default (a var()-based version would have knocked out per-heading
+   font-semibold through the cascade even when unset). */
+[data-ui-v2="1"] :is(h1, h2, h3, h4, h5, h6, .font-display) {
+  --v2-hmult: var(--v2-heading-scale, 1);
+}
+[data-ui-v2="1"][data-v2-bstyle="bold"],
+[data-ui-v2="1"][data-v2-bstyle="boldItalic"] { font-weight: 700; }
+[data-ui-v2="1"][data-v2-bstyle="italic"],
+[data-ui-v2="1"][data-v2-bstyle="boldItalic"] { font-style: italic; }
+[data-ui-v2="1"][data-v2-hstyle="bold"] :is(h1, h2, h3, h4, h5, h6, .font-display),
+[data-ui-v2="1"][data-v2-hstyle="boldItalic"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-weight: 700; }
+[data-ui-v2="1"][data-v2-hstyle="italic"] :is(h1, h2, h3, h4, h5, h6, .font-display),
+[data-ui-v2="1"][data-v2-hstyle="boldItalic"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: italic; }
 /* Desktop: the fixed side rail sits outside the flow, so the shell is
    inset by its width. Phones keep the bottom bar and no inset. */
 @media (min-width: 1024px) {

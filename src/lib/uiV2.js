@@ -101,6 +101,28 @@ export const V2_TOKEN_DEFS = [
   { id: "alignY",    group: "app",  label: "Vertical alignment",     type: "select", cssVar: "--v2-align-y",
     options: [{ v: "top", label: "Top", css: "top" }, { v: "center", label: "Center", css: "center" }, { v: "bottom", label: "Bottom", css: "bottom" }],
     default: "top" },
+  // Header size: a multiplier picked up by every text-* utility ON a
+  // heading (tailwind's fontSize values calc against --v2-hmult, and
+  // index.css sets --v2-hmult from this var on h1–h6/.font-display), so
+  // each heading keeps its own designed size — everything scales in
+  // proportion instead of flattening to one size.
+  { id: "headerScale", group: "app", label: "Header size", type: "range", cssVar: "--v2-heading-scale", default: 100, min: 70, max: 160, step: 5, unit: "%" },
+  // Font style (body + header). Applied as data attributes in AppLayout
+  // (data-v2-bstyle / data-v2-hstyle) that only exist when a style is
+  // chosen — index.css carries the rules, and the app's own designed
+  // weights stay untouched by default.
+  { id: "bodyStyle", group: "app", label: "Body style", type: "select", cssVar: "--v2-body-style-noop",
+    options: [
+      { v: "normal", label: "Normal" }, { v: "bold", label: "Bold" },
+      { v: "italic", label: "Italic" }, { v: "boldItalic", label: "Bold italic" },
+    ],
+    default: "normal" },
+  { id: "headerStyle", group: "app", label: "Header style", type: "select", cssVar: "--v2-heading-style-noop",
+    options: [
+      { v: "normal", label: "Normal" }, { v: "bold", label: "Bold" },
+      { v: "italic", label: "Italic" }, { v: "boldItalic", label: "Bold italic" },
+    ],
+    default: "normal" },
   { id: "accent",    group: "bars", label: "Highlight color",        type: "color",  cssVar: "--v2-accent",    default: "" }, // "" → theme primary
   { id: "density",   group: "bars", label: "Spacing",                type: "select", cssVar: "--v2-space",
     options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Medium", css: "6px" }, { v: "roomy", label: "Wide", css: "9px" }],
@@ -201,10 +223,18 @@ export function buildTokenVars(uiV2) {
         // value being rewritten.
         vars[def.cssVar] = (!v || v === 0) ? "100%" : `${Math.max(480, v)}px`;
       }
+      else if (def.id === "headerScale") {
+        // Unitless multiplier — consumed inside calc() by the tailwind
+        // fontSize definitions via --v2-hmult on heading elements.
+        vars[def.cssVar] = String((Number(v) || 100) / 100);
+      }
       else vars[def.cssVar] = `${v}${def.unit || "px"}`;
     } else if (def.type === "select") {
       const opt = def.options.find((o) => o.v === v) || def.options[0];
-      vars[def.cssVar] = opt.css;
+      // An option's css may be one value for def.cssVar, or an object of
+      // several variables (font styles need weight + style at once).
+      if (opt.css && typeof opt.css === "object") Object.assign(vars, opt.css);
+      else vars[def.cssVar] = opt.css;
     } else if (def.type === "color") {
       vars[def.cssVar] = v || "var(--color-primary)";
     }

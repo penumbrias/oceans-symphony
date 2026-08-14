@@ -26,6 +26,7 @@ import {
   writePlanRemindersEnabled,
 } from "@/lib/planReminderScheduler";
 import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recurrenceUtils";
+import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { isNative } from "@/lib/platform";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
@@ -362,16 +363,8 @@ export default function PlannerSurface({
   const setOutcome = async (status) => {
     if (!timing) return;
     try {
-      await base44.entities.Activity.update(timing.item.id, {
-        status,
-        // A resolved entry needs a time to sit at; keep its own if it has one.
-        timestamp: timing.item.timestamp || new Date().toISOString(),
-      });
-      if (timing.item.task_id && status === "done") {
-        await base44.entities.Task.update(timing.item.task_id, {
-          completed: true, is_complete: true, completed_date: new Date().toISOString(),
-        }).catch(() => {});
-      }
+      // One write path with the home-notice resolve list (lib resolvePlan).
+      await resolveOutcome(timing.item, status);
       qc.invalidateQueries({ queryKey: ["activities"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       setTiming(null);

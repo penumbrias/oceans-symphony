@@ -18,7 +18,17 @@
 
 export const CHANGELOG = [
   {
+    date: "August 14, 2026",
+    changes: [
+      { type: "fix", text: "Sleep page no longer crashes when a record is missing its date or bedtime — those rows show a dash instead." },
+      { type: "fix", text: "The “plans waiting for an outcome” card now expands to list each plan with Done / Partly / Skipped / Cancelled right there — including plans from past weeks the planner view wasn't showing." },
+      { type: "feature", text: "Display options: font size and style (bold/italic) for body and header text — headers scale in proportion, keeping their size differences." },
+      { type: "improve", text: "Widget options: appearance controls use the same sections as Display options (UI size, Colors, Background, Presets), with sliders behind set buttons." },
+    ],
+  },
+  {
     date: "August 13, 2026",
+    version: "0.167.0",
     changes: [
       { type: "feature", text: "New UI: Display options rebuilt as the unified edit popup — sliders sit behind a visible set button so nothing changes by accident, and every visible color is editable with its own opacity." },
       { type: "feature", text: "New UI: home screen backgrounds — flat color, gradient (a stop can be an image), or positioned image, plus a page song with volume and autoplay." },

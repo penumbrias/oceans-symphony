@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal } from "lucide-react";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
 // read as one system rather than two conventions.
@@ -346,29 +346,42 @@ function useLiveColors(open, instanceId) {
 // so both editors handle a size the same way, plus this sheet's own Reset
 // (a widget value can be unset = follow the app).
 function SliderRow({ label, value, fallback, min, max, step = 1, unit = "px", onChange, onReset }) {
+  // Edit-menu anatomy (docs/v2-edit-menu-spec.md): the row shows its name,
+  // current value and a visible "set" button; the slider only exists after
+  // that explicit tap, so a scroll through the sheet can't move a setting.
+  const [open, setOpen] = React.useState(false);
   const unset = value === undefined || value === "";
   const shown = unset ? "app default" : `${value}${unit}`;
   const current = unset ? fallback : Number(value);
   const bump = (dir) => onChange(Math.min(max, Math.max(min, current + dir * step)));
   return (
     <div className="py-1">
-      <label className="flex items-center justify-between text-xs font-medium mb-1">
-        <span>{label}</span>
-        <span className="text-muted-foreground tabular-nums">{shown}</span>
-      </label>
       <div className="flex items-center gap-2">
-        <button type="button" aria-label={`${label} −`} onClick={() => bump(-1)}
-          className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">−</button>
-        <input type="range" min={min} max={max} step={step} value={current}
-          onChange={(e) => onChange(parseInt(e.target.value, 10))}
-          className="flex-1" aria-label={label} />
-        <button type="button" aria-label={`${label} +`} onClick={() => bump(1)}
-          className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">+</button>
-        {onReset && (
-          <button type="button" onClick={onReset}
-            className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
-        )}
+        <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
+        <span className="text-xs text-muted-foreground tabular-nums flex-shrink-0">{shown}</span>
+        <button type="button" aria-label={`${label} — set`} aria-expanded={open}
+          onClick={() => setOpen((v) => !v)}
+          className={`w-8 h-8 flex items-center justify-center rounded-lg border flex-shrink-0 ${
+            open ? "border-primary/60 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+          }`}>
+          <SlidersHorizontal className="w-3.5 h-3.5" />
+        </button>
       </div>
+      {open && (
+        <div className="flex items-center gap-2 pt-1.5">
+          <button type="button" aria-label={`${label} −`} onClick={() => bump(-1)}
+            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">−</button>
+          <input type="range" min={min} max={max} step={step} value={current}
+            onChange={(e) => onChange(parseInt(e.target.value, 10))}
+            className="flex-1" aria-label={label} />
+          <button type="button" aria-label={`${label} +`} onClick={() => bump(1)}
+            className="w-7 h-7 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center text-sm leading-none flex-shrink-0">+</button>
+          {onReset && (
+            <button type="button" onClick={onReset}
+              className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0 whitespace-nowrap">Reset</button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -692,15 +705,14 @@ export default function WidgetConfigSheet({
           })}
 
           </SubSection>
-          <SubSection title="Appearance" icon={Palette}>
-          {/* Appearance overrides. These write CSS variables onto the widget
-              wrapper, so the whole-app settings apply by default and this
-              widget alone departs from them where the user says so. */}
+          {/* Appearance overrides, in the unified edit-menu anatomy
+              (docs/v2-edit-menu-spec.md): UI size / Colors / Background /
+              Presets, each a chevron section, sliders behind set buttons.
+              These write CSS variables onto the widget wrapper, so the
+              whole-app settings apply by default and this widget alone
+              departs from them where the user says so. */}
+          <SubSection title="UI size" icon={Palette}>
           <div className="space-y-3">
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block">
-              This widget's look
-            </label>
-
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>
               <SearchableSelect
@@ -732,6 +744,43 @@ export default function WidgetConfigSheet({
               onChange={(v) => onSettings(widget.instanceId, { fontScale: v })}
               onReset={() => onSettings(widget.instanceId, { fontScale: "" })} />
 
+            <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
+              min={0} max={32} unit="px"
+              onChange={(v) => onSettings(widget.instanceId, { padding: v })}
+              onReset={() => onSettings(widget.instanceId, { padding: "" })} />
+
+            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium block mb-1">Border style</label>
+                <div className="flex flex-wrap gap-1">
+                  {BORDER_STYLES.map((v) => (
+                    <button key={v} type="button"
+                      onClick={() => onSettings(widget.instanceId, { borderStyle: settings.borderStyle === v ? "" : v })}
+                      className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
+                        settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                      }`}>{v}</button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-medium block mb-1">Shadow</label>
+              <div className="flex flex-wrap gap-1">
+                {Object.keys(SHADOW_PRESETS).map((v) => (
+                  <button key={v} type="button"
+                    onClick={() => onSettings(widget.instanceId, { shadow: settings.shadow === v ? "" : v })}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      settings.shadow === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                    }`}>{v}</button>
+                ))}
+              </div>
+            </div>
+          </div>
+          </SubSection>
+
+          <SubSection title="Colors">
+          <div className="space-y-3">
             {/* Four swatches on one line. The name, hex field, opacity,
                 Clear and "use the app colour" all live inside each picker's
                 popover — labelling them in the row squeezed the text into
@@ -766,7 +815,11 @@ export default function WidgetConfigSheet({
                   onClear={() => onSettings(widget.instanceId, { borderColor: "", borderOpacity: "" })} />
               </div>
             </div>
+          </div>
+          </SubSection>
 
+          <SubSection title="Background">
+          <div className="space-y-3">
             {/* Effects — the same two the built-in styles use, so a user can
                 build Aero (or anything else) themselves. */}
             <div>
@@ -823,39 +876,6 @@ export default function WidgetConfigSheet({
               </div>
             </div>
 
-            <SliderRow label="Inner spacing" value={settings.padding} fallback={12}
-              min={0} max={32} unit="px"
-              onChange={(v) => onSettings(widget.instanceId, { padding: v })}
-              onReset={() => onSettings(widget.instanceId, { padding: "" })} />
-
-            <div className="grid grid-cols-1 min-[420px]:grid-cols-2 gap-3">
-              <div>
-                <label className="text-xs font-medium block mb-1">Border style</label>
-                <div className="flex flex-wrap gap-1">
-                  {BORDER_STYLES.map((v) => (
-                    <button key={v} type="button"
-                      onClick={() => onSettings(widget.instanceId, { borderStyle: settings.borderStyle === v ? "" : v })}
-                      className={`text-[0.6875rem] px-2 py-1 rounded-full border ${
-                        settings.borderStyle === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                      }`}>{v}</button>
-                  ))}
-                </div>
-              </div>
-            </div>
-
-            <div>
-              <label className="text-xs font-medium block mb-1">Shadow</label>
-              <div className="flex flex-wrap gap-1">
-                {Object.keys(SHADOW_PRESETS).map((v) => (
-                  <button key={v} type="button"
-                    onClick={() => onSettings(widget.instanceId, { shadow: settings.shadow === v ? "" : v })}
-                    className={`text-xs px-2.5 py-1 rounded-full border ${
-                      settings.shadow === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                    }`}>{v}</button>
-                ))}
-              </div>
-            </div>
-
             {/* The escape hatch: your own CSS, scoped to this widget. */}
             <div>
               <button type="button" onClick={() => setCssOpen((v) => !v)}
@@ -876,7 +896,9 @@ export default function WidgetConfigSheet({
               )}
             </div>
           </div>
+          </SubSection>
 
+          <SubSection title="Presets">
           {/* Style presets — collapsed, because nine full-width cards open by
               default buried everything else in this sheet. */}
           <div>
@@ -1035,8 +1057,11 @@ export default function WidgetConfigSheet({
             </div>
           </div>
 
+          </SubSection>
+
           {/* Icon override — app shortcuts only */}
           {widget.widgetId === "app_shortcut" && (
+            <SubSection title="Icon">
             <div>
               <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
                 Icon
@@ -1068,8 +1093,8 @@ export default function WidgetConfigSheet({
                 )}
               </div>
             </div>
+            </SubSection>
           )}
-          </SubSection>
           <div className="pt-2 border-t border-border/50 space-y-2">
             {/* Copy this widget's look onto others — the alternative is
                 re-setting eight fields per widget by hand. */}
