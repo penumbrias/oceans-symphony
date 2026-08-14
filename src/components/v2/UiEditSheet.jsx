@@ -517,9 +517,13 @@ function ImageSlot({ url, onPick, onClear, title }) {
   const resolved = useResolvedAvatarUrl(url || "");
   return (
     <span className="flex items-center gap-1.5">
-      <span className="w-8 h-8 rounded-lg border border-border overflow-hidden flex items-center justify-center bg-muted/30">
-        {resolved ? <img src={resolved} alt="" className="w-full h-full object-cover" /> : null}
-      </span>
+      {/* Preview only when an image exists — an always-there empty square
+          read as a broken color picker. */}
+      {resolved && (
+        <span className="w-8 h-8 rounded-lg border border-border overflow-hidden flex items-center justify-center bg-muted/30">
+          <img src={resolved} alt="" className="w-full h-full object-cover" />
+        </span>
+      )}
       <AssetButton onPick={onPick} title={title} />
       {url && (
         <button type="button" onClick={onClear} aria-label={`${title} — clear`}
@@ -531,7 +535,7 @@ function ImageSlot({ url, onPick, onClear, title }) {
   );
 }
 
-function BackgroundSection({ background, onChange, wallpaper, onWallpaperChange }) {
+function BackgroundSection({ background, onChange, wallpaper }) {
   const tr = useT();
   const bg = background;
   const patch = (p) => onChange({ ...bg, ...p });
@@ -551,110 +555,90 @@ function BackgroundSection({ background, onChange, wallpaper, onWallpaperChange 
   );
   const wall = wallpaper || {};
 
+  // NO type selector — the type is inferred from what's in the boxes
+  // (the user's design): one box with a color = flat; one box with an
+  // image = full-page image (the wallpaper); press the + box and it
+  // becomes a gradient, each box holding a color OR an image.
+  const layers = bg.type === "gradient"
+    ? bg.gradient.stops.map((s) => ({ color: s.color || "", image: s.image || "" }))
+    : bg.type === "flat"
+      ? [{ color: bg.flat.color || "", image: bg.flat.image || "" }]
+      : bg.type === "image"
+        ? [{ color: "", image: bg.image.url || "" }]
+        // Legacy wallpaper appears as the single box's image, so nothing
+        // a user set before this UI existed goes invisible.
+        : [{ color: "", image: wall.url || "" }];
+
+  // Where single-image settings (position / rotation folder) live —
+  // carried over from the legacy wallpaper the first time it's touched.
+  const imageCfg = bg.type === "image"
+    ? bg.image
+    : { url: wall.url || "", position: "cover", folder: wall.folder || "", mode: wall.mode || "random" };
+
+  const readCssBg = () => {
+    try { return getComputedStyle(document.documentElement).getPropertyValue("--color-bg").trim() || "#222233"; }
+    catch { return "#222233"; }
+  };
+
+  const writeLayers = (next) => {
+    const clean = next.map((l) => ({ color: l.color || "", image: l.image || "" }));
+    if (clean.length >= 2) {
+      patch({ type: "gradient", gradient: { ...bg.gradient, stops: clean } });
+      return;
+    }
+    const L = clean[0] || { color: "", image: "" };
+    if (L.image) patch({ type: "image", image: { ...imageCfg, url: L.image } });
+    else if (L.color) patch({ type: "flat", flat: { color: L.color, image: "" } });
+    else patch({ type: "none" });
+  };
+  const setLayer = (i, l) => writeLayers(layers.map((s, j) => (j === i ? l : s)));
+
+  const isGradient = layers.length >= 2;
+  const singleImage = !isGradient && !!layers[0].image;
+
   return (
     <SubSection title={tr("editSheet.background")}>
-      <PillRow label={tr("editSheet.bgType")} value={bg.type} onChange={(v) => patch({ type: v })}
-        options={[
-          { v: "none", label: tr("editSheet.bgWallpaper") },
-          { v: "flat", label: tr("editSheet.bgFlat") },
-          { v: "gradient", label: tr("editSheet.bgGradient") },
-          { v: "image", label: tr("editSheet.bgImage") },
-        ]} />
-
-      {/* The default type IS the wallpaper (the user's call: wallpaper
-          lives in Background, not as a pill above the popup). */}
-      {bg.type === "none" && (
-        <div className="space-y-2 py-1">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-medium flex-1">{tr("editSheet.bgWallpaper")}</span>
-            <ImageSlot url={wall.url} title={tr("editSheet.bgWallpaper")}
-              onPick={(url) => onWallpaperChange({ ...wall, url: url || "" })}
-              onClear={() => onWallpaperChange({ ...wall, url: "" })} />
-          </div>
-          {assetFolders.length > 0 && (
-            <div className="flex items-center gap-2.5">
-              <span className="text-xs font-medium flex-1">{tr("editSheet.wallFolder")}</span>
-              <div className="min-w-[9rem]">
-                <SearchableSelect
-                  value={wall.folder || null}
-                  onChange={(folder) => onWallpaperChange({ ...wall, folder: folder || "" })}
-                  options={assetFolders.map((f) => ({ id: f, label: f }))}
-                  placeholder={tr("editSheet.wallFolderNone")}
-                  searchPlaceholder={tr("editSheet.wallFolderNone")}
-                  allowClear
-                />
-              </div>
+      <div className="space-y-1.5 py-1">
+        {layers.map((s, i) => {
+          const { hex, alpha } = splitHexAlpha(s.color);
+          return (
+            <div key={i} className="flex items-center gap-2">
+              {isGradient && (
+                <span className="text-xs text-muted-foreground w-4 flex-shrink-0 tabular-nums">{i + 1}</span>
+              )}
+              <ColorPicker compact label={tr("editSheet.background")}
+                value={hex || readCssBg()}
+                onChange={(h) => setLayer(i, { color: joinHexAlpha(h, alpha), image: "" })}
+                opacity={{
+                  value: alpha,
+                  onChange: (a) => setLayer(i, { color: joinHexAlpha(hex || readCssBg(), a), image: "" }),
+                }} />
+              <ImageSlot url={s.image} title={tr("editSheet.bgImage")}
+                onPick={(url) => setLayer(i, { color: "", image: url })}
+                onClear={() => setLayer(i, { ...s, image: "" })} />
+              {isGradient && (
+                <button type="button" aria-label={tr("editSheet.gradRemoveStop")}
+                  onClick={() => writeLayers(layers.filter((_, j) => j !== i))}
+                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/60 text-muted-foreground hover:text-destructive">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {/* The + box: press to grow into a gradient (their spec —
+                  "a box with a plus sign in it"). */}
+              {i === layers.length - 1 && (
+                <button type="button" aria-label={tr("editSheet.gradAddStop")} title={tr("editSheet.gradAddStop")}
+                  onClick={() => writeLayers([...layers, { color: "#888888", image: "" }])}
+                  className="w-8 h-8 rounded-lg border border-dashed border-border/70 text-muted-foreground hover:text-foreground flex items-center justify-center ml-auto">
+                  <Plus className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
-          )}
-          {wall.folder && (
-            <PillRow label={tr("editSheet.wallMode")} value={wall.mode === "sequential" ? "sequential" : "random"}
-              onChange={(v) => onWallpaperChange({ ...wall, mode: v })}
-              options={[
-                { v: "random", label: tr("editSheet.wallShuffle") },
-                { v: "sequential", label: tr("editSheet.wallInOrder") },
-              ]} />
-          )}
-        </div>
-      )}
+          );
+        })}
+      </div>
 
-      {bg.type === "flat" && (
-        <div className="flex items-center gap-2.5 py-1">
-          <span className="text-xs font-medium flex-1">{tr("editSheet.bgFlat")}</span>
-          <ColorPicker compact value={splitHexAlpha(bg.flat.color).hex || "#222233"}
-            onChange={(h) => patch({ flat: { ...bg.flat, color: joinHexAlpha(h, splitHexAlpha(bg.flat.color).alpha), image: "" } })}
-            opacity={{
-              value: splitHexAlpha(bg.flat.color).alpha,
-              onChange: (a) => patch({ flat: { ...bg.flat, color: joinHexAlpha(splitHexAlpha(bg.flat.color).hex || "#222233", a) } }),
-            }} />
-          <ImageSlot url={bg.flat.image} title={tr("editSheet.bgImage")}
-            onPick={(url) => patch({ flat: { color: "", image: url } })}
-            onClear={() => patch({ flat: { ...bg.flat, image: "" } })} />
-        </div>
-      )}
-
-      {bg.type === "gradient" && (
-        <div className="space-y-2 py-1">
-          {bg.gradient.stops.map((stop, i) => {
-            const { hex, alpha } = splitHexAlpha(stop.color);
-            return (
-              <div key={i} className="flex items-center gap-2">
-                <span className="text-xs text-muted-foreground w-5 flex-shrink-0 tabular-nums">{i + 1}</span>
-                <ColorPicker compact value={hex || "#4f46e5"}
-                  onChange={(h) => {
-                    const stops = bg.gradient.stops.map((s, j) => (j === i ? { color: joinHexAlpha(h, alpha), image: "" } : s));
-                    patchGrad({ stops });
-                  }}
-                  opacity={{
-                    value: alpha,
-                    onChange: (a) => {
-                      const stops = bg.gradient.stops.map((s, j) => (j === i ? { ...s, color: joinHexAlpha(hex || "#4f46e5", a) } : s));
-                      patchGrad({ stops });
-                    },
-                  }} />
-                {/* A stop can be an image instead of a color (spec). */}
-                <ImageSlot url={stop.image} title={tr("editSheet.gradStopImage")}
-                  onPick={(url) => {
-                    const stops = bg.gradient.stops.map((s, j) => (j === i ? { color: "", image: url } : s));
-                    patchGrad({ stops });
-                  }}
-                  onClear={() => {
-                    const stops = bg.gradient.stops.map((s, j) => (j === i ? { ...s, image: "" } : s));
-                    patchGrad({ stops });
-                  }} />
-                {bg.gradient.stops.length > 2 && (
-                  <button type="button" aria-label={tr("editSheet.gradRemoveStop")}
-                    onClick={() => patchGrad({ stops: bg.gradient.stops.filter((_, j) => j !== i) })}
-                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/60 text-muted-foreground hover:text-destructive ml-auto">
-                    <X className="w-3.5 h-3.5" />
-                  </button>
-                )}
-              </div>
-            );
-          })}
-          <button type="button" onClick={() => patchGrad({ stops: [...bg.gradient.stops, { color: "#888888", image: "" }] })}
-            className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
-            <Plus className="w-3 h-3" /> {tr("editSheet.gradAddStop")}
-          </button>
+      {isGradient && (
+        <div className="space-y-1 py-1">
           <PillRow label={tr("editSheet.gradShape")} value={bg.gradient.shape}
             onChange={(v) => patchGrad({ shape: v })}
             options={[{ v: "linear", label: tr("editSheet.gradLinear") }, { v: "radial", label: tr("editSheet.gradRadial") }]} />
@@ -673,17 +657,34 @@ function BackgroundSection({ background, onChange, wallpaper, onWallpaperChange 
         </div>
       )}
 
-      {bg.type === "image" && (
-        <div className="space-y-2 py-1">
-          <div className="flex items-center gap-2.5">
-            <span className="text-xs font-medium flex-1">{tr("editSheet.bgImage")}</span>
-            <ImageSlot url={bg.image.url} title={tr("editSheet.bgImage")}
-              onPick={(url) => patch({ image: { ...bg.image, url } })}
-              onClear={() => patch({ image: { ...bg.image, url: "" } })} />
-          </div>
-          <PillRow label={tr("editSheet.bgPosition")} value={bg.image.position}
-            onChange={(v) => patch({ image: { ...bg.image, position: v } })}
+      {singleImage && (
+        <div className="space-y-1 py-1">
+          <PillRow label={tr("editSheet.bgPosition")} value={imageCfg.position || "cover"}
+            onChange={(v) => patch({ type: "image", image: { ...imageCfg, position: v } })}
             options={POSITIONS.map((p) => ({ v: p, label: tr(`editSheet.pos.${p}`) }))} />
+          {assetFolders.length > 0 && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium flex-1">{tr("editSheet.wallFolder")}</span>
+              <div className="min-w-[9rem]">
+                <SearchableSelect
+                  value={imageCfg.folder || null}
+                  onChange={(folder) => patch({ type: "image", image: { ...imageCfg, folder: folder || "" } })}
+                  options={assetFolders.map((f) => ({ id: f, label: f }))}
+                  placeholder={tr("editSheet.wallFolderNone")}
+                  searchPlaceholder={tr("editSheet.wallFolderNone")}
+                  allowClear
+                />
+              </div>
+            </div>
+          )}
+          {imageCfg.folder && (
+            <PillRow label={tr("editSheet.wallMode")} value={imageCfg.mode === "sequential" ? "sequential" : "random"}
+              onChange={(v) => patch({ type: "image", image: { ...imageCfg, mode: v } })}
+              options={[
+                { v: "random", label: tr("editSheet.wallShuffle") },
+                { v: "sequential", label: tr("editSheet.wallInOrder") },
+              ]} />
+          )}
         </div>
       )}
 
@@ -1015,13 +1016,6 @@ export default function UiEditSheet() {
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
   const wallpaper = settingsRow?.[homeField]?.wallpaper || {};
-  const writeWallpaper = async (next) => {
-    if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, {
-      [homeField]: { ...(settingsRow[homeField] || {}), wallpaper: next },
-    });
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
-  };
 
   const alignX = (v2.uiV2.tokens.alignX ?? "center") === "right" ? "right" : "left";
 
@@ -1032,8 +1026,7 @@ export default function UiEditSheet() {
           only — the widget sheet mounts the other sections without it. */}
       <BarsSection v2={v2} alignX={alignX} />
       <ColorsSection />
-      <BackgroundSection background={background} onChange={writeBackground}
-        wallpaper={wallpaper} onWallpaperChange={writeWallpaper} />
+      <BackgroundSection background={background} onChange={writeBackground} wallpaper={wallpaper} />
       <PresetsSection v2={v2} />
     </div>
   );

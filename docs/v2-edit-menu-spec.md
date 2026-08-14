@@ -59,12 +59,16 @@ equally. The governing principle: **every visible color is user-settable.**
 
 ### 4. BACKGROUND
 
-One of:
-- **Flat:** a color OR an image.
-- **Gradient:** two-plus stops (`+` adds stops); each stop is a color OR an
-  image; shape linear or radial ("orbit"); transition degree/position;
-  strength.
-- **Image:** position mode — cover, fill, tile, stretch to fit, center…
+**No type selector — the type is inferred from the boxes** (user amendment,
+Aug 14): one box holding a color = flat; one box holding an image = the
+full-page image (this IS the wallpaper); pressing the **+ box** adds another
+and the background becomes a gradient. Each box holds a color OR an image.
+
+- Gradient (2+ boxes): shape linear or radial ("orbit"); angle; strength.
+- Single image: position mode (cover, fill, tile, stretch, center) and an
+  optional asset-library folder to rotate through on each app open.
+- The single box defaults to showing the current effective background
+  color, so tapping it starts from what's already on screen.
 
 Audio: setting an audio file as background also sets it as the **page song**,
 with the same volume + autoplay controls as alter profile music.

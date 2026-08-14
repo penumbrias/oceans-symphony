@@ -37,7 +37,14 @@ export function resolveBackground(stored) {
         ? b.gradient.stops.map((s) => ({ color: s?.color || "", image: s?.image || "" }))
         : DEFAULT_BACKGROUND.gradient.stops,
     },
-    image: { ...DEFAULT_BACKGROUND.image, ...(b.image || {}) },
+    image: {
+      ...DEFAULT_BACKGROUND.image,
+      ...(b.image || {}),
+      // A folder rotates the image on each app open, same engine as the
+      // legacy wallpaper (the board resolves the pick before rendering).
+      folder: typeof b.image?.folder === "string" ? b.image.folder : "",
+      mode: b.image?.mode === "sequential" ? "sequential" : "random",
+    },
     audio: b.audio && typeof b.audio === "object" ? b.audio : null,
   };
 }

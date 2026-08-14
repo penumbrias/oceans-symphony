@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "improve", text: "Background got simpler: no Type row. One box is a flat color (or a full-page image); the + box adds a second and it becomes a gradient. Each box holds a color or an image, and a single image can rotate through an asset folder." },
       { type: "improve", text: "Home screen styles are presets now — they live in the edit popup's Presets section with live swatches and the partial-style star; the separate Style pill is gone." },
       { type: "improve", text: "Font styles are toggles that combine freely — B, i, U, S, Aa (bold, italic, underline, strikethrough, small caps). “Bold italic” as a separate option is gone; just turn both on." },
       { type: "improve", text: "The Background section owns the wallpaper now (including folder rotation), so the Wallpaper pill is gone — and the section's default view is the wallpaper, not the page song. “UI size” is now “Size & text”." },

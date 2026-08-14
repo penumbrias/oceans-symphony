@@ -865,7 +865,20 @@ export default function ExperimentalDashboard({
   // The unified edit popup's page background (flat / gradient / image +
   // page song). When set it replaces the legacy wallpaper; "none" keeps
   // the wallpaper block below rendering exactly as before.
-  const pageBackground = useMemo(() => resolveBackground(home.background), [home.background]);
+  const pageBackgroundRaw = useMemo(() => resolveBackground(home.background), [home.background]);
+  // A background image with a FOLDER rotates like the wallpaper did —
+  // one pick per app open, resolved here because the renderer is pure.
+  const bgImagePick = useRotatingImageUrl({
+    folder: pageBackgroundRaw.image.folder || "",
+    mode: pageBackgroundRaw.image.mode || "random",
+    scope: "wallpaper",
+    fallbackUrl: pageBackgroundRaw.image.url || "",
+  });
+  const pageBackground = useMemo(() => (
+    pageBackgroundRaw.type === "image" && pageBackgroundRaw.image.folder
+      ? { ...pageBackgroundRaw, image: { ...pageBackgroundRaw.image, url: bgImagePick || pageBackgroundRaw.image.url } }
+      : pageBackgroundRaw
+  ), [pageBackgroundRaw, bgImagePick]);
   // The unified popup's Presets section lists board styles; its "all
   // styles" button re-opens the full picker below (search, swatches,
   // use-as-base) via this event, since the picker needs board internals
