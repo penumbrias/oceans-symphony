@@ -36,14 +36,13 @@ import { CSS } from "@dnd-kit/utilities";
 import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
-  HOME_STYLE_IDS, ACTION_BAR_BUTTONS, packPositions, resolveOverlaps, hasOverlaps,
+  HOME_STYLE_IDS, packPositions, resolveOverlaps, hasOverlaps,
   compactVertically,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
 import { useFrontingIds, useAlterSorter } from "@/lib/alterSort";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
-import { applyTerms } from "@/lib/dailyTaskSystem";
 import { useEdgeResize } from "@/hooks/useEdgeResize";
 import { useFreeMove } from "@/hooks/useFreeMove";
 import {
@@ -52,7 +51,7 @@ import {
 } from "@/lib/widgetLook";
 import { HOME_STYLES, getStyleShell, getStyleLook } from "@/lib/homeStyles";
 import WidgetConfigSheet from "@/components/dashboard/WidgetConfigSheet";
-const AdvancedAppearance = React.lazy(() => import("@/components/settings/AdvancedAppearanceNew"));
+const UiEditSheetBody = React.lazy(() => import("@/components/v2/UiEditSheet"));
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
@@ -757,17 +756,6 @@ export default function ExperimentalDashboard({
     setAssetPickerFor(null);
   };
 
-  // Off → bottom → top → off.
-  const cycleAltersBar = () => {
-    const cur = home.altersBar;
-    const next = !cur.enabled
-      ? { enabled: true, position: "bottom" }
-      : cur.position === "bottom"
-        ? { enabled: true, position: "top" }
-        : { enabled: false, position: "bottom" };
-    persist({ ...home, altersBar: next });
-  };
-
   // ── Page operations (Phase 2) ──────────────────────────────────
   const handleAddPage = () => {
     const id = newPageId();
@@ -846,17 +834,6 @@ export default function ExperimentalDashboard({
   };
 
   const handleBackToClassic = () => (onExitToClassic ? onExitToClassic() : persist({ ...home, enabled: false }));
-  const toggleActionBarButton = (id) => {
-    const has = home.actionBar.buttonIds.includes(id);
-    persist({
-      ...home,
-      actionBar: {
-        ...home.actionBar,
-        buttonIds: has ? home.actionBar.buttonIds.filter((x) => x !== id) : [...home.actionBar.buttonIds, id],
-      },
-    });
-  };
-
   // Hold-still-to-lift (owner spec): 0.3s stationary hold starts a move;
   // tolerance cancels activation if the pointer moves during the delay, so
   // a scroll gesture can never lift a widget. MouseSensor + TouchSensor
@@ -1243,34 +1220,6 @@ export default function ExperimentalDashboard({
             >
               <Undo2 className="w-3 h-3" /> Back to classic
             </button>
-            <div className="flex items-center gap-1 px-2 py-1 rounded-full border border-border/50">
-              <span className="text-[0.625rem] uppercase tracking-wide text-muted-foreground">Bar:</span>
-              {(commandBar ? commandBar.catalogue : ACTION_BAR_BUTTONS).map((b) => {
-                const on = commandBar
-                  ? commandBar.keys.includes(b.id)
-                  : home.actionBar.buttonIds.includes(b.id);
-                const label = applyTerms(b.label, t);
-                return (
-                  <button
-                    key={b.id}
-                    type="button"
-                    onClick={() => (commandBar
-                      ? commandBar.setKeys(on
-                          ? commandBar.keys.filter((x) => x !== b.id)
-                          : [...commandBar.keys, b.id])
-                      : toggleActionBarButton(b.id))}
-                    title={label}
-                    className={`text-[0.625rem] px-1.5 py-0.5 rounded-full border whitespace-nowrap transition-all ${
-                      on
-                        ? "border-primary/50 bg-primary/10 text-primary"
-                        : "border-border/40 text-muted-foreground"
-                    }`}
-                  >
-                    {label.replace("Quick ", "").replace("Start ", "\u25b6")}
-                  </button>
-                );
-              })}
-            </div>
             {pageIsFree && (
               <button
                 type="button"
@@ -1362,26 +1311,18 @@ export default function ExperimentalDashboard({
                 </button>
               )}
             </span>
-            <button
-              type="button"
-              onClick={cycleAltersBar}
-              title={`Pinned ${t.alters} bar: off / bottom / top`}
-              className={`text-[0.625rem] px-2 py-1 rounded-full border whitespace-nowrap transition-all ${
-                home.altersBar.enabled
-                  ? "border-primary/50 bg-primary/10 text-primary"
-                  : "border-border/40 text-muted-foreground"
-              }`}
-            >
-              {t.Alters} bar: {home.altersBar.enabled ? (home.altersBar.position === "top" ? "Top" : "Bottom") : "Off"}
-            </button>
             </div>
 
-            {/* The rest of Display options, so this cog IS the menu rather
-                than half of it living somewhere else. */}
+            {/* Everything else IS the unified edit popup
+                (docs/v2-edit-menu-spec.md) — the same sections as Display
+                options and the widget sheet. The pills above are the only
+                board-specific extras the wireframe doesn't cover (layout
+                flow, columns, style, wallpaper folder rotation); the quick
+                action keys and the {alters} bar live in its Bars section. */}
             <div className="mt-4 pt-3 border-t border-border/40">
               {homeSettingsOpen && (
                 <React.Suspense fallback={<p className="text-xs text-muted-foreground py-3">Loading…</p>}>
-                  <AdvancedAppearance />
+                  <UiEditSheetBody />
                 </React.Suspense>
               )}
             </div>
