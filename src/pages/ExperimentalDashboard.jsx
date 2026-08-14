@@ -63,6 +63,8 @@ import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { boxStyle } from "@/v2/primitives";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
+import PageBackground, { resolveBackground } from "@/components/v2/PageBackground";
+import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { useQuery } from "@tanstack/react-query";
@@ -885,6 +887,10 @@ export default function ExperimentalDashboard({
     fallbackUrl: home.wallpaper?.url || "",
   });
   const wallpaperUrl = useResolvedAvatarUrl(wallpaperPick);
+  // The unified edit popup's page background (flat / gradient / image +
+  // page song). When set it replaces the legacy wallpaper; "none" keeps
+  // the wallpaper block below rendering exactly as before.
+  const pageBackground = useMemo(() => resolveBackground(home.background), [home.background]);
   // The showing page's song, played by the profile-song component —
   // keyed so switching pages restarts it with the new track.
   const { data: allAssets = [] } = useQuery({
@@ -1167,13 +1173,19 @@ export default function ExperimentalDashboard({
     <div className="pt-1 relative isolate overflow-x-clip" data-tour="experimental-home" data-home-style={home.styleMode}
       {...holdHandlers}>
       {/* Wallpaper — fixed under everything in this stacking context; the
-          isolate on the root keeps the negative z-index from escaping. */}
-      {wallpaperUrl && (
+          isolate on the root keeps the negative z-index from escaping.
+          A background from the unified edit popup takes over this slot. */}
+      {pageBackground.type !== "none" ? (
+        <PageBackground background={pageBackground} />
+      ) : wallpaperUrl && (
         <div className="fixed inset-0 -z-10 pointer-events-none" aria-hidden="true">
           <img src={wallpaperUrl} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-background/55" />
         </div>
       )}
+      {/* The page song rides the background config — same player, same
+          volume/autoplay behavior as profile music. */}
+      {pageBackground.audio?.ref && <ProfileSongPlayer song={pageBackground.audio} />}
       {/* Notices sit above the widgets in flow; hidden while editing so
           the layout canvas stays clean and nothing eats a drag. */}
       {!editMode && notices}

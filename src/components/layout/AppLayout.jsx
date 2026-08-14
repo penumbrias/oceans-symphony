@@ -546,6 +546,7 @@ const handleNotifClick = (mentionLog) => {
       className="flex flex-col h-screen bg-background overflow-hidden"
       data-ui-v2={uiV2On ? "1" : undefined}
       data-rail-side={uiV2On && uiV2.tokens.railSide === "right" ? "right" : undefined}
+      data-v2-align-x={uiV2On && uiV2.tokens.alignX && uiV2.tokens.alignX !== "center" ? uiV2.tokens.alignX : undefined}
       style={uiV2On ? {
         ...uiV2Vars,
         // Clearance for fixed elements (grounding bubble, sheets) AND for

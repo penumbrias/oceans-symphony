@@ -428,6 +428,10 @@ export function ThemeProvider({ children }) {
         if (typeof hex !== "string") return null;
         let h = hex.trim().replace(/^#/, "");
         if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+        // 8-digit hex (per-color opacity from the unified edit popup):
+        // the alpha rides in --color-* where CSS consumes it directly;
+        // the HSL triplet drops it, since hsl(var(--x)) can't carry alpha.
+        if (h.length === 8) h = h.slice(0, 6);
         if (h.length !== 6 || /[^0-9a-fA-F]/.test(h)) return null;
         const r = parseInt(h.slice(0, 2), 16) / 255;
         const g = parseInt(h.slice(2, 4), 16) / 255;

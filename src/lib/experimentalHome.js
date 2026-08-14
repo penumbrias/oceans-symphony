@@ -120,6 +120,11 @@ export function resolveExperimentalHome(stored, registry = {}) {
       folder: typeof src.wallpaper?.folder === "string" ? src.wallpaper.folder : "",
       mode: src.wallpaper?.mode === "sequential" ? "sequential" : "random",
     },
+    // The unified edit popup's page background (flat/gradient/image +
+    // page song). Shape is owned by resolveBackground in
+    // components/v2/PageBackground.jsx — passed through opaque here so
+    // this resolver never has to chase that model's fields.
+    background: src.background && typeof src.background === "object" ? src.background : null,
     grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
     drawer: {
       // User-chosen app order for the drawer grid (ids not listed keep

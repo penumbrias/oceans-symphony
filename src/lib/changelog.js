@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "August 13, 2026",
+    changes: [
+      { type: "feature", text: "New UI: Display options rebuilt as the unified edit popup — sliders sit behind a visible set button so nothing changes by accident, and every visible color is editable with its own opacity." },
+      { type: "feature", text: "New UI: home screen backgrounds — flat color, gradient (a stop can be an image), or positioned image, plus a page song with volume and autoplay." },
+      { type: "improve", text: "Presets can save size and/or color separately, and can be renamed, duplicated, and linked to an {{alter}}." },
+    ],
+  },
+  {
     date: "August 12, 2026",
+    version: "0.166.0",
     changes: [
       { type: "feature", text: "Planner: schedule onto any date — the entry popup has a date field alongside this week's day chips." },
       { type: "feature", text: "Planner: repeating plans, critical pinning with lead-time windows, per-plan reminder timing and location are back in the entry popup — same behavior as the classic tracker." },

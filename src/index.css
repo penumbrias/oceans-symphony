@@ -743,6 +743,11 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
   max-width: var(--v2-content-w, 100%);
   margin-inline: auto;
 }
+/* Content alignment (unified edit popup, SIZE section): when the content
+   is narrower than the screen, which edge it hugs. Center is the default
+   margin-inline above; left/right pin the matching edge. */
+[data-ui-v2="1"][data-v2-align-x="left"] main.app-content-main { margin-left: 0; }
+[data-ui-v2="1"][data-v2-align-x="right"] main.app-content-main { margin-right: 0; }
 /* Desktop: the fixed side rail sits outside the flow, so the shell is
    inset by its width. Phones keep the bottom bar and no inset. */
 @media (min-width: 1024px) {

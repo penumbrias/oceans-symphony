@@ -92,6 +92,15 @@ export const V2_COMMAND_KEYS = [
 // accessibility font-size engine so it actually applies everywhere.)
 export const V2_TOKEN_DEFS = [
   { id: "contentW",  group: "app",  label: "Content width",          type: "range",  cssVar: "--v2-content-w", default: 0,  min: 0, max: 1400, step: 40, unit: "px" }, // 0 = full width
+  // Content alignment (the wireframed SIZE section). Applied as data
+  // attributes in AppLayout (like railSide) because CSS can't branch
+  // margins on a var value; index.css carries the rules.
+  { id: "alignX",    group: "app",  label: "Content alignment",      type: "select", cssVar: "--v2-align-x",
+    options: [{ v: "left", label: "Left", css: "left" }, { v: "center", label: "Center", css: "center" }, { v: "right", label: "Right", css: "right" }],
+    default: "center" },
+  { id: "alignY",    group: "app",  label: "Vertical alignment",     type: "select", cssVar: "--v2-align-y",
+    options: [{ v: "top", label: "Top", css: "top" }, { v: "center", label: "Center", css: "center" }, { v: "bottom", label: "Bottom", css: "bottom" }],
+    default: "top" },
   { id: "accent",    group: "bars", label: "Highlight color",        type: "color",  cssVar: "--v2-accent",    default: "" }, // "" → theme primary
   { id: "density",   group: "bars", label: "Spacing",                type: "select", cssVar: "--v2-space",
     options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Medium", css: "6px" }, { v: "roomy", label: "Wide", css: "9px" }],

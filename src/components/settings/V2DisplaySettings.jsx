@@ -88,7 +88,7 @@ function TokenRow({ def, value, onChange }) {
 // unconditionally at the RELEVANT spots (spacing with sizes, accent with
 // theme, radius with corner style, bars with layout) instead of stacking a
 // separate "new UI" block on top.
-function useV2Display() {
+export function useV2Display() {
   const qc = useQueryClient();
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],

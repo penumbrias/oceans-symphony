@@ -52,7 +52,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 // than re-implementing it, so v2 can never be LESS customizable than
 // classic. Lazy so its colour-picker/font machinery only loads when the
 // sheet is actually opened.
-const AdvancedAppearance = React.lazy(() => import("@/components/settings/AdvancedAppearanceNew"));
+const UiEditSheet = React.lazy(() => import("@/components/v2/UiEditSheet"));
 
 const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
@@ -129,6 +129,7 @@ function useClock() {
 // ── Display options ────────────────────────────────────────────────
 function OptionsSheet({ open, onClose, uiV2 }) {
   const t = useT();
+  const navigate = useNavigate();
   // The controls themselves live in the Appearance body (V2DisplaySettings
   // renders at its top) — ONE settings surface, embedded here so the
   // top-bar route and Settings → Appearance are the same thing. This sheet
@@ -161,13 +162,21 @@ function OptionsSheet({ open, onClose, uiV2 }) {
             </button>
           </div>
         </DrawerHeader>
-        <div className="px-4 overflow-y-auto overscroll-contain"
+        <div className="px-4 overflow-y-auto overscroll-contain space-y-2"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
+          {/* The unified UI edit popup (docs/v2-edit-menu-spec.md) — the
+              user's wireframed structure. Bars/layout controls stay in
+              Settings → Appearance until the spec's bars section lands. */}
           {open && (
             <React.Suspense fallback={<p className="text-xs text-muted-foreground py-4">{t("common.loading")}</p>}>
-              <AdvancedAppearance />
+              <UiEditSheet />
             </React.Suspense>
           )}
+          <button type="button"
+            onClick={() => { onClose(); navigate("/settings?section=appearance"); }}
+            className="w-full h-9 rounded-xl border border-border/60 text-xs text-muted-foreground hover:text-foreground">
+            {t("editSheet.allSettings")}
+          </button>
         </div>
       </DrawerContent>
     </Drawer>
