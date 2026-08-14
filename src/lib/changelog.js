@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "improve", text: "Home screen styles are presets now — they live in the edit popup's Presets section with live swatches and the partial-style star; the separate Style pill is gone." },
+      { type: "improve", text: "Font styles are toggles that combine freely — B, i, U, S, Aa (bold, italic, underline, strikethrough, small caps). “Bold italic” as a separate option is gone; just turn both on." },
+      { type: "improve", text: "The Background section owns the wallpaper now (including folder rotation), so the Wallpaper pill is gone — and the section's default view is the wallpaper, not the page song. “UI size” is now “Size & text”." },
       { type: "improve", text: "The home screen's cog menu is now the unified edit popup too — the old stacked settings pile is gone. Only board-specific controls (back to classic, layout, columns, style, wallpaper) remain above it; quick-action keys and the {{alter}} bar moved into its Bars section." },
       { type: "improve", text: "Profile style editors ({{alter}}, group, location pages) now use the same sections as every other edit menu — UI size, Colors, Background — with sliders behind set buttons. Header/body colors and sync work as before." },
       { type: "feature", text: "Display options: a Bar sizes & layout section — every bar (top, bottom, side, quick actions, {{alter}} bar) with its show/hide, size, placement, wave color, bottom-tab arrangement and quick-action buttons in one place." },

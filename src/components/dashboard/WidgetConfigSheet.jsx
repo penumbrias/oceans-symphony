@@ -711,7 +711,7 @@ export default function WidgetConfigSheet({
               These write CSS variables onto the widget wrapper, so the
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
-          <SubSection title="UI size" icon={Palette}>
+          <SubSection title="Size & text" icon={Palette}>
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>

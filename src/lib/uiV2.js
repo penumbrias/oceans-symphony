@@ -107,22 +107,26 @@ export const V2_TOKEN_DEFS = [
   // each heading keeps its own designed size — everything scales in
   // proportion instead of flattening to one size.
   { id: "headerScale", group: "app", label: "Header size", type: "range", cssVar: "--v2-heading-scale", default: 100, min: 70, max: 160, step: 5, unit: "%" },
-  // Font style (body + header). Applied as data attributes in AppLayout
-  // (data-v2-bstyle / data-v2-hstyle) that only exist when a style is
-  // chosen — index.css carries the rules, and the app's own designed
-  // weights stay untouched by default.
-  { id: "bodyStyle", group: "app", label: "Body style", type: "select", cssVar: "--v2-body-style-noop",
+  // Font style (body + header): independent toggles, not an enum — bold
+  // and italic combine freely with underline / strikethrough / small
+  // caps. Stored as an array of flag ids; applied as space-separated
+  // data attributes in AppLayout (data-v2-bstyle="bold italic"), matched
+  // in index.css with [~=] selectors. No flags set = the app's own
+  // designed weights, untouched.
+  { id: "bodyStyle", group: "app", label: "Body style", type: "flags", cssVar: "--v2-body-style-noop",
     options: [
-      { v: "normal", label: "Normal" }, { v: "bold", label: "Bold" },
-      { v: "italic", label: "Italic" }, { v: "boldItalic", label: "Bold italic" },
+      { v: "bold", label: "Bold" }, { v: "italic", label: "Italic" },
+      { v: "underline", label: "Underline" }, { v: "strike", label: "Strikethrough" },
+      { v: "smallcaps", label: "Small caps" },
     ],
-    default: "normal" },
-  { id: "headerStyle", group: "app", label: "Header style", type: "select", cssVar: "--v2-heading-style-noop",
+    default: [] },
+  { id: "headerStyle", group: "app", label: "Header style", type: "flags", cssVar: "--v2-heading-style-noop",
     options: [
-      { v: "normal", label: "Normal" }, { v: "bold", label: "Bold" },
-      { v: "italic", label: "Italic" }, { v: "boldItalic", label: "Bold italic" },
+      { v: "bold", label: "Bold" }, { v: "italic", label: "Italic" },
+      { v: "underline", label: "Underline" }, { v: "strike", label: "Strikethrough" },
+      { v: "smallcaps", label: "Small caps" },
     ],
-    default: "normal" },
+    default: [] },
   { id: "accent",    group: "bars", label: "Highlight color",        type: "color",  cssVar: "--v2-accent",    default: "" }, // "" → theme primary
   { id: "density",   group: "bars", label: "Spacing",                type: "select", cssVar: "--v2-space",
     options: [{ v: "compact", label: "Compact", css: "4px" }, { v: "cozy", label: "Medium", css: "6px" }, { v: "roomy", label: "Wide", css: "9px" }],
@@ -160,6 +164,15 @@ export function resolveUiV2(stored) {
       if (Number.isFinite(n)) tokens[def.id] = Math.max(def.min, Math.min(def.max, n));
     } else if (def.type === "select") {
       if (def.options.some((o) => o.v === v)) tokens[def.id] = v;
+    } else if (def.type === "flags") {
+      // Read-time migration from the old single-select style enum:
+      // "boldItalic" → both flags, "normal" → none.
+      const arr = Array.isArray(v) ? v
+        : v === "boldItalic" ? ["bold", "italic"]
+        : v === "normal" ? []
+        : typeof v === "string" ? [v] : [];
+      const known = arr.filter((f) => def.options.some((o) => o.v === f));
+      if (known.length) tokens[def.id] = known;
     } else if (def.type === "color") {
       if (typeof v === "string" && (v === "" || /^#[0-9a-fA-F]{3,8}$/.test(v))) tokens[def.id] = v;
     }
@@ -235,6 +248,9 @@ export function buildTokenVars(uiV2) {
       // several variables (font styles need weight + style at once).
       if (opt.css && typeof opt.css === "object") Object.assign(vars, opt.css);
       else vars[def.cssVar] = opt.css;
+    } else if (def.type === "flags") {
+      // Applied as data attributes (AppLayout), not CSS variables.
+      continue;
     } else if (def.type === "color") {
       vars[def.cssVar] = v || "var(--color-primary)";
     }

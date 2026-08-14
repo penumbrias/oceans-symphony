@@ -24,7 +24,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
-  Undo2, Grid2x2, Star, Trash2, Image as ImageIcon, Settings2, ChevronUp, ChevronDown,
+  Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -64,9 +64,7 @@ import { boxStyle } from "@/v2/primitives";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import PageBackground, { resolveBackground } from "@/components/v2/PageBackground";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
-import { useQuery } from "@tanstack/react-query";
 
 function useGridCols(phoneCols = 4, lockToPhone = false) {
   // v2 grid: twice as dense as v1 (4/8/12 instead of 2/4/6) so app-shortcut
@@ -868,17 +866,15 @@ export default function ExperimentalDashboard({
   // page song). When set it replaces the legacy wallpaper; "none" keeps
   // the wallpaper block below rendering exactly as before.
   const pageBackground = useMemo(() => resolveBackground(home.background), [home.background]);
-  // The showing page's song, played by the profile-song component —
-  // keyed so switching pages restarts it with the new track.
-  const { data: allAssets = [] } = useQuery({
-    queryKey: ["imageAssets"],
-    queryFn: () => base44.entities.ImageAsset.list(),
-    enabled: editMode,
-  });
-  const assetFolders = useMemo(() => {
-    const set = new Set(allAssets.map((a) => (a.folder || "").trim()).filter(Boolean));
-    return [...set].sort((a, b) => a.localeCompare(b));
-  }, [allAssets]);
+  // The unified popup's Presets section lists board styles; its "all
+  // styles" button re-opens the full picker below (search, swatches,
+  // use-as-base) via this event, since the picker needs board internals
+  // (persist/page) the popup doesn't have.
+  useEffect(() => {
+    const open = () => setStylePickerOpen(true);
+    window.addEventListener("os-open-board-style-picker", open);
+    return () => window.removeEventListener("os-open-board-style-picker", open);
+  }, []);
 
   // Under v2 the frame's command bar IS the quick-action bar; drawing
   // this one too gave the user two bars, only one of which the Bar
@@ -1250,67 +1246,6 @@ export default function ExperimentalDashboard({
             >
               Cols: {home.grid.phoneCols}
             </button>
-            <button
-              type="button"
-              onClick={() => setStylePickerOpen(true)}
-              title="Choose a widget style for this homescreen"
-              className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
-            >
-              Style: {HOME_STYLES.find((s) => s.id === home.styleMode)?.label || "Current"}
-            </button>
-            <span className="flex items-center rounded-full border border-border/40 overflow-hidden">
-              <button
-                type="button"
-                onClick={() => setAssetPickerFor("wallpaper")}
-                title="Choose a wallpaper from your assets"
-                className={`text-[0.625rem] pl-2 pr-1.5 py-1 flex items-center gap-1 whitespace-nowrap transition-all ${
-                  home.wallpaper?.url ? "text-primary" : "text-muted-foreground hover:text-foreground"
-                }`}
-              >
-                <ImageIcon className="w-3 h-3" /> Wallpaper
-              </button>
-              {/* A folder instead of one image = rotating wallpaper. */}
-              {assetFolders.length > 0 && (
-                <span className="pl-1 pr-1 py-0.5 border-l border-border/40">
-                  <SearchableSelect
-                    value={home.wallpaper?.folder || null}
-                    onChange={(folder) => persist({
-                      ...home,
-                      wallpaper: { ...home.wallpaper, folder: folder || "" },
-                    })}
-                    options={assetFolders.map((f) => ({ id: f, label: f }))}
-                    placeholder="Rotate folder…"
-                    searchPlaceholder="Search folders…"
-                    allowClear
-                    className="text-[0.625rem] min-w-[7rem]"
-                  />
-                </span>
-              )}
-              {home.wallpaper?.folder && (
-                <button
-                  type="button"
-                  onClick={() => persist({
-                    ...home,
-                    wallpaper: { ...home.wallpaper, mode: home.wallpaper?.mode === "sequential" ? "random" : "sequential" },
-                  })}
-                  title="How the folder's images are picked on each app open"
-                  className="text-[0.625rem] px-1.5 py-1 text-muted-foreground hover:text-foreground whitespace-nowrap"
-                >
-                  {home.wallpaper?.mode === "sequential" ? "In order" : "Shuffle"}
-                </button>
-              )}
-              {home.wallpaper?.url && (
-                <button
-                  type="button"
-                  onClick={() => setWallpaper("")}
-                  aria-label="Remove wallpaper"
-                  title="Remove wallpaper"
-                  className="px-1.5 py-1 text-muted-foreground hover:text-destructive"
-                >
-                  <X className="w-3 h-3" />
-                </button>
-              )}
-            </span>
             </div>
 
             {/* Everything else IS the unified edit popup

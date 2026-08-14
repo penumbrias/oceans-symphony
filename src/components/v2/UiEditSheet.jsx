@@ -31,6 +31,10 @@ import { V2_TOKEN_DEFS, V2_COMMAND_KEYS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
+import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
+import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX } from "@/lib/widgetLook";
+import { boxStyle } from "@/v2/primitives";
+import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
 import {
@@ -117,6 +121,37 @@ function PillRow({ label, options, value, onChange, alignX }) {
   );
 }
 
+// Font-style toggles render as the styles themselves — a bold B, an
+// italic i — instead of words. Full names stay in the aria-label/title.
+const STYLE_GLYPHS = {
+  bold: <span className="font-bold">B</span>,
+  italic: <span className="italic">i</span>,
+  underline: <span className="underline">U</span>,
+  strike: <span className="line-through">S</span>,
+  smallcaps: <span style={{ fontVariantCaps: "small-caps" }}>Aa</span>,
+};
+
+function StyleFlagsRow({ label, def, value = [], onChange, alignX }) {
+  const toggle = (f) => onChange(value.includes(f) ? value.filter((x) => x !== f) : [...value, f]);
+  return (
+    <div className={`flex items-center gap-2.5 py-1 ${alignX === "right" ? "flex-row-reverse" : ""}`}>
+      <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
+      <div className="flex gap-1">
+        {def.options.map((o) => (
+          <button key={o.v} type="button" aria-pressed={value.includes(o.v)}
+            aria-label={o.label} title={o.label}
+            onClick={() => toggle(o.v)}
+            className={`w-8 h-8 rounded-lg border text-sm flex items-center justify-center ${
+              value.includes(o.v) ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+            }`}>
+            {STYLE_GLYPHS[o.v] || o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // UI-size steps (mirrors the a11y engine's discrete scale).
 const SIZE_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
 const TOUCH_STEPS = ["default", "comfortable", "large"];
@@ -179,10 +214,10 @@ function SizeSection({ v2, alignX }) {
             className="w-full" aria-label={tr("editSheet.fontSizeBody")} />
         </SetRow>
         {tokenRow("headerScale")}
-        <PillRow label={tr("editSheet.styleBody")} options={tokenById.bodyStyle.options.map((o) => ({ v: o.v, label: o.label }))}
-          value={v2.uiV2.tokens.bodyStyle ?? "normal"} onChange={(val) => v2.setToken("bodyStyle", val)} alignX={alignX} />
-        <PillRow label={tr("editSheet.styleHeader")} options={tokenById.headerStyle.options.map((o) => ({ v: o.v, label: o.label }))}
-          value={v2.uiV2.tokens.headerStyle ?? "normal"} onChange={(val) => v2.setToken("headerStyle", val)} alignX={alignX} />
+        <StyleFlagsRow label={tr("editSheet.styleBody")} def={tokenById.bodyStyle}
+          value={v2.uiV2.tokens.bodyStyle ?? []} onChange={(val) => v2.setToken("bodyStyle", val)} alignX={alignX} />
+        <StyleFlagsRow label={tr("editSheet.styleHeader")} def={tokenById.headerStyle}
+          value={v2.uiV2.tokens.headerStyle ?? []} onChange={(val) => v2.setToken("headerStyle", val)} alignX={alignX} />
       </div>
     </SubSection>
   );
@@ -496,7 +531,7 @@ function ImageSlot({ url, onPick, onClear, title }) {
   );
 }
 
-function BackgroundSection({ background, onChange }) {
+function BackgroundSection({ background, onChange, wallpaper, onWallpaperChange }) {
   const tr = useT();
   const bg = background;
   const patch = (p) => onChange({ ...bg, ...p });
@@ -504,15 +539,63 @@ function BackgroundSection({ background, onChange }) {
 
   const POSITIONS = ["cover", "fill", "tile", "stretch", "center"];
 
+  // Wallpaper folders — a folder instead of one image rotates on each
+  // app open (the legacy wallpaper's headline feature, kept here now
+  // that the pill row is gone).
+  const { data: allAssets = [] } = useQuery({
+    queryKey: ["imageAssets"], queryFn: () => base44.entities.ImageAsset.list(),
+  });
+  const assetFolders = useMemo(
+    () => [...new Set(allAssets.map((a) => a.folder).filter(Boolean))].sort(),
+    [allAssets]
+  );
+  const wall = wallpaper || {};
+
   return (
     <SubSection title={tr("editSheet.background")}>
       <PillRow label={tr("editSheet.bgType")} value={bg.type} onChange={(v) => patch({ type: v })}
         options={[
-          { v: "none", label: tr("editSheet.bgNone") },
+          { v: "none", label: tr("editSheet.bgWallpaper") },
           { v: "flat", label: tr("editSheet.bgFlat") },
           { v: "gradient", label: tr("editSheet.bgGradient") },
           { v: "image", label: tr("editSheet.bgImage") },
         ]} />
+
+      {/* The default type IS the wallpaper (the user's call: wallpaper
+          lives in Background, not as a pill above the popup). */}
+      {bg.type === "none" && (
+        <div className="space-y-2 py-1">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xs font-medium flex-1">{tr("editSheet.bgWallpaper")}</span>
+            <ImageSlot url={wall.url} title={tr("editSheet.bgWallpaper")}
+              onPick={(url) => onWallpaperChange({ ...wall, url: url || "" })}
+              onClear={() => onWallpaperChange({ ...wall, url: "" })} />
+          </div>
+          {assetFolders.length > 0 && (
+            <div className="flex items-center gap-2.5">
+              <span className="text-xs font-medium flex-1">{tr("editSheet.wallFolder")}</span>
+              <div className="min-w-[9rem]">
+                <SearchableSelect
+                  value={wall.folder || null}
+                  onChange={(folder) => onWallpaperChange({ ...wall, folder: folder || "" })}
+                  options={assetFolders.map((f) => ({ id: f, label: f }))}
+                  placeholder={tr("editSheet.wallFolderNone")}
+                  searchPlaceholder={tr("editSheet.wallFolderNone")}
+                  allowClear
+                />
+              </div>
+            </div>
+          )}
+          {wall.folder && (
+            <PillRow label={tr("editSheet.wallMode")} value={wall.mode === "sequential" ? "sequential" : "random"}
+              onChange={(v) => onWallpaperChange({ ...wall, mode: v })}
+              options={[
+                { v: "random", label: tr("editSheet.wallShuffle") },
+                { v: "sequential", label: tr("editSheet.wallInOrder") },
+              ]} />
+          )}
+        </div>
+      )}
 
       {bg.type === "flat" && (
         <div className="flex items-center gap-2.5 py-1">
@@ -838,7 +921,78 @@ function PresetsSection({ v2 }) {
           ))}
         </div>
       </div>
+
+      {/* Board styles — the old home screen "Style" picker, now a preset
+          list like everything else (the user's call). Built-ins plus the
+          user's saved widget styles; sets the default widget look for
+          this device's board, and any widget can still override it. The
+          swatch renders through the same pipeline a real widget uses,
+          and a partial style's star spells out what it touches. */}
+      <BoardStylesBlock settingsRow={settingsRow} />
     </SubSection>
+  );
+}
+
+function BoardStylesBlock({ settingsRow }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const [notesFor, setNotesFor] = useState(null);
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const current = settingsRow?.[homeField]?.styleMode || "current";
+  const userWidgetStyles = resolveUserStyles(settingsRow?.ui_v2_styles);
+  const styles = [
+    ...HOME_STYLES.map((st) => ({ id: st.id, label: st.label, description: st.description, look: getStyleLook(st.id) })),
+    ...userWidgetStyles.map((st) => ({ id: `${USER_STYLE_PREFIX}${st.id}`, label: st.label, description: tr("editSheet.yourStyle"), look: st.look || {} })),
+  ];
+  const apply = async (id) => {
+    if (!settingsRow?.id) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, {
+      [homeField]: { ...(settingsRow[homeField] || {}), styleMode: id },
+    });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+  return (
+    <div className="space-y-1 pt-2">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+        {tr("editSheet.boardStyles")}
+      </p>
+      {styles.map((st) => {
+        const cov = lookCoverage(st.look);
+        return (
+          <div key={st.id}
+            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-sm ${
+              current === st.id ? "border-primary/60 bg-primary/10" : "border-border/40"
+            }`}>
+            <span aria-hidden="true" className="w-8 h-8 flex-shrink-0"
+              style={{ ...lookToStyle(st.look), ...boxStyle() }} />
+            <button type="button" onClick={() => apply(st.id)} className="flex-1 min-w-0 text-left">
+              <span className="text-xs font-medium">{st.label}</span>
+              <span className="text-[0.625rem] text-muted-foreground block truncate">
+                {notesFor === st.id
+                  ? `${tr("editSheet.styleChanges")} ${cov.covers.map((g) => g.label.toLowerCase()).join(", ") || "—"} · ${tr("editSheet.styleLeaves")} ${cov.leaves.map((g) => g.label.toLowerCase()).join(", ")}`
+                  : st.description}
+              </span>
+            </button>
+            {!cov.complete && (
+              <button type="button" aria-label={`${st.label} — partial style details`}
+                onClick={() => setNotesFor(notesFor === st.id ? null : st.id)}
+                className={`p-1 flex-shrink-0 ${notesFor === st.id ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`}>
+                <StarIcon className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
+        );
+      })}
+      <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.boardStylesHint")}</p>
+      {typeof window !== "undefined" && window.location.pathname === "/" && (
+        <button type="button"
+          onClick={() => window.dispatchEvent(new CustomEvent("os-open-board-style-picker"))}
+          className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+          {tr("editSheet.boardStylesMore")}
+        </button>
+      )}
+    </div>
   );
 }
 
@@ -860,6 +1014,14 @@ export default function UiEditSheet() {
     });
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
+  const wallpaper = settingsRow?.[homeField]?.wallpaper || {};
+  const writeWallpaper = async (next) => {
+    if (!settingsRow?.id) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, {
+      [homeField]: { ...(settingsRow[homeField] || {}), wallpaper: next },
+    });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
 
   const alignX = (v2.uiV2.tokens.alignX ?? "center") === "right" ? "right" : "left";
 
@@ -870,7 +1032,8 @@ export default function UiEditSheet() {
           only — the widget sheet mounts the other sections without it. */}
       <BarsSection v2={v2} alignX={alignX} />
       <ColorsSection />
-      <BackgroundSection background={background} onChange={writeBackground} />
+      <BackgroundSection background={background} onChange={writeBackground}
+        wallpaper={wallpaper} onWallpaperChange={writeWallpaper} />
       <PresetsSection v2={v2} />
     </div>
   );
