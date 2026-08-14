@@ -27,7 +27,10 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { useV2Display } from "@/components/settings/V2DisplaySettings";
-import { V2_TOKEN_DEFS } from "@/lib/uiV2";
+import { V2_TOKEN_DEFS, V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
+import { applyTerms } from "@/lib/dailyTaskSystem";
+import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
 import {
@@ -180,6 +183,223 @@ function SizeSection({ v2, alignX }) {
           value={v2.uiV2.tokens.bodyStyle ?? "normal"} onChange={(val) => v2.setToken("bodyStyle", val)} alignX={alignX} />
         <PillRow label={tr("editSheet.styleHeader")} options={tokenById.headerStyle.options.map((o) => ({ v: o.v, label: o.label }))}
           value={v2.uiV2.tokens.headerStyle ?? "normal"} onChange={(val) => v2.setToken("headerStyle", val)} alignX={alignX} />
+      </div>
+    </SubSection>
+  );
+}
+
+// ── BAR SIZES + LAYOUT (spec §2 — page-level surfaces only) ───────────
+// Each bar: show/hide, its real size/placement knobs, and its content
+// arrangement where the engine has one (bottom-bar section order, quick
+// action keys). Wave color rides SystemSettings like the classic picker.
+function BarToggle({ label, on, onChange }) {
+  return (
+    <label className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
+      <span>{label}</span>
+      <input type="checkbox" checked={on} onChange={(e) => onChange(e.target.checked)}
+        className="w-4 h-4 rounded accent-primary" aria-label={label} />
+    </label>
+  );
+}
+
+function BarsSection({ v2, alignX }) {
+  const tr = useT();
+  const terms = useTerms();
+  const qc = useQueryClient();
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settingsRow = settingsRows[0] || null;
+
+  const writeSettings = async (patch) => {
+    if (!settingsRow?.id) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, patch);
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+
+  const tokenRow = (id, labelKey) => {
+    const def = tokenById[id];
+    const value = v2.uiV2.tokens[id] ?? def.default;
+    return (
+      <SetRow label={tr(labelKey)} valueLabel={`${value}${def.unit || ""}`} alignX={alignX}>
+        <TokenSlider def={def} value={value} onChange={(val) => v2.setToken(id, val)} />
+      </SetRow>
+    );
+  };
+
+  // Bottom bar arrangement — the REAL list the bar renders is
+  // navigation_config.bottomBar (the same one Settings → Navigation
+  // edits), resolved against ALL_PAGES with the user's terms.
+  const navConfig = settingsRow?.navigation_config || {};
+  const bottomIds = Array.isArray(navConfig.bottomBar) ? navConfig.bottomBar : DEFAULT_CONFIG.bottomBar;
+  const termMap = {
+    alters: terms.Alters,
+    checkin: `${terms.System} Meeting`,
+    "system-map": `${terms.System} Map`,
+    "system-history": `${terms.System} History`,
+  };
+  const pageLabel = (id) => {
+    const p = ALL_PAGES.find((x) => x.id === id);
+    return p ? (termMap[p.id] || p.label) : id;
+  };
+  const writeBottomBar = (next) => writeSettings({ navigation_config: { ...navConfig, bottomBar: next } });
+  const moveNavItem = (idx, dir) => {
+    const next = [...bottomIds];
+    const to = idx + dir;
+    if (to < 0 || to >= next.length) return;
+    [next[idx], next[to]] = [next[to], next[idx]];
+    writeBottomBar(next);
+  };
+  const addNavOptions = ALL_PAGES
+    .filter((p) => !bottomIds.includes(p.id))
+    .map((p) => ({ id: p.id, label: termMap[p.id] || p.label }));
+
+  // Wave color: a palette key ("Off" = background), or a custom hex.
+  const waveKey = readWaveColorKey(settingsRow);
+  const waveCustom = settingsRow?.wave_color_custom || "";
+
+  // The alter bar lives on the home board's own field, per device.
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const altersBar = settingsRow?.[homeField]?.altersBar || {};
+  const writeAltersBar = (patch) => writeSettings({
+    [homeField]: { ...(settingsRow?.[homeField] || {}), altersBar: { ...altersBar, ...patch } },
+  });
+
+  return (
+    <SubSection title={tr("editSheet.bars")}>
+      {/* Top bar */}
+      <div className="space-y-1 pb-2 border-b border-border/30">
+        <BarToggle label={tr("editSheet.barTop")} on={v2.uiV2.bars.top} onChange={(on) => v2.setBar("top", on)} />
+        {!v2.uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{tr("options.recoveryHint")}</p>}
+        {tokenRow("statusH", "editSheet.barHeight")}
+        <BarToggle label={tr("editSheet.wave")} on={v2.uiV2.bars.wave} onChange={(on) => v2.setBar("wave", on)} />
+        {v2.uiV2.bars.wave && (
+          <div className="flex items-center gap-2.5 py-1">
+            <span className="text-xs font-medium flex-1 min-w-0 truncate">{tr("editSheet.waveColor")}</span>
+            <div className="flex gap-1 flex-wrap justify-end items-center">
+              {WAVE_COLOR_KEYS.map((k) => (
+                <button key={k} type="button" aria-pressed={!waveCustom && waveKey === k}
+                  onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
+                  className={`text-[0.6875em] px-2 py-0.5 rounded-full border ${
+                    !waveCustom && waveKey === k ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}>{WAVE_COLOR_LABELS[k]}</button>
+              ))}
+              <ColorPicker compact label={tr("editSheet.waveColor")}
+                value={waveCustom || "#7dd3fc"}
+                onChange={(hex) => writeSettings({ wave_color_custom: hex })}
+                onClear={() => writeSettings({ wave_color_custom: null })} />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Bottom bar */}
+      <div className="space-y-1 py-2 border-b border-border/30">
+        <BarToggle label={tr("editSheet.barBottom")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
+        {tokenRow("stripH", "editSheet.barHeight")}
+        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
+        {bottomIds.map((id, idx) => (
+          <div key={id} className="flex items-center gap-2 py-0.5">
+            <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
+            <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
+              aria-label={`${pageLabel(id)} ↑`}
+              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+            <button type="button" onClick={() => moveNavItem(idx, 1)} disabled={idx === bottomIds.length - 1}
+              aria-label={`${pageLabel(id)} ↓`}
+              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+            <button type="button" onClick={() => writeBottomBar(bottomIds.filter((x) => x !== id))}
+              disabled={bottomIds.length <= 1}
+              aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
+              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground hover:text-destructive disabled:opacity-30">
+              <X className="w-3 h-3 mx-auto" />
+            </button>
+          </div>
+        ))}
+        {bottomIds.length < 6 && (
+          <SearchableSelect
+            value=""
+            onChange={(id) => { if (id) writeBottomBar([...bottomIds, id]); }}
+            options={addNavOptions}
+            placeholder={tr("editSheet.addTab")}
+            searchPlaceholder={tr("editSheet.addTab")}
+          />
+        )}
+      </div>
+
+      {/* Side bar (desktop rail) */}
+      <div className="space-y-1 py-2 border-b border-border/30">
+        <BarToggle label={tr("editSheet.barSide")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
+        {tokenRow("railW", "editSheet.barWidth")}
+        <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
+          onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
+          options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
+        <PillRow label={tr("editSheet.railContent")} value={v2.uiV2.tokens.railActions ?? "labels"}
+          onChange={(val) => v2.setToken("railActions", val)} alignX={alignX}
+          options={[{ v: "labels", label: tr("editSheet.labels") }, { v: "icons", label: tr("editSheet.icons") }]} />
+        <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.railHint")}</p>
+      </div>
+
+      {/* Quick action bar */}
+      <div className="space-y-1 py-2 border-b border-border/30">
+        <BarToggle label={tr("editSheet.barActions")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
+        {tokenRow("cmdSize", "editSheet.buttonSize")}
+        <PillRow label={tr("editSheet.placement")} value={v2.uiV2.tokens.actionsMode ?? "bar"}
+          onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
+          options={[
+            { v: "bar", label: tr("editSheet.placementBar") },
+            { v: "float", label: tr("editSheet.placementFloat") },
+            { v: "bubble", label: tr("editSheet.placementBubble") },
+          ]} />
+        {(v2.uiV2.tokens.actionsMode === "float" || v2.uiV2.tokens.actionsMode === "bubble") && (
+          <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.dockSide ?? "right"}
+            onChange={(val) => v2.setToken("dockSide", val)} alignX={alignX}
+            options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
+        )}
+        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.actionKeys")}</p>
+        {V2_COMMAND_KEYS.map((k) => {
+          const on = v2.uiV2.commandKeys.includes(k.id);
+          const idx = v2.uiV2.commandKeys.indexOf(k.id);
+          const move = (dir) => {
+            const next = [...v2.uiV2.commandKeys];
+            const to = idx + dir;
+            if (to < 0 || to >= next.length) return;
+            [next[idx], next[to]] = [next[to], next[idx]];
+            v2.setCommandKeys(next);
+          };
+          return (
+            <div key={k.id} className="flex items-center gap-2 py-0.5">
+              <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
+                <input type="checkbox" checked={on}
+                  onChange={(e) => v2.setCommandKeys(e.target.checked
+                    ? [...v2.uiV2.commandKeys, k.id]
+                    : v2.uiV2.commandKeys.filter((x) => x !== k.id))}
+                  className="w-3.5 h-3.5 rounded accent-primary" aria-label={applyTerms(k.label, terms)} />
+                <span className="truncate">{applyTerms(k.label, terms)}</span>
+              </label>
+              {on && (
+                <span className="flex gap-1 flex-shrink-0">
+                  <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
+                    aria-label={`${applyTerms(k.label, terms)} ↑`}
+                    className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+                  <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
+                    aria-label={`${applyTerms(k.label, terms)} ↓`}
+                    className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+                </span>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Alter bar — the pinned-members strip on the home board. */}
+      <div className="space-y-1 pt-2">
+        <BarToggle label={applyTerms(tr("editSheet.barAlters"), terms)}
+          on={altersBar.enabled === true} onChange={(on) => writeAltersBar({ enabled: on })} />
+        {altersBar.enabled === true && (
+          <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
+            onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
+            options={[{ v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") }]} />
+        )}
+        <p className="text-[0.6875rem] text-muted-foreground">{applyTerms(tr("editSheet.alterBarHint"), terms)}</p>
       </div>
     </SubSection>
   );
@@ -646,6 +866,9 @@ export default function UiEditSheet() {
   return (
     <div className="space-y-2">
       <SizeSection v2={v2} alignX={alignX} />
+      {/* Wireframe order: bars sit between SIZE and COLORS. Page-level
+          only — the widget sheet mounts the other sections without it. */}
+      <BarsSection v2={v2} alignX={alignX} />
       <ColorsSection />
       <BackgroundSection background={background} onChange={writeBackground} />
       <PresetsSection v2={v2} />
