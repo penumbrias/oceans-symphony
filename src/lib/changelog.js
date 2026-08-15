@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 15, 2026",
     changes: [
+      { type: "improve", text: "Importing a backup now reports every problem visibly (as a popup too), and a \u201cLast import attempt\u201d panel under the Import button records each step for bug reports." },
+      { type: "improve", text: "Widget options gained the same move-to-top/bottom button the other edit menus have." },
       { type: "feature", text: "Plans can now be resolved as \u201cRescheduled\u201d: the planner's outcome row and the home notice both offer Reschedule, which moves the plan to a new day and time instead of closing it." },
     ],
   },

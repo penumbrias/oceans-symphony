@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Download, Upload, FileJson, Loader2, CheckCircle2, AlertCircle, Copy, ClipboardPaste, Image as ImageIcon, ChevronDown, ChevronRight, Bug, Share2, X } from "lucide-react";
 import { format } from "date-fns";
+import { toast } from "sonner";
 import { getFullDbDump, loadDbDump, mergeDbDump, migrateHttpImagesToLocal, getRawIdbDump, restoreRecord, deleteRecordRaw } from "@/lib/localDb";
 import { stripDeviceBound, buildFriendIdentityBundle, describeFriendBundle } from "@/lib/backupPolicy";
 import { getLocalIdentity, mirrorIdentityToShared } from "@/lib/friendsApi";
@@ -400,6 +401,40 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   const isStdFormat = exportFormat === "json" || exportFormat === "compact";
   const [importLoading, setImportLoading] = useState(false);
   const [status, setStatus] = useState(null);
+  // Import trace (v0.174.1) — a tester reported "select file and then
+  // nothing happens, nothing shows at all" and we couldn't reproduce it.
+  // Every import attempt now records each step it reaches (file name,
+  // size, detected format, outcome) into localStorage, survives the
+  // post-import reload, and renders under the Import button — so the
+  // NEXT report can tell us exactly where the flow stopped.
+  const IMPORT_LOG_KEY = "symphony_last_import_log_v1";
+  const [importLog, setImportLog] = useState(() => {
+    try { return JSON.parse(localStorage.getItem(IMPORT_LOG_KEY) || "null"); } catch { return null; }
+  });
+  const importTrace = useRef(null);
+  const traceStart = (file) => {
+    importTrace.current = {
+      startedAt: new Date().toISOString(),
+      file: { name: file?.name || "(no name)", size: file?.size ?? null, type: file?.type || "" },
+      steps: [],
+      result: null,
+    };
+    traceStep("picked");
+  };
+  const traceStep = (step, extra) => {
+    const t = importTrace.current;
+    if (!t) return;
+    t.steps.push(extra ? `${step}: ${extra}` : step);
+    try { localStorage.setItem(IMPORT_LOG_KEY, JSON.stringify(t)); } catch { /* storage off */ }
+    setImportLog({ ...t });
+  };
+  const traceEnd = (result) => {
+    const t = importTrace.current;
+    if (!t) return;
+    t.result = result;
+    try { localStorage.setItem(IMPORT_LOG_KEY, JSON.stringify(t)); } catch { /* storage off */ }
+    setImportLog({ ...t });
+  };
   const [importMode, setImportMode] = useState("add");
   // Deletion-sync opt-in (v0.95.3): when merging a backup from the user's
   // OTHER device, also apply its recorded deletions so removed records
@@ -449,6 +484,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // export worked" confusion testers reported.
   const showStatus = (type, message) => {
     setStatus({ type, message, at: new Date() });
+    // The banner sits at the TOP of the Backup section; on a desktop the
+    // Import button can be a full screen below it, so a failure looked
+    // like "nothing happened". Toasts are viewport-anchored — the word
+    // reaches the user wherever they're scrolled.
+    if (type === "error") toast.error(message);
+    else toast.success(message);
   };
 
   const [selectiveOpen, setSelectiveOpen] = useState(false);
@@ -732,6 +773,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   // payload to the in-memory DB. Shared by the standard-backup, raw-plain, and
   // raw-encrypted (post-decryption) paths.
   const applyImportPayload = async ({ data, localImages, localFonts, localSettings, friendBundle }) => {
+    traceStep("importing records", importMode);
     // Replace-all only swaps the ACTIVE system. Any OTHER systems aren't in this
     // (single-system) backup — offer the same keep/clear choice as the
     // multi-system flow so "Replace all" doesn't silently leave them behind (or
@@ -741,7 +783,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       const others = listSystems().filter((s) => s.id !== getActiveSystemId());
       if (others.length > 0) {
         const decision = await promptKeepClearSystems(others);
-        if (decision === null) { setImportLoading(false); return; } // cancelled
+        if (decision === null) { traceEnd("cancelled at keep/clear prompt"); setImportLoading(false); return; }
         const keepSet = new Set(decision);
         clearOtherSystemIds = others.filter((s) => !keepSet.has(s.id)).map((s) => s.id);
       }
@@ -952,6 +994,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     let maybe = null;
     try { maybe = JSON.parse(text); } catch { /* not JSON — normal parse below */ }
     if (maybe && maybe.__multisystem && Array.isArray(maybe.systems)) {
+      traceStep("detected", "multi-system archive");
       try {
         const importedSystems = maybe.systems.filter((s) => s && s.data);
         if (!importedSystems.length) { showStatus("error", "No systems found in the archive."); return; }
@@ -1001,6 +1044,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
 
     const parsed = parseImportText(text);
+    traceStep("detected", parsed.format);
     if (parsed.format === FORMAT_STANDARD) {
       await applyImportPayload({
         data: parsed.data,
@@ -1017,9 +1061,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
     }
     if (parsed.format === FORMAT_RAW_ENCRYPTED) {
       // Defer to the password modal — caller flow resumes there.
+      traceStep("waiting for password");
       setPendingEncryptedImport(parsed);
       return;
     }
+    // Belt and braces: parseImportText throws on anything it can't name, so
+    // this shouldn't be reachable — but an unknown format must NEVER end in
+    // silence again (the "select file and nothing happens" report).
+    showStatus("error", `Unrecognised backup format ("${parsed.format}"). Please report this with the "Last import attempt" details below the Import button.`);
   };
 
   const handleCacheUrlImages = async () => {
@@ -1100,7 +1149,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
   };
 
   const handleImportFromFile = async (file) => {
-    if (!file) return;
+    if (!file) {
+      // The picker closing without a file is one of the "nothing happens"
+      // candidates (Drive picker on some setups) — say so instead of
+      // returning in silence.
+      showStatus("error", "No file was received from the file picker. Try picking it again, or move the file out of cloud storage first.");
+      return;
+    }
+    traceStart(file);
     const lname = (file.name || "").toLowerCase();
     setImportLoading(true);
     try {
@@ -1111,6 +1167,10 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // `name.endsWith(".ampar")` alone silently missed real archives and
       // they fell through to the JSON parser ("File is not valid JSON").
       const buf = await file.arrayBuffer();
+      traceStep("read", `${buf.byteLength} bytes`);
+      if (buf.byteLength === 0) {
+        throw new Error("The selected file is empty (0 bytes). If it lives in Google Drive, open the Drive app and make it available offline (or download it) first, then import the downloaded copy.");
+      }
       const bytes = new Uint8Array(buf);
       const head = bytes.subarray(0, 10);
       const hasMagic = (sig) => sig.every((b, i) => head[i] === b);
@@ -1120,6 +1180,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // existing systems untouched).
       const isAmpar = lname.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52]); // "AMPAR"
       if (isAmpar) {
+        traceStep("format", "ampersand archive");
         const { parseAmpar, ampersandToSystemDumps } = await import("@/lib/ampersand");
         const sysDumps = ampersandToSystemDumps(parseAmpar(buf));
         let created = 0;
@@ -1140,6 +1201,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // marker is present.
       const isZip = lname.endsWith(".zip") || hasMagic([0x50, 0x4b, 0x03, 0x04]); // "PK\x03\x04"
       if (onExternalFile && isZip) {
+        traceStep("format", "zip");
         let zipKind = "openplural";
         try {
           const fflate = await import("fflate");
@@ -1157,6 +1219,8 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             } catch { /* fall through */ }
           }
         } catch { /* fall through — default openplural */ }
+        traceStep("handoff", zipKind);
+        traceEnd("handed to external importer panel");
         onExternalFile(file, zipKind);
         return;
       }
@@ -1167,11 +1231,14 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       const trimmed = new TextDecoder("utf-8").decode(bytes).trim();
       let innerJsonText;
       if (trimmed.startsWith("SYMPHONYZ:")) {
+        traceStep("format", "compact (compressed)");
         const binary = atob(trimmed.slice(10));
         const zbytes = new Uint8Array(binary.length);
         for (let i = 0; i < binary.length; i++) zbytes[i] = binary.charCodeAt(i);
         innerJsonText = pako.inflate(zbytes, { to: "string" });
+        traceStep("decompressed", `${innerJsonText.length} chars`);
       } else {
+        traceStep("format", "plain text/json");
         innerJsonText = trimmed;
       }
       // Probe for a non-Symphony external export and hand it off to the right
@@ -1181,11 +1248,19 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         let probe = null;
         try { probe = JSON.parse(innerJsonText); } catch {}
         const kind = externalKindFromJson(probe);
-        if (kind) { onExternalFile(file, kind); return; }
+        if (kind) {
+          traceStep("handoff", kind);
+          traceEnd("handed to external importer panel");
+          onExternalFile(file, kind);
+          return;
+        }
         onExternalFile(null, null); // not external → clear any leftover dispatcher panel
       }
+      traceStep("parsing");
       await processImport(innerJsonText);
+      traceEnd("finished");
     } catch (e) {
+      traceEnd(`error: ${e.message}`);
       showStatus("error", `Import failed: ${e.message}`);
     } finally {
       setImportLoading(false);
@@ -1869,6 +1944,25 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
                 </p>
               </div>
             </label>
+          )}
+          {/* The tester-facing trace: what the last import attempt actually
+              did, step by step, surviving the post-import reload. When a
+              report says "nothing happened", this says where it stopped. */}
+          {importLog && (
+            <details className="text-xs text-muted-foreground border border-border/40 rounded-lg px-2.5 py-1.5">
+              <summary className="cursor-pointer select-none">
+                Last import attempt — {importLog.result || "in progress…"}
+              </summary>
+              <div className="mt-1.5 space-y-0.5 break-words">
+                <p>File: {importLog.file?.name} ({importLog.file?.size != null ? `${importLog.file.size} bytes` : "size unknown"}{importLog.file?.type ? `, ${importLog.file.type}` : ""})</p>
+                <p>Started: {importLog.startedAt}</p>
+                <ol className="list-decimal list-inside">
+                  {(importLog.steps || []).map((s, i) => <li key={i}>{s}</li>)}
+                </ol>
+                {importLog.result && <p className="font-medium text-foreground/80">Result: {importLog.result}</p>}
+                <p className="opacity-70">If an import went wrong, copy this into your report.</p>
+              </div>
+            </details>
           )}
         </div>
         {/* Debug: View Local Data */}

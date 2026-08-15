@@ -17,7 +17,8 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { DOCK_KEY } from "@/components/v2/V2Frame";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
 // read as one system rather than two conventions.
@@ -429,6 +430,17 @@ export default function WidgetConfigSheet({
     node?.scrollIntoView({ block: "start", behavior: "smooth" });
     return () => document.documentElement.removeAttribute("data-v2-peek");
   }, [open, peek, widget]);
+  // Dock top/bottom — same flip (and same remembered choice) as the other
+  // edit sheets, so a widget near the bottom edge isn't hidden under its
+  // own options.
+  const [dock, setDock] = React.useState(() => {
+    try { return localStorage.getItem(DOCK_KEY) === "top" ? "top" : "bottom"; } catch { return "bottom"; }
+  });
+  const flipDock = () => {
+    const next = dock === "top" ? "bottom" : "top";
+    setDock(next);
+    try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
+  };
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
   const fontOptions = useFontOptions();
@@ -475,8 +487,8 @@ export default function WidgetConfigSheet({
   const pageStyleLabel = HOME_STYLES.find((s) => s.id === pageStyleId)?.label || "Current";
 
   return (
-    <Drawer open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
+    <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DrawerContent direction={dock} className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -485,13 +497,20 @@ export default function WidgetConfigSheet({
                 {peek ? "Keep adjusting — the widget is visible above." : "Widget options"}
               </DrawerDescription>
             </div>
+            <span className="flex items-center gap-1.5 flex-shrink-0">
+            <button type="button" onClick={flipDock}
+              aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
+              {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
+            </button>
             <button type="button" onClick={() => setPeek((v) => !v)}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border flex-shrink-0 ${
+              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
                 peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
               }`}>
               {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               {peek ? "Full panel" : "Peek"}
             </button>
+            </span>
           </div>
         </DrawerHeader>
         <div
