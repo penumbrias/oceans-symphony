@@ -81,9 +81,16 @@ export function Section({ label, action, center, children }) {
           // Otherwise the board's per-widget alignment decides where rows
           // sit in the box (--v2-widget-valign, default centered; "safe"
           // falls back to top when the content overflows).
+          // "Across" aligns the rows INSIDE the box (stretch = full width,
+          // the default). The box itself always fills the widget — this
+          // used to sit on the widget wrapper, which shrank the visible
+          // box instead of aligning its contents.
           ...(center
             ? { alignItems: "center", justifyContent: "center" }
-            : { justifyContent: "var(--v2-widget-valign, flex-start)" }),
+            : {
+                justifyContent: "var(--v2-widget-valign, flex-start)",
+                alignItems: "var(--v2-widget-halign, stretch)",
+              }),
         }}>
         {children}
       </div>

@@ -241,7 +241,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   // nothing becomes unscrollable.
   const valign = widget.settings?.valign || "center";
   const valignJustify = valign === "top" ? "flex-start" : valign === "bottom" ? "safe flex-end" : "safe center";
-  // Horizontal too — a narrow widget's content can hug either edge.
+  // Horizontal too — but this aligns the CONTENT INSIDE the widget, not
+  // the widget's box. Applying it to the outer wrapper's alignItems made
+  // the box itself shrink to its content and hug an edge, which reads as
+  // moving the widget — and the user already positions widgets freely on
+  // the grid. The box always fills its cell; the var below is consumed by
+  // Section's row stack (primitives.jsx).
   const halign = widget.settings?.halign || "stretch";
   const halignItems = halign === "left" ? "flex-start" : halign === "right" ? "flex-end" : halign === "center" ? "center" : "stretch";
   const bgUrl = useResolvedAvatarUrl(look.bgImage || "");
@@ -368,6 +373,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // Per-widget content alignment, consumed by Section's row stack
           // (and by the flex wrapper below for content-sized widgets).
           "--v2-widget-valign": valignJustify,
+          "--v2-widget-halign": halignItems,
           // Per-widget content size — index.css zooms the widget's body
           // wrapper by this, so every widget scales, not just tagged ones.
           "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),
@@ -402,7 +408,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
             optionsHold.onPointerDown?.(e);
             if (e.target.closest?.("[data-own-hold]")) e.stopPropagation();
           }}
-          style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, alignItems: halignItems, ...(editMode ? { pointerEvents: "none" } : null) }}>
+          style={{ height: "100%", minHeight: 0, display: "flex", flexDirection: "column", justifyContent: valignJustify, ...(editMode ? { pointerEvents: "none" } : null) }}>
         {look.css && look.css !== OFF && (
           <style dangerouslySetInnerHTML={{
             __html: `[data-widget-id="${widget.instanceId}"]{${look.css}}`,

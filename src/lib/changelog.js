@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "fix", text: "A widget's “Across” setting aligns the content inside the widget now — it was shrinking the widget's own box instead." },
       { type: "improve", text: "One handle above the bottom bar instead of three controls: swipe up (or tap) its left half for the pinned {{alter}} bar, its right half for the quick actions." },
       { type: "fix", text: "Per-bar text size and font actually apply now — bar labels were using fixed sizes that ignored the setting." },
       { type: "improve", text: "With the quick action bar off, the pinned {{alter}} bar takes its place in the bottom bar (with the same fold-away handle) instead of floating." },
