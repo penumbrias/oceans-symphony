@@ -21,6 +21,10 @@ export const DEFAULT_BACKGROUND = Object.freeze({
     stops: [{ color: "#4f46e5", image: "" }, { color: "#0ea5e9", image: "" }],
   },
   image: { url: "", position: "cover" },
+  // 0–80: how strongly the app background color washes over the layers
+  // so content stays readable over loud backgrounds. 0 = exactly what
+  // was picked. (The legacy wallpaper always applied ~55.)
+  dim: 0,
   audio: null, // { ref, title, loop, autoplay, volume } — the page song
 });
 
@@ -45,6 +49,7 @@ export function resolveBackground(stored) {
       folder: typeof b.image?.folder === "string" ? b.image.folder : "",
       mode: b.image?.mode === "sequential" ? "sequential" : "random",
     },
+    dim: Number.isFinite(Number(b.dim)) ? Math.max(0, Math.min(80, Number(b.dim))) : 0,
     audio: b.audio && typeof b.audio === "object" ? b.audio : null,
   };
 }
@@ -138,6 +143,12 @@ export default function PageBackground({ background }) {
             }} />
           ) : null)}
         </>
+      )}
+
+      {/* The readability wash — the theme background at the user's chosen
+          strength, over every layer. */}
+      {bg.dim > 0 && (
+        <div className="absolute inset-0" style={{ background: `hsl(var(--background) / ${bg.dim / 100})` }} />
       )}
     </div>
   );

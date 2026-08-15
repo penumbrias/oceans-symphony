@@ -187,7 +187,7 @@ function SizeSection({ v2, alignX }) {
   const touchIdx = Math.max(0, TOUCH_STEPS.indexOf(a11y.largeTouch || "default"));
 
   return (
-    <SubSection title={tr("editSheet.size")} defaultOpen>
+    <SubSection title={tr("editSheet.size")} defaultOpen storageKey="edit-size">
       <div className="space-y-1">
         {tokenRow("contentW")}
         {/* Touch target spacing — the engine today is one all-sides scale;
@@ -322,9 +322,9 @@ function BarsSection({ v2, alignX }) {
   };
 
   return (
-    <SubSection title={tr("editSheet.bars")}>
+    <SubSection title={tr("editSheet.bars")} storageKey="edit-bars">
       {/* Top bar — each bar is its own collapsible, per the wireframe. */}
-      <SubSection title={tr("editSheet.barTop")}>
+      <SubSection title={tr("editSheet.barTop")} storageKey="edit-bar-top">
       <div className="space-y-1">
         {tokenRow("statusH", "editSheet.barHeight")}
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
@@ -373,7 +373,7 @@ function BarsSection({ v2, alignX }) {
       </div>
       </SubSection>
 
-      <SubSection title={tr("editSheet.barBottom")}>
+      <SubSection title={tr("editSheet.barBottom")} storageKey="edit-bar-bottom">
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
         {tokenRow("stripH", "editSheet.barHeight")}
@@ -407,7 +407,7 @@ function BarsSection({ v2, alignX }) {
       </div>
       </SubSection>
 
-      <SubSection title={tr("editSheet.barSide")}>
+      <SubSection title={tr("editSheet.barSide")} storageKey="edit-bar-side">
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
         {tokenRow("railW", "editSheet.barWidth")}
@@ -421,7 +421,7 @@ function BarsSection({ v2, alignX }) {
       </div>
       </SubSection>
 
-      <SubSection title={tr("editSheet.barActions")}>
+      <SubSection title={tr("editSheet.barActions")} storageKey="edit-bar-actions">
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
         {tokenRow("cmdSize", "editSheet.buttonSize")}
@@ -475,10 +475,11 @@ function BarsSection({ v2, alignX }) {
       </SubSection>
 
       {/* Alter bar — the pinned-members strip on the home board. */}
-      <SubSection title={applyTerms(tr("editSheet.barAlters"), terms)}>
+      <SubSection title={applyTerms(tr("editSheet.barAlters"), terms)} storageKey="edit-bar-alters">
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")}
-          on={altersBar.enabled === true} onChange={(on) => writeAltersBar({ enabled: on })} />
+          on={altersBar.enabled === true}
+          onChange={(on) => writeAltersBar({ enabled: on, collapsed: false })} />
         {altersBar.enabled === true && (
           <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
             onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
@@ -549,7 +550,7 @@ function ColorsSection({ children }) {
   };
 
   return (
-    <SubSection title={tr("editSheet.colors")}>
+    <SubSection title={tr("editSheet.colors")} storageKey="edit-colors">
       <div className="grid grid-cols-4 gap-2">
         {COLOR_ROLES.map(([key, labelKey]) => {
           const { hex, alpha } = splitHexAlpha(current(key));
@@ -754,6 +755,17 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
         </div>
       )}
 
+      {/* How strongly the theme background washes over the layers, so a
+          loud background can't drown the content ("totally covering the
+          main UI"). 0 keeps exactly what was picked. */}
+      {(bg.type !== "none" || layers[0].image) && (
+        <SetRow label={tr("editSheet.bgDim")} valueLabel={`${bg.dim || 0}%`}>
+          <input type="range" min={0} max={80} step={5} value={bg.dim || 0}
+            onChange={(e) => patch({ dim: parseInt(e.target.value, 10) })}
+            className="w-full" aria-label={tr("editSheet.bgDim")} />
+        </SetRow>
+      )}
+
       {/* Audio background = the page song (same controls as profile music). */}
       <div className="pt-2 border-t border-border/30">
         <p className="text-xs font-medium mb-1.5">{tr("editSheet.pageSong")}</p>
@@ -887,7 +899,7 @@ function PresetsSection({ v2 }) {
     .filter(Boolean);
 
   return (
-    <SubSection title={tr("editSheet.presets")}>
+    <SubSection title={tr("editSheet.presets")} storageKey="edit-presets">
       {/* Save new — size and/or color, optionally linked to a member. */}
       <div className="space-y-2">
         <div className="flex items-center gap-2">

@@ -59,6 +59,8 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
+  const emptyTerms = useTerms();
+  const emptyHint = `No pinned ${emptyTerms.alters} yet — press and hold an ${emptyTerms.alter} to pin them.`;
 
   const { data: alters = [] } = useQuery({
     queryKey: ["alters"],
@@ -119,10 +121,27 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
     }
   };
 
-  // Nothing pinned yet → the strip stays hidden. First pins come from an
-  // alter's press-and-hold menu ("Pin to top"); once at least one is pinned,
-  // the gear's "Add or remove pins" manages the rest.
-  if (pinned.length === 0) return null;
+  // Nothing pinned yet → say so instead of vanishing. The bar's Show
+  // toggle looked broken when this returned null ("the alter bar can not
+  // be displayed"); the hint carries the gear so pins can be added right
+  // here. Headerless mounts (the home-board strip) get the hint; the
+  // profile-page mount keeps its old hidden behavior via showHeader.
+  if (pinned.length === 0) {
+    if (!showHeader) {
+      return (
+        <div className="flex items-center gap-2 py-1.5 px-2 text-xs text-muted-foreground">
+          <span className="flex-1 min-w-0">{emptyHint}</span>
+          {showGear && onGear && (
+            <button type="button" onClick={onGear} aria-label="Pinned bar options"
+              className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+              <SettingsIcon className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+      );
+    }
+    return null;
+  }
 
   const stripWrapStyle = barHeight > 0
     ? {

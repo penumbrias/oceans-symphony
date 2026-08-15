@@ -48,13 +48,28 @@ export function Field({ label, hint, htmlFor, children, className = "" }) {
 // A collapsible subsection inside a Section — collapsed by default, with a
 // clearly-delineated header (uppercase label + chevron) and a divider above
 // the body. This is the unit that gives the menu its tidy, scannable rhythm.
-export function SubSection({ title, hint, icon: Icon, defaultOpen = false, right = null, children }) {
-  const [open, setOpen] = useState(defaultOpen);
+export function SubSection({ title, hint, icon: Icon, defaultOpen = false, right = null, storageKey = null, children }) {
+  // storageKey: remember open/closed across remounts (sessionStorage) —
+  // sheets that re-anchor (the edit popup's dock flip) must not reset
+  // what the user had open.
+  const [open, setOpen] = useState(() => {
+    if (storageKey) {
+      try {
+        const v = sessionStorage.getItem(`os_sub_${storageKey}`);
+        if (v !== null) return v === "1";
+      } catch { /* storage off */ }
+    }
+    return defaultOpen;
+  });
+  const toggle = () => setOpen((o) => {
+    if (storageKey) { try { sessionStorage.setItem(`os_sub_${storageKey}`, o ? "0" : "1"); } catch { /* ignore */ } }
+    return !o;
+  });
   return (
     <div className="rounded-lg border border-border/40 overflow-hidden">
       <button
         type="button"
-        onClick={() => setOpen((o) => !o)}
+        onClick={toggle}
         aria-expanded={open}
         className="w-full flex items-center gap-2 px-3 py-2.5 bg-muted/15 hover:bg-muted/30 transition-colors text-left"
       >

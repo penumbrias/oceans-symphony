@@ -444,6 +444,7 @@ export default {
   "editSheet.gradRadial": "Radial",
   "editSheet.gradAngle": "Angle",
   "editSheet.gradStrength": "Strength",
+  "editSheet.bgDim": "Soften behind content",
   "editSheet.pageSong": "Page song",
   "editSheet.presets": "Presets",
   "editSheet.presetName": "Preset name",

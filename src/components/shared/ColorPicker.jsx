@@ -1,4 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { HexColorPicker } from 'react-colorful';
 
 // compact: show ONLY the swatch in the row — the name, the hex field and any
@@ -12,14 +13,30 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   const [open, setOpen] = useState(false);
   const [hex, setHex] = useState(value || '#6366f1');
   const containerRef = useRef(null);
+  const popRef = useRef(null);
+  // Portaled + viewport-clamped: absolutely-positioned popovers were
+  // getting clipped by scrolling sheet containers (the edit popup),
+  // cutting the picker in half. Fixed positioning from the trigger rect
+  // escapes any overflow, and the clamp keeps it fully on screen.
+  const [pos, setPos] = useState({ top: 0, left: 0 });
 
   useEffect(() => { setHex(value || '#6366f1'); }, [value]);
 
+  useLayoutEffect(() => {
+    if (!open || !containerRef.current) return;
+    const r = containerRef.current.getBoundingClientRect();
+    const W = 232, H = 320; // approximate popover size for clamping
+    const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
+    const below = r.bottom + 8;
+    const top = below + H > window.innerHeight - 8 ? Math.max(8, r.top - H - 8) : below;
+    setPos({ top, left });
+  }, [open]);
+
   useEffect(() => {
     const handleClickOutside = (e) => {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
+      if (containerRef.current?.contains(e.target)) return;
+      if (popRef.current?.contains(e.target)) return;
+      setOpen(false);
     };
     if (open) document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
@@ -58,9 +75,10 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
           />
         )}
       </div>
-      {open && (
-        <div className='absolute z-50 mt-2 p-3 bg-card border border-border rounded-xl shadow-xl'
-          style={{ top: '100%', left: 0 }}>
+      {open && createPortal(
+        <div ref={popRef} data-color-picker-popover
+          className='fixed z-[90] p-3 bg-card border border-border rounded-xl shadow-xl'
+          style={{ top: pos.top, left: pos.left }}>
           {compact && label && (
             <p className='text-xs font-medium mb-2'>{label}</p>
           )}
@@ -101,7 +119,8 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
               )}
             </div>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

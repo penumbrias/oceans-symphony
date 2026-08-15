@@ -850,9 +850,15 @@ const handleNotifClick = (mentionLog) => {
             <SystemBanner url={bannerUrl} height={bannerHeight} position={bannerPosition} />
           )}
           {!showFeatureTour && !pageScopedTourRoute && (
-            <PageTutorialBanner
-              onLaunch={(route) => setPageScopedTourRoute(route)}
-            />
+            // Own stacking layer: the v2 board's page background is a
+            // fixed -z-10 layer INSIDE the board's context, which paints
+            // over earlier in-flow siblings like this banner (the same
+            // invisible-banner class of bug as the chrome banners).
+            <div className="relative z-10">
+              <PageTutorialBanner
+                onLaunch={(route) => setPageScopedTourRoute(route)}
+              />
+            </div>
           )}
           <Outlet context={{ setShowFeatureTour }} />
         </main>

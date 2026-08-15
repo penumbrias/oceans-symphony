@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "fix", text: "Moving the edit popup to the other screen edge no longer resets which sections you had open." },
+      { type: "fix", text: "Color pickers no longer get clipped by the edit popup — they float free and stay fully on screen." },
+      { type: "fix", text: "The {{alter}} bar shows on its own now — it no longer needs the quick action bar. With nothing pinned it says so, and a collapsed bar leaves a tab to bring it back." },
+      { type: "fix", text: "The “New to this page?” banner is no longer hidden under a page background." },
+      { type: "improve", text: "Background: a “Soften behind content” slider washes the theme background over loud backgrounds so content stays readable." },
       { type: "feature", text: "Top bar contents are arrangeable — reorder or hide the {{system}} name, who's {{fronting}}, the clock, search and notifications, and place the gap wherever you want. The bar itself can no longer be switched off." },
       { type: "fix", text: "The bell now offers both Reminders and Mentions — reminders were unreachable from the new UI's bell." },
       { type: "improve", text: "Each bar in Bar sizes & layout is its own collapsible section, matching the wireframe." },

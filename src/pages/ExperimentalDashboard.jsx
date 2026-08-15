@@ -902,8 +902,10 @@ export default function ExperimentalDashboard({
   // PinnedAltersGallery renders null with no pins — hide the bar chrome too
   // so an empty strip doesn't sit there (but keep it visible in edit mode so
   // the toggle has visible feedback).
-  const hasPinnedAlters = (api?.alters || []).some((a) => a.is_pinned && !a.is_archived);
-  const altersBarOn = home.altersBar.enabled && (hasPinnedAlters || editMode);
+  // Enabled = shown. It used to also require pinned alters, which made
+  // the popup's Show toggle appear broken on a system with none pinned —
+  // the gallery's own empty state explains what to do instead.
+  const altersBarOn = home.altersBar.enabled === true;
   const altersCollapsed = home.altersBar.collapsed === true;
   // The bar is styled like a widget: same look fields, same pipeline, so
   // border/background/radius/padding/text all behave as they do on a tile.
@@ -1556,6 +1558,17 @@ export default function ExperimentalDashboard({
                 <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
               </div>
             </div>
+          )}
+          {/* Collapsed (bottom position): a thin tab to fold it back out.
+              Without this, a bottom bar collapsed with the quick-action
+              bar hidden had NO handle left anywhere — it looked like the
+              alter bar simply refused to display. */}
+          {altersBottom && altersCollapsed && (
+            <button type="button" onClick={toggleAltersCollapsed}
+              aria-label={`Show the pinned ${t.alters} bar`}
+              className="pointer-events-auto px-4 py-1 rounded-full bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg text-xs text-muted-foreground hover:text-foreground">
+              <ChevronUp className="w-3.5 h-3.5 inline mr-1" />{t.Alters}
+            </button>
           )}
           {barIds.length > 0 && (
             <div className="pointer-events-auto max-w-full overflow-x-auto px-3 py-1.5 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
