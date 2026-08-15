@@ -90,6 +90,21 @@ export const V2_COMMAND_KEYS = [
 // Grouped so the options sheet can label honestly what each knob affects.
 // (Text size is NOT a token here — the sheet drives the existing app-wide
 // accessibility font-size engine so it actually applies everywhere.)
+// The top bar's arrangeable contents (spec §2 — "arrangement/layout,
+// icon images, labels"). The apps button and the page menu are NOT here:
+// apps anchors the left edge and the menu is the recovery path to these
+// very settings, so neither can be hidden or displaced. "spacer" is the
+// flexible gap — arrange it to choose where the bar splits left/right.
+export const V2_TOP_BAR_ITEMS = [
+  { id: "name",     labelKey: "editSheet.topItem.name" },
+  { id: "presence", labelKey: "editSheet.topItem.presence" },
+  { id: "spacer",   labelKey: "editSheet.topItem.spacer" },
+  { id: "clock",    labelKey: "editSheet.topItem.clock" },
+  { id: "search",   labelKey: "editSheet.topItem.search" },
+  { id: "bell",     labelKey: "editSheet.topItem.bell" },
+];
+const TOP_BAR_IDS = V2_TOP_BAR_ITEMS.map((i) => i.id);
+
 export const V2_TOKEN_DEFS = [
   { id: "contentW",  group: "app",  label: "Content width",          type: "range",  cssVar: "--v2-content-w", default: 0,  min: 0, max: 1400, step: 40, unit: "px" }, // 0 = full width
   // Content alignment (the wireframed SIZE section). Applied as data
@@ -192,6 +207,18 @@ export function resolveUiV2(stored) {
           .filter((id) => V2_COMMAND_KEYS.some((k) => k.id === id)))]
       : [...DEFAULT_UI_V2.commandKeys],
     tokens,
+    // Top-bar arrangement: stored order first (unknown ids dropped),
+    // then anything missing in catalogue order — so new items appear for
+    // existing users without wiping their arrangement.
+    topBar: {
+      order: [
+        ...(Array.isArray(src.topBar?.order) ? src.topBar.order.filter((id) => TOP_BAR_IDS.includes(id)) : []),
+        ...TOP_BAR_IDS.filter((id) => !(Array.isArray(src.topBar?.order) ? src.topBar.order : []).includes(id)),
+      ],
+      hidden: Array.isArray(src.topBar?.hidden)
+        ? src.topBar.hidden.filter((id) => TOP_BAR_IDS.includes(id))
+        : [],
+    },
     bars: {
       top: src.bars?.top !== false,
       actions: src.bars?.actions !== false,

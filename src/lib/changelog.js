@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "feature", text: "Top bar contents are arrangeable — reorder or hide the {{system}} name, who's {{fronting}}, the clock, search and notifications, and place the gap wherever you want. The bar itself can no longer be switched off." },
+      { type: "fix", text: "The bell now offers both Reminders and Mentions — reminders were unreachable from the new UI's bell." },
+      { type: "improve", text: "Each bar in Bar sizes & layout is its own collapsible section, matching the wireframe." },
       { type: "fix", text: "The header font setting now applies to every heading — before, most headings ignored it and just followed the body font." },
       { type: "improve", text: "The edit popup can dock to the top of the screen (new arrow button next to Peek), so it stops covering the thing you're adjusting." },
       { type: "improve", text: "“Display options” and the home screen's own settings button open the same menu now. Sections renamed: “UI & text” and “Colors & background” (background lives inside it)." },

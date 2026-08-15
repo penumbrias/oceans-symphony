@@ -31,6 +31,9 @@ import {
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
 } from "@/components/ui/drawer";
+import {
+  DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useLongPress from "@/hooks/useLongPress";
 import { V2_COMMAND_KEYS } from "@/lib/uiV2";
@@ -361,40 +364,73 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
             ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
             : <img src="/logo.png" alt="" className="w-6 h-6 object-contain rounded-md" />}
         </button>
-        <button type="button" onClick={() => navigate("/")}
-          className="font-semibold text-sm truncate max-w-[34%] text-left"
-          title={settingsRow?.system_name || terms.System}>
-          {settingsRow?.system_name || terms.System}
-        </button>
-        {/* Who's here → the Set Fronters window. The Dashboard hosts the
-            sheet, so away from home this navigates in with the action
-            param — same route the quick-action key takes. */}
-        <button type="button"
-          onClick={() => {
-            if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-set-front"));
-            else navigate("/?action=set-front");
-          }}
-          className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground"
-          aria-label={`${presenceText} — ${applyTerms(t("capture.front"), terms)}`}
-          title={applyTerms(t("capture.front"), terms)}>
-          <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
-            style={{ background: fronters.length ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />
-          <span className="truncate">{presenceText}</span>
-        </button>
-        <span className="ml-auto text-xs tabular-nums text-muted-foreground">{clock}</span>
-        <button type="button" onClick={() => setSearchOpen(true)} aria-label={t("top.search")}
-          className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground">
-          <Search className="w-4 h-4" />
-        </button>
-        <button type="button" aria-label={t("top.notifications")}
-          onClick={() => {
-            if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-notification-history"));
-            else navigate("/?action=notifications");
-          }}
-          className="relative min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground">
-          <Bell className="w-4 h-4" />
-          {hasUnread && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />}
-        </button>
+        {/* Arrangeable contents (Display options → Bars → Top bar): each
+            item renders in the user's order, hidden ones skipped. The
+            "spacer" item is the flexible gap deciding where the bar
+            splits left/right. Apps (left anchor) and the page menu (the
+            recovery path) stay fixed. */}
+        {uiV2.topBar.order.filter((id) => !uiV2.topBar.hidden.includes(id)).map((id) => {
+          if (id === "spacer") return <span key={id} className="flex-1 min-w-2" />;
+          if (id === "name") return (
+            <button key={id} type="button" onClick={() => navigate("/")}
+              className="font-semibold text-sm truncate max-w-[34%] text-left flex-shrink"
+              title={settingsRow?.system_name || terms.System}>
+              {settingsRow?.system_name || terms.System}
+            </button>
+          );
+          if (id === "presence") return (
+            // Who's here → the Set Fronters window. The Dashboard hosts
+            // the sheet, so away from home this navigates in with the
+            // action param — same route the quick-action key takes.
+            <button key={id} type="button"
+              onClick={() => {
+                if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-set-front"));
+                else navigate("/?action=set-front");
+              }}
+              className="flex items-center gap-1.5 min-w-0 text-xs text-muted-foreground flex-shrink"
+              aria-label={`${presenceText} — ${applyTerms(t("capture.front"), terms)}`}
+              title={applyTerms(t("capture.front"), terms)}>
+              <span className="w-1.5 h-1.5 rounded-full flex-shrink-0"
+                style={{ background: fronters.length ? "var(--v2-accent)" : "hsl(var(--muted-foreground))" }} />
+              <span className="truncate">{presenceText}</span>
+            </button>
+          );
+          if (id === "clock") return (
+            <span key={id} className="text-xs tabular-nums text-muted-foreground flex-shrink-0">{clock}</span>
+          );
+          if (id === "search") return (
+            <button key={id} type="button" onClick={() => setSearchOpen(true)} aria-label={t("top.search")}
+              className="min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
+              <Search className="w-4 h-4" />
+            </button>
+          );
+          if (id === "bell") return (
+            // Both notification surfaces live behind the bell: the
+            // Reminders inbox (as in classic) AND mention history —
+            // tapping used to reach only mentions.
+            <DropdownMenu key={id}>
+              <DropdownMenuTrigger asChild>
+                <button type="button" aria-label={t("top.notifications")}
+                  className="relative min-w-[34px] min-h-[34px] flex items-center justify-center text-muted-foreground hover:text-foreground flex-shrink-0">
+                  <Bell className="w-4 h-4" />
+                  {hasUnread && <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />}
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="z-[60]">
+                <DropdownMenuItem onClick={() => navigate("/reminders")}>
+                  {t("top.reminders")}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => {
+                  if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-notification-history"));
+                  else navigate("/?action=notifications");
+                }}>
+                  {applyTerms(t("top.mentions"), terms)}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+          return null;
+        })}
         {/* The classic page-aware settings menu, with v2 entries on top —
             Edit home screen and Display options are one tap away from any
             page, and "All settings" stays the catch-all. */}

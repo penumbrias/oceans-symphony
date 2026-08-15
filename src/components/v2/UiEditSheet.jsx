@@ -27,7 +27,7 @@ import { AssetButton } from "@/components/shared/AssetPickerModal";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { useV2Display } from "@/components/settings/V2DisplaySettings";
-import { V2_TOKEN_DEFS, V2_COMMAND_KEYS } from "@/lib/uiV2";
+import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
@@ -308,13 +308,49 @@ function BarsSection({ v2, alignX }) {
     [homeField]: { ...(settingsRow?.[homeField] || {}), altersBar: { ...altersBar, ...patch } },
   });
 
+  // Top-bar arrangement — order + per-item show/hide (the wireframe's
+  // "arrangement / icon images, labels ... toggle display"). No on/off
+  // for the whole bar: it carries the recovery paths, so it stays.
+  const topBar = v2.uiV2.topBar;
+  const writeTopBar = (patch) => v2.write({ topBar: { ...topBar, ...patch } });
+  const moveTopItem = (idx, dir) => {
+    const next = [...topBar.order];
+    const to = idx + dir;
+    if (to < 0 || to >= next.length) return;
+    [next[idx], next[to]] = [next[to], next[idx]];
+    writeTopBar({ order: next });
+  };
+
   return (
     <SubSection title={tr("editSheet.bars")}>
-      {/* Top bar */}
-      <div className="space-y-1 pb-2 border-b border-border/30">
-        <BarToggle label={tr("editSheet.barTop")} on={v2.uiV2.bars.top} onChange={(on) => v2.setBar("top", on)} />
-        {!v2.uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{tr("options.recoveryHint")}</p>}
+      {/* Top bar — each bar is its own collapsible, per the wireframe. */}
+      <SubSection title={tr("editSheet.barTop")}>
+      <div className="space-y-1">
         {tokenRow("statusH", "editSheet.barHeight")}
+        <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
+        {topBar.order.map((id, idx) => {
+          const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
+          if (!item) return null;
+          const shown = !topBar.hidden.includes(id);
+          return (
+            <div key={id} className="flex items-center gap-2 py-0.5">
+              <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
+                <input type="checkbox" checked={shown}
+                  onChange={(e) => writeTopBar({
+                    hidden: e.target.checked ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id],
+                  })}
+                  className="w-3.5 h-3.5 rounded accent-primary" aria-label={tr(item.labelKey)} />
+                <span className="truncate">{applyTerms(tr(item.labelKey), terms)}</span>
+              </label>
+              <button type="button" onClick={() => moveTopItem(idx, -1)} disabled={idx === 0}
+                aria-label={`${tr(item.labelKey)} ↑`}
+                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+              <button type="button" onClick={() => moveTopItem(idx, 1)} disabled={idx === topBar.order.length - 1}
+                aria-label={`${tr(item.labelKey)} ↓`}
+                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+            </div>
+          );
+        })}
         <BarToggle label={tr("editSheet.wave")} on={v2.uiV2.bars.wave} onChange={(on) => v2.setBar("wave", on)} />
         {v2.uiV2.bars.wave && (
           <div className="flex items-center gap-2.5 py-1">
@@ -335,10 +371,11 @@ function BarsSection({ v2, alignX }) {
           </div>
         )}
       </div>
+      </SubSection>
 
-      {/* Bottom bar */}
-      <div className="space-y-1 py-2 border-b border-border/30">
-        <BarToggle label={tr("editSheet.barBottom")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
+      <SubSection title={tr("editSheet.barBottom")}>
+      <div className="space-y-1">
+        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
         {tokenRow("stripH", "editSheet.barHeight")}
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
         {bottomIds.map((id, idx) => (
@@ -368,10 +405,11 @@ function BarsSection({ v2, alignX }) {
           />
         )}
       </div>
+      </SubSection>
 
-      {/* Side bar (desktop rail) */}
-      <div className="space-y-1 py-2 border-b border-border/30">
-        <BarToggle label={tr("editSheet.barSide")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
+      <SubSection title={tr("editSheet.barSide")}>
+      <div className="space-y-1">
+        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
         {tokenRow("railW", "editSheet.barWidth")}
         <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
           onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
@@ -381,10 +419,11 @@ function BarsSection({ v2, alignX }) {
           options={[{ v: "labels", label: tr("editSheet.labels") }, { v: "icons", label: tr("editSheet.icons") }]} />
         <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.railHint")}</p>
       </div>
+      </SubSection>
 
-      {/* Quick action bar */}
-      <div className="space-y-1 py-2 border-b border-border/30">
-        <BarToggle label={tr("editSheet.barActions")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
+      <SubSection title={tr("editSheet.barActions")}>
+      <div className="space-y-1">
+        <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
         {tokenRow("cmdSize", "editSheet.buttonSize")}
         <PillRow label={tr("editSheet.placement")} value={v2.uiV2.tokens.actionsMode ?? "bar"}
           onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
@@ -433,10 +472,12 @@ function BarsSection({ v2, alignX }) {
           );
         })}
       </div>
+      </SubSection>
 
       {/* Alter bar — the pinned-members strip on the home board. */}
-      <div className="space-y-1 pt-2">
-        <BarToggle label={applyTerms(tr("editSheet.barAlters"), terms)}
+      <SubSection title={applyTerms(tr("editSheet.barAlters"), terms)}>
+      <div className="space-y-1">
+        <BarToggle label={tr("editSheet.show")}
           on={altersBar.enabled === true} onChange={(on) => writeAltersBar({ enabled: on })} />
         {altersBar.enabled === true && (
           <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
@@ -445,6 +486,7 @@ function BarsSection({ v2, alignX }) {
         )}
         <p className="text-[0.6875rem] text-muted-foreground">{applyTerms(tr("editSheet.alterBarHint"), terms)}</p>
       </div>
+      </SubSection>
     </SubSection>
   );
 }
