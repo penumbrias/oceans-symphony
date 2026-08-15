@@ -7,6 +7,22 @@
 
 import { base44 } from "@/api/base44Client";
 
+// Rescheduling is the other way out of "unresolved": the plan is still
+// happening, just later. Status stays `scheduled` and the move is recorded
+// in reschedule_history — the tracker's model, and the same write the
+// planner sheet's move-to-day commit performs.
+export async function reschedulePlan(item, when) {
+  const to = when.toISOString();
+  const from = item.timestamp || null;
+  await base44.entities.Activity.update(item.id, {
+    timestamp: to,
+    status: "scheduled",
+    ...(from && from !== to
+      ? { reschedule_history: [...(item.reschedule_history || []), { from, to, ts: new Date().toISOString() }] }
+      : {}),
+  });
+}
+
 export async function resolveOutcome(item, status) {
   await base44.entities.Activity.update(item.id, {
     status,

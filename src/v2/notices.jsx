@@ -36,7 +36,7 @@ import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurf
 import { statusFor, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCard";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
-import { resolveOutcome } from "@/lib/planner/resolvePlan";
+import { resolveOutcome, reschedulePlan } from "@/lib/planner/resolvePlan";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -233,11 +233,38 @@ function UnresolvedNotice({ rows, onResolved }) {
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [busyId, setBusyId] = useState(null);
+  // Reschedule-in-place: tapping the chip opens a day+time row for THAT
+  // plan (default tomorrow, same clock time) — resolving by moving it
+  // shouldn't require a trip to the planner.
+  const [reschedId, setReschedId] = useState(null);
+  const [reschedDay, setReschedDay] = useState("");
+  const [reschedTime, setReschedTime] = useState("");
 
   const resolve = async (item, status) => {
     setBusyId(item.id);
     try {
       await resolveOutcome(item, status);
+      onResolved();
+    } finally { setBusyId(null); }
+  };
+
+  const startResched = (item) => {
+    const base = item.timestamp ? new Date(item.timestamp) : new Date();
+    const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+    setReschedId(item.id);
+    setReschedDay(format(tomorrow, "yyyy-MM-dd"));
+    setReschedTime(format(base, "HH:mm"));
+  };
+
+  const commitResched = async (item) => {
+    const [y, mo, da] = reschedDay.split("-").map(Number);
+    const [h, mi] = reschedTime.split(":").map(Number);
+    if (!y || !mo || !da) return;
+    const when = new Date(y, mo - 1, da, h || 0, mi || 0, 0, 0);
+    setBusyId(item.id);
+    try {
+      await reschedulePlan(item, when);
+      setReschedId(null);
       onResolved();
     } finally { setBusyId(null); }
   };
@@ -274,7 +301,31 @@ function UnresolvedNotice({ rows, onResolved }) {
                       {label}
                     </button>
                   ))}
+                  <button type="button" disabled={busyId === item.id}
+                    onClick={(e) => { e.stopPropagation(); reschedId === item.id ? setReschedId(null) : startResched(item); }}
+                    className={`text-[0.6875em] px-2 py-0.5 rounded-full border disabled:opacity-40 ${
+                      reschedId === item.id
+                        ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                        : "border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {tr("planner.reschedule")}
+                  </button>
                 </div>
+                {reschedId === item.id && (
+                  <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                    <input type="date" value={reschedDay} onChange={(e) => setReschedDay(e.target.value)}
+                      aria-label={tr("planner.date")}
+                      className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
+                    <input type="time" value={reschedTime} onChange={(e) => setReschedTime(e.target.value)}
+                      aria-label={tr("planner.giveTime")}
+                      className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
+                    <button type="button" disabled={busyId === item.id}
+                      onClick={() => commitResched(item)}
+                      className="text-[0.6875em] px-2 py-1 rounded-lg border border-[var(--v2-accent)] text-[var(--v2-accent)] disabled:opacity-40 flex-shrink-0">
+                      {tr("planner.reschedule")}
+                    </button>
+                  </div>
+                )}
               </div>
             ))}
           </div>

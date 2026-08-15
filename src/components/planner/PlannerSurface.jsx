@@ -7,7 +7,7 @@
 //
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
@@ -83,6 +83,9 @@ export default function PlannerSurface({
   // only, like the classic modal — editing one instance never changes a
   // series' cadence), critical pinning, per-plan reminder offset, location.
   const [moreOpen, setMoreOpen] = useState(false);
+  // "Rescheduled" outcome chip → jump into the date field: rescheduling IS
+  // the sheet's own move-to-day controls; the chip just takes you there.
+  const dayInputRef = useRef(null);
   const [recur, setRecur] = useState({ interval: "none", count: 8 });
   const [extra, setExtra] = useState({
     is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS,
@@ -695,7 +698,7 @@ export default function PlannerSurface({
                   );
                 })}
               </div>
-              <input type="date"
+              <input type="date" ref={dayInputRef}
                 aria-label={tr("planner.date")}
                 value={format(new Date(timing.day), "yyyy-MM-dd")}
                 onChange={(e) => {
@@ -795,6 +798,20 @@ export default function PlannerSurface({
                         : "border-border/50 text-muted-foreground"
                     }`}>{label}</button>
                 ))}
+                {/* Not an end state — "it's still happening, just later".
+                    The chip enters the reschedule flow: the sheet's own
+                    move-to-day controls, with the date picker opened so
+                    the next tap is already choosing the new day. */}
+                <button type="button"
+                  onClick={() => {
+                    const el = dayInputRef.current;
+                    if (!el) return;
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    try { el.showPicker(); } catch { el.focus(); }
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
+                  <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
+                </button>
               </div>
               {/* Partly done wants to know how much actually happened — the
                   totals count the actual, not the intention. */}

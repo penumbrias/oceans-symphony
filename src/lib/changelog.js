@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 15, 2026",
+    changes: [
+      { type: "feature", text: "Plans can now be resolved as \u201cRescheduled\u201d: the planner's outcome row and the home notice both offer Reschedule, which moves the plan to a new day and time instead of closing it." },
+    ],
+  },
+  {
     date: "August 14, 2026",
+    version: "0.173.3",
     changes: [
       { type: "fix", text: "A widget's “Across” setting aligns the content inside the widget now — it was shrinking the widget's own box instead." },
       { type: "improve", text: "One handle above the bottom bar instead of three controls: swipe up (or tap) its left half for the pinned {{alter}} bar, its right half for the quick actions." },
