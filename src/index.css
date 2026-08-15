@@ -757,6 +757,10 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
 [data-ui-v2="1"] :is(h1, h2, h3, h4, h5, h6, .font-display) {
   --v2-hmult: var(--v2-heading-scale, 1);
 }
+/* When a custom heading font is chosen, EVERY heading uses it — not just
+   the few elements carrying the font-display utility. Attribute-gated so
+   the app's own mixed heading fonts stay untouched until the user picks. */
+html[data-heading-font] :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-display); }
 /* Flags combine freely (the attribute is space-separated, matched with
    ~=): bold + italic + underline + strikethrough + small caps. */
 [data-ui-v2="1"][data-v2-bstyle~="bold"] { font-weight: 700; }

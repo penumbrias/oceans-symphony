@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "fix", text: "The header font setting now applies to every heading — before, most headings ignored it and just followed the body font." },
+      { type: "improve", text: "The edit popup can dock to the top of the screen (new arrow button next to Peek), so it stops covering the thing you're adjusting." },
+      { type: "improve", text: "“Display options” and the home screen's own settings button open the same menu now. Sections renamed: “UI & text” and “Colors & background” (background lives inside it)." },
+      { type: "improve", text: "Widget presets (was “home screen styles”) now include your color themes — applying one converts the theme into a matching widget look. Image position options wrap onto their own line." },
+      { type: "improve", text: "Content width can go down to 320px on phones (the 480px floor made the slider look like it did nothing on a phone screen)." },
       { type: "improve", text: "Background got simpler: no Type row. One box is a flat color (or a full-page image); the + box adds a second and it becomes a gradient. Each box holds a color or an image, and a single image can rotate through an asset folder." },
       { type: "improve", text: "Home screen styles are presets now — they live in the edit popup's Presets section with live swatches and the partial-style star; the separate Style pill is gone." },
       { type: "improve", text: "Font styles are toggles that combine freely — B, i, U, S, Aa (bold, italic, underline, strikethrough, small caps). “Bold italic” as a separate option is gone; just turn both on." },

@@ -193,9 +193,17 @@ function applyHeadingFont(value) {
   const el = document.documentElement;
   if (!value || value === "default") {
     el.style.removeProperty("--font-display");
+    // Headings fall back to whatever each one was designed with.
+    el.removeAttribute("data-heading-font");
     return;
   }
   el.style.setProperty("--font-display", value);
+  // Most headings in the app are plain h1–h6 without the font-display
+  // class, so setting only the variable looked like the header-font
+  // setting did nothing ("everything just takes the body settings").
+  // This attribute turns on an index.css rule that points EVERY heading
+  // at --font-display — but only while a custom heading font is chosen.
+  el.setAttribute("data-heading-font", "1");
 }
 
 export function initAccessibility() {

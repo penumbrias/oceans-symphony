@@ -17,7 +17,7 @@
 // the theme preset store (which already applies on fronting via
 // alterThemeLinks).
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { SlidersHorizontal, Plus, X, Star, Copy, Pencil, Link2 } from "lucide-react";
@@ -32,7 +32,7 @@ import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/wave
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
-import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX } from "@/lib/widgetLook";
+import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
 import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
@@ -105,18 +105,27 @@ function TokenSlider({ def, value, onChange }) {
   );
 }
 
-function PillRow({ label, options, value, onChange, alignX }) {
+function PillRow({ label, options, value, onChange, alignX, stacked = false }) {
+  const pills = options.map((o) => (
+    <button key={o.v} type="button" onClick={() => onChange(o.v)} aria-pressed={value === o.v}
+      className={`text-xs px-2.5 py-1 rounded-full border ${
+        value === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+      }`}>{o.label}</button>
+  ));
+  // Stacked: label on its own line, pills wrapping below — for option
+  // sets too wide to share a line without squashing the label to "P…".
+  if (stacked) {
+    return (
+      <div className="py-1 space-y-1">
+        <span className={`text-xs font-medium block ${alignX === "right" ? "text-right" : ""}`}>{label}</span>
+        <div className={`flex gap-1.5 flex-wrap ${alignX === "right" ? "justify-end" : ""}`}>{pills}</div>
+      </div>
+    );
+  }
   return (
     <div className={`flex items-center gap-2.5 py-1 ${alignX === "right" ? "flex-row-reverse" : ""}`}>
       <span className="text-xs font-medium flex-1 min-w-0 truncate">{label}</span>
-      <div className="flex gap-1.5 flex-wrap justify-end">
-        {options.map((o) => (
-          <button key={o.v} type="button" onClick={() => onChange(o.v)} aria-pressed={value === o.v}
-            className={`text-xs px-2.5 py-1 rounded-full border ${
-              value === o.v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-            }`}>{o.label}</button>
-        ))}
-      </div>
+      <div className="flex gap-1.5 flex-wrap justify-end">{pills}</div>
     </div>
   );
 }
@@ -448,7 +457,7 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
-function ColorsSection() {
+function ColorsSection({ children }) {
   const tr = useT();
   const {
     themeMode, selectedTheme, customColors, updateCustomColorsFull,
@@ -462,6 +471,15 @@ function ColorsSection() {
       return getComputedStyle(document.documentElement).getPropertyValue(`--color-${k}`).trim() || "#888888";
     } catch { return "#888888"; }
   };
+
+  // The swatches must show what the UI is ACTUALLY using right now, so
+  // re-read the live CSS whenever the theme inputs change (same pattern
+  // as the classic editor) instead of trusting a stale first read.
+  const [, setLiveTick] = useState(0);
+  useEffect(() => {
+    const id = requestAnimationFrame(() => setLiveTick((t) => t + 1));
+    return () => cancelAnimationFrame(id);
+  }, [customColors, selectedTheme, themeMode, isDark]);
 
   // Seed a full two-mode draft the first time any swatch changes, exactly
   // like the classic editor — so editing one role never clears the others.
@@ -507,6 +525,7 @@ function ColorsSection() {
         })}
       </div>
       <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.colorsHint")}</p>
+      {children}
     </SubSection>
   );
 }
@@ -535,7 +554,9 @@ function ImageSlot({ url, onPick, onClear, title }) {
   );
 }
 
-function BackgroundSection({ background, onChange, wallpaper }) {
+// Rendered INSIDE the "Colors & background" section (the user's call —
+// one section for everything painted, not two).
+function BackgroundBlock({ background, onChange, wallpaper }) {
   const tr = useT();
   const bg = background;
   const patch = (p) => onChange({ ...bg, ...p });
@@ -597,7 +618,10 @@ function BackgroundSection({ background, onChange, wallpaper }) {
   const singleImage = !isGradient && !!layers[0].image;
 
   return (
-    <SubSection title={tr("editSheet.background")}>
+    <div className="pt-2 mt-1 border-t border-border/30 space-y-1">
+      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
+        {tr("editSheet.background")}
+      </p>
       <div className="space-y-1.5 py-1">
         {layers.map((s, i) => {
           const { hex, alpha } = splitHexAlpha(s.color);
@@ -659,7 +683,7 @@ function BackgroundSection({ background, onChange, wallpaper }) {
 
       {singleImage && (
         <div className="space-y-1 py-1">
-          <PillRow label={tr("editSheet.bgPosition")} value={imageCfg.position || "cover"}
+          <PillRow stacked label={tr("editSheet.bgPosition")} value={imageCfg.position || "cover"}
             onChange={(v) => patch({ type: "image", image: { ...imageCfg, position: v } })}
             options={POSITIONS.map((p) => ({ v: p, label: tr(`editSheet.pos.${p}`) }))} />
           {assetFolders.length > 0 && (
@@ -693,7 +717,7 @@ function BackgroundSection({ background, onChange, wallpaper }) {
         <p className="text-xs font-medium mb-1.5">{tr("editSheet.pageSong")}</p>
         <ProfileSongPicker value={bg.audio} onChange={(song) => patch({ audio: song })} subjectLabel="page" />
       </div>
-    </SubSection>
+    </div>
   );
 }
 
@@ -937,20 +961,44 @@ function PresetsSection({ v2 }) {
 function BoardStylesBlock({ settingsRow }) {
   const tr = useT();
   const qc = useQueryClient();
+  const { themeMode, allPresets, userCustomPresets } = useTheme();
   const [notesFor, setNotesFor] = useState(null);
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const current = settingsRow?.[homeField]?.styleMode || "current";
   const userWidgetStyles = resolveUserStyles(settingsRow?.ui_v2_styles);
+  const isDark = themeMode === "dark" ||
+    (themeMode === "system" && typeof document !== "undefined" && document.documentElement.classList.contains("dark"));
+  // Theme presets, synced into widget looks (the user's ask): each colour
+  // theme also appears here as a widget preset via themeToLook. Applying
+  // one saves it as a user style with a stable id, so re-applying after a
+  // theme tweak refreshes the same entry instead of piling up copies.
+  const themeStyles = Object.entries({ ...allPresets, ...userCustomPresets })
+    .filter(([, p]) => p && (p.light || p.dark))
+    .map(([name, p]) => ({
+      themeName: name,
+      id: `${USER_STYLE_PREFIX}theme-${name}`,
+      label: name,
+      description: tr("editSheet.fromThemes"),
+      look: themeToLook(p, isDark),
+    }));
   const styles = [
     ...HOME_STYLES.map((st) => ({ id: st.id, label: st.label, description: st.description, look: getStyleLook(st.id) })),
-    ...userWidgetStyles.map((st) => ({ id: `${USER_STYLE_PREFIX}${st.id}`, label: st.label, description: tr("editSheet.yourStyle"), look: st.look || {} })),
+    ...userWidgetStyles.filter((st) => !String(st.id).startsWith("theme-"))
+      .map((st) => ({ id: `${USER_STYLE_PREFIX}${st.id}`, label: st.label, description: tr("editSheet.yourStyle"), look: st.look || {} })),
+    ...themeStyles,
   ];
-  const apply = async (id) => {
+  const apply = async (st) => {
     if (!settingsRow?.id) return;
-    await base44.entities.SystemSettings.update(settingsRow.id, {
-      [homeField]: { ...(settingsRow[homeField] || {}), styleMode: id },
-    });
+    const patch = {};
+    // A theme-derived entry writes/refreshes its backing user style first.
+    if (st.themeName) {
+      const styleId = `theme-${st.themeName}`;
+      const others = resolveUserStyles(settingsRow.ui_v2_styles).filter((x) => x.id !== styleId);
+      patch.ui_v2_styles = [...others, { id: styleId, label: st.label, look: st.look }];
+    }
+    patch[homeField] = { ...(settingsRow[homeField] || {}), styleMode: st.id };
+    await base44.entities.SystemSettings.update(settingsRow.id, patch);
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
   return (
@@ -967,7 +1015,7 @@ function BoardStylesBlock({ settingsRow }) {
             }`}>
             <span aria-hidden="true" className="w-8 h-8 flex-shrink-0"
               style={{ ...lookToStyle(st.look), ...boxStyle() }} />
-            <button type="button" onClick={() => apply(st.id)} className="flex-1 min-w-0 text-left">
+            <button type="button" onClick={() => apply(st)} className="flex-1 min-w-0 text-left">
               <span className="text-xs font-medium">{st.label}</span>
               <span className="text-[0.625rem] text-muted-foreground block truncate">
                 {notesFor === st.id
@@ -1025,8 +1073,9 @@ export default function UiEditSheet() {
       {/* Wireframe order: bars sit between SIZE and COLORS. Page-level
           only — the widget sheet mounts the other sections without it. */}
       <BarsSection v2={v2} alignX={alignX} />
-      <ColorsSection />
-      <BackgroundSection background={background} onChange={writeBackground} wallpaper={wallpaper} />
+      <ColorsSection>
+        <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
+      </ColorsSection>
       <PresetsSection v2={v2} />
     </div>
   );

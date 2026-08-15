@@ -227,14 +227,14 @@ export function buildTokenVars(uiV2) {
     const v = uiV2.tokens[def.id] ?? def.default;
     if (def.type === "range") {
       if (def.id === "contentW") {
-        // 0 = full width. Any other value gets a floor: below ~480px the
-        // whole app — including the Settings page holding this slider —
-        // collapses into an unusable strip, and the control to undo it is
-        // inside that strip. A layout setting must never be able to make
-        // its own undo unreachable. The floor applies at APPLY time, so
-        // anyone already stuck is rescued on update without their stored
-        // value being rewritten.
-        vars[def.cssVar] = (!v || v === 0) ? "100%" : `${Math.max(480, v)}px`;
+        // 0 = full width. Any other value gets a floor: below ~320px the
+        // whole app collapses into an unusable strip, and the control to
+        // undo it could become unreachable. 320 (not 480) so the slider
+        // still visibly does something on phone-width screens — the edit
+        // popup is a full-width portal drawer, so the undo stays reachable
+        // at any floor. Applied at APPLY time; stored values are never
+        // rewritten.
+        vars[def.cssVar] = (!v || v === 0) ? "100%" : `${Math.max(320, v)}px`;
       }
       else if (def.id === "headerScale") {
         // Unitless multiplier — consumed inside calc() by the tailwind

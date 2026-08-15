@@ -711,7 +711,7 @@ export default function WidgetConfigSheet({
               These write CSS variables onto the widget wrapper, so the
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
-          <SubSection title="Size & text" icon={Palette}>
+          <SubSection title="UI & text" icon={Palette}>
           <div className="space-y-3">
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>
@@ -779,7 +779,7 @@ export default function WidgetConfigSheet({
           </div>
           </SubSection>
 
-          <SubSection title="Colors">
+          <SubSection title="Colors & background">
           <div className="space-y-3">
             {/* Four swatches on one line. The name, hex field, opacity,
                 Clear and "use the app colour" all live inside each picker's
@@ -815,11 +815,6 @@ export default function WidgetConfigSheet({
                   onClear={() => onSettings(widget.instanceId, { borderColor: "", borderOpacity: "" })} />
               </div>
             </div>
-          </div>
-          </SubSection>
-
-          <SubSection title="Background">
-          <div className="space-y-3">
             {/* Effects — the same two the built-in styles use, so a user can
                 build Aero (or anything else) themselves. */}
             <div>

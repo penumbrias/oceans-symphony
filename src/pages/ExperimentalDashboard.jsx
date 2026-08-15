@@ -501,8 +501,10 @@ export default function ExperimentalDashboard({
   React.useEffect(() => {
     const openApps = () => { setDrawerOpen(true); };
     const editHome = () => { setEditMode(true); };
+    const homeSettings = () => { setHomeSettingsOpen(true); };
     window.addEventListener("os-v2-open-apps", openApps);
     window.addEventListener("os-v2-edit-home", editHome);
+    window.addEventListener("os-v2-home-settings", homeSettings);
     try {
       if (sessionStorage.getItem("symphony_v2_open-apps") === "1") {
         sessionStorage.removeItem("symphony_v2_open-apps"); setDrawerOpen(true);
@@ -510,10 +512,14 @@ export default function ExperimentalDashboard({
       if (sessionStorage.getItem("symphony_v2_edit-home") === "1") {
         sessionStorage.removeItem("symphony_v2_edit-home"); setEditMode(true);
       }
+      if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
+        sessionStorage.removeItem("symphony_v2_home-settings"); setHomeSettingsOpen(true);
+      }
     } catch { /* storage off */ }
     return () => {
       window.removeEventListener("os-v2-open-apps", openApps);
       window.removeEventListener("os-v2-edit-home", editHome);
+      window.removeEventListener("os-v2-home-settings", homeSettings);
     };
   }, []);
 

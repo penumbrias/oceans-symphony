@@ -29,6 +29,7 @@ export default {
 
   // ── Display options ──
   "options.title": "Display options",
+  "options.dockFlip": "Move this panel to the other edge",
   "options.subtitle": "Changes apply instantly, across the whole app, and save.",
   "options.editHome": "Edit the home screen",
   "options.appsView": "Apps button opens",
@@ -354,7 +355,7 @@ export default {
   "notices.more": "{count} more — open Reminders",
 
   // ── Unified UI edit popup (docs/v2-edit-menu-spec.md) ──
-  "editSheet.size": "Size & text",
+  "editSheet.size": "UI & text",
   "editSheet.touchSpacing": "Touch target spacing",
   "editSheet.fontBody": "Font — body",
   "editSheet.fontHeader": "Font — header",
@@ -392,7 +393,7 @@ export default {
   "editSheet.placementBubble": "Bubble",
   "editSheet.actionKeys": "Buttons",
   "editSheet.alterBarHint": "The pinned {{alters}} strip on the home screen. Its look is edited like a widget's.",
-  "editSheet.colors": "Colors",
+  "editSheet.colors": "Colors & background",
   "editSheet.colorsHint": "Every visible color. Opacity lives inside each color's picker.",
   "editSheet.colorBackground": "Background",
   "editSheet.colorSurface": "Surface",
@@ -410,9 +411,10 @@ export default {
   "editSheet.wallMode": "Order",
   "editSheet.wallShuffle": "Shuffle",
   "editSheet.wallInOrder": "In order",
-  "editSheet.boardStyles": "Home screen styles",
+  "editSheet.boardStyles": "Widget presets",
   "editSheet.boardStylesHint": "The default widget look for this board. Any widget can override it in its own options.",
   "editSheet.yourStyle": "Your saved style",
+  "editSheet.fromThemes": "From your themes",
   "editSheet.boardStylesMore": "Search styles / use one as a base…",
   "editSheet.styleChanges": "Changes",
   "editSheet.styleLeaves": "leaves alone:",

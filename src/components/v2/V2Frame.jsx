@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp, Eye, EyeOff,
+  Megaphone, ChevronUp, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -127,9 +127,21 @@ function useClock() {
 }
 
 // ── Display options ────────────────────────────────────────────────
+const DOCK_KEY = "symphony_display_options_dock";
+
 function OptionsSheet({ open, onClose, uiV2 }) {
   const t = useT();
   const navigate = useNavigate();
+  // Dock the sheet top or bottom — a bottom sheet can sit exactly over
+  // the thing being adjusted; flipping it up gets it out of the way.
+  const [dock, setDock] = useState(() => {
+    try { return localStorage.getItem(DOCK_KEY) === "top" ? "top" : "bottom"; } catch { return "bottom"; }
+  });
+  const flipDock = () => {
+    const next = dock === "top" ? "bottom" : "top";
+    setDock(next);
+    try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
+  };
   // The controls themselves live in the Appearance body (V2DisplaySettings
   // renders at its top) — ONE settings surface, embedded here so the
   // top-bar route and Settings → Appearance are the same thing. This sheet
@@ -142,8 +154,8 @@ function OptionsSheet({ open, onClose, uiV2 }) {
   }, [open, peek]);
 
   return (
-    <Drawer open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
+    <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
+      <DrawerContent direction={dock} className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -152,14 +164,23 @@ function OptionsSheet({ open, onClose, uiV2 }) {
                 {peek ? t("options.peekHint") : t("options.subtitle")}
               </DrawerDescription>
             </div>
+            <span className="flex items-center gap-1.5 flex-shrink-0">
+            {/* Flip the sheet to the other edge — a bottom sheet can sit
+                right on top of the thing being adjusted. */}
+            <button type="button" onClick={flipDock}
+              aria-label={t("options.dockFlip")} title={t("options.dockFlip")}
+              className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
+              {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
+            </button>
             <button type="button" onClick={() => setPeek((v) => !v)}
               title={t("options.peekHint")}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border flex-shrink-0 ${
+              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
                 peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
               }`}>
               {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
               {peek ? t("options.fullPanel") : t("options.peek")}
             </button>
+            </span>
           </div>
         </DrawerHeader>
         <div className="px-4 overflow-y-auto overscroll-contain space-y-2"
@@ -381,7 +402,12 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
           className="min-w-[34px] min-h-[34px] rounded-none"
           v2Options={{
             editHome: () => requestHomeAction(navigate, location.pathname, "edit-home"),
-            openDisplayOptions: () => setOptionsOpen(true),
+            // On the home board this opens the SAME sheet the board's own
+            // cog opens (board pills + the unified popup) — one surface,
+            // not two lookalikes. Elsewhere, the plain popup sheet.
+            openDisplayOptions: () => (location.pathname === "/"
+              ? requestHomeAction(navigate, location.pathname, "home-settings")
+              : setOptionsOpen(true)),
             openWhatsNew: () => setWhatsNewOpen(true),
           }}
         />
