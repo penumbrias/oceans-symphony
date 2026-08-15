@@ -1613,17 +1613,10 @@ export default function ExperimentalDashboard({
               </div>
             </div>
           )}
-          {/* Collapsed (bottom position): a thin tab to fold it back out.
-              Without this, a bottom bar collapsed with the quick-action
-              bar hidden had NO handle left anywhere — it looked like the
-              alter bar simply refused to display. */}
-          {altersBottom && altersCollapsed && (
-            <button type="button" onClick={toggleAltersCollapsed}
-              aria-label={`Show the pinned ${t.alters} bar`}
-              className="pointer-events-auto px-4 py-1 rounded-full bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg text-xs text-muted-foreground hover:text-foreground">
-              <ChevronUp className="w-3.5 h-3.5 inline mr-1" />{t.Alters}
-            </button>
-          )}
+          {/* No floating tab here: the ONE way to fold this bar in or out
+              is the bottom chrome's split handle (left half = this bar,
+              right half = quick actions). A second control floating over
+              the board was redundant. */}
           {barIds.length > 0 && (
             <div className="pointer-events-auto max-w-full overflow-x-auto px-3 py-1.5 rounded-2xl bg-background/90 backdrop-blur-xl border border-border/60 shadow-lg mx-3">
               <QuickCheckinButtons
