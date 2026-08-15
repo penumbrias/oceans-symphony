@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "feature", text: "Every bar has its own size & text settings — border width, corner radius, font and text size per bar, inheriting the app-wide values until you change them." },
+      { type: "fix", text: "The top and bottom bars, side rail and quick-action buttons actually paint the Background color now — its opacity in Colors governs how see-through they are. (They were accidentally fully transparent, which is why backgrounds washed them out.)" },
+      { type: "fix", text: "The home screen's settings sheet has the Peek and move-to-edge buttons too." },
+      { type: "improve", text: "The separate soften slider is gone — a background layer color's own opacity does that job." },
       { type: "fix", text: "Moving the edit popup to the other screen edge no longer resets which sections you had open." },
       { type: "fix", text: "Color pickers no longer get clipped by the edit popup — they float free and stay fully on screen." },
       { type: "fix", text: "The {{alter}} bar shows on its own now — it no longer needs the quick action bar. With nothing pinned it says so, and a collapsed bar leaves a tab to bring it back." },

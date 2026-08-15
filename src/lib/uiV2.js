@@ -207,6 +207,23 @@ export function resolveUiV2(stored) {
           .filter((id) => V2_COMMAND_KEYS.some((k) => k.id === id)))]
       : [...DEFAULT_UI_V2.commandKeys],
     tokens,
+    // Per-bar size & text overrides (the wireframe's [SET 5] on each
+    // bar): each bar can depart from the global border width, corner
+    // radius, font and text size. Applied as inline CSS vars on the
+    // bar's root, shadowing the global tokens.
+    barLooks: Object.fromEntries(["top", "tabs", "rail", "actions"].map((barId) => {
+      const b = src.barLooks?.[barId] || {};
+      const num = (v, min, max) => {
+        const n = parseInt(v, 10);
+        return Number.isFinite(n) ? Math.max(min, Math.min(max, n)) : undefined;
+      };
+      return [barId, {
+        borderW: num(b.borderW, 0, 6),
+        radius: num(b.radius, 0, 24),
+        fontScale: num(b.fontScale, 70, 160),
+        font: typeof b.font === "string" && b.font ? b.font : undefined,
+      }];
+    })),
     // Top-bar arrangement: stored order first (unknown ids dropped),
     // then anything missing in catalogue order — so new items appear for
     // existing users without wiping their arrangement.

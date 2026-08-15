@@ -111,6 +111,22 @@ export function CommandKeyButton({ onTap, label, className, style, children, onH
   );
 }
 
+// Per-bar size & text (the wireframe's [SET 5] on each bar): inline CSS
+// vars shadow the global tokens on this bar's subtree only, and the veil
+// paints the theme Background color — WITH whatever opacity the user gave
+// it in Colors (stored #rrggbbaa), so bar translucency is governed by the
+// background color's own opacity rather than a hardcoded wash.
+export function barLookStyle(uiV2, barId, { veil = true } = {}) {
+  const look = uiV2.barLooks?.[barId] || {};
+  const style = {};
+  if (veil) style.background = "var(--color-bg)";
+  if (look.borderW !== undefined) style["--v2-border-w"] = `${look.borderW}px`;
+  if (look.radius !== undefined) { style["--v2-radius"] = `${look.radius}px`; style["--radius"] = `${look.radius}px`; }
+  if (look.fontScale !== undefined) style.fontSize = `${look.fontScale}%`;
+  if (look.font) style.fontFamily = look.font;
+  return style;
+}
+
 export function requestHomeAction(navigate, pathname, action) {
   if (pathname === "/") {
     window.dispatchEvent(new CustomEvent(`os-v2-${action}`));
@@ -130,7 +146,7 @@ function useClock() {
 }
 
 // ── Display options ────────────────────────────────────────────────
-const DOCK_KEY = "symphony_display_options_dock";
+export const DOCK_KEY = "symphony_display_options_dock";
 
 function OptionsSheet({ open, onClose, uiV2 }) {
   const t = useT();
@@ -330,8 +346,8 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
     return (
       <>
         <button type="button" aria-label={t("top.displayOptions")} onClick={() => setOptionsOpen(true)}
-          className="fixed z-50 flex items-center justify-center text-muted-foreground/70 hover:text-foreground bg-background/60 backdrop-blur rounded-full"
-          style={{ top: "calc(env(safe-area-inset-top, 0px) + 6px)", right: "6px", width: 28, height: 28 }}>
+          className="fixed z-50 flex items-center justify-center text-muted-foreground/70 hover:text-foreground backdrop-blur rounded-full"
+          style={{ background: "var(--color-bg)", top: "calc(env(safe-area-inset-top, 0px) + 6px)", right: "6px", width: 28, height: 28 }}>
           <SlidersHorizontal className="w-3.5 h-3.5" />
         </button>
         {options}
@@ -341,8 +357,9 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
 
   return (
     <header
-      className="sticky top-0 z-50 bg-background/90 backdrop-blur-xl border-b relative overflow-hidden"
+      className="sticky top-0 z-50 backdrop-blur-xl border-b relative overflow-hidden"
       style={{
+        ...barLookStyle(uiV2, "top"),
         paddingTop: "env(safe-area-inset-top, 0px)",
         paddingLeft: "max(env(safe-area-inset-left, 0px), 8px)",
         paddingRight: "max(env(safe-area-inset-right, 0px), 8px)",
@@ -567,7 +584,8 @@ export function V2SideRail({ uiV2, settingsRow }) {
   return (
     <nav
       aria-label={t("nav.appNav")}
-      className={`hidden lg:flex flex-col fixed bottom-0 z-40 bg-background/95 backdrop-blur-xl overflow-y-auto overscroll-contain ${
+      style={barLookStyle(uiV2, "rail")}
+      className={`hidden lg:flex flex-col fixed bottom-0 z-40 backdrop-blur-xl overflow-y-auto overscroll-contain ${
         onRight ? "right-0 border-l" : "left-0 border-r"
       }`}
       style={{
@@ -786,8 +804,9 @@ export function V2QuickDock({ uiV2, settingsRow }) {
             onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
             holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
             onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
-            className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform bg-background/90 backdrop-blur"
+            className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform backdrop-blur"
             style={{
+              background: "var(--color-bg)",
               width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
               borderRadius: "var(--v2-radius)",
               border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
@@ -800,8 +819,9 @@ export function V2QuickDock({ uiV2, settingsRow }) {
       {open && (
         <button type="button" onClick={() => navigate("/grounding")}
           aria-label={t("capture.support")} title={t("capture.support")}
-          className="flex items-center justify-center active:scale-95 transition-transform bg-background/90 backdrop-blur"
+          className="flex items-center justify-center active:scale-95 transition-transform backdrop-blur"
           style={{
+            background: "var(--color-bg)",
             width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
             borderRadius: "var(--v2-radius)",
             border: "var(--v2-border-w) solid var(--v2-accent)",
@@ -832,8 +852,9 @@ export function V2QuickDock({ uiV2, settingsRow }) {
           }}
           aria-expanded={bubbleOpen}
           aria-label={bubbleOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
-          className="flex items-center justify-center active:scale-95 transition-transform bg-background/95 backdrop-blur"
+          className="flex items-center justify-center active:scale-95 transition-transform backdrop-blur"
           style={{
+            background: "var(--color-bg)",
             width: "calc(var(--v2-cmd-size) + 6px)", height: "calc(var(--v2-cmd-size) + 6px)",
             borderRadius: "9999px",
             border: "var(--v2-border-w) solid var(--v2-accent)",
@@ -913,8 +934,9 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       ref={navRef}
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
-      className={`fixed bottom-0 left-0 right-0 z-50 bg-background/95 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+      className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
+        ...barLookStyle(uiV2, "tabs"),
         paddingBottom: "env(safe-area-inset-bottom, 0px)",
         paddingLeft: "env(safe-area-inset-left, 0px)",
         paddingRight: "env(safe-area-inset-right, 0px)",
@@ -925,7 +947,9 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
     >
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
         <>
-          <div className="relative">
+          {/* Per-bar [SET 5] for the quick-action row (no veil of its
+              own — it sits on the bottom bar's). */}
+          <div className="relative" style={barLookStyle(uiV2, "actions", { veil: false })}>
           {/* Pull handle — tap, or swipe up/down, to reveal or hide. */}
           <button
             type="button"

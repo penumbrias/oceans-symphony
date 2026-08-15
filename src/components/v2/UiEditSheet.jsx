@@ -236,6 +236,50 @@ function SizeSection({ v2, alignX }) {
 // Each bar: show/hide, its real size/placement knobs, and its content
 // arrangement where the engine has one (bottom-bar section order, quick
 // action keys). Wave color rides SystemSettings like the classic picker.
+// The wireframe's [SET 5] on each bar: per-bar border width, corner
+// radius, font and text size, shadowing the global tokens on that bar
+// only. Unset = inherit the app-wide value.
+function BarLookRows({ v2, barId, alignX }) {
+  const tr = useT();
+  const fontOptions = useFontOptions({ includeInherit: true, inheritLabel: tr("editSheet.inherit") });
+  const look = v2.uiV2.barLooks?.[barId] || {};
+  const write = (patch) => v2.write({ barLooks: { ...(v2.uiV2.barLooks || {}), [barId]: { ...look, ...patch } } });
+  const slider = (key, labelKey, min, max, fallback, unit) => (
+    <SetRow label={tr(labelKey)}
+      valueLabel={look[key] !== undefined ? `${look[key]}${unit}` : tr("editSheet.inherit")}
+      alignX={alignX}>
+      <div className="flex items-center gap-2">
+        <input type="range" min={min} max={max} step={key === "fontScale" ? 5 : 1}
+          value={look[key] ?? fallback}
+          onChange={(e) => write({ [key]: parseInt(e.target.value, 10) })}
+          className="flex-1" aria-label={tr(labelKey)} />
+        {look[key] !== undefined && (
+          <button type="button" onClick={() => write({ [key]: undefined })}
+            className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground flex-shrink-0">
+            {tr("editSheet.inherit")}
+          </button>
+        )}
+      </div>
+    </SetRow>
+  );
+  return (
+    <>
+      {slider("borderW", "editSheet.borderW", 0, 6, 1, "px")}
+      {slider("radius", "editSheet.radius", 0, 24, 12, "px")}
+      {slider("fontScale", "editSheet.textSize", 70, 160, 100, "%")}
+      <div className="py-1">
+        <p className="text-xs font-medium mb-1">{tr("editSheet.font")}</p>
+        <SearchableSelect
+          value={look.font || ""}
+          onChange={(id) => write({ font: id || undefined })}
+          options={fontOptions}
+          placeholder={tr("editSheet.inherit")}
+        />
+      </div>
+    </>
+  );
+}
+
 function BarToggle({ label, on, onChange }) {
   return (
     <label className="flex items-center justify-between gap-3 py-1 text-xs font-medium cursor-pointer">
@@ -327,6 +371,7 @@ function BarsSection({ v2, alignX }) {
       <SubSection title={tr("editSheet.barTop")} storageKey="edit-bar-top">
       <div className="space-y-1">
         {tokenRow("statusH", "editSheet.barHeight")}
+        <BarLookRows v2={v2} barId="top" alignX={alignX} />
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
         {topBar.order.map((id, idx) => {
           const item = V2_TOP_BAR_ITEMS.find((i) => i.id === id);
@@ -377,6 +422,7 @@ function BarsSection({ v2, alignX }) {
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.tabs} onChange={(on) => v2.setBar("tabs", on)} />
         {tokenRow("stripH", "editSheet.barHeight")}
+        <BarLookRows v2={v2} barId="tabs" alignX={alignX} />
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
         {bottomIds.map((id, idx) => (
           <div key={id} className="flex items-center gap-2 py-0.5">
@@ -411,6 +457,7 @@ function BarsSection({ v2, alignX }) {
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.rail} onChange={(on) => v2.setBar("rail", on)} />
         {tokenRow("railW", "editSheet.barWidth")}
+        <BarLookRows v2={v2} barId="rail" alignX={alignX} />
         <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.railSide ?? "left"}
           onChange={(val) => v2.setToken("railSide", val)} alignX={alignX}
           options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
@@ -425,6 +472,7 @@ function BarsSection({ v2, alignX }) {
       <div className="space-y-1">
         <BarToggle label={tr("editSheet.show")} on={v2.uiV2.bars.actions} onChange={(on) => v2.setBar("actions", on)} />
         {tokenRow("cmdSize", "editSheet.buttonSize")}
+        <BarLookRows v2={v2} barId="actions" alignX={alignX} />
         <PillRow label={tr("editSheet.placement")} value={v2.uiV2.tokens.actionsMode ?? "bar"}
           onChange={(val) => v2.setToken("actionsMode", val)} alignX={alignX}
           options={[
@@ -753,17 +801,6 @@ function BackgroundBlock({ background, onChange, wallpaper }) {
               ]} />
           )}
         </div>
-      )}
-
-      {/* How strongly the theme background washes over the layers, so a
-          loud background can't drown the content ("totally covering the
-          main UI"). 0 keeps exactly what was picked. */}
-      {(bg.type !== "none" || layers[0].image) && (
-        <SetRow label={tr("editSheet.bgDim")} valueLabel={`${bg.dim || 0}%`}>
-          <input type="range" min={0} max={80} step={5} value={bg.dim || 0}
-            onChange={(e) => patch({ dim: parseInt(e.target.value, 10) })}
-            className="w-full" aria-label={tr("editSheet.bgDim")} />
-        </SetRow>
       )}
 
       {/* Audio background = the page song (same controls as profile music). */}

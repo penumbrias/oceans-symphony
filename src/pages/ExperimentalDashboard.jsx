@@ -25,6 +25,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
+  Eye, EyeOff, ArrowUpToLine, ArrowDownToLine,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -63,6 +64,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { boxStyle } from "@/v2/primitives";
 import { useRotatingImageUrl } from "@/lib/imageRotation";
 import PageBackground, { resolveBackground } from "@/components/v2/PageBackground";
+import { DOCK_KEY } from "@/components/v2/V2Frame";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import { SearchableMultiList } from "@/v2/widgets";
 
@@ -541,6 +543,22 @@ export default function ExperimentalDashboard({
   const [activePageId, setActivePageId] = useState(null);
   const [audienceOpen, setAudienceOpen] = useState(false);
   const [homeSettingsOpen, setHomeSettingsOpen] = useState(false);
+  // Peek + dock for the home settings drawer — shared preference with
+  // the Display options sheet (same DOCK_KEY) so both flip together.
+  const [homePeek, setHomePeek] = useState(false);
+  const [homeDock, setHomeDock] = useState(() => {
+    try { return localStorage.getItem(DOCK_KEY) === "top" ? "top" : "bottom"; } catch { return "bottom"; }
+  });
+  const flipHomeDock = () => {
+    const next = homeDock === "top" ? "bottom" : "top";
+    setHomeDock(next);
+    try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
+  };
+  useEffect(() => {
+    if (!homeSettingsOpen || !homePeek) return undefined;
+    document.documentElement.setAttribute("data-v2-peek", "1");
+    return () => document.documentElement.removeAttribute("data-v2-peek");
+  }, [homeSettingsOpen, homePeek]);
   const [styleQuery, setStyleQuery] = useState("");
   const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
   const barDragStart = useRef(null);
@@ -1218,11 +1236,33 @@ export default function ExperimentalDashboard({
       )}
 
       {/* Home screen settings — what used to be the toolbar pills. */}
-      <Drawer open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
-        <DrawerContent className="max-h-[85vh]">
+      <Drawer key={homeDock} direction={homeDock} open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
+        <DrawerContent direction={homeDock} className={homePeek ? "max-h-[40vh]" : "max-h-[85vh]"}>
           <DrawerHeader className="pb-1">
-            <DrawerTitle className="text-base">Home screen</DrawerTitle>
-            <DrawerDescription className="text-xs">Layout, look and bars for this board.</DrawerDescription>
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <DrawerTitle className="text-base">Home screen</DrawerTitle>
+                <DrawerDescription className="text-xs">Layout, look and bars for this board.</DrawerDescription>
+              </div>
+              {/* Same Peek + dock-flip the Display options sheet has —
+                  this drawer IS display options on the home page, and
+                  adjusting a board you can't see defeats the point. */}
+              <span className="flex items-center gap-1.5 flex-shrink-0">
+                <button type="button" onClick={flipHomeDock}
+                  aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
+                  className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
+                  {homeDock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
+                </button>
+                <button type="button" onClick={() => setHomePeek((v) => !v)}
+                  title="Keep adjusting — the board stays visible."
+                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
+                    homePeek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {homePeek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
+                  {homePeek ? "Full panel" : "Peek"}
+                </button>
+              </span>
+            </div>
           </DrawerHeader>
           <div className="px-4 overflow-y-auto overscroll-contain"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
