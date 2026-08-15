@@ -85,6 +85,10 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   // Avatar diameter in px — the icons inside the bar, independent of how
   // tall the bar itself is.
   const chipSize = Number.isFinite(config.chipSize) ? config.chipSize : 48;
+  // How chips are captioned (the wireframe's SET A "labels" toggle):
+  // auto = the app-wide alter-label setting; name/alias force one;
+  // off = avatars only.
+  const labelMode = ["name", "alias", "off"].includes(config.labelMode) ? config.labelMode : "auto";
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -201,6 +205,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
               formatAlter={formatAlter}
               queryClient={queryClient}
               size={chipSize}
+              labelMode={labelMode}
             />
           ));
           const rowChildren = chips;
@@ -220,6 +225,8 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
           onClose={() => setGearOpen(false)}
           barHeight={barHeight}
           chipSize={chipSize}
+          labelMode={labelMode}
+          onLabelModeChange={(m) => persistConfig({ labelMode: m })}
           total={pinned.length}
           alters={alters.filter((a) => !a.is_archived)}
           pinnedIds={new Set(pinned.map((a) => a.id))}
@@ -336,7 +343,7 @@ function PinPickerRow({ alter, pinned, onToggle }) {
   );
 }
 
-function PinnedAltersSettingsDialog({ open, onClose, barHeight = 0, onBarHeightChange, chipSize = 48, onChipSizeChange, total, alters = [], pinnedIds, onSetPinned, onRearrange }) {
+function PinnedAltersSettingsDialog({ open, onClose, barHeight = 0, onBarHeightChange, chipSize = 48, onChipSizeChange, labelMode = "auto", onLabelModeChange, total, alters = [], pinnedIds, onSetPinned, onRearrange }) {
   const [showAdd, setShowAdd] = useState(false);
   const [search, setSearch] = useState("");
   const pinnedSet = pinnedIds instanceof Set ? pinnedIds : new Set();
@@ -415,6 +422,19 @@ function PinnedAltersSettingsDialog({ open, onClose, barHeight = 0, onBarHeightC
             />
           </div>
 
+          {/* Labels — name / alias / off, or the app-wide label setting. */}
+          <div>
+            <label className="text-sm font-medium block mb-1">Labels</label>
+            <div className="flex flex-wrap gap-1.5">
+              {[["auto", "App setting"], ["name", "Name"], ["alias", "Alias"], ["off", "Off"]].map(([v, lab]) => (
+                <button key={v} type="button" aria-pressed={labelMode === v}
+                  onClick={() => onLabelModeChange?.(v)}
+                  className={`text-xs px-2.5 py-1 rounded-full border ${
+                    labelMode === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
+                  }`}>{lab}</button>
+              ))}
+            </div>
+          </div>
 
         </div>
       </DialogContent>
@@ -430,7 +450,7 @@ const LONG_PRESS_MS = 450;
 
 // `size` is the base avatar diameter in px (config.chipSize). Fronting
 // chips render 4/3 of it, keeping the old 48/64 look at the default.
-function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48 }) {
+function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto" }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
@@ -439,7 +459,9 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
   const isPrimary = mySession?.is_primary ?? false;
   const blurNames = anonymizeBlurNames(anonymize);
   const blurAvatar = anonymizeBlurAvatars(anonymize);
-  const label = formatAlter(alter);
+  const label = labelMode === "name" ? (alter.name || "?")
+    : labelMode === "alias" ? (alter.alias || alter.name || "?")
+    : formatAlter(alter);
 
   // The standard gesture grammar (v0.122.0): tap = profile, press-and-hold
   // = the level rail (Remove stop; holding a non-fronter adds them at the
@@ -490,9 +512,11 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
           </span>
         )}
       </div>
-      <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>
-        {label}
-      </span>
+      {labelMode !== "off" && (
+        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>
+          {label}
+        </span>
+      )}
     </button>
     </>
   );

@@ -49,6 +49,8 @@ import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
+import { lookToStyle } from "@/lib/widgetLook";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -357,6 +359,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
 
   return (
     <header
+      data-widget-content
       className="sticky top-0 z-50 backdrop-blur-xl border-b relative overflow-hidden"
       style={{
         ...barLookStyle(uiV2, "top"),
@@ -585,6 +588,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
     <nav
       aria-label={t("nav.appNav")}
       style={barLookStyle(uiV2, "rail")}
+      data-widget-content
       className={`hidden lg:flex flex-col fixed bottom-0 z-40 backdrop-blur-xl overflow-y-auto overscroll-contain ${
         onRight ? "right-0 border-l" : "left-0 border-r"
       }`}
@@ -602,7 +606,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
 
       {uiV2.bars.actions && keys.length > 0 && (
         <div className="px-2 pb-2 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
-          <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="px-1 pb-1 text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground">
             {t("nav.quickActions")}
           </p>
           <div className={iconsOnly ? "flex flex-wrap gap-1" : "space-y-0.5"}>
@@ -646,7 +650,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
 
       {groups.map((g) => (
         <div key={g.label} className="px-2 pb-2 space-y-0.5 border-t pt-2" style={{ borderColor: "hsl(var(--border) / 0.4)" }}>
-          <p className="px-1 pb-1 text-[0.625rem] font-semibold uppercase tracking-wide text-muted-foreground">
+          <p className="px-1 pb-1 text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground">
             {g.label}
           </p>
           {g.items.map((item) => <NavButton key={item.id} item={item} dim />)}
@@ -874,6 +878,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
 // ── Bottom chrome ──────────────────────────────────────────────────
 export function V2BottomChrome({ uiV2, settingsRow }) {
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const t = useT();
   const isActive = useIsActive();
   const terms = useTerms();
@@ -894,6 +899,25 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
 
   const { primary: items } = useNavItems(settingsRow);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+
+  // The pinned {alters} bar takes the quick-action bar's slot when that
+  // bar is off (the user's spec: it should copy the QUICK ACTIONS bar's
+  // display, not float like the support bubble). Config lives on the
+  // device's home board, same field the board itself reads.
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
+  const altersInNav = altersBarCfg.enabled === true && !uiV2.bars.actions;
+  const toggleNavAlters = async () => {
+    if (!settingsRow?.id) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, {
+      [homeField]: {
+        ...(settingsRow[homeField] || {}),
+        altersBar: { ...altersBarCfg, collapsed: !altersBarCfg.collapsed },
+      },
+    });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
 
   // Publish the bar's REAL height so everything that has to clear it —
   // page content, the sidebar, sheets, the floating buttons — reserves the
@@ -934,6 +958,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       ref={navRef}
       // The rail takes over on wide screens; a bottom bar there is just a
       // phone habit stretched across a monitor.
+      data-widget-content
       className={`fixed bottom-0 left-0 right-0 z-50 backdrop-blur-xl border-t ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={{
         ...barLookStyle(uiV2, "tabs"),
@@ -945,6 +970,27 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       }}
       aria-label={t("nav.appNav")}
     >
+      {/* When the quick action bar is OFF, the pinned {alters} bar takes
+          its slot in this chrome (the user's spec) — same position, same
+          fold-away handle, instead of floating like the support bubble. */}
+      {altersInNav && (
+        <div className="relative" style={lookToStyle(altersBarCfg.look || {})} data-widget-content>
+          <button
+            type="button"
+            aria-expanded={!altersBarCfg.collapsed}
+            aria-label={altersBarCfg.collapsed ? `Show the pinned ${terms.alters} bar` : `Hide the pinned ${terms.alters} bar`}
+            onClick={toggleNavAlters}
+            className="w-full flex items-center justify-center py-0.5 text-muted-foreground hover:text-foreground"
+          >
+            <ChevronUp className="w-3.5 h-3.5 transition-transform" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)" }} />
+          </button>
+          {!altersBarCfg.collapsed && (
+            <div className="px-2 pb-1 min-w-0 overflow-x-auto">
+              <PinnedAltersGallery showHeader={false} />
+            </div>
+          )}
+        </div>
+      )}
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
         <>
           {/* Per-bar [SET 5] for the quick-action row (no veil of its
@@ -1068,7 +1114,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                   boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
                 }}>
                 {Icon && <Icon style={{ width: 18, height: 18 }} />}
-                <span className="text-[0.625rem] font-medium leading-tight whitespace-nowrap">{item.label}</span>
+                <span className="text-[0.625em] font-medium leading-tight whitespace-nowrap">{item.label}</span>
               </button>
             );
           })}

@@ -211,7 +211,7 @@ export function resolveUiV2(stored) {
     // bar): each bar can depart from the global border width, corner
     // radius, font and text size. Applied as inline CSS vars on the
     // bar's root, shadowing the global tokens.
-    barLooks: Object.fromEntries(["top", "tabs", "rail", "actions"].map((barId) => {
+    barLooks: Object.fromEntries(["top", "tabs", "rail", "actions", "alters"].map((barId) => {
       const b = src.barLooks?.[barId] || {};
       const num = (v, min, max) => {
         const n = parseInt(v, 10);

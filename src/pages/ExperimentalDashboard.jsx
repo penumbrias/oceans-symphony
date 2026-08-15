@@ -953,7 +953,11 @@ export default function ExperimentalDashboard({
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
   }, [home, persist]);
   const altersTop = altersBarOn && home.altersBar.position === "top";
-  const altersBottom = altersBarOn && home.altersBar.position === "bottom";
+  // With the quick-action bar OFF, the pinned bar moves INTO the bottom
+  // chrome (V2BottomChrome renders it there — the user's spec), so the
+  // board must not also draw its own floating copy.
+  const altersHostedInNav = !!commandBar && settingsRow?.ui_v2?.bars?.actions === false;
+  const altersBottom = altersBarOn && home.altersBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
 
@@ -1588,6 +1592,16 @@ export default function ExperimentalDashboard({
                 // them. Defaults below keep today's look when nothing is set.
                 ...altersLookStyle,
                 ...boxStyle(),
+                // SET 5 for this bar (border/radius/text size/font),
+                // shadowing the app-wide tokens on the bar only.
+                ...(settingsRow?.ui_v2?.barLooks?.alters?.borderW !== undefined
+                  ? { "--v2-border-w": `${settingsRow.ui_v2.barLooks.alters.borderW}px` } : {}),
+                ...(settingsRow?.ui_v2?.barLooks?.alters?.radius !== undefined
+                  ? { "--v2-radius": `${settingsRow.ui_v2.barLooks.alters.radius}px` } : {}),
+                ...(settingsRow?.ui_v2?.barLooks?.alters?.fontScale !== undefined
+                  ? { fontSize: `${settingsRow.ui_v2.barLooks.alters.fontScale}%` } : {}),
+                ...(settingsRow?.ui_v2?.barLooks?.alters?.font
+                  ? { fontFamily: settingsRow.ui_v2.barLooks.alters.font } : {}),
                 background: "var(--v2-widget-bg, hsl(var(--background) / 0.9))",
                 borderRadius: "var(--v2-radius, 1rem)",
                 padding: "var(--v2-pad, 0.25rem 0.5rem)",

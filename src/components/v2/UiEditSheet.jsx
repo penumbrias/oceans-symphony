@@ -348,6 +348,12 @@ function BarsSection({ v2, alignX }) {
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const altersBar = settingsRow?.[homeField]?.altersBar || {};
+  // The pinned bar's own size/label config — the same singleton the
+  // gallery's gear writes, so both editors agree.
+  const pinnedCfg = settingsRow?.pinned_alters_config || {};
+  const writePinnedCfg = (patch) => writeSettings({
+    pinned_alters_config: { ...pinnedCfg, ...patch },
+  });
   const writeAltersBar = (patch) => writeSettings({
     [homeField]: { ...(settingsRow?.[homeField] || {}), altersBar: { ...altersBar, ...patch } },
   });
@@ -529,9 +535,34 @@ function BarsSection({ v2, alignX }) {
           on={altersBar.enabled === true}
           onChange={(on) => writeAltersBar({ enabled: on, collapsed: false })} />
         {altersBar.enabled === true && (
-          <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
-            onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
-            options={[{ v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") }]} />
+          <>
+            <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
+              onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
+              options={[{ v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") }]} />
+            {/* SET A (bar height, icon size, labels) + SET 5 (border,
+                radius, text size, font) — the same groups every other bar
+                gets, on the SAME pinned-bar config the gear writes. */}
+            <SetRow label={tr("editSheet.barHeight")}
+              valueLabel={pinnedCfg.barHeight > 0 ? `${pinnedCfg.barHeight}px` : tr("editSheet.fitIcons")} alignX={alignX}>
+              <input type="range" min={0} max={200} step={4} value={pinnedCfg.barHeight || 0}
+                onChange={(e) => writePinnedCfg({ barHeight: parseInt(e.target.value, 10) })}
+                className="w-full" aria-label={tr("editSheet.barHeight")} />
+            </SetRow>
+            <SetRow label={tr("editSheet.iconSize")} valueLabel={`${pinnedCfg.chipSize ?? 48}px`} alignX={alignX}>
+              <input type="range" min={14} max={88} step={2} value={pinnedCfg.chipSize ?? 48}
+                onChange={(e) => writePinnedCfg({ chipSize: parseInt(e.target.value, 10) })}
+                className="w-full" aria-label={tr("editSheet.iconSize")} />
+            </SetRow>
+            <PillRow label={tr("editSheet.labels")} value={pinnedCfg.labelMode || "auto"}
+              onChange={(v) => writePinnedCfg({ labelMode: v })} alignX={alignX}
+              options={[
+                { v: "auto", label: tr("editSheet.inherit") },
+                { v: "name", label: tr("editSheet.labelName") },
+                { v: "alias", label: tr("editSheet.labelAlias") },
+                { v: "off", label: tr("editSheet.labelOff") },
+              ]} />
+            <BarLookRows v2={v2} barId="alters" alignX={alignX} />
+          </>
         )}
         <p className="text-[0.6875rem] text-muted-foreground">{applyTerms(tr("editSheet.alterBarHint"), terms)}</p>
       </div>

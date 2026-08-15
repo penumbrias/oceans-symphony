@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 14, 2026",
     changes: [
+      { type: "fix", text: "Per-bar text size and font actually apply now — bar labels were using fixed sizes that ignored the setting." },
+      { type: "improve", text: "With the quick action bar off, the pinned {{alter}} bar takes its place in the bottom bar (with the same fold-away handle) instead of floating." },
+      { type: "improve", text: "The {{alter}} bar has its own bar height, icon size, labels (name / alias / off), border, corner radius, text size and font — the same settings every other bar has." },
       { type: "feature", text: "Every bar has its own size & text settings — border width, corner radius, font and text size per bar, inheriting the app-wide values until you change them." },
       { type: "fix", text: "The top and bottom bars, side rail and quick-action buttons actually paint the Background color now — its opacity in Colors governs how see-through they are. (They were accidentally fully transparent, which is why backgrounds washed them out.)" },
       { type: "fix", text: "The home screen's settings sheet has the Peek and move-to-edge buttons too." },
