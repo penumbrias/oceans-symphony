@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 16, 2026",
     changes: [
+      { type: "fix", text: "Planner: you can swipe sideways to reach the rest of the week again on phones." },
+      { type: "feature", text: "Planner: pinch the grid with two fingers to zoom the hours in or out, and a new Display button (sliders icon) sets hour height, 24h vs AM/PM clock, and the week's first day — shared with the classic tracker." },
+      { type: "improve", text: "Planner: with the Check-ins overlay on, tapping a check-in dot opens that entry in the Check-In Log." },
       { type: "fix", text: "Planner: an activity that crosses midnight (sleep!) now shows on both days it touches, as two joined pieces with the real start and end times." },
       { type: "feature", text: "Logging an activity: an \u201cAfter the last one\u201d quick-set fills the start time with the end of your previous activity — in the planner sheet and the log/start popup." },
       { type: "improve", text: "Widget options: the \u201cThis widget\u201d section is now called \u201cWidget settings\u201d." },

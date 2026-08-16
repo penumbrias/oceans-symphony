@@ -22,22 +22,24 @@ import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
+import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX } from "@/lib/planner/displayPrefs";
 
 const HOLD_MS = 300;
 const SLOP_PX = 8;
 
-export const HOUR_PX = 44;
+// Default row height; the live value is a preference (pinch / Display
+// popover) — see displayPrefs.js.
+export const HOUR_PX = HOUR_PX_DEFAULT;
 // Fixed so the hour gutter's offset always matches the grid. It used to be a
 // min-height that grew with the day's untimed items, which slid the hour
 // labels out of line with their own rows.
 export const UNTIMED_STRIP_PX = 30;
 
-function minutesToLabel(min) {
-  const whole = Math.round(min);
-  const h = Math.floor(whole / 60) % 24;
-  const m = whole % 60;
-  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-}
+// Clock preference for the labels below. Set once per WeekCanvas render
+// (module scope, single-threaded React) so DayColumn's helper closures
+// don't each need the pref threaded through.
+let _timeFmt = "24";
+function minutesToLabel(min) { return formatClock(min, _timeFmt); }
 
 export function formatDuration(min) {
   const h = Math.floor(min / 60);
@@ -52,7 +54,7 @@ export function formatDuration(min) {
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
-  onAddToDay, onOpenUntimed, nowMin,
+  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -258,7 +260,14 @@ function DayColumn({
         // the action firing before you let go.
         data-own-hold
         className="relative select-none"
-        style={{ height: 24 * HOUR_PX, touchAction: "pan-y" }}
+        // pan-x AND pan-y: the week is wider than a phone and scrolls
+        // sideways in the outer scroller — "pan-y" alone made the browser
+        // refuse every horizontal swipe that began on a day column, so the
+        // rest of the week was unreachable by touch. The hold-to-create
+        // gesture doesn't need to own panning: it arms after HOLD_MS with
+        // pointer capture and a passive:false touchmove blocker.
+        // Pinch (two fingers) is left to the zoom handler below.
+        style={{ height: 24 * hourPx, touchAction: "pan-x pan-y" }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -267,7 +276,7 @@ function DayColumn({
         {/* hour rules */}
         {Array.from({ length: 24 }, (_, h) => (
           <div key={h} className="absolute left-0 right-0 border-t border-border/20"
-            style={{ top: h * HOUR_PX }} />
+            style={{ top: h * hourPx }} />
         ))}
 
         {/* Time already spent reads back dimmer than time still ahead, so a
@@ -289,9 +298,18 @@ function DayColumn({
           <div key={`band-${i}`} className="absolute left-0 right-0 pointer-events-none"
             style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), background: `${b.color}14` }} />
         ))}
+        {/* Check-in marks — tappable, so the log entry behind a dot is one
+            tap away (a dot you can only hover is decoration on a phone). */}
         {showOverlays.emotions && overlayMarks.map((m, i) => (
-          <div key={`mark-${i}`} className="absolute left-0 w-1.5 h-1.5 rounded-full pointer-events-none"
-            style={{ top: pct(m.min), background: m.color }} title={m.label} />
+          <button key={`mark-${i}`} type="button"
+            aria-label={m.label ? `Check-in: ${m.label}` : "Check-in"}
+            title={m.label}
+            onClick={(e) => { e.stopPropagation(); onOpenMark?.(m); }}
+            onPointerDown={(e) => e.stopPropagation()}
+            className="absolute left-0 flex items-center justify-center"
+            style={{ top: pct(m.min), width: 14, height: 14, transform: "translateY(-50%)", zIndex: 5 }}>
+            <span className="block w-1.5 h-1.5 rounded-full" style={{ background: m.color }} />
+          </button>
         ))}
 
         {blocks.map((b) => {
@@ -308,7 +326,7 @@ function DayColumn({
           const r = "var(--v2-radius, 6px)";
           const realStart = b.start instanceof Date ? b.start : new Date(b.start);
           const realEnd = b.end ? (b.end instanceof Date ? b.end : new Date(b.end)) : null;
-          const clockLabel = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
+          const clockLabel = (d) => formatClock(d.getHours() * 60 + d.getMinutes(), _timeFmt);
           return (
             <div
               key={b.id}
@@ -392,7 +410,35 @@ export default function WeekCanvas({
   onOpenUntimed,
   maxHeight,
   fill = false,
+  onOpenMark,
 }) {
+  // Display prefs: row height (pinch or popover), clock format, week start.
+  // Read live so a change anywhere re-renders every planner instance.
+  const [prefs, setPref] = usePlannerPrefs();
+  const hourPx = prefs.hourPx;
+  _timeFmt = prefs.timeFmt;
+  weekStartsOn = prefs.weekStartsOn;
+
+  // Pinch-to-zoom the hour scale (two-finger). Tracks the two touches
+  // itself — touch-action allows both pans, so the browser never claims a
+  // two-finger gesture as page zoom (the app's viewport disables that).
+  const pinchRef = useRef(null);
+  const onPinchStart = (e) => {
+    if (e.touches?.length !== 2) return;
+    const [a, b] = e.touches;
+    pinchRef.current = { d0: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), h0: hourPx };
+  };
+  const onPinchMove = (e) => {
+    const p = pinchRef.current;
+    if (!p || e.touches?.length !== 2) return;
+    e.preventDefault();
+    const [a, b] = e.touches;
+    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
+    const next = Math.round(Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, p.h0 * (d / p.d0))));
+    if (next !== hourPx) setPref("hourPx", next);
+  };
+  const onPinchEnd = () => { pinchRef.current = null; };
+
   const days = useMemo(() => {
     if (dayCount === 1) return [new Date(anchor)];
     const start = startOfWeek(anchor, { weekStartsOn });
@@ -454,6 +500,8 @@ export default function WeekCanvas({
       .map((c) => {
         const d = new Date(c.timestamp);
         return {
+          id: c.id,
+          checkIn: c,
           min: d.getHours() * 60 + d.getMinutes(),
           color: c.is_distress ? "#ef4444" : "#22c55e",
           label: (c.emotions || []).join(", "),
@@ -474,7 +522,8 @@ export default function WeekCanvas({
     <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>
       {/* One scroller for headers + grid so they can never drift apart. The
           hour gutter is sticky so it stays put while the week scrolls. */}
-      <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}>
+      <div className={`overflow-x-auto overscroll-x-contain min-h-0 ${fill ? "flex-1 flex flex-col" : ""}`}
+        onTouchStart={onPinchStart} onTouchMove={onPinchMove} onTouchEnd={onPinchEnd} onTouchCancel={onPinchEnd}>
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
             <div className="w-10 flex-shrink-0 sticky left-0 z-20"
@@ -515,12 +564,12 @@ export default function WeekCanvas({
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20"
               style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, hsl(var(--background)))" }}>
               {Array.from({ length: 24 }, (_, h) => (
-                <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums"
-                  style={{ top: h * HOUR_PX, transform: "translateY(-50%)" }}>
-                  {String(h).padStart(2, "0")}
+                <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums whitespace-nowrap"
+                  style={{ top: h * hourPx, transform: "translateY(-50%)" }}>
+                  {formatHourLabel(h, prefs.timeFmt)}
                 </div>
               ))}
-              <div style={{ height: 24 * HOUR_PX }} />
+              <div style={{ height: 24 * hourPx }} />
             </div>
 
             {perDay.map(({ day, blocks, untimed, bands, marks }) => (
@@ -540,6 +589,8 @@ export default function WeekCanvas({
                 onResize={onResize}
                 onAddToDay={onAddToDay}
                 onOpenUntimed={onOpenUntimed}
+                hourPx={hourPx}
+                onOpenMark={onOpenMark}
               />
             ))}
           </div>

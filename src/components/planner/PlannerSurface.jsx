@@ -43,7 +43,9 @@ import { SearchableMultiList } from "@/v2/widgets";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
-import { BarChart3, CopyPlus, ChevronDown } from "lucide-react";
+import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX } from "@/lib/planner/displayPrefs";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -67,6 +69,11 @@ export default function PlannerSurface({
   const tr = useT();
   const formatAlter = useAlterLabel();
   const [showTotals, setShowTotals] = useState(false);
+  const [showDisplay, setShowDisplay] = useState(false);
+  // Display prefs (row height / clock / week start) — the same keys the
+  // classic tracker used, so nothing resets moving between the two.
+  const [prefs, setPref] = usePlannerPrefs();
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [ownAnchor, setOwnAnchor] = useState(() => new Date());
   const anchor = anchorProp || ownAnchor;
@@ -160,7 +167,7 @@ export default function PlannerSurface({
   );
 
   const weekRange = useMemo(() => {
-    const from = startOfWeek(anchor, { weekStartsOn: 1 });
+    const from = startOfWeek(anchor, { weekStartsOn: prefs.weekStartsOn });
     return { from, to: new Date(from.getTime() + 7 * 86400000) };
   }, [anchor]);
 
@@ -499,7 +506,7 @@ export default function PlannerSurface({
   // Plain range rather than "w/c" — that's British shorthand for "week
   // commencing" and means nothing to most people.
   const weekLabel = useMemo(() => {
-    const start = startOfWeek(anchor, { weekStartsOn: 1 });
+    const start = startOfWeek(anchor, { weekStartsOn: prefs.weekStartsOn });
     const end = new Date(start.getTime() + 6 * 86400000);
     const sameMonth = start.getMonth() === end.getMonth();
     return sameMonth
@@ -509,7 +516,7 @@ export default function PlannerSurface({
   // The canvas used to print its own range line under this one, saying the
   // same thing twice. One heading row.
   const weekTotalLabel = useMemo(() => {
-    const start = startOfWeek(anchor, { weekStartsOn: 1 });
+    const start = startOfWeek(anchor, { weekStartsOn: prefs.weekStartsOn });
     const end = new Date(start.getTime() + 7 * 86400000);
     const mins = activities.reduce((n, a) => {
       const t = a.timestamp ? new Date(a.timestamp) : null;
@@ -549,6 +556,10 @@ export default function PlannerSurface({
               aria-expanded={showTotals} title={tr("planner.totals")}>
               <BarChart3 className="w-3.5 h-3.5" />
               <ChevronDown className="w-3 h-3" style={{ transform: showTotals ? "rotate(180deg)" : "none" }} />
+            </Button>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowDisplay((v) => !v)}
+              aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
+              <SlidersHorizontal className="w-3.5 h-3.5" />
             </Button>
           </div>
 
@@ -621,6 +632,44 @@ export default function PlannerSurface({
           </div>
         )}
 
+        {chrome && showDisplay && (
+          <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{tr("planner.clock")}</span>
+              <span className="flex gap-1">
+                {[["24", tr("planner.clock24")], ["ampm", tr("planner.clock12")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={prefs.timeFmt === id}
+                    onClick={() => setPref("timeFmt", id)}
+                    className={`px-2.5 py-1 rounded-full border ${
+                      prefs.timeFmt === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </span>
+            </div>
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-muted-foreground">{tr("planner.weekStart")}</span>
+              <span className="flex gap-1">
+                {[[1, tr("planner.monday")], [0, tr("planner.sunday")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={prefs.weekStartsOn === id}
+                    onClick={() => setPref("weekStartsOn", id)}
+                    className={`px-2.5 py-1 rounded-full border ${
+                      prefs.weekStartsOn === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+              </span>
+            </div>
+            <label className="flex items-center justify-between gap-3">
+              <span className="text-muted-foreground whitespace-nowrap">{tr("planner.rowHeight")}</span>
+              <input type="range" min={HOUR_PX_MIN} max={HOUR_PX_MAX} step={2} value={prefs.hourPx}
+                onChange={(e) => setPref("hourPx", Number(e.target.value))}
+                className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.rowHeight")} />
+              <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.hourPx}px</span>
+            </label>
+            <p className="text-[0.6875em] text-muted-foreground">{tr("planner.pinchHint")}</p>
+          </div>
+        )}
+
         <WeekCanvas
           anchor={anchor}
           dayCount={dayCount}
@@ -642,6 +691,8 @@ export default function PlannerSurface({
             seedExtras(item);
           }}
           onResize={handleResize}
+          // A tapped check-in dot lands on that entry in the log, highlighted.
+          onOpenMark={(m) => { if (m?.id) navigate(`/checkin-log?id=${encodeURIComponent(m.id)}`); }}
           onAddToDay={(day) => setPlanDay(day)}
           onOpenUntimed={(item, day) => {
             setTiming({ item, day }); setTimeValue("09:00"); setDurValue(60); setNoteValue(item.notes || "");
@@ -698,7 +749,7 @@ export default function PlannerSurface({
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.moveToDay")}</p>
               <div className="flex gap-1 items-center">
                 {Array.from({ length: 7 }, (_, i) => {
-                  const d = new Date(startOfWeek(anchor, { weekStartsOn: 1 }).getTime() + i * 86400000);
+                  const d = new Date(startOfWeek(anchor, { weekStartsOn: prefs.weekStartsOn }).getTime() + i * 86400000);
                   const on = new Date(timing.day).toDateString() === d.toDateString();
                   return (
                     <button key={i} type="button" aria-pressed={on}
