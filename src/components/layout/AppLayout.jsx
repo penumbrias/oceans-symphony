@@ -33,6 +33,7 @@ import { useTheme } from "@/lib/ThemeContext";
 import { setAccessibilityFontFamily, setAccessibilityFontSize, setAccessibilityHeadingFont } from "@/lib/useAccessibility";
 import AnnouncementBanner from "@/components/layout/AnnouncementBanner";
 import LandscapeHintBanner from "@/components/layout/LandscapeHintBanner";
+import A11yModeBanner from "@/components/layout/A11yModeBanner";
 import PreviewModeBanner from "@/components/preview/PreviewModeBanner";
 import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
@@ -731,6 +732,7 @@ const handleNotifClick = (mentionLog) => {
         <PreviewModeBanner />
         {!v2HomeNotices && <AnnouncementBanner />}
         <LandscapeHintBanner />
+        <A11yModeBanner />
       </div>
 
       {/* ── Desktop: sidebar + content / Mobile: content only ── */}

@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 15, 2026",
     changes: [
+      { type: "improve", text: "While Accessibility mode is on, a small strip names it (it stacks pages into one column) with a link to the switch — dismissible if you use the mode on purpose." },
       { type: "fix", text: "When a page song can't load, the Song widget now says so and offers Retry — before, the play button just silently disappeared while the volume slider stayed." },
       { type: "fix", text: "Typing a colour code into the colour picker works again inside popup editors, and the picker's buttons no longer squash their labels." },
       { type: "improve", text: "When Accessibility mode stacks home widgets into one column, edit mode now says so (and how to reorder or turn it off) instead of drag silently not working." },
