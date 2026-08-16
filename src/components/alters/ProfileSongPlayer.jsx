@@ -35,7 +35,12 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
   const resolved = useResolvedAvatarUrl(song?.ref || null);
 
   const audioRef = useRef(null);
-  const [state, setState] = useState("idle"); // idle | blocked | playing | paused | dismissed
+  const [state, setState] = useState("idle"); // idle | blocked | playing | paused | dismissed | error
+  // Bumping this rebuilds the <audio> element from scratch. A load that
+  // failed once (revoked blob URL, transient read error) is not forever —
+  // a tester's song widget looked permanently broken (play button hidden,
+  // volume slider still showing) when a retry would have fixed it.
+  const [loadNonce, setLoadNonce] = useState(0);
   // Volume rides WITH the song, so a quiet track and a loud one can sit on
   // two different pages without the user re-adjusting their device each time.
   const volume = Number.isFinite(Number(song?.volume)) ? Math.max(0, Math.min(100, Number(song.volume))) : 100;
@@ -65,7 +70,10 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
         if (!cancelled) setState("playing");
       }).catch(() => {
         // Autoplay refused (browser policy) — offer the chip instead.
-        if (!cancelled) setState("blocked");
+        // A rejection with el.error set is a LOAD failure, not policy;
+        // the race between this catch and the error event used to let
+        // "blocked" overwrite "error".
+        if (!cancelled) setState(el.error ? "error" : "blocked");
       });
     }
     return () => {
@@ -75,7 +83,7 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
       el.src = "";
       audioRef.current = null;
     };
-  }, [enabled, song?.ref, song?.loop, resolved, volume, autoplay]);
+  }, [enabled, song?.ref, song?.loop, resolved, volume, autoplay, loadNonce]);
 
   if (!enabled || !song?.ref || state === "dismissed") return null;
 
@@ -112,18 +120,31 @@ export default function ProfileSongPlayer({ alter, song: songProp, inline = fals
         state === "error" ? "text-destructive" : state === "playing" ? "text-primary animate-pulse" : "text-muted-foreground"
       }`} />
       <span className="text-xs font-medium truncate min-w-0">
-        {state === "error" ? "Couldn't play this link" : title}
+        {state === "error" ? "Couldn't play this song" : title}
       </span>
-      <button
-        type="button"
-        onClick={toggle}
-        hidden={state === "error"}
-        aria-label={state === "playing" ? "Pause song" : "Play song"}
-        className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0"
-      >
-        {state === "playing" ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
-      </button>
-      {inline && (
+      {state === "error" ? (
+        // Failed-load state used to HIDE the play button but keep the
+        // volume slider — which read as "the pause button is broken and
+        // the slider does nothing". Say it failed and offer a retry.
+        <button
+          type="button"
+          onClick={() => { setState("idle"); setLoadNonce((n) => n + 1); }}
+          aria-label="Try loading the song again"
+          className="text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground flex-shrink-0"
+        >
+          Retry
+        </button>
+      ) : (
+        <button
+          type="button"
+          onClick={toggle}
+          aria-label={state === "playing" ? "Pause song" : "Play song"}
+          className="w-7 h-7 rounded-full flex items-center justify-center bg-primary/10 text-primary hover:bg-primary/20 flex-shrink-0"
+        >
+          {state === "playing" ? <Pause className="w-3.5 h-3.5" /> : <Play className="w-3.5 h-3.5" />}
+        </button>
+      )}
+      {inline && state !== "error" && (
         <input
           type="range" min={0} max={100} step={5}
           value={liveVolume}

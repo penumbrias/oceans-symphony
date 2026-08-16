@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 15, 2026",
     changes: [
+      { type: "fix", text: "When a page song can't load, the Song widget now says so and offers Retry — before, the play button just silently disappeared while the volume slider stayed." },
       { type: "fix", text: "Typing a colour code into the colour picker works again inside popup editors, and the picker's buttons no longer squash their labels." },
       { type: "improve", text: "When Accessibility mode stacks home widgets into one column, edit mode now says so (and how to reorder or turn it off) instead of drag silently not working." },
       { type: "improve", text: "Importing a backup now reports every problem visibly (as a popup too), and a \u201cLast import attempt\u201d panel under the Import button records each step for bug reports." },
