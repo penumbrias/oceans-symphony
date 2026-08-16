@@ -298,13 +298,26 @@ function DayColumn({
           const isLive = live?.id === b.id;
           const top = isLive ? live.startMin : b.startMin;
           const bottom = isLive ? live.endMin : b.endMin;
+          // A block that crosses midnight is drawn as two pieces. The cut
+          // edge is square (it continues, it doesn't end) and NOT
+          // resizable — a resize commits "this day's minutes" as the whole
+          // record, which would silently shorten an overnight sleep to the
+          // part visible on this day. Whole-block resize spans two days
+          // and can't be expressed with one day's handles.
+          const spansDays = b.continuesBefore || b.continuesAfter;
+          const r = "var(--v2-radius, 6px)";
+          const realStart = b.start instanceof Date ? b.start : new Date(b.start);
+          const realEnd = b.end ? (b.end instanceof Date ? b.end : new Date(b.end)) : null;
+          const clockLabel = (d) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
           return (
             <div
               key={b.id}
               data-block
               className="absolute overflow-hidden text-[0.625em] leading-tight"
               style={{
-                borderRadius: "var(--v2-radius, 6px)",
+                borderRadius: spansDays
+                  ? `${b.continuesBefore ? 0 : r} ${b.continuesBefore ? 0 : r} ${b.continuesAfter ? 0 : r} ${b.continuesAfter ? 0 : r}`
+                  : r,
                 top: pct(top), height: pct(bottom - top),
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
                 background: `${colorFor(b)}2e`,
@@ -315,7 +328,7 @@ function DayColumn({
             >
               {/* Edge handles — thin, and only on blocks tall enough to have
                   a middle left over for tapping. */}
-              {bottom - top >= 30 && (
+              {bottom - top >= 30 && !spansDays && (
                 <>
                   <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
                     onPointerDown={(e) => { e.stopPropagation(); setResizing({ id: b.id, edge: "top", startMin: b.startMin, endMin: b.endMin }); }} />
@@ -326,11 +339,15 @@ function DayColumn({
               <button type="button" onClick={() => onOpenBlock(b)}
                 className="w-full h-full text-left px-1 py-0.5">
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
-                  {b.activity_name || tr("planner.untitled")}
+                  {b.continuesBefore ? "↰ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>
                 {bottom - top >= 40 && (
                   <span className="block truncate opacity-70">
-                    {minutesToLabel(b.startMin)}–{minutesToLabel(b.endMin)}
+                    {/* Real clock times, so the piece on day 2 still says
+                        "23:00–07:00", not "00:00–07:00". */}
+                    {spansDays && realEnd
+                      ? `${clockLabel(realStart)}–${clockLabel(realEnd)}`
+                      : `${minutesToLabel(b.startMin)}–${minutesToLabel(b.endMin)}`}
                   </span>
                 )}
               </button>
@@ -402,14 +419,25 @@ export default function WeekCanvas({
     // Timed vs untimed: an entry with no timestamp is an intention for that
     // day, not a block. `planned_date` is how the existing quick plans mark
     // "this day, no time" — read both so nothing already stored is lost.
-    const mine = activities.filter((a) => sameDay(a.timestamp) || sameDay(a.planned_date));
-    const untimed = mine.filter((a) => !a.timestamp && a.planned_date);
-    const timed = mine
+    const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60000);
+    const untimed = activities.filter((a) => !a.timestamp && sameDay(a.planned_date));
+    // Timed blocks belong to EVERY day they touch, not just the day they
+    // start — a sleep from 23:00 to 07:00 must draw on both days. The
+    // layout engine (toSpan) already clips a block at midnight and marks
+    // continuesBefore/After; it just never received the block on the
+    // second day because bucketing was by start date alone.
+    const timed = activities
       .filter((a) => a.timestamp)
       .map((a) => {
         const start = new Date(a.timestamp);
         const mins = Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 0;
         return { ...a, start, end: mins ? new Date(start.getTime() + mins * 60000) : null };
+      })
+      .filter((a) => {
+        if (Number.isNaN(a.start.getTime())) return false;
+        // Open-ended (no duration): only its start day.
+        if (!a.end) return a.start >= dayStart && a.start < dayEnd;
+        return a.start < dayEnd && a.end > dayStart;
       });
 
     const laid = layoutDay(timed, dayStart);

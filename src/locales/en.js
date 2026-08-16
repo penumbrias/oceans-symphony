@@ -272,6 +272,7 @@ export default {
   "planner.close": "Close",
   "planner.addToDay": "Plan this day",
   "planner.giveTime": "Give it a time",
+  "planner.afterLast": "After the last one",
   "planner.markDone": "Mark done",
   "planner.openItem": "Open",
   "planner.doneToast": "Done",

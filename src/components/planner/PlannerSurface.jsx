@@ -27,6 +27,7 @@ import {
 } from "@/lib/planReminderScheduler";
 import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recurrenceUtils";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
+import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
@@ -86,6 +87,7 @@ export default function PlannerSurface({
   // "Rescheduled" outcome chip → jump into the date field: rescheduling IS
   // the sheet's own move-to-day controls; the chip just takes you there.
   const dayInputRef = useRef(null);
+
   const [recur, setRecur] = useState({ interval: "none", count: 8 });
   const [extra, setExtra] = useState({
     is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS,
@@ -96,6 +98,17 @@ export default function PlannerSurface({
   const [branchAsk, setBranchAsk] = useState(null); // { item }
 
   const { data: activities = [] } = useQuery({ queryKey: ["activities"], queryFn: () => base44.entities.Activity.list() });
+  // "After the last one": the end of the most recent activity that finished
+  // before this entry's own start (or before now, for a new entry) — the
+  // natural start time when logging a day back-to-back. Skips the entry
+  // being edited and anything with no duration (no real end).
+  const { prevEnd, prevEndName } = useMemo(() => {
+    if (!timing) return { prevEnd: null, prevEndName: "" };
+    const ownStart = !timing.create && timing.item?.timestamp ? new Date(timing.item.timestamp) : new Date();
+    const best = previousActivityEnd(activities, { before: ownStart, excludeId: timing.item?.id || null });
+    return { prevEnd: best?.end || null, prevEndName: best?.name || "" };
+  }, [activities, timing]);
+  const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: frontingHistory = [] } = useQuery({
@@ -711,7 +724,23 @@ export default function PlannerSurface({
 
             <div className="flex items-end gap-2">
               <label className="flex-1 text-xs text-muted-foreground">
-                {tr("planner.giveTime")}
+                <span className="flex items-center justify-between gap-2">
+                  {tr("planner.giveTime")}
+                  {/* Quick-set: start where the previous thing ended. Logging
+                      a day is mostly back-to-back — retyping the last end
+                      time for every entry is the tedium this removes. */}
+                  {prevEnd && (
+                    <button type="button"
+                      onClick={() => {
+                        setTimeValue(`${String(prevEnd.getHours()).padStart(2, "0")}:${String(prevEnd.getMinutes()).padStart(2, "0")}`);
+                        if (!isSameDayAsTiming(prevEnd)) setTiming((p) => (p ? { ...p, day: prevEnd } : p));
+                      }}
+                      className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 hover:text-foreground truncate max-w-[60%]"
+                      title={`${prevEnd.toLocaleString([], { weekday: "short", hour: "2-digit", minute: "2-digit" })} — ${prevEndName}`}>
+                      {tr("planner.afterLast")}
+                    </button>
+                  )}
+                </span>
                 <input type="time" value={timeValue} onChange={(e) => setTimeValue(e.target.value)}
                   className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
               </label>

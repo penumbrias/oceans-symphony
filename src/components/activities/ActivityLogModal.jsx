@@ -18,6 +18,7 @@ import { applyWhisper } from "@/lib/whisperUtils";
 import { applyLogCommands } from "@/lib/logCommands";
 import { useTerms } from "@/lib/useTerms";
 import { ACTIVITY_STATUSES } from "@/lib/activityStatus";
+import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { addActiveActivity } from "@/lib/activitySession";
 
 // Lean "I did this" log modal. Past-dated capture path.
@@ -231,6 +232,34 @@ export default function ActivityLogModal({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [startDateKey, startHour, endHour, startMinute, endMinute, frontingHistory]);
+
+  // "After last" quick-set: end of the most recent logged activity. Read
+  // from the shared cache — the planner keeps this list warm — and only
+  // resolved when the modal is open so a closed modal costs nothing.
+  const { data: allActivities = [] } = useQuery({
+    queryKey: ["activities"],
+    queryFn: () => base44.entities.Activity.list(),
+    enabled: !!isOpen,
+  });
+  const prevEnd = useMemo(
+    () => previousActivityEnd(allActivities, { before: new Date() }),
+    [allActivities]
+  );
+  const applyPrevEnd = () => {
+    if (!prevEnd) return;
+    const d = format(prevEnd.end, "yyyy-MM-dd");
+    setSelectedDateStr(d);
+    setStartTime(format(prevEnd.end, "HH:mm"));
+    // Keep the end date from preceding the new start.
+    setEndDateStr((cur) => (!cur || cur < d ? d : cur));
+  };
+  const AfterLastButton = () => prevEnd ? (
+    <button type="button" onClick={applyPrevEnd}
+      className="text-[0.6875rem] text-primary hover:underline truncate max-w-[10rem]"
+      title={`${format(prevEnd.end, "EEE HH:mm")} — ${prevEnd.name || "previous activity"}`}>
+      After last
+    </button>
+  ) : null;
 
   const { data: activityCategories = [] } = useQuery({
     queryKey: ["activityCategories"],
@@ -455,8 +484,11 @@ export default function ActivityLogModal({
               <div>
                 <label className="text-xs text-muted-foreground mb-1 flex items-center justify-between gap-2">
                   <span>Start time <span className="text-destructive">*</span></span>
-                  <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
-                    className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                  <span className="flex items-center gap-2.5">
+                    <AfterLastButton />
+                    <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
+                      className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                  </span>
                 </label>
                 <input
                   type="datetime-local"
@@ -509,8 +541,11 @@ export default function ActivityLogModal({
                   <div className="flex-1">
                     <label className="text-xs text-muted-foreground mb-1 flex items-center justify-between gap-2">
                       <span>Start time <span className="text-destructive">*</span></span>
-                      <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
-                        className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                      <span className="flex items-center gap-2.5">
+                        <AfterLastButton />
+                        <button type="button" onClick={() => { const n = new Date(); setSelectedDateStr(format(n, "yyyy-MM-dd")); setStartTime(format(n, "HH:mm")); }}
+                          className="text-[0.6875rem] text-primary hover:underline">Now</button>
+                      </span>
                     </label>
                     <input
                       type="time"

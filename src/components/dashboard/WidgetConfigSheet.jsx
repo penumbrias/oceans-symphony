@@ -622,7 +622,7 @@ export default function WidgetConfigSheet({
           </div>
 
           </SubSection>
-          <SubSection title="This widget" icon={Settings2}>
+          <SubSection title="Widget settings" icon={Settings2}>
           {/* Widget-specific options, declared by the registry entry. */}
           {(def.configFields || []).map((f) => {
             // showIf: a field only appears when it means something for the

@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "August 16, 2026",
+    changes: [
+      { type: "fix", text: "Planner: an activity that crosses midnight (sleep!) now shows on both days it touches, as two joined pieces with the real start and end times." },
+      { type: "feature", text: "Logging an activity: an \u201cAfter the last one\u201d quick-set fills the start time with the end of your previous activity — in the planner sheet and the log/start popup." },
+      { type: "improve", text: "Widget options: the \u201cThis widget\u201d section is now called \u201cWidget settings\u201d." },
+    ],
+  },
+  {
     date: "August 15, 2026",
+    version: "0.174.4",
     changes: [
       { type: "improve", text: "While Accessibility mode is on, a small strip names it (it stacks pages into one column) with a link to the switch — dismissible if you use the mode on purpose." },
       { type: "fix", text: "When a page song can't load, the Song widget now says so and offers Retry — before, the play button just silently disappeared while the volume slider stayed." },
