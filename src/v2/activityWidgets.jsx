@@ -348,7 +348,8 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
     return (
       <Section label="Week" action={nav}>
         <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
-          applyPageLook={false} />
+          applyPageLook={false}
+          prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );
   }
@@ -501,7 +502,8 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
     return (
       <Section label="Day" action={nav}>
         <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
-          applyPageLook={false} />
+          applyPageLook={false}
+          prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );
   }

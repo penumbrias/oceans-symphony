@@ -22,7 +22,7 @@ import { startOfWeek, addDays, isSameDay, format } from "date-fns";
 import { layoutDay, occupiedMinutes, snap, MINUTES_PER_DAY } from "@/lib/planner/layout";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
-import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX } from "@/lib/planner/displayPrefs";
+import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 
 const HOLD_MS = 300;
 const SLOP_PX = 8;
@@ -61,6 +61,7 @@ function DayColumn({
   const gesture = useRef(null);
   const [draft, setDraft] = useState(null);      // { fromMin, toMin }
   const [resizing, setResizing] = useState(null); // { id, edge, startMin, endMin }
+  const resizeArm = useRef(null); // hold-to-arm edge resize: { timer, x, y, block, armed }
 
   const minuteAt = useCallback((clientY) => {
     const box = ref.current?.getBoundingClientRect();
@@ -100,6 +101,13 @@ function DayColumn({
   };
 
   const onPointerMove = (e) => {
+    // Un-armed edge press that moves is a scroll — drop it (no open, no
+    // resize).
+    const ra = resizeArm.current;
+    if (ra && !ra.armed) {
+      if (Math.abs(e.clientY - ra.y) > SLOP_PX || Math.abs(e.clientX - ra.x) > SLOP_PX) cancelResizeArm();
+      return;
+    }
     const g = gesture.current;
     if (g && !g.armed) {
       // Moved before the hold completed — that's a scroll, not a create.
@@ -127,8 +135,46 @@ function DayColumn({
     }
   };
 
+  // Hold-to-arm resize on a block's edge. Until the hold lands, the press
+  // is treated as a tap (release → open the block) or a scroll (moved →
+  // forget it). Only a held-still finger turns into a resize.
+  const armResize = (e, spec, block) => {
+    e.stopPropagation();
+    if (e.button !== undefined && e.button !== 0) return;
+    if (resizeArm.current?.timer) clearTimeout(resizeArm.current.timer);
+    const node = ref.current;
+    const pointerId = e.pointerId;
+    resizeArm.current = {
+      x: e.clientX, y: e.clientY, block, pointerId,
+      timer: setTimeout(() => {
+        if (!resizeArm.current) return;
+        resizeArm.current.timer = null;
+        resizeArm.current.armed = true;
+        try { node?.setPointerCapture(pointerId); } catch { /* mouse */ }
+        if (navigator.vibrate) navigator.vibrate(8);
+        setResizing(spec);
+      }, HOLD_MS),
+    };
+  };
+  const cancelResizeArm = () => {
+    if (resizeArm.current?.timer) clearTimeout(resizeArm.current.timer);
+    resizeArm.current = null;
+  };
+
   // Release = commit. This is the ONLY path that creates anything.
   const onPointerUp = (e) => {
+    // A press on an edge that never became a hold is a TAP on the block:
+    // open it, exactly like a press in the middle would.
+    const ra = resizeArm.current;
+    if (ra && !ra.armed) {
+      cancelResizeArm();
+      onOpenBlock(ra.block);
+      return;
+    }
+    if (ra?.armed) {
+      try { ref.current?.releasePointerCapture(ra.pointerId); } catch { /* gone */ }
+      resizeArm.current = null;
+    }
     const g = gesture.current;
     if (g?.pointerId != null) {
       try { ref.current?.releasePointerCapture(g.pointerId); } catch { /* already gone */ }
@@ -148,6 +194,7 @@ function DayColumn({
 
   // Cancel = throw the gesture away. Never commit.
   const onPointerCancel = () => {
+    cancelResizeArm();
     stopAutoScroll();
     endGesture();
     setDraft(null);
@@ -345,13 +392,18 @@ function DayColumn({
               }}
             >
               {/* Edge handles — thin, and only on blocks tall enough to have
-                  a middle left over for tapping. */}
+                  a middle left over for tapping. Resize is HOLD-to-arm on
+                  the edge (same grammar as hold-to-create): a plain tap on
+                  an edge opens the block like a tap anywhere else. Arming
+                  instantly on pointerdown meant a thumb landing near an
+                  edge resized the entry instead of opening it — silently
+                  changing logged data by trying to LOOK at it. */}
               {bottom - top >= 30 && !spansDays && (
                 <>
                   <div className="absolute inset-x-0 top-0 h-2 cursor-ns-resize"
-                    onPointerDown={(e) => { e.stopPropagation(); setResizing({ id: b.id, edge: "top", startMin: b.startMin, endMin: b.endMin }); }} />
+                    onPointerDown={(e) => armResize(e, { id: b.id, edge: "top", startMin: b.startMin, endMin: b.endMin }, b)} />
                   <div className="absolute inset-x-0 bottom-0 h-2 cursor-ns-resize"
-                    onPointerDown={(e) => { e.stopPropagation(); setResizing({ id: b.id, edge: "bottom", startMin: b.startMin, endMin: b.endMin }); }} />
+                    onPointerDown={(e) => armResize(e, { id: b.id, edge: "bottom", startMin: b.startMin, endMin: b.endMin }, b)} />
                 </>
               )}
               <button type="button" onClick={() => onOpenBlock(b)}
@@ -411,31 +463,44 @@ export default function WeekCanvas({
   maxHeight,
   fill = false,
   onOpenMark,
+  prefsOverride = null,
 }) {
   // Display prefs: row height (pinch or popover), clock format, week start.
-  // Read live so a change anywhere re-renders every planner instance.
-  const [prefs, setPref] = usePlannerPrefs();
+  // Read live so a change anywhere re-renders every planner instance; a
+  // widget's own config (prefsOverride) wins over the shared value.
+  const [prefs, setPref] = usePlannerPrefs(prefsOverride);
   const hourPx = prefs.hourPx;
   _timeFmt = prefs.timeFmt;
   weekStartsOn = prefs.weekStartsOn;
 
-  // Pinch-to-zoom the hour scale (two-finger). Tracks the two touches
-  // itself — touch-action allows both pans, so the browser never claims a
+  // Pinch-to-zoom (two-finger), on both axes: the vertical spread of the
+  // fingers scales the HOUR height, the horizontal spread scales the DAY
+  // width — so a mostly-vertical pinch zooms time, a mostly-horizontal one
+  // widens the columns, and a diagonal one does both. Tracks the touches
+  // itself; touch-action allows both pans, so the browser never claims a
   // two-finger gesture as page zoom (the app's viewport disables that).
+  const dayPx = prefs.dayPx;
   const pinchRef = useRef(null);
   const onPinchStart = (e) => {
     if (e.touches?.length !== 2) return;
     const [a, b] = e.touches;
-    pinchRef.current = { d0: Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY), h0: hourPx };
+    pinchRef.current = {
+      dx0: Math.max(24, Math.abs(a.clientX - b.clientX)),
+      dy0: Math.max(24, Math.abs(a.clientY - b.clientY)),
+      h0: hourPx, w0: dayPx,
+    };
   };
   const onPinchMove = (e) => {
     const p = pinchRef.current;
     if (!p || e.touches?.length !== 2) return;
     e.preventDefault();
     const [a, b] = e.touches;
-    const d = Math.hypot(a.clientX - b.clientX, a.clientY - b.clientY);
-    const next = Math.round(Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, p.h0 * (d / p.d0))));
-    if (next !== hourPx) setPref("hourPx", next);
+    const dx = Math.max(24, Math.abs(a.clientX - b.clientX));
+    const dy = Math.max(24, Math.abs(a.clientY - b.clientY));
+    const nextH = Math.round(Math.max(HOUR_PX_MIN, Math.min(HOUR_PX_MAX, p.h0 * (dy / p.dy0))));
+    const nextW = Math.round(Math.max(DAY_PX_MIN, Math.min(DAY_PX_MAX, p.w0 * (dx / p.dx0))));
+    if (nextH !== hourPx) setPref("hourPx", nextH);
+    if (nextW !== dayPx) setPref("dayPx", nextW);
   };
   const onPinchEnd = () => { pinchRef.current = null; };
 
@@ -516,7 +581,7 @@ export default function WeekCanvas({
   // A day column narrower than this can't hold a readable block, so on a
   // phone the week scrolls sideways rather than shrinking to slivers. The
   // Mon–Sun shape is kept either way.
-  const MIN_DAY_PX = dayCount === 1 ? 0 : 74;
+  const MIN_DAY_PX = dayCount === 1 ? 0 : dayPx;
 
   return (
     <div className={`flex flex-col min-h-0 ${fill ? "h-full" : ""}`}>

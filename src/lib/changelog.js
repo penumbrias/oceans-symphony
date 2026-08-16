@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 16, 2026",
     changes: [
+      { type: "fix", text: "Planner: resizing a block now takes a press-and-hold on its edge — a plain tap anywhere on a block just opens it, so you can't nudge logged times by accident." },
+      { type: "fix", text: "Week / Day grid widgets: their own \u201cWeek starts on\u201d, clock and row height settings apply again (they were being overridden by the planner's shared settings)." },
+      { type: "feature", text: "Planner: pinch sideways to widen or narrow the day columns; the Display panel gets a Day width slider too." },
       { type: "fix", text: "Planner: you can swipe sideways to reach the rest of the week again on phones." },
       { type: "feature", text: "Planner: pinch the grid with two fingers to zoom the hours in or out, and a new Display button (sliders icon) sets hour height, 24h vs AM/PM clock, and the week's first day — shared with the classic tracker." },
       { type: "improve", text: "Planner: with the Check-ins overlay on, tapping a check-in dot opens that entry in the Check-In Log." },

@@ -45,7 +45,7 @@ import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
 import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX } from "@/lib/planner/displayPrefs";
+import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -64,6 +64,9 @@ export default function PlannerSurface({
   onAnchorChange,
   maxHeight,
   applyPageLook = true,
+  // Per-instance display overrides (a widget's own weekStartsOn / timeFmt /
+  // rowH config). Beat the shared preference when set.
+  prefsOverride = null,
 }) {
   const t = useTerms();
   const tr = useT();
@@ -72,7 +75,7 @@ export default function PlannerSurface({
   const [showDisplay, setShowDisplay] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
-  const [prefs, setPref] = usePlannerPrefs();
+  const [prefs, setPref] = usePlannerPrefs(prefsOverride);
   const navigate = useNavigate();
   const qc = useQueryClient();
   const [ownAnchor, setOwnAnchor] = useState(() => new Date());
@@ -666,12 +669,22 @@ export default function PlannerSurface({
                 className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.rowHeight")} />
               <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.hourPx}px</span>
             </label>
+            {dayCount > 1 && (
+              <label className="flex items-center justify-between gap-3">
+                <span className="text-muted-foreground whitespace-nowrap">{tr("planner.dayWidth")}</span>
+                <input type="range" min={DAY_PX_MIN} max={DAY_PX_MAX} step={2} value={prefs.dayPx}
+                  onChange={(e) => setPref("dayPx", Number(e.target.value))}
+                  className="flex-1 accent-[var(--v2-accent)]" aria-label={tr("planner.dayWidth")} />
+                <span className="tabular-nums text-muted-foreground w-10 text-right">{prefs.dayPx}px</span>
+              </label>
+            )}
             <p className="text-[0.6875em] text-muted-foreground">{tr("planner.pinchHint")}</p>
           </div>
         )}
 
         <WeekCanvas
           anchor={anchor}
+          prefsOverride={prefsOverride}
           dayCount={dayCount}
           maxHeight={maxHeight}
           fill={!chrome}
