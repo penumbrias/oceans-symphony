@@ -1149,6 +1149,7 @@ export default function ExperimentalDashboard({
   const canvas = (
     <div
       ref={gridRef}
+      data-board-a11y-stack={a11yStack ? "1" : undefined}
       style={a11yStack ? undefined : {
         display: "grid",
         gridTemplateColumns: `repeat(${gridCols}, minmax(0, 1fr))`,
@@ -1211,6 +1212,16 @@ export default function ExperimentalDashboard({
       {/* Notices sit above the widgets in flow; hidden while editing so
           the layout canvas stays clean and nothing eats a drag. */}
       {!editMode && notices}
+      {/* A stacked board is a MODE, not a mystery: when accessibility mode
+          is flattening widgets into one column (which disables drag/resize
+          by design), say so — a tester spent a session believing the board
+          was broken because nothing would move. */}
+      {editMode && a11yStack && (
+        <p className="text-xs text-muted-foreground border border-border/40 rounded-lg px-2.5 py-1.5 mb-2">
+          ♿ Accessibility mode is on, so widgets stack in one column — use each widget's ↑↓ arrows to reorder.
+          Turning it off (Settings → Accessibility) brings back free placement and resizing.
+        </p>
+      )}
       {/* Edit-mode toolbar */}
       {editMode && (
       <div className="flex flex-wrap items-center justify-end gap-1.5 mb-2">

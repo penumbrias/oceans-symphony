@@ -18,14 +18,28 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   // getting clipped by scrolling sheet containers (the edit popup),
   // cutting the picker in half. Fixed positioning from the trigger rect
   // escapes any overflow, and the clamp keeps it fully on screen.
+  //
+  // EXCEPT inside a MODAL dialog (aria-modal): its focus trap treats the
+  // body-portaled popover as "outside" and steals focus back the moment
+  // the hex field is clicked — the tester's "can't type colour codes".
+  // Modal dialogs don't scroll-clip the way the sheets do, so there the
+  // popover renders inline (absolute) exactly as it did before v0.172.1.
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [inModal, setInModal] = useState(false);
+  // Sized to the content (react-colorful is 200px + padding) but never
+  // wider than the screen.
+  const POP_W = 236;
+  const popWidth = `min(${POP_W}px, calc(100vw - 16px))`;
 
   useEffect(() => { setHex(value || '#6366f1'); }, [value]);
 
   useLayoutEffect(() => {
     if (!open || !containerRef.current) return;
+    const modal = !!containerRef.current.closest('[role="dialog"][aria-modal="true"]');
+    setInModal(modal);
+    if (modal) return; // inline rendering needs no viewport math
     const r = containerRef.current.getBoundingClientRect();
-    const W = 232, H = 320; // approximate popover size for clamping
+    const W = POP_W, H = 340; // approximate popover size for clamping
     const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
     const below = r.bottom + 8;
     const top = below + H > window.innerHeight - 8 ? Math.max(8, r.top - H - 8) : below;
@@ -75,53 +89,65 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
           />
         )}
       </div>
-      {open && createPortal(
-        <div ref={popRef} data-color-picker-popover
-          className='fixed z-[90] p-3 bg-card border border-border rounded-xl shadow-xl'
-          style={{ top: pos.top, left: pos.left }}>
-          {compact && label && (
-            <p className='text-xs font-medium mb-2'>{label}</p>
-          )}
-          <HexColorPicker color={hex} onChange={handlePickerChange} />
-          <input
-            value={hex}
-            onChange={handleHexInput}
-            className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
-            maxLength={7}
-          />
-          {opacity && (
-            <div className='mt-2'>
-              <label className='text-[0.6875rem] text-muted-foreground flex items-center justify-between'>
-                Opacity <span className='tabular-nums'>{opacity.value ?? 100}%</span>
-              </label>
-              <input
-                type='range' min={0} max={100} step={5}
-                value={opacity.value ?? 100}
-                onChange={(e) => opacity.onChange(Number(e.target.value))}
-                className='w-full accent-primary'
-                aria-label={`${label || 'Colour'} opacity`}
-              />
-            </div>
-          )}
-          {(onClear || extraAction) && (
-            <div className='mt-2 flex items-center gap-1.5'>
-              {extraAction && (
-                <button type='button' onClick={() => { extraAction.onClick(); setOpen(false); }}
-                  className='flex-1 text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground whitespace-nowrap'>
-                  {extraAction.label}
-                </button>
-              )}
-              {onClear && (
-                <button type='button' onClick={() => { onClear(); setOpen(false); }}
-                  className='flex-1 text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground'>
-                  Clear
-                </button>
-              )}
-            </div>
-          )}
-        </div>,
-        document.body
-      )}
+      {open && (() => {
+        const pop = (
+          <div ref={popRef} data-color-picker-popover
+            className={inModal
+              ? 'absolute z-[90] mt-2 p-3 bg-card border border-border rounded-xl shadow-xl'
+              : 'fixed z-[90] p-3 bg-card border border-border rounded-xl shadow-xl'}
+            style={inModal
+              ? { width: popWidth, left: 0 }
+              : { top: pos.top, left: pos.left, width: popWidth }}>
+            {compact && label && (
+              <p className='text-xs font-medium mb-2'>{label}</p>
+            )}
+            {/* react-colorful is 200px by default; stretch it to the popover
+                so the layout reads as one designed panel, not a floating
+                square with mismatched furniture. */}
+            <HexColorPicker color={hex} onChange={handlePickerChange} style={{ width: '100%' }} />
+            <input
+              value={hex}
+              onChange={handleHexInput}
+              className='mt-2 w-full h-7 px-2 rounded border border-border bg-background text-xs font-mono text-center'
+              maxLength={7}
+            />
+            {opacity && (
+              <div className='mt-2'>
+                <label className='text-[0.6875rem] text-muted-foreground flex items-center justify-between'>
+                  Opacity <span className='tabular-nums'>{opacity.value ?? 100}%</span>
+                </label>
+                <input
+                  type='range' min={0} max={100} step={5}
+                  value={opacity.value ?? 100}
+                  onChange={(e) => opacity.onChange(Number(e.target.value))}
+                  className='w-full accent-primary'
+                  aria-label={`${label || 'Colour'} opacity`}
+                />
+              </div>
+            )}
+            {(onClear || extraAction) && (
+              // Wrap instead of squeezing: "Use the app colour" at a large
+              // text scale was overflowing its pill when forced to share
+              // one row with Clear.
+              <div className='mt-2 flex flex-wrap items-center gap-1.5'>
+                {extraAction && (
+                  <button type='button' onClick={() => { extraAction.onClick(); setOpen(false); }}
+                    className='flex-1 basis-24 text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground'>
+                    {extraAction.label}
+                  </button>
+                )}
+                {onClear && (
+                  <button type='button' onClick={() => { onClear(); setOpen(false); }}
+                    className='flex-1 basis-16 text-xs px-2 py-1 rounded-full border border-border/60 text-muted-foreground hover:text-foreground'>
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        );
+        return inModal ? pop : createPortal(pop, document.body);
+      })()}
     </div>
   );
 }

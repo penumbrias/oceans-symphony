@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 15, 2026",
     changes: [
+      { type: "fix", text: "Typing a colour code into the colour picker works again inside popup editors, and the picker's buttons no longer squash their labels." },
+      { type: "improve", text: "When Accessibility mode stacks home widgets into one column, edit mode now says so (and how to reorder or turn it off) instead of drag silently not working." },
       { type: "improve", text: "Importing a backup now reports every problem visibly (as a popup too), and a \u201cLast import attempt\u201d panel under the Import button records each step for bug reports." },
       { type: "improve", text: "Widget options gained the same move-to-top/bottom button the other edit menus have." },
       { type: "feature", text: "Plans can now be resolved as \u201cRescheduled\u201d: the planner's outcome row and the home notice both offer Reschedule, which moves the plan to a new day and time instead of closing it." },
