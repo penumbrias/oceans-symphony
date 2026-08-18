@@ -5,6 +5,13 @@
 import { openDB } from 'idb';
 import { encryptData, decryptData, generateSalt, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { getEncSalt, setEncSalt, setEncryptionEnabled, setSessionPassword, clearSessionPassword } from './storageMode';
+import { restoreLocalSettingsFromDb, installLocalSettingsMirror, MIRROR_KEY } from "@/lib/localSettingsMirror";
+
+// Reserved top-level keys inside the DB blob that are NOT entity
+// collections ({id: record}). Every generic walk over the blob must skip
+// them. Add here whenever a new reserved key is introduced.
+export const RESERVED_DB_KEYS = new Set([MIRROR_KEY]);
+export const isReservedDbKey = (k) => typeof k === "string" && RESERVED_DB_KEYS.has(k);
 
 const IDB_NAME = 'oceans_symphony';
 const IDB_VERSION = 1;
@@ -318,6 +325,17 @@ export function isPreviewDbActive() {
 //     the recovery screen instead of showing the user an empty app.
 //   - Recover the encryption flag and salt from the stored envelope when
 //     localStorage has been wiped (Android cleaners do this regularly).
+// Runs at EVERY successful initLocalDb exit (first-run, encrypted,
+// plain): restore allow-listed preferences that a localStorage wipe took
+// (from the mirror inside the blob), then start mirroring future changes.
+// Additive and non-throwing — the boot-path invariants above are untouched.
+function finalizeInit() {
+  try {
+    if (_db && typeof _db === "object") restoreLocalSettingsFromDb(_db);
+    installLocalSettingsMirror(() => _db, saveDb);
+  } catch (e) { console.warn("[localDb] settings mirror init failed", e); }
+}
+
 export async function initLocalDb(password) {
   // loadFromStorage throws StorageReadError only when both IDB and
   // localStorage are unreachable AND empty.
@@ -339,6 +357,7 @@ export async function initLocalDb(password) {
       _activeSalt = null;
       _encKey = null;
     }
+    finalizeInit();
     return;
   }
 
@@ -406,6 +425,7 @@ export async function initLocalDb(password) {
     // Hold the password for this app session so switching to another encrypted
     // system auto-unlocks (one password for the whole app).
     setSessionPassword(password);
+    finalizeInit();
     return;
   }
 
@@ -415,6 +435,7 @@ export async function initLocalDb(password) {
   _encKey = null;
   _activeSalt = null;
   _db = parsed;
+  finalizeInit();
 }
 
 export async function enableEncryption(password) {
@@ -653,6 +674,7 @@ export async function migrateLocalImageUrlScheme() {
   const db = getDb();
   let migrated = 0;
   for (const [entityName, collection] of Object.entries(db)) {
+    if (isReservedDbKey(entityName)) continue;
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
@@ -685,7 +707,12 @@ function sanitizeIncomingDump(dump, { allowDeviceBound = false } = {}) {
 // caller's job (DataBackupRestore already carries it forward explicitly);
 // wipe flows (loadDbDump({})) genuinely mean "everything gone".
 export async function loadDbDump(dump, options = {}) {
-  _db = sanitizeIncomingDump(dump, options);
+  const next = sanitizeIncomingDump(dump, options);
+  // Preferences mirror: this device's own wins if present; a fresh device
+  // (no mirror yet) adopts the file's so a restore brings the look along.
+  const ownMirror = _db && typeof _db === "object" ? _db[MIRROR_KEY] : null;
+  if (next && typeof next === "object" && ownMirror && !options.adoptMirror) next[MIRROR_KEY] = ownMirror;
+  _db = next;
   await saveDb();
 }
 
@@ -886,6 +913,9 @@ export async function mergeDbDump(dump, options = {}) {
     return (Date.parse(t.deleted_at || "") || 0) > recTime;
   };
   for (const [entityName, incoming] of Object.entries(sanitized)) {
+    // The settings mirror is THIS device's state — a merge from another
+    // device's file must not overwrite it (their look isn't ours).
+    if (isReservedDbKey(entityName)) continue;
     if (!incoming || typeof incoming !== "object") continue;
     if (!_db[entityName]) _db[entityName] = {};
 
@@ -1036,7 +1066,7 @@ export async function replaceIdReferences(oldId, newId, { skipEntities = [] } = 
   if (!oldId || !newId || oldId === newId) return 0;
   let changed = 0;
   for (const [entityName, col] of Object.entries(db)) {
-    if (skipEntities.includes(entityName)) continue;
+    if (skipEntities.includes(entityName) || isReservedDbKey(entityName)) continue;
     if (!col || typeof col !== "object") continue;
     for (const [rid, rec] of Object.entries(col)) {
       if (!rec || typeof rec !== "object") continue;

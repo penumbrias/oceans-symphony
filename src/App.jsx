@@ -61,6 +61,12 @@ import { initAccessibility } from '@/lib/useAccessibility';
 
 // Apply saved accessibility settings before first render
 initAccessibility();
+// …and again if the on-device preferences mirror restores keys that a
+// localStorage wipe took (fires from initLocalDb once the DB is readable).
+// ThemeContext listens for its own re-read event from the same restore.
+if (typeof window !== "undefined") {
+  window.addEventListener("symphony-local-settings-restored", () => { try { initAccessibility(); } catch { /* non-fatal */ } });
+}
 import {
   isDbInitialized,
   initLocalDb,

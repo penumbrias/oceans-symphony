@@ -55,6 +55,9 @@ export function mergeSystemsAsGroups(systemsData) {
     // Merge every other entity collection as-is.
     for (const [entity, recs] of Object.entries(data)) {
       if (entity === "Alter") continue;
+      // Reserved per-device keys (the preferences mirror) aren't entity
+      // collections and don't belong in a merged multi-system blob.
+      if (typeof entity === "string" && entity.startsWith("__")) continue;
       addColl(entity, recs);
     }
   }
