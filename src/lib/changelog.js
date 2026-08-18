@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Colors & background gains a Highlight swatch — the new UI's accent (page dots, active tab, focus rings) was painting a colour you couldn't find or change. It follows Primary until you set it, and a set Highlight now recolours the whole app consistently." },
       { type: "feature", text: "Your look and settings now survive a phone \u201cclear cache\u201d or cleaner app: theme, custom colours, saved presets, {{alter}}-linked presets, text size, fonts, grid and view preferences are kept safely inside your on-device data and restored automatically if the browser forgets them." },
       { type: "fix", text: "Friends page no longer crashes when a friend shares member details in a shape this version doesn't expect — and one friend's card failing can't take the whole page down." },
       { type: "fix", text: "Custom grounding technique: the Save button is pinned at the bottom of the form and clears the bottom bar — it was hidden underneath it on phones." },

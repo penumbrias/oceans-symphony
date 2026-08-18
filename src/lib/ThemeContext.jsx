@@ -453,6 +453,20 @@ export function ThemeProvider({ children }) {
         const triplet = hexToHslTriplet(value);
         if (triplet) document.documentElement.style.setProperty(`--${key}`, triplet);
       }
+      // The new UI's Highlight (ui_v2.tokens.accent → --v2-accent), when
+      // set, IS the primary colour everywhere — page dots, focus rings,
+      // buttons, links. AppLayout applies the token vars in its own effect
+      // and this one used to run after it, silently putting the theme's
+      // primary back — so a set Highlight painted the v2 chrome only and
+      // the rest of the app disagreed. Re-assert it here, last.
+      try {
+        const hl = document.documentElement.style.getPropertyValue("--v2-accent").trim();
+        if (hl && !/^var\(/.test(hl)) {
+          document.documentElement.style.setProperty("--color-primary", hl);
+          const t = hexToHslTriplet(hl);
+          if (t) document.documentElement.style.setProperty("--primary", t);
+        }
+      } catch { /* non-fatal */ }
     }
 
     // Update theme-color meta tag to match the app background (for APK status bar).

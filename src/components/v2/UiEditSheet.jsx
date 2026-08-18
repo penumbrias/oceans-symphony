@@ -579,7 +579,7 @@ const COLOR_ROLES = [
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 
-function ColorsSection({ children }) {
+function ColorsSection({ children, v2 }) {
   const tr = useT();
   const {
     themeMode, selectedTheme, customColors, updateCustomColorsFull,
@@ -645,6 +645,38 @@ function ColorsSection({ children }) {
             </div>
           );
         })}
+        {/* HIGHLIGHT — the new UI's own accent (--v2-accent): page dots,
+            active tab, focus rings, chip highlights, the Peek ring. It
+            follows Primary unless set here — this tile is what was
+            missing when "the UI has this blue but I can't find it in the
+            colors": the token existed, the grid didn't show it. */}
+        {v2 && (() => {
+          const stored = v2.uiV2.tokens.accent || "";
+          const following = !stored;
+          const shown = stored || readCss("primary");
+          const { hex, alpha } = splitHexAlpha(shown);
+          return (
+            <div key="v2-highlight" className="flex flex-col items-center gap-1">
+              <span className="relative">
+                <ColorPicker compact
+                  label={tr("editSheet.colorHighlight")}
+                  value={hex || "#888888"}
+                  onChange={(h) => v2.setToken("accent", joinHexAlpha(h, alpha))}
+                  opacity={{ value: alpha, onChange: (a) => v2.setToken("accent", joinHexAlpha(hex || readCss("primary"), a)) }}
+                  extraAction={following ? null : { label: tr("editSheet.followPrimary"), onClick: () => v2.setToken("accent", "") }}
+                />
+                {following && (
+                  <span aria-hidden="true" title={tr("editSheet.followsPrimary")}
+                    className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border border-background flex items-center justify-center text-[0.5rem] leading-none"
+                    style={{ background: "var(--color-primary)", color: "hsl(var(--primary-foreground))" }}>=</span>
+                )}
+              </span>
+              <span className="text-[0.625rem] text-muted-foreground text-center leading-tight">
+                {tr("editSheet.colorHighlight")}
+              </span>
+            </div>
+          );
+        })()}
       </div>
       <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.colorsHint")}</p>
       {children}
@@ -1195,7 +1227,7 @@ export default function UiEditSheet() {
       {/* Wireframe order: bars sit between SIZE and COLORS. Page-level
           only — the widget sheet mounts the other sections without it. */}
       <BarsSection v2={v2} alignX={alignX} />
-      <ColorsSection>
+      <ColorsSection v2={v2}>
         <BackgroundBlock background={background} onChange={writeBackground} wallpaper={wallpaper} />
       </ColorsSection>
       <PresetsSection v2={v2} />

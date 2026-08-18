@@ -49,6 +49,18 @@ function isTabRoot(pathname) {
   return TAB_ROOTS.some((r) => pathname === r) || pathname === "/settings";
 }
 
+// hex (#rgb/#rrggbb/#rrggbbaa) → "h s% l%" triplet for hsl(var(--primary)) consumers.
+function hexToHslTripletSafe(hex) {
+  const m = String(hex || "").trim().match(/^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/i);
+  if (!m) return null;
+  let h6 = m[1]; if (h6.length === 3) h6 = h6.split("").map((c) => c + c).join(""); if (h6.length === 8) h6 = h6.slice(0, 6);
+  const r = parseInt(h6.slice(0, 2), 16) / 255, g = parseInt(h6.slice(2, 4), 16) / 255, b = parseInt(h6.slice(4, 6), 16) / 255;
+  const max = Math.max(r, g, b), min = Math.min(r, g, b); let hue = 0, sat = 0; const lum = (max + min) / 2;
+  if (max !== min) { const d = max - min; sat = lum > 0.5 ? d / (2 - max - min) : d / (max + min);
+    if (max === r) hue = (g - b) / d + (g < b ? 6 : 0); else if (max === g) hue = (b - r) / d + 2; else hue = (r - g) / d + 4; hue /= 6; }
+  return `${Math.round(hue * 360)} ${Math.round(sat * 100)}% ${Math.round(lum * 100)}%`;
+}
+
 export default function AppLayout() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -287,13 +299,30 @@ useEffect(() => {
   const applied = [];
   for (const [k, v] of Object.entries(uiV2Vars)) {
     root.style.setProperty(k, v);
-    applied.push(k);
+    // --color-primary is co-owned with ThemeContext; never REMOVE it on
+    // cleanup (that left the app with no primary at all when the highlight
+    // was cleared) — the theme re-write below restores its own value.
+    if (k !== "--color-primary") applied.push(k);
   }
   root.style.setProperty("--radius", uiV2Vars["--v2-radius"]);
   applied.push("--radius");
+  // Highlight set → it is the primary colour app-wide. ThemeContext also
+  // re-asserts this whenever the theme changes (see there), so whichever
+  // effect runs last, the two agree.
+  // Only a REAL colour counts — when the highlight follows Primary the var
+  // is the literal "var(--color-primary)", and writing that into
+  // --color-primary would make it reference itself (→ no primary at all).
+  const hl = uiV2Vars["--v2-accent"];
+  if (hl && !/^var\(/.test(hl)) {
+    root.style.setProperty("--color-primary", hl);
+    const t = hexToHslTripletSafe(hl);
+    if (t) root.style.setProperty("--primary", t);
+  }
   return () => {
     root.removeAttribute("data-ui-v2");
     for (const k of applied) root.style.removeProperty(k);
+    // Give primary back to the theme when the highlight (or v2) goes away.
+    try { window.dispatchEvent(new Event("symphony-theme-storage-change")); } catch { /* SSR */ }
   };
 }, [uiV2On, uiV2Vars]);
 const bannerUrl = settings0?.system_banner_url || "";
