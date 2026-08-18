@@ -13,6 +13,7 @@ import { toast } from "sonner";
 import QuickActionsMenu from "@/components/dashboard/QuickActionsMenu";
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import ExperimentalDashboard from "@/pages/ExperimentalDashboard";
+import BackupHealthNotice from "@/components/dashboard/BackupHealthNotice";
 import { seedFromClassic } from "@/lib/experimentalHome";
 import { EXPERIMENTAL_HOME_ENABLED, UI_V2_ENABLED } from "@/lib/featureFlags";
 import HomeV2 from "@/v2/pages/HomeV2";
@@ -968,6 +969,7 @@ export default function Dashboard() {
           board's stacking context where the wallpaper can't cover them —
           these classic cards sit outside it and would render invisibly
           under the wallpaper. */}
+      {!uiV2On && <BackupHealthNotice className="mb-3" />}
       {!uiV2On && <CriticalPinnedPlans />}
       {!uiV2On && <UnresolvedPlansCard />}
       <NotificationHistoryModal

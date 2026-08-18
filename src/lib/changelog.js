@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Backup health: if your data has never been backed up, the last backup is stale, or automatic backups are failing, a small card on the home screen says so with a one-tap \u201cBack up now\u201d. Settings \u2192 Auto-backup shows the verdict and the last few attempts. Silent when all is well." },
+      { type: "fix", text: "Auto-backup mode, destination and last-backup time now survive a phone \u201cclear cache\u201d — a wipe used to silently switch automatic backups off." },
       { type: "feature", text: "The \u201cplan waiting for an outcome\u201d notice can now Start the plan as active (with the real start time if you began late) and open Details\u2026 — the full editor with start/end time, notes and everything else you get when logging an activity." },
       { type: "fix", text: "Tinted colours across the whole app (soft highlights, faded borders, badge backgrounds) actually draw now — hundreds of them were silently invisible, which is also why the Accent colour seemed to do nothing." },
       { type: "fix", text: "Colors & background gains a Highlight swatch — the new UI's accent (page dots, active tab, focus rings) was painting a colour you couldn't find or change. It follows Primary until you set it, and a set Highlight now recolours the whole app consistently." },

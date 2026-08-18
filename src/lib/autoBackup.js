@@ -27,6 +27,7 @@ import { readBackupLocalSettings } from "@/lib/backupKeys";
 import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
+import { recordBackupAttempt } from "@/lib/backupHealth";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -265,6 +266,10 @@ export async function runAutoBackupNow({ silent = false } = {}) {
 
   if (result === "filesystem" || result === "shared" || result === "downloaded") {
     setAutoBackupLastAt(new Date().toISOString());
+    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: true, detail: location || result });
+  } else if (result === "failed") {
+    // "cancelled" is the user's choice, not a failure — don't count it.
+    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: false, detail: error || "delivery failed" });
   }
   if (!silent) {
     try {
@@ -323,6 +328,11 @@ export async function runAutoBackupIfDue() {
     await runAutoBackupNow({ silent: true });
     return true;
   } catch (e) {
+    // The delivery step already recorded its own failure; a throw from
+    // BUILDING the payload (before delivery) would not have — record it
+    // so it can't be silent. Idempotent-ish: two consecutive failure rows
+    // for one attempt only strengthens the same "failing" verdict.
+    if (!e?.deliveryResult) recordBackupAttempt({ kind: "auto", ok: false, detail: e?.message || "build failed" });
     console.warn("[Auto-backup] failed:", e);
     return false;
   }

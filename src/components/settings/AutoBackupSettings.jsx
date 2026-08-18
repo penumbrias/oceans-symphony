@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, ShieldAlert, Bell, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useBackupHealth } from "@/components/dashboard/BackupHealthNotice";
 import {
   AUTO_BACKUP_INTERVALS,
   getAutoBackupInterval,
@@ -32,6 +33,37 @@ const NATIVE = isNative();
  *      whether our data is eviction-resistant and offers a re-request
  *      button when it isn't.
  */
+// Health verdict + the last few attempts, so a failing auto-backup is
+// visible HERE too (not only as a home-screen card someone may snooze).
+function BackupHealthLine() {
+  const h = useBackupHealth();
+  const [open, setOpen] = useState(false);
+  const label = {
+    ok: "Backups look healthy.",
+    none: "No backup has ever completed.",
+    stale: `Last successful backup was ${Math.floor(h.daysSince)} days ago — that's stale.`,
+    failing: `The last ${h.consecutiveFails} attempts failed${h.lastFailDetail ? ` — ${h.lastFailDetail}` : ""}.`,
+    off: "Automatic backups are off.",
+  }[h.level] || "";
+  const tone = h.level === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
+  return (
+    <div className="text-[0.6875rem] mt-1">
+      <button type="button" onClick={() => setOpen((v) => !v)} className={`${tone} underline-offset-2 hover:underline text-left`}>
+        {label}{h.events?.length ? (open ? " ▴" : " ▾") : ""}
+      </button>
+      {open && h.events?.length > 0 && (
+        <ul className="mt-1 space-y-0.5 text-muted-foreground">
+          {h.events.slice(0, 5).map((e, i) => (
+            <li key={i}>
+              {(() => { try { return format(new Date(e.at), "MMM d, h:mm a"); } catch { return e.at; } })()} · {e.kind} · {e.ok ? "ok" : "failed"}{e.detail ? ` · ${e.detail}` : ""}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function AutoBackupSettings() {
   const [interval, setIntervalState] = useState(0);
   const [mode, setModeState] = useState(BACKUP_MODES.OFF);
@@ -181,6 +213,7 @@ export default function AutoBackupSettings() {
         <p className="text-[0.6875rem] text-muted-foreground">
           Last backup: <span className="text-foreground">{lastLabel}</span>
         </p>
+        <BackupHealthLine />
       </div>
 
       <div>

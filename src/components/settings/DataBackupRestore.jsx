@@ -20,6 +20,7 @@ import {
 } from "@/lib/backupFormat";
 import { readBackupLocalSettings, writeBackupLocalSettings } from "@/lib/backupKeys";
 import { markBackupExportedToday } from "@/lib/dailyTaskSystem";
+import { recordBackupAttempt } from "@/lib/backupHealth";
 import { shareFile } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { isNative } from "@/lib/platform";
@@ -690,6 +691,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
           showStatus("error", chunkRecoveryMsg);
         } else {
           showStatus("error", `Export failed${res.error ? `: ${res.error}` : ""}`);
+          recordBackupAttempt({ kind: "manual", ok: false, detail: res.error || "delivery failed" });
         }
       } else if (res?.result === "cancelled") {
         // User dismissed the share sheet — no toast, no surprise.
@@ -704,6 +706,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         // backup_exported auto-trigger can complete itself.
         try {
           markBackupExportedToday();
+          recordBackupAttempt({ kind: "manual", ok: true, detail: res.location || "exported" });
         } catch {
           // best-effort — daily task plumbing is non-critical
         }
@@ -713,6 +716,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         showStatus("error", chunkRecoveryMsg);
       } else {
         showStatus("error", `Export failed: ${e.message}`);
+        recordBackupAttempt({ kind: "manual", ok: false, detail: e.message });
       }
     } finally {
       setExportLoading(false);
@@ -1316,6 +1320,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // backup export for daily-task purposes.
       try {
         markBackupExportedToday();
+        recordBackupAttempt({ kind: "manual", ok: true, detail: "copied as text" });
       } catch {
         // best-effort
       }

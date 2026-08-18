@@ -40,6 +40,13 @@ export const BACKUP_LS_KEYS = [
   "symphony_polls_default_tally_mode",
   "symphony_grounding_step_mode",
   "symphony_autobackup_interval_days",
+  // Auto-backup mode / destination / last-success + the health log: a
+  // localStorage wipe used to silently turn auto-backup OFF and erase the
+  // record of the last backup. Durable via the settings mirror now.
+  "symphony_autobackup_mode",
+  "symphony_autobackup_destination",
+  "symphony_autobackup_last_at",
+  "symphony_backup_health_v1",
   "grocery_lock_on_close_v1",
   // View / mode preferences — small but user-set, so they should ride
   // along to a new device with the rest of the backup.

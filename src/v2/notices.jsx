@@ -37,6 +37,7 @@ import { statusFor, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activit
 import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCard";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
 import { resolveOutcome, reschedulePlan, startPlanActive } from "@/lib/planner/resolvePlan";
+import BackupHealthNotice, { useBackupHealth } from "@/components/dashboard/BackupHealthNotice";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -397,6 +398,7 @@ function UnresolvedNotice({ rows, onResolved }) {
 // ── The stack ───────────────────────────────────────────────────────
 export default function V2Notices() {
   const tr = useT();
+  const backupHealth = useBackupHealth();
   const navigate = useNavigate();
   const qc = useQueryClient();
   const formatAlter = useAlterLabel();
@@ -519,6 +521,9 @@ export default function V2Notices() {
   // it can never crowd out something time-sensitive.
   const all = [
     ...criticalNotices,
+    // Data safety outranks every plan/reminder nag — but only takes a
+    // slot when backups actually need attention.
+    ...(backupHealth.level !== "ok" && !backupHealth.snoozed ? [{ key: "backup-health", type: "backup" }] : []),
     ...firedNotices,
     ...(planNotice ? [planNotice] : []),
     ...mentionNotices,
@@ -578,6 +583,9 @@ export default function V2Notices() {
                 onClick={() => { writeDismissal(n.plan.id, n.openStep.key); setDismissNonce((x) => x + 1); }} />
             </NoticeCard>
           );
+        }
+        if (n.type === "backup") {
+          return <BackupHealthNotice key={n.key} variant="v2" />;
         }
         if (n.type === "unresolved") {
           return (
