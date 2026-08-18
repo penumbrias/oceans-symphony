@@ -385,7 +385,7 @@ const frontingAlterIds = activeSession
   : [];
 
 // Fronter-linked theme: when primary fronter changes, apply their linked preset
-const { alterThemeLinks, setSelectedTheme, setThemeMode, clearCustomColors, allPresets, userCustomPresets } = useTheme();
+const { alterThemeLinks, setSelectedTheme, setThemeMode, stashAndClearCustomColors, allPresets, userCustomPresets } = useTheme();
 
 // Resolve the true primary fronter by is_primary flag (not list order)
 const primaryFronter = activeSession?.alter_id
@@ -400,7 +400,9 @@ useEffect(() => {
   if (!linkedPreset) return;
   const preset = allPresets[linkedPreset] || userCustomPresets[linkedPreset];
   if (!preset) return;
-  clearCustomColors();
+  // An AUTOMATIC switch must not destroy hand-made, unsaved colour edits —
+  // they're stashed as a recoverable preset instead of cleared outright.
+  stashAndClearCustomColors();
   setSelectedTheme(linkedPreset);
   if (preset.font) setAccessibilityFontFamily(preset.font);
   if (preset.headingFont) setAccessibilityHeadingFont(preset.headingFont);

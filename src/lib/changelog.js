@@ -18,7 +18,16 @@
 
 export const CHANGELOG = [
   {
+    date: "August 18, 2026",
+    changes: [
+      { type: "fix", text: "Friends page no longer crashes when a friend shares member details in a shape this version doesn't expect — and one friend's card failing can't take the whole page down." },
+      { type: "fix", text: "Custom grounding technique: the Save button is pinned at the bottom of the form and clears the bottom bar — it was hidden underneath it on phones." },
+      { type: "fix", text: "Unsaved theme colours are no longer lost when a linked {{fronter}}'s preset switches in — they're kept as an \u201cUnsaved colours (auto-kept)\u201d preset you can reapply." },
+    ],
+  },
+  {
     date: "August 16, 2026",
+    version: "0.176.1",
     changes: [
       { type: "fix", text: "Planner: resizing a block now takes a press-and-hold on its edge — a plain tap anywhere on a block just opens it, so you can't nudge logged times by accident." },
       { type: "fix", text: "Week / Day grid widgets: their own \u201cWeek starts on\u201d, clock and row height settings apply again (they were being overridden by the planner's shared settings)." },

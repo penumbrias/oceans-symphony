@@ -484,8 +484,28 @@ export function ThemeProvider({ children }) {
     setSelectedTheme('custom');
   };
 
+  // Name of the auto-stash preset that keeps unsaved live colour edits
+  // recoverable when something AUTOMATIC replaces them (a fronter-linked
+  // preset switching in). Overwritten each time — it's a safety net, not
+  // a history.
+  const UNSAVED_STASH = "Unsaved colours (auto-kept)";
+
   const clearCustomColors = () => {
     setCustomColors(null);
+  };
+
+  // Clear the live custom colours BUT keep them: used by paths the user
+  // did not trigger by hand. A tester "edited my theme all nice and now
+  // it's just gone" — the fronter-linked preset switch had discarded
+  // their unsaved edits. Now they land in the presets list under
+  // UNSAVED_STASH, one tap from coming back.
+  const stashAndClearCustomColors = () => {
+    setCustomColors((cur) => {
+      if (cur && (cur.light || cur.dark)) {
+        setUserCustomPresets((prev) => ({ ...prev, [UNSAVED_STASH]: { light: { ...(cur.light || {}) }, dark: { ...(cur.dark || {}) } } }));
+      }
+      return null;
+    });
   };
 
   const saveCustomPreset = (name, colors) => {
@@ -534,7 +554,8 @@ export function ThemeProvider({ children }) {
       updateCustomColors,
       updateCustomColorsFull,
       clearCustomColors,
-      cycleThemeMode,
+      stashAndClearCustomColors,
+            cycleThemeMode,
       presets: THEME_PRESETS,
       setSelectedTheme,
       selectedFont,

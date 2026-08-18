@@ -1,3 +1,4 @@
+import ErrorBoundary from "@/components/shared/ErrorBoundary";
 import React, { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -69,6 +70,35 @@ function buildTermsFromFriend(friendTerms = {}) {
     Fronter: cap(fr + 'er'),
     fronters: plu(fr + 'er'),
   };
+}
+
+// A friend's shared member payload is untrusted-shape data (their app
+// version may differ from ours). These normalise the two list-ish fields
+// into what the renderer iterates, whatever arrived:
+//   groups:       ["Name"] | [{ name }] | "Name" | null
+//   customFields: [["k","v"]] | [{ k, v }] | { k: v } | null
+function sharedGroupLabels(m) {
+  const g = m?.groups;
+  const list = Array.isArray(g) ? g : (g ? [g] : []);
+  return list.map((x) => (typeof x === "string" ? x : x?.name || x?.label || "")).filter(Boolean);
+}
+function sharedCustomFieldPairs(m) {
+  const cf = m?.customFields;
+  if (!cf) return [];
+  const toStr = (v) => (v == null ? "" : typeof v === "object" ? JSON.stringify(v) : String(v));
+  if (Array.isArray(cf)) {
+    return cf.map((row) => {
+      if (Array.isArray(row)) return [toStr(row[0]), toStr(row[1])];
+      if (row && typeof row === "object") {
+        const k = row.k ?? row.key ?? row.name ?? row.label ?? "";
+        const v = row.v ?? row.value ?? "";
+        return [toStr(k), toStr(v)];
+      }
+      return [toStr(row), ""];
+    }).filter(([k]) => k);
+  }
+  if (typeof cf === "object") return Object.entries(cf).map(([k, v]) => [toStr(k), toStr(v)]).filter(([k]) => k);
+  return [];
 }
 
 function FronterBubble({ fronter }) {
@@ -344,15 +374,22 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                                 {m.name || <span className="italic text-muted-foreground">Member</span>}
                                 {meta.length > 0 && <span className="text-xs text-muted-foreground"> · {meta.join(" · ")}</span>}
                               </p>
-                              {m.groups?.length > 0 && (
+                              {/* Everything below came over the wire from a
+                                  FRIEND's device — possibly a different app
+                                  version. Normalise every shape before
+                                  iterating: a payload we don't recognise
+                                  must never take the whole Friends page down
+                                  ("object is not iterable" crash, tester
+                                  report 2026-08-18). */}
+                              {sharedGroupLabels(m).length > 0 && (
                                 <p className="mt-1 flex flex-wrap gap-1">
-                                  {m.groups.map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
+                                  {sharedGroupLabels(m).map((g, i) => <span key={i} className="text-[0.625rem] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">{g}</span>)}
                                 </p>
                               )}
-                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{m.bio}</p>}
-                              {m.customFields?.length > 0 && (
+                              {m.bio && <p className="text-xs text-muted-foreground mt-1 whitespace-pre-wrap break-words">{String(m.bio)}</p>}
+                              {sharedCustomFieldPairs(m).length > 0 && (
                                 <dl className="mt-1 text-[0.6875rem] text-muted-foreground space-y-0.5">
-                                  {m.customFields.map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
+                                  {sharedCustomFieldPairs(m).map(([k, v], i) => (<div key={i}><span className="font-medium text-foreground/80">{k}:</span> {v}</div>))}
                                 </dl>
                               )}
                             </div>
@@ -1319,8 +1356,10 @@ export default function FriendsPage() {
               <p className="text-xs text-muted-foreground/60">Updates every 30 s</p>
             </div>
             {friends.map((friend) => (
+              // One friend's odd payload must never blank the whole page.
+              <ErrorBoundary key={friend.userId} resetKeys={[friend.userId]}
+                fallback={<div className="p-3 rounded-xl border border-destructive/30 text-xs text-muted-foreground">This friend's card couldn't be drawn ({friend.displayName || friend.name || friend.userId}). Their data is safe — this is a display problem, please report it.</div>}>
               <FriendCard
-                key={friend.userId}
                 friend={friend}
                 onRemove={handleRemove}
                 onToggleNotify={handleToggleNotify}
@@ -1333,6 +1372,7 @@ export default function FriendsPage() {
                 verifiedNumber={identity?.verifiedFriends?.[friend.userId] || null}
                 onVerify={handleVerifyFriend}
               />
+              </ErrorBoundary>
             ))}
           </div>
         )}

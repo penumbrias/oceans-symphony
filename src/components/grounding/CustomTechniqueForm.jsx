@@ -40,9 +40,17 @@ export default function CustomTechniqueForm({ onClose, onSaved }) {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" onClick={onClose}>
-      <div className="bg-card border border-border rounded-2xl p-5 w-full max-w-md max-h-[90vh] overflow-y-auto space-y-4"
+    // Bottom padding clears the app's fixed bottom chrome (bottom bar +
+    // quick actions + pinned bar in the new UI) — `inset-0` alone put the
+    // Save row underneath it on phones: "the add button is nowhere to be
+    // seen". The action row is also pinned to the sheet's bottom so it
+    // stays visible however far the fields scroll or the keyboard rises.
+    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4"
+      style={{ paddingBottom: "calc(1rem + var(--v2-bottom-chrome-h, var(--bottom-nav-height, 56px)) + env(safe-area-inset-bottom, 0px))" }}
+      onClick={onClose}>
+      <div className="bg-card border border-border rounded-2xl w-full max-w-md max-h-[85dvh] flex flex-col overflow-hidden"
         onClick={e => e.stopPropagation()}>
+       <div className="p-5 pb-3 space-y-4 overflow-y-auto overscroll-contain min-h-0 flex-1">
         <div className="flex items-center justify-between">
           <h3 className="font-semibold text-foreground">Add your own technique</h3>
           <button onClick={onClose}><X className="w-4 h-4 text-muted-foreground" /></button>
@@ -113,7 +121,8 @@ export default function CustomTechniqueForm({ onClose, onSaved }) {
           </div>
         </div>
 
-        <div className="flex gap-2 pt-2">
+       </div>
+        <div className="flex gap-2 p-4 pt-3 border-t border-border/50 flex-shrink-0 bg-card">
           <Button variant="outline" onClick={onClose} className="flex-1">Cancel</Button>
           <Button onClick={handleSave} disabled={!name.trim() || saving} className="flex-1">
             {saving ? "Saving…" : "Save technique"}
