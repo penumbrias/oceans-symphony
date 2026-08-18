@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "The \u201cplan waiting for an outcome\u201d notice can now Start the plan as active (with the real start time if you began late) and open Details\u2026 — the full editor with start/end time, notes and everything else you get when logging an activity." },
+      { type: "fix", text: "Tinted colours across the whole app (soft highlights, faded borders, badge backgrounds) actually draw now — hundreds of them were silently invisible, which is also why the Accent colour seemed to do nothing." },
       { type: "fix", text: "Colors & background gains a Highlight swatch — the new UI's accent (page dots, active tab, focus rings) was painting a colour you couldn't find or change. It follows Primary until you set it, and a set Highlight now recolours the whole app consistently." },
       { type: "feature", text: "Your look and settings now survive a phone \u201cclear cache\u201d or cleaner app: theme, custom colours, saved presets, {{alter}}-linked presets, text size, fonts, grid and view preferences are kept safely inside your on-device data and restored automatically if the browser forgets them." },
       { type: "fix", text: "Friends page no longer crashes when a friend shares member details in a shape this version doesn't expect — and one friend's card failing can't take the whole page down." },

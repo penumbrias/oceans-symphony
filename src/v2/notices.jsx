@@ -36,7 +36,7 @@ import { isSurfaceEnabled, SURFACE_IN_APP_BANNER } from "@/lib/upcomingPlansSurf
 import { statusFor, isPastTimeScheduled, ACTIVITY_STATUSES } from "@/lib/activityStatus";
 import { isUnresolvedNagEnabled } from "@/components/dashboard/UnresolvedPlansCard";
 import { getActiveActivities, ACTIVE_ACTIVITY_EVENT } from "@/lib/activitySession";
-import { resolveOutcome, reschedulePlan } from "@/lib/planner/resolvePlan";
+import { resolveOutcome, reschedulePlan, startPlanActive } from "@/lib/planner/resolvePlan";
 import { CATEGORY_ICONS } from "@/components/reminders/reminderHelpers";
 import { formatSnoozeLabel, snoozeUntilDate } from "@/components/reminders/snoozeHelpers";
 import { markMentionAcknowledgedToday } from "@/lib/dailyTaskSystem";
@@ -239,6 +239,32 @@ function UnresolvedNotice({ rows, onResolved }) {
   const [reschedId, setReschedId] = useState(null);
   const [reschedDay, setReschedDay] = useState("");
   const [reschedTime, setReschedTime] = useState("");
+  // Start-as-active with a chosen start time ("I started late"): tapping
+  // Start expands a small time row (default now) + Go. Details… opens the
+  // tracker's full editor for this plan — start/end time, notes, who,
+  // category, outcome — the same options as logging any activity.
+  const [startId, setStartId] = useState(null);
+  const [startTime, setStartTime] = useState("");
+  const [startDay, setStartDay] = useState("");
+  const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
+
+  const beginStart = (item) => {
+    const now = new Date();
+    setStartId(item.id);
+    setStartDay(format(now, "yyyy-MM-dd"));
+    setStartTime(format(now, "HH:mm"));
+  };
+  const commitStart = async (item) => {
+    const [y, mo, da] = startDay.split("-").map(Number);
+    const [h, mi] = startTime.split(":").map(Number);
+    if (!y || !mo || !da) return;
+    setBusyId(item.id);
+    try {
+      await startPlanActive(item, { startedAt: new Date(y, mo - 1, da, h || 0, mi || 0, 0, 0), categories });
+      setStartId(null);
+      onResolved();
+    } finally { setBusyId(null); }
+  };
 
   const resolve = async (item, status) => {
     setBusyId(item.id);
@@ -310,7 +336,37 @@ function UnresolvedNotice({ rows, onResolved }) {
                     }`}>
                     {tr("planner.reschedule")}
                   </button>
+                  <button type="button" disabled={busyId === item.id}
+                    onClick={(e) => { e.stopPropagation(); startId === item.id ? setStartId(null) : beginStart(item); }}
+                    className={`text-[0.6875em] px-2 py-0.5 rounded-full border disabled:opacity-40 ${
+                      startId === item.id
+                        ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                        : "border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}>
+                    {tr("notices.startPlan")}
+                  </button>
+                  <button type="button"
+                    onClick={(e) => { e.stopPropagation(); navigate(`/activities?activityId=${encodeURIComponent(item.id)}`); }}
+                    className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                    {tr("notices.planDetails")}
+                  </button>
                 </div>
+                {startId === item.id && (
+                  <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
+                    <span className="text-[0.6875em] text-muted-foreground whitespace-nowrap">{tr("notices.startedAt")}</span>
+                    <input type="date" value={startDay} onChange={(e) => setStartDay(e.target.value)}
+                      aria-label={tr("planner.date")}
+                      className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
+                    <input type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)}
+                      aria-label={tr("notices.startedAt")}
+                      className="h-7 px-1.5 rounded-lg border border-input bg-background text-[0.6875em] min-w-0" />
+                    <button type="button" disabled={busyId === item.id}
+                      onClick={() => commitStart(item)}
+                      className="text-[0.6875em] px-2 py-1 rounded-lg border border-[var(--v2-accent)] text-[var(--v2-accent)] disabled:opacity-40 flex-shrink-0">
+                      {tr("notices.startGo")}
+                    </button>
+                  </div>
+                )}
                 {reschedId === item.id && (
                   <div className="flex items-center gap-1.5 mt-1.5" onClick={(e) => e.stopPropagation()}>
                     <input type="date" value={reschedDay} onChange={(e) => setReschedDay(e.target.value)}

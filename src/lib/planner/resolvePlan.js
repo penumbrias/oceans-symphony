@@ -23,6 +23,35 @@ export async function reschedulePlan(item, when) {
   });
 }
 
+// Start a plan as an in-progress ACTIVE activity, linked back through
+// planActivityId so ending it resolves THIS plan to done (the same
+// mechanism the lifecycle popover's "Start now" and the classic unresolved
+// card use — lifted here so the home notice shares it). `startedAt` lets
+// the user say they started late/early instead of stamping "now".
+export async function startPlanActive(item, { startedAt = new Date(), categories = [] } = {}) {
+  const { addActiveActivity } = await import("@/lib/activitySession");
+  const color = (() => {
+    for (const id of (item.activity_category_ids || [])) {
+      const c = categories.find((x) => x.id === id);
+      if (c?.color) return c.color;
+    }
+    return item.color || null;
+  })();
+  addActiveActivity({
+    planActivityId: item.id,
+    categoryId: (item.activity_category_ids || [])[0] || null,
+    name: item.activity_name || "Activity",
+    color,
+    startTime: (startedAt instanceof Date ? startedAt : new Date(startedAt)).toISOString(),
+    alterIds: item.fronting_alter_ids || [],
+    notes: (item.notes || "").trim(),
+  });
+  try {
+    const { cancelPlanReminder } = await import("@/lib/planReminderScheduler");
+    await cancelPlanReminder(item.id);
+  } catch { /* non-fatal */ }
+}
+
 export async function resolveOutcome(item, status) {
   await base44.entities.Activity.update(item.id, {
     status,

@@ -1,4 +1,19 @@
 /** @type {import('tailwindcss').Config} */
+// Theme colours are hex CSS variables (--color-*), so Tailwind's usual
+// `<alpha-value>` trick (which needs an RGB/HSL triplet) can't apply — and
+// every `bg-primary/10`, `border-accent/30`, `bg-accent/30` … across the app
+// (700+ sites) compiled to NOTHING: no CSS emitted, so the tint never drew
+// (THE VEIL BUG's cousin; also why the "Accent" colour appeared to do
+// nothing). color-mix() takes hex directly and honours a per-colour alpha,
+// so `bg-primary/10` becomes
+//   background-color: color-mix(in srgb, var(--color-primary) 10%, transparent)
+// Solid usage (no slash) stays the plain var. Supported in every browser
+// the app targets (Chrome/WebView 111+, Safari 16.2+).
+const themeVar = (v) => ({ opacityValue }) =>
+  opacityValue === undefined || opacityValue === 1 || opacityValue === "1"
+    ? `var(${v})`
+    : `color-mix(in srgb, var(${v}) calc(${opacityValue} * 100%), transparent)`;
+
 module.exports = {
     darkMode: ["class"],
     content: ["./index.html", "./src/**/*.{ts,tsx,js,jsx}"],
@@ -34,39 +49,39 @@ module.exports = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
-  			background: 'var(--color-bg)',
-  			foreground: 'var(--color-text-primary)',
+  			background: themeVar('--color-bg'),
+  			foreground: themeVar('--color-text-primary'),
   			card: {
-  				DEFAULT: 'var(--color-surface)',
-  				foreground: 'var(--color-text-primary)'
+  				DEFAULT: themeVar('--color-surface'),
+  				foreground: themeVar('--color-text-primary')
   			},
   			popover: {
-  				DEFAULT: 'var(--color-surface)',
-  				foreground: 'var(--color-text-primary)'
+  				DEFAULT: themeVar('--color-surface'),
+  				foreground: themeVar('--color-text-primary')
   			},
   			primary: {
-  				DEFAULT: 'var(--color-primary)',
+  				DEFAULT: themeVar('--color-primary'),
   				foreground: '#FFF'
   			},
   			secondary: {
-  				DEFAULT: 'var(--color-secondary)',
-  				foreground: 'var(--color-text-primary)'
+  				DEFAULT: themeVar('--color-secondary'),
+  				foreground: themeVar('--color-text-primary')
   			},
   			muted: {
-  				DEFAULT: 'var(--color-muted)',
-  				foreground: 'var(--color-text-secondary)'
+  				DEFAULT: themeVar('--color-muted'),
+  				foreground: themeVar('--color-text-secondary')
   			},
   			accent: {
-  				DEFAULT: 'var(--color-accent)',
+  				DEFAULT: themeVar('--color-accent'),
   				foreground: '#FFF'
   			},
   			destructive: {
   				DEFAULT: '#EF4444',
   				foreground: '#FFF'
   			},
-  			border: 'var(--color-muted)',
-  			input: 'var(--color-surface)',
-  			ring: 'var(--color-primary)',
+  			border: themeVar('--color-muted'),
+  			input: themeVar('--color-surface'),
+  			ring: themeVar('--color-primary'),
   			chart: {
   				'1': 'var(--color-primary)',
   				'2': 'var(--color-accent)',
