@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Colour pickers match the widget: a swatch now shows its colour at its opacity (over a checkerboard), and the swatches re-read the widget's real colours whenever its look changes instead of only when the sheet opened." },
       { type: "fix", text: "Display options: Body style (italic, underline…) no longer bleeds into headings — headings follow only their own Header style toggles." },
       { type: "improve", text: "The separate \u201cAccent\u201d colour is gone — it's merged with the Highlight (and follows Primary when no highlight is set). It only ever tinted a few hover states." },
       { type: "fix", text: "Add widget → Options: picking a built-in style (Glass, Toybox, Old forum…) now previews it — only your saved styles used to show a change." },

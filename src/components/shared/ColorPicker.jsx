@@ -75,7 +75,22 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
           type='button'
           onClick={() => setOpen(v => !v)}
           className='w-8 h-8 rounded-lg border-2 border-border hover:border-primary/50 transition-colors flex-shrink-0 shadow-sm'
-          style={{ backgroundColor: hex }}
+          // The swatch shows the colour AT ITS OPACITY over a checkerboard,
+          // so a 30% background reads as faded here exactly as it does on
+          // the widget — a solid swatch over a translucent widget was the
+          // "pickers don't match the preview" report.
+          style={(() => {
+            const raw = opacity ? opacity.value : null;
+            const pct = raw != null && raw !== "" && Number.isFinite(Number(raw)) ? Math.max(0, Math.min(100, Number(raw))) : 100;
+            if (pct >= 100) return { backgroundColor: hex };
+            const mix = `color-mix(in srgb, ${hex} ${pct}%, transparent)`;
+            const check = "linear-gradient(45deg, rgba(128,128,128,.35) 25%, transparent 25%, transparent 75%, rgba(128,128,128,.35) 75%)";
+            return {
+              backgroundImage: `linear-gradient(${mix}, ${mix}), ${check}, ${check}`,
+              backgroundSize: "auto, 8px 8px, 8px 8px",
+              backgroundPosition: "0 0, 0 0, 4px 4px",
+            };
+          })()}
           title={label || 'Pick color'}
           aria-label={label || 'Pick colour'}
         />

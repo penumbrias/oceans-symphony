@@ -299,7 +299,17 @@ const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded",
 // colour actually on screen — which makes "nudge this slightly" impossible.
 // Read the live widget's computed colours instead and seed the pickers with
 // those. Probed once per sheet-open.
-function useLiveColors(open, instanceId) {
+// `revision` re-probes whenever the widget's look changes (a preset
+// applied, a colour cleared) — read once on open, the swatches went stale
+// and disagreed with the widget under them.
+function useLiveColors(open, instanceId, revision = "") {
+  const [tick, setTick] = React.useState(0);
+  // The DOM repaints AFTER the settings write; probe on the next frame.
+  React.useEffect(() => {
+    if (!open) return undefined;
+    const id = requestAnimationFrame(() => setTick((t) => t + 1));
+    return () => cancelAnimationFrame(id);
+  }, [open, revision]);
   return React.useMemo(() => {
     if (!open || typeof document === "undefined") return {};
     const toHex = (c) => {
@@ -340,7 +350,8 @@ function useLiveColors(open, instanceId) {
       font: cs?.fontFamily || undefined,
       fontScale: 100,
     };
-  }, [open, instanceId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, instanceId, tick]);
 }
 
 // Mirrors the TokenRow slider in Display options (− / range / + / readout)
@@ -406,7 +417,7 @@ export default function WidgetConfigSheet({
   onPickBackground,  // (instanceId) → opens the shared AssetPickerModal
 }) {
   const open = !!widget && !!def;
-  const live = useLiveColors(open, widget?.instanceId);
+  const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
