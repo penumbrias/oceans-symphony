@@ -346,9 +346,9 @@ export function ActivityWeekWidget({ mode = "normal", settings }) {
   // gestures, so the widget and the Planner page can't diverge.
   if (mode !== "minimal") {
     return (
-      <Section label="Week" action={nav}>
+      <Section label="Week" action={<span className="flex items-center gap-2">{nav}<TextAction onClick={() => navigate("/planner")}>Open</TextAction></span>}>
         <PlannerSurface dayCount={7} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
-          applyPageLook={false}
+          applyPageLook={false} onOpenPage={() => navigate("/planner")}
           prefsOverride={{ weekStartsOn: settings?.weekStartsOn, timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );
@@ -500,9 +500,9 @@ export function ActivityDayViewWidget({ mode = "normal", settings }) {
 
   if (mode !== "minimal") {
     return (
-      <Section label="Day" action={nav}>
+      <Section label="Day" action={<span className="flex items-center gap-2">{nav}<TextAction onClick={() => navigate("/planner")}>Open</TextAction></span>}>
         <PlannerSurface dayCount={1} chrome={false} anchor={anchor} onAnchorChange={setAnchor}
-          applyPageLook={false}
+          applyPageLook={false} onOpenPage={() => navigate("/planner")}
           prefsOverride={{ timeFmt: settings?.timeFmt, rowH: settings?.rowH }} />
       </Section>
     );

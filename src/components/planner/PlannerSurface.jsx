@@ -29,8 +29,7 @@ import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recur
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
-import { SearchableSelect } from "@/components/shared/SearchableSelect";
-import { flattenCategoryTree } from "@/lib/categoryTreeUtils";
+import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
@@ -67,6 +66,10 @@ export default function PlannerSurface({
   // Per-instance display overrides (a widget's own weekStartsOn / timeFmt /
   // rowH config). Beat the shared preference when set.
   prefsOverride = null,
+  // Widget host: a plain tap on empty time opens the full page (the widget
+  // is a window onto the planner, so tapping its body should go there).
+  // Hold-to-create and tap-a-block still work exactly as on the page.
+  onOpenPage = null,
 }) {
   const t = useTerms();
   const tr = useT();
@@ -94,6 +97,12 @@ export default function PlannerSurface({
   // only, like the classic modal — editing one instance never changes a
   // series' cadence), critical pinning, per-plan reminder offset, location.
   const [moreOpen, setMoreOpen] = useState(false);
+  // DETAILS chips (classic popup pattern): who / notes start folded, open on
+  // tap, and auto-open whenever they already hold a value.
+  const [whoOpen, setWhoOpen] = useState(false);
+  const [notesOpen, setNotesOpen] = useState(false);
+  const whoOpenEff = whoOpen || (timing?.item?.fronting_alter_ids || []).length > 0;
+  const notesOpenEff = notesOpen || !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
   // "Rescheduled" outcome chip → jump into the date field: rescheduling IS
   // the sheet's own move-to-day controls; the chip just takes you there.
   const dayInputRef = useRef(null);
@@ -499,12 +508,21 @@ export default function PlannerSurface({
   };
 
   // Depth-tagged category options from the shared cycle-guarded flattener.
-  const categoryOptions = useMemo(
-    () => flattenCategoryTree(categories).map((c) => ({
-      id: c.id, label: c.name || "Category", color: c.color, _depth: c._depth,
-    })),
-    [categories]
-  );
+  // "What is it?" → offer (never auto-apply) existing activities/categories
+  // whose name matches what was typed. A user may deliberately title
+  // something the same as an activity without linking it.
+  const nameMatches = useMemo(() => {
+    const q = (timing?.item?.activity_name || "").trim().toLowerCase();
+    if (!q || q.length < 2) return [];
+    const exact = [], starts = [], contains = [];
+    for (const c of categories || []) {
+      const n = (c.name || "").toLowerCase();
+      if (!n) continue;
+      if (n === q) exact.push(c); else if (n.startsWith(q)) starts.push(c); else if (n.includes(q)) contains.push(c);
+    }
+    return [...exact, ...starts, ...contains].slice(0, 5);
+  }, [timing?.item?.activity_name, categories]);
+
 
   // Plain range rather than "w/c" — that's British shorthand for "week
   // commencing" and means nothing to most people.
@@ -684,6 +702,7 @@ export default function PlannerSurface({
 
         <WeekCanvas
           anchor={anchor}
+          onOpenPage={onOpenPage}
           prefsOverride={prefsOverride}
           dayCount={dayCount}
           maxHeight={maxHeight}
@@ -755,9 +774,35 @@ export default function PlannerSurface({
                 <Repeat className="w-3 h-3 flex-shrink-0" /> {tr("planner.series")}
               </p>
             )}
-            {/* Move to another day — this week's chips are the fast path;
-                the date field schedules onto ANY date (next month's
-                appointment, not just the visible seven days). */}
+            {/* WHAT — the same searchable, nested, create-if-missing picker
+                the classic Log Activity modal uses (ActivityPillSelector),
+                so choosing an activity/category here IS choosing it there.
+                Above "who": what it is comes before who did it. */}
+            {nameMatches.length > 0 && !categoryIdOf(timing.item) && (
+              <div className="flex flex-wrap items-center gap-1">
+                <span className="text-[0.6875em] text-muted-foreground">{tr("planner.matchHint")}</span>
+                {nameMatches.map((c) => (
+                  <button key={c.id} type="button"
+                    onClick={() => saveField({ activity_category_ids: [c.id] })}
+                    className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 hover:text-foreground flex items-center gap-1">
+                    {c.color && <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />}
+                    {c.name}
+                  </button>
+                ))}
+              </div>
+            )}
+            <div>
+              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tr("planner.what")}</p>
+              <ActivityPillSelector
+                selectedActivities={timing.item.activity_category_ids || []}
+                onActivityChange={(ids) => saveField({ activity_category_ids: Array.isArray(ids) ? ids : [] })}
+              />
+            </div>
+
+            {/* WHEN — day chips (fast path), date field (any date), time,
+                duration. Same section grammar as the classic Log Activity
+                popup: When → What → Details. */}
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.when")}</p>
             <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.moveToDay")}</p>
               <div className="flex gap-1 items-center">
@@ -815,12 +860,33 @@ export default function PlannerSurface({
                   className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
               </label>
             </div>
+            {/* DETAILS — optional fields behind "+" chips, exactly like the
+                classic Log Activity popup: a field auto-expands whenever it
+                already holds a value, so nothing is hidden that matters. */}
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.details")}</p>
+            {!(whoOpenEff && notesOpenEff) && (
+              <div className="flex flex-wrap gap-1.5">
+                {!whoOpenEff && (
+                  <button type="button" onClick={() => setWhoOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.who")}
+                  </button>
+                )}
+                {!notesOpenEff && (
+                  <button type="button" onClick={() => setNotesOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.notes")}
+                  </button>
+                )}
+              </div>
+            )}
             {/* Who was doing it — this is what makes the per-member totals
                 answer "is everyone getting fair time".
                 House rule: never a bare list of members. Searchable and
                 scrollable, whoever is fronting first, one-tap sort toggle —
                 the same picker every other member list uses. A flat chip row
                 is unusable once a system has more than a handful. */}
+            {whoOpenEff && (
             <div>
               <div className="flex items-center justify-between gap-2 mb-1">
                 <p className="text-xs text-muted-foreground">{tr("planner.who")}</p>
@@ -843,26 +909,8 @@ export default function PlannerSurface({
                 searchPlaceholder={tr("planner.searchMembers", { members: t.alters })}
               />
             </div>
-
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">{tr("planner.category")}</p>
-              <SearchableSelect
-                value={categoryIdOf(timing.item) || ""}
-                onChange={(id) => saveField({ activity_category_ids: id ? [id] : [] })}
-                options={categoryOptions}
-                allowClear
-                placeholder={tr("planner.noCategory")}
-                searchPlaceholder={tr("planner.category")}
-                renderOption={(o) => (
-                  <span className="flex items-center gap-1.5" style={{ paddingLeft: (o._depth || 0) * 12 }}>
-                    {(o._depth || 0) > 0 && <span className="text-muted-foreground">↳</span>}
-                    {o.color && <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ background: o.color }} />}
-                    <span className="truncate">{o.label}</span>
-                  </span>
-                )}
-              />
-            </div>
-
+            )}
+            {notesOpenEff && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.notes")}</p>
               <textarea
@@ -874,6 +922,7 @@ export default function PlannerSurface({
                 className="w-full rounded-lg border border-input bg-background text-sm p-2"
               />
             </div>
+            )}
 
             {/* What became of it. A plan that didn't happen must be sayable —
                 otherwise it either nags forever or quietly counts as done. */}

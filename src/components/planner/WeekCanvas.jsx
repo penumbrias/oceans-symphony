@@ -54,7 +54,7 @@ export function formatDuration(min) {
 function DayColumn({
   day, blocks, untimed, overlayBands, overlayMarks,
   onCreate, onOpenBlock, onResize, colorFor, showOverlays, minWidth,
-  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark,
+  onAddToDay, onOpenUntimed, nowMin, hourPx = HOUR_PX_DEFAULT, onOpenMark, onOpenPage = null,
 }) {
   const tr = useT();
   const ref = useRef(null);
@@ -178,6 +178,16 @@ function DayColumn({
     const g = gesture.current;
     if (g?.pointerId != null) {
       try { ref.current?.releasePointerCapture(g.pointerId); } catch { /* already gone */ }
+    }
+    // Widget host: a press on empty time that never became a hold (a tap)
+    // opens the full planner. On the page itself onOpenPage is null and a
+    // tap on empty time does nothing, as before.
+    if (g && !g.armed && onOpenPage) {
+      stopAutoScroll();
+      endGesture();
+      setDraft(null);
+      onOpenPage();
+      return;
     }
     if (g?.armed && draft) {
       const from = draft.fromMin;
@@ -464,6 +474,7 @@ export default function WeekCanvas({
   fill = false,
   onOpenMark,
   prefsOverride = null,
+  onOpenPage = null,
 }) {
   // Display prefs: row height (pinch or popover), clock format, week start.
   // Read live so a change anywhere re-renders every planner instance; a
@@ -656,6 +667,7 @@ export default function WeekCanvas({
                 onOpenUntimed={onOpenUntimed}
                 hourPx={hourPx}
                 onOpenMark={onOpenMark}
+                onOpenPage={onOpenPage}
               />
             ))}
           </div>

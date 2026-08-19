@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Planner: picking an activity/category works again — the entry sheet now uses the same searchable, nested picker as the Log Activity popup, placed above \u201cwho\u201d." },
+      { type: "feature", text: "Planner: typing a name that matches one of your activities (e.g. \u201cwork\u201d) offers a one-tap \u201cLink to: Work\u201d chip — offered, never applied on its own." },
+      { type: "improve", text: "Planner sheet reorganised to match the Log Activity popup: What \u2192 When \u2192 Details, with Who and Notes folded behind + chips until you need them." },
+      { type: "improve", text: "Week / Day widgets: tap the empty grid (or the Open button) to jump to the full Planner." },
       { type: "improve", text: "Faster startup: the app now loads each page's code the first time you open it instead of everything up front — about a third less to download and parse before the home screen appears. Pages are still quietly saved for offline use in the background." },
       { type: "improve", text: "Every privacy notice, disclaimer and description now says the same accurate thing: exactly what Friends, cloud reminders and importers send, that Android's cloud backup is off, that automatic backups cover the active {{system}} only, and that your Friends identity is sealed under encryption." },
       { type: "improve", text: "The medical disclaimer now appears on the Therapy Report, Safety Plan (open by default, with crisis lines), Meetings and Check-In Log pages, not only Support." },
