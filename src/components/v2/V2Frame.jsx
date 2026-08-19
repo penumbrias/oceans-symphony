@@ -1050,8 +1050,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           <div className="w-full flex" style={{ height: 18 }}>
             <button
               type="button"
-              aria-label={t("nav.showAlterBar")}
-              title={t("nav.showAlterBar")}
+              aria-label={applyTerms(t("nav.showAlterBar"), terms)}
+              title={applyTerms(t("nav.showAlterBar"), terms)}
               onPointerDown={(e) => {
                 altersDragStart.current = e.clientY;
                 try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }

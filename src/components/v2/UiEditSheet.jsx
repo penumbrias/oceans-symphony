@@ -20,7 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Star, Copy, Pencil, Link2 } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -34,6 +34,7 @@ import { ALL_PAGES, DEFAULT_CONFIG } from "@/utils/navigationConfig";
 import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, lookCoverage, resolveUserStyles, USER_STYLE_PREFIX, themeToLook } from "@/lib/widgetLook";
 import { boxStyle } from "@/v2/primitives";
+import { applyHomePresetToBoard, applyHomePresetToDesktopBoard, captureHomeLayout, captureHomeLook } from "@/lib/homePresetParts";
 import { Star as StarIcon } from "lucide-react";
 import { useTheme } from "@/lib/ThemeContext";
 import { useFontOptions } from "@/lib/useFontOptions";
@@ -894,12 +895,32 @@ function PresetsSection({ v2 }) {
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsRows[0] || null;
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const currentStyleMode = settingsRow?.[homeField]?.styleMode || "current";
 
+  // ONE list, TWO tabs (the user's call — "one thing, maybe two: style
+  // vs layout/size"). Style = colours + widget look; Layout = UI size,
+  // size tokens, home-board arrangement. Every source (built-in themes,
+  // your saved presets, widget styles) lives in the same list, told apart
+  // by a small tag — no more four stacked sub-lists.
+  const [tab, setTab] = useState("style");
+  const [query, setQuery] = useState("");
   const [name, setName] = useState("");
-  const [saveColor, setSaveColor] = useState(true);
-  const [saveSize, setSaveSize] = useState(false);
+  const [parts, setParts] = useState({ colors: true, widgets: false, size: false, layout: false });
   const [linkAlterId, setLinkAlterId] = useState("");
   const [renaming, setRenaming] = useState(null); // { from, to }
+  const [notesFor, setNotesFor] = useState(null);
+  // Applying a THEME also restyles the widgets to match it (persisted;
+  // off = a theme only changes colours and your widget style stays put).
+  const [themeRestylesWidgets, setThemeRestylesWidgets] = useState(() => {
+    try { return localStorage.getItem("symphony_presets_theme_restyles_widgets") === "1"; } catch { return false; }
+  });
+  const toggleThemeRestyles = () => {
+    const next = !themeRestylesWidgets;
+    setThemeRestylesWidgets(next);
+    try { localStorage.setItem("symphony_presets_theme_restyles_widgets", next ? "1" : "0"); } catch { /* fine */ }
+  };
 
   const isDark = themeMode === "dark" ||
     (themeMode === "system" && typeof document !== "undefined" && document.documentElement.classList.contains("dark"));
@@ -921,25 +942,57 @@ function PresetsSection({ v2 }) {
     };
   };
 
+  const anyPart = Object.values(parts).some(Boolean);
   const doSave = (label) => {
     const trimmed = (label || "").trim();
-    if (!trimmed || (!saveColor && !saveSize)) return;
+    if (!trimmed || !anyPart) return;
     const payload = {};
-    if (saveColor) {
+    if (parts.colors) {
       const snap = snapshotColors();
       payload.light = snap.light;
       payload.dark = snap.dark;
       payload.themeMode = themeMode;
     }
-    if (saveSize) {
+    if (parts.size) {
       payload.fontSize = getAccessibilitySettings().fontSize || "default";
       payload.uiV2Tokens = Object.fromEntries(
         SIZE_TOKEN_IDS.filter((id) => v2.uiV2.tokens[id] !== undefined).map((id) => [id, v2.uiV2.tokens[id]])
       );
     }
+    // Widget look + board layout use the SAME parts the Settings →
+    // Appearance preset form saves, so a preset saved here and one saved
+    // there are the same kind of thing (and both apply through the shared
+    // applyHomePresetToBoard helper).
+    if (parts.widgets) {
+      payload.uiV2HomeLook = captureHomeLook(settingsRow?.ui_v2_home);
+      payload.uiV2HomeDesktopLook = captureHomeLook(settingsRow?.ui_v2_home_desktop);
+    }
+    if (parts.layout) {
+      payload.uiV2HomeLayout = captureHomeLayout(settingsRow?.ui_v2_home);
+      payload.uiV2HomeDesktopLayout = captureHomeLayout(settingsRow?.ui_v2_home_desktop);
+    }
     saveCustomPreset(trimmed, payload);
     if (linkAlterId) linkAlterTheme(linkAlterId, trimmed);
     setName(""); setLinkAlterId("");
+  };
+
+  const writeSettings = async (patch) => {
+    if (!settingsRow?.id || Object.keys(patch).length === 0) return;
+    await base44.entities.SystemSettings.update(settingsRow.id, patch);
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
+
+  // Widget-look entries write the board's default style (styleMode).
+  const applyWidgetStyle = async (st) => {
+    if (!settingsRow?.id) return;
+    const patch = {};
+    if (st.themeName) {
+      const styleId = `theme-${st.themeName}`;
+      const others = resolveUserStyles(settingsRow.ui_v2_styles).filter((x) => x.id !== styleId);
+      patch.ui_v2_styles = [...others, { id: styleId, label: st.label, look: st.look }];
+    }
+    patch[homeField] = { ...(settingsRow[homeField] || {}), styleMode: st.id };
+    await writeSettings(patch);
   };
 
   const applyPreset = async (presetName) => {
@@ -953,11 +1006,20 @@ function PresetsSection({ v2 }) {
     if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
     if (preset.font) setAccessibilityFontFamily(preset.font);
     if (preset.headingFont) setAccessibilityHeadingFont(preset.headingFont);
-    if (preset.uiV2Tokens && settingsRow?.id) {
-      await base44.entities.SystemSettings.update(settingsRow.id, {
-        ui_v2: { ...(settingsRow.ui_v2 || {}), tokens: { ...(settingsRow.ui_v2?.tokens || {}), ...preset.uiV2Tokens } },
+    const patch = {};
+    if (preset.uiV2Tokens) {
+      patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
+    }
+    const nextHome = applyHomePresetToBoard(preset, settingsRow?.ui_v2_home);
+    if (nextHome) patch.ui_v2_home = nextHome;
+    const nextDesk = applyHomePresetToDesktopBoard(preset, settingsRow?.ui_v2_home_desktop);
+    if (nextDesk) patch.ui_v2_home_desktop = nextDesk;
+    await writeSettings(patch);
+    // A theme brings its widget look along only when the user asked for it.
+    if (themeRestylesWidgets && allPresets[presetName] && (preset.light || preset.dark)) {
+      await applyWidgetStyle({
+        themeName: presetName, id: `${USER_STYLE_PREFIX}theme-${presetName}`, label: presetName, look: themeToLook(preset, isDark),
       });
-      qc.invalidateQueries({ queryKey: ["systemSettings"] });
     }
   };
 
@@ -965,14 +1027,12 @@ function PresetsSection({ v2 }) {
     const trimmed = (to || "").trim();
     if (!trimmed || trimmed === from || !userCustomPresets[from]) return;
     saveCustomPreset(trimmed, userCustomPresets[from]);
-    // Carry alter links over to the new name before dropping the old one.
     for (const [alterId, linked] of Object.entries(alterThemeLinks || {})) {
       if (linked === from) linkAlterTheme(alterId, trimmed);
     }
     deleteUserPreset(from);
     setRenaming(null);
   };
-
   const duplicatePreset = (from) => {
     if (!userCustomPresets[from]) return;
     let copy = `${from} 2`;
@@ -980,222 +1040,188 @@ function PresetsSection({ v2 }) {
     while (userCustomPresets[copy]) copy = `${from} ${++n}`;
     saveCustomPreset(copy, JSON.parse(JSON.stringify(userCustomPresets[from])));
   };
-
-  const coverageOf = (preset) => {
-    const covers = [];
-    if (preset.light || preset.dark) covers.push(tr("editSheet.partColor"));
-    if (preset.fontSize || preset.uiV2Tokens) covers.push(tr("editSheet.partSize"));
-    return covers;
+  const removePreset = (pname) => {
+    for (const [alterId, l] of Object.entries(alterThemeLinks || {})) {
+      if (l === pname) unlinkAlterTheme(alterId);
+    }
+    deleteUserPreset(pname);
   };
 
   const alterOptions = useMemo(
     () => alters.filter((a) => !a.is_archived).map((a) => ({ id: a.id, label: formatAlter(a), color: a.color })),
     [alters, formatAlter]
   );
-
   const linkedAlterNames = (presetName) => Object.entries(alterThemeLinks || {})
     .filter(([, linked]) => linked === presetName)
     .map(([alterId]) => alterOptions.find((o) => o.id === alterId)?.label)
     .filter(Boolean);
 
+  // What a saved preset touches, as short tags — the one honest way to
+  // tell "colours only" from "everything" in a single mixed list.
+  const coverageOf = (preset) => {
+    const covers = [];
+    if (preset.light || preset.dark) covers.push({ id: "colors", label: tr("editSheet.partColor") });
+    if (preset.uiV2HomeLook || preset.uiV2HomeDesktopLook || preset.uiV2Home) covers.push({ id: "widgets", label: tr("editSheet.partWidgets") });
+    if (preset.fontSize || preset.uiV2Tokens || preset.font) covers.push({ id: "size", label: tr("editSheet.partSize") });
+    if (preset.uiV2HomeLayout || preset.uiV2HomeDesktopLayout || preset.uiV2Home || preset.dashboardLayout) covers.push({ id: "layout", label: tr("editSheet.partLayout") });
+    return covers;
+  };
+  const isStylePreset = (c) => c.some((x) => x.id === "colors" || x.id === "widgets");
+  const isLayoutPreset = (c) => c.some((x) => x.id === "size" || x.id === "layout");
+
+  // The merged list.
+  const userWidgetStyles = resolveUserStyles(settingsRow?.ui_v2_styles).filter((st) => !String(st.id).startsWith("theme-"));
+  const rows = [];
+  for (const pname of Object.keys(allPresets)) {
+    const preset = allPresets[pname];
+    rows.push({ key: `theme:${pname}`, kind: "theme", name: pname, source: tr("editSheet.srcBuiltIn"),
+      preset, covers: coverageOf(preset), active: selectedTheme === pname && !customColors, apply: () => applyPreset(pname) });
+  }
+  for (const [pname, preset] of Object.entries(userCustomPresets)) {
+    const covers = coverageOf(preset);
+    rows.push({ key: `user:${pname}`, kind: "user", name: pname, source: tr("editSheet.srcYours"),
+      preset, covers, active: selectedTheme === pname && !customColors, apply: () => applyPreset(pname), linked: linkedAlterNames(pname) });
+  }
+  for (const st of HOME_STYLES) {
+    const look = getStyleLook(st.id);
+    rows.push({ key: `style:${st.id}`, kind: "widget", name: st.label, source: tr("editSheet.srcWidgetStyle"), description: st.description,
+      look, covers: [{ id: "widgets", label: tr("editSheet.partWidgets") }], active: currentStyleMode === st.id, apply: () => applyWidgetStyle({ id: st.id, label: st.label, look }) });
+  }
+  for (const st of userWidgetStyles) {
+    const id = `${USER_STYLE_PREFIX}${st.id}`;
+    rows.push({ key: `ustyle:${st.id}`, kind: "widget", name: st.label, source: tr("editSheet.srcYours"),
+      look: st.look || {}, covers: [{ id: "widgets", label: tr("editSheet.partWidgets") }], active: currentStyleMode === id, apply: () => applyWidgetStyle({ id, label: st.label, look: st.look || {} }) });
+  }
+  const q = query.trim().toLowerCase();
+  const visible = rows.filter((r) => {
+    if (tab === "style" ? !isStylePreset(r.covers) : !isLayoutPreset(r.covers)) return false;
+    if (q && !`${r.name} ${r.source} ${r.description || ""}`.toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  const swatchFor = (r) => {
+    if (r.look) return <span aria-hidden="true" className="w-8 h-8 flex-shrink-0" style={{ ...lookToStyle(r.look), ...boxStyle() }} />;
+    const c = (isDark ? r.preset?.dark : r.preset?.light) || r.preset?.light || r.preset?.dark || {};
+    const dots = ["primary", "accent", "background"].map((k) => c[k]).filter(Boolean);
+    return (
+      <span aria-hidden="true" className="w-8 h-8 flex-shrink-0 rounded-lg border border-border/40 flex items-center justify-center gap-0.5 bg-muted/30">
+        {dots.length ? dots.map((hex, i) => <span key={i} className="w-2 h-2 rounded-full" style={{ background: hex }} />)
+          : <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />}
+      </span>
+    );
+  };
+
+  const PART_TOGGLES = [
+    ["colors", tr("editSheet.partColor")], ["widgets", tr("editSheet.partWidgets")],
+    ["size", tr("editSheet.partSize")], ["layout", tr("editSheet.partLayout")],
+  ];
+
   return (
     <SubSection title={tr("editSheet.presets")} storageKey="edit-presets">
-      {/* Save new — size and/or color, optionally linked to a member. */}
-      <div className="space-y-2">
+      {/* Tabs + search — one list underneath. */}
+      <div className="flex items-center gap-2">
+        <div className="flex rounded-lg border border-border/50 overflow-hidden flex-shrink-0" role="tablist">
+          {[["style", tr("editSheet.tabStyle")], ["layout", tr("editSheet.tabLayout")]].map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+              className={`text-xs px-2.5 py-1.5 ${tab === id ? "bg-primary/15 text-primary font-medium" : "text-muted-foreground hover:text-foreground"}`}>
+              {label}
+            </button>
+          ))}
+        </div>
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder={tr("editSheet.presetSearch")}
+          className="flex-1 min-w-0 h-8 px-2 rounded-lg border border-input bg-background text-xs" />
+      </div>
+      {tab === "style" && (
+        <label className="flex items-center gap-1.5 text-[0.6875rem] text-muted-foreground cursor-pointer">
+          <input type="checkbox" checked={themeRestylesWidgets} onChange={toggleThemeRestyles} className="w-3.5 h-3.5 rounded accent-primary" />
+          {tr("editSheet.themeRestylesWidgets")}
+        </label>
+      )}
+
+      <div className="space-y-1">
+        {visible.length === 0 && (
+          <p className="text-xs text-muted-foreground py-2">{tr("editSheet.presetsNone")}</p>
+        )}
+        {visible.map((r) => {
+          const cov = r.look ? lookCoverage(r.look) : null;
+          const partialTags = r.covers.map((c) => c.label).join(" · ");
+          return (
+            <div key={r.key}
+              className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${r.active ? "border-primary/60 bg-primary/10" : "border-border/30"}`}>
+              {swatchFor(r)}
+              {renaming?.from === r.name && r.kind === "user" ? (
+                <input autoFocus value={renaming.to} onChange={(e) => setRenaming({ from: r.name, to: e.target.value })}
+                  onKeyDown={(e) => { if (e.key === "Enter") renamePreset(r.name, renaming.to); if (e.key === "Escape") setRenaming(null); }}
+                  onBlur={() => renamePreset(r.name, renaming.to)}
+                  className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+              ) : (
+                <button type="button" onClick={r.apply} className="flex-1 min-w-0 text-left" title={tr("editSheet.presetApply")}>
+                  <span className={`text-sm truncate block ${r.kind === "theme" ? "capitalize" : ""}`}>{r.name}</span>
+                  <span className="text-[0.625rem] text-muted-foreground block truncate">
+                    {notesFor === r.key && cov
+                      ? `${tr("editSheet.styleChanges")} ${cov.covers.map((g) => g.label.toLowerCase()).join(", ") || "—"} · ${tr("editSheet.styleLeaves")} ${cov.leaves.map((g) => g.label.toLowerCase()).join(", ")}`
+                      : [r.source, partialTags, r.linked?.length ? `⛓ ${r.linked.join(", ")}` : null].filter(Boolean).join(" · ")}
+                  </span>
+                </button>
+              )}
+              {cov && !cov.complete && (
+                <button type="button" aria-label={`${r.name} — partial style details`}
+                  onClick={() => setNotesFor(notesFor === r.key ? null : r.key)}
+                  className={`p-1 flex-shrink-0 ${notesFor === r.key ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`}>
+                  <StarIcon className="w-3.5 h-3.5" />
+                </button>
+              )}
+              {r.kind === "user" && (
+                <>
+                  <button type="button" aria-label={tr("editSheet.presetRename")} onClick={() => setRenaming({ from: r.name, to: r.name })}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+                    <Pencil className="w-3 h-3" />
+                  </button>
+                  <button type="button" aria-label={tr("editSheet.presetDuplicate")} onClick={() => duplicatePreset(r.name)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
+                    <Copy className="w-3 h-3" />
+                  </button>
+                  <button type="button" aria-label={tr("editSheet.presetDelete")} onClick={() => removePreset(r.name)}
+                    className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-destructive flex-shrink-0">
+                    <X className="w-3 h-3" />
+                  </button>
+                </>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      {tab === "style" && typeof window !== "undefined" && window.location.pathname === "/" && (
+        <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("os-open-board-style-picker"))}
+          className="text-[0.6875rem] text-muted-foreground hover:text-foreground underline underline-offset-2">
+          {tr("editSheet.customiseWidgetLook")}
+        </button>
+      )}
+
+      {/* Save the current look — pick which parts it captures. */}
+      <div className="space-y-1.5 pt-2 border-t border-border/30">
         <div className="flex items-center gap-2">
-          <input value={name} onChange={(e) => setName(e.target.value)}
-            placeholder={tr("editSheet.presetName")}
+          <input value={name} onChange={(e) => setName(e.target.value)} placeholder={tr("editSheet.presetName")}
             className="flex-1 h-9 px-2 rounded-lg border border-input bg-background text-sm" />
-          <button type="button" disabled={!name.trim() || (!saveColor && !saveSize)}
-            onClick={() => doSave(name)}
+          <button type="button" disabled={!name.trim() || !anyPart} onClick={() => doSave(name)}
             className="text-xs px-3 h-9 rounded-lg border border-primary/60 text-primary disabled:opacity-40">
             {tr("editSheet.presetSave")}
           </button>
         </div>
-        <div className="flex items-center gap-3">
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <input type="checkbox" checked={saveColor} onChange={(e) => setSaveColor(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-primary" /> {tr("editSheet.partColor")}
-          </label>
-          <label className="flex items-center gap-1.5 text-xs cursor-pointer">
-            <input type="checkbox" checked={saveSize} onChange={(e) => setSaveSize(e.target.checked)}
-              className="w-3.5 h-3.5 rounded accent-primary" /> {tr("editSheet.partSize")}
-          </label>
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+          {PART_TOGGLES.map(([id, label]) => (
+            <label key={id} className="flex items-center gap-1.5 text-xs cursor-pointer">
+              <input type="checkbox" checked={!!parts[id]} onChange={(e) => setParts((p) => ({ ...p, [id]: e.target.checked }))}
+                className="w-3.5 h-3.5 rounded accent-primary" /> {label}
+            </label>
+          ))}
           <div className="flex-1 min-w-[120px]">
             <SearchableSelect value={linkAlterId} onChange={(id) => setLinkAlterId(id || "")}
-              options={alterOptions} allowClear
-              placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
+              options={alterOptions} allowClear placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} />
           </div>
         </div>
       </div>
-
-      {/* Custom presets — apply / rename / duplicate / link / delete. */}
-      {Object.keys(userCustomPresets).length > 0 && (
-        <div className="space-y-1 pt-2">
-          <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-            {tr("editSheet.presetsYours")}
-          </p>
-          {Object.entries(userCustomPresets).map(([pname, preset]) => {
-            const covers = coverageOf(preset);
-            const partial = covers.length === 1;
-            const linked = linkedAlterNames(pname);
-            return (
-              <div key={pname} className="flex items-center gap-1.5 py-1 border-b border-border/20 last:border-0">
-                {renaming?.from === pname ? (
-                  <input autoFocus value={renaming.to} onChange={(e) => setRenaming({ from: pname, to: e.target.value })}
-                    onKeyDown={(e) => { if (e.key === "Enter") renamePreset(pname, renaming.to); if (e.key === "Escape") setRenaming(null); }}
-                    onBlur={() => renamePreset(pname, renaming.to)}
-                    className="flex-1 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
-                ) : (
-                  <button type="button" onClick={() => applyPreset(pname)}
-                    className="flex-1 min-w-0 text-left text-sm truncate hover:text-primary" title={tr("editSheet.presetApply")}>
-                    {pname}
-                    {partial && <Star className="w-3 h-3 inline ml-1 text-amber-500" title={covers.join(" · ")} />}
-                    {linked.length > 0 && (
-                      <span className="text-[0.625rem] text-muted-foreground ml-1.5">
-                        <Link2 className="w-3 h-3 inline mr-0.5" />{linked.join(", ")}
-                      </span>
-                    )}
-                  </button>
-                )}
-                <button type="button" aria-label={tr("editSheet.presetRename")}
-                  onClick={() => setRenaming({ from: pname, to: pname })}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground">
-                  <Pencil className="w-3 h-3" />
-                </button>
-                <button type="button" aria-label={tr("editSheet.presetDuplicate")}
-                  onClick={() => duplicatePreset(pname)}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground">
-                  <Copy className="w-3 h-3" />
-                </button>
-                <button type="button" aria-label={tr("editSheet.presetDelete")}
-                  onClick={() => {
-                    for (const [alterId, l] of Object.entries(alterThemeLinks || {})) {
-                      if (l === pname) unlinkAlterTheme(alterId);
-                    }
-                    deleteUserPreset(pname);
-                  }}
-                  className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-destructive">
-                  <X className="w-3 h-3" />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Built-in presets. */}
-      <div className="space-y-1 pt-2">
-        <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-          {tr("editSheet.presetsBuiltIn")}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {Object.keys(allPresets).map((pname) => (
-            <button key={pname} type="button" onClick={() => applyPreset(pname)}
-              className={`text-xs px-2.5 py-1 rounded-full border capitalize ${
-                selectedTheme === pname && !customColors
-                  ? "border-primary/60 bg-primary/10 text-primary"
-                  : "border-border/50 text-muted-foreground"
-              }`}>{pname}</button>
-          ))}
-        </div>
-      </div>
-
-      {/* Board styles — the old home screen "Style" picker, now a preset
-          list like everything else (the user's call). Built-ins plus the
-          user's saved widget styles; sets the default widget look for
-          this device's board, and any widget can still override it. The
-          swatch renders through the same pipeline a real widget uses,
-          and a partial style's star spells out what it touches. */}
-      <BoardStylesBlock settingsRow={settingsRow} />
     </SubSection>
-  );
-}
-
-function BoardStylesBlock({ settingsRow }) {
-  const tr = useT();
-  const qc = useQueryClient();
-  const { themeMode, allPresets, userCustomPresets } = useTheme();
-  const [notesFor, setNotesFor] = useState(null);
-  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
-  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
-  const current = settingsRow?.[homeField]?.styleMode || "current";
-  const userWidgetStyles = resolveUserStyles(settingsRow?.ui_v2_styles);
-  const isDark = themeMode === "dark" ||
-    (themeMode === "system" && typeof document !== "undefined" && document.documentElement.classList.contains("dark"));
-  // Theme presets, synced into widget looks (the user's ask): each colour
-  // theme also appears here as a widget preset via themeToLook. Applying
-  // one saves it as a user style with a stable id, so re-applying after a
-  // theme tweak refreshes the same entry instead of piling up copies.
-  const themeStyles = Object.entries({ ...allPresets, ...userCustomPresets })
-    .filter(([, p]) => p && (p.light || p.dark))
-    .map(([name, p]) => ({
-      themeName: name,
-      id: `${USER_STYLE_PREFIX}theme-${name}`,
-      label: name,
-      description: tr("editSheet.fromThemes"),
-      look: themeToLook(p, isDark),
-    }));
-  const styles = [
-    ...HOME_STYLES.map((st) => ({ id: st.id, label: st.label, description: st.description, look: getStyleLook(st.id) })),
-    ...userWidgetStyles.filter((st) => !String(st.id).startsWith("theme-"))
-      .map((st) => ({ id: `${USER_STYLE_PREFIX}${st.id}`, label: st.label, description: tr("editSheet.yourStyle"), look: st.look || {} })),
-    ...themeStyles,
-  ];
-  const apply = async (st) => {
-    if (!settingsRow?.id) return;
-    const patch = {};
-    // A theme-derived entry writes/refreshes its backing user style first.
-    if (st.themeName) {
-      const styleId = `theme-${st.themeName}`;
-      const others = resolveUserStyles(settingsRow.ui_v2_styles).filter((x) => x.id !== styleId);
-      patch.ui_v2_styles = [...others, { id: styleId, label: st.label, look: st.look }];
-    }
-    patch[homeField] = { ...(settingsRow[homeField] || {}), styleMode: st.id };
-    await base44.entities.SystemSettings.update(settingsRow.id, patch);
-    qc.invalidateQueries({ queryKey: ["systemSettings"] });
-  };
-  return (
-    <div className="space-y-1 pt-2">
-      <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">
-        {tr("editSheet.boardStyles")}
-      </p>
-      {styles.map((st) => {
-        const cov = lookCoverage(st.look);
-        return (
-          <div key={st.id}
-            className={`w-full flex items-center gap-2.5 px-2.5 py-1.5 rounded-lg border text-sm ${
-              current === st.id ? "border-primary/60 bg-primary/10" : "border-border/40"
-            }`}>
-            <span aria-hidden="true" className="w-8 h-8 flex-shrink-0"
-              style={{ ...lookToStyle(st.look), ...boxStyle() }} />
-            <button type="button" onClick={() => apply(st)} className="flex-1 min-w-0 text-left">
-              <span className="text-xs font-medium">{st.label}</span>
-              <span className="text-[0.625rem] text-muted-foreground block truncate">
-                {notesFor === st.id
-                  ? `${tr("editSheet.styleChanges")} ${cov.covers.map((g) => g.label.toLowerCase()).join(", ") || "—"} · ${tr("editSheet.styleLeaves")} ${cov.leaves.map((g) => g.label.toLowerCase()).join(", ")}`
-                  : st.description}
-              </span>
-            </button>
-            {!cov.complete && (
-              <button type="button" aria-label={`${st.label} — partial style details`}
-                onClick={() => setNotesFor(notesFor === st.id ? null : st.id)}
-                className={`p-1 flex-shrink-0 ${notesFor === st.id ? "text-amber-500" : "text-muted-foreground hover:text-foreground"}`}>
-                <StarIcon className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
-        );
-      })}
-      <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.boardStylesHint")}</p>
-      {typeof window !== "undefined" && window.location.pathname === "/" && (
-        <button type="button"
-          onClick={() => window.dispatchEvent(new CustomEvent("os-open-board-style-picker"))}
-          className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
-          {tr("editSheet.boardStylesMore")}
-        </button>
-      )}
-    </div>
   );
 }
 

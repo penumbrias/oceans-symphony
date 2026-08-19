@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Presets are ONE list now — built-in themes, your saved presets and widget looks together, with a search box and just two tabs: Style, and Layout & size. Saving lets you tick exactly which parts to capture (colours, widget look, size, layout)." },
+      { type: "hotfix", text: "Hotfix: the pinned {{alters}} handle's label showed a raw placeholder." },
       { type: "improve", text: "Home: scrolling past the bottom (or top) of the planner, symptoms, diary and notebook widgets now carries on scrolling the page — no more hunting for a gap beside the widget." },
       { type: "fix", text: "Pinned {{alters}} bar: swiping down on the bar itself now hides it on phones (it used to only work from the handle), and the strip scrolls sideways reliably." },
       { type: "improve", text: "Planner popup: when opening an existing plan, Outcome now sits at the top and includes \u201cStart now\u201d (it becomes an Active Activity, like the tracker); the activity picker folds to one line with a Change button so the sheet is far shorter." },
