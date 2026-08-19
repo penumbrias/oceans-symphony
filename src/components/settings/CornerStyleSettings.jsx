@@ -35,15 +35,9 @@ export default function CornerStyleSettings({ embedded = false } = {}) {
   // slider and every per-widget look, so the toggle steps aside instead of
   // stacking two systems on the same property (useCornerMode is inert under
   // v2 to match). The preference is kept for classic mode.
-  if (settings?.ui_v2?.enabled === true) {
-    return (
-      <p className="text-xs text-muted-foreground rounded-xl border border-border/50 px-3 py-2.5">
-        With the new UI on, corners follow the <span className="font-medium text-foreground">Corner radius</span> slider
-        below — set it to 0 for fully sharp corners. The Rounded/Sharp toggle applies to the classic UI only
-        and will be right here when you switch back.
-      </p>
-    );
-  }
+  // Under v2 the toggle is inert (corners follow the radius slider); the
+  // old explainer card was filler — render nothing.
+  if (settings?.ui_v2?.enabled === true) return null;
 
   const choose = async (mode) => {
     if (mode === current || saving) return;

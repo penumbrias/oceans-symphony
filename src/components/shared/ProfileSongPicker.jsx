@@ -99,11 +99,7 @@ export default function ProfileSongPicker({ value, onChange, subjectLabel = "pag
             <X className="w-3.5 h-3.5" />
           </button>
         </div>
-      ) : (
-        <p className="text-xs text-muted-foreground">
-          Plays when this {subjectLabel} opens.
-        </p>
-      )}
+      ) : null}
       <div className="flex flex-wrap items-center gap-2">
         <Button type="button" size="sm" variant="outline" className="gap-1.5 text-xs"
           onClick={() => fileRef.current?.click()} disabled={uploading}>

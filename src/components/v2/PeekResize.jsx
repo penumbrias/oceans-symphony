@@ -11,20 +11,24 @@ export function usePeekHeight(storageKey, fallback = 40) {
     try { const n = Number(localStorage.getItem(storageKey)); return Number.isFinite(n) && n > 0 ? n : fallback; } catch { return fallback; }
   });
   const drag = useRef(null);
+  const latest = useRef(peekH);
+  latest.current = peekH;
   const start = (e, dock) => {
-    drag.current = { y: e.clientY, h: peekH, dock };
+    drag.current = { y: e.clientY, h: latest.current, dock };
     try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
   };
   const move = (e) => {
     const d = drag.current; if (!d) return;
     // Bottom dock: dragging UP grows the sheet; top dock: dragging DOWN does.
     const dy = (d.dock === "top" ? 1 : -1) * (e.clientY - d.y);
-    setPeekH(Math.max(15, Math.min(90, d.h + (dy / window.innerHeight) * 100)));
+    const next = Math.max(15, Math.min(90, d.h + (dy / window.innerHeight) * 100));
+    latest.current = next;
+    setPeekH(next);
   };
   const end = () => {
     if (!drag.current) return;
     drag.current = null;
-    setPeekH((h) => { try { localStorage.setItem(storageKey, String(Math.round(h))); } catch { /* storage off */ } return h; });
+    try { localStorage.setItem(storageKey, String(Math.round(latest.current))); } catch { /* storage off */ }
   };
   return { peekH, start, move, end };
 }

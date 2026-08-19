@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Options sheets are standardized: no more Peek mode — every sheet (Display options, Home screen settings, widget options) is always drag-resizable from its grab bar, has the same close chevron, and never dims the page behind it." },
+      { type: "improve", text: "Display options polish: preset list scrolls instead of growing endlessly, wave colour is picked from swatches, arrangement rows use proper move buttons, the grid control is just a width (4/6/8 across), and the leftover explainer paragraphs are gone." },
       { type: "hotfix", text: "Hotfix: the Home screen settings sheet's peek panel is drag-resizable too." },
       { type: "hotfix", text: "Hotfix: dropped the \u201cdrag to resize\u201d label under the peek grab bar." },
       { type: "fix", text: "Peek panels (widget options and Display options) really resize now: drag the grab bar up or down — it no longer fights the sheet's swipe-to-close." },

@@ -20,7 +20,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
@@ -104,6 +104,30 @@ function TokenSlider({ def, value, onChange }) {
         onChange={(e) => onChange(parseInt(e.target.value, 10))}
         className="flex-1" aria-label={def.label} />
       <span className="text-xs text-muted-foreground tabular-nums w-12 text-right">{value}{def.unit || ""}</span>
+    </div>
+  );
+}
+
+// One list row for "arrange these": checkbox + label + chevron moves —
+// the standard treatment for every reorderable list in the edit sheets.
+function ArrangeRow({ label, checked, onCheck, onUp, onDown, leading = null }) {
+  return (
+    <div className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
+      {leading}
+      <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
+        <input type="checkbox" checked={checked}
+          onChange={(e) => onCheck?.(e.target.checked)}
+          className="w-3.5 h-3.5 rounded accent-primary" aria-label={label} />
+        <span className="truncate">{label}</span>
+      </label>
+      <button type="button" onClick={onUp || undefined} disabled={!onUp} aria-label={`${label} up`}
+        className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center">
+        <ChevronUpIcon className="w-3.5 h-3.5" />
+      </button>
+      <button type="button" onClick={onDown || undefined} disabled={!onDown} aria-label={`${label} down`}
+        className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center">
+        <ChevronDownIcon className="w-3.5 h-3.5" />
+      </button>
     </div>
   );
 }
@@ -393,36 +417,37 @@ function BarsSection({ v2, alignX }) {
           if (!item) return null;
           const shown = !topBar.hidden.includes(id);
           return (
-            <div key={id} className="flex items-center gap-2 py-0.5">
-              <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
-                <input type="checkbox" checked={shown}
-                  onChange={(e) => writeTopBar({
-                    hidden: e.target.checked ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id],
-                  })}
-                  className="w-3.5 h-3.5 rounded accent-primary" aria-label={tr(item.labelKey)} />
-                <span className="truncate">{applyTerms(tr(item.labelKey), terms)}</span>
-              </label>
-              <button type="button" onClick={() => moveTopItem(idx, -1)} disabled={idx === 0}
-                aria-label={`${tr(item.labelKey)} ↑`}
-                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
-              <button type="button" onClick={() => moveTopItem(idx, 1)} disabled={idx === topBar.order.length - 1}
-                aria-label={`${tr(item.labelKey)} ↓`}
-                className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
-            </div>
+            <ArrangeRow key={id} label={applyTerms(tr(item.labelKey), terms)}
+              checked={shown}
+              onCheck={(v) => writeTopBar({ hidden: v ? topBar.hidden.filter((x) => x !== id) : [...topBar.hidden, id] })}
+              onUp={idx === 0 ? null : () => moveTopItem(idx, -1)}
+              onDown={idx === topBar.order.length - 1 ? null : () => moveTopItem(idx, 1)} />
           );
         })}
         <BarToggle label={tr("editSheet.wave")} on={v2.uiV2.bars.wave} onChange={(on) => v2.setBar("wave", on)} />
         {v2.uiV2.bars.wave && (
           <div className="flex items-center gap-2.5 py-1">
             <span className="text-xs font-medium flex-1 min-w-0 truncate">{tr("editSheet.waveColor")}</span>
-            <div className="flex gap-1 flex-wrap justify-end items-center">
-              {WAVE_COLOR_KEYS.map((k) => (
-                <button key={k} type="button" aria-pressed={!waveCustom && waveKey === k}
-                  onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
-                  className={`text-[0.6875em] px-2 py-0.5 rounded-full border ${
-                    !waveCustom && waveKey === k ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"
-                  }`}>{WAVE_COLOR_LABELS[k]}</button>
-              ))}
+            <div className="flex gap-1.5 flex-wrap justify-end items-center">
+              {/* Swatches, not word-pills: the choice IS a colour. The
+                  "background" key means Off and stays a word. */}
+              {WAVE_COLOR_KEYS.map((k) => {
+                const on = !waveCustom && waveKey === k;
+                if (k === "background") return (
+                  <button key={k} type="button" aria-pressed={on}
+                    onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
+                    className={`text-[0.6875em] px-2 py-1 rounded-full border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                    {WAVE_COLOR_LABELS[k]}
+                  </button>
+                );
+                const cssVar = k === "text" ? "--color-text-primary" : k === "text-2nd" ? "--color-text-secondary" : `--color-${k}`;
+                return (
+                  <button key={k} type="button" aria-pressed={on} aria-label={WAVE_COLOR_LABELS[k]} title={WAVE_COLOR_LABELS[k]}
+                    onClick={() => writeSettings({ wave_color_key: k, wave_color_custom: null })}
+                    className={`w-6 h-6 rounded-full border-2 flex-shrink-0 ${on ? "border-primary ring-2 ring-primary/40" : "border-border/60"}`}
+                    style={{ background: `var(${cssVar})` }} />
+                );
+              })}
               <ColorPicker compact label={tr("editSheet.waveColor")}
                 value={waveCustom || "#7dd3fc"}
                 onChange={(hex) => writeSettings({ wave_color_custom: hex })}
@@ -440,7 +465,7 @@ function BarsSection({ v2, alignX }) {
         <BarLookRows v2={v2} barId="tabs" alignX={alignX} />
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
         {bottomIds.map((id, idx) => (
-          <div key={id} className="flex items-center gap-2 py-0.5">
+          <div key={id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
             <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
               aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
               className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
@@ -449,10 +474,10 @@ function BarsSection({ v2, alignX }) {
             <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
             <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
               aria-label={`${pageLabel(id)} ↑`}
-              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => moveNavItem(idx, 1)} disabled={idx === bottomIds.length - 1}
               aria-label={`${pageLabel(id)} ↓`}
-              className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+              className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => writeBottomBar(bottomIds.filter((x) => x !== id))}
               disabled={bottomIds.length <= 1}
               aria-label={tr("editSheet.removeTab", { name: pageLabel(id) })}
@@ -537,7 +562,7 @@ function BarsSection({ v2, alignX }) {
             v2.setCommandKeys(next);
           };
           return (
-            <div key={k.id} className="flex items-center gap-2 py-0.5">
+            <div key={k.id} className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-border/40">
               <label className="flex items-center gap-2 flex-1 min-w-0 text-xs cursor-pointer">
                 <input type="checkbox" checked={on}
                   onChange={(e) => v2.setCommandKeys(e.target.checked
@@ -550,10 +575,10 @@ function BarsSection({ v2, alignX }) {
                 <span className="flex gap-1 flex-shrink-0">
                   <button type="button" onClick={() => move(-1)} disabled={idx <= 0}
                     aria-label={`${applyTerms(k.label, terms)} ↑`}
-                    className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↑</button>
+                    className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronUpIcon className="w-3.5 h-3.5" /></button>
                   <button type="button" onClick={() => move(1)} disabled={idx < 0 || idx >= v2.uiV2.commandKeys.length - 1}
                     aria-label={`${applyTerms(k.label, terms)} ↓`}
-                    className="w-6 h-6 rounded-md border border-border/60 text-muted-foreground disabled:opacity-30">↓</button>
+                    className="w-7 h-7 rounded-md border border-border/50 text-muted-foreground hover:text-foreground disabled:opacity-30 flex items-center justify-center"><ChevronDownIcon className="w-3.5 h-3.5" /></button>
                 </span>
               )}
             </div>
@@ -716,7 +741,6 @@ function ColorsSection({ children, v2 }) {
           );
         })()}
       </div>
-      <p className="text-[0.6875rem] text-muted-foreground">{tr("editSheet.colorsHint")}</p>
       {children}
     </SubSection>
   );
@@ -1175,7 +1199,9 @@ function PresetsSection({ v2 }) {
         </label>
       )}
 
-      <div className="space-y-1">
+      {/* Capped + scrolling — 16 built-in themes alone made the sheet
+          endless. */}
+      <div className="space-y-1 max-h-72 overflow-y-auto overscroll-contain pr-0.5">
         {visible.length === 0 && (
           <p className="text-xs text-muted-foreground py-2">{tr("editSheet.presetsNone")}</p>
         )}

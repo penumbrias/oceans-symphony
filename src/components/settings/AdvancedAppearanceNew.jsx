@@ -944,9 +944,6 @@ export default function AdvancedAppearance() {
             onDeleteCustom={handleDeleteCustomFont}
           />
         </div>
-        <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-          Body text uses the font family; headings and the app name use the heading font. Upload your own .ttf/.otf/.woff/.woff2 file (5MB max) to use a font that isn't in the list — it'll show up in both pickers above.
-        </p>
       </div>
 
       {/* 4. THEME — expandable, with the light/dark cycle chip in its header. */}

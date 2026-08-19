@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp, Eye, EyeOff, ArrowUpToLine, ArrowDownToLine,
+  Megaphone, ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -172,25 +172,28 @@ function OptionsSheet({ open, onClose, uiV2 }) {
   // renders at its top) — ONE settings surface, embedded here so the
   // top-bar route and Settings → Appearance are the same thing. This sheet
   // only adds the Peek affordance.
-  const [peek, setPeek] = useState(false);
-  const peekResize = usePeekHeight("symphony_options_peek_h", 40);
+  const peekResize = usePeekHeight("symphony_options_peek_h", 85);
   useEffect(() => {
-    if (!open || !peek) return undefined;
+    if (!open) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
     return () => document.documentElement.removeAttribute("data-v2-peek");
-  }, [open, peek]);
+  }, [open]);
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} hideHandle={peek}
-        style={peek ? { maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` } : undefined} {...sheetPortalGuards}>
-        {peek && <PeekHandle resize={peekResize} dock={dock} />}
+      <DrawerContent direction={dock} hideHandle
+        style={{ maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` }} {...sheetPortalGuards}>
+        <PeekHandle resize={peekResize} dock={dock} />
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <DrawerTitle className={peek ? "text-sm" : "text-base"}>{t("options.title")}</DrawerTitle>
+            <span className="flex items-center gap-2 min-w-0">
+              <button type="button" onClick={onClose} aria-label="Close"
+                className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+                {dock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              <DrawerTitle className="text-base truncate">{t("options.title")}</DrawerTitle>
               <DrawerDescription className="sr-only">{t("options.subtitle")}</DrawerDescription>
-            </div>
+            </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
             {/* Flip the sheet to the other edge — a bottom sheet can sit
                 right on top of the thing being adjusted. */}
@@ -199,18 +202,10 @@ function OptionsSheet({ open, onClose, uiV2 }) {
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
               {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
             </button>
-            <button type="button" onClick={() => setPeek((v) => !v)}
-              title={t("options.peekHint")}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
-                peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-              }`}>
-              {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {peek ? t("options.fullPanel") : t("options.peek")}
-            </button>
             </span>
           </div>
         </DrawerHeader>
-        <div className="px-4 overflow-y-auto overscroll-contain space-y-2"
+        <div className="px-4 overflow-y-auto overscroll-contain space-y-2 flex-1 min-h-0"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
           {/* The unified UI edit popup (docs/v2-edit-menu-spec.md) — the
               user's wireframed structure. Bars/layout controls stay in

@@ -17,7 +17,7 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
@@ -431,23 +431,19 @@ export default function WidgetConfigSheet({
   // default — a preset that covers everything needs no caveats.
   const [saveGroups, setSaveGroups] = React.useState(LOOK_GROUPS.map((g) => g.id));
   const [exclusionsFor, setExclusionsFor] = React.useState(null); // style id
-  // Same viewing affordances as Display options: a collapsible live sample,
-  // and Peek — a short undimmed sheet so the REAL widget is visible while
-  // its options change under your finger (settings persist instantly, so
-  // the page updates live).
-  const [peek, setPeek] = React.useState(false);
-  // Peek height is draggable — shared hook (PeekResize) with Display options.
-  const peekResize = usePeekHeight("symphony_widget_peek_h", 40);
+  // Always drag-resizable (the grab bar is the size control — no separate
+  // Peek mode); height shared with Display options. The page never dims
+  // under it: settings apply live and watching the widget is the point.
+  const peekResize = usePeekHeight("symphony_options_peek_h", 85);
   const peekH = peekResize.peekH;
   React.useEffect(() => {
-    if (!open || !peek) return undefined;
+    if (!open) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
-    // Bring the widget being styled into the visible strip above the sheet
-    // — peeking at a widget that's below the fold shows nothing.
+    // Bring the widget being styled into the visible strip above the sheet.
     const node = widget && document.querySelector(`[data-widget-id="${widget.instanceId}"]`);
     node?.scrollIntoView({ block: "start", behavior: "smooth" });
     return () => document.documentElement.removeAttribute("data-v2-peek");
-  }, [open, peek, widget]);
+  }, [open, widget]);
   // Dock top/bottom — same flip (and same remembered choice) as the other
   // edit sheets, so a widget near the bottom edge isn't hidden under its
   // own options.
@@ -519,39 +515,33 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} hideHandle={peek}
-        style={peek ? { maxHeight: `${peekH}vh`, height: `${peekH}vh` } : undefined} {...sheetPortalGuards}>
-        {/* Peek: the grab bar IS the resize handle (vaul's own pill is
-            hidden so there's one thing to grab). stopPropagation keeps vaul's
-            drag-to-dismiss off it — with both listening, any drag either
-            dismissed the sheet or fought the resize (the report). */}
-        {peek && <PeekHandle resize={peekResize} dock={dock} />}
+      <DrawerContent direction={dock} hideHandle
+        style={{ maxHeight: `${peekH}vh`, height: `${peekH}vh` }} {...sheetPortalGuards}>
+        {/* The grab bar IS the resize handle — every sheet is always
+            drag-resizable (no separate Peek mode). */}
+        <PeekHandle resize={peekResize} dock={dock} />
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
-            <div>
-              <DrawerTitle className={peek ? "text-sm" : "text-base"}>{settings.label || defLabel}</DrawerTitle>
-              {/* Screen-reader only: a visible explainer line here just ate
-                  sheet space (house rule — no descriptive filler). */}
+            <span className="flex items-center gap-2 min-w-0">
+              {/* The standard close chevron — points the way the sheet leaves. */}
+              <button type="button" onClick={onClose} aria-label="Close"
+                className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+                {dock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              </button>
+              <DrawerTitle className="text-base truncate">{settings.label || defLabel}</DrawerTitle>
               <DrawerDescription className="sr-only">Widget options</DrawerDescription>
-            </div>
+            </span>
             <span className="flex items-center gap-1.5 flex-shrink-0">
             <button type="button" onClick={flipDock}
               aria-label="Move this panel to the other edge" title="Move this panel to the other edge"
               className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
               {dock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
             </button>
-            <button type="button" onClick={() => setPeek((v) => !v)}
-              className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
-                peek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-              }`}>
-              {peek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-              {peek ? "Full panel" : "Peek"}
-            </button>
             </span>
           </div>
         </DrawerHeader>
         <div
-          className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain"
+          className="px-4 pb-6 space-y-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
           style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}
         >
           {/* Rename */}

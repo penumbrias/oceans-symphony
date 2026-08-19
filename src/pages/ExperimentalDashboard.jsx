@@ -25,7 +25,7 @@ import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
-  Eye, EyeOff, ArrowUpToLine, ArrowDownToLine,
+  ArrowUpToLine, ArrowDownToLine,
 } from "lucide-react";
 import {
   DndContext, MouseSensor, TouchSensor, useSensor, useSensors, closestCenter, useDroppable,
@@ -569,8 +569,7 @@ export default function ExperimentalDashboard({
   const [homeSettingsOpen, setHomeSettingsOpen] = useState(false);
   // Peek + dock for the home settings drawer — shared preference with
   // the Display options sheet (same DOCK_KEY) so both flip together.
-  const [homePeek, setHomePeek] = useState(false);
-  const homePeekResize = usePeekHeight("symphony_options_peek_h", 40);
+  const homePeekResize = usePeekHeight("symphony_options_peek_h", 85);
   const [homeDock, setHomeDock] = useState(() => {
     try { return localStorage.getItem(DOCK_KEY) === "top" ? "top" : "bottom"; } catch { return "bottom"; }
   });
@@ -580,10 +579,10 @@ export default function ExperimentalDashboard({
     try { localStorage.setItem(DOCK_KEY, next); } catch { /* storage off */ }
   };
   useEffect(() => {
-    if (!homeSettingsOpen || !homePeek) return undefined;
+    if (!homeSettingsOpen) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
     return () => document.documentElement.removeAttribute("data-v2-peek");
-  }, [homeSettingsOpen, homePeek]);
+  }, [homeSettingsOpen]);
   const [styleQuery, setStyleQuery] = useState("");
   const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
@@ -615,9 +614,11 @@ export default function ExperimentalDashboard({
   // Grid density presets. Changing one RESCALES every widget on every page
   // proportionally (spans and free positions) so the board keeps its shape
   // — only the size STEPS get finer or coarser.
+  // The user picks WIDTH only; the row unit follows so cells stay squarish
+  // (finer columns ⇒ finer rows, no separate number to reason about).
   const DENSITIES = [
-    { cols: 4, rowPx: 80, label: "Coarse" }, { cols: 5, rowPx: 80, label: "5 across" },
-    { cols: 6, rowPx: 60, label: "Medium" }, { cols: 8, rowPx: 40, label: "Fine" },
+    { cols: 4, rowPx: 80, label: "4 across" }, { cols: 5, rowPx: 80, label: "5 across" },
+    { cols: 6, rowPx: 60, label: "6 across" }, { cols: 8, rowPx: 40, label: "8 across" },
   ];
   const setDensity = (d) => {
     const oldCols = home.grid?.phoneCols || 4, oldRow = rowPx;
@@ -1294,15 +1295,19 @@ export default function ExperimentalDashboard({
 
       {/* Home screen settings — what used to be the toolbar pills. */}
       <Drawer key={homeDock} direction={homeDock} open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
-        <DrawerContent direction={homeDock} className={homePeek ? "" : "max-h-[85vh]"} hideHandle={homePeek}
-          style={homePeek ? { maxHeight: `${homePeekResize.peekH}vh`, height: `${homePeekResize.peekH}vh` } : undefined}>
-          {homePeek && <PeekHandle resize={homePeekResize} dock={homeDock} />}
+        <DrawerContent direction={homeDock} hideHandle
+          style={{ maxHeight: `${homePeekResize.peekH}vh`, height: `${homePeekResize.peekH}vh` }}>
+          <PeekHandle resize={homePeekResize} dock={homeDock} />
           <DrawerHeader className="pb-1">
             <div className="flex items-start justify-between gap-2">
-              <div>
-                <DrawerTitle className="text-base">Home screen</DrawerTitle>
+              <span className="flex items-center gap-2 min-w-0">
+                <button type="button" onClick={() => setHomeSettingsOpen(false)} aria-label="Close"
+                  className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+                  {homeDock === "top" ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                </button>
+                <DrawerTitle className="text-base truncate">Home screen</DrawerTitle>
                 <DrawerDescription className="sr-only">Layout, look and bars for this board.</DrawerDescription>
-              </div>
+              </span>
               {/* Same Peek + dock-flip the Display options sheet has —
                   this drawer IS display options on the home page, and
                   adjusting a board you can't see defeats the point. */}
@@ -1312,18 +1317,10 @@ export default function ExperimentalDashboard({
                   className="flex items-center justify-center w-8 h-8 rounded-lg border border-border/60 text-muted-foreground hover:text-foreground">
                   {homeDock === "top" ? <ArrowDownToLine className="w-3.5 h-3.5" /> : <ArrowUpToLine className="w-3.5 h-3.5" />}
                 </button>
-                <button type="button" onClick={() => setHomePeek((v) => !v)}
-                  title="Keep adjusting — the board stays visible."
-                  className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg border ${
-                    homePeek ? "border-primary/60 bg-primary/10 text-primary" : "border-border/60 text-muted-foreground hover:text-foreground"
-                  }`}>
-                  {homePeek ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5" />}
-                  {homePeek ? "Full panel" : "Peek"}
-                </button>
               </span>
             </div>
           </DrawerHeader>
-          <div className="px-4 overflow-y-auto overscroll-contain"
+          <div className="px-4 overflow-y-auto overscroll-contain flex-1 min-h-0"
             style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
               This home screen
@@ -1364,10 +1361,10 @@ export default function ExperimentalDashboard({
                 const i = DENSITIES.findIndex((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx);
                 setDensity(DENSITIES[(i + 1) % DENSITIES.length]);
               }}
-              title="Grid density — how fine the size steps are (widgets are rescaled to keep their shape)"
+              title="Grid width — how many columns across (widgets are rescaled to keep their shape)"
               className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
             >
-              Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label} ({home.grid?.phoneCols || 4}×{rowPx})
+              Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label}
             </button>
             </div>
 
