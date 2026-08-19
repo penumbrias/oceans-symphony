@@ -12,6 +12,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { useTerms } from "@/lib/useTerms";
+import { useReferencedAssets, useImageUsage, BUILT_IN_FOLDER } from "@/lib/referencedAssets";
 import {
   getAllLocalImages, deleteLocalImage, getLocalImageId, isLocalImageUrl,
   processUploadedImage, saveLocalImage, createLocalImageUrl,
@@ -47,7 +48,11 @@ function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
       {item.isGif && <span className="absolute top-1 left-1 text-[0.5rem] font-bold px-1 rounded bg-black/60 text-white">GIF</span>}
       <p className="text-[0.625rem] text-muted-foreground truncate mt-0.5 px-0.5">{item.name}</p>
       <div className="mt-1 flex items-center justify-center gap-1">
-        {item.asset?.owner_alter_id ? null : item.asset ? (
+        {item.refOnly ? (
+          // In use on a record / built into the app — can be copied into the
+          // library (to name / organise / reuse), not deleted from here.
+          <button type="button" onClick={() => onSaveToLibrary(item)} title="Save a copy to the library" className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60"><FolderPlus className="w-3.5 h-3.5" /></button>
+        ) : item.asset?.owner_alter_id ? null : item.asset ? (
           <>
             <button type="button" onClick={() => onRename(item)} title="Rename" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><Pencil className="w-3.5 h-3.5" /></button>
             <button type="button" onClick={() => onMove(item)} title="Move to folder" className="p-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60"><FolderInput className="w-3.5 h-3.5" /></button>
@@ -55,7 +60,9 @@ function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
         ) : (
           <button type="button" onClick={() => onSaveToLibrary(item)} title="Save to library (name & organise it)" className="p-1 rounded text-muted-foreground hover:text-primary hover:bg-muted/60"><FolderPlus className="w-3.5 h-3.5" /></button>
         )}
-        <button type="button" onClick={() => onDelete(item)} title="Delete image" className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-muted/60"><Trash2 className="w-3.5 h-3.5" /></button>
+        {!item.refOnly && (
+          <button type="button" onClick={() => onDelete(item)} title="Delete image" className="p-1 rounded text-muted-foreground hover:text-destructive hover:bg-muted/60"><Trash2 className="w-3.5 h-3.5" /></button>
+        )}
       </div>
     </div>
   );
@@ -100,7 +107,7 @@ export default function AssetsLibrary() {
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsList[0] || null;
   const rules = useMemo(() => resolveAssetRules(settingsRow), [settingsRow]);
-  const AUTO_FOLDERS = useMemo(() => autoFolderNames(rules), [rules]);
+  const AUTO_FOLDERS = useMemo(() => new Set([...autoFolderNames(rules), BUILT_IN_FOLDER]), [rules]);
   const autoFolderFor = (id) => autoFolderForRules(id, rules);
   const alterFolderName = (alterId, role) => alterFolderNameRules(alterNameById[alterId] || "Unknown alter", role, rules);
   const [orgOpen, setOrgOpen] = useState(false);
@@ -166,6 +173,11 @@ export default function AssetsLibrary() {
     return m;
   }, [assets]);
 
+  // Pictures in use on records (imported / pasted-URL avatars, the system
+  // picture, group & contact pictures) and the app's built-in images —
+  // not in the image store, but part of "all the app's assets".
+  const referenced = useReferencedAssets(rules, alterNameById);
+  const usage = useImageUsage(rules, alterNameById);
   const items = useMemo(() => {
     const out = [];
     for (const id of Object.keys(rawImages)) {
@@ -175,8 +187,10 @@ export default function AssetsLibrary() {
         key: id, id,
         url: `/local-image/${encodeURIComponent(id)}`,
         asset: asset || null,
-        name: asset?.name || id,
-        folder: asset?.owner_alter_id && rules.perAlter ? alterFolderName(asset.owner_alter_id, asset.owner_role) : ((asset?.folder || "").trim() || autoFolderFor(id)),
+        name: asset?.name || usage[id]?.name || id,
+        folder: asset?.owner_alter_id && rules.perAlter ? alterFolderName(asset.owner_alter_id, asset.owner_role)
+          : ((asset?.folder || "").trim() || usage[id]?.folder || autoFolderFor(id)),
+        ...(usage[id]?.ownerAlterId && !asset ? { ownerAlterId: usage[id].ownerAlterId, role: usage[id].role } : {}),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
       });
     }
@@ -190,8 +204,11 @@ export default function AssetsLibrary() {
         isGif: !!a.is_gif,
       });
     }
+    // Referenced pictures, skipping any already covered by a stored asset.
+    const known = new Set(out.map((i) => i.url));
+    for (const r of referenced) if (!known.has(r.url)) out.push({ ...r, id: r.key, asset: null, isGif: false });
     return out;
-  }, [rawImages, assets, assetByImageId, alterNameById, rules]);
+  }, [rawImages, assets, assetByImageId, alterNameById, rules, referenced, usage]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -334,7 +351,11 @@ export default function AssetsLibrary() {
     if (name === null) return;
     const folder = window.prompt("Folder (optional):", item.folder === autoFolderFor(item.id) ? "" : item.folder) || "";
     try {
-      await base44.entities.ImageAsset.create({ name: name.trim() || "Image", image_url: item.url, folder: folder.trim(), is_gif: item.isGif, created_date: new Date().toISOString() });
+      await base44.entities.ImageAsset.create({
+        name: name.trim() || "Image", image_url: item.url, folder: folder.trim(), is_gif: item.isGif, created_date: new Date().toISOString(),
+        // A picture in use on an alter keeps its owner so it files under 👤.
+        ...(item.ownerAlterId ? { owner_alter_id: item.ownerAlterId, owner_role: item.role || "avatar" } : {}),
+      });
       qc.invalidateQueries({ queryKey: ["imageAssets"] });
       toast.success("Saved to your library");
     } catch (e) { toast.error(e?.message || "Couldn't save"); }

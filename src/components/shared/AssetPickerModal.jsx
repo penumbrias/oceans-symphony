@@ -16,6 +16,7 @@ import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 // Auto-folder names + the user's rules: lib/assetFolders.js (shared with
 // the Assets Library page so both file an image the same way).
 import { resolveAssetRules, autoFolderFor as autoFolderForRules, alterFolderName } from "@/lib/assetFolders";
+import { useReferencedAssets, useImageUsage } from "@/lib/referencedAssets";
 
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -74,6 +75,8 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
   const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: open });
   const rules = useMemo(() => resolveAssetRules(settingsList[0] || null), [settingsList]);
   const autoFolderFor = (id) => autoFolderForRules(id, rules);
+  const referenced = useReferencedAssets(rules, alterNameById);
+  const usage = useImageUsage(rules, alterNameById);
   const ownerFolderFor = (asset) =>
     asset?.owner_alter_id && rules.perAlter ? alterFolderName(alterNameById[asset.owner_alter_id] || "Unknown", asset.owner_role, rules) : null;
 
@@ -95,8 +98,8 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
       out.push({
         key: id,
         url: `/local-image/${encodeURIComponent(id)}`,
-        name: asset?.name || id,
-        folder: ownerFolderFor(asset) || (asset?.folder || "").trim() || autoFolderFor(id),
+        name: asset?.name || usage[id]?.name || id,
+        folder: ownerFolderFor(asset) || (asset?.folder || "").trim() || usage[id]?.folder || autoFolderFor(id),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
         isAudio: asset?.kind === "audio" || id.startsWith("song-")
           || (typeof data === "string" && data.startsWith("data:audio")),
@@ -112,8 +115,10 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
         isGif: !!a.is_gif,
       });
     }
+    const known = new Set(out.map((i) => i.url));
+    for (const r of referenced) if (!known.has(r.url)) out.push({ key: r.key, url: r.url, name: r.name, folder: r.folder, isGif: false });
     return out;
-  }, [rawImages, assets, assetByImageId, alterNameById, rules]);
+  }, [rawImages, assets, assetByImageId, alterNameById, rules, referenced, usage]);
 
   // 👤 alter-pool folders first (most relevant when picking an avatar),
   // then the rest alphabetically, Other last.
