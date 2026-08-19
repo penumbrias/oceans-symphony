@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Top-docked options sheets stay below the phone's status bar (the close button was stuck under it), and the resize bar can't get squashed away by a long sheet any more." },
       { type: "feature", text: "Pinned {{alters}} icons can be real shapes — circle, squircle, square, diamond, hexagon, star, heart, trapezoid — and a {{fronting}} {{alter}} can take a different shape (Widget config → Icon shape / When {{fronting}})." },
       { type: "improve", text: "Built-in themes now come as separate Light and Dark presets, so picking a mode is just picking the preset." },
       { type: "fix", text: "Pinned bar config: the pin list scrolls instead of growing forever; Display is now two ticks (Avatars / Names — at least one stays on); name size follows the bar's Text size; bar height and icon size use the standard set-then-slide rows; and the full pinned config is also reachable from Display options → Alter bar." },

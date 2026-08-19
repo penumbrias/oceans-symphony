@@ -29,7 +29,7 @@ DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
 // `hideHandle`: a caller that draws its own grab bar (e.g. a resizable
 // peek panel) can drop vaul's pill so there aren't two.
-const DrawerContent = React.forwardRef(({ className, children, direction = "bottom", hideHandle = false, ...props }, ref) => (
+const DrawerContent = React.forwardRef(({ className, children, direction = "bottom", hideHandle = false, style, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -43,6 +43,14 @@ const DrawerContent = React.forwardRef(({ className, children, direction = "bott
           : "fixed inset-x-0 bottom-0 z-50 mt-24 flex h-auto flex-col rounded-t-[10px] border bg-background",
         className
       )}
+      // Top-docked sheets start below the status bar / notch — without
+      // this the header (and its close button) sat under the notification
+      // bar and couldn't be tapped.
+      style={{
+        ...(direction === "top" ? { paddingTop: "env(safe-area-inset-top, 0px)" } : null),
+        ...(direction === "bottom" ? { paddingBottom: "env(safe-area-inset-bottom, 0px)" } : null),
+        ...style,
+      }}
       {...props}>
       {!hideHandle && <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />}
       {children}

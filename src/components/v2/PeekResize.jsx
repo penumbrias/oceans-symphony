@@ -40,8 +40,9 @@ export function PeekHandle({ resize, dock = "bottom" }) {
       onPointerMove={(e) => { e.stopPropagation(); resize.move(e); }}
       onPointerUp={(e) => { e.stopPropagation(); resize.end(e); }}
       onPointerCancel={(e) => { e.stopPropagation(); resize.end(e); }}
-      className={`w-full flex flex-col items-center justify-center cursor-ns-resize select-none ${dock === "top" ? "order-last pb-2 pt-1" : "pt-3 pb-1"}`}
-      style={{ touchAction: "none" }}>
+      // A generous target: thin bars are hard to hit mid-scroll on glass.
+      className={`w-full flex flex-col items-center justify-center cursor-ns-resize select-none flex-shrink-0 ${dock === "top" ? "order-last pb-3 pt-2" : "pt-3 pb-2"}`}
+      style={{ touchAction: "none", minHeight: 28 }}>
       {/* No label (house rule — the aria-label carries it for screen
           readers; visually the pill is the affordance). */}
       <span className="h-2 w-[100px] rounded-full bg-muted" />
