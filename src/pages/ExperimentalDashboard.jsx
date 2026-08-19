@@ -60,6 +60,7 @@ import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
 import AltersBarCard from "@/components/v2/AltersBarCard";
+import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { boxStyle } from "@/v2/primitives";
@@ -569,6 +570,7 @@ export default function ExperimentalDashboard({
   // Peek + dock for the home settings drawer — shared preference with
   // the Display options sheet (same DOCK_KEY) so both flip together.
   const [homePeek, setHomePeek] = useState(false);
+  const homePeekResize = usePeekHeight("symphony_options_peek_h", 40);
   const [homeDock, setHomeDock] = useState(() => {
     try { return localStorage.getItem(DOCK_KEY) === "top" ? "top" : "bottom"; } catch { return "bottom"; }
   });
@@ -1292,7 +1294,9 @@ export default function ExperimentalDashboard({
 
       {/* Home screen settings — what used to be the toolbar pills. */}
       <Drawer key={homeDock} direction={homeDock} open={homeSettingsOpen} modal={false} onOpenChange={(v) => { if (!v) setHomeSettingsOpen(false); }}>
-        <DrawerContent direction={homeDock} className={homePeek ? "max-h-[40vh]" : "max-h-[85vh]"}>
+        <DrawerContent direction={homeDock} className={homePeek ? "" : "max-h-[85vh]"} hideHandle={homePeek}
+          style={homePeek ? { maxHeight: `${homePeekResize.peekH}vh`, height: `${homePeekResize.peekH}vh` } : undefined}>
+          {homePeek && <PeekHandle resize={homePeekResize} dock={homeDock} />}
           <DrawerHeader className="pb-1">
             <div className="flex items-start justify-between gap-2">
               <div>
