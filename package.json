@@ -19,7 +19,7 @@
     "@capacitor/app": "^8.1.0",
     "@capacitor/background-runner": "^3.0.0",
     "@capacitor/browser": "^8.0.3",
-    "@capacitor/core": "^8.3.4",
+    "@capacitor/core": "^8.5.0",
     "@capacitor/filesystem": "^8.1.2",
     "@capacitor/geolocation": "^8.2.0",
     "@capacitor/local-notifications": "^8.1.0",
@@ -130,9 +130,9 @@
     "zod": "^3.24.2"
   },
   "devDependencies": {
-    "@capacitor/android": "^8.3.4",
+    "@capacitor/android": "^8.5.0",
     "@capacitor/assets": "^3.0.5",
-    "@capacitor/cli": "^8.3.4",
+    "@capacitor/cli": "^8.5.0",
     "@capacitor/ios": "^8.4.2",
     "@eslint/js": "^9.19.0",
     "@types/node": "^22.13.5",
