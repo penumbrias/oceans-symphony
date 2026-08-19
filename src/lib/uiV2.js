@@ -24,6 +24,8 @@ export const DEFAULT_UI_V2 = {
   // null = the dockSide token's edge at mid-height.
   dockPos: null,
   activeDockPos: null,
+  // User icon overrides: { pages: { [pageId]: {iconName|iconUrl} }, keys: { [keyId]: … } }
+  icons: { pages: {}, keys: {} },
   registerOrder: null, // null = catalogue order
   // Every key the bar can hold; the user picks which in Display options →
   // Quick actions. Plan and Set-front ship on by default because they were
@@ -273,6 +275,10 @@ export function resolveUiV2(stored) {
     },
     appsIcon: typeof src.appsIcon === "string" ? src.appsIcon : "",
     appsView: src.appsView === "sidebar" ? "sidebar" : "grid",
+    icons: {
+      pages: src.icons?.pages && typeof src.icons.pages === "object" ? src.icons.pages : {},
+      keys: src.icons?.keys && typeof src.icons.keys === "object" ? src.icons.keys : {},
+    },
     dockPos: (src.dockPos
       && ["left", "right", "top", "bottom"].includes(src.dockPos.side)
       && Number.isFinite(src.dockPos.topPct))

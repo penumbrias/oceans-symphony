@@ -19,6 +19,7 @@
 import React from "react";
 import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
+import IconPicker from "@/components/shared/IconPicker";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
@@ -477,6 +478,7 @@ export default function WidgetConfigSheet({
   };
   const settings = widget?.settings || {};
   const iconPreview = useResolvedAvatarUrl(settings.iconUrl || "");
+  const [iconPickerOpen, setIconPickerOpen] = React.useState(false);
   const fontOptions = useFontOptions();
   // Classic Appearance themes, offered as widget looks.
   const { allPresets = {}, userCustomPresets = {} } = useTheme() || {};
@@ -1170,15 +1172,25 @@ export default function WidgetConfigSheet({
                 )}
                 <button
                   type="button"
+                  onClick={() => setIconPickerOpen(true)}
+                  className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
+                >
+                  {settings.iconName ? `Icon: ${settings.iconName}` : "Choose icon…"}
+                </button>
+                <button
+                  type="button"
                   onClick={() => onPickIcon(widget.instanceId)}
                   className="text-xs px-3 py-1.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground"
                 >
                   Choose image…
                 </button>
-                {settings.iconUrl && (
+                <IconPicker open={iconPickerOpen} onClose={() => setIconPickerOpen(false)} allowImage={false}
+                  current={settings.iconName || ""}
+                  onPick={(o) => onSettings(widget.instanceId, { iconName: o.iconName || "" })} />
+                {(settings.iconUrl || settings.iconName) && (
                   <button
                     type="button"
-                    onClick={() => onSettings(widget.instanceId, { iconUrl: "" })}
+                    onClick={() => onSettings(widget.instanceId, { iconUrl: "", iconName: "" })}
                     aria-label="Remove custom icon"
                     className="min-w-[28px] min-h-[28px] flex items-center justify-center rounded-lg text-muted-foreground hover:text-destructive"
                   >

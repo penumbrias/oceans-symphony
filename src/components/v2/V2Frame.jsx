@@ -53,6 +53,7 @@ import AltersBarCard from "@/components/v2/AltersBarCard";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
 import { EdgeDock } from "@/components/v2/EdgeDock";
 import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
+import { IconSlot } from "@/components/shared/LucideByName";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -580,6 +581,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
   const NavButton = ({ item, dim }) => {
     const on = isActive(item.path);
     const Icon = item.icon;
+    const ov = uiV2.icons?.pages?.[item.id];
     return (
       <button type="button" onClick={() => navigate(item.path)} aria-current={on ? "page" : undefined}
         className={`w-full flex items-center gap-2.5 px-2.5 py-2 text-left ${dim ? "text-xs" : "text-sm"} hover:bg-muted/40`}
@@ -588,7 +590,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
           color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
           boxShadow: on ? "inset 2px 0 0 var(--v2-accent)" : "none",
         }}>
-        {Icon && <Icon style={{ width: dim ? 14 : 16, height: dim ? 14 : 16, flexShrink: 0 }} />}
+        <IconSlot override={ov} Default={Icon} style={{ width: dim ? 14 : 16, height: dim ? 14 : 16, flexShrink: 0 }} />
         <span className="truncate">{item.label}</span>
       </button>
     );
@@ -632,13 +634,13 @@ export function V2SideRail({ uiV2, settingsRow }) {
                     borderRadius: "var(--v2-radius)",
                     border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
                   }}>
-                  <Icon style={{ width: "45%", height: "45%" }} />
+                  <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: "45%", height: "45%" }} />
                 </CommandKeyButton>
               ) : (
                 <CommandKeyButton key={k.id} onTap={onPress} label={label}
                   className="w-full flex items-center gap-2.5 px-2.5 py-1.5 text-left text-xs text-muted-foreground hover:text-foreground hover:bg-muted/40"
                   style={{ borderRadius: "var(--v2-radius)" }}>
-                  <Icon className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
+                  <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} className="w-3.5 h-3.5 flex-shrink-0" /> <span className="truncate">{label}</span>
                 </CommandKeyButton>
               );
             })}
@@ -763,7 +765,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
               border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
               boxShadow: "0 2px 8px rgb(0 0 0 / 0.25)",
             }}>
-            {k.id === "active_now" ? <ActiveNowKeyFace /> : <Icon style={{ width: "45%", height: "45%" }} />}
+            {k.id === "active_now" ? <ActiveNowKeyFace /> : <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: "45%", height: "45%" }} />}
           </CommandKeyButton>
         );
       })}
@@ -915,7 +917,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                           borderRadius: "var(--v2-radius)",
                           border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
                         }}>
-                        {k.id === "active_now" ? <ActiveNowKeyFace /> : <Icon style={{ width: "45%", height: "45%" }} />}
+                        {k.id === "active_now" ? <ActiveNowKeyFace /> : <IconSlot override={uiV2.icons?.keys?.[k.id]} Default={Icon} style={{ width: "45%", height: "45%" }} />}
                       </CommandKeyButton>
                     );
                   })}
@@ -1163,7 +1165,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                   color: on ? "var(--v2-accent)" : "hsl(var(--muted-foreground))",
                   boxShadow: on ? "inset 0 calc(var(--v2-border-w) + 1px) 0 var(--v2-accent)" : "none",
                 }}>
-                {Icon && <Icon style={{ width: 18, height: 18 }} />}
+                <IconSlot override={uiV2.icons?.pages?.[item.id]} Default={Icon} style={{ width: 18, height: 18 }} />
                 <span className="text-[0.625em] font-medium leading-tight whitespace-nowrap">{item.label}</span>
               </button>
             );

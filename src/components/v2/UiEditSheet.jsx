@@ -20,12 +20,14 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
+import IconPicker from "@/components/shared/IconPicker";
+import { IconSlot } from "@/components/shared/LucideByName";
 import { useV2Display } from "@/components/settings/V2DisplaySettings";
 import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
 import { WAVE_COLOR_KEYS, WAVE_COLOR_LABELS, readWaveColorKey } from "@/lib/waveColorKey";
@@ -291,10 +293,16 @@ function BarToggle({ label, on, onChange }) {
   );
 }
 
+// Default glyphs for the quick-action keys (mirrors V2Frame's KEY_ICONS) —
+// shown on the change-icon button until the user picks another.
+const KEY_ICON_DEFAULTS = { quick_checkin: Heart, quick_note: PenLine, start_activity: Zap, start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users, active_now: Timer };
+
 function BarsSection({ v2, alignX }) {
   const tr = useT();
   const terms = useTerms();
   const qc = useQueryClient();
+  // Which nav page / quick-action key is picking an icon right now.
+  const [iconFor, setIconFor] = useState(null); // { kind, id, label }
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
   const settingsRow = settingsRows[0] || null;
 
@@ -433,6 +441,11 @@ function BarsSection({ v2, alignX }) {
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.arrangement")}</p>
         {bottomIds.map((id, idx) => (
           <div key={id} className="flex items-center gap-2 py-0.5">
+            <button type="button" onClick={() => setIconFor({ kind: "pages", id, label: pageLabel(id) })}
+              aria-label={`${pageLabel(id)} — change icon`} title="Change icon"
+              className="w-7 h-7 rounded-md border border-border/60 text-muted-foreground hover:text-foreground flex items-center justify-center flex-shrink-0">
+              <IconSlot override={v2.uiV2.icons?.pages?.[id]} Default={ALL_PAGES.find((p) => p.id === id)?.icon} className="w-3.5 h-3.5" />
+            </button>
             <span className="text-xs flex-1 min-w-0 truncate">{pageLabel(id)}</span>
             <button type="button" onClick={() => moveNavItem(idx, -1)} disabled={idx === 0}
               aria-label={`${pageLabel(id)} ↑`}
@@ -588,6 +601,10 @@ function BarsSection({ v2, alignX }) {
         <p className="text-[0.6875rem] text-muted-foreground">{applyTerms(tr("editSheet.alterBarHint"), terms)}</p>
       </div>
       </SubSection>
+      <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
+        title={iconFor ? `Icon for ${iconFor.label}` : "Choose an icon"}
+        current={iconFor ? (v2.uiV2.icons?.[iconFor.kind]?.[iconFor.id]?.iconName || "") : ""}
+        onPick={(o) => { if (iconFor) v2.setIcon(iconFor.kind, iconFor.id, o); }} />
     </SubSection>
   );
 }

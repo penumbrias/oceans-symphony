@@ -116,6 +116,14 @@ export function useV2Display() {
     setToken: (id, value) => write({ tokens: { ...(settingsRow?.ui_v2?.tokens || {}), [id]: value } }),
     setBar: (bar, visible) => write({ bars: { ...(settingsRow?.ui_v2?.bars || {}), [bar]: visible } }),
     setCommandKeys: (keys) => write({ commandKeys: keys }),
+    // Icon overrides for nav pages / quick-action keys: { iconName | iconUrl }; empty → default.
+    setIcon: (kind, id, override) => {
+      const icons = settingsRow?.ui_v2?.icons && typeof settingsRow.ui_v2.icons === "object" ? settingsRow.ui_v2.icons : {};
+      const bucket = { ...(icons[kind] || {}) };
+      if (override && (override.iconName || override.iconUrl)) bucket[id] = { iconName: override.iconName || "", iconUrl: override.iconUrl || "" };
+      else delete bucket[id];
+      return write({ icons: { ...icons, [kind]: bucket } });
+    },
   };
 }
 

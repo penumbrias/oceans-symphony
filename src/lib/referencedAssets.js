@@ -9,13 +9,8 @@ import { base44 } from "@/api/base44Client";
 import { getLocalImageId } from "@/lib/localImageStorage";
 import { alterFolderName } from "@/lib/assetFolders";
 
-const BUILT_IN = [
-  { url: "/logo.png", name: "App logo" },
-  { url: "/logo.svg", name: "App logo (vector)" },
-  { url: "/icon-192.png", name: "App icon" },
-  { url: "/icon-512.png", name: "App icon (large)" },
-  { url: "/favicon.svg", name: "Favicon" },
-];
+// The app's own logo / icons are deliberately NOT listed (the owner's
+// call): the library is for the user's pictures, not the app's branding.
 export const BUILT_IN_FOLDER = "App";
 
 function looksLikeImage(url) {
@@ -66,7 +61,6 @@ export function useReferencedAssets(rules, alterNameById = {}) {
       add(settings.system_avatar_url, "System — avatar", rules?.folders?.system || "System profile");
       add(settings.system_banner_url, "System — banner", rules?.folders?.system || "System profile");
     }
-    for (const b of BUILT_IN) out.push({ key: `builtin-${hash(b.url)}`, url: b.url, name: b.name, folder: BUILT_IN_FOLDER, refOnly: true, builtIn: true });
     return out;
   }, [alters, groups, contacts, settings, rules, alterNameById]);
 }

@@ -74,6 +74,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+import { IconSlot } from "@/components/shared/LucideByName";
 import { Section, Row, Muted, TextAction, Dot, boxStyle, WidgetModeContext, useWidgetMode, rowsForMode } from "@/v2/primitives";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -714,11 +715,11 @@ function AppTileWidget({ mode, settings }) {
     ? <img src={customIcon} alt="" className="w-9 h-9 object-cover" style={{ borderRadius: "var(--v2-radius)" }} />
     : display === "card"
       ? <span className={`w-10 h-10 rounded-2xl flex items-center justify-center ${item.color}`}>
-          <Icon className="w-5 h-5" />
+          <IconSlot override={{ iconName: settings?.iconName }} Default={Icon} className="w-5 h-5" />
         </span>
       : <span className="w-9 h-9 flex items-center justify-center"
           style={{ borderRadius: "var(--v2-radius)", border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)" }}>
-          <Icon className="w-4 h-4" />
+          <IconSlot override={{ iconName: settings?.iconName }} Default={Icon} className="w-4 h-4" />
         </span>;
   return (
     <button type="button" onClick={() => navigate(item.path)} title={label}
