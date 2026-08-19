@@ -58,7 +58,9 @@ let galleryLastTouchAt = 0;
 // `valign`: where the chips sit inside a bar taller than them (top /
 // center / bottom) — the bar's "Down" option. Only meaningful once a bar
 // height is set; a bar that hugs its icons has nowhere to move them.
-export default function PinnedAltersGallery({ showHeader = true, showGear = false, onGear = null, className = "", valign = "center" }) {
+// `orientation`: "horizontal" (a row that scrolls sideways — the bar) or
+// "vertical" (a column that scrolls up/down — the bubble docked to a side).
+export default function PinnedAltersGallery({ showHeader = true, showGear = false, onGear = null, className = "", valign = "center", orientation = "horizontal" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
@@ -160,7 +162,8 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
     return null;
   }
 
-  const stripWrapStyle = barHeight > 0
+  const vertical = orientation === "vertical";
+  const stripWrapStyle = barHeight > 0 && !vertical
     ? {
         height: barHeight,
         display: "flex",
@@ -233,8 +236,12 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
             // controls when one chip is bigger than the rest (a fronting
             // alter on "grow"): the row used to stretch, so everyone sat at
             // the top whatever the setting said.
-            <div className="flex gap-2 overflow-x-auto scrollbar-none min-w-0 w-full"
-              style={{ WebkitOverflowScrolling: "touch", alignItems: valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center" }}>
+            <div className={vertical
+                ? "flex flex-col gap-2 overflow-y-auto scrollbar-none min-h-0 items-center"
+                : "flex gap-2 overflow-x-auto scrollbar-none min-w-0 w-full"}
+              style={vertical
+                ? { WebkitOverflowScrolling: "touch", maxHeight: "min(60vh, 420px)" }
+                : { WebkitOverflowScrolling: "touch", alignItems: valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center" }}>
               {rowChildren}
             </div>
           );

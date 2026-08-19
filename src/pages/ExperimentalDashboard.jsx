@@ -122,6 +122,10 @@ const BAR_DEF = {
   description: "The persistent strip of pinned {{alters}}.",
   supportsModes: ["normal"],
   configFields: [
+    // Where it lives: the floating bar above the bottom chrome, or a
+    // bubble you can drag to any edge (a column on the sides).
+    { key: "mode", type: "select", label: "Placement", default: "bar",
+      options: [{ value: "bar", label: "Floating bar" }, { value: "bubble", label: "Bubble (drag to any edge)" }] },
     // WHAT the bar shows: pins / order / labels / fronting emphasis /
     // per-alter bar avatars / front levels — the inline panel.
     { key: "pinned", type: "pinnedAlters", label: "Pinned {{alters}}" },
@@ -1696,6 +1700,7 @@ export default function ExperimentalDashboard({
         widget={configuringBar
           ? { instanceId: BAR_CONFIG_ID, widgetId: BAR_CONFIG_ID, mode: "normal", span: { cols: 4, rows: 1 },
               settings: { ...(home.altersBar.look || {}),
+                mode: home.altersBar.mode || "bar",
                 barHeight: settingsRow?.pinned_alters_config?.barHeight ?? 0,
                 chipSize: settingsRow?.pinned_alters_config?.chipSize ?? 48 } }
           : (widgets.find((w) => w.instanceId === configId) || null)}
@@ -1707,7 +1712,10 @@ export default function ExperimentalDashboard({
           if (id !== BAR_CONFIG_ID) return handleSettings(id, patch);
           // barHeight/chipSize live with the pins (shared with classic), the
           // rest is the bar's look.
-          const { barHeight, chipSize, ...look } = patch;
+          const { barHeight, chipSize, mode, ...look } = patch;
+          if (mode !== undefined) {
+            persist({ ...home, altersBar: { ...home.altersBar, mode, collapsed: false } });
+          }
           if (barHeight !== undefined || chipSize !== undefined) {
             const cfg = settingsRow?.pinned_alters_config || {};
             const next = { ...cfg };

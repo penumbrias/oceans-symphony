@@ -26,7 +26,7 @@ export function altersBarLook(look = {}, settingsRow, pageStyleId = "current") {
   return mergeLook(mergeLook(getStyleLook(builtinId), saved?.look || {}), pickLook(look));
 }
 
-export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, className = "" }) {
+export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, className = "", orientation = "horizontal" }) {
   const look = (home && home.altersBar && home.altersBar.look) || {};
   const valign = look.valign || "center";
   const justify = valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center";
@@ -58,8 +58,8 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
         swiped.current = false;
       }}
       onPointerMoveCapture={(e) => { if (dragStart.current) dragLast.current = { x: e.clientX, y: e.clientY }; }}
-      onPointerUpCapture={() => endDrag()}
-      onPointerCancelCapture={() => endDrag()}
+      onPointerUpCapture={() => { if (orientation !== "vertical") endDrag(); }}
+      onPointerCancelCapture={() => { if (orientation !== "vertical") endDrag(); }}
       onClickCapture={(e) => {
         if (!swiped.current) return;
         swiped.current = false;
@@ -68,7 +68,7 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
       }}
       className={`pointer-events-auto max-w-full flex items-center gap-1 backdrop-blur-xl ${className}`}
       style={{
-        touchAction: "pan-x",
+        touchAction: orientation === "vertical" ? "pan-y" : "pan-x",
         ...lookStyle,
         ...boxStyle(),
         ...(barLooks.borderW !== undefined ? { "--v2-border-w": `${barLooks.borderW}px` } : {}),
@@ -82,8 +82,8 @@ export default function AltersBarCard({ settingsRow, home, onCollapse, onGear, c
         boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
         alignItems: justify,
       }}>
-      <div className="min-w-0 overflow-x-auto flex-1">
-        <PinnedAltersGallery showHeader={false} showGear={!!onGear} onGear={onGear} valign={valign} />
+      <div className={orientation === "vertical" ? "min-h-0 overflow-y-auto" : "min-w-0 overflow-x-auto flex-1"}>
+        <PinnedAltersGallery showHeader={false} showGear={!!onGear && orientation !== "vertical"} onGear={onGear} valign={valign} orientation={orientation} />
       </div>
     </div>
   );

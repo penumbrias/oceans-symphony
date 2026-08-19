@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Pinned {{alters}} bar can be a bubble: Widget config → Placement → Bubble. Tap to open, hold and drag it to any screen edge (it snaps and remembers); on the left or right it opens as a column." },
       { type: "feature", text: "Pinned {{alters}} bar → Widget config: manage pins and their order, choose avatar + name / avatars only / names only, name vs alias, how a {{fronting}} {{alter}} stands out (bigger · squarer · thick ring · no change, with a size slider), a bar-only avatar per {{alter}} (saved in that {{alter}}'s asset folder), and {{front}} levels right there." },
       { type: "improve", text: "Widget options: \u201cWidget settings\u201d is now \u201cWidget config\u201d; bar height and icon size moved into UI & text; alignment reads Alignment → Horizontal / Vertical; section icons fixed; Peek panel height is draggable." },
       { type: "fix", text: "Pinned {{alters}} bar: vertical alignment now really moves everyone when a {{fronting}} {{alter}}'s icon is bigger; the bottom handle's halves are symmetrical and can be swapped (Display options → Quick action bar → Handle halves)." },

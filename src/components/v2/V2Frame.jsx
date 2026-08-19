@@ -50,6 +50,7 @@ import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
+import AltersBarBubble from "@/components/v2/AltersBarBubble";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -978,7 +979,20 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         band inside the nav made the bottom section too tall). Sits on the
         chrome's published height so it clears the tab strip and the
         quick-action drawer whatever their size. */}
-    {altersInNav && (
+    {altersInNav && altersBarCfg.mode === "bubble" && (
+      <AltersBarBubble settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+        open={!altersBarCfg.collapsed}
+        onToggle={(on) => setNavAlters(!on)}
+        onSavePos={async (bubble) => {
+          if (!settingsRow?.id) return;
+          await base44.entities.SystemSettings.update(settingsRow.id, {
+            [homeField]: { ...(settingsRow[homeField] || {}), altersBar: { ...altersBarCfg, bubble } },
+          });
+          qc.invalidateQueries({ queryKey: ["systemSettings"] });
+        }}
+        onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+    )}
+    {altersInNav && altersBarCfg.mode !== "bubble" && (
       <div
         className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
         style={{ bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
