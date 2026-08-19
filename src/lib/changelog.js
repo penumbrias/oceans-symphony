@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Home: scrolling past the bottom (or top) of the planner, symptoms, diary and notebook widgets now carries on scrolling the page — no more hunting for a gap beside the widget." },
+      { type: "fix", text: "Pinned {{alters}} bar: swiping down on the bar itself now hides it on phones (it used to only work from the handle), and the strip scrolls sideways reliably." },
       { type: "improve", text: "Planner popup: when opening an existing plan, Outcome now sits at the top and includes \u201cStart now\u201d (it becomes an Active Activity, like the tracker); the activity picker folds to one line with a Change button so the sheet is far shorter." },
       { type: "fix", text: "Planner popups no longer extend up under the phone's status bar." },
       { type: "fix", text: "Set {{fronters}}: press-and-hold for the {{front}} level now works reliably on phones (a slightly drifting fingertip used to cancel it and land as a plain tap), and the hold also works on the chosen {{alters}} at the top of the popup — not only in the list below." },

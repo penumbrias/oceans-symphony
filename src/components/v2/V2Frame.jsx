@@ -890,6 +890,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   });
   const dragStart = useRef(null);
   const altersDragStart = useRef(null);
+  const altersBarDrag = useRef(null);
   const swiped = useRef(false);
 
   const toggleQa = (next) => {
@@ -1017,7 +1018,19 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 className="overflow-hidden"
               >
-                <div className="px-2 pb-1 min-w-0 overflow-x-auto">
+                {/* Swipe DOWN on the bar itself hides it too — not only the
+                    handle. Fast + downward only, so the level rail's slow
+                    vertical drag never collapses the bar under the finger;
+                    the trailing click is eaten so the chip under the finger
+                    doesn't open a profile. pan-x keeps sideways scrolling. */}
+                <div className="px-2 pb-1 min-w-0 overflow-x-auto" style={{ touchAction: "pan-x" }}
+                  onPointerDownCapture={(e) => { altersBarDrag.current = { y: e.clientY, at: Date.now() }; }}
+                  onPointerUpCapture={(e) => {
+                    const d = altersBarDrag.current; altersBarDrag.current = null;
+                    if (!d) return;
+                    if (e.clientY - d.y > 24 && Date.now() - d.at < 320) { swiped.current = true; toggleNavAlters(); }
+                  }}
+                  onClickCapture={(e) => { if (swiped.current) { swiped.current = false; e.preventDefault(); e.stopPropagation(); } }}>
                   <PinnedAltersGallery showHeader={false} />
                 </div>
               </motion.div>

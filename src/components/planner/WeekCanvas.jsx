@@ -677,7 +677,12 @@ export default function WeekCanvas({
               so each day column's left border stopped where the viewport did
               while the 24h grid inside kept going. Sizing to content makes
               the day separators run the full day. */}
-          <div className={`flex items-start min-h-0 ${fill ? "flex-1 overflow-y-auto overscroll-contain" : ""}`}
+          {/* No overscroll-contain here: reaching the bottom of the widget's
+              own scroll must hand the gesture on to the page (the user had
+              to find a gap beside the widget to keep scrolling home). The
+              x axis stays contained above so a sideways swipe never turns
+              into browser back-navigation. */}
+          <div className={`flex items-start min-h-0 ${fill ? "flex-1 overflow-y-auto" : ""}`}
             style={{
               paddingTop: 8,
               // `fill` = inside a widget box: take the box's height and

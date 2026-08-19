@@ -1306,7 +1306,6 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         onChange={(e) => setText(e.target.value)}
         placeholder={tr("widget.notebook.placeholder")}
         className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
-        style={{ overscrollBehavior: "contain" }}
       />
     </Section>
   );
@@ -2176,7 +2175,7 @@ function LogSymptomFullWidget({ api }) {
       {/* THE check-in symptom section, verbatim — tabs, search, severity
           anchors, per-{alter} assignment, and the active-episode toggles
           (those write immediately, exactly as they do in the check-in). */}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5"
+      <div className="min-h-0 flex-1 overflow-y-auto pr-0.5"
         // Deferred a tick: the section publishes its selections in an
         // effect AFTER its own render — reading synchronously on click made
         // the Save counter lag one tap behind.
@@ -2359,7 +2358,7 @@ function DiaryCardWidget({ mode = "normal" }) {
       action={dirty
         ? <TextAction onClick={save}>{saving ? "…" : tr("widget.status.save")}</TextAction>
         : (todays > 0 ? <span className="text-[0.6875em] text-muted-foreground">{tr("widget.diary.started")}</span> : null)}>
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain pr-0.5">
+      <div className="min-h-0 flex-1 overflow-y-auto pr-0.5">
         <DiarySection data={diaryData} onChange={(groupKey, value) => setDiaryData((prev) => ({ ...prev, [groupKey]: value }))} />
       </div>
     </Section>

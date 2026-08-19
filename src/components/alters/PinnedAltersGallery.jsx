@@ -212,7 +212,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
           // The old pt-5/pb-5 gutters existed for swipe-hint labels that the
           // gesture rework retired — pure wasted height now.
           return (
-            <div className="flex gap-2 overflow-x-auto scrollbar-none" style={{ WebkitOverflowScrolling: "touch" }}>
+            <div className="flex gap-2 overflow-x-auto scrollbar-none min-w-0 w-full" style={{ WebkitOverflowScrolling: "touch" }}>
               {rowChildren}
             </div>
           );

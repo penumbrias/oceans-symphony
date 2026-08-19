@@ -1611,6 +1611,13 @@ export default function ExperimentalDashboard({
               }}
               className="pointer-events-auto max-w-full mx-3 flex items-center gap-1 backdrop-blur-xl"
               style={{
+                // pan-x: sideways still scrolls the chips, but a vertical
+                // drag on the bar is OURS — with the default, a downward
+                // swipe on a phone became a page scroll, the browser sent
+                // pointercancel instead of pointerup, and the swipe-to-hide
+                // below never fired (the user's report). The level rail's
+                // vertical drag needs this too.
+                touchAction: "pan-x",
                 // The look arrives as CSS VARIABLES (widget contract), so the
                 // bar must consume them through the same box helper a widget's
                 // Section uses — Tailwind border/bg classes would just ignore
