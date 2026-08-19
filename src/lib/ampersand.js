@@ -241,6 +241,7 @@ export function ampersandToSystemDumps(parsed) {
   };
 
   // Members → Alters.
+  let usedAge = false;
   members.forEach((m) => {
     const si = memberSysIdx[m.uuid] ?? 0;
     const dump = dumps[si];
@@ -249,6 +250,12 @@ export function ampersandToSystemDumps(parsed) {
     const avatar = fileToDataUrl(m.image);
     const banner = fileToDataUrl(m.cover);
     if (banner) custom._header_image = banner;
+    // Symphony has no `age` column (birthday / origin_year instead), so
+    // Ampersand's age — a number or free text ("20s") — lands in a custom
+    // field named Age, which the profile shows like any other field. The
+    // old `age:` key was written to a field nothing read ("age wasn't
+    // imported").
+    if (m.age != null && String(m.age).trim() !== '') { custom.Age = String(m.age).trim(); usedAge = true; }
     // Tag uuids → Group membership refs ({id, name, color}) + the flat tag
     // strings kept as before (they're searchable and harmless).
     const memberTagUuids = Array.isArray(m.tags) ? m.tags.filter((u) => tagRec[u]) : [];
@@ -262,7 +269,7 @@ export function ampersandToSystemDumps(parsed) {
       pronouns: m.pronouns || '',
       description: m.description || '',
       role: m.role || '',
-      ...(typeof m.age === 'number' ? { age: m.age } : {}),
+
       color: normColor(m.color),
       avatar_url: avatar || '',
       ...(banner ? { banner_url: banner } : {}),
@@ -369,6 +376,13 @@ export function ampersandToSystemDumps(parsed) {
     if (!f || !f.uuid) return;
     dumps.forEach((d) => { d.CustomField[f.uuid] = { id: f.uuid, name: f.name || 'Field', type: 'text', created_date: nowIso() }; });
   });
+  if (usedAge) {
+    dumps.forEach((d) => {
+      if (!Object.values(d.CustomField).some((f) => String(f.name).toLowerCase() === 'age')) {
+        d.CustomField['amp-age'] = { id: 'amp-age', name: 'Age', type: 'text', created_date: nowIso() };
+      }
+    });
+  }
 
   // System name/avatar/bio → each dump's SystemSettings. Use the SAME field
   // names the profile writes (system_avatar_url / system_banner_url) so the

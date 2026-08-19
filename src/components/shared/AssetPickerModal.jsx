@@ -42,12 +42,15 @@ function AssetThumb({ item, onSelect }) {
 // `kind` keeps audio and images out of each other's pickers. Audio lives in
 // the same blob store, so without this a song shows up in the wallpaper
 // picker as a broken image.
-export default function AssetPickerModal({ open, onClose, onSelect, kind = "image" }) {
+// `ownerAlterId` (+ ownerAlterName): the picker is choosing FOR an alter —
+// it opens on that alter's "👤 Name" folder and anything uploaded here is
+// filed into it (owner_alter_id), so per-alter images live with the alter.
+export default function AssetPickerModal({ open, onClose, onSelect, kind = "image", ownerAlterId = null, ownerAlterName = "" }) {
   const qc = useQueryClient();
   const t = useTerms();
   const [rawImages, setRawImages] = useState({});
   const [search, setSearch] = useState("");
-  const [folder, setFolder] = useState("all");
+  const [folder, setFolder] = useState(() => (ownerAlterId ? `👤 ${ownerAlterName || "Unknown"}` : "all"));
   const [uploadFolder, setUploadFolder] = useState("");
   const [uploading, setUploading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -115,14 +118,14 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
   // 👤 alter-pool folders first (most relevant when picking an avatar),
   // then the rest alphabetically, Other last.
   const folders = useMemo(
-    () => [...new Set(items.map((i) => i.folder).filter(Boolean))].sort((a, b) => {
+    () => [...new Set([...(ownerAlterId ? [`👤 ${ownerAlterName || "Unknown"}`] : []), ...items.map((i) => i.folder).filter(Boolean)])].sort((a, b) => {
       const aPool = a.startsWith("👤"), bPool = b.startsWith("👤");
       if (aPool !== bPool) return aPool ? -1 : 1;
       if (a === "Other") return 1;
       if (b === "Other") return -1;
       return a.localeCompare(b);
     }),
-    [items]
+    [items, ownerAlterId, ownerAlterName]
   );
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -152,7 +155,8 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
         await base44.entities.ImageAsset.create({
           name: file.name.replace(/\.[^.]+$/, "").slice(0, 60) || "Image",
           image_url: url,
-          folder: (folder !== "all" ? folder : uploadFolder).trim(),
+          ...(ownerAlterId ? { owner_alter_id: ownerAlterId } : {}),
+          folder: ownerAlterId ? "" : (folder !== "all" ? folder : uploadFolder).trim(),
           is_gif: isGif,
           created_date: new Date().toISOString(),
         });

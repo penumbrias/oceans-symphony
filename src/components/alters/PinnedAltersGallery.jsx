@@ -92,6 +92,16 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   // auto = the app-wide alter-label setting; name/alias force one;
   // off = avatars only.
   const labelMode = ["name", "alias", "off"].includes(config.labelMode) ? config.labelMode : "auto";
+  // What a chip shows (both / avatars only / names only) and how a
+  // FRONTING chip stands out: grow (bigger, the old look), shape (same
+  // size, rounded square instead of a circle), ring (thick coloured ring),
+  // none. frontingScale = how much "grow" grows (percent, default 133).
+  const display = ["both", "avatars", "names"].includes(config.display) ? config.display : "both";
+  const emphasis = ["grow", "shape", "ring", "none"].includes(config.frontingEmphasis) ? config.frontingEmphasis : "grow";
+  const frontingScale = Number.isFinite(config.frontingScale) ? Math.max(100, Math.min(200, config.frontingScale)) : 133;
+  // Per-alter avatar override for the bar only (saved in the alter's own
+  // asset folder by the config panel).
+  const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -209,13 +219,22 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
               queryClient={queryClient}
               size={chipSize}
               labelMode={labelMode}
+              display={display}
+              emphasis={emphasis}
+              frontingScale={frontingScale}
+              avatarOverride={pinnedAvatars[a.id]}
             />
           ));
           const rowChildren = chips;
           // The old pt-5/pb-5 gutters existed for swipe-hint labels that the
           // gesture rework retired — pure wasted height now.
           return (
-            <div className="flex gap-2 overflow-x-auto scrollbar-none min-w-0 w-full" style={{ WebkitOverflowScrolling: "touch" }}>
+            // alignItems here is what the bar's vertical alignment really
+            // controls when one chip is bigger than the rest (a fronting
+            // alter on "grow"): the row used to stretch, so everyone sat at
+            // the top whatever the setting said.
+            <div className="flex gap-2 overflow-x-auto scrollbar-none min-w-0 w-full"
+              style={{ WebkitOverflowScrolling: "touch", alignItems: valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center" }}>
               {rowChildren}
             </div>
           );
@@ -292,7 +311,7 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
     >
       <div
         className="relative w-12 h-12 rounded-full overflow-hidden flex items-center justify-center"
-        style={{ border: `2px solid ${alter.color || "hsl(var(--border))"}`, backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))" }}
+        style={{ border: `2px solid ${alter.color || "var(--color-muted)"}`, backgroundColor: alter.color ? `${alter.color}22` : "var(--color-muted)" }}
       >
         {avatar ? (
           <img src={avatar} alt={label} className={`w-full h-full object-cover ${blurAvatar ? "blur-md" : ""}`} />
@@ -322,7 +341,7 @@ function SortablePinnedChip({ alter, anonymize, formatAlter }) {
 // BESIDE it rather than behind it.
 // One searchable row in the "Add alters" picker — its own component so the
 // avatar can resolve via the hook (can't call hooks in a map).
-function PinPickerRow({ alter, pinned, onToggle }) {
+export function PinPickerRow({ alter, pinned, onToggle }) {
   const avatar = useResolvedAvatarUrl(alter.avatar_url);
   return (
     <button
@@ -332,7 +351,7 @@ function PinPickerRow({ alter, pinned, onToggle }) {
     >
       <div
         className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
-        style={{ border: `2px solid ${alter.color || "hsl(var(--border))"}`, backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))" }}
+        style={{ border: `2px solid ${alter.color || "var(--color-muted)"}`, backgroundColor: alter.color ? `${alter.color}22` : "var(--color-muted)" }}
       >
         {avatar ? (
           <img src={avatar} alt="" className="w-full h-full object-cover" />
@@ -453,10 +472,10 @@ const LONG_PRESS_MS = 450;
 
 // `size` is the base avatar diameter in px (config.chipSize). Fronting
 // chips render 4/3 of it, keeping the old 48/64 look at the default.
-function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto" }) {
+function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "" }) {
   const navigate = useNavigate();
   const terms = useTerms();
-  const resolvedAvatar = useResolvedAvatarUrl(alter.avatar_url);
+  const resolvedAvatar = useResolvedAvatarUrl(avatarOverride || alter.avatar_url);
   const mySession = activeSessions.find((s) => s.alter_id === alter.id);
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
@@ -474,7 +493,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
 
   const ringColor = fronting
     ? (isPrimary ? "#f59e0b" : (alter.color || "#8b5cf6"))
-    : (alter.color || "hsl(var(--border))");
+    : (alter.color || "var(--color-muted)");
 
   return (
     <>
@@ -485,18 +504,22 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
       onClick={() => { if (!gesture.suppressed()) navigate(`/alter/${alter.id}`); }}
       title={`${label} — tap to open, press and hold to set their ${terms.fronting} level or remove from ${terms.front}`}
       className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
-      style={{ width: Math.round(size * 4 / 3) }}
+      style={{ width: Math.round(size * Math.max(1, frontingScale / 100)) }}
     >
+      {display !== "names" && (
       <div
-        className="relative rounded-full overflow-hidden flex items-center justify-center flex-shrink-0"
+        className={`relative overflow-hidden flex items-center justify-center flex-shrink-0 ${
+          fronting && emphasis === "shape" ? "rounded-xl" : "rounded-full"
+        }`}
         style={{
-          width: fronting ? Math.round(size * 4 / 3) : size,
-          height: fronting ? Math.round(size * 4 / 3) : size,
-          // Fronting alters render LARGER (like the alters grid) rather
-          // than with a glow — clearer at-a-glance "who's active" and
-          // less visual noise. A coloured border still tints them.
-          border: `2px solid ${fronting ? ringColor : "hsl(var(--border))"}`,
-          backgroundColor: alter.color ? `${alter.color}22` : "hsl(var(--muted))",
+          width: fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size,
+          height: fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size,
+          // How a fronting chip stands out is the bar's "Fronting" option
+          // (grow / shape / ring / none); a coloured border tints it in
+          // every mode but "none".
+          border: `${fronting && emphasis === "ring" ? 4 : 2}px solid ${fronting && emphasis !== "none" ? ringColor : "var(--color-muted)"}`,
+          backgroundColor: alter.color ? `${alter.color}22` : "var(--color-muted)",
+          transition: "width .18s, height .18s, border-radius .18s",
         }}
       >
         {resolvedAvatar ? (
@@ -515,8 +538,11 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
           </span>
         )}
       </div>
-      {labelMode !== "off" && (
-        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""}`}>
+      )}
+      {labelMode !== "off" && display !== "avatars" && (
+        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""} ${
+          display === "names" && fronting ? "font-semibold" : ""}`}
+          style={display === "names" ? { color: fronting && emphasis !== "none" ? ringColor : undefined } : undefined}>
           {label}
         </span>
       )}

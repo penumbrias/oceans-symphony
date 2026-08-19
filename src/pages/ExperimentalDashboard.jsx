@@ -122,9 +122,13 @@ const BAR_DEF = {
   description: "The persistent strip of pinned {{alters}}.",
   supportsModes: ["normal"],
   configFields: [
-    { key: "barHeight", type: "range", label: "Bar height", min: 0, max: 200, step: 4, default: 0,
+    // WHAT the bar shows: pins / order / labels / fronting emphasis /
+    // per-alter bar avatars / front levels — the inline panel.
+    { key: "pinned", type: "pinnedAlters", label: "Pinned {{alters}}" },
+    // Size + shape belong with the look (UI & text).
+    { key: "barHeight", type: "range", section: "ui", label: "Bar height", min: 0, max: 200, step: 4, default: 0,
       format: (v) => (v > 0 ? `${v}px` : "hug the icons") },
-    { key: "chipSize", type: "range", label: "Icon size", min: 14, max: 88, step: 2, default: 48 },
+    { key: "chipSize", type: "range", section: "ui", label: "Icon size", min: 14, max: 88, step: 2, default: 48 },
   ],
   defaultSpan: { cols: 4, rows: 1 },
   minSpan: { cols: 1, rows: 1 },

@@ -17,7 +17,8 @@
 // what lets the catalogue grow without this file growing with it.
 
 import React from "react";
-import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine } from "lucide-react";
+import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
+import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
@@ -433,6 +434,27 @@ export default function WidgetConfigSheet({
   // its options change under your finger (settings persist instantly, so
   // the page updates live).
   const [peek, setPeek] = React.useState(false);
+  // Peek height is DRAGGABLE (the user's ask) — remembered per device.
+  const [peekH, setPeekH] = React.useState(() => {
+    try { const n = Number(localStorage.getItem("symphony_widget_peek_h")); return Number.isFinite(n) && n > 0 ? n : 40; } catch { return 40; }
+  });
+  const peekDrag = React.useRef(null);
+  const onPeekHandleDown = (e) => {
+    peekDrag.current = { y: e.clientY, h: peekH };
+    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+  };
+  const onPeekHandleMove = (e) => {
+    const d = peekDrag.current; if (!d) return;
+    // Bottom dock: dragging UP grows the sheet; top dock: dragging DOWN does.
+    const dy = (dock === "top" ? 1 : -1) * (e.clientY - d.y);
+    const next = Math.max(15, Math.min(90, d.h + (dy / window.innerHeight) * 100));
+    setPeekH(next);
+  };
+  const onPeekHandleUp = () => {
+    if (!peekDrag.current) return;
+    peekDrag.current = null;
+    try { localStorage.setItem("symphony_widget_peek_h", String(Math.round(peekH))); } catch { /* storage off */ }
+  };
   React.useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
@@ -512,7 +534,13 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
+      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} style={peek ? { maxHeight: `${peekH}vh`, height: `${peekH}vh` } : undefined} {...sheetPortalGuards}>
+        {peek && dock === "bottom" && (
+          <div role="separator" aria-label="Drag to resize" onPointerDown={onPeekHandleDown} onPointerMove={onPeekHandleMove} onPointerUp={onPeekHandleUp}
+            className="w-full flex justify-center py-1 cursor-ns-resize" style={{ touchAction: "none" }}>
+            <span className="w-10 h-1 rounded-full bg-border" />
+          </div>
+        )}
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
@@ -559,12 +587,15 @@ export default function WidgetConfigSheet({
             />
           </div>
 
-          <SubSection title="Widget settings" icon={Settings2}>
-          {/* Widget-specific options, declared by the registry entry. */}
-          {(def.configFields || []).map((f) => {
+          <SubSection title="Widget config" icon={Settings2}>
+          {/* Widget-specific options, declared by the registry entry. A
+              field with section:"ui" (a size, a shape) renders under UI &
+              text instead — config is WHAT the widget shows. */}
+          {(def.configFields || []).filter((f) => f.section !== "ui").map((f) => {
             // showIf: a field only appears when it means something for the
             // current settings — the cure for option-soup config sheets.
             if (typeof f.showIf === "function" && !f.showIf(settings)) return null;
+            if (f.type === "pinnedAlters") return <PinnedAltersConfigPanel key={f.key} />;
             const val = settings[f.key] ?? f.default ?? "";
             const commit = (v) => onSettings(widget.instanceId, { [f.key]: v });
             return (
@@ -686,7 +717,7 @@ export default function WidgetConfigSheet({
               These write CSS variables onto the widget wrapper, so the
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
-          <SubSection title="UI & text" icon={Palette} defaultOpen>
+          <SubSection title="UI & text" icon={Type} defaultOpen>
           {/* Layout (mode / across / down / content size) lives here with type
               and shape — one standard section, not two (the user's call). */}
 
@@ -717,10 +748,9 @@ export default function WidgetConfigSheet({
 
           {/* Content alignment within the widget's box. Centered by
               default; overflowing content still starts at the top. */}
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground">Alignment</p>
           <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Across
-            </label>
+            <label className="text-xs font-medium block mb-1">Horizontal</label>
             <div className="flex flex-wrap gap-1.5">
               {[["stretch", "Fill"], ["left", "Left"], ["center", "Center"], ["right", "Right"]].map(([v, label]) => (
                 <button key={v} type="button"
@@ -737,9 +767,7 @@ export default function WidgetConfigSheet({
           </div>
 
           <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Down
-            </label>
+            <label className="text-xs font-medium block mb-1">Vertical</label>
             <div className="flex flex-wrap gap-1.5">
               {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (
                 <button
@@ -774,6 +802,22 @@ export default function WidgetConfigSheet({
               className="w-full accent-primary"
             />
           </div>
+          {/* Size / shape fields a widget declares for this section (e.g.
+              the pinned bar's height and icon size). Ranges only — that's
+              what a size is. */}
+          {(def.configFields || []).filter((f) => f.section === "ui" && f.type === "range").map((f) => {
+            const val = settings[f.key] ?? f.default ?? 0;
+            return (
+              <div key={f.key}>
+                <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+                  {applyTerms(f.label, t)} — {f.format ? f.format(Number(val) || 0) : `${Number(val) || 0}${f.unit || "px"}`}
+                </label>
+                <input type="range" value={Number(val) || 0} min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1}
+                  onChange={(e) => onSettings(widget.instanceId, { [f.key]: Number(e.target.value) })}
+                  aria-label={f.label} className="w-full accent-primary" />
+              </div>
+            );
+          })}
 
           <div className="space-y-3 pt-2 border-t border-border/30">
             <div>
@@ -842,7 +886,7 @@ export default function WidgetConfigSheet({
           </div>
           </SubSection>
 
-          <SubSection title="Colors & background">
+          <SubSection title="Colors & background" icon={Palette}>
           <div className="space-y-3">
             {/* Four swatches on one line. The name, hex field, opacity,
                 Clear and "use the app colour" all live inside each picker's

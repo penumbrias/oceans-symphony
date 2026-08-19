@@ -487,6 +487,14 @@ function BarsSection({ v2, alignX }) {
             { v: "float", label: tr("editSheet.placementFloat") },
             { v: "bubble", label: tr("editSheet.placementBubble") },
           ]} />
+        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
+          <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
+            onChange={(val) => v2.setToken("handleSides", val)} alignX={alignX} stacked
+            options={[
+              { v: "alters-left", label: tr("editSheet.handleAltersLeft", { alters: terms.alters }) },
+              { v: "alters-right", label: tr("editSheet.handleAltersRight", { alters: terms.alters }) },
+            ]} />
+        )}
         {(v2.uiV2.tokens.actionsMode === "float" || v2.uiV2.tokens.actionsMode === "bubble") && (
           <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.dockSide ?? "right"}
             onChange={(val) => v2.setToken("dockSide", val)} alignX={alignX}

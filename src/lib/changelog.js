@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Pinned {{alters}} bar → Widget config: manage pins and their order, choose avatar + name / avatars only / names only, name vs alias, how a {{fronting}} {{alter}} stands out (bigger · squarer · thick ring · no change, with a size slider), a bar-only avatar per {{alter}} (saved in that {{alter}}'s asset folder), and {{front}} levels right there." },
+      { type: "improve", text: "Widget options: \u201cWidget settings\u201d is now \u201cWidget config\u201d; bar height and icon size moved into UI & text; alignment reads Alignment → Horizontal / Vertical; section icons fixed; Peek panel height is draggable." },
+      { type: "fix", text: "Pinned {{alters}} bar: vertical alignment now really moves everyone when a {{fronting}} {{alter}}'s icon is bigger; the bottom handle's halves are symmetrical and can be swapped (Display options → Quick action bar → Handle halves)." },
+      { type: "fix", text: "Ampersand import: a member's age now arrives (as an Age custom field)." },
       { type: "improve", text: "Options sheets (widget, bar, display, home) drop their explainer lines under the title — more room for the actual controls." },
       { type: "improve", text: "Pinned {{alters}} bar: back to a floating card above the bottom bar (visually separate, no taller bottom section) — still on every page." },
       { type: "improve", text: "The pinned {{alters}} bar now shows on every page when it's switched on — it lives in the bottom bar like the quick actions (same handle, same swipe-down to hide, same options gear)." },

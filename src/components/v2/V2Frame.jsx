@@ -1074,8 +1074,12 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               pinned {alters} bar, on the RIGHT half for the quick
               actions. Both halves swipe down to close their own thing. */}
           <div className="w-full flex" style={{ height: 18 }}>
+            {/* Each half is the same glyph — dash · chevron · dash — centred
+                in its half (the lone off-centre chevron looked broken). The
+                halves swap with the Handle-halves option. */}
             <button
               type="button"
+              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 2 : 1 }}
               aria-label={applyTerms(t("nav.showAlterBar"), terms)}
               title={applyTerms(t("nav.showAlterBar"), terms)}
               onPointerDown={(e) => {
@@ -1091,12 +1095,14 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
               }}
               className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-              style={{ touchAction: "none" }}
             >
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-3 h-3" style={{ transform: altersInNav && !altersBarCfg.collapsed ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
               <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
             </button>
             <button
               type="button"
+              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 1 : 2 }}
               aria-expanded={qaOpen}
               aria-label={qaOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
               title={t("nav.showQuickActions")}
@@ -1119,8 +1125,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 else if (dy > 14) { swiped.current = true; toggleQa(false); }
               }}
               className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-              style={{ touchAction: "none" }}
             >
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
               <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
               <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
             </button>
