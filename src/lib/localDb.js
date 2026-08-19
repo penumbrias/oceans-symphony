@@ -273,7 +273,38 @@ function getDb() {
 // turn, so a stale snapshot can never win. Callers still just await saveDb().
 let _saveQueue = Promise.resolve();
 
+// ── Write batching ────────────────────────────────────────────────────
+// Every entity write calls saveDb(), which serialises (and, under
+// encryption, re-encrypts) the ENTIRE db. A loop of N updates = N full-DB
+// round trips: a front switch touching 10 sessions did 10 encrypts; a
+// 2,000-row import did 2,000. withBatch(fn) suppresses the per-write save
+// for the duration of fn and flushes ONCE at the end (or on throw, so a
+// partial batch is still persisted — the in-memory writes already
+// happened and must not be lost). Nestable; only the outermost flushes.
+// The code inside is unchanged — same order, same errors — only the disk
+// write count changes.
+let _batchDepth = 0;
+let _batchDirty = false;
+
+export async function withBatch(fn) {
+  _batchDepth++;
+  try {
+    return await fn();
+  } finally {
+    _batchDepth--;
+    if (_batchDepth === 0 && _batchDirty) {
+      _batchDirty = false;
+      await _saveDbNow();
+    }
+  }
+}
+
 function saveDb() {
+  if (_batchDepth > 0) { _batchDirty = true; return Promise.resolve(); }
+  return _saveDbNow();
+}
+
+function _saveDbNow() {
   const run = _saveQueue.then(() => doSaveDb());
   // Keep the chain alive even if a save fails; the failure still
   // propagates to this call's awaiter.
@@ -595,7 +626,42 @@ export function createLocalDbEntities() {
             return record;
           });
           await saveDb();
+          for (const r of created) emit(entityName, { type: 'create', id: r.id, data: r });
           return created;
+        },
+        // ONE save for N updates. Every single update() re-serialises (and,
+        // under encryption, re-encrypts) the ENTIRE db — a front switch that
+        // touched 10 sessions cost 10 full-DB round trips (audit v0.180.1).
+        // `patches` = [{ id, data }]; missing ids are skipped (returned in
+        // `missing`) rather than throwing so one stale id can't abort the
+        // whole batch. Events fire per record after the single save.
+        bulkUpdate: async (patches) => {
+          const col = getCollection(entityName);
+          const now = new Date().toISOString();
+          const updated = [];
+          const missing = [];
+          for (const { id, data } of patches || []) {
+            if (!id || !col[id]) { missing.push(id); continue; }
+            col[id] = { ...col[id], ...data, updated_date: now };
+            updated.push(col[id]);
+          }
+          if (updated.length) await saveDb();
+          for (const r of updated) emit(entityName, { type: 'update', id: r.id, data: r });
+          return { updated, missing };
+        },
+        // ONE save for N deletes (per-record tombstones + events preserved).
+        bulkDelete: async (ids) => {
+          const col = getCollection(entityName);
+          const removed = [];
+          for (const id of ids || []) {
+            if (!id || !(id in col)) continue;
+            delete col[id];
+            recordDeletionTombstone(entityName, id);
+            removed.push(id);
+          }
+          if (removed.length) await saveDb();
+          for (const id of removed) emit(entityName, { type: 'delete', id });
+          return removed.length;
         },
         schema: async () => ({}),
         subscribe: (callback) => {

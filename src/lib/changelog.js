@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Faster: {{switching}} {{fronters}} and importing data now save once instead of once per record (a switch used to re-save your whole database up to ten times, and big imports could freeze for minutes)." },
+      { type: "improve", text: "Faster: pages stop re-reading and re-sorting your whole database every time you navigate back to them, and the therapy-report PDF library only loads when you make a report." },
       { type: "fix", text: "Encrypted multi-{{system}} data restored or transferred since the encryption upgrade could refuse to unlock (\u201cIncorrect password\u201d on the right password). Fixed at the source, and existing affected {{systems}} now unlock again on their own." },
       { type: "fix", text: "\u201cExport all {{systems}}\u201d now refuses to save a backup that is silently missing a {{system}} it couldn't read." },
       { type: "fix", text: "Recovery screen: restoring a file saves a raw copy of what's on the device first, and \u201cAdd only new records\u201d can no longer overwrite still-intact encrypted data. \u201cReset\u201d now returns to the welcome setup properly." },

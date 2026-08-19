@@ -20,6 +20,7 @@
 
 import { formatInTimeZone } from "date-fns-tz";
 import { base44 } from "@/api/base44Client";
+import { withBatch } from "@/lib/localDb";
 import { pushFrontStatus } from "@/lib/friendsApi";
 
 // ISO string in the user's detected local timezone (not hardcoded).
@@ -69,7 +70,10 @@ export async function recomputePrimaryFromLevels({ cfg, queryClient = null }) {
 // ghost-active rows (is_active false, end_time null), dedupe multiple
 // active sessions per alter (keep newest), demote phantom extra primaries.
 // Returns the clean picture a set-front surface should seed its draft from.
-export async function reconcileActiveFront() {
+// Batched: the ghost sweep / dedupe / demote loops below each used to cost
+// one full-DB save per row. One flush at the end now.
+export function reconcileActiveFront() { return withBatch(reconcileActiveFrontInner); }
+async function reconcileActiveFrontInner() {
   const active = await base44.entities.FrontingSession.filter({ is_active: true });
   const newModelSessions = active.filter((s) => s.alter_id);
   const now = nowLocalIso();
@@ -126,7 +130,11 @@ export async function reconcileActiveFront() {
 // levelsEnabled: only then is front_level written.
 // alters + terms feed the friends push.
 // Returns { firstSessionId } (the id a switch journal should attach to).
-export async function applyFrontSelection({
+// Batched: a switch that ends N sessions and creates M used to do N+M
+// full-DB saves (each an encrypt under encryption) — the app's single
+// most-used interaction. withBatch makes it one save; the logic is unchanged.
+export function applyFrontSelection(args) { return withBatch(() => applyFrontSelectionInner(args)); }
+async function applyFrontSelectionInner({
   selections = [],
   clearAll = false,
   triggered = null,

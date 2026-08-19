@@ -23,6 +23,7 @@
 import { base44 } from "@/api/base44Client";
 import { saveLocalImage } from "@/lib/localImageStorage";
 
+import { withBatch } from "@/lib/localDb";
 // ─── Detection ─────────────────────────────────────────────────────────────
 
 // Does this parsed JSON look like a Plural Star export? Returns true for
@@ -343,7 +344,11 @@ export function mapRelationship(r, alterIdByPsId) {
 //     calls; useful for the preview panel.
 //   updateSystemProfile: true → also update SystemSettings.system_name
 //     and system_bio from PS' `system` block.
-export async function importPluralStar({ data, media }, opts = {}) {
+// Batched (v0.180.1): thousands of per-row create() calls each re-serialised
+// (and re-encrypted) the whole DB — O(N × dbsize), the "import freezes for
+// ages" report. One flush at the end; the row logic is unchanged.
+export function importPluralStar(payload, opts = {}) { return withBatch(() => importPluralStarInner(payload, opts)); }
+async function importPluralStarInner({ data, media }, opts = {}) {
   const { dryRun = false, updateSystemProfile = true } = opts;
   const warnings = [];
   const alterIdByPsId = new Map();

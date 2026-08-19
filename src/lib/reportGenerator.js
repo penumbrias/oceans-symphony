@@ -1,7 +1,9 @@
 // reportGenerator.js — assembles and downloads therapy report PDF using jsPDF
 // All generation is client-side. No data leaves the browser.
 
-import jsPDF from "jspdf";
+// jspdf is loaded on demand inside generateTherapyReport — a static import
+// put ~250 KB into the ENTRY chunk for a feature most sessions never use
+// (alterExport.js already does it this way).
 import { format } from "date-fns";
 
 const PRIMARY = [59, 130, 246];
@@ -1026,6 +1028,7 @@ export async function generateTherapyReport({
   enabledSections,
   sectionOptions = {},
 }) {
+  const { default: jsPDF } = await import("jspdf");
   const doc = new jsPDF({ unit: "mm", format: "a4" });
 
   if (config.showCoverPage) {
