@@ -19,7 +19,7 @@ import { buildGridItems } from "@/lib/navCatalogue";
 import { WIDGET_REGISTRY, WIDGET_CATEGORIES, widgetLabel, widgetDescription } from "@/lib/widgetRegistry";
 import { applyTerms } from "@/lib/dailyTaskSystem";
 import { effectiveMode, HOME_MODES } from "@/lib/experimentalHome";
-import { HOME_STYLES, getStyleShell } from "@/lib/homeStyles";
+import { HOME_STYLES, getStyleLook } from "@/lib/homeStyles";
 import { lookToStyle, USER_STYLE_PREFIX } from "@/lib/widgetLook";
 
 const MODE_LABEL = { minimal: "Minimal", normal: "Normal", expanded: "Expanded", detailed: "Detailed" };
@@ -40,15 +40,19 @@ class PreviewBoundary extends React.Component {
 // real component with the user's real data, just not interactive. `styleId`
 // previews a page style (shell class) or a saved user style (look vars).
 function WidgetPreview({ def, mode = "normal", api, styleId = "", userStyles = [], maxHeight = 170 }) {
-  const shell = styleId && !styleId.startsWith(USER_STYLE_PREFIX) ? getStyleShell(styleId) : "";
-  const userLook = styleId.startsWith(USER_STYLE_PREFIX)
-    ? userStyles.find((st) => `${USER_STYLE_PREFIX}${st.id}` === styleId)?.look
-    : null;
+  // Same pipeline a placed widget uses (widgetLookFor): a built-in style is
+  // its LOOK vars from getStyleLook, a saved style is its stored look. The
+  // old "shell class" for built-ins painted nothing any more, so tapping a
+  // built-in in the picker changed nothing while saved styles did.
+  const look = !styleId ? null
+    : styleId.startsWith(USER_STYLE_PREFIX)
+      ? (userStyles.find((st) => `${USER_STYLE_PREFIX}${st.id}` === styleId)?.look || null)
+      : getStyleLook(styleId);
   return (
     <div
       aria-hidden="true"
-      className={`pointer-events-none select-none overflow-hidden ${shell || ""}`}
-      style={{ ...(userLook ? lookToStyle(userLook) : null), maxHeight, borderRadius: "var(--v2-radius, 8px)" }}
+      className="pointer-events-none select-none overflow-hidden"
+      style={{ ...(look ? lookToStyle(look) : null), maxHeight, borderRadius: "var(--v2-radius, 8px)" }}
     >
       <PreviewBoundary>
         {def.render({ mode, settings: {}, instanceId: `preview_${mode}`, api })}
