@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: dropped the \u201cdrag to resize\u201d label under the peek grab bar." },
       { type: "fix", text: "Peek panels (widget options and Display options) really resize now: drag the grab bar up or down — it no longer fights the sheet's swipe-to-close." },
       { type: "hotfix", text: "Hotfix: the icon picker showed two close buttons." },
       { type: "feature", text: "Change the icons used for things: bottom-bar pages and quick-action keys (Display options → Bar sizes & layout → the icon button on each row) and app-shortcut widgets (Widget options → Icon) can use any of 1,700+ icons — searchable — or an image from your assets." },

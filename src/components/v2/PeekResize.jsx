@@ -38,8 +38,9 @@ export function PeekHandle({ resize, dock = "bottom" }) {
       onPointerCancel={(e) => { e.stopPropagation(); resize.end(e); }}
       className={`w-full flex flex-col items-center justify-center cursor-ns-resize select-none ${dock === "top" ? "order-last pb-2 pt-1" : "pt-3 pb-1"}`}
       style={{ touchAction: "none" }}>
+      {/* No label (house rule — the aria-label carries it for screen
+          readers; visually the pill is the affordance). */}
       <span className="h-2 w-[100px] rounded-full bg-muted" />
-      <span className="text-[0.625rem] text-muted-foreground mt-0.5">drag to resize</span>
     </div>
   );
 }
