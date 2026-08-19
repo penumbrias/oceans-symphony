@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Mention and ~command menus no longer get clipped inside widgets or sheets — they float above everything, wherever you type." },
+      { type: "improve", text: "Widget options: \u201cMove & resize widgets\u201d is the first thing in the sheet." },
       { type: "fix", text: "Moving widgets in free layout is precise now: drops were landing at the wrong height on finer grids, and a dashed outline now shows exactly where the widget will land while you drag." },
       { type: "feature", text: "@mentions and ~quick-log commands work in the new UI's text boxes too — the status widget, the quick note, plan notes and the notebook, just like the classic composer." },
       { type: "feature", text: "Each {{front}} level can style its chip on the pinned bar — its own shape, size and ring thickness (Widget config → Per-level styling)." },

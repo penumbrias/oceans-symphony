@@ -1,4 +1,5 @@
-import React, { forwardRef, useRef, useState, useMemo, useCallback, useImperativeHandle } from "react";
+import React, { forwardRef, useRef, useState, useMemo, useCallback, useImperativeHandle, useLayoutEffect } from "react";
+import { createPortal } from "react-dom";
 import { ChevronRight } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useQuery } from "@tanstack/react-query";
@@ -227,6 +228,30 @@ const MentionTextarea = forwardRef(function MentionTextarea(
     return false;
   };
 
+  // PORTALED, fixed-position menu — the suggestion list used to render
+  // absolutely INSIDE the host container, and any clipping ancestor (a
+  // widget box's overflow:hidden, a sheet) cut it to a sliver. Same
+  // pattern as SearchableSelect: anchor to the textarea's rect, prefer
+  // above, fall below when there's no headroom, clamp to the viewport.
+  const [menuPos, setMenuPos] = useState(null);
+  useLayoutEffect(() => {
+    if (!open) { setMenuPos(null); return undefined; }
+    const place = () => {
+      const r = innerRef.current?.getBoundingClientRect();
+      if (!r) return;
+      const W = Math.min(Math.max(r.width, 240), window.innerWidth - 16);
+      const left = Math.max(8, Math.min(r.left, window.innerWidth - W - 8));
+      const above = r.top > 200;
+      setMenuPos(above
+        ? { left, width: W, bottom: window.innerHeight - r.top + 4 }
+        : { left, width: W, top: r.bottom + 4 });
+    };
+    place();
+    window.addEventListener("resize", place);
+    window.addEventListener("scroll", place, true);
+    return () => { window.removeEventListener("resize", place); window.removeEventListener("scroll", place, true); };
+  }, [open, menu?.start]);
+
   return (
     <div className="relative">
       <Textarea
@@ -257,9 +282,9 @@ const MentionTextarea = forwardRef(function MentionTextarea(
         }}
         onBlur={(e) => { setTimeout(() => setMenu(null), 120); textareaProps.onBlur?.(e); }}
       />
-      {open && (
-        <div className="absolute z-50 left-0 right-0 bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
-          style={{ bottom: "calc(100% + 4px)" }}>
+      {open && menuPos && createPortal(
+        <div className="fixed z-[120] bg-popover border border-border rounded-xl shadow-lg max-h-44 overflow-y-auto overscroll-contain"
+          style={menuPos}>
           {menu.type === "command" ? (
             <>
               <div className="flex items-center justify-between gap-2 px-3 py-1.5 border-b border-border/50">
@@ -313,7 +338,8 @@ const MentionTextarea = forwardRef(function MentionTextarea(
           ))}
           </>
           )}
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

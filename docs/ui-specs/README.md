@@ -29,6 +29,11 @@ lookalike.
   `useHoldDragLevel`, `ArrangeRow`…). Never fork.
 - **Terms via `useTerms()`** everywhere a system/alter/front/switch word
   appears; alter names via `useAlterLabel()`.
+- **Popups escape their container.** Any menu/popover spawned inside a
+  widget, sheet or clipped box PORTALS to the body with fixed positioning
+  (SearchableSelect, MentionTextarea, ColorPicker are the references) —
+  overflow:hidden ancestors are everywhere, and an inline absolute popup
+  will get clipped somewhere.
 - **Lists that can grow are capped + scrollable** (`max-h-* overflow-y-auto
   overscroll-contain`), searchable when unbounded.
 - **Set-then-slide** for size controls (SliderRow / SetRow): the slider
