@@ -244,7 +244,7 @@ function AddBlockMenu({ onAdd, onClose }) {
     { type: "divider", icon: <Minus className="w-4 h-4" />, label: "Divider", desc: "Horizontal rule" },
   ];
   return (
-    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4 pb-[80px] sm:pb-4" onClick={onClose}>
+    <div className="fixed inset-0 bg-black/50 flex items-end sm:items-center justify-center z-50 p-4 pb-[80px] sm:pb-4" style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)" }} onClick={onClose}>
       <div className="bg-background border-2 border-border rounded-2xl w-full max-w-sm shadow-2xl flex flex-col max-h-full overflow-hidden" onClick={e => e.stopPropagation()}>
         <div className="flex items-center justify-between p-4 border-b border-border/50 flex-shrink-0">
           <p className="text-sm font-semibold">Add a block</p>

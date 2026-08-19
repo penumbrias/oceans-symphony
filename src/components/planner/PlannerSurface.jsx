@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin, Play } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -24,7 +24,9 @@ import {
   PLAN_REMINDER_OFFSETS,
   readPlanRemindersEnabled,
   writePlanRemindersEnabled,
+  cancelPlanReminder,
 } from "@/lib/planReminderScheduler";
+import { getActiveActivities, addActiveActivity } from "@/lib/activitySession";
 import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recurrenceUtils";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
@@ -117,6 +119,10 @@ export default function PlannerSurface({
   // section holding a value can be tucked away too (its chip keeps a dot).
   const [whoOpen, setWhoOpen] = useState(null);
   const [notesOpen, setNotesOpen] = useState(null);
+  // WHAT is the full picker while creating; when editing it folds to one
+  // line (what's linked + Change) so the sheet reads as "a plan that
+  // exists" instead of a wall of categories.
+  const [whatOpen, setWhatOpen] = useState(false);
   // WHEN can be entered as start + duration (default) or as start → end
   // (the end may fall on another day). Both edit the same underlying
   // day/time/duration, so every commit path is unchanged. Remembered.
@@ -295,6 +301,7 @@ export default function PlannerSurface({
     setRecur({ interval: "none", count: 8 });
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
     setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
+    setWhatOpen(true);
   };
   // Editing seeds the extras from the record, and the More section starts
   // open when any of them is set — a critical plan's flag must not hide.
@@ -308,6 +315,7 @@ export default function PlannerSurface({
     // Chips fold on open; fields that hold a value auto-open via the *OpenEff
     // derivations, so nothing set is ever hidden.
     setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
+    setWhatOpen(false);
   };
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -454,6 +462,29 @@ export default function PlannerSurface({
       qc.invalidateQueries({ queryKey: ["tasks"] });
       setTiming(null);
     } catch (e) { toast.error(e.message || "Failed"); }
+  };
+
+  // "Start now" — the plan becomes a running Active Activity (the same
+  // store the home notice / Active Activities widget use), exactly like the
+  // tracker's lifecycle popover. The plan record stays scheduled until the
+  // session ends and logs itself.
+  const alreadyActive = !!timing && !timing.create && getActiveActivities().some((a) => a.planActivityId === timing.item.id);
+  const startNow = () => {
+    if (!timing || timing.create) return;
+    const it = timing.item;
+    const cat = categories.find((c) => c.id === categoryIdOf(it));
+    addActiveActivity({
+      planActivityId: it.id,
+      categoryId: cat?.id || null,
+      name: it.activity_name || cat?.name || "Activity",
+      color: cat?.color || null,
+      startTime: new Date().toISOString(),
+      alterIds: it.fronting_alter_ids || [],
+      notes: (it.notes || "").trim(),
+    });
+    try { cancelPlanReminder(it.id).catch(() => {}); } catch { /* non-fatal */ }
+    toast.success(tr("planner.startedToast"));
+    setTiming(null);
   };
 
   const saveNote = async (text) => {
@@ -791,7 +822,7 @@ export default function PlannerSurface({
           by it, which is why its buttons did nothing. */}
       {timing && createPortal((
         <div className="fixed inset-0 z-[70] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setTiming(null); }}>
           {/* A sheet taller than the screen must scroll, not overflow off the
               top — with member list, notes and outcomes it can exceed a short
@@ -828,6 +859,67 @@ export default function PlannerSurface({
                 <Repeat className="w-3 h-3 flex-shrink-0" /> {tr("planner.series")}
               </p>
             )}
+            {/* OUTCOME first when editing: the sheet is about a plan that
+                already exists, so "what became of it" is the headline, not
+                a footnote under a wall of categories.
+                A plan that didn't happen must be sayable —
+                otherwise it either nags forever or quietly counts as done. */}
+            {!timing.create && (
+            <div>
+              <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
+              <div className="flex flex-wrap gap-1">
+                {timing.item.status === "scheduled" && (alreadyActive ? (
+                  <span className="text-xs px-2.5 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
+                    <Play className="w-3 h-3" />{tr("planner.inProgress")}
+                  </span>
+                ) : (
+                  <button type="button" onClick={startNow}
+                    className="text-xs px-2.5 py-1 rounded-full border border-[var(--v2-accent)] text-[var(--v2-accent)] flex items-center gap-1">
+                    <Play className="w-3 h-3" />{tr("planner.startNow")}
+                  </button>
+                ))}
+                {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
+                  ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
+                  <button key={id} type="button" aria-pressed={timing.item.status === id}
+                    onClick={() => setOutcome(id)}
+                    className={`text-xs px-2.5 py-1 rounded-full border ${
+                      timing.item.status === id
+                        ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
+                        : "border-border/50 text-muted-foreground"
+                    }`}>{label}</button>
+                ))}
+                {/* Not an end state — "it's still happening, just later".
+                    The chip enters the reschedule flow: the sheet's own
+                    move-to-day controls, with the date picker opened so
+                    the next tap is already choosing the new day. */}
+                <button type="button"
+                  onClick={() => {
+                    const el = dayInputRef.current;
+                    if (!el) return;
+                    el.scrollIntoView({ behavior: "smooth", block: "center" });
+                    try { el.showPicker(); } catch { el.focus(); }
+                  }}
+                  className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
+                  <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
+                </button>
+              </div>
+              {/* Partly done wants to know how much actually happened — the
+                  totals count the actual, not the intention. */}
+              {timing.item.status === "partial" && (
+                <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
+                  {tr("planner.actualMin")}
+                  <input type="number" min={1} step={5}
+                    defaultValue={timing.item.actual_duration_minutes ?? ""}
+                    onBlur={(e) => {
+                      const n = parseInt(e.target.value, 10);
+                      saveField({ actual_duration_minutes: Number.isFinite(n) && n > 0 ? n : null });
+                    }}
+                    className="w-20 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
+                </label>
+              )}
+            </div>
+            )}
+
             {/* WHAT — the same searchable, nested, create-if-missing picker
                 the classic Log Activity modal uses (ActivityPillSelector),
                 so choosing an activity/category here IS choosing it there.
@@ -846,11 +938,32 @@ export default function PlannerSurface({
               </div>
             )}
             <div>
-              <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground mb-1">{tr("planner.what")}</p>
-              <ActivityPillSelector
-                selectedActivities={timing.item.activity_category_ids || []}
-                onActivityChange={(ids) => saveField({ activity_category_ids: Array.isArray(ids) ? ids : [] })}
-              />
+              <div className="flex items-center justify-between gap-2 mb-1">
+                <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{tr("planner.what")}</p>
+                {!timing.create && (
+                  <button type="button" onClick={() => setWhatOpen((v) => !v)} aria-expanded={whatOpen}
+                    className="text-[0.6875em] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                    {whatOpen ? tr("planner.whatDone") : tr("planner.whatChange")}
+                  </button>
+                )}
+              </div>
+              {(timing.create || whatOpen) ? (
+                <ActivityPillSelector
+                  selectedActivities={timing.item.activity_category_ids || []}
+                  onActivityChange={(ids) => saveField({ activity_category_ids: Array.isArray(ids) ? ids : [] })}
+                />
+              ) : (
+                <div className="flex flex-wrap gap-1">
+                  {(timing.item.activity_category_ids || []).map((id) => categories.find((c) => c.id === id)).filter(Boolean).map((c) => (
+                    <span key={c.id} className="text-xs px-2.5 py-1 rounded-full border border-border/50 flex items-center gap-1">
+                      {c.color && <span className="w-2 h-2 rounded-full" style={{ background: c.color }} />}{c.name}
+                    </span>
+                  ))}
+                  {(timing.item.activity_category_ids || []).length === 0 && (
+                    <span className="text-xs text-muted-foreground">{tr("planner.whatNone")}</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* WHEN — day chips (fast path), date field (any date), time,
@@ -1025,54 +1138,6 @@ export default function PlannerSurface({
             </div>
             )}
 
-            {/* What became of it. A plan that didn't happen must be sayable —
-                otherwise it either nags forever or quietly counts as done. */}
-            {!timing.create && (
-            <div>
-              <p className="text-xs text-muted-foreground mb-1">{tr("planner.outcome")}</p>
-              <div className="flex flex-wrap gap-1">
-                {[["done", tr("planner.done")], ["partial", tr("planner.partial")],
-                  ["skipped", tr("planner.skipped")], ["cancelled", tr("planner.cancelled")]].map(([id, label]) => (
-                  <button key={id} type="button" aria-pressed={timing.item.status === id}
-                    onClick={() => setOutcome(id)}
-                    className={`text-xs px-2.5 py-1 rounded-full border ${
-                      timing.item.status === id
-                        ? "text-[var(--v2-accent)] border-[var(--v2-accent)]"
-                        : "border-border/50 text-muted-foreground"
-                    }`}>{label}</button>
-                ))}
-                {/* Not an end state — "it's still happening, just later".
-                    The chip enters the reschedule flow: the sheet's own
-                    move-to-day controls, with the date picker opened so
-                    the next tap is already choosing the new day. */}
-                <button type="button"
-                  onClick={() => {
-                    const el = dayInputRef.current;
-                    if (!el) return;
-                    el.scrollIntoView({ behavior: "smooth", block: "center" });
-                    try { el.showPicker(); } catch { el.focus(); }
-                  }}
-                  className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground flex items-center gap-1">
-                  <Repeat className="w-3 h-3" />{tr("planner.reschedule")}
-                </button>
-              </div>
-              {/* Partly done wants to know how much actually happened — the
-                  totals count the actual, not the intention. */}
-              {timing.item.status === "partial" && (
-                <label className="flex items-center gap-2 mt-1.5 text-xs text-muted-foreground">
-                  {tr("planner.actualMin")}
-                  <input type="number" min={1} step={5}
-                    defaultValue={timing.item.actual_duration_minutes ?? ""}
-                    onBlur={(e) => {
-                      const n = parseInt(e.target.value, 10);
-                      saveField({ actual_duration_minutes: Number.isFinite(n) && n > 0 ? n : null });
-                    }}
-                    className="w-20 h-8 px-2 rounded-lg border border-input bg-background text-sm" />
-                </label>
-              )}
-            </div>
-            )}
-
             <div className="space-y-3">
                   {canRepeat && repeatOpenEff && (
                     <div>
@@ -1227,7 +1292,7 @@ export default function PlannerSurface({
           v2 overlay. */}
       {branchAsk && createPortal((
         <div className="fixed inset-0 z-[80] bg-black/50 flex items-end sm:items-center justify-center"
-          style={{ paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
+          style={{ paddingTop: "env(safe-area-inset-top, 0px)", paddingBottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px))" }}
           onClick={(e) => { if (e.target === e.currentTarget) setBranchAsk(null); }}>
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-4 space-y-2"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
