@@ -694,6 +694,12 @@ export default function WidgetConfigSheet({
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
           <SubSection title="UI & text" icon={Type} defaultOpen>
+          {/* Same set-then-slide row as every other size here — a bare
+              slider moved on a scroll through the sheet (the report). */}
+          <SliderRow label="Content size" value={settings.controlScale} fallback={100}
+            min={60} max={200} step={5} unit="%"
+            onChange={(v) => onSettings(widget.instanceId, { controlScale: v })}
+            onReset={() => onSettings(widget.instanceId, { controlScale: "" })} />
           {/* Layout (mode / across / down / content size) lives here with type
               and shape — one standard section, not two (the user's call). */}
 
@@ -764,12 +770,7 @@ export default function WidgetConfigSheet({
 
           {/* Scales everything the widget draws (rows, buttons, avatars,
               spacing), on top of whatever text size is set. */}
-          {/* Same set-then-slide row as every other size here — a bare
-              slider moved on a scroll through the sheet (the report). */}
-          <SliderRow label="Content size" value={settings.controlScale} fallback={100}
-            min={60} max={200} step={5} unit="%"
-            onChange={(v) => onSettings(widget.instanceId, { controlScale: v })}
-            onReset={() => onSettings(widget.instanceId, { controlScale: "" })} />
+
           {/* Size / shape fields a widget declares for this section (e.g.
               the pinned bar's height and icon size). Ranges only — that's
               what a size is. */}

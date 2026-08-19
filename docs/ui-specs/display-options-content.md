@@ -71,6 +71,15 @@ checkboxes + link-to-alter.
 
 ## Widget options extras (WidgetConfigSheet)
 
+- UI & text order: **Content size FIRST**, then Display mode (only when
+  the widget actually renders modes — registry supportsModes must match
+  reality), Alignment, section:"ui" ranges, type & shape.
+- Pinned bar Widget config also carries **Per-level styling**
+  (config.levelStyles { levelId: { shape, scale, ringW } }) — a front
+  level's own chip look, over the general fronting emphasis.
+- Text inputs in v2 surfaces use **MentionTextarea** (@ + ~commands) —
+  status widget, quick note, plan notes (commands off), notebook
+  (commands off). Status saves run applyLogCommands({chips:false}).
 - "Widget config" (WHAT the widget shows; `configFields`, incl. the
   pinned-alters panel) / "UI & text" (mode, Alignment, content size, fonts,
   shape; `section:"ui"` ranges) / "Colors & background" (live-probed

@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Moving widgets in free layout is precise now: drops were landing at the wrong height on finer grids, and a dashed outline now shows exactly where the widget will land while you drag." },
+      { type: "feature", text: "@mentions and ~quick-log commands work in the new UI's text boxes too — the status widget, the quick note, plan notes and the notebook, just like the classic composer." },
+      { type: "feature", text: "Each {{front}} level can style its chip on the pinned bar — its own shape, size and ring thickness (Widget config → Per-level styling)." },
+      { type: "improve", text: "Widget options: Content size sits first under UI & text; the Display-mode row is hidden on widgets it does nothing for; new home screens start on the finest grid." },
       { type: "improve", text: "Pinned {{alters}} bar can dock to any edge — top, bottom, left or right. On the sides it's a vertical strip with a chevron tab to fold it; its handle only ever lives on the edge the bar is on (no more phantom toggle on the top bar)." },
       { type: "fix", text: "Removed the left/right edge setting for the floating quick-actions bar and bubble — they're placed by dragging, so the setting did nothing." },
       { type: "fix", text: "Top-docked options sheets stay below the phone's status bar (the close button was stuck under it), and the resize bar can't get squashed away by a long sheet any more." },

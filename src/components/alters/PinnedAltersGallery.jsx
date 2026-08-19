@@ -109,6 +109,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   // Per-alter avatar override for the bar only (saved in the alter's own
   // asset folder by the config panel).
   const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
+  const levelStyles = (config.levelStyles && typeof config.levelStyles === "object") ? config.levelStyles : {};
 
   const [gearOpen, setGearOpen] = useState(false);
   const [rearrange, setRearrange] = useState(false);
@@ -232,6 +233,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
               frontingScale={frontingScale}
               iconShape={iconShape}
               frontingShape={frontingShape}
+              levelStyles={levelStyles}
               avatarOverride={pinnedAvatars[a.id]}
             />
           ));
@@ -486,7 +488,7 @@ const LONG_PRESS_MS = 450;
 
 // `size` is the base avatar diameter in px (config.chipSize). Fronting
 // chips render 4/3 of it, keeping the old 48/64 look at the default.
-function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "", iconShape = "circle", frontingShape = "square" }) {
+function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "", iconShape = "circle", frontingShape = "square", levelStyles = {} }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(avatarOverride || alter.avatar_url);
@@ -524,10 +526,14 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
         // The RENDERED shape: the bar's icon shape, swapped for the
         // fronting shape when that emphasis is on. Clip shapes draw their
         // ring as a padded backing layer (a border would be clipped off).
-        const shape = fronting && emphasis === "shape" ? frontingShape : iconShape;
+        // A specific front level's own styling wins over the general
+        // "when fronting" behaviour (shape / size / ring per level).
+        const ls = (fronting && levelStyles[mySession?.front_level]) || {};
+        const shape = ls.shape || (fronting && emphasis === "shape" ? frontingShape : iconShape);
         const layers = shapeLayerStyles(shape);
-        const dim = fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size;
-        const ringW = fronting && emphasis === "ring" ? 4 : 2;
+        const scale = Number.isFinite(ls.scale) ? ls.scale : (fronting && emphasis === "grow" ? frontingScale : 100);
+        const dim = Math.round(size * scale / 100);
+        const ringW = Number.isFinite(ls.ringW) ? ls.ringW : (fronting && emphasis === "ring" ? 4 : 2);
         return (
       <div
         className="relative flex items-center justify-center flex-shrink-0"

@@ -32,6 +32,7 @@ import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
 import ActivityPillSelector from "@/components/activities/ActivityPillSelector";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { categoryIdOf } from "@/lib/planner/rollup";
 import { useTerms } from "@/lib/useTerms";
 import { useT } from "@/lib/i18n";
@@ -1127,9 +1128,13 @@ export default function PlannerSurface({
             {notesOpenEff && (
             <div>
               <p className="text-xs text-muted-foreground mb-1">{tr("planner.notes")}</p>
-              <textarea
+              {/* @mentions like every other note box (no ~commands here —
+                  a plan note shouldn't quietly log things). */}
+              <MentionTextarea
                 value={noteValue}
-                onChange={(e) => setNoteValue(e.target.value)}
+                onChange={setNoteValue}
+                alters={alters}
+                commands={false}
                 onBlur={() => { if (noteValue !== (timing.item.notes || "")) saveNote(noteValue); }}
                 rows={2}
                 placeholder={tr("planner.notesPlaceholder")}

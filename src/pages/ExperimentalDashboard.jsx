@@ -166,7 +166,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onDragTarget = null, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -239,12 +239,24 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
   const move = useFreeMove({
     gridRef,
     gridCols,
+    // The REAL row unit — the hook's default is 80, and on a finer grid
+    // that made vertical drops land at a fraction of the dragged distance
+    // (the "very clunky" report).
+    rowHeight: rowPx,
     span: { cols: shownCols, rows: shownRows },
     pos: cell,
     enabled: free && editMode && !a11yStack,
     onCommit: (next) => onPos?.(widget.instanceId, next),
     onRemove: () => onRemove(widget.instanceId),
   });
+  // Tell the board where this widget would land so it can draw the
+  // drop-target ghost (dragging blind was the other half of "clunky").
+  React.useEffect(() => {
+    if (!free) return undefined;
+    onDragTarget?.(widget.instanceId, move.drag ? { x: move.drag.target.x, y: move.drag.target.y, cols: shownCols, rows: shownRows, overTrash: move.drag.overTrash } : null);
+    return undefined;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [move.drag?.target?.x, move.drag?.target?.y, move.drag?.overTrash, move.dragging]);
 
   const look = widgetLookFor(widget.settings, userStyles, styleMode);
   // Content alignment within the widget's box (owner request 2026-08-06):
@@ -1182,6 +1194,12 @@ export default function ExperimentalDashboard({
     };
   }, [editMode, a11yStack, home.pages.length, pageIdx]);  
 
+  // Drop-target ghost while a widget drags in free mode.
+  const [dragGhost, setDragGhost] = React.useState(null); // { x, y, cols, rows, overTrash }
+  const handleDragTarget = React.useCallback((instanceId, t) => {
+    setDragGhost(t ? { ...t } : null);
+  }, []);
+
   const canvas = (
     <div
       ref={gridRef}
@@ -1197,6 +1215,17 @@ export default function ExperimentalDashboard({
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
+      {freeMode && dragGhost && !dragGhost.overTrash && (
+        <div aria-hidden="true" className="pointer-events-none"
+          style={{
+            gridColumn: `${dragGhost.x + 1} / span ${Math.min(dragGhost.cols, gridCols)}`,
+            gridRow: `${dragGhost.y + 1} / span ${dragGhost.rows}`,
+            border: "2px dashed var(--v2-accent)",
+            borderRadius: "var(--v2-radius, 12px)",
+            background: "color-mix(in srgb, var(--v2-accent) 10%, transparent)",
+            zIndex: 40,
+          }} />
+      )}
       {widgets.map((w) => (
         <SortableWidget
           key={w.instanceId}
@@ -1206,6 +1235,7 @@ export default function ExperimentalDashboard({
           editMode={editMode}
           gridCols={gridCols}
           rowPx={rowPx}
+          onDragTarget={handleDragTarget}
           gridRef={gridRef}
           api={widgetApi}
           a11yStack={a11yStack}

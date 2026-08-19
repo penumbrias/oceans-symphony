@@ -51,6 +51,7 @@ import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
+import MentionTextarea from "@/components/shared/MentionTextarea";
 import { EdgeDock } from "@/components/v2/EdgeDock";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
@@ -233,6 +234,7 @@ export function QuickNoteSheet({ open, onClose }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const t = useT();
+  const { data: qnAlters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -241,7 +243,8 @@ export function QuickNoteSheet({ open, onClose }) {
     if (!text || saving) return;
     setSaving(true);
     try {
-      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: text });
+      const { content: noteText } = await (await import("@/lib/logCommands")).applyLogCommands(text, { chips: false });
+      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: noteText });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       toast.success(t("note.saved"));
       setNote("");
@@ -261,9 +264,11 @@ export function QuickNoteSheet({ open, onClose }) {
         <div className="px-4 space-y-3" style={{ paddingBottom: "calc(env(safe-area-inset-bottom, 0px) + 24px)" }}>
           <div className="flex items-start gap-2">
             <StickyNote className="w-4 h-4 mt-2.5 text-muted-foreground flex-shrink-0" />
-            <textarea value={note} onChange={(e) => setNote(e.target.value)}
-              placeholder={t("note.placeholder")} rows={2}
-              className="flex-1 px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" />
+            <div className="flex-1 min-w-0">
+              <MentionTextarea value={note} onChange={setNote} alters={qnAlters}
+                placeholder={t("note.placeholder")} rows={2}
+                className="w-full px-3 py-2 rounded-lg border border-input bg-background text-sm resize-none focus:outline-none focus:ring-1 focus:ring-ring" />
+            </div>
             <button type="button" onClick={saveStatus} disabled={!note.trim() || saving}
               className="px-3 py-2 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-40">
               {t("note.save")}

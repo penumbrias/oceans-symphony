@@ -21,6 +21,8 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
+import MentionTextarea from "@/components/shared/MentionTextarea";
+import { applyLogCommands } from "@/lib/logCommands";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
@@ -501,6 +503,7 @@ function StatusWidget() {
   const navigate = useNavigate();
   const qc = useQueryClient();
   const notes = useList("statusNotes", "StatusNote");
+  const alters = useList("alters", "Alter");
   const [draft, setDraft] = React.useState("");
   const [saving, setSaving] = React.useState(false);
   const latest = [...notes].sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp))[0];
@@ -512,7 +515,10 @@ function StatusWidget() {
     if (!text || saving) return;
     setSaving(true);
     try {
-      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note: text });
+      // Same pipeline as the classic status card: inline ~commands run
+      // (plain-label tokens — statuses render as plain text).
+      const { content: note } = await applyLogCommands(text, { chips: false });
+      await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
     } finally { setSaving(false); }
@@ -525,14 +531,19 @@ function StatusWidget() {
             onClick={() => navigate(`/timeline?highlightStatus=${latest.id}`)} />
         : <Muted>{tr("widget.status.empty")}</Muted>}
       <div className="flex items-center gap-1.5 pt-0.5">
-        <input
-          value={draft}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") save(); }}
-          placeholder={tr("widget.status.placeholder")}
-          className="flex-1 min-w-0 h-8 px-2 text-sm bg-background border border-input focus:outline-none focus:ring-1 focus:ring-ring"
-          style={{ borderRadius: "var(--v2-radius, 8px)" }}
-        />
+        <div className="flex-1 min-w-0">
+          {/* @mentions and ~commands, exactly like the classic status box. */}
+          <MentionTextarea
+            value={draft}
+            onChange={setDraft}
+            alters={alters}
+            rows={1}
+            onKeyDown={(e) => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); save(); } }}
+            placeholder={tr("widget.status.placeholder")}
+            className="w-full min-w-0 px-2 py-1.5 text-sm bg-background border border-input focus:outline-none focus:ring-1 focus:ring-ring resize-none"
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}
+          />
+        </div>
         <TextAction onClick={save}>{tr("widget.status.save")}</TextAction>
       </div>
     </Section>
@@ -1307,6 +1318,7 @@ function JournalBookWidget({ settings, updateSettings, api, mode }) {
 // journals are a log). Half-written text survives closing the app via the
 // shared draft hook, per instance so two notebooks never share a draft.
 function NotebookWidget({ settings, updateSettings, instanceId }) {
+  const notebookAlters = useList("alters", "Alter");
   const tr = useT();
   const qc = useQueryClient();
   const entries = useList("journalEntries", "JournalEntry");
@@ -1376,9 +1388,11 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
         className="w-full h-8 px-2 text-sm font-medium bg-transparent border-0 border-b border-border/40 focus:outline-none focus:border-primary/50"
       />
       {/* The page itself: grows with the widget, scrolls when it outgrows it. */}
-      <textarea
+      <MentionTextarea
         value={text}
-        onChange={(e) => setText(e.target.value)}
+        onChange={setText}
+        alters={notebookAlters}
+        commands={false}
         placeholder={tr("widget.notebook.placeholder")}
         className="w-full flex-1 min-h-[72px] px-2 py-1 text-sm bg-transparent border-0 resize-none focus:outline-none leading-relaxed"
       />
@@ -2621,28 +2635,28 @@ export const V2_WIDGETS = {
     label: "Active", description: "What's running right now — activities, symptom episodes, sleep — and how long for.",
     icon: Timer, category: "home",
     render: sized(({ api }) => <ActiveWidget api={api} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
   today: {
     label: "Today", description: "Today's schedule: plans at their times, anything due today, and anything left unresolved.",
     icon: CalendarCheck, category: "home",
     render: sized(() => <TodayWidget />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   status: {
     label: "Status", description: "The latest status note.",
     icon: StickyNote, category: "home",
     render: sized(() => <StatusWidget />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   recent: {
     label: "Recent check-ins", description: "Your most recent check-ins.",
     icon: History, category: "home",
     render: sized(({ settings }) => <RecentWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   log_emotion: {
@@ -2695,7 +2709,7 @@ export const V2_WIDGETS = {
     label: "Capture", description: "One-tap buttons for the things you log most.",
     icon: Heart, category: "home",
     render: sized(({ api }) => <CaptureWidget api={api} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   system_identity: {
@@ -2784,7 +2798,7 @@ export const V2_WIDGETS = {
     label: "To-dos", description: "Your open to-do list — everything still to do, not just today's.",
     icon: ListTodo, category: "tasks",
     render: sized(({ settings }) => <TasksWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -2792,7 +2806,7 @@ export const V2_WIDGETS = {
     label: "Sleep", description: "Last night's sleep, or the one in progress.",
     icon: Moon, category: "sleep",
     render: sized(() => <SleepWidget />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
   board: {
@@ -2807,7 +2821,7 @@ export const V2_WIDGETS = {
     label: "Reminders", description: "What's coming up from your reminders.",
     icon: Bell, category: "reminders",
     render: sized(({ settings }) => <RemindersWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 },],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
@@ -2872,14 +2886,14 @@ export const V2_WIDGETS = {
         <CurrentFronters alters={api?.alters || []} hideStatusNote />
       </Section>
     )),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 6, rows: 4 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   pinned_alters: {
     label: "Pinned {{alters}}", description: "Your pinned {{alters}} as a row of avatars that scales with the widget. Tap = profile \u00b7 double-tap = menu \u00b7 hold = set {{front}} (the level spectrum when levels are on).",
     icon: Pin, category: "alters",
     render: sized(({ api, settings }) => <PinnedAltersWidget api={api} settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     configFields: [
       { key: "showNames", type: "toggle", label: "Show names", default: true },
       { key: "iconSize", type: "number", label: "Avatar size (0 = fit the widget)", min: 0, max: 160, default: 0 },
@@ -2890,7 +2904,7 @@ export const V2_WIDGETS = {
     label: "Sleep controls", description: "Start sleeping or wake up with one tap, with the running time.",
     icon: Moon, category: "sleep",
     render: sized(() => <SleepControlWidget />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: false,
+    supportsModes: ["normal"], supportsMultiInstance: false,
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 3 },
   },
   song: {
@@ -2903,7 +2917,7 @@ export const V2_WIDGETS = {
           : <Muted>Pick a song in this widget's options.</Muted>}
       </Section>
     )),
-    supportsModes: ["minimal", "normal"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "song", type: "song", label: "Song" }],
     defaultSpan: { cols: 4, rows: 1 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 2 },
   },
@@ -2943,14 +2957,14 @@ export const V2_WIDGETS = {
         <UpcomingPlans placement="widget" title={settings?.label || "Coming up"} />
       </Section>
     )),
-    supportsModes: ["normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 8 },
   },
   plans: {
     label: "Plans", description: "What's scheduled over the coming days.",
     icon: CalendarDays, category: "activities",
     render: sized(({ settings }) => <PlansWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
       { key: "days", type: "number", label: "Days ahead", min: 1, max: 60, default: 7 },
       { key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 8 },
@@ -2961,7 +2975,7 @@ export const V2_WIDGETS = {
     label: "Recent activities", description: "The most recently logged activities, with durations.",
     icon: BarChart2, category: "activities",
     render: sized(({ settings }) => <RecentActivitiesWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 20, default: 6 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 8 },
   },
@@ -2980,7 +2994,7 @@ export const V2_WIDGETS = {
     label: "Polls", description: "The latest polls and their vote counts.",
     icon: Vote, category: "bulletins",
     render: sized(({ settings }) => <PollsWidget settings={settings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [{ key: "limit", type: "number", label: "How many to show", min: 1, max: 12, default: 4 }],
     defaultSpan: { cols: 4, rows: 2 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 6 },
   },
@@ -3000,7 +3014,7 @@ export const V2_WIDGETS = {
     icon: BarChart2, category: "bulletins",
     render: sized(({ settings, updateSettings }) =>
       <PollResultsWidget settings={settings} updateSettings={updateSettings} />),
-    supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
+    supportsModes: ["normal"], supportsMultiInstance: true,
     configFields: [
       { key: "pollId", type: "dynamicSelect", source: "polls", label: "Poll" },
     ],
@@ -3052,7 +3066,9 @@ export function seedV2Home() {
     version: 2, enabled: true, defaultPageId: "p1", styleMode: "current",
     actionBar: { enabled: false, buttonIds: [] },
     altersBar: { enabled: false, position: "bottom" },
-    wallpaper: { url: "" }, grid: { phoneCols: 4 }, drawer: { folders: [] },
+    // Fresh boards start on the FINEST grid (the user can coarsen it) —
+    // big jumps between sizes were the complaint, not the fine steps.
+    wallpaper: { url: "" }, grid: { phoneCols: 8, rowPx: 40 }, drawer: { folders: [] },
     pages: [{
       id: "p1", label: "Home",
       widgets: [mk("presence", 4, 1), mk("today", 4, 2), mk("running", 4, 1), mk("status", 4, 1)],
