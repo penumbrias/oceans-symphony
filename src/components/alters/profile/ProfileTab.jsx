@@ -10,6 +10,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getSubsystemsOwnedBy } from "@/lib/subsystemUtils";
 import GroupIcon from "@/components/shared/GroupIcon";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { registerAlterUpload } from "@/lib/assetFolders";
 import GroupPickerModal from "@/components/groups/GroupPickerModal";
 import GroupMembersModal from "@/components/groups/GroupMembersModal";
 import BioEditor from "@/components/alters/BioEditor";
@@ -68,7 +69,7 @@ const SECTION_BG_KEY = "_section_bg_opacity";
 const PAGE_TEXT_KEY = "_page_text_color";
 const PAGE_FONT_KEY = "_page_font";
 
-function AvatarModal({ src, onSave, onClose }) {
+function AvatarModal({ src, onSave, onClose, ownerAlterId = null }) {
   const [url, setUrl] = useState(src || "");
   const [uploading, setUploading] = useState(false);
   const fileRef = useRef(null);
@@ -85,6 +86,7 @@ function AvatarModal({ src, onSave, onClose }) {
       if (isLocalMode()) {
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: ownerAlterId, role: "avatar" });
         setUrl(createLocalImageUrl(imageId));
       } else {
         setUrl(dataUrl);
@@ -325,6 +327,7 @@ useEffect(() => {
       if (isLocalMode()) {
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "background" });
         setBgField(BG_IMAGE_KEY, createLocalImageUrl(imageId));
       } else {
         setBgField(BG_IMAGE_KEY, dataUrl);
@@ -345,6 +348,7 @@ useEffect(() => {
       if (isLocalMode()) {
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "header" });
         setBgField(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
       } else {
         setBgField(HEADER_IMAGE_KEY, dataUrl);
@@ -385,6 +389,7 @@ useEffect(() => {
       if (isLocalMode()) {
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "avatar" });
         set("avatar_url", createLocalImageUrl(imageId));
       } else {
         set("avatar_url", dataUrl);
@@ -1308,7 +1313,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           onClose={() => setManagingSubsystem(null)}
         />
       )}
-      {showAvatarModal && <AvatarModal src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
+      {showAvatarModal && <AvatarModal ownerAlterId={alter?.id} src={form.avatar_url} onSave={(url) => set("avatar_url", url)} onClose={() => setShowAvatarModal(false)} />}
       {showColorPicker && <ColorPickerModal color={form.color || "#8b5cf6"} label="Alter Color" onSave={(hex) => set("color", hex)} onClose={() => setShowColorPicker(false)} />}
       {showBgColorPicker && <ColorPickerModal color={bgColor || "#1a0a2e"} label="Background Color" onSave={(hex) => setBgField(BG_COLOR_KEY, hex)} onClose={() => setShowBgColorPicker(false)} />}
       {showHeaderTextPicker && <ColorPickerModal color={headerTextColor || "#ffffff"} label="Header Text Color" onSave={(hex) => setBgField(HEADER_TEXT_KEY, hex)} onClose={() => setShowHeaderTextPicker(false)} />}

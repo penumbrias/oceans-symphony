@@ -5,42 +5,25 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import {
-  Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search,
+  Images, Upload, Loader2, Trash2, Pencil, FolderInput, FolderPlus, Search, SlidersHorizontal,
   ChevronDown, ChevronRight, ArrowUp, ArrowDown, X, UserPlus2, Users,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { useTerms } from "@/lib/useTerms";
 import {
   getAllLocalImages, deleteLocalImage, getLocalImageId, isLocalImageUrl,
   processUploadedImage, saveLocalImage, createLocalImageUrl,
 } from "@/lib/localImageStorage";
 import { isLocalMode } from "@/lib/storageMode";
 
-// Auto-folder names derived from the id prefix our upload paths use, so
-// every image the app has stored is pre-sorted into something sensible.
-const PREFIX_FOLDERS = {
-  avatar: "Avatars", fixed: "Avatars",
-  bg: "Backgrounds",
-  header: "Headers & banners",
-  bioimg: "Bio images",
-  bulletinimg: "Bulletin images",
-  chatimg: "Chat images",
-  commentimg: "Comment images",
-  group: "Group images",
-  asset: "Library uploads",
-};
-const AUTO_FOLDERS = new Set([...Object.values(PREFIX_FOLDERS), "Other"]);
-function autoFolderFor(id) {
-  return PREFIX_FOLDERS[String(id).split("-")[0]] || "Other";
-}
-
-// Images uploaded into a specific alter's rotation pool (owner_alter_id set
-// on the ImageAsset) get synthesized into their own folder here, labeled by
-// the owning alter's CURRENT name (resolved live, not baked in, so a later
-// rename doesn't orphan the group) rather than the manual `folder` string
-// those images don't use.
-const ALTER_FOLDER_PREFIX = "👤 ";
+// Auto-folder names + the user's overrides live in lib/assetFolders.js
+// (shared with the picker so both file an image the same way).
+import {
+  resolveAssetRules, autoFolderFor as autoFolderForRules, autoFolderNames,
+  ALTER_FOLDER_PREFIX, alterFolderName as alterFolderNameRules, DEFAULT_PREFIX_FOLDERS, PREFIX_LABELS,
+} from "@/lib/assetFolders";
 function folderIdAttr(folder) {
   return `asset-folder-${encodeURIComponent(folder)}`;
 }
@@ -80,6 +63,7 @@ function Thumb({ item, onSaveToLibrary, onRename, onMove, onDelete }) {
 
 export default function AssetsLibrary() {
   const qc = useQueryClient();
+  const t = useTerms();
   const [searchParams, setSearchParams] = useSearchParams();
   const [rawImages, setRawImages] = useState({});
   const [loadingImages, setLoadingImages] = useState(true);
@@ -93,6 +77,12 @@ export default function AssetsLibrary() {
   const [limits, setLimits] = useState({}); // per-folder render cap
 
   useEffect(() => { saveArr(ORDER_KEY, folderOrder); }, [folderOrder]);
+  // Uploads filed from elsewhere (an alter's avatar) announce themselves.
+  useEffect(() => {
+    const on = () => qc.invalidateQueries({ queryKey: ["imageAssets"] });
+    window.addEventListener("symphony-assets-changed", on);
+    return () => window.removeEventListener("symphony-assets-changed", on);
+  }, [qc]);
   useEffect(() => { saveArr(COLLAPSED_KEY, [...collapsed]); }, [collapsed]);
 
   const { data: assets = [] } = useQuery({
@@ -105,7 +95,21 @@ export default function AssetsLibrary() {
     queryFn: () => base44.entities.Alter.list(),
   });
   const alterNameById = useMemo(() => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])), [alters]);
-  const alterFolderName = (alterId) => `${ALTER_FOLDER_PREFIX}${alterNameById[alterId] || "Unknown alter"}`;
+  // The organisation rules (auto-folder names, per-alter filing) — the
+  // user's overrides on SystemSettings.asset_folder_rules over the defaults.
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const settingsRow = settingsList[0] || null;
+  const rules = useMemo(() => resolveAssetRules(settingsRow), [settingsRow]);
+  const AUTO_FOLDERS = useMemo(() => autoFolderNames(rules), [rules]);
+  const autoFolderFor = (id) => autoFolderForRules(id, rules);
+  const alterFolderName = (alterId, role) => alterFolderNameRules(alterNameById[alterId] || "Unknown alter", role, rules);
+  const [orgOpen, setOrgOpen] = useState(false);
+  const saveRules = async (patch) => {
+    if (!settingsRow?.id) return;
+    const cur = settingsRow.asset_folder_rules && typeof settingsRow.asset_folder_rules === "object" ? settingsRow.asset_folder_rules : {};
+    await base44.entities.SystemSettings.update(settingsRow.id, { asset_folder_rules: { ...cur, ...patch, folders: { ...(cur.folders || {}), ...(patch.folders || {}) } } });
+    qc.invalidateQueries({ queryKey: ["systemSettings"] });
+  };
 
   // v0.87.6: user-assigned folder ownership. AssetFolder is optional
   // metadata attached to a folder by NAME; a folder only gets a record
@@ -172,7 +176,7 @@ export default function AssetsLibrary() {
         url: `/local-image/${encodeURIComponent(id)}`,
         asset: asset || null,
         name: asset?.name || id,
-        folder: asset?.owner_alter_id ? alterFolderName(asset.owner_alter_id) : ((asset?.folder || "").trim() || autoFolderFor(id)),
+        folder: asset?.owner_alter_id && rules.perAlter ? alterFolderName(asset.owner_alter_id, asset.owner_role) : ((asset?.folder || "").trim() || autoFolderFor(id)),
         isGif: !!asset?.is_gif || (typeof data === "string" && data.startsWith("data:image/gif")),
       });
     }
@@ -182,12 +186,12 @@ export default function AssetsLibrary() {
       out.push({
         key: `asset-${a.id}`, id: a.id, url: a.image_url, asset: a,
         name: a.name || "Image",
-        folder: a.owner_alter_id ? alterFolderName(a.owner_alter_id) : ((a.folder || "").trim() || "Library uploads"),
+        folder: a.owner_alter_id && rules.perAlter ? alterFolderName(a.owner_alter_id, a.owner_role) : ((a.folder || "").trim() || "Library uploads"),
         isGif: !!a.is_gif,
       });
     }
     return out;
-  }, [rawImages, assets, assetByImageId, alterNameById]);
+  }, [rawImages, assets, assetByImageId, alterNameById, rules]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -377,12 +381,47 @@ export default function AssetsLibrary() {
             className="h-9 px-2.5 flex items-center gap-1 rounded-lg border border-border bg-card/50 text-xs text-muted-foreground hover:text-foreground hover:bg-accent flex-shrink-0">
             <FolderPlus className="w-4 h-4" /> Folder
           </button>
+          <button type="button" onClick={() => setOrgOpen((v) => !v)} aria-expanded={orgOpen} title="How images are filed automatically"
+            className={`h-9 w-9 flex items-center justify-center rounded-lg border flex-shrink-0 ${orgOpen ? "border-primary/60 text-primary" : "border-border bg-card/50 text-muted-foreground hover:text-foreground"}`}>
+            <SlidersHorizontal className="w-4 h-4" />
+          </button>
           <button type="button" onClick={() => fileRef.current?.click()} disabled={uploading}
             className="h-9 px-3 flex items-center gap-1.5 rounded-lg bg-primary text-primary-foreground text-sm font-medium disabled:opacity-60 flex-shrink-0">
             {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />} Upload
           </button>
           <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleFiles} />
         </div>
+        {/* Organisation rules: where each kind of image is filed by default
+            (rename any auto folder; blank = Other), and whether an alter's
+            uploads go under its own 👤 folder, split by role or not. The
+            user's own folders always win over these. */}
+        {orgOpen && (
+          <div className="rounded-xl border border-border/50 bg-card/50 p-3 space-y-3">
+            <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">Auto-organisation</p>
+            <label className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={rules.perAlter} onChange={(e) => saveRules({ perAlter: e.target.checked })} className="w-4 h-4 rounded" />
+              File an {t.alter}'s own images under its 👤 folder
+            </label>
+            {rules.perAlter && (
+              <label className="flex items-center gap-2 text-sm cursor-pointer pl-6">
+                <input type="checkbox" checked={rules.alterRoleSplit} onChange={(e) => saveRules({ alterRoleSplit: e.target.checked })} className="w-4 h-4 rounded" />
+                Split those by kind (· Avatars / · Banners / · Backgrounds)
+              </label>
+            )}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1.5">
+              {Object.keys(DEFAULT_PREFIX_FOLDERS).filter((k) => k !== "fixed").map((k) => (
+                <label key={k} className="flex items-center gap-2 text-xs">
+                  <span className="w-36 flex-shrink-0 text-muted-foreground truncate" title={PREFIX_LABELS[k] || k}>{PREFIX_LABELS[k] || k}</span>
+                  <Input value={rules.folders[k] ?? ""} placeholder="Other"
+                    onChange={(e) => saveRules({ folders: { [k]: e.target.value } })}
+                    className="h-7 text-xs flex-1" />
+                </label>
+              ))}
+            </div>
+            <button type="button" onClick={() => saveRules({ folders: { ...DEFAULT_PREFIX_FOLDERS }, perAlter: true, alterRoleSplit: false })}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">Reset to defaults</button>
+          </div>
+        )}
         {/* Owner filter — pick an alter to narrow visible folders to
             just the ones they own (an alter's "mini asset library").
             Only shown once at least one folder has been assigned an

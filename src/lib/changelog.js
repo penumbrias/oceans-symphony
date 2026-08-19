@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Image assets: auto-organisation is now granular and yours to shape — every kind of upload has a default folder (incl. {{system}} profile, contacts, inner world, bio blocks, music), an {{alter}}'s avatar / banner / background uploads file into its own 👤 folder (optionally split by kind), and the new sliders button lets you rename any auto folder or switch per-{{alter}} filing off. Your own folders always win." },
       { type: "feature", text: "Any picture slot can use a whole asset folder: in the image picker choose a folder, then \u201cUse this whole folder\u201d — random or next on each app open, hourly, daily, one per weekday, or whoever is {{fronting}} (their image in that folder). Works for {{alter}} avatars, the wallpaper, the apps icon, the {{system}} picture and the pinned-bar avatars." },
       { type: "improve", text: "Home grid density: Home screen settings → Grid cycles Coarse / 5 across / Medium / Fine — finer size steps when resizing; existing widgets are rescaled so the layout keeps its shape." },
       { type: "improve", text: "Tapping a running activity (Active widget or the Active-now list) opens its end/edit menu right there instead of sending you to the tracker." },

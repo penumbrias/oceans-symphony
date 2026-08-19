@@ -18,6 +18,7 @@ import { resolveImageUrl } from "@/lib/imageUrlResolver";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import LocalImageFixer from "@/components/shared/LocalImageFixer";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
+import { registerAlterUpload } from "@/lib/assetFolders";
 import BioEditor from "@/components/alters/BioEditor";
 import ProfileStyleEditor from "@/components/shared/ProfileStyleEditor";
 import { SubSection, IconButton, iconBtnClass } from "@/components/settings/SettingsUI";
@@ -186,6 +187,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `avatar-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         set("avatar_url", createLocalImageUrl(imageId));
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "avatar", name: file.name.replace(/\.[^.]+$/, "") });
         toast.success(`Avatar saved locally! (${sizeKB}KB)`);
       } else {
         toast.error("Avatar upload requires cloud mode. Paste an image URL instead.");
@@ -212,6 +214,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `header-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         setCF(HEADER_IMAGE_KEY, createLocalImageUrl(imageId));
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "header" });
       } else {
         setCF(HEADER_IMAGE_KEY, dataUrl);
       }
@@ -230,6 +233,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
         const imageId = `bg-${Date.now()}-${Math.random().toString(36).slice(2)}`;
         await saveLocalImage(imageId, dataUrl);
         setCF(BG_IMAGE_KEY, createLocalImageUrl(imageId));
+        registerAlterUpload({ url: createLocalImageUrl(imageId), alterId: alter?.id, role: "background" });
       } else {
         setCF(BG_IMAGE_KEY, dataUrl);
       }

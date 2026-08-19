@@ -13,19 +13,9 @@ import {
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 
-// Auto-folder names from the id prefix our upload paths use (kept in sync
-// with the Assets page) so EVERY stored image — not just curated assets —
-// shows up here, sorted sensibly.
-const PREFIX_FOLDERS = {
-  avatar: "Avatars", fixed: "Avatars",
-  bg: "Backgrounds", header: "Headers & banners",
-  bioimg: "Bio images", bulletinimg: "Bulletin images",
-  chatimg: "Chat images", commentimg: "Comment images",
-  group: "Group images", asset: "Library uploads",
-};
-function autoFolderFor(id) {
-  return PREFIX_FOLDERS[String(id).split("-")[0]] || "Other";
-}
+// Auto-folder names + the user's rules: lib/assetFolders.js (shared with
+// the Assets Library page so both file an image the same way).
+import { resolveAssetRules, autoFolderFor as autoFolderForRules, alterFolderName } from "@/lib/assetFolders";
 
 function AssetThumb({ item, onSelect }) {
   const resolved = useResolvedAvatarUrl(item.url);
@@ -81,8 +71,11 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
     () => Object.fromEntries(alters.map((a) => [a.id, a.name || "Unnamed"])),
     [alters]
   );
+  const { data: settingsList = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list(), enabled: open });
+  const rules = useMemo(() => resolveAssetRules(settingsList[0] || null), [settingsList]);
+  const autoFolderFor = (id) => autoFolderForRules(id, rules);
   const ownerFolderFor = (asset) =>
-    asset?.owner_alter_id ? `👤 ${alterNameById[asset.owner_alter_id] || "Unknown"}` : null;
+    asset?.owner_alter_id && rules.perAlter ? alterFolderName(alterNameById[asset.owner_alter_id] || "Unknown", asset.owner_role, rules) : null;
 
   const loadImages = async () => { try { setRawImages(await getAllLocalImages()); } catch { setRawImages({}); } };
   useEffect(() => { if (open) loadImages(); }, [open]);
@@ -120,7 +113,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
       });
     }
     return out;
-  }, [rawImages, assets, assetByImageId, alterNameById]);
+  }, [rawImages, assets, assetByImageId, alterNameById, rules]);
 
   // 👤 alter-pool folders first (most relevant when picking an avatar),
   // then the rest alphabetically, Other last.
