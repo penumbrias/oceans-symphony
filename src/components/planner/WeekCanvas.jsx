@@ -336,7 +336,23 @@ function DayColumn({
         // gesture doesn't need to own panning: it arms after HOLD_MS with
         // pointer capture and a passive:false touchmove blocker.
         // Pinch (two fingers) is left to the zoom handler below.
-        style={{ height: 24 * hourPx, touchAction: "pan-x pan-y" }}
+        style={{
+          height: 24 * hourPx,
+          touchAction: "pan-x pan-y",
+          // A long-press must belong to OUR hold, not the browser's. Without
+          // these, iOS/Android fire the text-selection callout ("Copy / Look
+          // Up") on the block label under the finger ~500ms in, which cancels
+          // the pointer and the hold "just disappears" (user report, twice).
+          // `select-none` on the column wasn't enough: WebKit's callout is a
+          // separate feature, and it applies to descendants (the block text)
+          // regardless of the parent's user-select.
+          WebkitTouchCallout: "none",
+          WebkitUserSelect: "none",
+          userSelect: "none",
+        }}
+        // The right-click / long-press context menu is the same problem on
+        // Android Chrome. Never wanted anywhere on the canvas.
+        onContextMenu={(e) => e.preventDefault()}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -444,7 +460,8 @@ function DayColumn({
                 </>
               )}
               <button type="button" onClick={() => onOpenBlock(b)}
-                className="w-full h-full text-left px-1 py-0.5">
+                className="w-full h-full text-left px-1 py-0.5"
+                style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none", userSelect: "none" }}>
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
                   {b.continuesBefore ? "↰ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>

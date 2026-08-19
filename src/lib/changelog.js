@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Planner: press-and-hold no longer gets hijacked by the phone's text-selection popup — the hold used to \u201cjust disappear\u201d as the browser grabbed the text under your finger." },
       { type: "improve", text: "Planner entry sheet: a close button (and Escape) — it had no way out but tapping the backdrop." },
       { type: "feature", text: "Planner: enter time as \u201cStart + length\u201d or \u201cStart \u2192 end\u201d — the end can be on another day (\u201cends the next day\u201d), and your choice is remembered." },
       { type: "improve", text: "Planner: Repeat, Reminder, Critical and Location join Who and Notes as + chips under Details, instead of a separate \u201cMore options\u201d fold." },
