@@ -564,11 +564,8 @@ function BarsSection({ v2, alignX }) {
               { v: "alters-right", label: tr("editSheet.handleAltersRight", { alters: terms.alters }) },
             ]} />
         )}
-        {(v2.uiV2.tokens.actionsMode === "float" || v2.uiV2.tokens.actionsMode === "bubble") && (
-          <PillRow label={tr("editSheet.alignEdge")} value={v2.uiV2.tokens.dockSide ?? "right"}
-            onChange={(val) => v2.setToken("dockSide", val)} alignX={alignX}
-            options={[{ v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") }]} />
-        )}
+        {/* No edge pill for float/bubble — they're freely repositioned by
+            hold-and-drag, so a setting here just lied. */}
         <p className="text-xs text-muted-foreground pt-1">{tr("editSheet.actionKeys")}</p>
         {V2_COMMAND_KEYS.map((k) => {
           const on = v2.uiV2.commandKeys.includes(k.id);
@@ -614,9 +611,12 @@ function BarsSection({ v2, alignX }) {
           onChange={(on) => writeAltersBar({ enabled: on, collapsed: false })} />
         {altersBar.enabled === true && (
           <>
-            <PillRow label={tr("editSheet.placement")} value={altersBar.position === "top" ? "top" : "bottom"}
+            <PillRow label={tr("editSheet.placement")} value={["top", "bottom", "left", "right"].includes(altersBar.position) ? altersBar.position : "bottom"}
               onChange={(val) => writeAltersBar({ position: val })} alignX={alignX}
-              options={[{ v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") }]} />
+              options={[
+                { v: "top", label: tr("editSheet.top") }, { v: "bottom", label: tr("editSheet.bottom") },
+                { v: "left", label: tr("editSheet.left") }, { v: "right", label: tr("editSheet.right") },
+              ]} />
             {/* SET A (bar height, icon size, labels) + SET 5 (border,
                 radius, text size, font) — the same groups every other bar
                 gets, on the SAME pinned-bar config the gear writes. */}

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Pinned {{alters}} bar can dock to any edge — top, bottom, left or right. On the sides it's a vertical strip with a chevron tab to fold it; its handle only ever lives on the edge the bar is on (no more phantom toggle on the top bar)." },
+      { type: "fix", text: "Removed the left/right edge setting for the floating quick-actions bar and bubble — they're placed by dragging, so the setting did nothing." },
       { type: "fix", text: "Top-docked options sheets stay below the phone's status bar (the close button was stuck under it), and the resize bar can't get squashed away by a long sheet any more." },
       { type: "feature", text: "Pinned {{alters}} icons can be real shapes — circle, squircle, square, diamond, hexagon, star, heart, trapezoid — and a {{fronting}} {{alter}} can take a different shape (Widget config → Icon shape / When {{fronting}})." },
       { type: "improve", text: "Built-in themes now come as separate Light and Dark presets, so picking a mode is just picking the preset." },

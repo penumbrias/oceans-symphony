@@ -34,7 +34,11 @@ grammar:
   + "Back to the default"; one close control).
 - **Wave colour**: colour SWATCH circles (`var(--color-*)`), not word
   pills; "Off" stays a word chip; custom via the shared ColorPicker.
-- Handle halves / Edge / Placement etc. as PillRows.
+- Handle halves / Edge / Placement etc. as PillRows. Alter bar Placement
+  is top/bottom/left/right; the bar's fold control lives ONLY on its own
+  edge — the QA split handle carries the alters half solely when both
+  share an edge; otherwise that edge gets an AltersEdgeTab (click chevron;
+  no swipe on tabs). Float/bubble QA has NO edge setting (drag places it).
 
 ## COLORS & BACKGROUND (ColorsSection)
 

@@ -109,7 +109,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
     },
     altersBar: {
       enabled: src.altersBar?.enabled === true,
-      position: src.altersBar?.position === "top" ? "top" : "bottom",
+      position: ["top", "bottom", "left", "right"].includes(src.altersBar?.position) ? src.altersBar.position : "bottom",
       // Collapsed: the strip folds to a thin tab. Owner asked for it to be
       // foldable away rather than permanently eating a row.
       collapsed: src.altersBar?.collapsed === true,

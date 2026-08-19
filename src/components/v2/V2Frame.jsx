@@ -26,7 +26,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   Heart, Zap, Activity as ActivityIcon, CheckSquare, Users,
   LifeBuoy, SlidersHorizontal, Bell, Search, PenLine, StickyNote, BookOpen,
-  Megaphone, ChevronUp, ChevronDown, ArrowUpToLine, ArrowDownToLine,
+  Megaphone, ChevronUp, ChevronDown, ChevronLeft, ChevronRight, ArrowUpToLine, ArrowDownToLine,
 } from "lucide-react";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -816,6 +816,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
   const altersInNav = altersBarCfg.enabled === true;
+  // The alters half of the split handle lives ONLY on the edge the alters
+  // bar is actually on (the user's rule) — a top strip must not carry a
+  // toggle for a bar sitting at the bottom.
+  const withAltersHalf = altersInNav && altersBarCfg.mode !== "bubble"
+    && (altersBarCfg.position || "bottom") === edge;
   // Top edge: "open" is a swipe DOWN; the chevrons flip to match.
   const dir = edge === "top" ? -1 : 1;
   const openRot = edge === "top" ? "none" : "rotate(180deg)";
@@ -833,6 +838,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
             {/* Each half is the same glyph — dash · chevron · dash — centred
                 in its half (the lone off-centre chevron looked broken). The
                 halves swap with the Handle-halves option. */}
+            {withAltersHalf && (
             <button
               type="button"
               style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 2 : 1 }}
@@ -856,6 +862,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
               <ChevronUp className="w-3 h-3" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
               <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
             </button>
+            )}
             <button
               type="button"
               style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 1 : 2 }}
@@ -945,6 +952,28 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   );
 }
 
+// A chevron tab on a screen edge that folds the pinned-{alters} bar in
+// and out — used when no bar handle lives on that edge (top without the
+// QA strip, and the left/right edges, where a swipe would fight scrolling).
+function AltersEdgeTab({ edge, open, onToggle, terms }) {
+  const Icon = edge === "left" ? ChevronRight : edge === "right" ? ChevronLeft : edge === "top" ? ChevronDown : ChevronUp;
+  return (
+    <button type="button" onClick={onToggle}
+      aria-expanded={open}
+      aria-label={open ? `Hide the pinned ${terms.alters} bar` : `Show the pinned ${terms.alters} bar`}
+      className="pointer-events-auto flex items-center justify-center text-muted-foreground hover:text-foreground backdrop-blur"
+      style={{
+        width: edge === "left" || edge === "right" ? 18 : 34,
+        height: edge === "left" || edge === "right" ? 34 : 18,
+        borderRadius: "var(--v2-radius, 8px)",
+        border: "var(--v2-border-w, 1px) solid color-mix(in srgb, var(--v2-accent) 35%, transparent)",
+        background: "color-mix(in srgb, var(--color-surface) 85%, transparent)",
+      }}>
+      <Icon className="w-3.5 h-3.5" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+    </button>
+  );
+}
+
 // ── Bottom chrome ──────────────────────────────────────────────────
 export function V2BottomChrome({ uiV2, settingsRow }) {
   const navigate = useNavigate();
@@ -975,6 +1004,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   // the home board only, with the chrome hosting it just when the
   // quick-actions bar was off.
   const altersInNav = altersBarCfg.enabled === true;
+  const altersPos = ["top", "bottom", "left", "right"].includes(altersBarCfg.position) ? altersBarCfg.position : "bottom";
   const setNavAlters = async (collapsed) => {
     if (!settingsRow?.id) return;
     await base44.entities.SystemSettings.update(settingsRow.id, {
@@ -1060,20 +1090,29 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
         }}
         onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
     )}
-    {altersInNav && altersBarCfg.mode !== "bubble" && (
+    {altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "bottom" || altersPos === "top") && (
       <div
         className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
-        style={{ bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
+        style={altersPos === "bottom"
+          ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }
+          : { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }}
       >
+          {/* Its toggle rides the QA strip's split handle when that strip
+              shares this edge; otherwise this edge grows its own chevron
+              tab (click to fold — no swipe on a tab). */}
+          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === altersPos) && (
+            <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
+          )}
           <AnimatePresence initial={false}>
             {!altersBarCfg.collapsed && (
               <motion.div
                 key="alters-bar"
-                initial={{ y: 24, opacity: 0 }}
+                initial={{ y: altersPos === "top" ? -24 : 24, opacity: 0 }}
                 animate={{ y: 0, opacity: 1 }}
-                exit={{ y: 24, opacity: 0 }}
+                exit={{ y: altersPos === "top" ? -24 : 24, opacity: 0 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 className="pointer-events-auto w-full min-w-0"
+                style={{ order: altersPos === "top" ? -1 : 0 }}
               >
                 <div className="mx-3">
                   {/* The SAME card the home board draws — look, SET 5,
@@ -1086,6 +1125,26 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               </motion.div>
             )}
           </AnimatePresence>
+      </div>
+    )}
+    {altersInNav && altersBarCfg.mode !== "bubble" && (altersPos === "left" || altersPos === "right") && (
+      <div
+        className={`fixed z-40 flex items-center gap-1 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+        style={{
+          [altersPos]: `calc(env(safe-area-inset-${altersPos}, 0px) + 4px)`,
+          top: "50%", transform: "translateY(-50%)",
+          flexDirection: altersPos === "left" ? "row" : "row-reverse",
+        }}
+      >
+        <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
+        {!altersBarCfg.collapsed && (
+          <div className="pointer-events-auto">
+            <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+              orientation="vertical"
+              onCollapse={() => setNavAlters(true)}
+              onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+          </div>
+        )}
       </div>
     )}
     {navHasContent && (
@@ -1116,7 +1175,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               closes (pointer captured so a swipe that leaves the strip
               still counts). With it ON, the split handle's left half does
               this — no second handle. */}
-          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top") && (
+          {altersPos === "bottom" && !(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === "bottom") && (
             <button
               type="button"
               aria-expanded={!altersBarCfg.collapsed}
