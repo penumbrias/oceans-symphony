@@ -17,6 +17,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { PinPickerRow } from "@/components/alters/PinnedAltersGallery";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import FrontLevelsSettings from "@/components/settings/FrontLevelsSettings";
+import { AVATAR_SHAPES, shapeLayerStyles } from "@/lib/avatarShapes";
 
 function Pills({ value, options, onChange }) {
   return (
@@ -27,6 +28,25 @@ function Pills({ value, options, onChange }) {
           {label}
         </button>
       ))}
+    </div>
+  );
+}
+
+// Shape swatches — the shape itself is the label.
+function ShapeRow({ value, onChange, exclude = "" }) {
+  return (
+    <div className="flex flex-wrap gap-1.5">
+      {AVATAR_SHAPES.filter((sh) => sh.id !== exclude).map((sh) => {
+        const layers = shapeLayerStyles(sh.id);
+        const on = value === sh.id;
+        return (
+          <button key={sh.id} type="button" aria-pressed={on} aria-label={sh.label} title={sh.label}
+            onClick={() => onChange(sh.id)}
+            className={`w-9 h-9 rounded-lg border flex items-center justify-center ${on ? "border-primary/60 bg-primary/10" : "border-border/50 hover:bg-muted/30"}`}>
+            <span className="w-6 h-6 block" style={{ background: on ? "var(--color-primary)" : "var(--color-text-secondary)", ...layers.inner }} />
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -121,6 +141,8 @@ export default function PinnedAltersConfigPanel() {
   const display = ["both", "avatars", "names"].includes(config.display) ? config.display : "both";
   const emphasis = ["grow", "shape", "ring", "none"].includes(config.frontingEmphasis) ? config.frontingEmphasis : "grow";
   const frontingScale = Number.isFinite(config.frontingScale) ? config.frontingScale : 133;
+  const iconShape = typeof config.iconShape === "string" ? config.iconShape : "circle";
+  const frontingShape = typeof config.frontingShape === "string" ? config.frontingShape : "square";
   const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
   const avatarAlter = avatarFor ? live.find((a) => a.id === avatarFor) : null;
 
@@ -151,7 +173,7 @@ export default function PinnedAltersConfigPanel() {
         ) : pinned.length === 0 ? (
           <p className="text-xs text-muted-foreground">Nothing pinned yet.</p>
         ) : (
-          <div className="space-y-1">
+          <div className="space-y-1 max-h-64 overflow-y-auto overscroll-contain pr-0.5">
             {pinned.map((a, i) => (
               <OrderRow key={a.id} alter={a} label={formatAlter(a)} avatarOverride={pinnedAvatars[a.id]}
                 first={i === 0} last={i === pinned.length - 1}
@@ -164,21 +186,45 @@ export default function PinnedAltersConfigPanel() {
       </div>
 
       <div>
-        <Head>Show</Head>
-        <Pills value={display} onChange={(v) => persist({ display: v })}
-          options={[["both", "Avatar + name"], ["avatars", "Avatars only"], ["names", "Names only"]]} />
+        <Head>Display</Head>
+        <div className="flex items-center gap-4">
+          {[["avatars", "Avatars", display !== "names"], ["names", "Names", display !== "avatars"]].map(([id, label, on]) => (
+            <label key={id} className="flex items-center gap-2 text-sm cursor-pointer">
+              <input type="checkbox" checked={on}
+                onChange={(e) => {
+                  // At least one stays on — unticking the last is a no-op.
+                  const avatars = id === "avatars" ? e.target.checked : display !== "names";
+                  const names = id === "names" ? e.target.checked : display !== "avatars";
+                  if (!avatars && !names) return;
+                  persist({ display: avatars && names ? "both" : avatars ? "avatars" : "names" });
+                }}
+                className="w-4 h-4 rounded" /> {label}
+            </label>
+          ))}
+        </div>
       </div>
       {display !== "avatars" && (
         <div>
           <Head>Name shown</Head>
-          <Pills value={labelMode} onChange={(v) => persist({ labelMode: v })}
-            options={[["auto", "App setting"], ["name", "Name"], ["alias", "Alias"], ["off", "Off"]]} />
+          <Pills value={labelMode === "off" ? "auto" : labelMode} onChange={(v) => persist({ labelMode: v })}
+            options={[["auto", "App setting"], ["name", "Name"], ["alias", "Alias"]]} />
+        </div>
+      )}
+      {display !== "names" && (
+        <div>
+          <Head>Icon shape</Head>
+          <ShapeRow value={iconShape} onChange={(v) => persist({ iconShape: v })} />
         </div>
       )}
       <div>
         <Head>{`When ${terms.fronting}`}</Head>
         <Pills value={emphasis} onChange={(v) => persist({ frontingEmphasis: v })}
-          options={[["grow", "Bigger"], ["shape", "Squarer"], ["ring", "Thick ring"], ["none", "No change"]]} />
+          options={[["grow", "Bigger"], ["shape", "Different shape"], ["ring", "Thick ring"], ["none", "No change"]]} />
+        {emphasis === "shape" && display !== "names" && (
+          <div className="mt-2">
+            <ShapeRow value={frontingShape} onChange={(v) => persist({ frontingShape: v })} exclude={iconShape} />
+          </div>
+        )}
         {emphasis === "grow" && (
           <label className="block mt-2 text-xs text-muted-foreground">
             <span className="flex items-center justify-between"><span>How much bigger</span><span className="tabular-nums">{frontingScale}%</span></span>

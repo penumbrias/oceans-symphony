@@ -21,6 +21,10 @@ pickers; Body style / Header style as flag chips. No explainer paragraphs.
 Top bar / Bottom bar / Side bar / Quick action bar / Alter bar. Shared row
 grammar:
 
+- **Alter bar section embeds the FULL PinnedAltersConfigPanel** (pins /
+  order / Display ticks / Name shown / Icon shape / fronting emphasis +
+  shape / per-alter avatars / front levels) — the same panel the bar's
+  gear opens; no duplicated Labels row.
 - **ArrangeRow** (the standard reorderable-list row): bordered `rounded-lg`
   row, checkbox + label, `w-7 h-7` chevron-icon move buttons (lucide
   ChevronUp/Down — never text arrows). Used for top-bar items; bottom-bar
@@ -40,8 +44,10 @@ line when empty).
 
 ## PRESETS (PresetsSection)
 
-Two tabs (Style / Layout & size) + search; ONE merged list (built-in
-themes, user presets, widget styles) with source·parts subtitles; the list
+Two tabs (Style / Layout & size) + search; ONE merged list — each
+built-in theme appears as TWO rows ("name · light" / "name · dark",
+applying sets the mode; there is no separate mode toggle in v2) plus user
+presets and widget styles with source·parts subtitles; the list
 is capped (`max-h-72`) and scrolls. Save form below: name + part
 checkboxes + link-to-alter.
 

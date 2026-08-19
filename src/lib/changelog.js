@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Pinned {{alters}} icons can be real shapes — circle, squircle, square, diamond, hexagon, star, heart, trapezoid — and a {{fronting}} {{alter}} can take a different shape (Widget config → Icon shape / When {{fronting}})." },
+      { type: "improve", text: "Built-in themes now come as separate Light and Dark presets, so picking a mode is just picking the preset." },
+      { type: "fix", text: "Pinned bar config: the pin list scrolls instead of growing forever; Display is now two ticks (Avatars / Names — at least one stays on); name size follows the bar's Text size; bar height and icon size use the standard set-then-slide rows; and the full pinned config is also reachable from Display options → Alter bar." },
       { type: "feature", text: "Undo for looks: applying any preset or widget style first saves your current look — tap Undo on the toast, or open Presets → \u201cUndo — recent looks\u201d to step back through the last ten." },
       { type: "improve", text: "Presets: link any saved preset to an {{alter}} right from its row (chips show who's linked; applies when they {{front}}, same as the classic UI). And every font picker — body, headers, bars, widgets — now has the upload button, so custom fonts are always one tap away." },
       { type: "improve", text: "Options sheets are standardized: no more Peek mode — every sheet (Display options, Home screen settings, widget options) is always drag-resizable from its grab bar, has the same close chevron, and never dims the page behind it." },

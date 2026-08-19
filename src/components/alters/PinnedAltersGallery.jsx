@@ -18,6 +18,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { useFrontGesture } from "@/components/fronting/FrontLevelRail";
+import { shapeLayerStyles } from "@/lib/avatarShapes";
 
 // Self-contained horizontal gallery of pinned alters. Used on the
 // alters directory (above groups) AND as a Dashboard element, so it
@@ -101,6 +102,10 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
   const display = ["both", "avatars", "names"].includes(config.display) ? config.display : "both";
   const emphasis = ["grow", "shape", "ring", "none"].includes(config.frontingEmphasis) ? config.frontingEmphasis : "grow";
   const frontingScale = Number.isFinite(config.frontingScale) ? Math.max(100, Math.min(200, config.frontingScale)) : 133;
+  // The chips' rendered shape (circle/squircle/diamond/star/heart/…) and,
+  // when the fronting emphasis is "shape", the shape a FRONTING chip takes.
+  const iconShape = typeof config.iconShape === "string" ? config.iconShape : "circle";
+  const frontingShape = typeof config.frontingShape === "string" ? config.frontingShape : "square";
   // Per-alter avatar override for the bar only (saved in the alter's own
   // asset folder by the config panel).
   const pinnedAvatars = (config.pinnedAvatars && typeof config.pinnedAvatars === "object") ? config.pinnedAvatars : {};
@@ -225,6 +230,8 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
               display={display}
               emphasis={emphasis}
               frontingScale={frontingScale}
+              iconShape={iconShape}
+              frontingShape={frontingShape}
               avatarOverride={pinnedAvatars[a.id]}
             />
           ));
@@ -479,7 +486,7 @@ const LONG_PRESS_MS = 450;
 
 // `size` is the base avatar diameter in px (config.chipSize). Fronting
 // chips render 4/3 of it, keeping the old 48/64 look at the default.
-function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "" }) {
+function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryClient, size = 48, labelMode = "auto", display = "both", emphasis = "grow", frontingScale = 133, avatarOverride = "", iconShape = "circle", frontingShape = "square" }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const resolvedAvatar = useResolvedAvatarUrl(avatarOverride || alter.avatar_url);
@@ -513,22 +520,27 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
       className="relative flex flex-col items-center gap-1 flex-shrink-0 select-none"
       style={{ width: Math.round(size * Math.max(1, frontingScale / 100)) }}
     >
-      {display !== "names" && (
+      {display !== "names" && (() => {
+        // The RENDERED shape: the bar's icon shape, swapped for the
+        // fronting shape when that emphasis is on. Clip shapes draw their
+        // ring as a padded backing layer (a border would be clipped off).
+        const shape = fronting && emphasis === "shape" ? frontingShape : iconShape;
+        const layers = shapeLayerStyles(shape);
+        const dim = fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size;
+        const ringW = fronting && emphasis === "ring" ? 4 : 2;
+        return (
       <div
-        className={`relative overflow-hidden flex items-center justify-center flex-shrink-0 ${
-          fronting && emphasis === "shape" ? "rounded-xl" : "rounded-full"
-        }`}
+        className="relative flex items-center justify-center flex-shrink-0"
         style={{
-          width: fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size,
-          height: fronting && emphasis === "grow" ? Math.round(size * frontingScale / 100) : size,
-          // How a fronting chip stands out is the bar's "Fronting" option
-          // (grow / shape / ring / none); a coloured border tints it in
-          // every mode but "none".
-          border: `${fronting && emphasis === "ring" ? 4 : 2}px solid ${fronting && emphasis !== "none" ? ringColor : "var(--color-muted)"}`,
-          backgroundColor: alter.color ? `${alter.color}22` : "var(--color-muted)",
-          transition: "width .18s, height .18s, border-radius .18s",
+          width: dim, height: dim,
+          padding: ringW,
+          backgroundColor: fronting && emphasis !== "none" ? ringColor : "var(--color-muted)",
+          transition: "width .18s, height .18s",
+          ...layers.ring,
         }}
       >
+        <span className="w-full h-full overflow-hidden flex items-center justify-center"
+          style={{ backgroundColor: alter.color ? `${alter.color}44` : "var(--color-surface)", ...layers.inner }}>
         {resolvedAvatar ? (
           <img src={resolvedAvatar} alt={label} className={`w-full h-full object-cover ${blurAvatar ? "blur-md" : ""}`} />
         ) : (
@@ -536,6 +548,7 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
             {(alter.name || "?").charAt(0).toUpperCase()}
           </span>
         )}
+        </span>
         {fronting && (
           <span
             className="absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full flex items-center justify-center ring-2 ring-card"
@@ -545,9 +558,10 @@ function PinnedAlterChip({ alter, activeSessions, anonymize, formatAlter, queryC
           </span>
         )}
       </div>
-      )}
+        );
+      })()}
       {labelMode !== "off" && display !== "avatars" && (
-        <span className={`text-[0.6875rem] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""} ${
+        <span className={`text-[0.6875em] text-foreground text-center leading-tight truncate w-full ${blurNames ? "blur-sm" : ""} ${
           display === "names" && fronting ? "font-semibold" : ""}`}
           style={display === "names" ? { color: fronting && emphasis !== "none" ? ringColor : undefined } : undefined}>
           {label}

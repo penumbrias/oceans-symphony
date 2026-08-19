@@ -28,6 +28,7 @@ import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import IconPicker from "@/components/shared/IconPicker";
 import FontUploadButton from "@/components/shared/FontUploadButton";
+import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import { listLookHistory, pushLookHistory } from "@/lib/lookHistory";
 import { toast } from "sonner";
 import { IconSlot } from "@/components/shared/LucideByName";
@@ -630,18 +631,15 @@ function BarsSection({ v2, alignX }) {
                 onChange={(e) => writePinnedCfg({ chipSize: parseInt(e.target.value, 10) })}
                 className="w-full" aria-label={tr("editSheet.iconSize")} />
             </SetRow>
-            <PillRow label={tr("editSheet.labels")} value={pinnedCfg.labelMode || "auto"}
-              onChange={(v) => writePinnedCfg({ labelMode: v })} alignX={alignX}
-              options={[
-                { v: "auto", label: tr("editSheet.inherit") },
-                { v: "name", label: tr("editSheet.labelName") },
-                { v: "alias", label: tr("editSheet.labelAlias") },
-                { v: "off", label: tr("editSheet.labelOff") },
-              ]} />
             <BarLookRows v2={v2} barId="alters" alignX={alignX} />
+            {/* The full pinned config (pins, order, display, shapes, front
+                levels…) — THE panel, same one the bar's own gear opens.
+                Labels moved in there ("Name shown"). */}
+            <div className="pt-2 border-t border-border/30">
+              <PinnedAltersConfigPanel />
+            </div>
           </>
         )}
-        <p className="text-[0.6875rem] text-muted-foreground">{applyTerms(tr("editSheet.alterBarHint"), terms)}</p>
       </div>
       </SubSection>
       <IconPicker open={!!iconFor} onClose={() => setIconFor(null)}
@@ -1199,10 +1197,20 @@ function PresetsSection({ v2 }) {
   // The merged list.
   const userWidgetStyles = resolveUserStyles(settingsRow?.ui_v2_styles).filter((st) => !String(st.id).startsWith("theme-"));
   const rows = [];
+  // Each built-in theme is TWO rows — its light and its dark version —
+  // because the new UI has no separate mode toggle (the user's call:
+  // split them instead of linking them).
   for (const pname of Object.keys(allPresets)) {
     const preset = allPresets[pname];
-    rows.push({ key: `theme:${pname}`, kind: "theme", name: pname, source: tr("editSheet.srcBuiltIn"),
-      preset, covers: coverageOf(preset), active: selectedTheme === pname && !customColors, apply: () => applyPreset(pname) });
+    for (const mode of ["light", "dark"]) {
+      if (!preset[mode]) continue;
+      rows.push({
+        key: `theme:${pname}:${mode}`, kind: "theme", name: `${pname} · ${mode}`, source: tr("editSheet.srcBuiltIn"),
+        preset, previewMode: mode, covers: coverageOf(preset),
+        active: selectedTheme === pname && !customColors && themeMode === mode,
+        apply: async () => { snapshotThen(`${pname} (${mode})`); setThemeMode(mode); await applyPayload(preset, pname); },
+      });
+    }
   }
   for (const [pname, preset] of Object.entries(userCustomPresets)) {
     const covers = coverageOf(preset);
@@ -1228,10 +1236,11 @@ function PresetsSection({ v2 }) {
 
   const swatchFor = (r) => {
     if (r.look) return <span aria-hidden="true" className="w-8 h-8 flex-shrink-0" style={{ ...lookToStyle(r.look), ...boxStyle() }} />;
-    const c = (isDark ? r.preset?.dark : r.preset?.light) || r.preset?.light || r.preset?.dark || {};
+    const c = (r.previewMode ? r.preset?.[r.previewMode] : (isDark ? r.preset?.dark : r.preset?.light)) || r.preset?.light || r.preset?.dark || {};
     const dots = ["primary", "accent", "background"].map((k) => c[k]).filter(Boolean);
     return (
-      <span aria-hidden="true" className="w-8 h-8 flex-shrink-0 rounded-lg border border-border/40 flex items-center justify-center gap-0.5 bg-muted/30">
+      <span aria-hidden="true" className="w-8 h-8 flex-shrink-0 rounded-lg border border-border/40 flex items-center justify-center gap-0.5"
+        style={{ background: c.bg || "var(--color-muted)" }}>
         {dots.length ? dots.map((hex, i) => <span key={i} className="w-2 h-2 rounded-full" style={{ background: hex }} />)
           : <SlidersHorizontal className="w-3.5 h-3.5 text-muted-foreground" />}
       </span>

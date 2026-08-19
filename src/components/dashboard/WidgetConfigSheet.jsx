@@ -773,19 +773,14 @@ export default function WidgetConfigSheet({
           {/* Size / shape fields a widget declares for this section (e.g.
               the pinned bar's height and icon size). Ranges only — that's
               what a size is. */}
-          {(def.configFields || []).filter((f) => f.section === "ui" && f.type === "range").map((f) => {
-            const val = settings[f.key] ?? f.default ?? 0;
-            return (
-              <div key={f.key}>
-                <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                  {applyTerms(f.label, t)} — {f.format ? f.format(Number(val) || 0) : `${Number(val) || 0}${f.unit || "px"}`}
-                </label>
-                <input type="range" value={Number(val) || 0} min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1}
-                  onChange={(e) => onSettings(widget.instanceId, { [f.key]: Number(e.target.value) })}
-                  aria-label={f.label} className="w-full accent-primary" />
-              </div>
-            );
-          })}
+          {/* Set-then-slide, like every other size row (house rule). */}
+          {(def.configFields || []).filter((f) => f.section === "ui" && f.type === "range").map((f) => (
+            <SliderRow key={f.key} label={applyTerms(f.label, t)}
+              value={settings[f.key]} fallback={f.default ?? 0}
+              min={f.min ?? 0} max={f.max ?? 100} step={f.step ?? 1} unit={f.unit || "px"}
+              onChange={(v) => onSettings(widget.instanceId, { [f.key]: v })}
+              onReset={() => onSettings(widget.instanceId, { [f.key]: "" })} />
+          ))}
 
           <div className="space-y-3 pt-2 border-t border-border/30">
             <div>
