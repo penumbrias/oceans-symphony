@@ -287,6 +287,7 @@ export async function toggleFrontFor(alter, _staleSessions, base44, queryClient,
       toast.success(`${alter.name} added to ${FR}`);
     }
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
   } catch (err) {
     toast.error(err.message || "Failed to update front");
@@ -309,6 +310,7 @@ export async function removeFrontFor(alter, base44, queryClient, toast, terms = 
     });
     toast.success(`${alter.name} removed from ${FR}`);
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
   } catch (err) {
     toast.error(err.message || "Failed to update front");
@@ -334,6 +336,7 @@ export async function replaceFrontWith(alter, base44, queryClient, toast, terms 
     });
     toast.success(`${alter.name} is now the sole ${FR}`);
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
   } catch (err) {
     toast.error(err.message || "Failed to update front");
@@ -373,6 +376,7 @@ export async function togglePrimaryFor(alter, _staleSessions, base44, queryClien
       }
     }
     queryClient.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient.invalidateQueries({ queryKey: ["frontHistory"] });
   } catch (err) {
     toast.error(err.message || "Failed to update primary");

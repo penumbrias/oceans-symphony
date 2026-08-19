@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Any picture slot can use a whole asset folder: in the image picker choose a folder, then \u201cUse this whole folder\u201d — random or next on each app open, hourly, daily, one per weekday, or whoever is {{fronting}} (their image in that folder). Works for {{alter}} avatars, the wallpaper, the apps icon, the {{system}} picture and the pinned-bar avatars." },
+      { type: "improve", text: "Home grid density: Home screen settings → Grid cycles Coarse / 5 across / Medium / Fine — finer size steps when resizing; existing widgets are rescaled so the layout keeps its shape." },
+      { type: "improve", text: "Tapping a running activity (Active widget or the Active-now list) opens its end/edit menu right there instead of sending you to the tracker." },
       { type: "feature", text: "\u201cActive now\u201d: see running activities, symptom episodes and sleep at a glance — a top-bar item that appears only while something's active, an \u201cActive\u201d quick-action key with a count badge, and an optional floating bubble (Display options → Quick action bar → Active-now bubble: off / when something is active / always). Tap any to open the list." },
       { type: "improve", text: "Today widget: tap \u201c+ Add\u201d (or the empty widget) to add something for today — a new task, or pick one from your to-do list and it's due today." },
       { type: "feature", text: "Quick action bar can sit behind the TOP bar instead of the bottom one (Display options → Quick action bar → Edge)." },

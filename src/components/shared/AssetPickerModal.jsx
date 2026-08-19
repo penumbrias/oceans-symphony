@@ -3,7 +3,7 @@ import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { X, Upload, Loader2, ImagePlus, Images } from "lucide-react";
+import { X, Upload, Loader2, ImagePlus, Images, FolderOpen } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
 import { isLocalMode } from "@/lib/storageMode";
 import {
@@ -11,6 +11,7 @@ import {
   getAllLocalImages, getLocalImageId,
 } from "@/lib/localImageStorage";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
+import { FOLDER_MODES, makeFolderUrl } from "@/lib/folderSource";
 
 // Auto-folder names from the id prefix our upload paths use (kept in sync
 // with the Assets page) so EVERY stored image — not just curated assets —
@@ -45,12 +46,18 @@ function AssetThumb({ item, onSelect }) {
 // `ownerAlterId` (+ ownerAlterName): the picker is choosing FOR an alter —
 // it opens on that alter's "👤 Name" folder and anything uploaded here is
 // filed into it (owner_alter_id), so per-alter images live with the alter.
-export default function AssetPickerModal({ open, onClose, onSelect, kind = "image", ownerAlterId = null, ownerAlterName = "" }) {
+// `allowFolders`: the picker can also hand back a WHOLE folder as a
+// rotating source (folder://… — see lib/folderSource.js): pick a folder
+// pill, then "Use this folder" with a rotation policy. Only for slots that
+// resolve through useResolvedAvatarUrl / resolveImageUrl.
+export default function AssetPickerModal({ open, onClose, onSelect, kind = "image", ownerAlterId = null, ownerAlterName = "", allowFolders = false }) {
   const qc = useQueryClient();
   const t = useTerms();
   const [rawImages, setRawImages] = useState({});
   const [search, setSearch] = useState("");
   const [folder, setFolder] = useState(() => (ownerAlterId ? `👤 ${ownerAlterName || "Unknown"}` : "all"));
+  const [folderMode, setFolderMode] = useState("random");
+  const [folderPickOpen, setFolderPickOpen] = useState(false);
   const [uploadFolder, setUploadFolder] = useState("");
   const [uploading, setUploading] = useState(false);
   const [urlInput, setUrlInput] = useState("");
@@ -211,6 +218,33 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
             </button>
             <input ref={fileRef} type="file" accept="image/*" multiple hidden onChange={handleFiles} />
           </div>
+          {/* Whole-folder source: the slot shows one image from the folder
+              and rotates by the chosen policy. */}
+          {allowFolders && folder !== "all" && (
+            <div className="rounded-lg border border-border/50 p-2 space-y-1.5">
+              <button type="button" onClick={() => setFolderPickOpen((v) => !v)} aria-expanded={folderPickOpen}
+                className="w-full flex items-center justify-between text-xs font-medium">
+                <span className="flex items-center gap-1.5"><FolderOpen className="w-3.5 h-3.5" /> Use this whole folder (rotating)</span>
+                <span className="text-muted-foreground">{folderPickOpen ? "−" : "+"}</span>
+              </button>
+              {folderPickOpen && (
+                <div className="space-y-1.5">
+                  <div className="flex flex-wrap gap-1">
+                    {FOLDER_MODES.map((m) => (
+                      <button key={m.id} type="button" aria-pressed={folderMode === m.id} onClick={() => setFolderMode(m.id)}
+                        className={`text-[0.6875rem] px-2 py-1 rounded-full border ${folderMode === m.id ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
+                  <button type="button" onClick={() => onSelect(makeFolderUrl(folder, { mode: folderMode }))}
+                    className="h-8 px-3 rounded-lg bg-primary text-primary-foreground text-xs font-medium">
+                    Use “{folder}” · {FOLDER_MODES.find((m) => m.id === folderMode)?.label.toLowerCase()}
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
           {/* …or paste a direct image URL */}
           <div className="flex items-center gap-2">
             <input value={urlInput} onChange={(e) => setUrlInput(e.target.value)} placeholder="…or paste an image URL"
@@ -239,7 +273,7 @@ export default function AssetPickerModal({ open, onClose, onSelect, kind = "imag
 
 // Small trigger button that opens the picker and hands the chosen image
 // URL back via onPick. Drop next to any upload control.
-export function AssetButton({ onPick, className = "", title = "Choose from assets", style }) {
+export function AssetButton({ onPick, className = "", title = "Choose from assets", style, allowFolders = false, ownerAlterId = null, ownerAlterName = "" }) {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -247,7 +281,8 @@ export function AssetButton({ onPick, className = "", title = "Choose from asset
         className={className || "h-9 w-9 flex items-center justify-center rounded-lg border border-border bg-muted/30 hover:bg-muted/60 transition-colors flex-shrink-0"}>
         <Images className="w-4 h-4 text-muted-foreground" />
       </button>
-      <AssetPickerModal open={open} onClose={() => setOpen(false)} onSelect={(url) => { onPick(url); setOpen(false); }} />
+      <AssetPickerModal open={open} onClose={() => setOpen(false)} onSelect={(url) => { onPick(url); setOpen(false); }}
+        allowFolders={allowFolders} ownerAlterId={ownerAlterId} ownerAlterName={ownerAlterName} />
     </>
   );
 }

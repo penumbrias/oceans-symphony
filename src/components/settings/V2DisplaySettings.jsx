@@ -259,7 +259,7 @@ export function V2LayoutControls() {
                 ? <img src={appsIconUrl} alt="" className="w-5 h-5 object-cover rounded" />
                 : <img src="/logo.png" alt="" className="w-5 h-5 object-contain rounded" />}
             </span>
-            <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={t("options.appsIconPick")} />
+            <AssetButton onPick={(url) => v2.write({ appsIcon: url || "" })} title={t("options.appsIconPick")} allowFolders />
             {v2.uiV2.appsIcon && (
               <button type="button" onClick={() => v2.write({ appsIcon: "" })}
                 className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground">

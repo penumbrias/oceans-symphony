@@ -73,6 +73,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { getActiveActivities } from "@/lib/activitySession";
+import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 import { Section, Row, Muted, TextAction, Dot, boxStyle, WidgetModeContext, useWidgetMode, rowsForMode } from "@/v2/primitives";
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerDescription,
@@ -303,6 +304,9 @@ function ActiveWidget({ api }) {
   // Pressing a symptom row opens the SAME menu the classic pill opens
   // (severity / start time / note / end) — not a navigation.
   const [symptomMenu, setSymptomMenu] = React.useState(null);
+  // Same for a running activity: its end/edit menu opens HERE (the classic
+  // CurrentActivities menu), not the tracker page with the pill to find.
+  const [activityMenu, setActivityMenu] = React.useState(null);
   const symptomSessions = useQuery({
     queryKey: ["symptomSessions", "active"],
     queryFn: () => base44.entities.SymptomSession.filter({ is_active: true }),
@@ -323,8 +327,9 @@ function ActiveWidget({ api }) {
           primary={a.name || tr("widget.active.activity")}
           secondary={a.notes || undefined}
           right={a.startTime ? fmtElapsed(a.startTime) : undefined}
-          onClick={() => navigate("/activities")} />
+          onClick={() => setActivityMenu(a)} />
       ))}
+      {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => setActivityMenu(null)} />}
       {symptomSessions.map((s) => {
         const def = symById[s.symptom_id || s.symptom_definition_id];
         if (!def) return null;
@@ -618,12 +623,12 @@ function SystemIdentityWidget({ mode = "normal", api }) {
     ? (
       <span className="relative flex-shrink-0" style={{ width: size, height: size }}>
         <img src={avatar} alt="" className="rounded-full object-cover w-full h-full" />
-        <AssetButton onPick={setAvatar} title={tr("widget.identity.changePicture")}
+        <AssetButton onPick={setAvatar} title={tr("widget.identity.changePicture")} allowFolders
           className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full border border-border bg-background flex items-center justify-center" />
       </span>
     )
     : (
-      <AssetButton onPick={setAvatar} title={tr("widget.identity.addPicture")}
+      <AssetButton onPick={setAvatar} title={tr("widget.identity.addPicture")} allowFolders
         className="flex items-center justify-center rounded-full border border-dashed border-border text-muted-foreground flex-shrink-0"
         style={{ width: size, height: size }} />
     );

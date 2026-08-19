@@ -50,8 +50,44 @@ async function resolveFromIdb(cacheKey, imageId) {
   return null;
 }
 
+// folder:// sources: pick one image from the folder by its policy, then
+// resolve THAT. Not cached here (the policy decides stability — random /
+// sequence keep their own per-load pick; hourly / daily / fronter must be
+// re-evaluated), so the hook re-resolves live sources on a timer.
+async function resolveFolderSource(url) {
+  const { parseFolderUrl, pickFromFolder } = await import('./folderSource.js');
+  const p = parseFolderUrl(url);
+  if (!p) return null;
+  const { base44 } = await import('@/api/base44Client');
+  let rows = [];
+  try {
+    if (p.folder.startsWith('👤 ')) {
+      // An alter's own folder: match by owner, not the display name.
+      const name = p.folder.slice(2).trim();
+      const alters = await base44.entities.Alter.list();
+      const owner = alters.find((a) => (a.name || '') === name);
+      rows = owner ? await base44.entities.ImageAsset.filter({ owner_alter_id: owner.id }) : [];
+    } else {
+      rows = await base44.entities.ImageAsset.filter({ folder: p.folder });
+    }
+  } catch { rows = []; }
+  const items = (rows || []).filter((a) => a && a.image_url && a.kind !== 'audio')
+    .map((a) => ({ url: a.image_url, ownerAlterId: a.owner_alter_id || null }));
+  let primaryAlterId = null;
+  if (p.mode === 'fronter') {
+    try {
+      const active = await base44.entities.FrontingSession.filter({ is_active: true });
+      const prim = active.find((s) => s.is_primary) || active[0];
+      primaryAlterId = prim ? (prim.alter_id || prim.primary_alter_id || null) : null;
+    } catch { /* no front */ }
+  }
+  const picked = pickFromFolder(url, items, { now: new Date(), primaryAlterId });
+  return picked ? resolveImageUrl(picked) : null;
+}
+
 export async function resolveImageUrl(url) {
   if (!url) return null;
+  if (typeof url === 'string' && url.startsWith('folder://')) return resolveFolderSource(url);
   if (_cache.has(url)) return _cache.get(url);
 
   // SW-interceptable path — return as-is ONLY when a SW is actually in

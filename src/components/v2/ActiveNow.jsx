@@ -16,6 +16,8 @@ import { base44 } from "@/api/base44Client";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useT } from "@/lib/i18n";
 import { EdgeDock } from "@/components/v2/EdgeDock";
+import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+import { getActiveActivities } from "@/lib/activitySession";
 
 const TYPE_ICON = { activity: Zap, sleep: Moon, symptom: ActivityIcon };
 
@@ -39,6 +41,7 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
   const items = useActiveNow();
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const popRef = useRef(null);
+  const [activityMenu, setActivityMenu] = useState(null);
   useEffect(() => {
     if (!open) return undefined;
     const place = () => {
@@ -75,13 +78,22 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
       {items.map((it, i) => {
         const Icon = TYPE_ICON[it.type] || Timer;
         return (
-          <button key={`${it.type}-${i}`} type="button" onClick={() => { onClose?.(); navigate(it.path); }}
+          <button key={`${it.type}-${i}`} type="button"
+            onClick={() => {
+              // A running activity opens its end/edit menu right here.
+              if (it.type === "activity") {
+                const act = getActiveActivities().find((a) => a.id === it.id) || getActiveActivities()[0];
+                if (act) { setActivityMenu(act); return; }
+              }
+              onClose?.(); navigate(it.path);
+            }}
             className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-sm hover:bg-muted/40">
             <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--v2-accent)" }} />
             <span className="truncate flex-1">{it.label}</span>
           </button>
         );
       })}
+      {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => { setActivityMenu(null); onClose?.(); }} />}
     </div>,
     document.body
   );

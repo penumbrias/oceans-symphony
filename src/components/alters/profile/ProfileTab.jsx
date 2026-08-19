@@ -998,7 +998,7 @@ const visibleFilled = orderedFields.filter(f => f.is_visible !== false && custom
           </div>
           <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
             <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
-            <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
+            <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} allowFolders ownerAlterId={alter?.id || null} ownerAlterName={alter?.name || ""} />
             <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
             <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
           </div>

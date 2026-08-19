@@ -61,6 +61,7 @@ export async function recomputePrimaryFromLevels({ cfg, queryClient = null }) {
     }
     if (changed) {
       queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
+      try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
       queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
     }
   } catch { /* best-effort — never block the user's own action */ }
@@ -161,6 +162,7 @@ async function applyFrontSelectionInner({
       }
     } catch { /* filter on end_time: null may not be supported */ }
     queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
     pushFrontStatus({ fronters: [], terms: { fronting: terms.fronting } }).catch(() => {});
     return { firstSessionId: null };
@@ -253,6 +255,8 @@ async function applyFrontSelectionInner({
   }
 
   queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
+
+  try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
   queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
 
   // Push front status to friends server (fire-and-forget); id included so

@@ -383,7 +383,7 @@ export default function AlterEditModal({ alter, open, onClose, mode = "edit", in
               {/* Wrap to stay within the avatar's width (2 per row). */}
               <div className="flex flex-wrap justify-center gap-0.5 w-[68px]">
                 <IconButton icon={Upload} title="Upload image" onClick={() => avatarFileRef.current?.click()} busy={uploadingAvatar} />
-                <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} />
+                <AssetButton onPick={(url) => set("avatar_url", url)} className={iconBtnClass()} allowFolders ownerAlterId={alter?.id || null} ownerAlterName={alter?.name || ""} />
                 <IconButton icon={Link2} title="Image URL" onClick={() => setShowAvatarUrl((s) => !s)} />
                 <IconButton icon={X} title="Remove avatar" onClick={() => set("avatar_url", "")} danger disabled={!form.avatar_url} />
               </div>

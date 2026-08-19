@@ -20,10 +20,23 @@ export function useResolvedAvatarUrl(avatarUrl) {
     }
 
     let cancelled = false;
-    resolveImageUrl(avatarUrl)
+    const run = () => resolveImageUrl(avatarUrl)
       .then((url) => { if (!cancelled) setResolvedUrl(url); })
       .catch(() => { if (!cancelled) setResolvedUrl(null); });
-    return () => { cancelled = true; };
+    run();
+    // folder:// sources that change on their own (hourly / daily / weekday
+    // / fronter) re-resolve every minute and when the front changes.
+    let timer = null;
+    const live = typeof avatarUrl === 'string' && avatarUrl.startsWith('folder://') && /mode=(hourly|daily|weekday|fronter)/.test(avatarUrl);
+    if (live) {
+      timer = setInterval(run, 60000);
+      window.addEventListener('symphony-front-changed', run);
+    }
+    return () => {
+      cancelled = true;
+      if (timer) clearInterval(timer);
+      if (live) window.removeEventListener('symphony-front-changed', run);
+    };
   }, [avatarUrl]);
 
   return resolvedUrl;

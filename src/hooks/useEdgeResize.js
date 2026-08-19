@@ -20,7 +20,7 @@ const HOLD_MS = 150;
 const SLOP_PX = 6;
 const ROW_PX = 80;
 
-export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit }) {
+export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit, rowPx = ROW_PX }) {
   const [preview, setPreview] = useState(null); // {cols, rows} | null
   const [active, setActive] = useState(false);
   const stateRef = useRef(null); // { pointerId, axis, phase, startX, startY, startSpan, pitch, timer }
@@ -77,9 +77,9 @@ export function useEdgeResize({ gridRef, gridCols, span, min, max, onCommit }) {
     const clampR = (v) => Math.max(min?.rows ?? 1, Math.min(max?.rows ?? 8, v));
     setPreview({
       cols: s.axis.includes("x") ? clampC(s.startSpan.cols + Math.round(dx / s.pitch)) : s.startSpan.cols,
-      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + Math.round(dy / ROW_PX)) : s.startSpan.rows,
+      rows: s.axis.includes("y") ? clampR(s.startSpan.rows + Math.round(dy / rowPx)) : s.startSpan.rows,
     });
-  }, [gridCols, min, max, clear]);
+  }, [gridCols, min, max, clear, rowPx]);
 
   const onPointerEnd = useCallback((e) => {
     const s = stateRef.current;

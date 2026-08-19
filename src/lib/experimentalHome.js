@@ -59,7 +59,7 @@ export const DEFAULT_EXPERIMENTAL_HOME = {
   wallpaper: { url: "" },
   // Grid density — phones can opt into 5 columns (default 4). Larger
   // breakpoints stay 8/12.
-  grid: { phoneCols: 4 },
+  grid: { phoneCols: 4, rowPx: 80 },
   // App-drawer folders: [{ id, label, appIds: [navCatalogue ids] }].
   drawer: { order: [], folders: [] },
   pages: [{ id: "p1", label: "Home", layoutMode: "flow", widgets: [] }],
@@ -91,6 +91,10 @@ export function resolveExperimentalHome(stored, registry = {}) {
   // can be quarter-width. Doubling stored spans keeps v1 layouts looking
   // pixel-identical. Applied on read; persisting writes version 2.
   const spanScale = src.version >= 2 ? 1 : 2;
+  // Widgets' max rows are declared for the 80px unit; a finer unit needs
+  // proportionally more rows to reach the same height.
+  const rowPx = [80, 60, 40].includes(src.grid?.rowPx) ? src.grid.rowPx : 80;
+  const rowUnitScale = 80 / rowPx;
   const out = {
     version: 2,
     enabled: src.enabled === true,
@@ -125,7 +129,13 @@ export function resolveExperimentalHome(stored, registry = {}) {
     // components/v2/PageBackground.jsx — passed through opaque here so
     // this resolver never has to chase that model's fields.
     background: src.background && typeof src.background === "object" ? src.background : null,
-    grid: { phoneCols: src.grid?.phoneCols === 5 ? 5 : 4 },
+    // Grid density (v0.192.0): columns across on a phone and the row unit
+    // in px. Finer = smaller size steps when resizing. Existing widgets are
+    // rescaled when the user changes it (ExperimentalDashboard.setDensity).
+    grid: {
+      phoneCols: [4, 5, 6, 8].includes(src.grid?.phoneCols) ? src.grid.phoneCols : 4,
+      rowPx: [80, 60, 40].includes(src.grid?.rowPx) ? src.grid.rowPx : 80,
+    },
     drawer: {
       // User-chosen app order for the drawer grid (ids not listed keep
       // catalogue order after the listed ones).
@@ -157,7 +167,7 @@ export function resolveExperimentalHome(stored, registry = {}) {
       if (seenInstance.has(instanceId)) instanceId = newInstanceId();
       seenInstance.add(instanceId);
       const minC = def.minSpan?.cols ?? 1, maxC = def.maxSpan?.cols ?? 12;
-      const minR = def.minSpan?.rows ?? 1, maxR = def.maxSpan?.rows ?? 8;
+      const minR = def.minSpan?.rows ?? 1, maxR = Math.round((def.maxSpan?.rows ?? 8) * rowUnitScale);
       const rawCols = parseInt(w.span?.cols, 10);
       widgets.push({
         instanceId,

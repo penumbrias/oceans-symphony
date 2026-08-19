@@ -47,6 +47,7 @@ export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = nu
     }
     if (cfg?.enabled) await recomputePrimaryFromLevels({ cfg, queryClient: null });
     queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
+    try { window.dispatchEvent(new Event("symphony-front-changed")); } catch { /* SSR */ }
     queryClient?.invalidateQueries({ queryKey: ["frontHistory"] });
     return true;
   } catch {

@@ -21,7 +21,7 @@ function toLocalDatetimeValue(iso) {
 
 // Press-and-hold / tap menu for one running activity — mirrors the active
 // symptom menu: adjust the start time, end & log it, or discard it.
-function ActivityActionMenu({ activity, onClose }) {
+export function ActivityActionMenu({ activity, onClose }) {
   const qc = useQueryClient();
   const [busy, setBusy] = useState(false);
   const [editingStart, setEditingStart] = useState(false);

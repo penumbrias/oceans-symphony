@@ -718,7 +718,7 @@ function ImageSlot({ url, onPick, onClear, title }) {
           <img src={resolved} alt="" className="w-full h-full object-cover" />
         </span>
       )}
-      <AssetButton onPick={onPick} title={title} />
+      <AssetButton onPick={onPick} title={title} allowFolders />
       {url && (
         <button type="button" onClick={onClear} aria-label={`${title} — clear`}
           className="w-8 h-8 flex items-center justify-center rounded-lg border border-border/60 text-muted-foreground hover:text-destructive">

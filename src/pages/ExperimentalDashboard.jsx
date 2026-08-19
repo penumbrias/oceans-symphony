@@ -165,7 +165,7 @@ function TrashZone({ active }) {
   );
 }
 
-function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
+function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowOffset = 0, rowPx = 80, onRemove, onSpan, onMode, onSettings, a11yStack, onMove, onConfigure, styleMode = "current", free = false, onPos, userStyles = [], pickLookMode = false, pickLookSelected = false, pickLookIsSource = false, onPickLookToggle }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({
     id: widget.instanceId,
     disabled: !editMode || a11yStack || free,
@@ -219,7 +219,8 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
     gridCols,
     span: { cols: spanCols, rows: spanRows },
     min: def.minSpan,
-    max: def.maxSpan,
+    max: { ...(def.maxSpan || {}), rows: Math.round((def.maxSpan?.rows ?? 8) * (80 / rowPx)) },
+    rowPx,
     onCommit: (next) => onSpan(widget.instanceId, next, { manual: true }),
   });
   const shownCols = resize.preview?.cols ?? spanCols;
@@ -286,7 +287,7 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
         // now) gets exactly that height and scrolls inside it. Untouched
         // one-row widgets still size to their content, so nothing that was
         // never resized suddenly becomes a 80px letterbox.
-        height: fixedHeight ? shownRows * 80 + (shownRows - 1) * 12 : undefined,
+        height: fixedHeight ? shownRows * rowPx + (shownRows - 1) * 12 : undefined,
         minHeight: fixedHeight ? undefined : 56,
         // rectSortingStrategy assumes equal-size tiles and adds scale to its
         // transforms — with mixed spans that stretches widgets mid-drag.
@@ -608,6 +609,24 @@ export default function ExperimentalDashboard({
   const pageIdx = visiblePages.findIndex((p) => p.id === page.id);
   // Free pages lock to the columns they were arranged on (see useGridCols).
   const gridCols = useGridCols(home.grid?.phoneCols || 4, page.layoutMode === "free");
+  const rowPx = [80, 60, 40].includes(home.grid?.rowPx) ? home.grid.rowPx : 80;
+  // Grid density presets. Changing one RESCALES every widget on every page
+  // proportionally (spans and free positions) so the board keeps its shape
+  // — only the size STEPS get finer or coarser.
+  const DENSITIES = [
+    { cols: 4, rowPx: 80, label: "Coarse" }, { cols: 5, rowPx: 80, label: "5 across" },
+    { cols: 6, rowPx: 60, label: "Medium" }, { cols: 8, rowPx: 40, label: "Fine" },
+  ];
+  const setDensity = (d) => {
+    const oldCols = home.grid?.phoneCols || 4, oldRow = rowPx;
+    const fx = d.cols / oldCols, fy = oldRow / d.rowPx;
+    const scaleW = (w) => ({
+      ...w,
+      span: { cols: Math.max(1, Math.round((w.span?.cols || 1) * fx)), rows: Math.max(1, Math.round((w.span?.rows || 1) * fy)) },
+      pos: w.pos ? { x: Math.round((w.pos.x || 0) * fx), y: Math.round((w.pos.y || 0) * fy) } : w.pos,
+    });
+    persist({ ...home, grid: { phoneCols: d.cols, rowPx: d.rowPx }, pages: home.pages.map((p) => ({ ...p, widgets: p.widgets.map(scaleW) })) });
+  };
 
   const goToPage = useCallback((idx) => {
     if (idx < 0 || idx >= visiblePages.length || visiblePages[idx].id === page.id) return;
@@ -861,7 +880,7 @@ export default function ExperimentalDashboard({
     if (next === "free" && gridRef.current) {
       for (const node of gridRef.current.querySelectorAll("[data-widget-id]")) {
         const h = node.getBoundingClientRect().height;
-        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / 92));
+        if (h > 0) measured[node.dataset.widgetId] = Math.max(1, Math.ceil((h + 12) / (rowPx + 12)));
       }
     }
     persist({
@@ -997,12 +1016,12 @@ export default function ExperimentalDashboard({
       for (const node of grid.querySelectorAll("[data-widget-id]")) {
         const content = node.querySelector("[data-widget-content]");
         if (!content) continue;
-        needed[node.dataset.widgetId] = Math.max(1, Math.ceil((content.scrollHeight + 12) / 92));
+        needed[node.dataset.widgetId] = Math.max(1, Math.ceil((content.scrollHeight + 12) / (rowPx + 12)));
       }
       const grown = page.widgets.map((w) => {
         if (w.settings?.autoFit === false) return w;
         const def = registry[w.widgetId];
-        const want = Math.min(def?.maxSpan?.rows ?? 8, needed[w.instanceId] || 1);
+        const want = Math.min(Math.round((def?.maxSpan?.rows ?? 8) * (80 / rowPx)), needed[w.instanceId] || 1);
         return want > (w.span?.rows || 1) ? { ...w, span: { ...w.span, rows: want } } : w;
       });
       const changed = grown.some((w, i) => w.span?.rows !== page.widgets[i].span?.rows);
@@ -1171,7 +1190,7 @@ export default function ExperimentalDashboard({
         alignItems: "start",
         // Free pages need fixed-height rows for cell coordinates to mean
         // anything, plus a few spare rows so there's somewhere to drag TO.
-        ...(freeMode ? { gridAutoRows: "80px", gridTemplateRows: `repeat(${freeRows}, 80px)` } : null),
+        ...(freeMode ? { gridAutoRows: `${rowPx}px`, gridTemplateRows: `repeat(${freeRows}, ${rowPx}px)` } : null),
       }}
       className={a11yStack ? "space-y-3" : undefined}
     >
@@ -1183,6 +1202,7 @@ export default function ExperimentalDashboard({
           def={registry[w.widgetId]}
           editMode={editMode}
           gridCols={gridCols}
+          rowPx={rowPx}
           gridRef={gridRef}
           api={widgetApi}
           a11yStack={a11yStack}
@@ -1336,11 +1356,14 @@ export default function ExperimentalDashboard({
             </button>
             <button
               type="button"
-              onClick={() => persist({ ...home, grid: { phoneCols: home.grid.phoneCols === 5 ? 4 : 5 } })}
-              title="Phone grid columns (4 or 5 across)"
+              onClick={() => {
+                const i = DENSITIES.findIndex((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx);
+                setDensity(DENSITIES[(i + 1) % DENSITIES.length]);
+              }}
+              title="Grid density — how fine the size steps are (widgets are rescaled to keep their shape)"
               className="text-[0.625rem] px-2 py-1 rounded-full border border-border/40 text-muted-foreground whitespace-nowrap hover:text-foreground transition-all"
             >
-              Cols: {home.grid.phoneCols}
+              Grid: {(DENSITIES.find((d) => d.cols === (home.grid?.phoneCols || 4) && d.rowPx === rowPx) || DENSITIES[0]).label} ({home.grid?.phoneCols || 4}×{rowPx})
             </button>
             </div>
 

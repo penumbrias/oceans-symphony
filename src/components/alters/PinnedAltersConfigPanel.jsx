@@ -199,7 +199,7 @@ export default function PinnedAltersConfigPanel() {
       </div>
 
       <AssetPickerModal open={!!avatarFor} onClose={() => setAvatarFor(null)}
-        ownerAlterId={avatarAlter?.id || null} ownerAlterName={avatarAlter?.name || ""}
+        ownerAlterId={avatarAlter?.id || null} ownerAlterName={avatarAlter?.name || ""} allowFolders
         onSelect={(url) => { if (avatarFor) persist({ pinnedAvatars: { ...pinnedAvatars, [avatarFor]: url } }); setAvatarFor(null); }} />
     </div>
   );
