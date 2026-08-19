@@ -3,7 +3,7 @@
 // One picker for every "change the icon" spot (v0.193.0).
 import React, { useEffect, useMemo, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Search, Images, X } from "lucide-react";
+import { Search, Images } from "lucide-react";
 import { loadLucideSet, pascalToKebab } from "@/components/shared/LucideByName";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 
@@ -30,10 +30,8 @@ export default function IconPicker({ open, onClose, onPick, current = "", allowI
     <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
       <DialogContent className="max-w-md p-0 overflow-hidden flex flex-col" style={{ maxHeight: "80vh" }}>
         <DialogHeader className="px-4 pt-3 pb-2">
-          <div className="flex items-center justify-between gap-2">
-            <DialogTitle className="text-sm">{title}</DialogTitle>
-            <button type="button" onClick={onClose} aria-label="Close" className="text-muted-foreground hover:text-foreground"><X className="w-4 h-4" /></button>
-          </div>
+          {/* DialogContent draws its own close button — no second one here. */}
+          <DialogTitle className="text-sm pr-8">{title}</DialogTitle>
         </DialogHeader>
         <div className="px-4 pb-2 space-y-2">
           <div className="relative">

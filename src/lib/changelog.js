@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: the icon picker showed two close buttons." },
       { type: "feature", text: "Change the icons used for things: bottom-bar pages and quick-action keys (Display options → Bar sizes & layout → the icon button on each row) and app-shortcut widgets (Widget options → Icon) can use any of 1,700+ icons — searchable — or an image from your assets." },
       { type: "hotfix", text: "Hotfix: the app's own logo and icons are no longer listed in Image assets." },
       { type: "improve", text: "Image assets now really show everything: pictures in use on records (imported or URL avatars, {{system}} picture, group & contact pictures) and the app's own built-in images (\u201cApp\u201d folder) appear alongside stored images — filed under the {{alter}} or section they belong to — and can be reused or copied into your library." },
