@@ -11,7 +11,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
-import { ChevronLeft, ChevronRight, Users, Heart, Plus, FolderTree, Repeat, MapPin } from "lucide-react";
+import { ChevronLeft, ChevronRight, Users, Heart, Plus, Minus, FolderTree, Repeat, MapPin } from "lucide-react";
 import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
@@ -56,6 +56,20 @@ const fmt = (min) => {
   return h ? (m ? `${h}h ${m}m` : `${h}h`) : `${m}m`;
 };
 
+// One chip per optional field: always present, toggles its section.
+function DetailChip({ open, has, onToggle, label, icon }) {
+  return (
+    <button type="button" onClick={onToggle} aria-expanded={open}
+      className={`text-xs px-2.5 py-1 rounded-full border flex items-center gap-1 ${
+        open ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground hover:text-foreground"
+      }`}>
+      {open ? <Minus className="w-3 h-3" /> : <Plus className="w-3 h-3" />}
+      {icon}{label}
+      {!open && has && <span aria-hidden className="w-1.5 h-1.5 rounded-full" style={{ background: "var(--v2-accent)" }} />}
+    </button>
+  );
+}
+
 export default function PlannerSurface({
   dayCount = 7,
   chrome = true,
@@ -97,9 +111,12 @@ export default function PlannerSurface({
   // only, like the classic modal — editing one instance never changes a
   // series' cadence), critical pinning, per-plan reminder offset, location.
   // DETAILS chips (classic popup pattern): who / notes start folded, open on
-  // tap, and auto-open whenever they already hold a value.
-  const [whoOpen, setWhoOpen] = useState(false);
-  const [notesOpen, setNotesOpen] = useState(false);
+  // tap, and auto-open whenever they already hold a value. Each open state
+  // is tri-state: null = follow the value, true/false = the user's own
+  // choice — so an opened section can be folded back up (v0.186.3), and a
+  // section holding a value can be tucked away too (its chip keeps a dot).
+  const [whoOpen, setWhoOpen] = useState(null);
+  const [notesOpen, setNotesOpen] = useState(null);
   // WHEN can be entered as start + duration (default) or as start → end
   // (the end may fall on another day). Both edit the same underlying
   // day/time/duration, so every commit path is unchanged. Remembered.
@@ -107,12 +124,14 @@ export default function PlannerSurface({
   const setTimeMode = (m) => { setTimeModeState(m); lsSet("symphony_planner_time_mode", m); };
   // The "more options" fields are Details chips now (same grammar as Who /
   // Notes): folded until tapped, auto-open when they hold a value.
-  const [repeatOpen, setRepeatOpen] = useState(false);
-  const [reminderOpen, setReminderOpen] = useState(false);
-  const [criticalOpen, setCriticalOpen] = useState(false);
-  const [locationOpen, setLocationOpen] = useState(false);
-  const whoOpenEff = whoOpen || (timing?.item?.fronting_alter_ids || []).length > 0;
-  const notesOpenEff = notesOpen || !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
+  const [repeatOpen, setRepeatOpen] = useState(null);
+  const [reminderOpen, setReminderOpen] = useState(null);
+  const [criticalOpen, setCriticalOpen] = useState(null);
+  const [locationOpen, setLocationOpen] = useState(null);
+  const whoHas = (timing?.item?.fronting_alter_ids || []).length > 0;
+  const notesHas = !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
+  const whoOpenEff = whoOpen ?? whoHas;
+  const notesOpenEff = notesOpen ?? notesHas;
   // "Rescheduled" outcome chip → jump into the date field: rescheduling IS
   // the sheet's own move-to-day controls; the chip just takes you there.
   const dayInputRef = useRef(null);
@@ -124,10 +143,14 @@ export default function PlannerSurface({
   });
   const [planRemOn, setPlanRemOn] = useState(() => readPlanRemindersEnabled());
   // Chip open states derived from values (must sit AFTER recur/extra are declared).
-  const repeatOpenEff = repeatOpen || (recur.interval && recur.interval !== "none");
-  const reminderOpenEff = reminderOpen || extra.reminder_offset_minutes != null;
-  const criticalOpenEff = criticalOpen || !!extra.is_critical;
-  const locationOpenEff = locationOpen || !!(extra.location || "").trim();
+  const repeatHas = !!(recur.interval && recur.interval !== "none");
+  const reminderHas = extra.reminder_offset_minutes != null;
+  const criticalHas = !!extra.is_critical;
+  const locationHas = !!(extra.location || "").trim();
+  const repeatOpenEff = repeatOpen ?? repeatHas;
+  const reminderOpenEff = reminderOpen ?? reminderHas;
+  const criticalOpenEff = criticalOpen ?? criticalHas;
+  const locationOpenEff = locationOpen ?? locationHas;
   const canRepeat = !!timing?.create;
   const canPlanExtras = !!(timing?.create || timing?.item?.status === "scheduled");
   // Deleting a series member must ask how far the delete reaches.
@@ -271,7 +294,7 @@ export default function PlannerSurface({
     setNoteValue("");
     setRecur({ interval: "none", count: 8 });
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
-    setWhoOpen(false); setNotesOpen(false); setRepeatOpen(false); setReminderOpen(false); setCriticalOpen(false); setLocationOpen(false);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
   };
   // Editing seeds the extras from the record, and the More section starts
   // open when any of them is set — a critical plan's flag must not hide.
@@ -284,7 +307,7 @@ export default function PlannerSurface({
     });
     // Chips fold on open; fields that hold a value auto-open via the *OpenEff
     // derivations, so nothing set is ever hidden.
-    setWhoOpen(false); setNotesOpen(false); setRepeatOpen(false); setReminderOpen(false); setCriticalOpen(false); setLocationOpen(false);
+    setWhoOpen(null); setNotesOpen(null); setRepeatOpen(null); setReminderOpen(null); setCriticalOpen(null); setLocationOpen(null);
   };
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -944,46 +967,20 @@ export default function PlannerSurface({
                 classic Log Activity popup: a field auto-expands whenever it
                 already holds a value, so nothing is hidden that matters. */}
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.details")}</p>
-            {!(whoOpenEff && notesOpenEff && (!canRepeat || repeatOpenEff) && (!canPlanExtras || (reminderOpenEff && criticalOpenEff)) && locationOpenEff) && (
-              <div className="flex flex-wrap gap-1.5">
-                {!whoOpenEff && (
-                  <button type="button" onClick={() => setWhoOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.who")}
-                  </button>
-                )}
-                {!notesOpenEff && (
-                  <button type="button" onClick={() => setNotesOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.notes")}
-                  </button>
-                )}
-                {canRepeat && !repeatOpenEff && (
-                  <button type="button" onClick={() => setRepeatOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.repeat")}
-                  </button>
-                )}
-                {canPlanExtras && !reminderOpenEff && (
-                  <button type="button" onClick={() => setReminderOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.reminder")}
-                  </button>
-                )}
-                {canPlanExtras && !criticalOpenEff && (
-                  <button type="button" onClick={() => setCriticalOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.critical")}
-                  </button>
-                )}
-                {!locationOpenEff && (
-                  <button type="button" onClick={() => setLocationOpen(true)}
-                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
-                    <Plus className="w-3 h-3" /> {tr("planner.location")}
-                  </button>
-                )}
-              </div>
-            )}
+            <div className="flex flex-wrap gap-1.5">
+              <DetailChip open={whoOpenEff} has={whoHas} onToggle={() => setWhoOpen(!whoOpenEff)} label={tr("planner.who")} />
+              <DetailChip open={notesOpenEff} has={notesHas} onToggle={() => setNotesOpen(!notesOpenEff)} label={tr("planner.notes")} />
+              {canRepeat && (
+                <DetailChip open={repeatOpenEff} has={repeatHas} onToggle={() => setRepeatOpen(!repeatOpenEff)} label={tr("planner.repeat")} />
+              )}
+              {canPlanExtras && (
+                <DetailChip open={reminderOpenEff} has={reminderHas} onToggle={() => setReminderOpen(!reminderOpenEff)} label={tr("planner.reminder")} />
+              )}
+              {canPlanExtras && (
+                <DetailChip open={criticalOpenEff} has={criticalHas} onToggle={() => setCriticalOpen(!criticalOpenEff)} label={tr("planner.critical")} />
+              )}
+              <DetailChip open={locationOpenEff} has={locationHas} onToggle={() => setLocationOpen(!locationOpenEff)} label={tr("planner.location")} />
+            </div>
             {/* Who was doing it — this is what makes the per-member totals
                 answer "is everyone getting fair time".
                 House rule: never a bare list of members. Searchable and
