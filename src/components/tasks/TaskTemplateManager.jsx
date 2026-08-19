@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
-import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
+import { AUTO_TRIGGER_OPTIONS, DEFAULT_TASK_TEMPLATES, FREQUENCY_LABELS, WEEKDAY_LABELS, applyTerms } from "@/lib/dailyTaskSystem";
 import { useTerms } from "@/lib/useTerms";
 import { Plus, GripVertical, Pencil, Trash2, RotateCcw, X, Check } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -32,6 +32,8 @@ const EMPTY_FORM = {
   auto_triggers: [],                 // new: ordered list of trigger ids
   auto_trigger_mode: "any",          // "any" (OR) | "all" (AND) — only matters when 2+
   nav_path: "",
+  reset_mode: "calendar",            // "calendar" (period / chosen weekday) | "rolling" (a full period after last completion)
+  week_start_day: 1,                 // weekly + calendar: which weekday the week resets on (0 = Sunday)
 };
 
 // Pull the trigger list off a template, falling back to the legacy
@@ -74,6 +76,33 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={form.points} onChange={(e) => set("points", Number(e.target.value))} />
         </div>
+        {/* When it comes round again. Calendar = the period resets on a
+            fixed day (weekly: a weekday you pick); rolling = a full period
+            after the last time you completed it. */}
+        {(form.frequency || "daily") !== "yearly" && (
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">Resets</label>
+            <div className="mt-1 grid grid-cols-2 gap-2">
+              <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                value={form.reset_mode || "calendar"} onChange={(e) => set("reset_mode", e.target.value)}>
+                <option value="calendar">
+                  {(form.frequency || "daily") === "weekly" ? "Every week on a set day"
+                    : (form.frequency || "daily") === "monthly" ? "On the 1st of each month" : "Each calendar day"}
+                </option>
+                <option value="rolling">
+                  {(form.frequency || "daily") === "weekly" ? "7 days after I complete it"
+                    : (form.frequency || "daily") === "monthly" ? "30 days after I complete it" : "24 hours after I complete it"}
+                </option>
+              </select>
+              {(form.frequency || "daily") === "weekly" && (form.reset_mode || "calendar") === "calendar" && (
+                <select className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
+                  value={form.week_start_day ?? 1} onChange={(e) => set("week_start_day", Number(e.target.value))}>
+                  {WEEKDAY_LABELS.map((d, i) => <option key={i} value={i}>{d}</option>)}
+                </select>
+              )}
+            </div>
+          </div>
+        )}
         <div>
           <label className="text-xs font-medium text-muted-foreground">Mode</label>
           <select className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
@@ -318,6 +347,8 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
+      reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
+      week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
     });
     setEditingId(null);
     invalidate();
@@ -335,6 +366,8 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
         ? (form.auto_trigger_mode === "all" ? "all" : "any")
         : "any",
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
+      reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
+      week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
     });
     setShowAddForm(false);
     invalidate();
@@ -446,9 +479,17 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
       {/* Bottom action row — only show when no per-section form is open.
           When the user pressed a section + the inline form above takes over,
           so this row collapses to avoid two forms on screen. */}
+      {/* The bottom Add Task opens its form HERE, at the bottom, where the
+          button was — it used to open under the Daily header at the top,
+          so the tap looked like it did nothing (the user's report). */}
+      {showAddForm && addFrequency === "__bottom__" && (
+        <div ref={(el) => el && el.scrollIntoView({ block: "nearest" })}>
+          <TaskForm initial={EMPTY_FORM} onSave={handleAdd} onCancel={() => setShowAddForm(false)} isNew={true} />
+        </div>
+      )}
       {!showAddForm && (
         <div className="flex gap-2 pt-1">
-          <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { setAddFrequency("daily"); setShowAddForm(true); }}>
+          <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => { setAddFrequency("__bottom__"); setShowAddForm(true); }}>
             <Plus className="w-3.5 h-3.5" /> Add Task
           </Button>
           {!hasAnyTasks && (

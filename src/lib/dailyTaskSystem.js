@@ -383,6 +383,67 @@ export function getRecentPeriodKeys(frequency, count = 12) {
   return keys;
 }
 
+// ── Per-task reset anchor (v0.188.0) ─────────────────────────────────
+// By default a task resets with the CALENDAR period (day / ISO week /
+// month / year — the shared DailyProgress record's period key). A
+// template may instead say:
+//   reset_mode: "calendar"  + week_start_day (0–6, weekly only): the week
+//                             resets on THAT weekday (Monday by default).
+//   reset_mode: "rolling"   : it comes due again a full period after the
+//                             last time it was completed (7 days after
+//                             completion for weekly, 1 day daily, …).
+// Doneness for such a task is derived from completion_times across ALL
+// progress records — nothing about the stored records changes, so old
+// data and the history grid keep working. Templates without either field
+// keep today's behaviour exactly.
+const PERIOD_MS = { daily: 86400000, weekly: 7 * 86400000, monthly: 30 * 86400000, yearly: 365 * 86400000 };
+export const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+
+export function hasCustomReset(template) {
+  if (!template) return false;
+  if (template.reset_mode === "rolling") return true;
+  return (template.frequency || "daily") === "weekly"
+    && template.week_start_day != null && Number(template.week_start_day) !== 1;
+}
+
+// Start of the current window for a calendar-anchored task.
+export function customWindowStart(template, now = new Date()) {
+  const f = template.frequency || "daily";
+  const d = new Date(now); d.setHours(0, 0, 0, 0);
+  if (f === "weekly") {
+    const start = Number(template.week_start_day ?? 1);
+    const back = (d.getDay() - start + 7) % 7;
+    d.setDate(d.getDate() - back);
+    return d;
+  }
+  if (f === "monthly") { d.setDate(1); return d; }
+  if (f === "yearly") { d.setMonth(0, 1); return d; }
+  return d;
+}
+
+// Latest completion of a task across every progress record.
+// Returns { time: Date, record } or null.
+export function lastCompletionOf(taskId, allProgress = []) {
+  let best = null;
+  for (const p of allProgress) {
+    const t = p?.completion_times?.[taskId];
+    if (!t) continue;
+    const dt = new Date(t);
+    if (!best || dt > best.time) best = { time: dt, record: p };
+  }
+  return best;
+}
+
+// Is a custom-reset task done RIGHT NOW? (see hasCustomReset)
+export function isCustomResetDone(template, allProgress = [], now = new Date()) {
+  const last = lastCompletionOf(template.id, allProgress);
+  if (!last) return false;
+  if (template.reset_mode === "rolling") {
+    return now - last.time < (PERIOD_MS[template.frequency || "daily"] || PERIOD_MS.daily);
+  }
+  return last.time >= customWindowStart(template, now);
+}
+
 export const FREQUENCY_LABELS = {
   daily: "Daily",
   weekly: "Weekly",

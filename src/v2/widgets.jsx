@@ -2493,12 +2493,15 @@ export const V2_WIDGETS = {
     defaultSpan: { cols: 6, rows: 3 }, minSpan: { cols: 2, rows: 1 }, maxSpan: { cols: 12, rows: 12 },
   },
   daily_tasks: {
-    label: "Daily tasks", description: "Your recurring tasks for this period, tickable here. Automatic ones tick themselves when you do the thing they track.",
+    label: "Recurring tasks", description: "Your daily / weekly / monthly tasks for this period, tickable here. Automatic ones tick themselves when you do the thing they track.",
     icon: CheckCircle2, category: "tasks",
     render: ({ mode, settings }) => <DailyTasksWidget mode={mode} settings={settings} />,
     supportsModes: ["minimal", "normal", "expanded"], supportsMultiInstance: true,
     configFields: [
-      { key: "frequency", type: "select", label: "Which set", default: "daily",
+      // Several sets in ONE widget (the user's ask) — each shows as its own
+      // little group. Older widgets carry a single `frequency`; the widget
+      // reads that when `frequencies` is unset.
+      { key: "frequencies", type: "multi", label: "Which sets", default: ["daily"],
         options: [
           { value: "daily", label: "Daily" }, { value: "weekly", label: "Weekly" },
           { value: "monthly", label: "Monthly" }, { value: "yearly", label: "Yearly" },

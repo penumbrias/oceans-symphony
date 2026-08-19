@@ -669,6 +669,25 @@ export default function WidgetConfigSheet({
                     ))}
                   </div>
                 )}
+                {/* Static multi-pick: same chips as select, but each toggles
+                    membership in an array (e.g. which task sets a widget shows). */}
+                {f.type === "multi" && (
+                  <div className="flex flex-wrap gap-1.5">
+                    {(f.options || []).map((o) => {
+                      const arr = Array.isArray(val) ? val : (val != null ? [val] : []);
+                      const on = arr.some((x) => String(x) === String(o.value));
+                      return (
+                        <button key={o.value} type="button" aria-pressed={on}
+                          onClick={() => commit(on ? arr.filter((x) => String(x) !== String(o.value)) : [...arr, o.value])}
+                          className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                            on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"
+                          }`}>
+                          {o.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
                 {f.type === "dynamicSelect" && (
                   <DynamicSelectField field={f} value={val} onChange={commit} />
                 )}

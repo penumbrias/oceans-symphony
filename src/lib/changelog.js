@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Recurring tasks: each task can now say when it comes round again — weekly tasks reset on a weekday you pick, or a full period after you last completed it (7 days / 30 days / 24 hours). Edit a task → Resets." },
+      { type: "improve", text: "Recurring tasks widget: show daily, weekly and monthly sets together in one widget (widget options → Which sets), each with its own count." },
+      { type: "fix", text: "Recurring tasks widget: the count link opened a missing page; it now opens Tasks. And on the Tasks edit view, the bottom Add Task button opens its form right there instead of at the top." },
       { type: "improve", text: "Presets are ONE list now — built-in themes, your saved presets and widget looks together, with a search box and just two tabs: Style, and Layout & size. Saving lets you tick exactly which parts to capture (colours, widget look, size, layout)." },
       { type: "hotfix", text: "Hotfix: the pinned {{alters}} handle's label showed a raw placeholder." },
       { type: "improve", text: "Home: scrolling past the bottom (or top) of the planner, symptoms, diary and notebook widgets now carries on scrolling the page — no more hunting for a gap beside the widget." },

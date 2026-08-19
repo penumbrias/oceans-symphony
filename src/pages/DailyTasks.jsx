@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   getTodayString,
   getPeriodKey,
+  hasCustomReset, isCustomResetDone, lastCompletionOf,
   buildAutoCompletedTriggers,
   isTaskCompleted,
   totalPossiblePoints,
@@ -430,7 +431,17 @@ export default function DailyTasks() {
     );
   }, [allProgress, activeFreq, currentPeriodKey]);
 
-  const manualCompletedIds = new Set(currentRecord?.completed_task_ids || []);
+  // Done set for the current view. A task with its own reset anchor
+  // (weekday / rolling — see hasCustomReset) is judged from its latest
+  // completion across all records, not from this period's shared record.
+  const manualCompletedIds = useMemo(() => {
+    const ids = new Set(currentRecord?.completed_task_ids || []);
+    for (const t of activeTasks) {
+      if (!hasCustomReset(t)) continue;
+      if (isCustomResetDone(t, allProgress)) ids.add(t.id); else ids.delete(t.id);
+    }
+    return ids;
+  }, [currentRecord, activeTasks, allProgress]);
 
   const todayXP = useMemo(
     () => activeTasks.reduce((sum, t) => {
@@ -613,6 +624,20 @@ export default function DailyTasks() {
     if (!task || task.mode !== "MANUAL") return;
 
     const nowCompleted = !manualCompletedIds.has(templateId);
+    // Un-doing a custom-reset task must clear the record that holds its
+    // latest completion — which may be an earlier period's record.
+    if (!nowCompleted && hasCustomReset(task)) {
+      const last = lastCompletionOf(task.id, allProgress);
+      const rec = last?.record;
+      if (rec && rec.id !== currentRecord?.id) {
+        await toggleDailyProgressTasks({
+          periodKey: rec.period_key || currentPeriodKey, dateKey: rec.date || TODAY, frequency: activeFreq,
+          setIds: [], clearIds: [templateId], templates: activeTasks,
+        });
+        queryClient.invalidateQueries({ queryKey: ["dailyProgress"] });
+        return;
+      }
+    }
     const newCompleted = new Set(manualCompletedIds);
     nowCompleted ? newCompleted.add(templateId) : newCompleted.delete(templateId);
 

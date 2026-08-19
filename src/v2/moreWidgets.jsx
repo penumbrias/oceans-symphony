@@ -24,6 +24,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
+  hasCustomReset, isCustomResetDone, lastCompletionOf,
 } from "@/lib/dailyTaskSystem";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -230,31 +231,40 @@ export function CheckInLogWidget({ mode = "normal", settings }) {
 }
 
 // ── Daily / recurring tasks ────────────────────────────────────────
+// One widget, any mix of sets (daily / weekly / monthly / yearly) — each
+// set is its own little group with its own done count. Older widgets
+// carry a single `frequency`; read that when `frequencies` is unset.
+const ALL_FREQS = ["daily", "weekly", "monthly", "yearly"];
 export function DailyTasksWidget({ mode = "normal", settings }) {
   const navigate = useNavigate();
   const terms = useTerms();
   const qc = useQueryClient();
   const [busy, setBusy] = useState(null);
-  const frequency = ["daily", "weekly", "monthly", "yearly"].includes(settings?.frequency) ? settings.frequency : "daily";
+  const frequencies = useMemo(() => {
+    const raw = Array.isArray(settings?.frequencies) ? settings.frequencies
+      : (settings?.frequency ? [settings.frequency] : ["daily"]);
+    const list = ALL_FREQS.filter((f) => raw.includes(f));
+    return list.length ? list : ["daily"];
+  }, [settings?.frequencies, settings?.frequency]);
   const templates = useList("dailyTaskTemplates", "DailyTaskTemplate");
   const progress = useList("dailyProgress", "DailyProgress");
 
-  const periodKey = getPeriodKey(frequency);
-  const record = useMemo(
-    () => progress.find((p) => ((p.frequency || "daily") === frequency)
-      && (p.period_key === periodKey || (frequency === "daily" && p.date === getTodayString()))) || null,
-    [progress, frequency, periodKey],
-  );
-  const doneIds = useMemo(() => new Set(record?.completed_task_ids || []), [record]);
-  const mine = useMemo(
-    () => templates
+  const groups = useMemo(() => frequencies.map((frequency) => {
+    const periodKey = getPeriodKey(frequency);
+    const record = progress.find((p) => ((p.frequency || "daily") === frequency)
+      && (p.period_key === periodKey || (frequency === "daily" && p.date === getTodayString()))) || null;
+    const recordIds = new Set(record?.completed_task_ids || []);
+    const mine = templates
       .filter((t) => t.is_active !== false && (t.frequency || "daily") === frequency)
-      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0)),
-    [templates, frequency],
-  );
-  const doneCount = mine.filter((t) => doneIds.has(t.id)).length;
+      .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
+    // A task with its own reset anchor (weekday / rolling) is judged from
+    // its last completion, not the shared calendar record.
+    const isDone = (t) => (hasCustomReset(t) ? isCustomResetDone(t, progress) : recordIds.has(t.id));
+    const doneCount = mine.filter(isDone).length;
+    return { frequency, periodKey, mine, isDone, doneCount };
+  }), [frequencies, progress, templates]);
 
-  const toggle = async (t) => {
+  const toggle = async (g, t) => {
     // Auto tasks tick themselves off when the thing they track happens —
     // ticking one by hand would lie about what was done.
     if (t.mode === "AUTO") {
@@ -263,11 +273,23 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
     }
     setBusy(t.id);
     try {
-      const on = doneIds.has(t.id);
-      await toggleDailyProgressTasks({
-        periodKey, dateKey: getTodayString(), frequency,
-        setIds: on ? [] : [t.id], clearIds: on ? [t.id] : [], templates,
-      });
+      const on = g.isDone(t);
+      const templatesFor = templates.filter((x) => (x.frequency || "daily") === g.frequency);
+      if (on && hasCustomReset(t)) {
+        // Un-doing a custom-reset task clears it from the record that
+        // holds its latest completion (which may not be this period's).
+        const last = lastCompletionOf(t.id, progress);
+        const rec = last?.record;
+        await toggleDailyProgressTasks({
+          periodKey: rec?.period_key || g.periodKey, dateKey: rec?.date || getTodayString(), frequency: g.frequency,
+          setIds: [], clearIds: [t.id], templates: templatesFor,
+        });
+      } else {
+        await toggleDailyProgressTasks({
+          periodKey: g.periodKey, dateKey: getTodayString(), frequency: g.frequency,
+          setIds: on ? [] : [t.id], clearIds: on ? [t.id] : [], templates: templatesFor,
+        });
+      }
       qc.invalidateQueries({ queryKey: ["dailyProgress"] });
     } catch (e) {
       toast.error(e?.message || "Couldn't save that.");
@@ -276,15 +298,33 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
     }
   };
 
-  const label = `${FREQUENCY_LABELS?.[frequency] || "Daily"} tasks`;
+  const multi = groups.length > 1;
+  const label = multi ? "Recurring tasks" : `${FREQUENCY_LABELS?.[groups[0].frequency] || "Daily"} tasks`;
+  const totalDone = groups.reduce((n, g) => n + g.doneCount, 0);
+  const totalAll = groups.reduce((n, g) => n + g.mine.length, 0);
+  const openPage = () => navigate("/tasks");
+
+  const GroupHead = ({ g }) => (multi ? (
+    <div className="flex items-center justify-between pt-1 first:pt-0">
+      <span className="text-[0.625em] font-semibold uppercase tracking-wider text-muted-foreground">
+        {FREQUENCY_LABELS?.[g.frequency] || g.frequency}
+      </span>
+      <span className="text-[0.625em] text-muted-foreground">{g.doneCount}/{g.mine.length}</span>
+    </div>
+  ) : null);
 
   if (mode === "minimal") {
     return (
-      <Section label={label} action={<TextAction onClick={() => navigate("/daily-tasks")}>{doneCount}/{mine.length}</TextAction>}>
-        {mine.length === 0 && <Muted>No {frequency} tasks set up.</Muted>}
-        {mine.slice(0, 8).map((t) => (
-          <Row key={t.id} primary={applyTerms(t.title || "", terms)}
-            right={doneIds.has(t.id) ? "done" : undefined} />
+      <Section label={label} action={<TextAction onClick={openPage}>{totalDone}/{totalAll}</TextAction>}>
+        {groups.map((g) => (
+          <React.Fragment key={g.frequency}>
+            <GroupHead g={g} />
+            {g.mine.length === 0 && <Muted>No {g.frequency} tasks set up.</Muted>}
+            {g.mine.slice(0, 8).map((t) => (
+              <Row key={t.id} primary={applyTerms(t.title || "", terms)}
+                right={g.isDone(t) ? "done" : undefined} />
+            ))}
+          </React.Fragment>
         ))}
       </Section>
     );
@@ -292,28 +332,33 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
 
   return (
     <Section label={label}
-      action={<TextAction onClick={() => navigate("/daily-tasks")}>{doneCount}/{mine.length} done</TextAction>}>
-      {mine.length === 0 && <Muted>No {frequency} tasks set up yet.</Muted>}
-      {mine.map((t) => {
-        const on = doneIds.has(t.id);
-        return (
-          <Row
-            key={t.id}
-            left={
-              <button type="button" onClick={() => toggle(t)} disabled={busy === t.id}
-                aria-label={on ? "Mark not done" : "Mark done"} className="flex-shrink-0 disabled:opacity-50">
-                {on
-                  ? <CheckCircle2 className="w-4 h-4" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }} />
-                  : <Circle className="w-4 h-4 text-muted-foreground" />}
-              </button>
-            }
-            primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
-            secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
-            right={mode === "expanded" && t.points ? `${t.points} xp` : undefined}
-            onClick={t.nav_path ? () => navigate(t.nav_path) : undefined}
-          />
-        );
-      })}
+      action={<TextAction onClick={openPage}>{totalDone}/{totalAll} done</TextAction>}>
+      {groups.map((g) => (
+        <React.Fragment key={g.frequency}>
+          <GroupHead g={g} />
+          {g.mine.length === 0 && <Muted>No {g.frequency} tasks set up yet.</Muted>}
+          {g.mine.map((t) => {
+            const on = g.isDone(t);
+            return (
+              <Row
+                key={t.id}
+                left={
+                  <button type="button" onClick={() => toggle(g, t)} disabled={busy === t.id}
+                    aria-label={on ? "Mark not done" : "Mark done"} className="flex-shrink-0 disabled:opacity-50">
+                    {on
+                      ? <CheckCircle2 className="w-4 h-4" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }} />
+                      : <Circle className="w-4 h-4 text-muted-foreground" />}
+                  </button>
+                }
+                primary={<span className={on ? "line-through opacity-60" : undefined}>{applyTerms(t.title || "", terms)}</span>}
+                secondary={mode === "expanded" && t.mode === "AUTO" ? "automatic" : undefined}
+                right={mode === "expanded" && t.points ? `${t.points} xp` : undefined}
+                onClick={t.nav_path ? () => navigate(t.nav_path) : undefined}
+              />
+            );
+          })}
+        </React.Fragment>
+      ))}
     </Section>
   );
 }
