@@ -79,7 +79,8 @@ export function alterFingerprint({
     for (const e of c.emotions || []) {
       if (!e) continue;
       const assigned = c.emotion_alters?.[e];
-      const mine = Array.isArray(assigned) && assigned.length > 0
+      // [] = explicitly nobody (never "mine"); missing = inherit the record's tag.
+      const mine = Array.isArray(assigned)
         ? assigned.includes(alterId)
         : recordTagged;
       if (!mine) continue;

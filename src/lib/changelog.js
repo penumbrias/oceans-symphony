@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Appearance presets can now carry the home screen's background & widget style separately from its layout — keep one layout and give each {{alter}}'s theme its own background. Older presets keep working exactly as before." },
+      { type: "feature", text: "Quick Check-In \u201cwho feels what\u201d: each emotion's picker has Clear (nobody) and Match the check-in, and the section has Clear all / Reset all. \u201cNobody\u201d is now remembered when you save instead of quietly reverting to everyone {{fronting}}." },
       { type: "improve", text: "Planner: press-and-hold to create takes a little longer now (it fired too easily), and holding a block's edge to change its time shows it clearly — a faint ring while the hold registers, then a bright ring and live times once it's armed." },
       { type: "fix", text: "Planner: picking an activity/category works again — the entry sheet now uses the same searchable, nested picker as the Log Activity popup, placed above \u201cwho\u201d." },
       { type: "feature", text: "Planner: typing a name that matches one of your activities (e.g. \u201cwork\u201d) offers a one-tap \u201cLink to: Work\u201d chip — offered, never applied on its own." },

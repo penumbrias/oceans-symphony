@@ -123,7 +123,8 @@ export default function EmotionAnalytics({ from, to }) {
     for (const e of events) {
       for (const l of e.labels) {
         const assigned = e.emotionAlters?.[l];
-        const ids = Array.isArray(assigned) && assigned.length > 0 ? assigned : e.alterIds;
+        // [] = explicitly nobody (counts for no one); missing = inherit the check-in's alters.
+        const ids = Array.isArray(assigned) ? assigned : e.alterIds;
         for (const aid of ids) {
           if (!map[aid]) map[aid] = {};
           map[aid][l] = (map[aid][l] || 0) + 1;

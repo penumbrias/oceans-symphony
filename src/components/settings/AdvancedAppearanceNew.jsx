@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useRef, useEffect, useLayoutEffect } from 'react';
+import { captureHomeLayout, captureHomeLook, applyHomePresetToBoard, applyHomePresetToDesktopBoard } from "@/lib/homePresetParts";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { createPortal } from 'react-dom';
 import { useTheme } from '@/lib/ThemeContext';
@@ -413,7 +414,8 @@ const PRESET_PARTS = [
   { id: 'themeMode',  label: 'Theme mode (light/dark)' },
   { id: 'wave',       label: 'Wave colour' },
   { id: 'corner',     label: 'Corner style' },
-  { id: 'dashboard',  label: 'Home & dashboard layout' },
+  { id: 'dashboard',  label: 'Home screen layout (widgets & arrangement)' },
+  { id: 'homeLook',   label: 'Home screen background & widget style' },
   { id: 'navigation', label: 'Navigation' },
   { id: 'terms',      label: 'Terminology' },
   { id: 'banner',     label: 'System banner' },
@@ -589,7 +591,7 @@ export default function AdvancedAppearance() {
   // saved colour theme doesn't quietly rearrange the whole app on load.
   const [presetParts, setPresetParts] = useState(() => ({
     colors: true, fonts: true, uiSize: true, themeMode: true, wave: true,
-    corner: false, dashboard: false, navigation: false, terms: false, banner: false,
+    corner: false, dashboard: false, homeLook: false, navigation: false, terms: false, banner: false,
   }));
   const togglePart = (id) => setPresetParts((p) => ({ ...p, [id]: !p[id] }));
 
@@ -686,8 +688,15 @@ export default function AdvancedAppearance() {
     if (preset?.alterLabelMode) settingsPatch.alter_label_mode = preset.alterLabelMode;
     if (Array.isArray(preset?.dashboardLayout)) settingsPatch.dashboard_layout = preset.dashboardLayout;
     if (preset?.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
-    if (preset?.uiV2Home && typeof preset.uiV2Home === "object") settingsPatch.ui_v2_home = preset.uiV2Home;
-    if (preset?.uiV2HomeDesktop && typeof preset.uiV2HomeDesktop === "object") settingsPatch.ui_v2_home_desktop = preset.uiV2HomeDesktop;
+    {
+      // Home board: legacy whole-board presets replace; new layout/look
+      // parts merge onto the CURRENT board independently (shared helper —
+      // AppLayout's fronter-change apply uses the same one).
+      const nextHome = applyHomePresetToBoard(preset, systemSettings?.ui_v2_home);
+      if (nextHome) settingsPatch.ui_v2_home = nextHome;
+      const nextDesk = applyHomePresetToDesktopBoard(preset, systemSettings?.ui_v2_home_desktop);
+      if (nextDesk) settingsPatch.ui_v2_home_desktop = nextDesk;
+    }
     if (preset?.navigationConfig) settingsPatch.navigation_config = preset.navigationConfig;
     if (Array.isArray(preset?.upcomingPlansSurfaces)) settingsPatch.upcoming_plans_surfaces = preset.upcomingPlansSurfaces;
     // System banner config — only re-apply when the preset captured it.
@@ -776,11 +785,17 @@ export default function AdvancedAppearance() {
     if (presetParts.dashboard) {
       payload.dashboardLayout = systemSettings?.dashboard_layout;
       payload.experimentalHome = systemSettings?.experimental_home;
-      // The v2 board is a layout too — without these a preset restored the
-      // classic dashboard but left the new home screen untouched.
-      payload.uiV2Home = systemSettings?.ui_v2_home;
-      payload.uiV2HomeDesktop = systemSettings?.ui_v2_home_desktop;
+      // The v2 board's LAYOUT (widgets & arrangement) only — its look
+      // (background / wallpaper / style) is a separate part below, so a
+      // per-headmate theme can bring its own background while every theme
+      // shares one layout (v0.186.0). Legacy presets carry `uiV2Home` whole.
+      payload.uiV2HomeLayout = captureHomeLayout(systemSettings?.ui_v2_home);
+      payload.uiV2HomeDesktopLayout = captureHomeLayout(systemSettings?.ui_v2_home_desktop);
       payload.upcomingPlansSurfaces = systemSettings?.upcoming_plans_surfaces;
+    }
+    if (presetParts.homeLook) {
+      payload.uiV2HomeLook = captureHomeLook(systemSettings?.ui_v2_home);
+      payload.uiV2HomeDesktopLook = captureHomeLook(systemSettings?.ui_v2_home_desktop);
     }
     if (presetParts.navigation) payload.navigationConfig = systemSettings?.navigation_config;
     if (presetParts.terms) {

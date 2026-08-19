@@ -812,7 +812,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
           // overrides — an edit is an explicit re-statement of the record).
           emotion_alters: Object.fromEntries(
             Object.entries(emotionAlters).filter(([label, ids]) =>
-              selectedEmotions.includes(label) && Array.isArray(ids) && ids.length > 0
+              selectedEmotions.includes(label) && Array.isArray(ids) /* [] kept: explicit "nobody"; absent = inherit */
             )
           ),
           note: noteForCheckIn,
@@ -1002,7 +1002,7 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
         // with a non-empty explicit assignment — everything else inherits).
         const cleanEmotionAlters = Object.fromEntries(
           Object.entries(emotionAlters).filter(([label, ids]) =>
-            selectedEmotions.includes(label) && Array.isArray(ids) && ids.length > 0
+            selectedEmotions.includes(label) && Array.isArray(ids) /* [] kept: explicit "nobody"; absent = inherit */
           )
         );
         const checkIn = await base44.entities.EmotionCheckIn.create({
@@ -1269,7 +1269,27 @@ export default function QuickCheckInModal({ isOpen, onClose, alters: altersProp,
                       fronters). "Anxious = one alter, Excited = another." */}
                   {selectedEmotions.length > 0 && alters.length > 0 &&
                   <div className="space-y-1 pt-1 border-t border-border/40">
-                      <p className="text-[0.6875rem] text-muted-foreground">Who feels what? (optional)</p>
+                      <div className="flex items-center justify-between gap-2">
+                        <p className="text-[0.6875rem] text-muted-foreground">Who feels what? (optional)</p>
+                        {/* Whole-section shortcuts: empty every emotion, or put
+                            every emotion back to following the check-in. */}
+                        <span className="flex items-center gap-1">
+                          {selectedEmotions.some((l) => ((emotionAlters[l] ?? selectedAlters) || []).length > 0) && (
+                            <button type="button"
+                              onClick={() => setEmotionAlters(Object.fromEntries(selectedEmotions.map((l) => [l, []])))}
+                              className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                              Clear all
+                            </button>
+                          )}
+                          {Object.keys(emotionAlters).length > 0 && (
+                            <button type="button"
+                              onClick={() => setEmotionAlters({})}
+                              className="text-[0.6875rem] px-2 py-0.5 rounded-full border border-border/50 text-primary hover:underline">
+                              Reset all
+                            </button>
+                          )}
+                        </span>
+                      </div>
                       <div className="space-y-0.5">
                         {selectedEmotions.map((label) =>
                       <div key={label} className="flex items-center gap-2 min-w-0">

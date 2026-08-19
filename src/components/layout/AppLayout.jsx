@@ -39,6 +39,7 @@ import { isPreviewActive } from "@/lib/previewMode";
 import { toast } from "sonner";
 import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
+import { applyHomePresetToBoard, applyHomePresetToDesktopBoard } from "@/lib/homePresetParts";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock } from "@/components/v2/V2Frame";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
@@ -463,8 +464,13 @@ useEffect(() => {
   // alter's linked preset restore THEIR home screen on fronting — picking
   // the preset by hand already did it; the fronting path never did.
   if (preset.experimentalHome && typeof preset.experimentalHome === "object") settingsPatch.experimental_home = preset.experimentalHome;
-  if (preset.uiV2Home && typeof preset.uiV2Home === "object") settingsPatch.ui_v2_home = preset.uiV2Home;
-  if (preset.uiV2HomeDesktop && typeof preset.uiV2HomeDesktop === "object") settingsPatch.ui_v2_home_desktop = preset.uiV2HomeDesktop;
+  {
+    const cur = systemSettings?.[0];
+    const nextHome = applyHomePresetToBoard(preset, cur?.ui_v2_home);
+    if (nextHome) settingsPatch.ui_v2_home = nextHome;
+    const nextDesk = applyHomePresetToDesktopBoard(preset, cur?.ui_v2_home_desktop);
+    if (nextDesk) settingsPatch.ui_v2_home_desktop = nextDesk;
+  }
   if (Object.keys(settingsPatch).length > 0) {
     const settings = systemSettings?.[0];
     const op = settings?.id

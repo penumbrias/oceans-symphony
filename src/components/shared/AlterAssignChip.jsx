@@ -125,15 +125,26 @@ export default function AlterAssignChip({ alters = [], value = null, defaultIds 
               </button>
             </div>
 
-            {!inheriting && (
-              <button
-                type="button"
-                onClick={() => onChange(null)}
-                className="text-left text-xs text-primary hover:underline px-3 py-1.5 border-b border-border/40"
-              >
-                ↩ Match the check-in ({defaultIds.length || "no"} {defaultIds.length === 1 ? t.alter : t.alters})
-              </button>
-            )}
+            {/* Two ways to empty this item — different meanings, both one tap
+                (un-ticking alters one by one was the only way before):
+                  • Clear (nobody): explicit empty — no one is attached to this
+                    item, even if the check-in has fronters.
+                  • Match the check-in: back to inheriting the check-in's own
+                    fronters (the default). Shown only when overridden. */}
+            <div className="flex items-center gap-1 px-2 py-1 border-b border-border/40 text-xs">
+              {(effectiveIds || []).length > 0 && (
+                <button type="button" onClick={() => onChange([])}
+                  className="px-2 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground">
+                  Clear (nobody)
+                </button>
+              )}
+              {!inheriting && (
+                <button type="button" onClick={() => onChange(null)}
+                  className="px-2 py-1 rounded-full border border-border/50 text-primary hover:underline">
+                  ↩ Match the check-in ({defaultIds.length || "no"} {defaultIds.length === 1 ? t.alter : t.alters})
+                </button>
+              )}
+            </div>
 
             <div className="flex-1 overflow-y-auto overscroll-contain p-1.5 space-y-0.5">
               {filtered.length === 0 ? (
