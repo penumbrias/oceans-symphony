@@ -98,6 +98,12 @@ function putImage(idb, id, toWrite) {
     const req = store.put(toWrite, id);
     req.onerror = () => reject(req.error || new Error('Failed to save image'));
     req.onsuccess = () => resolve();
+    // IDB can ABORT the transaction without a per-request error (quota
+    // exhausted mid-transaction, storage pressure, renderer restart). With
+    // only req handlers this promise never settled — an import awaiting it
+    // hung forever with no message ("select file and nothing happens").
+    tx.onabort = () => reject(tx.error || new Error('Image save aborted (storage full?)'));
+    tx.onerror = () => reject(tx.error || new Error('Image save failed'));
   });
 }
 

@@ -26,6 +26,7 @@ import { openDB } from 'idb';
 import { setActiveStorageKey, isEncryptionActive, getActiveSalt, encryptWithActiveKey, decryptWithActiveKey } from './localDb';
 import { encryptData, decryptData, deriveKey, KDF_ITERATIONS, LEGACY_KDF_ITERATIONS } from './localEncryption';
 import { pickPrimarySystemSettings } from './systemSettingsSingleton';
+import { getSessionPassword } from './storageMode';
 
 const IDB_NAME = 'oceans_symphony';
 const IDB_STORE = 'keyval';
@@ -363,7 +364,23 @@ export async function getSystemData(system) {
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return null; }
   if (parsed && typeof parsed === 'object' && parsed.__encrypted) {
-    try { return await decryptWithActiveKey(parsed.__encrypted); } catch { return null; }
+    // Fast path: the active session key (right whenever this blob shares
+    // the active salt + strength). A sibling blob at the OTHER KDF strength
+    // — or with its own salt — needs a key derived from ITS envelope; do
+    // that with the session password before declaring it unreadable, so
+    // "export all systems" can't silently drop a system (it used to).
+    try { return await decryptWithActiveKey(parsed.__encrypted); } catch { /* fall through */ }
+    const pw = getSessionPassword();
+    if (pw && parsed.__salt) {
+      const recorded = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+      for (const it of [recorded, recorded === KDF_ITERATIONS ? LEGACY_KDF_ITERATIONS : KDF_ITERATIONS]) {
+        try {
+          const k = await deriveKey(pw, parsed.__salt, it);
+          return await decryptData(parsed.__encrypted, k);
+        } catch { /* next */ }
+      }
+    }
+    return null;
   }
   return parsed;
 }
@@ -412,7 +429,7 @@ export async function appendEntitiesToSystem(systemId, entitiesByType) {
 
   let blob;
   if (isEncryptionActive()) {
-    blob = JSON.stringify({ __encrypted: await encryptWithActiveKey(data), __salt: getActiveSalt(), __format_version: 2 });
+    blob = JSON.stringify({ __encrypted: await encryptWithActiveKey(data), __salt: getActiveSalt(), __format_version: 2, __kdf_iterations: KDF_ITERATIONS });
   } else {
     blob = JSON.stringify(data);
   }
@@ -429,7 +446,7 @@ export async function createSystemWithData(name, dataObj) {
   const idb = await getIdb();
   let blob;
   if (isEncryptionActive()) {
-    blob = JSON.stringify({ __encrypted: await encryptWithActiveKey(dataObj || {}), __salt: getActiveSalt(), __format_version: 2 });
+    blob = JSON.stringify({ __encrypted: await encryptWithActiveKey(dataObj || {}), __salt: getActiveSalt(), __format_version: 2, __kdf_iterations: KDF_ITERATIONS });
   } else {
     blob = JSON.stringify(dataObj || {});
   }
@@ -535,16 +552,27 @@ export async function decryptOtherSystemBlobs({ activeStorageKey, key, password 
       if (raw == null) continue;
       const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
       if (!parsed || typeof parsed !== 'object' || !parsed.__encrypted) continue;
-      let blobKey = key;
+      // Envelopes written by createSystemWithData/appendEntitiesToSystem
+      // before v0.180.0 carried NO __kdf_iterations while their key was
+      // derived at KDF_ITERATIONS — every reader defaulted the missing
+      // field to LEGACY and failed. Try the recorded/legacy strength first,
+      // then the other one, before giving up on a blob.
+      const candidates = [];
       if (password && parsed.__salt) {
-        const iterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
-        const cacheKey = `${parsed.__salt}:${iterations}`;
-        if (!keyCache.has(cacheKey)) {
-          keyCache.set(cacheKey, await deriveKey(password, parsed.__salt, iterations));
+        const first = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+        for (const iterations of [first, first === KDF_ITERATIONS ? LEGACY_KDF_ITERATIONS : KDF_ITERATIONS]) {
+          const cacheKey = `${parsed.__salt}:${iterations}`;
+          if (!keyCache.has(cacheKey)) keyCache.set(cacheKey, await deriveKey(password, parsed.__salt, iterations));
+          candidates.push(keyCache.get(cacheKey));
         }
-        blobKey = keyCache.get(cacheKey);
+      } else {
+        candidates.push(key);
       }
-      const data = await decryptData(parsed.__encrypted, blobKey);
+      let data = null, lastErr = null;
+      for (const blobKey of candidates) {
+        try { data = await decryptData(parsed.__encrypted, blobKey); break; } catch (e) { lastErr = e; }
+      }
+      if (data === null) throw lastErr || new Error("undecryptable");
       await idb.put(IDB_STORE, JSON.stringify(data), k);
       done++;
     } catch { failed++; }

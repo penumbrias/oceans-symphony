@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Lock, Eye, EyeOff, Loader2, LifeBuoy, ShoppingCart } from "lucide-react";
-import { initLocalDb, MissingSaltError } from "@/lib/localDb";
+import { initLocalDb, MissingSaltError, CorruptedDataError, StorageReadError } from '@/lib/localDb';
 import { hasAnyUnlockedList } from "@/lib/localUnlockedGrocery";
 
 export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
@@ -26,6 +26,12 @@ export default function UnlockScreen({ onUnlock, onNeedRecovery }) {
         onNeedRecovery?.({ kind: 'missing_salt', error: e });
         return;
       }
+      // Corrupted JSON / IDB read failure are NOT "wrong password" — telling
+      // a user with the right password that it's wrong (three times, before
+      // recovery appears) is exactly the mis-route the storage contract
+      // forbids. Route them straight to recovery with the real reason.
+      if (e instanceof CorruptedDataError) { onNeedRecovery?.({ kind: 'corrupted', error: e }); return; }
+      if (e instanceof StorageReadError) { onNeedRecovery?.({ kind: 'read_error', error: e }); return; }
       setAttempts(a => a + 1);
       setError("Incorrect password. Please try again.");
     } finally {

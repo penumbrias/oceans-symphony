@@ -203,14 +203,17 @@ export async function verifyPassword(password) {
   if (!parsed || typeof parsed !== 'object' || !parsed.__encrypted) return false;
   const salt = parsed.__salt || getEncSalt();
   if (!salt) return false;
-  try {
-    const iterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
-    const key = await deriveKey(password, salt, iterations);
-    await decryptData(parsed.__encrypted, key);
-    return true;
-  } catch {
-    return false;
+  // Same both-strengths rule as initLocalDb (envelopes missing
+  // __kdf_iterations may have been written at the current strength).
+  const recorded = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+  for (const iterations of [recorded, recorded === KDF_ITERATIONS ? LEGACY_KDF_ITERATIONS : KDF_ITERATIONS]) {
+    try {
+      const key = await deriveKey(password, salt, iterations);
+      await decryptData(parsed.__encrypted, key);
+      return true;
+    } catch { /* try the other strength */ }
   }
+  return false;
 }
 
 function generateId() {
@@ -394,15 +397,32 @@ export async function initLocalDb(password) {
     setEncSalt(salt);
     setEncryptionEnabled(true);
     _activeSalt = salt;
-    const storedIterations = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
-    const key = await deriveKey(password, salt, storedIterations);
+    // Try the recorded strength first, then the OTHER one before calling
+    // the password wrong. Multi-system blobs written between the KDF bump
+    // and v0.180.0 (createSystemWithData / appendEntitiesToSystem) omitted
+    // __kdf_iterations while being encrypted at KDF_ITERATIONS — a reader
+    // that only tried the legacy default declared "Incorrect password" on
+    // a correct password and the data looked lost. It isn't; it decrypts
+    // at the other strength, and the upgrade below then re-stamps it.
+    const recorded = parsed.__kdf_iterations || LEGACY_KDF_ITERATIONS;
+    const alternate = recorded === KDF_ITERATIONS ? LEGACY_KDF_ITERATIONS : KDF_ITERATIONS;
+    let storedIterations = recorded;
+    let key = await deriveKey(password, salt, recorded);
     let decrypted;
     try {
       decrypted = await decryptData(parsed.__encrypted, key);
     } catch {
-      _encKey = null;
-      _db = null;
-      throw new Error('Incorrect password');
+      let altKey = null;
+      try {
+        altKey = await deriveKey(password, salt, alternate);
+        decrypted = await decryptData(parsed.__encrypted, altKey);
+        storedIterations = alternate;
+        key = altKey;
+      } catch {
+        _encKey = null;
+        _db = null;
+        throw new Error('Incorrect password');
+      }
     }
     // KDF upgrade on unlock: if this blob was written at a lower PBKDF2
     // strength, re-derive the session key at the current strength and
@@ -1133,6 +1153,7 @@ export async function migrateBase64AvatarsToLocal() {
 
   let migrated = 0;
   for (const [entityName, collection] of Object.entries(db)) {
+    if (isReservedDbKey(entityName)) continue;
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;
@@ -1184,6 +1205,7 @@ export async function migrateHttpImagesToLocal(onProgress) {
   };
 
   for (const [entityName, collection] of Object.entries(db)) {
+    if (isReservedDbKey(entityName)) continue;
     if (!collection || typeof collection !== 'object') continue;
     for (const [recordId, record] of Object.entries(collection)) {
       if (!record || typeof record !== 'object') continue;

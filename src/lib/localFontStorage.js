@@ -23,19 +23,33 @@ async function getIdb() {
   });
 }
 
+function putFont(idb, id, dataUrl) {
+  return new Promise((resolve, reject) => {
+    const tx = idb.transaction([STORE_NAME], 'readwrite');
+    const store = tx.objectStore(STORE_NAME);
+    const req = store.put(dataUrl, id);
+    req.onerror = () => reject(req.error || new Error('Failed to save font'));
+    req.onsuccess = () => resolve();
+    // Settle on transaction abort too (quota / storage pressure) — see
+    // localImageStorage.putImage for why; an unsettled promise hangs the
+    // caller (a font restore during import) forever.
+    tx.onabort = () => reject(tx.error || new Error('Font save aborted (storage full?)'));
+    tx.onerror = () => reject(tx.error || new Error('Font save failed'));
+  });
+}
+
 export async function saveLocalFont(id, dataUrl) {
   try {
     const idb = await getIdb();
-    return new Promise((resolve, reject) => {
-      const tx = idb.transaction([STORE_NAME], 'readwrite');
-      const store = tx.objectStore(STORE_NAME);
-      const req = store.put(dataUrl, id);
-      req.onerror = () => reject(new Error('Failed to save font'));
-      req.onsuccess = () => resolve();
-    });
+    return await putFont(idb, id, dataUrl);
   } catch (e) {
-    console.warn('saveLocalFont: IDB unavailable:', e);
-    return Promise.resolve();
+    // A dead cached connection throws synchronously from transaction();
+    // reopen once and retry (same as saveLocalImage). If it STILL fails,
+    // REJECT — resolving here made a whole font restore report success
+    // having written nothing.
+    _db = null;
+    const idb = await getIdb();
+    return await putFont(idb, id, dataUrl);
   }
 }
 

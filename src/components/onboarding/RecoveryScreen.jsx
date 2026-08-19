@@ -25,6 +25,8 @@ import {
   loadDbDump,
   mergeDbDump,
   peekStoredData,
+  clearStoredData,
+  isDbInitialized,
 } from "@/lib/localDb";
 import { runAutoBackupNow } from "@/lib/autoBackup";
 import { shareFile } from "@/lib/shareFile";
@@ -176,11 +178,39 @@ export default function RecoveryScreen({ reason, onResolved }) {
         try { localStorage.setItem(k, v); } catch { /* localStorage full / disabled */ }
       }
     }
-    if (importMode === "merge") {
+    // CONTRACT (CLAUDE.md storage invariants): any recovery action that
+    // overwrites the on-disk blob saves a raw copy first. This screen only
+    // renders when init FAILED — the ciphertext on disk may be fully
+    // intact (forgotten password, missing salt) and recoverable later.
+    // Restoring a file over it without a copy destroyed that chance.
+    await saveRawCopyBestEffort("pre-restore");
+    // "Add only new records" merges into the in-memory DB — which is null
+    // here by definition. It would merge into {} and write plaintext over
+    // the intact ciphertext. There is nothing to merge into: treat it as a
+    // replace, and say so.
+    if (importMode === "merge" && isDbInitialized()) {
       await mergeDbDump(data);
     } else {
       await loadDbDump(data);
     }
+  };
+
+  // Best-effort raw copy of whatever is on disk (ciphertext included) to the
+  // share sheet / downloads. Shared by restore and reset.
+  const saveRawCopyBestEffort = async (tag) => {
+    try {
+      const raw = await exportRawStorageBlob();
+      if (raw) {
+        const blob = new Blob([raw], { type: "application/json" });
+        const ts = new Date().toISOString().replace(/[:.]/g, "-");
+        await shareFile({
+          blob,
+          filename: `oceans-symphony-raw-${tag}-${ts}.json`,
+          title: `Backup before ${tag === "pre-reset" ? "resetting" : "restoring"}`,
+          dialogTitle: `Save before ${tag === "pre-reset" ? "resetting" : "restoring"}`,
+        });
+      }
+    } catch { /* best-effort */ }
   };
 
   const onFileChosen = async (event) => {
@@ -245,25 +275,16 @@ export default function RecoveryScreen({ reason, onResolved }) {
       // old anchor-click was a silent no-op). The user sees a share
       // sheet and picks a destination — we proceed with the reset
       // regardless of whether they save it (they were warned).
-      try {
-        const raw = await exportRawStorageBlob();
-        if (raw) {
-          const blob = new Blob([raw], { type: "application/json" });
-          const ts = new Date().toISOString().replace(/[:.]/g, "-");
-          await shareFile({
-            blob,
-            filename: `oceans-symphony-raw-pre-reset-${ts}.json`,
-            title: "Pre-reset backup",
-            dialogTitle: "Save before resetting",
-          });
-        }
-      } catch { /* best-effort */ }
+      await saveRawCopyBestEffort("pre-reset");
       // Also try to write a regular auto-backup of whatever is currently
       // loaded (might be empty, but harmless). Best-effort.
       try { await runAutoBackupNow({ silent: true }); } catch { /* ignore */ }
 
-      // Now actually wipe by writing an empty DB.
-      await loadDbDump({});
+      // Now actually wipe. clearStoredData removes the blob from BOTH stores
+      // so the next boot's peekStoredData reports "nothing here" and the
+      // welcome/setup flow runs — loadDbDump({}) left a literal "{}" that
+      // the boot path read as a returning empty user and skipped setup.
+      await clearStoredData();
       setStatus({ type: "success", text: "Reset complete. Reloading…" });
       setTimeout(() => window.location.reload(), 900);
     } catch (e) {
@@ -387,10 +408,14 @@ export default function RecoveryScreen({ reason, onResolved }) {
                   name="recoveryImportMode"
                   value="merge"
                   checked={importMode === "merge"}
+                  disabled={!isDbInitialized()}
                   onChange={(e) => setImportMode(e.target.value)}
                   className="w-3.5 h-3.5"
                 />
                 Add only new records
+                {!isDbInitialized() && (
+                  <span className="text-[0.6875rem] text-muted-foreground">(unavailable — the current data couldn't be opened, so there's nothing to merge into)</span>
+                )}
               </label>
             </div>
           </div>

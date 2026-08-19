@@ -594,7 +594,12 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
         // Active system's data is the in-memory dump we already fetched; other
         // systems are read (and decrypted, if unlocked) from their own blobs.
         const raw = s.id === activeSystemId ? dump : await getSystemData(s);
-        if (!raw) continue;
+        if (!raw) {
+          // NEVER ship a "backup of everything" that is silently missing a
+          // system (same rule as the image-read failure above): the user
+          // would only discover the hole when restoring onto a new phone.
+          throw new Error(`Couldn't read the "${s.name || "unnamed"}" ${terms.system} — it's missing or can't be decrypted right now. Unlock the app (or open that ${terms.system} once) and export again; nothing was written.`);
+        }
         perSystem.push({ name: s.name, avatar: s.avatar || null, data: filterDump(raw, activeCats) });
       }
       if (systemsScope === "separate") {

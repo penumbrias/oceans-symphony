@@ -71,11 +71,48 @@ export const BACKUP_LS_KEYS = [
   "symphony_v2_dock_open",
   // Alters-page view preferences.
   "alter_groups_display_mode",
+  // v0.180.0 audit sweep — user-set preferences that were silently
+  // resetting on a localStorage wipe (each is the same tier as keys
+  // already listed; see the audit notes in that release's commit).
+  "symphony_a11y_mode",
+  "symphony_locale",
+  "symphony_plan_reminders_enabled",
+  "symphony_plan_reminders_default_offset",
+  "symphony_persist_notif_fronters_v1",
+  "symphony_persist_notif_symptoms_v1",
+  "symphony_persist_notif_activity_v1",
+  "symphony_pinned_daily_tasks_prefs_v1",
+  "symphony_grounding_button_enabled_v1",
+  "symphony_grounding_btn_pos",
+  "symphony_insights_muted_kinds_v1",
+  "symphony_infer_presence_from_authorship",
+  "symphony_infer_presence_window_min",
+  "symphony_timeline_row_h",
+  "symphony_planner_alter_sort",
+  "symphony_planner_who_grouped",
+  "symphony_planner_overlays_v1",
+  "symphony_dailytasks_hide_completed_v1",
+  "symphony_emotion_picker_mode",
+  "symphony_analyticsGrouping",
+  "symphony_anonymize_mode",
+  "symphony_display_options_dock",
+  "symphony_page_tutorials_enabled_v1",
+  // Unlocked-grocery lists are REAL user content that lived only in
+  // localStorage. Mirrored so a wipe can't take them; kept out of portable
+  // exports (see MIRROR_ONLY_KEYS) per the panic-cover design.
+  "grocery_unlocked_store_v1",
 ];
+
+// Keys that are mirrored on-device (survive a localStorage wipe) but are
+// deliberately NOT written into portable backup files.
+export const MIRROR_ONLY_KEYS = new Set([
+  "grocery_unlocked_store_v1",
+]);
 
 export function readBackupLocalSettings() {
   const out = {};
   for (const key of BACKUP_LS_KEYS) {
+    if (MIRROR_ONLY_KEYS.has(key)) continue;
     try {
       const val = localStorage.getItem(key);
       if (val !== null) out[key] = val;

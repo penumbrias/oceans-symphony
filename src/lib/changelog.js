@@ -20,6 +20,13 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Encrypted multi-{{system}} data restored or transferred since the encryption upgrade could refuse to unlock (\u201cIncorrect password\u201d on the right password). Fixed at the source, and existing affected {{systems}} now unlock again on their own." },
+      { type: "fix", text: "\u201cExport all {{systems}}\u201d now refuses to save a backup that is silently missing a {{system}} it couldn't read." },
+      { type: "fix", text: "Recovery screen: restoring a file saves a raw copy of what's on the device first, and \u201cAdd only new records\u201d can no longer overwrite still-intact encrypted data. \u201cReset\u201d now returns to the welcome setup properly." },
+      { type: "fix", text: "Unlock screen: a corrupted or unreadable data file goes straight to recovery instead of being reported as a wrong password." },
+      { type: "fix", text: "Importing on a nearly-full phone can no longer hang forever on images/fonts — a storage-full failure is reported instead." },
+      { type: "improve", text: "More of your settings survive a phone \u201cclear cache\u201d: accessibility mode, language, plan reminders, notification toggles, pinned daily tasks, grounding button, planner/timeline view preferences — and your unlocked grocery lists." },
+      { type: "fix", text: "Security: the push self-test could be triggered by anyone who knew a device's push address; it now requires the device's own credentials and can only notify that device. Android will no longer copy your app data into cloud backups or device transfers — the app's own backup is the one way data leaves your phone." },
       { type: "hotfix", text: "Hotfix: dependency security updates and Capacitor aligned to one version." },
       { type: "feature", text: "Backup health: if your data has never been backed up, the last backup is stale, or automatic backups are failing, a small card on the home screen says so with a one-tap \u201cBack up now\u201d. Settings \u2192 Auto-backup shows the verdict and the last few attempts. Silent when all is well." },
       { type: "fix", text: "Auto-backup mode, destination and last-backup time now survive a phone \u201cclear cache\u201d — a wipe used to silently switch automatic backups off." },
