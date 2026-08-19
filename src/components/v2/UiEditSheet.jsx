@@ -20,13 +20,16 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon } from "lucide-react";
+import { SlidersHorizontal, Plus, X, Copy, Pencil, Heart, PenLine, Zap, Activity as ActivityIcon, CheckSquare, Users, Timer, ChevronUp as ChevronUpIcon, ChevronDown as ChevronDownIcon, Undo2, Link2 } from "lucide-react";
 import { SubSection } from "@/components/settings/SettingsUI";
 import ColorPicker from "@/components/shared/ColorPicker";
 import { AssetButton } from "@/components/shared/AssetPickerModal";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import IconPicker from "@/components/shared/IconPicker";
+import FontUploadButton from "@/components/shared/FontUploadButton";
+import { listLookHistory, pushLookHistory } from "@/lib/lookHistory";
+import { toast } from "sonner";
 import { IconSlot } from "@/components/shared/LucideByName";
 import { useV2Display } from "@/components/settings/V2DisplaySettings";
 import { V2_TOKEN_DEFS, V2_COMMAND_KEYS, V2_TOP_BAR_ITEMS } from "@/lib/uiV2";
@@ -230,19 +233,29 @@ function SizeSection({ v2, alignX }) {
           value={v2.uiV2.tokens.alignX ?? "center"} onChange={(val) => v2.setToken("alignX", val)} alignX={alignX} />
         <div className="pt-1 space-y-2">
           <p className="text-xs font-medium">{tr("editSheet.fontBody")}</p>
-          <SearchableSelect
-            value={a11y.fontFamily || "inter"}
-            onChange={(id) => { setAccessibilityFontFamily(id); refresh(); }}
-            options={fontOptions}
-            placeholder={tr("editSheet.fontBody")}
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <SearchableSelect
+                value={a11y.fontFamily || "inter"}
+                onChange={(id) => { setAccessibilityFontFamily(id); refresh(); }}
+                options={fontOptions}
+                placeholder={tr("editSheet.fontBody")}
+              />
+            </div>
+            <FontUploadButton onUploaded={(family) => { setAccessibilityFontFamily(family); refresh(); }} />
+          </div>
           <p className="text-xs font-medium">{tr("editSheet.fontHeader")}</p>
-          <SearchableSelect
-            value={a11y.headingFont || "default"}
-            onChange={(id) => { setAccessibilityHeadingFont(id); refresh(); }}
-            options={[{ id: "default", label: tr("editSheet.fontSameAsBody") }, ...fontOptions]}
-            placeholder={tr("editSheet.fontHeader")}
-          />
+          <div className="flex items-center gap-2">
+            <div className="flex-1 min-w-0">
+              <SearchableSelect
+                value={a11y.headingFont || "default"}
+                onChange={(id) => { setAccessibilityHeadingFont(id); refresh(); }}
+                options={[{ id: "default", label: tr("editSheet.fontSameAsBody") }, ...fontOptions]}
+                placeholder={tr("editSheet.fontHeader")}
+              />
+            </div>
+            <FontUploadButton onUploaded={(family) => { setAccessibilityHeadingFont(family); refresh(); }} />
+          </div>
         </div>
         <SetRow label={tr("editSheet.fontSizeBody")} valueLabel={SIZE_STEPS[sizeIdx]} alignX={alignX}>
           <input type="range" min={0} max={SIZE_STEPS.length - 1} step={1} value={sizeIdx}
@@ -296,12 +309,17 @@ function BarLookRows({ v2, barId, alignX }) {
       {slider("fontScale", "editSheet.textSize", 70, 160, 100, "%")}
       <div className="py-1">
         <p className="text-xs font-medium mb-1">{tr("editSheet.font")}</p>
-        <SearchableSelect
-          value={look.font || ""}
-          onChange={(id) => write({ font: id || undefined })}
-          options={fontOptions}
-          placeholder={tr("editSheet.inherit")}
-        />
+        <div className="flex items-center gap-2">
+          <div className="flex-1 min-w-0">
+            <SearchableSelect
+              value={look.font || ""}
+              onChange={(id) => write({ font: id || undefined })}
+              options={fontOptions}
+              placeholder={tr("editSheet.inherit")}
+            />
+          </div>
+          <FontUploadButton onUploaded={(family) => write({ font: family })} />
+        </div>
       </div>
     </>
   );
@@ -951,7 +969,7 @@ function PresetsSection({ v2 }) {
     themeMode, selectedTheme, customColors, allPresets,
     userCustomPresets, saveCustomPreset, deleteUserPreset,
     alterThemeLinks, linkAlterTheme, unlinkAlterTheme,
-    clearCustomColors, setSelectedTheme, setThemeMode,
+    clearCustomColors, setSelectedTheme, setThemeMode, updateCustomColorsFull,
   } = useTheme();
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
   const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
@@ -972,6 +990,7 @@ function PresetsSection({ v2 }) {
   const [linkAlterId, setLinkAlterId] = useState("");
   const [renaming, setRenaming] = useState(null); // { from, to }
   const [notesFor, setNotesFor] = useState(null);
+  const [linkingFor, setLinkingFor] = useState(null); // preset name
   // Applying a THEME also restyles the widgets to match it (persisted;
   // off = a theme only changes colours and your widget style stays put).
   const [themeRestylesWidgets, setThemeRestylesWidgets] = useState(() => {
@@ -1004,6 +1023,43 @@ function PresetsSection({ v2 }) {
   };
 
   const anyPart = Object.values(parts).some(Boolean);
+
+  // ── Undo history ────────────────────────────────────────────────
+  // Everything an apply can touch, captured as a preset payload BEFORE
+  // each apply — one tap brings the whole previous look back.
+  const captureCurrentLook = () => {
+    const snap = snapshotColors();
+    return {
+      light: snap.light, dark: snap.dark, themeMode,
+      fontSize: getAccessibilitySettings().fontSize || "default",
+      font: getAccessibilitySettings().fontFamily || "",
+      headingFont: getAccessibilitySettings().headingFont || "",
+      uiV2Tokens: Object.fromEntries(SIZE_TOKEN_IDS.filter((id) => v2.uiV2.tokens[id] !== undefined).map((id) => [id, v2.uiV2.tokens[id]])),
+      uiV2HomeLook: captureHomeLook(settingsRow?.ui_v2_home),
+      uiV2HomeLayout: captureHomeLayout(settingsRow?.ui_v2_home),
+      uiV2HomeDesktopLook: captureHomeLook(settingsRow?.ui_v2_home_desktop),
+      uiV2HomeDesktopLayout: captureHomeLayout(settingsRow?.ui_v2_home_desktop),
+    };
+  };
+  const [history, setHistory] = useState(() => listLookHistory());
+  useEffect(() => {
+    const on = () => setHistory(listLookHistory());
+    window.addEventListener("symphony-look-history", on);
+    return () => window.removeEventListener("symphony-look-history", on);
+  }, []);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const restoreEntry = async (entry) => {
+    // Restoring is itself undoable.
+    pushLookHistory("Before restore", captureCurrentLook());
+    await applyPayload(entry.payload);
+    toast.success(`Restored “${entry.label}”`);
+  };
+  const snapshotThen = (label) => {
+    const entry = pushLookHistory(label, captureCurrentLook());
+    if (entry) {
+      toast.success(`Applied ${label}`, { action: { label: "Undo", onClick: () => restoreEntry(entry) } });
+    }
+  };
   const doSave = (label) => {
     const trimmed = (label || "").trim();
     if (!trimmed || !anyPart) return;
@@ -1044,8 +1100,9 @@ function PresetsSection({ v2 }) {
   };
 
   // Widget-look entries write the board's default style (styleMode).
-  const applyWidgetStyle = async (st) => {
+  const applyWidgetStyle = async (st, { skipSnapshot = false } = {}) => {
     if (!settingsRow?.id) return;
+    if (!skipSnapshot) snapshotThen(st.label || "widget style");
     const patch = {};
     if (st.themeName) {
       const styleId = `theme-${st.themeName}`;
@@ -1056,17 +1113,20 @@ function PresetsSection({ v2 }) {
     await writeSettings(patch);
   };
 
-  const applyPreset = async (presetName) => {
-    const preset = allPresets[presetName] || userCustomPresets[presetName];
+  // `presetName`: set when the payload came from a NAMED preset (theme
+  // selection tracks it, and the restyle-widgets checkbox applies); a
+  // history snapshot has none.
+  const applyPayload = async (preset, presetName = "") => {
     if (!preset) return;
     if (preset.light || preset.dark) {
       clearCustomColors();
-      setSelectedTheme(presetName);
+      if (presetName) setSelectedTheme(presetName);
+      else updateCustomColorsFull(preset.light || {}, preset.dark || {});
     }
     if (preset.themeMode) setThemeMode(preset.themeMode);
     if (preset.fontSize) setAccessibilityFontSize(preset.fontSize);
-    if (preset.font) setAccessibilityFontFamily(preset.font);
-    if (preset.headingFont) setAccessibilityHeadingFont(preset.headingFont);
+    if (preset.font !== undefined) setAccessibilityFontFamily(preset.font);
+    if (preset.headingFont !== undefined) setAccessibilityHeadingFont(preset.headingFont);
     const patch = {};
     if (preset.uiV2Tokens) {
       patch.ui_v2 = { ...(settingsRow?.ui_v2 || {}), tokens: { ...(settingsRow?.ui_v2?.tokens || {}), ...preset.uiV2Tokens } };
@@ -1077,11 +1137,17 @@ function PresetsSection({ v2 }) {
     if (nextDesk) patch.ui_v2_home_desktop = nextDesk;
     await writeSettings(patch);
     // A theme brings its widget look along only when the user asked for it.
-    if (themeRestylesWidgets && allPresets[presetName] && (preset.light || preset.dark)) {
+    if (presetName && themeRestylesWidgets && allPresets[presetName] && (preset.light || preset.dark)) {
       await applyWidgetStyle({
         themeName: presetName, id: `${USER_STYLE_PREFIX}theme-${presetName}`, label: presetName, look: themeToLook(preset, isDark),
-      });
+      }, { skipSnapshot: true });
     }
+  };
+  const applyPreset = async (presetName) => {
+    const preset = allPresets[presetName] || userCustomPresets[presetName];
+    if (!preset) return;
+    snapshotThen(presetName);
+    await applyPayload(preset, presetName);
   };
 
   const renamePreset = (from, to) => {
@@ -1209,7 +1275,8 @@ function PresetsSection({ v2 }) {
           const cov = r.look ? lookCoverage(r.look) : null;
           const partialTags = r.covers.map((c) => c.label).join(" · ");
           return (
-            <div key={r.key}
+            <React.Fragment key={r.key}>
+            <div
               className={`flex items-center gap-2 px-2 py-1.5 rounded-lg border ${r.active ? "border-primary/60 bg-primary/10" : "border-border/30"}`}>
               {swatchFor(r)}
               {renaming?.from === r.name && r.kind === "user" ? (
@@ -1236,6 +1303,12 @@ function PresetsSection({ v2 }) {
               )}
               {r.kind === "user" && (
                 <>
+                  <button type="button" aria-label={tr("editSheet.presetLink", { alter: terms.alter })}
+                    title={tr("editSheet.presetLink", { alter: terms.alter })}
+                    onClick={() => setLinkingFor(linkingFor === r.name ? null : r.name)}
+                    className={`w-7 h-7 flex items-center justify-center rounded-lg border flex-shrink-0 ${linkingFor === r.name || r.linked?.length ? "border-primary/60 text-primary" : "border-border/50 text-muted-foreground hover:text-foreground"}`}>
+                    <Link2 className="w-3 h-3" />
+                  </button>
                   <button type="button" aria-label={tr("editSheet.presetRename")} onClick={() => setRenaming({ from: r.name, to: r.name })}
                     className="w-7 h-7 flex items-center justify-center rounded-lg border border-border/50 text-muted-foreground hover:text-foreground flex-shrink-0">
                     <Pencil className="w-3 h-3" />
@@ -1251,9 +1324,50 @@ function PresetsSection({ v2 }) {
                 </>
               )}
             </div>
+            {/* Link this preset to {alters}: applying happens automatically
+                when they start fronting (same store the classic UI uses). */}
+            {r.kind === "user" && linkingFor === r.name && (
+              <div className="ml-3 pl-2 border-l border-border/40 space-y-1.5 py-1">
+                {(Object.entries(alterThemeLinks || {}).filter(([, n]) => n === r.name)).map(([alterId]) => {
+                  const a = alterOptions.find((o) => o.id === alterId);
+                  return (
+                    <span key={alterId} className="inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border border-border/50 mr-1">
+                      {a?.label || "?"}
+                      <button type="button" aria-label={`Unlink ${a?.label || ""}`} onClick={() => unlinkAlterTheme(alterId)}
+                        className="text-muted-foreground hover:text-destructive"><X className="w-3 h-3" /></button>
+                    </span>
+                  );
+                })}
+                <SearchableSelect value="" onChange={(id) => { if (id) linkAlterTheme(id, r.name); }}
+                  options={alterOptions.filter((o) => alterThemeLinks?.[o.id] !== r.name)}
+                  placeholder={tr("editSheet.linkAlter", { alter: terms.alter })} zIndex={80} />
+              </div>
+            )}
+            </React.Fragment>
           );
         })}
       </div>
+      {/* Undo — the last looks, newest first; restoring is undoable too. */}
+      {history.length > 0 && (
+        <div className="pt-1">
+          <button type="button" onClick={() => setHistoryOpen((v) => !v)} aria-expanded={historyOpen}
+            className="w-full flex items-center justify-between text-xs px-2 py-1.5 rounded-lg border border-border/40 text-muted-foreground hover:text-foreground">
+            <span className="flex items-center gap-1.5"><Undo2 className="w-3.5 h-3.5" /> {tr("editSheet.undoHistory")}</span>
+            <span className="tabular-nums">{history.length}</span>
+          </button>
+          {historyOpen && (
+            <div className="mt-1 space-y-1 max-h-48 overflow-y-auto overscroll-contain">
+              {history.map((h) => (
+                <button key={h.ts} type="button" onClick={() => restoreEntry(h)}
+                  className="w-full flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg border border-border/30 text-left text-xs hover:bg-muted/30">
+                  <span className="truncate">{tr("editSheet.beforeLabel", { name: h.label })}</span>
+                  <span className="text-muted-foreground flex-shrink-0">{new Date(h.ts).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
       {tab === "style" && typeof window !== "undefined" && window.location.pathname === "/" && (
         <button type="button" onClick={() => window.dispatchEvent(new CustomEvent("os-open-board-style-picker"))}
           className="text-[0.6875rem] text-muted-foreground hover:text-foreground underline underline-offset-2">

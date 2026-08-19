@@ -21,6 +21,7 @@ import { Image as ImageIcon, X, Trash2, ChevronDown, ChevronUp, Check, RotateCcw
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
 import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
+import FontUploadButton from "@/components/shared/FontUploadButton";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
@@ -789,6 +790,9 @@ export default function WidgetConfigSheet({
           <div className="space-y-3 pt-2 border-t border-border/30">
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>
+              <div className="flex items-center gap-2">
+                <div className="flex-1 min-w-0">
+              
               <SearchableSelect
                 value={settings.font || ""}
                 onChange={(v) => onSettings(widget.instanceId, { font: v || "" })}
@@ -801,6 +805,9 @@ export default function WidgetConfigSheet({
                   <span style={{ fontFamily: o.id || undefined }}>{o.label}</span>
                 )}
               />
+                </div>
+                <FontUploadButton onUploaded={(family) => onSettings(widget.instanceId, { font: family })} />
+              </div>
             </div>
 
             <SliderRow label="Corner radius" value={settings.radius} fallback={12}

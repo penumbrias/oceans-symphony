@@ -45,6 +45,20 @@ themes, user presets, widget styles) with source·parts subtitles; the list
 is capped (`max-h-72`) and scrolls. Save form below: name + part
 checkboxes + link-to-alter.
 
+- **Undo history** (`lib/lookHistory.js`): every apply (preset or widget
+  style) snapshots the current look FIRST (colors, mode, fonts, size
+  tokens, both boards' look+layout — a plain preset payload, ≤10 kept).
+  Applying shows a toast with Undo; the "Undo — recent looks" row lists
+  the stack; restoring is itself snapshotted.
+- **Per-preset alter links**:each user-preset row has a Link2 button →
+  inline panel with linked-alter chips (x = unlink) + a SearchableSelect
+  to add. Same ThemeContext store the classic UI uses (auto-applies when
+  that alter fronts).
+- **Fonts anywhere**: every font SearchableSelect (body, header, per-bar,
+  per-widget) pairs with `FontUploadButton` — the shared upload pipeline
+  (CustomFont + refreshCustomFontFaces); a new font appears in ALL pickers
+  and is selected where it was uploaded.
+
 ## Widget options extras (WidgetConfigSheet)
 
 - "Widget config" (WHAT the widget shows; `configFields`, incl. the
