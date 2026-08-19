@@ -22,7 +22,7 @@ export default function Privacy() {
           </div>
           <div>
             <h1 className="text-xl font-bold">Privacy Policy</h1>
-            <p className="text-xs text-muted-foreground">Oceans Symphony · Last updated May 2026</p>
+            <p className="text-xs text-muted-foreground">Oceans Symphony · Last updated August 2026</p>
           </div>
         </div>
 
@@ -39,44 +39,65 @@ export default function Privacy() {
             browser's IndexedDB on your device.
           </p>
           <p>
-            This data never leaves your device unless you explicitly export a backup file or
-            enable the Friends feature described below.
+            This data never leaves your device unless you explicitly export a backup file, enable
+            the Friends feature, turn on cloud-backed reminder delivery, or connect a third-party
+            import — each described below. Optional at-rest encryption (AES-256-GCM, key derived from
+            your password with PBKDF2 at 600,000 iterations) protects it on the device itself; the
+            password never leaves the device and cannot be recovered if lost.
+          </p>
+          <p>
+            On Android, the app opts out of the operating system's own cloud backup and device
+            transfer, so your data is never copied into a Google backup. Your own export file is the
+            only way it moves.
           </p>
         </Section>
 
         <Section title="Friends feature (optional)">
           <p>
             The Friends feature lets you share your current front status with trusted people.
-            If you choose to use it, the following information is stored on our servers
-            (Upstash Redis):
+            If you choose to use it, the following information is stored on our relay (a small
+            serverless function with a key-value store):
           </p>
           <ul className="list-disc list-inside space-y-1 pl-2">
-            <li>A display name and optional {terms.system} name you provide</li>
+            <li>A display name and optional {terms.system} name you provide, and the terms you've chosen</li>
             <li>Your unique friend code</li>
-            <li>Your current {terms.front} status (who is {terms.fronting}, using names and colours you have set)</li>
-            <li>Your privacy preference (full names / count only / hidden)</li>
+            <li>Your current {terms.front} status (who is {terms.fronting}, using names, pronouns and colours you have set) — <strong>this is stored readable by the relay</strong> so a notification can name who's {terms.fronting}. Set a friend to "count only" or "hidden" if you'd rather it didn't.</li>
+            <li>Your privacy preference (full names / count only / hidden), including per-friend overrides</li>
             <li>Your approved friend list (stored as anonymous user IDs)</li>
+            <li>Your public encryption key, so friends can send you encrypted shares</li>
+            <li>{terms.Alter} details you choose to share with a friend — <strong>end-to-end encrypted</strong>: the relay only holds scrambled data it cannot read</li>
           </ul>
           <p>
-            This data is deleted from the server when you remove a friend or delete your profile.
-            The Friends feature is entirely opt-in — the app works fully without it.
+            Everything above is deleted from the relay when you delete your Friends profile. Removing
+            a single friend removes their access and their copy of your shares. The Friends feature is
+            entirely opt-in — the app works fully without it. Your Friends identity (including the
+            private key) stays on your device and is sealed with your app password when encryption is on.
           </p>
         </Section>
 
         <Section title="Push notifications (optional)">
           <p>
             If you enable push notifications for reminders or friend front-change alerts, your
-            browser's push subscription endpoint is stored on our servers solely to deliver
+            browser's push subscription endpoint is stored on our relay solely to deliver
             those notifications. It is not used for any other purpose and is deleted when you
             disable push notifications.
           </p>
+          <p>
+            If you turn on cloud-backed reminder delivery, your reminder <em>times</em> are stored on
+            the relay so a push can reach you while the app is closed. A reminder's wording is only
+            sent if "Show reminder text in notifications" is on — otherwise the relay sends a blank
+            title and the words stay on your device. This is off unless you turn it on (or already
+            used Friends before the setting existed, in which case it was left on).
+          </p>
         </Section>
 
-        <Section title="Simply Plural import (optional)">
+        <Section title="File imports (optional)">
           <p>
-            Simply Plural is imported from an export file you provide — there is no account
-            connection or API token, and nothing about the import leaves your device. The imported
-            data ({terms.alter} profiles, {terms.fronting} history) is stored locally.
+            Simply Plural, OpenPlural, PluralSpace, Octocon, Plural Star and Ampersand are imported
+            from an export file you provide — no account connection, no API token. The file is read on
+            your device and the imported data ({terms.alter} profiles, {terms.fronting} history and so on)
+            is stored locally. Imported avatars may still load from the original app's image host when
+            displayed.
           </p>
         </Section>
 

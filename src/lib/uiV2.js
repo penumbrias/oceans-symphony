@@ -237,7 +237,10 @@ export function resolveUiV2(stored) {
         : [],
     },
     bars: {
-      top: src.bars?.top !== false,
+      // Always on: the top bar carries the recovery paths (apps button, page
+      // menu). A stored `false` from before the toggle was removed (v0.172.0
+      // / v0.183.0) must not hide it.
+      top: true,
       actions: src.bars?.actions !== false,
       tabs: src.bars?.tabs !== false,
       wave: src.bars?.wave !== false,

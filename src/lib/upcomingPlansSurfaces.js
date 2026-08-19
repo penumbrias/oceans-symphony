@@ -25,9 +25,9 @@ export const ALL_SURFACES = [
   // In the user's mental model these surfaces belong to the Dashboard
   // ("/", the actual home page in the bottom-nav user model) — the labels
   // and hints reflect that even though the underlying ID still says "home".
-  { id: SURFACE_HOME_TOP,      label: "Top of Dashboard",                  hint: "Above Currently Fronting on the Dashboard." },
+  { id: SURFACE_HOME_TOP,      label: "Top of Dashboard",                  hint: "Above the who's-{{fronting}} panel on the Dashboard." },
   { id: SURFACE_HOME_BOTTOM,   label: "Bottom of Dashboard",               hint: "Below the bulletin board on the Dashboard." },
-  { id: SURFACE_ALTER_PANEL,   label: "Currently-fronting alter panel",    hint: "Inline \"Plans for me\" inside the per-alter panel that opens when you tap a fronting chip." },
+  { id: SURFACE_ALTER_PANEL,   label: "Currently-{{fronting}} {{alter}} panel",    hint: "Inline \"Plans for me\" inside the per-{{alter}} panel that opens when you tap a {{fronting}} chip." },
   { id: SURFACE_BULLETIN_TOP,  label: "Top of Bulletin Board",             hint: "Above the bulletin feed." },
   { id: SURFACE_IN_APP_BANNER, label: "Soft in-app banner near reminder",  hint: "Surfaces a banner when a planned activity is within its reminder window." },
   { id: SURFACE_PUSH,          label: "Push notification near reminder",   hint: "Only fires if push notifications are configured." },

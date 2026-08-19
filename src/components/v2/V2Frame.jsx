@@ -975,20 +975,54 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           fold-away handle, instead of floating like the support bubble. */}
       {altersInNav && (
         <div className="relative" style={lookToStyle(altersBarCfg.look || {})} data-widget-content>
+          {/* Same handle grammar as the quick-action row: tap toggles, swipe
+              up opens, swipe down closes (pointer captured so a swipe that
+              leaves the strip still counts) — and the same animated reveal
+              below. It used to be a bare click chevron + instant show/hide,
+              which felt sloppy next to the quick actions. */}
           <button
             type="button"
             aria-expanded={!altersBarCfg.collapsed}
             aria-label={altersBarCfg.collapsed ? `Show the pinned ${terms.alters} bar` : `Hide the pinned ${terms.alters} bar`}
-            onClick={toggleNavAlters}
-            className="w-full flex items-center justify-center py-0.5 text-muted-foreground hover:text-foreground"
+            onClick={() => {
+              if (swiped.current) { swiped.current = false; return; }
+              toggleNavAlters();
+            }}
+            onPointerDown={(e) => {
+              altersDragStart.current = e.clientY;
+              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+            }}
+            onPointerUp={(e) => {
+              const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
+              altersDragStart.current = null;
+              try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+              if (dy < -14 && altersBarCfg.collapsed) { swiped.current = true; toggleNavAlters(); }
+              else if (dy > 14 && !altersBarCfg.collapsed) { swiped.current = true; toggleNavAlters(); }
+              else if (Math.abs(dy) > 14) { swiped.current = true; } // swiped in the direction it already is — no-op, eat the click
+            }}
+            className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+            style={{ height: 18, touchAction: "none" }}
           >
-            <ChevronUp className="w-3.5 h-3.5 transition-transform" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)" }} />
+            <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
+            <ChevronUp className="w-3 h-3" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+            <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
           </button>
-          {!altersBarCfg.collapsed && (
-            <div className="px-2 pb-1 min-w-0 overflow-x-auto">
-              <PinnedAltersGallery showHeader={false} />
-            </div>
-          )}
+          <AnimatePresence initial={false}>
+            {!altersBarCfg.collapsed && (
+              <motion.div
+                key="alters-bar"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div className="px-2 pb-1 min-w-0 overflow-x-auto">
+                  <PinnedAltersGallery showHeader={false} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
         </div>
       )}
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
@@ -1003,8 +1037,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           <div className="w-full flex" style={{ height: 18 }}>
             <button
               type="button"
-              aria-label={`Show or hide the pinned ${terms.alters} bar`}
-              title={`Swipe up for the pinned ${terms.alters} bar`}
+              aria-label={t("nav.showAlterBar")}
+              title={t("nav.showAlterBar")}
               onPointerDown={(e) => {
                 altersDragStart.current = e.clientY;
                 try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }

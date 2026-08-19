@@ -1,3 +1,4 @@
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -63,6 +64,7 @@ export default function SafetyPlan() {
             <Lightbulb className="w-4 h-4" /> Go to Safety Plan lesson
           </Button>
         </div>
+        <MedicalDisclaimerFooter open />
       </motion.div>
     );
   }
@@ -245,6 +247,7 @@ export default function SafetyPlan() {
             </Button>
           </Link>
         </div>
+        <MedicalDisclaimerFooter open className="mt-4" />
       </div>
     </motion.div>
   );

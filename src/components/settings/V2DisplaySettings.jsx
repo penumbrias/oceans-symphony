@@ -159,8 +159,10 @@ export function V2LayoutControls() {
   if (!v2.enabled) return null;
 
   const sizeDefs = V2_TOKEN_DEFS.filter((d) => !LOOK_IDS.includes(d.id));
+  // No "top" entry: the top bar carries the recovery paths (apps button,
+  // page menu) and can't be switched off — arrange it instead (edit popup
+  // → Bar sizes & layout → Top bar). Same rule as UiEditSheet.
   const BAR_TOGGLES = [
-    { id: "top", label: t("options.topBar") },
     { id: "actions", label: t("options.quickActionRow") },
     { id: "tabs", label: t("options.sectionTabs") },
     { id: "wave", label: t("options.waveHeader") },
@@ -184,7 +186,6 @@ export function V2LayoutControls() {
                 className="w-4 h-4 rounded accent-primary" aria-label={b.label} />
             </label>
           ))}
-          {!v2.uiV2.bars.top && <p className="text-[0.6875rem] text-muted-foreground">{t("options.recoveryHint")}</p>}
         </div>
       </SubSection>
 

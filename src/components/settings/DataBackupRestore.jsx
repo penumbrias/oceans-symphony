@@ -152,11 +152,14 @@ const ENTITY_NAMES = [
 export function resolveCatLabel(cat, terms) {
   if (cat.id === "alters")   return `${terms.Alters} & Profiles`;
   if (cat.id === "fronting") return `${terms.Fronting} History`;
+  if (cat.id === "lineage")  return `${terms.System} Change Events`;
+  if (cat.id === "chat")     return `${terms.System} Chat`;
   return cat.label;
 }
 export function resolveCatDesc(cat, terms) {
   if (cat.id === "alters")   return `Bios, avatars, custom fields, relationships, relationship types, inner world`;
   if (cat.id === "fronting") return `${terms.Switch} history`;
+  if (cat.id === "groups")   return `${terms.Alter} groups`;
   return cat.desc;
 }
 

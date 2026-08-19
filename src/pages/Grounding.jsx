@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { Plus, Shield, Shuffle, AlertTriangle } from "lucide-react";
+import { Plus, Shield, Shuffle } from "lucide-react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { isGroundingButtonEnabled, setGroundingButtonEnabled, subscribeGroundingButton } from "@/lib/groundingButtonPrefs";
@@ -13,7 +13,7 @@ import BreathingTechniquePicker from "@/components/grounding/BreathingTechniqueP
 import CrisisResourcesCard from "@/components/grounding/CrisisResourcesCard";
 import CustomTechniqueForm from "@/components/grounding/CustomTechniqueForm";
 import LearnSection from "@/components/support/LearnSection";
-import MedicalDisclaimer from "@/components/shared/MedicalDisclaimer";
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import {
   DEFAULT_TECHNIQUES, EMOTIONAL_STATES, CATEGORY_LABELS, CATEGORY_EMOJIS,
   BREATHING_PATTERNS, resolveCategory
@@ -644,15 +644,7 @@ export default function Grounding({ initialPath = null }) {
           </div>
         )}
 
-        <details className="rounded-xl border border-amber-500/30 bg-amber-500/5">
-          <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium text-amber-700 dark:text-amber-400">
-            <AlertTriangle className="w-4 h-4" />
-            Disclaimer — Oceans Symphony is not a medical product
-          </summary>
-          <div className="px-3 pb-3 pt-1">
-            <MedicalDisclaimer compact />
-          </div>
-        </details>
+        <MedicalDisclaimerFooter />
 
         <div className="space-y-3">
           <button

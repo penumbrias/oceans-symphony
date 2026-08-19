@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useTerms } from "@/lib/useTerms";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +12,7 @@ import { enableEncryption, disableEncryption, clearStoredData } from "@/lib/loca
 import PersistentStorageStatus from "./PersistentStorageStatus";
 
 export default function StorageModeSettings() {
+  const terms = useTerms();
   const encEnabled = isEncryptionEnabled();
 
   const [showPasswordForm, setShowPasswordForm] = useState(null);
@@ -138,7 +140,7 @@ export default function StorageModeSettings() {
 
         <div className="text-sm text-muted-foreground bg-muted/40 rounded-xl p-3 space-y-2">
           <p>
-            Your data lives exclusively on this device. No internet connection or account required, no analytics, no crash telemetry.
+            By default your data lives only on this device. No internet connection or account required, no analytics, no crash telemetry — the only things that ever leave are the opt-in features listed under Data & privacy.
           </p>
           <details className="text-xs">
             <summary className="cursor-pointer text-foreground/80 hover:text-foreground">
@@ -149,13 +151,13 @@ export default function StorageModeSettings() {
                 <span className="font-medium text-foreground">IndexedDB (encrypted when encryption is on)</span> — alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, custom fields, grounding techniques, grocery lists you didn't mark "available when locked", and so on.
               </p>
               <p>
-                <span className="font-medium text-foreground">localStorage (always plaintext)</span> — small per-browser settings (theme, last-opened list ids, daily-task firing markers), native push registration IDs, the friends-server identity, and grocery lists you explicitly marked "available when locked". These stay on this device but are NOT covered by the encryption password.
+                <span className="font-medium text-foreground">localStorage</span> — small per-browser settings (theme, last-opened list ids, daily-task firing markers), native push registration IDs, and grocery lists you explicitly marked "available when locked". These stay on this device but are NOT covered by the encryption password. Your Friends identity lives here too, and it <em>is</em> sealed with your password when encryption is on. Your preferences are also copied into the database, so a browser storage wipe doesn't lose your theme and setup.
               </p>
               <p>
                 <span className="font-medium text-foreground">When encryption is on</span> — the IndexedDB blob is wrapped with AES-256-GCM using a key derived from your password via PBKDF2 (600,000 iterations; data encrypted by older app versions upgrades automatically the next time it's unlocked). The salt is embedded inside the encrypted payload so a localStorage wipe alone can't make data permanently undecryptable. <span className="font-medium text-foreground">If you lose the password, the encrypted data cannot be recovered.</span>
               </p>
               <p>
-                <span className="font-medium text-foreground">Never stored</span> — analytics, crash telemetry, usage tracking, advertising IDs. There's no Symphony account and no server-side copy of your data. Friends Mode (off until you set it up) only sends your system name, display name, and chosen front-share level to the friends relay — never journals, emotions, symptoms, plans, locations, or chat.
+                <span className="font-medium text-foreground">Never stored</span> — analytics, crash telemetry, usage tracking, advertising IDs. There's no Symphony account and no server-side copy of your data. Friends Mode (off until you set it up) sends only what its privacy notice lists — your display name, {terms.system} name, friend code, friends list, push registration, public key, current {terms.front}, and any {terms.alters} you share (end-to-end encrypted) — never journals, emotions, symptoms, plans, locations, or chat.
               </p>
             </div>
           </details>

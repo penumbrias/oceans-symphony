@@ -18,6 +18,8 @@ import {
   setLimitWindowId,
 } from "@/lib/upcomingPlansLimit";
 import { toast } from "sonner";
+import { useTerms } from "@/lib/useTerms";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 
 /**
  * Settings → Appearance subsection: pick where Upcoming Plans render
@@ -29,6 +31,7 @@ import { toast } from "sonner";
  * doesn't bloat the singleton SystemSettings entity.
  */
 export default function UpcomingPlansSurfacesSection() {
+  const terms = useTerms();
   const qc = useQueryClient();
   const { data: settingsList = [] } = useQuery({
     queryKey: ["systemSettings"],
@@ -107,7 +110,7 @@ export default function UpcomingPlansSurfacesSection() {
         <Calendar className="w-3.5 h-3.5" /> Upcoming plans visibility
       </p>
       <p className="text-xs text-muted-foreground -mt-1">
-        Pick where the planned-activity widget should surface. The Activity Tracker's Planned tab is always on. Per-alter "Plans for me" is on by default — it's contextual and low-clutter.
+        Pick where the planned-activity widget should surface. The Activity Tracker's Planned tab is always on. Per-{terms.alter} "Plans for me" is on by default — it's contextual and low-clutter.
       </p>
       <div className="space-y-2 mt-2">
         {ALL_SURFACES.map(s => (
@@ -120,8 +123,8 @@ export default function UpcomingPlansSurfacesSection() {
               onCheckedChange={() => toggle(s.id)}
             />
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium">{s.label}</p>
-              <p className="text-xs text-muted-foreground mt-0.5">{s.hint}</p>
+              <p className="text-sm font-medium">{applyTerms(s.label, terms)}</p>
+              <p className="text-xs text-muted-foreground mt-0.5">{applyTerms(s.hint, terms)}</p>
             </div>
           </label>
         ))}

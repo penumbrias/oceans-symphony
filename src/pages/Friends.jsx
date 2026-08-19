@@ -516,7 +516,7 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                     <span className="text-xs font-medium text-foreground">{terms?.Alters || "Members"} this friend can see</span>
                     {levels.length === 0 ? (
                       <p className="text-[0.6875rem] text-muted-foreground">
-                        No privacy levels yet. Create them from a {terms?.alter || "member"}'s profile → Options → Sharing levels.
+                        No privacy levels yet. Create them from a {terms?.alter || "alter"}'s profile → Options → Sharing levels.
                       </p>
                     ) : (
                       <>
@@ -548,21 +548,21 @@ function FriendCard({ friend, onRemove, onToggleNotify, alters = [], visibilityS
                           <button type="button" onClick={() => setAdvancedLevels((v) => !v)} className="text-[0.6875rem] text-primary hover:underline">
                             {advancedLevels ? "Use simple slider" : "Pick specific levels"}
                           </button>
-                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} shared</span>
+                          <span className="text-[0.6875rem] text-muted-foreground">{sharedCount} {sharedCount === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} shared</span>
                         </div>
                         {/* Live preview — exactly who this friend can see right now,
                             recomputed from the granted levels + per-alter hides. */}
                         {(() => {
                           const visible = resolveVisibleAlters({ alters, levels, visibility: { allowedLevelIds, hiddenAlterIds } });
                           if (visible.length === 0) {
-                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "members"} visible with the current levels.</p>;
+                            return <p className="text-[0.625rem] text-muted-foreground italic">No {terms?.alters || "alters"} visible with the current levels.</p>;
                           }
                           // Collapsed by default so large systems don't flood the
                           // card — tap to reveal the (capped) list.
                           return (
                             <div className="rounded-lg border border-border/40 bg-muted/10 p-2 space-y-1">
                               <button type="button" onClick={() => { setShowVisibleList((v) => !v); setVisShown(60); }} className="text-[0.625rem] text-primary hover:underline">
-                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "member") : (terms?.alters || "members")} they can see
+                                {showVisibleList ? "Hide" : "Show"} the {visible.length} {visible.length === 1 ? (terms?.alter || "alter") : (terms?.alters || "alters")} they can see
                               </button>
                               {showVisibleList && (
                                 <div className="max-h-48 overflow-y-auto overscroll-contain space-y-0.5 mt-1 pr-1"
@@ -638,7 +638,7 @@ function PrivacyDisclaimer() {
         <div className="text-sm">
           <p className="font-semibold text-foreground">Your personal data stays on-device</p>
           <p className="text-muted-foreground leading-relaxed mt-0.5">
-            All your personal data — {t.alters}, journals, check-ins, symptoms, {t.fronting} sessions, etc. — lives in IndexedDB on your device. This is the "local-only" mode. Nothing from your personal {t.system} data ever leaves your device — no server sees it, no sync happens. The optional AES-256 encryption setting protects it at rest on the device itself.
+            All your personal data — {t.alters}, journals, check-ins, symptoms, {t.fronting} sessions, etc. — lives in IndexedDB on your device. None of it is synced or uploaded — the relay described below only ever receives what you explicitly choose to share. The optional AES-256 encryption setting protects it at rest on the device itself.
           </p>
         </div>
       </div>
@@ -649,11 +649,12 @@ function PrivacyDisclaimer() {
         </div>
         <div className="text-muted-foreground leading-relaxed space-y-2 pl-8">
           <p>
-            The Friends feature uses a separate, minimal cloud relay (Upstash Redis). It only holds:
+            The Friends feature uses a separate, minimal cloud relay (a small serverless function with a key-value store). It only holds:
           </p>
           <ul className="list-disc pl-5 space-y-1">
-            <li><strong>Your chosen display name and friend code</strong> — public-ish info you explicitly choose to share.</li>
-            <li><strong>A snapshot of who is currently {t.fronting}</strong>, filtered by your privacy setting:
+            <li><strong>Your chosen display name, {t.system} name, friend code, chosen terms and privacy level</strong> — public-ish info you explicitly choose to share.</li>
+            <li><strong>Your public encryption key</strong> — so friends can send you encrypted shares. (Your private key stays on this device, sealed with your app password when encryption is on.)</li>
+            <li><strong>A snapshot of who is currently {t.fronting}</strong>, filtered by your privacy setting — <em>this one is readable by the relay</em> (so a notification can name who's {t.fronting}); the shared member list below is not:
               <ul className="list-[circle] pl-5 mt-0.5">
                 <li><em>Names &amp; colours</em> — each {t.fronting} {t.alter}'s name, accent colour, and primary/co-{t.front} status.</li>
                 <li><em>Count only</em> — just how many {t.alters} are out (e.g. "2 {t.fronters}").</li>
@@ -666,10 +667,10 @@ function PrivacyDisclaimer() {
             <li><strong>Reminder schedules</strong>, only if you turn on push notifications for reminders: the fire times, plus each reminder's text <em>unless</em> you switch off "Show reminder text in notifications" (then only a generic "you have a reminder" is sent and the wording stays on your device).</li>
           </ul>
           <p>
-            Your {t.alter} profiles, journal text, check-in data, symptoms, and timeline history — <strong>none of that touches the friends server</strong>. It only ever holds what you explicitly send it: your current {t.front} via "Update Front" (filtered by the privacy setting above) and, if you opt into push reminders, your reminder schedule (and wording, unless you've turned that off).
+            Your {t.alter} profiles, journal text, check-in data, symptoms, and timeline history — <strong>none of that touches the friends server</strong>. What it holds is only the list above, and nothing gets added to that list without you turning something on. Everything above is deleted from the relay when you delete your Friends profile; removing a single friend removes their access and their copy of your shares.
           </p>
           <p>
-            Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, zero data leaves the device. The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
+            Friends is <strong>opt-in from the start</strong>: you have to create a Friends profile to use it. If you never do, nothing about your {t.system} goes to the relay. (Cloud-backed reminders, under Settings → Notifications, are a separate opt-in.) The core app works entirely locally; Friends is a separately-consented, explicitly-minimal cloud feature for sharing the specific thing you choose to share.
           </p>
         </div>
       </div>

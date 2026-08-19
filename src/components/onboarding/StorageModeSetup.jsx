@@ -14,6 +14,7 @@ import { externalKindFromJson } from "@/components/settings/DataBackupRestore";
 import SimplyPluralFileImport from "@/components/settings/SimplyPluralFileImport";
 import OpenPluralConnect from "@/components/settings/OpenPluralConnect";
 import OctoconConnect from "@/components/settings/OctoconConnect";
+import WhatLeavesDevice from "@/components/shared/WhatLeavesDevice";
 import {
   parseImportText,
   decryptRawEncrypted,
@@ -656,27 +657,23 @@ export default function StorageModeSetup({ mode, onComplete }) {
               <div className="px-4 pb-4 space-y-3 text-sm text-muted-foreground border-t border-amber-500/20 pt-3">
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">📦 What's stored, and where</p>
-                  <p>Everything you log lives in this app or browser's <strong className="text-foreground">IndexedDB</strong> on this device: {`${'alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, grounding techniques, custom fields, theme / navigation settings, and so on'}`}. A handful of small per-browser/install preferences also live in <strong className="text-foreground">localStorage</strong> (theme + last-opened list ids, daily-task firing markers, push notification IDs, the friends-server identity, and grocery lists you've explicitly marked "available when locked"). Both stores stay on this device — neither gets uploaded anywhere.</p>
+                  <p>Everything you log lives in this app or browser's <strong className="text-foreground">IndexedDB</strong> on this device: {`${'alters, fronting sessions, journals, emotion / symptom check-ins, activities, plans, to-dos, diary cards, reminders, lineage events, locations, status notes, grounding techniques, custom fields, theme / navigation settings, and so on'}`}. A handful of small per-browser/install preferences also live in <strong className="text-foreground">localStorage</strong> (theme + last-opened list ids, daily-task firing markers, push notification IDs, and grocery lists you've explicitly marked "available when locked"). Your preferences are also copied into the database, so a browser storage wipe doesn't lose your theme and setup. Your Friends identity lives here too — and when encryption is on it's sealed with your password. Neither store is uploaded or synced; the only things that ever leave are the ones you switch on below.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🔒 What encryption protects (and what it doesn't)</p>
-                  <p>Turning on password encryption applies <strong className="text-foreground">AES-256-GCM</strong> to the IndexedDB blob, with a key derived from your password via <strong className="text-foreground">PBKDF2 (600,000 iterations)</strong>. Your password never leaves this device; the encryption salt is embedded inside the encrypted payload so a localStorage wipe alone can't make the data permanently undecryptable. <strong className="text-foreground">localStorage entries are not encrypted</strong> — they're intentionally lightweight settings + the unlocked grocery lists you opted into. <strong className="text-foreground">If you lose your password, the encrypted data cannot be recovered.</strong></p>
+                  <p>Turning on password encryption applies <strong className="text-foreground">AES-256-GCM</strong> to the IndexedDB blob, with a key derived from your password via <strong className="text-foreground">PBKDF2 (600,000 iterations)</strong>. Your password never leaves this device; the encryption salt is embedded inside the encrypted payload so a localStorage wipe alone can't make the data permanently undecryptable. <strong className="text-foreground">Most localStorage entries are not encrypted</strong> — they're intentionally lightweight settings + the unlocked grocery lists you opted into (your Friends identity is the exception: it's sealed with your password when encryption is on). Password-locked journal entries use the same strong scheme. Android's own cloud backup and device transfer are switched off for this app — your export file is the only way data leaves the phone. <strong className="text-foreground">If you lose your password, the encrypted data cannot be recovered.</strong></p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🚫 What's never stored</p>
                   <p>No analytics, no crash telemetry, no usage tracking, no advertising IDs. There's no Oceans Symphony account and no server-side copy of your data — even crashes stay on your device unless you choose to email a log.</p>
                 </div>
                 <div className="space-y-1">
-                  <p className="font-medium text-foreground">👥 Friends Mode (opt-in)</p>
-                  <p>Friends mode is the only feature that sends anything off-device, and it is <strong className="text-foreground">off until you set it up</strong>. When enabled, the only data that reaches the friends relay is the identity you set up (your chosen system + display name) and your current front — essentially just the <strong className="text-foreground">display name and colour of whoever's fronting</strong> — at the granularity you pick (full names, count only, or hidden), with per-friend overrides. <strong className="text-foreground">Everything else stays on this device and is never sent.</strong> Journals, emotions, symptoms, plans, locations, chat, and all your other logged data are private — and that list isn't exhaustive: nothing beyond the fronting display name and colour ever leaves.</p>
-                </div>
-                <div className="space-y-1">
-                  <p className="font-medium text-foreground">🌐 Optional third-party imports</p>
-                  <p>The PluralKit connector is opt-in and one-way: you provide a token, the app fetches your data from PluralKit's servers and stores it locally. Simply Plural, OpenPlural, Octocon and PluralSpace import from an export file — nothing leaves your device. No data flows back to any of them from Symphony.</p>
+                  <p className="font-medium text-foreground">🌐 What can leave this device (all opt-in)</p>
+                  <WhatLeavesDevice />
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">💾 Backups</p>
-                  <p>Use Settings → Backup &amp; Export to save your data as a JSON file. Backups include the IndexedDB entities; they intentionally exclude device-bound state (friends identity, push registrations, grocery lists flagged "available when locked"). Keep backups safe — local data is tied to this device and will be lost if you clear app data without a backup.</p>
+                  <p>Use Settings → Data &amp; privacy → Backup to save your data as a file (plain JSON, compact, or copy-paste chunks). Backups include your records and images; push registrations and "available when locked" grocery lists stay behind, and your Friends identity is left out unless you tick the box to bring it to a new device. Automatic backups cover your <strong className="text-foreground">active system</strong> only, and skip very large images — Settings shows when a backup was partial. Keep backups safe: local data is tied to this device and is lost if you clear app data without one.</p>
                 </div>
                 <div className="space-y-1">
                   <p className="font-medium text-foreground">🤖 Transparency</p>

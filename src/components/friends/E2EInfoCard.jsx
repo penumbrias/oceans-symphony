@@ -18,7 +18,7 @@ export default function E2EInfoCard() {
           <p className="text-xs text-muted-foreground leading-relaxed">
             What you share with a friend is scrambled on your device and can only be unscrambled by that friend. The server that
             passes it along can't read it — and neither can we. The key that does the unscrambling stays on this device and is never
-            uploaded or included in your backups. For most people that's already private; if you want to be extra certain a friend is
+            uploaded. It's left out of backups too, unless you deliberately tick "Include Friends identity" when moving to a new phone. For most people that's already private; if you want to be extra certain a friend is
             really who they say, you can compare a short “safety number” with them on their card below.
           </p>
 
@@ -43,7 +43,7 @@ export default function E2EInfoCard() {
               </p>
               <p>
                 <strong className="text-foreground">Keys.</strong> Your public key is published to the relay so friends can fetch it;
-                your private key (a JWK) lives only on this device's friend identity, which is deliberately excluded from backups.
+                your private key (a JWK) lives only in this device's Friends identity — kept out of backups by default, and sealed with your app password when encryption is on. You can opt to include it in one export to move devices; treat that file like a password.
               </p>
               <p>
                 <strong className="text-foreground">What the relay can see.</strong> The encrypted content is unreadable to it, but it
@@ -62,7 +62,7 @@ export default function E2EInfoCard() {
                 with them through another channel detects that — without verifying, your privacy depends on the relay being honest.
               </p>
               <p>
-                <strong className="text-foreground">Limits, honestly.</strong> Keys are tied to this device with no recovery: a new or
+                <strong className="text-foreground">Limits, honestly.</strong> Keys are tied to this device: if you lose it without exporting your Friends identity there's no recovery — a new or
                 reset device gets a new key, friends re-fetch it, and shares made to the old key can't be read on the new one. It uses
                 static keys (no forward secrecy), so if a private key were ever extracted, previously captured ciphertext could be
                 decrypted. And like any app, it can't protect against malware on your own device. These are normal trade-offs for this

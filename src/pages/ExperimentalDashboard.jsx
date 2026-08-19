@@ -22,7 +22,7 @@ import React, { useMemo, useState, useCallback, useRef, useEffect } from "react"
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { Check, X, Plus, LayoutGrid, ArrowUp, ArrowDown,
   Undo2, Grid2x2, Star, Trash2, Settings2, ChevronUp, ChevronDown,
   Eye, EyeOff, ArrowUpToLine, ArrowDownToLine,
@@ -116,8 +116,9 @@ const BAR_CONFIG_ID = "__alters_bar";
 // Minimal registry-shaped def so WidgetConfigSheet can render the bar's
 // options without knowing it isn't a widget.
 const BAR_DEF = {
-  label: "Pinned alters bar",
-  description: "The persistent strip of pinned alters.",
+  // {{term}} placeholders — WidgetConfigSheet resolves them via widgetLabel().
+  label: "Pinned {{alters}} bar",
+  description: "The persistent strip of pinned {{alters}}.",
   supportsModes: ["normal"],
   configFields: [
     { key: "barHeight", type: "range", label: "Bar height", min: 0, max: 200, step: 4, default: 0,
@@ -1572,7 +1573,14 @@ export default function ExperimentalDashboard({
           className="fixed left-0 right-0 z-40 flex flex-col items-center gap-1.5 pointer-events-none"
           style={{ bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
         >
+          <AnimatePresence initial={false}>
           {altersBottom && !altersCollapsed && (
+            <motion.div key="board-alters-bar"
+              initial={{ y: 24, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 24, opacity: 0 }}
+              transition={{ duration: 0.18, ease: "easeOut" }}
+              className="pointer-events-auto">
             <div data-widget-content="1"
               onPointerDownCapture={(e) => {
                 barDragStart.current = e.clientY;
@@ -1629,7 +1637,9 @@ export default function ExperimentalDashboard({
                 <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
               </div>
             </div>
+            </motion.div>
           )}
+          </AnimatePresence>
           {/* No floating tab here: the ONE way to fold this bar in or out
               is the bottom chrome's split handle (left half = this bar,
               right half = quick actions). A second control floating over

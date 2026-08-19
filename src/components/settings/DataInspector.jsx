@@ -106,7 +106,7 @@ export default function DataInspector() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-muted-foreground leading-relaxed">
-        Everything below lives on this device, in this browser's storage — nothing here is uploaded to a server. (The one exception is Friends mode, which is off unless you set it up, and only ever shares your current front's display name and colour.) Use this to see exactly what's stored, export any one category on its own, or delete a category you don't need anymore.
+        Everything below lives on this device, in this browser's storage — nothing here is uploaded to a server. (Friends mode is off unless you set it up; when on it shares your current {terms.front} and any {terms.alters} you've put in a sharing level — see the privacy notice for the full list. Cloud-backed reminders, if on, send reminder times.) Use this to see exactly what's stored, export any one category on its own, or delete a category you don't need anymore.
       </p>
 
       {storage && (
@@ -192,7 +192,7 @@ export default function DataInspector() {
         <div className="space-y-1 pt-1">
           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">This device only</p>
           <p className="text-[0.6875rem] text-muted-foreground leading-snug">
-            Tied to this device/browser — intentionally not included in backups or exports, to avoid impersonation or collisions if restored onto a different device.
+            Tied to this device/browser — kept out of backups by default so a restore on another device can't impersonate you. (You can deliberately include the Friends identity in one export when moving devices.)
           </p>
           <div className="space-y-1">
             {stats.deviceBound.FriendIdentity?.count > 0 && (

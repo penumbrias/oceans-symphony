@@ -184,13 +184,28 @@ const bioGestures = `
       <li><strong>Long-press</strong> (about half a second) → set as primary instantly.</li>
     </ul>
     The Set Fronters modal shows a "swipe right to toggle · left to set primary" hint at the top so you don't have to memorise the directions.`)}
-  ${section("Dashboard — Quick Check-In button",
+  ${section("Quick actions (new UI)",
+    `<ul style="padding-left:22px;line-height:1.6;">
+      <li>The <strong>split handle</strong> above the bottom bar: tap or swipe up its <strong>right half</strong> to reveal the quick-action keys, its <strong>left half</strong> to reveal the pinned alters bar. Swipe down on either half to fold it away.</li>
+      <li><strong>Hold any quick-action key</strong> — or the apps button — to pop your own saved shortcuts up.</li>
+      <li>On the classic dashboard, the same shortcuts live behind a long-press on the Quick Check-In button (below).</li>
+    </ul>`)}
+  ${section("Classic dashboard — Quick Check-In button",
     `<ul style="padding-left:22px;line-height:1.6;">
       <li><strong>Tap</strong> → opens the Quick Check-In modal.</li>
       <li><strong>Long-press</strong> (500 ms) → opens a Quick Actions hold-menu with your configured shortcuts (log a symptom, set front, mark a habit, etc.). The progress bar fills as you hold; vibrates when it pops.</li>
       <li>While the hold-menu is open, scrolling inside it doesn't close it — only a tap off-menu does. Moving more than ~12 px during the press cancels the hold (so an accidental scroll doesn't trigger it).</li>
     </ul>`)}
-  ${section("Activity Tracker grid",
+  ${section("Planner (week canvas)",
+    `<ul style="padding-left:22px;line-height:1.6;">
+      <li><strong>Press-and-hold empty time, then drag</strong> → log something past or plan something ahead. Release to open it.</li>
+      <li><strong>Tap</strong> an entry → open it (name, day, time, who, category, notes, outcome). A tap on an entry's edge opens it too.</li>
+      <li><strong>Hold an entry's top or bottom edge, then drag</strong> → resize its start or end. Hold-to-arm means you can't nudge a logged time by accident.</li>
+      <li><strong>Pinch with two fingers</strong> → up/down zooms the hours, left/right widens the days. The sliders button does the same with sliders, plus 24h vs AM/PM and the week's first day.</li>
+      <li>An entry that crosses midnight (sleep) is drawn on both days as one joined block.</li>
+      <li>With the Check-ins overlay on, <strong>tap a dot</strong> → that entry in the Check-In Log.</li>
+    </ul>`)}
+  ${section("Activity Tracker grid (classic)",
     `<ul style="padding-left:22px;line-height:1.6;">
       <li><strong>Double-tap</strong> an empty cell → start a range selection.</li>
       <li><strong>Tap another cell</strong> → close the range. If the start time is in the future, the Plan modal opens; otherwise the Log modal opens.</li>
@@ -562,13 +577,13 @@ const bioSettings = `
 const bioPrivacy = `
   ${intro("Wiki · Privacy & Backup", `What's stored where, what's encrypted, what gets sent off the device.`)}
   ${section("By default, nothing leaves this device",
-    `All app data — alter profiles, fronting history, journals, emotions, activities, sleep, tasks, reminders, diary cards, polls, locations — lives in this browser's IndexedDB. Nothing is uploaded, synced, or sent to any server unless you opt in.`)}
+    `All app data — alter profiles, fronting history, journals, emotions, activities, sleep, tasks, reminders, diary fields, polls, locations — lives in this browser's IndexedDB. Nothing is uploaded or synced unless you opt in; the opt-ins are Friends, cloud-backed reminders, and third-party imports (each listed in the privacy notice). Your preferences are copied into the database too, so a browser storage wipe doesn't lose your setup.`)}
   ${section("Optional: at-rest encryption",
-    `Settings → Data & Privacy → Storage Mode → Enable Encryption. Adds AES-256-GCM with a key derived from your password. Data is decrypted in memory only while the app is open. Not end-to-end encrypted — the protection is between this device's storage and the running app. <strong>Lose the password and the data cannot be recovered.</strong>`)}
+    `Settings → Data & privacy → Storage & encryption → Enable Encryption. Adds AES-256-GCM with a key derived from your password (PBKDF2, 600,000 iterations); the salt lives inside the encrypted data so a browser storage wipe can't lock you out. Data is decrypted in memory only while the app is open. Not end-to-end encrypted — the protection is between this device's storage and the running app. <strong>Lose the password and the data cannot be recovered.</strong>`)}
   ${section("Backups",
-    `Manual export. JSON or .symphonyz (gzipped). Per-category checkboxes — back up just alters + bios, just fronting history, etc. Backups are <strong>not encrypted</strong> regardless of your storage mode; store them somewhere safe.`)}
-  ${section("Friends mode is the only off-device feature",
-    `When enabled, the only data transmitted is: your system name, display name, and current front status at the privacy level you choose. See the Friends Mode wiki alter for what's <em>not</em> sent (everything else).`)}
+    `Manual export: JSON, compact (gzipped), or copy-paste text chunks for browsers that block downloads. Per-category checkboxes — back up just alters + bios, just fronting history, etc. Auto-backup (Settings → Data & privacy) writes your <strong>active system</strong> to Downloads on a schedule, skipping very large images; a health card on the home screen speaks up if backups are missing, stale or failing. Regular backups are <strong>plain files</strong> whatever your storage mode; store them somewhere safe. On Android the app opts out of the OS's own cloud backup, so your export is the only way data leaves the phone.`)}
+  ${section("What can leave the device (all opt-in)",
+    `<strong>Friends</strong> sends your display name, system name, friend code, friends list, push registration, public key and current front at the privacy level you choose — plus any alters you share, end-to-end encrypted. <strong>Cloud-backed reminders</strong> send reminder times (and wording only if you allow it). <strong>Importers</strong> talk to that app's own servers. See the Friends Mode wiki alter for the full breakdown.`)}
   ${section("Privacy panic — Grocery list cover",
     `Triple-tap anywhere on the screen (within 500ms) → a generic grocery list takes over the entire app, including the bottom tab bar. Looks like an unrelated to-do app at a glance. Useful when you need to glance away mid-app.`)}
   ${section("Delete all local data",
@@ -609,9 +624,9 @@ const bioLocations = `
 
 // ── 21. Diary cards ─────────────────────────────────────────────────────
 const bioDiary = `
-  ${intro("Guide · Diary cards", `A structured daily card (DBT-style) — mood, anxiety, skills used, and a short "what happened". Fully templated, so you decide what a card asks.`)}
+  ${intro("Guide · Diary fields", `The Diary section inside Quick Check-In — structured daily fields (DBT-style): mood, anxiety, skills used, a short "what happened". Fully templated, so you decide what it asks. (There is no separate diary page any more — it lives in each check-in, and the answers show up in the Check-In Log and Timeline.)`)}
   ${section("Templates",
-    `A template is a list of fields — ratings, checkbox-lists, long-text. Build your own in Settings, or use the Standard Daily card this example ships with. Each day is one card against a template.`)}
+    `A template is a list of fields — ratings, checkbox-lists, long-text. Build your own under Manage Check-In → Diary, or use the Standard Daily template this example ships with. Each check-in can carry one diary entry.`)}
   ${section("Skills tracking",
     `The checkbox-list field ("grounding / breathwork / journaling / reaching out / movement") turns "did I use a skill today" into something you can actually see a trend in over a week.`)}
 `;
@@ -920,7 +935,7 @@ export function buildPages() {
     locations:  wikiAlter({ name: "Locations",              alias: "loc",   role: "Where you've been",color: "#0ea5e9", order_index: 19, description: bioLocations }),
     todo:       wikiAlter({ name: "To-Do & plans",          alias: "todo",  role: "Tasks",            color: "#06b6d4", order_index: 20, description: bioTodo }),
     pinnedDailyTasks: wikiAlter({ name: "Pinned tasks card",alias: "pin",   role: "Dashboard widget", color: "#0ea5e9", order_index: 21, description: bioPinnedDailyTasks }),
-    diary:      wikiAlter({ name: "Diary cards",            alias: "card",  role: "Daily card",       color: "#14b8a6", order_index: 22, description: bioDiary }),
+    diary:      wikiAlter({ name: "Diary fields",           alias: "diary", role: "Check-in diary",       color: "#14b8a6", order_index: 22, description: bioDiary }),
     // 5 · Reflection & support
     journaling: wikiAlter({ name: "Journaling",             alias: "journ", role: "Long-form",        color: "#8b5cf6", order_index: 23, description: bioJournaling }),
     grounding:  wikiAlter({ name: "Grounding & Learn",      alias: "calm",  role: "Support",          color: "#22c55e", order_index: 24, description: bioGrounding }),

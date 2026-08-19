@@ -17,7 +17,11 @@
 // ONLY when the wiki bios in previewWiki.js are genuinely updated — never
 // auto-bump alongside APP_VERSION (that re-creates the "banner claims fresh
 // while bios drift months behind" bug).
-export const WIKI_CONTENT_VERSION = "0.82.1";
+// Bumped PATCH for the refreshed Privacy & Backup, Shortcuts (planner +
+// new-UI quick actions) and Diary bios (v0.183.0). Deliberately NOT bumped
+// to APP_VERSION: the widget home board, unified edit popup and home
+// notices still have no wiki pages, and the banner must say so honestly.
+export const WIKI_CONTENT_VERSION = "0.82.2";
 
 // Registry metadata — one guided example. `wiki: true` keeps the banner's
 // "walkthrough up to date with vX.Y.Z" tag, since the alter profiles ARE the

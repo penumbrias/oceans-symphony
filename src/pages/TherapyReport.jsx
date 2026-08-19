@@ -1,3 +1,4 @@
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import { useState } from "react";
 import { useFrontLevels, filterCountedSessions } from "@/lib/frontLevels";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -455,6 +456,9 @@ export default function TherapyReportPage() {
         onGenerate={runFinalExportFromPreview}
         loading={loading}
       />
+
+      {/* Clinician-facing output — the disclaimer must travel with it. */}
+      <MedicalDisclaimerFooter className="mt-6" />
 
       <ExportModal
         isOpen={!!exportModal}

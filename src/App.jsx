@@ -19,7 +19,6 @@ import Settings from '@/pages/Settings';
 
 import Analytics from '@/pages/Analytics';
 import Journals from '@/pages/Journals';
-import DiaryCards from '@/pages/DiaryCards';
 import DailyTasks from '@/pages/DailyTasks.jsx';
 import GroupsManager from '@/pages/GroupsManager';
 import GroupProfile from '@/pages/GroupProfile';

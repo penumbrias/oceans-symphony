@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Loader2, Download, ShieldAlert, Bell, Zap } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import { useTerms } from "@/lib/useTerms";
 import { useBackupHealth } from "@/components/dashboard/BackupHealthNotice";
 import {
   AUTO_BACKUP_INTERVALS,
@@ -65,6 +66,7 @@ function BackupHealthLine() {
 }
 
 export default function AutoBackupSettings() {
+  const terms = useTerms();
   const [interval, setIntervalState] = useState(0);
   const [mode, setModeState] = useState(BACKUP_MODES.OFF);
   const [destination, setDestinationState] = useState(BACKUP_DESTINATIONS.ASK);
@@ -136,7 +138,7 @@ export default function AutoBackupSettings() {
           <Download className="w-4 h-4 text-primary" /> Auto-backup
         </h3>
         <p className="text-xs text-muted-foreground mt-0.5">
-          Writes a full backup of your data to your device on a schedule. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios.
+          Writes a backup of your <strong>active {terms.system}</strong> to your device on a schedule, skipping very large images and fonts. The destination is outside the app's sandbox, so a backup file there survives "Clear app data", device-cleaner apps, app reinstalls, and most storage-loss scenarios. For a complete file with every {terms.system} and all images, use Export in Data &amp; privacy. (Android's own cloud backup and device transfer are switched off for this app — this file is the only thing that moves.)
         </p>
       </div>
 
@@ -158,7 +160,7 @@ export default function AutoBackupSettings() {
             icon={Zap}
             title={NATIVE ? "Back up automatically" : "Back up automatically (limited)"}
             body={NATIVE
-              ? "Silent. When you open the app and a backup is due, it writes straight to your device's Documents folder — no prompts, no chooser."
+              ? "Silent. When you open the app and a backup is due, it writes straight to Downloads → Oceans Symphony — no prompts, no chooser."
               : "When you open the app and a backup is due, the system share sheet pops up so you can save the file. Truly automatic background backups need the native Android app — browsers and PWAs can't run on a clock."}
           />
           {NATIVE ? (
@@ -236,7 +238,7 @@ export default function AutoBackupSettings() {
               active={destination === BACKUP_DESTINATIONS.DOCUMENTS}
               onClick={() => handleDestinationChange(BACKUP_DESTINATIONS.DOCUMENTS)}
               title="Save to device"
-              body={"Silent — no share-sheet prompt. Backups land in your device's Documents folder when Android allows it (visible in Files app → Internal storage → Documents). On Android 11+ where scoped storage blocks the Documents write, falls back to the app's own external folder at Internal storage → Android → data → app.oceans_symphony.twa → files (still browsable, but wiped if you uninstall the app — keep an extra cloud copy if that matters)."}
+              body={"Silent — no share-sheet prompt. Backups land in Downloads → Oceans Symphony (visible in the Files app). If Android blocks that, the app falls back to Documents, and then to its own external folder at Android → data → app.oceans_symphony.twa → files (still browsable, but wiped if you uninstall — keep an extra copy elsewhere if that matters)."}
             />
             <ModeCard
               id={BACKUP_DESTINATIONS.ASK}

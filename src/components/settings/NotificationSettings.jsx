@@ -53,7 +53,7 @@ function CloudReminderDeliverySection() {
         }
       } else {
         await disableCloudReminderDelivery();
-        toast.success("Off — reminders are delivered fully on-device and nothing is sent to the server.");
+        toast.success("Off — reminders fire from this device only. Nothing about them is sent to the relay.");
       }
     } catch (e) {
       toast.error(e?.message || "Couldn't change reminder delivery");
@@ -75,8 +75,13 @@ function CloudReminderDeliverySection() {
         <div className="flex-1 min-w-0">
           <p className="text-sm font-medium">Cloud-backed delivery</p>
           <p className="text-xs text-muted-foreground mt-0.5 leading-snug">
-            When on, your <strong className="text-foreground">reminder times</strong> (and their text, unless you turn that off below the reminders list) are sent to the relay so a push can reach you after a force-stop. When off, the app <strong className="text-foreground">contacts no server</strong> and reminders stay entirely on your device.
+            When on, your <strong className="text-foreground">reminder times</strong> are sent to the relay so a push can reach you after a force-stop. Their <strong className="text-foreground">wording</strong> goes too only while "Show reminder text in notifications" (below the reminders list) is on — otherwise the relay gets a time and a blank title. When off, <strong className="text-foreground">no reminder data goes anywhere</strong> — reminders fire from this device only.
           </p>
+          {identity && !identity.push_only && settings?.reminders_cloud_delivery === undefined && (
+            <p className="text-[0.7rem] text-muted-foreground mt-1 leading-snug">
+              You already use Friends, so this was left on — it's how reminders reached you before this switch existed. Turn it off any time.
+            </p>
+          )}
         </div>
         {busy ? (
           <Loader2 className="w-4 h-4 mt-1 animate-spin text-muted-foreground flex-shrink-0" />
@@ -87,7 +92,7 @@ function CloudReminderDeliverySection() {
       <div className="flex items-start gap-2 rounded-lg border border-border/40 bg-muted/15 p-2.5">
         <ShieldCheck className="w-3.5 h-3.5 mt-0.5 flex-shrink-0 text-emerald-500" />
         <p className="text-[0.7rem] text-muted-foreground leading-relaxed">
-          This is independent of the Friends feature — turning it on doesn't add you to anyone's friends or share anything but your reminders. The app stays fully local-first; this is the one optional piece that needs the relay.
+          This is independent of the Friends feature — turning it on doesn't add you to anyone's friends or share anything but your reminders. Together with Friends and third-party importers, it's one of the few opt-in parts of the app that talk to a server; your data itself is never stored on one.
         </p>
       </div>
     </SubSection>

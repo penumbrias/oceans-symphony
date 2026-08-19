@@ -242,7 +242,7 @@ export default function RemindersSettings() {
       <div className="flex items-center justify-between p-3 bg-muted/20 rounded-xl border border-border/40">
         <div>
           <p className="font-semibold text-sm">Remind me about unresolved plans</p>
-          <p className="text-xs text-muted-foreground">Show the "Plans needing review" card on the Dashboard when past-time plans are still scheduled.</p>
+          <p className="text-xs text-muted-foreground">Show the "waiting for an outcome" notice on your home screen when past-time plans are still scheduled.</p>
         </div>
         <Switch
           checked={unresolvedNagOn}

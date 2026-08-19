@@ -1,3 +1,4 @@
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import React, { useState, useMemo, useEffect, useRef } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -1607,6 +1608,8 @@ export default function CheckInLog() {
           ))}
         </div>
       )}
+
+      <MedicalDisclaimerFooter className="mt-6" />
 
       {/* Reopen-for-edit modal: pre-fills the Quick Check-In form
           with the selected entry. Saving calls UPDATE (no duplicate). */}

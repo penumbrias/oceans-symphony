@@ -1,3 +1,4 @@
+import { MedicalDisclaimerFooter } from "@/components/shared/MedicalDisclaimer";
 import React, { useState, useEffect } from "react";
 import { confirm } from "@/components/shared/ConfirmDialog";
 import { base44 } from "@/api/base44Client";
@@ -756,6 +757,7 @@ export default function SystemCheckInPage() {
           </div>
         </div>
       ) : null}
+      <MedicalDisclaimerFooter className="mt-6" />
     </motion.div>
   );
 }

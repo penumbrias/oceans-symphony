@@ -83,3 +83,21 @@ export default function MedicalDisclaimer({ compact = false }) {
     </div>
   );
 }
+
+// The collapsible footer form every clinical-adjacent PAGE mounts (CLAUDE.md:
+// "Any new surface that mentions therapy / crisis / clinical concepts MUST
+// embed a MedicalDisclaimer"). One component so the pages can't drift.
+// `open` = start expanded (crisis-adjacent pages like the safety plan).
+export function MedicalDisclaimerFooter({ open = false, className = "" }) {
+  return (
+    <details open={open} className={`rounded-xl border border-amber-500/30 bg-amber-500/5 ${className}`}>
+      <summary className="flex items-center gap-2 px-3 py-2.5 cursor-pointer text-sm font-medium text-amber-700 dark:text-amber-400">
+        <span aria-hidden="true">⚠️</span>
+        Disclaimer — Oceans Symphony is not a medical product
+      </summary>
+      <div className="px-3 pb-3 pt-1">
+        <MedicalDisclaimer compact />
+      </div>
+    </details>
+  );
+}
