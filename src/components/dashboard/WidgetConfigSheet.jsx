@@ -41,8 +41,9 @@ import ColorPicker from "@/components/shared/ColorPicker";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import {
   themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
-  LOOK_GROUPS, lookCoverage, lookForGroups, OFF,
+  LOOK_GROUPS, lookCoverage, lookForGroups, OFF, mergeLook, pickLook, userStyleId,
 } from "@/lib/widgetLook";
+import { getStyleLook } from "@/lib/homeStyles";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import { SearchableMultiList } from "@/v2/widgets";
 import { widgetLabel } from "@/lib/widgetRegistry";
@@ -478,7 +479,19 @@ export default function WidgetConfigSheet({
     });
   // OFF is a real stored value ("this style has no gradient"), not a colour.
   const gradHex = (v) => (v && v !== OFF ? v : "");
-  const gradOn = gradHex(settings.gradFrom) && gradHex(settings.gradTo);
+  // The gradient the widget is ACTUALLY drawing = the built-in / saved
+  // style underneath, the widget's own fields on top (the same merge
+  // widgetLookFor does). The pickers used to show only the widget's own
+  // fields, so with a style applied they sat on default colours while the
+  // widget showed the style's gradient (the user's report).
+  const effective = (() => {
+    const st = settings.style;
+    const savedId = userStyleId(st);
+    const saved = savedId ? userStyles.find((x) => x.id === savedId) : null;
+    const builtinId = HOME_STYLES.some((h) => h.id === st) ? st : pageStyleId;
+    return mergeLook(mergeLook(getStyleLook(builtinId), saved?.look || {}), pickLook(settings));
+  })();
+  const gradOn = gradHex(effective.gradFrom) && gradHex(effective.gradTo);
   // A style can carry "no custom CSS" as an explicit value; that's an
   // empty editor, not the literal word.
   const ownCss = settings.css && settings.css !== OFF ? settings.css : "";
@@ -871,21 +884,21 @@ export default function WidgetConfigSheet({
               <label className="text-xs font-medium block mb-1.5">Gradient</label>
               <div className="flex items-center gap-3">
                 <ColorPicker compact label="Gradient start"
-                  value={gradHex(settings.gradFrom) || live.bg || "#38bdf8"}
-                  onChange={(v) => onSettings(widget.instanceId, { gradFrom: v })}
-                  opacity={{ value: settings.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, live.bg || "#38bdf8") }}
+                  value={gradHex(effective.gradFrom) || live.bg || "#38bdf8"}
+                  onChange={(v) => onSettings(widget.instanceId, { gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
+                  opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
                   onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
                 <ColorPicker compact label="Gradient end"
-                  value={gradHex(settings.gradTo) || "#6ee7b7"}
-                  onChange={(v) => onSettings(widget.instanceId, { gradTo: v })}
-                  opacity={{ value: settings.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, "#6ee7b7") }}
+                  value={gradHex(effective.gradTo) || "#6ee7b7"}
+                  onChange={(v) => onSettings(widget.instanceId, { gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
+                  opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
                   onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
                 <span className="text-[0.6875rem] text-muted-foreground">
                   {gradOn ? "on" : "pick both"}
                 </span>
               </div>
               {gradOn && (
-                <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={135}
+                <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
                   min={0} max={360} step={15} unit="°"
                   onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
                   onReset={() => onSettings(widget.instanceId, { gradAngle: "" })} />
