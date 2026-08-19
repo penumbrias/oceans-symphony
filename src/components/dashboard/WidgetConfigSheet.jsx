@@ -516,10 +516,10 @@ export default function WidgetConfigSheet({
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>
-              <DrawerTitle className="text-base">{settings.label || defLabel}</DrawerTitle>
-              <DrawerDescription className="text-xs">
-                {peek ? "Keep adjusting — the widget is visible above." : "Widget options"}
-              </DrawerDescription>
+              <DrawerTitle className={peek ? "text-sm" : "text-base"}>{settings.label || defLabel}</DrawerTitle>
+              {/* Screen-reader only: a visible explainer line here just ate
+                  sheet space (house rule — no descriptive filler). */}
+              <DrawerDescription className="sr-only">Widget options</DrawerDescription>
             </div>
             <span className="flex items-center gap-1.5 flex-shrink-0">
             <button type="button" onClick={flipDock}
@@ -1228,9 +1228,6 @@ export default function WidgetConfigSheet({
             >
               <Trash2 className="w-4 h-4" /> Remove widget
             </button>
-            <p className="text-[0.6875rem] text-muted-foreground mt-1 text-center">
-              Or hold a widget and drag it onto “Drop to remove”.
-            </p>
           </div>
         </div>
       </DrawerContent>

@@ -180,9 +180,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
           <div className="flex items-start justify-between gap-2">
             <div>
               <DrawerTitle className={peek ? "text-sm" : "text-base"}>{t("options.title")}</DrawerTitle>
-              <DrawerDescription className="text-xs">
-                {peek ? t("options.peekHint") : t("options.subtitle")}
-              </DrawerDescription>
+              <DrawerDescription className="sr-only">{t("options.subtitle")}</DrawerDescription>
             </div>
             <span className="flex items-center gap-1.5 flex-shrink-0">
             {/* Flip the sheet to the other edge — a bottom sheet can sit

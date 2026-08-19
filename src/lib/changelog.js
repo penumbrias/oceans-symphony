@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Options sheets (widget, bar, display, home) drop their explainer lines under the title — more room for the actual controls." },
       { type: "improve", text: "Pinned {{alters}} bar: back to a floating card above the bottom bar (visually separate, no taller bottom section) — still on every page." },
       { type: "improve", text: "The pinned {{alters}} bar now shows on every page when it's switched on — it lives in the bottom bar like the quick actions (same handle, same swipe-down to hide, same options gear)." },
       { type: "feature", text: "Import from Ampersand's new JSON export (0.3+) — same auto-detect as the .ampar archive, from Settings or first-run setup. Each Ampersand {{system}} becomes its own {{system}}; @mentions in messages and notes show names." },

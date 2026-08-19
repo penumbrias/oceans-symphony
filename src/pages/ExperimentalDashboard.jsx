@@ -1269,7 +1269,7 @@ export default function ExperimentalDashboard({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <DrawerTitle className="text-base">Home screen</DrawerTitle>
-                <DrawerDescription className="text-xs">Layout, look and bars for this board.</DrawerDescription>
+                <DrawerDescription className="sr-only">Layout, look and bars for this board.</DrawerDescription>
               </div>
               {/* Same Peek + dock-flip the Display options sheet has —
                   this drawer IS display options on the home page, and
