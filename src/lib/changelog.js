@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "\u201cActive now\u201d: see running activities, symptom episodes and sleep at a glance — a top-bar item that appears only while something's active, an \u201cActive\u201d quick-action key with a count badge, and an optional floating bubble (Display options → Quick action bar → Active-now bubble: off / when something is active / always). Tap any to open the list." },
+      { type: "improve", text: "Today widget: tap \u201c+ Add\u201d (or the empty widget) to add something for today — a new task, or pick one from your to-do list and it's due today." },
       { type: "feature", text: "Quick action bar can sit behind the TOP bar instead of the bottom one (Display options → Quick action bar → Edge)." },
       { type: "fix", text: "Sliders and checkboxes everywhere use your highlight colour (they were browser-default blue); Content size got the same set-then-slide row and Reset as the other sizes." },
       { type: "fix", text: "{{Alter}} rows: a long role no longer pushes the name off the card." },

@@ -23,6 +23,7 @@ export const DEFAULT_UI_V2 = {
   // Where the floating/bubble quick-action dock sits — set by dragging it.
   // null = the dockSide token's edge at mid-height.
   dockPos: null,
+  activeDockPos: null,
   registerOrder: null, // null = catalogue order
   // Every key the bar can hold; the user picks which in Display options →
   // Quick actions. Plan and Set-front ship on by default because they were
@@ -80,6 +81,9 @@ export const V2_COMMAND_KEYS = [
   // either id are migrated to this one (see resolveUiV2).
   { id: "quick_thing",    target: "/?action=quick-thing",    label: "Add" },
   { id: "set_front",      target: "/?action=set-front",      label: "Front" },
+  // "What's active right now" — running activities, symptom episodes,
+  // sleep — as a popover (badge = count). No target: opens in place.
+  { id: "active_now",     target: null,                      label: "Active" },
 ];
 
 // ── Token catalogue (the granular-customization substrate) ─────────
@@ -102,6 +106,9 @@ export const V2_TOP_BAR_ITEMS = [
   { id: "clock",    labelKey: "editSheet.topItem.clock" },
   { id: "search",   labelKey: "editSheet.topItem.search" },
   { id: "bell",     labelKey: "editSheet.topItem.bell" },
+  // Only draws when something IS active (running activity / symptom /
+  // sleep) — a dot + count that opens the same popover as the key.
+  { id: "active",   labelKey: "editSheet.topItem.active" },
 ];
 const TOP_BAR_IDS = V2_TOP_BAR_ITEMS.map((i) => i.id);
 
@@ -162,6 +169,13 @@ export const V2_TOKEN_DEFS = [
   // Bar mode: which chrome hosts the strip. Not a CSS var — V2Frame reads it.
   { id: "actionsEdge", group: "bars", label: "Quick actions edge", type: "select", cssVar: "--v2-actions-edge-noop", default: "bottom",
     options: [{ v: "bottom", label: "Bottom bar", css: "bottom" }, { v: "top", label: "Top bar", css: "top" }] },
+  // The "active now" bubble: off / only while something is active / always.
+  { id: "activeBubble", group: "bars", label: "Active-now bubble", type: "select", cssVar: "--v2-active-bubble-noop", default: "off",
+    options: [
+      { v: "off", label: "Off", css: "off" },
+      { v: "when-active", label: "When something is active", css: "when-active" },
+      { v: "always", label: "Always", css: "always" },
+    ] },
   { id: "actionsMode", group: "bars", label: "Quick actions display",  type: "select", cssVar: "--v2-actions-mode", default: "bar",
     options: [
       { v: "bar",    label: "Behind the bottom handle", css: "bar" },
@@ -265,6 +279,13 @@ export function resolveUiV2(stored) {
       // topPct is the position ALONG the chosen edge (vertical % on the
       // sides, horizontal % on top/bottom).
       ? { side: src.dockPos.side, topPct: Math.min(88, Math.max(6, src.dockPos.topPct)) }
+      : null,
+    activeDockPos: (src.activeDockPos
+      && ["left", "right", "top", "bottom"].includes(src.activeDockPos.side)
+      && Number.isFinite(src.activeDockPos.topPct))
+      // topPct is the position ALONG the chosen edge (vertical % on the
+      // sides, horizontal % on top/bottom).
+      ? { side: src.activeDockPos.side, topPct: Math.min(88, Math.max(6, src.activeDockPos.topPct)) }
       : null,
   };
 }

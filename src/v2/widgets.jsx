@@ -19,6 +19,8 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import QuickTaskComposer from "@/components/bulletin/QuickTaskComposer";
 import {
   Users, StickyNote, CalendarCheck, Timer, History, Heart, CheckSquare, PenLine,
   IdCard, Type, AlignLeft, Minus, MoveVertical, Rocket, BookOpen, ClipboardList, Smile, AlertTriangle, ListTodo,
@@ -360,10 +362,68 @@ function ActiveWidget({ api }) {
 }
 
 // ── Today ──────────────────────────────────────────────────────────
+// Tap the Today widget → add something for today: a NEW task (the same
+// quick composer the Add key uses, due today) or pick from the to-do list
+// (sets its due date to today). Hosted in the widget so it works on the
+// v2 board, not only the classic dashboard.
+function TodayAddSheet({ open, onClose }) {
+  const tr = useT();
+  const qc = useQueryClient();
+  const [tab, setTab] = React.useState("new");
+  const [q, setQ] = React.useState("");
+  const tasks = useList("tasks", "Task");
+  const todayKey = (() => { const d = new Date(); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`; })();
+  const { data: activeSessions = [] } = useQuery({ queryKey: ["activeFront"], queryFn: () => base44.entities.FrontingSession.filter({ is_active: true }) });
+  const frontingAlterIds = activeSessions.map((s) => s.alter_id).filter(Boolean);
+  const candidates = tasks
+    .filter((t) => !t.completed && !(t.due_date && sameDay(t.due_date, Date.now())))
+    .filter((t) => (t.title || "").toLowerCase().includes(q.toLowerCase()))
+    .sort((a, b) => (a.title || "").localeCompare(b.title || ""));
+  const addToToday = async (t) => {
+    try {
+      await base44.entities.Task.update(t.id, { due_date: new Date(`${todayKey}T12:00:00`).toISOString() });
+      qc.invalidateQueries({ queryKey: ["tasks"] });
+    } catch { /* non-fatal */ }
+  };
+  return (
+    <Dialog open={open} onOpenChange={(v) => !v && onClose()}>
+      <DialogContent className="max-w-md">
+        <DialogHeader><DialogTitle>{tr("widget.today.addTitle")}</DialogTitle></DialogHeader>
+        <div className="flex gap-1 bg-muted/50 rounded-lg p-1" role="tablist">
+          {[["new", tr("widget.today.addNew")], ["list", tr("widget.today.addFromList")]].map(([id, label]) => (
+            <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}
+              className={`flex-1 text-sm py-1.5 rounded-md ${tab === id ? "bg-background shadow-sm font-medium" : "text-muted-foreground"}`}>{label}</button>
+          ))}
+        </div>
+        {tab === "new" ? (
+          <QuickTaskComposer frontingAlterIds={frontingAlterIds} initialDueDate={todayKey} hideCancelButton onSaved={onClose} />
+        ) : (
+          <div className="space-y-1.5">
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder={tr("widget.today.searchTasks")}
+              className="w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+            <div className="max-h-64 overflow-y-auto space-y-1 overscroll-contain">
+              {candidates.length === 0 && <Muted>{tr("widget.today.noTasks")}</Muted>}
+              {candidates.map((t) => (
+                <button key={t.id} type="button" onClick={() => addToToday(t)}
+                  className="w-full flex items-center gap-2 px-2 py-2 rounded-lg border border-border/40 text-left text-sm hover:bg-muted/30">
+                  <CheckSquare className="w-4 h-4 text-muted-foreground flex-shrink-0" />
+                  <span className="flex-1 truncate">{t.title}</span>
+                  <span className="text-xs" style={{ color: "var(--v2-accent)" }}>{tr("widget.today.addBtn")}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function TodayWidget() {
   const tr = useT();
   const navigate = useNavigate();
   const now = Date.now();
+  const [addOpen, setAddOpen] = React.useState(false);
   const activities = useList("activities", "Activity");
   const tasks = useList("tasks", "Task");
   const plans = activities
@@ -377,8 +437,17 @@ function TodayWidget() {
   ).length;
 
   return (
-    <Section label={tr("widget.today.label")} action={<TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>}>
-      {plans.length === 0 && due.length === 0 && <Muted>{tr("widget.today.empty")}</Muted>}
+    <Section label={tr("widget.today.label")}
+      action={<span className="flex items-center gap-2">
+        <TextAction onClick={() => setAddOpen(true)}>+ {tr("widget.today.addBtn")}</TextAction>
+        <TextAction onClick={() => navigate("/activities")}>{tr("widget.today.open")}</TextAction>
+      </span>}>
+      <TodayAddSheet open={addOpen} onClose={() => setAddOpen(false)} />
+      {plans.length === 0 && due.length === 0 && (
+        <button type="button" onClick={() => setAddOpen(true)} className="text-left w-full">
+          <Muted>{tr("widget.today.empty")} — {tr("widget.today.tapToAdd")}</Muted>
+        </button>
+      )}
       {plans.length > 0 && due.length > 0 && (
         <p className="text-[0.625em] font-semibold uppercase tracking-wide text-muted-foreground pt-0.5">
           {tr("widget.today.planned")}

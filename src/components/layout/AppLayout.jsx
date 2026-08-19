@@ -41,6 +41,7 @@ import { getLocalIdentity, fetchFriendsList } from "@/lib/friendsApi";
 import { resolveUiV2, buildTokenVars } from "@/lib/uiV2";
 import { applyHomePresetToBoard, applyHomePresetToDesktopBoard } from "@/lib/homePresetParts";
 import { V2StatusLine, V2BottomChrome, V2SideRail, V2QuickDock } from "@/components/v2/V2Frame";
+import { ActiveNowBubble } from "@/components/v2/ActiveNow";
 import { UI_V2_ENABLED } from "@/lib/featureFlags";
 
 
@@ -925,6 +926,7 @@ const handleNotifClick = (mentionLog) => {
       {uiV2On && <V2BottomChrome uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <V2SideRail uiV2={uiV2} settingsRow={settings0} />}
       {uiV2On && <V2QuickDock uiV2={uiV2} settingsRow={settings0} />}
+      {uiV2On && <ActiveNowBubble uiV2={uiV2} settingsRow={settings0} />}
 
       {/* ── Fixed bottom tab bar (mobile only) ── */}
       <nav

@@ -63,7 +63,7 @@ export function useCurrentFocus() {
 
   // Running activity timers (localStorage store, same as CurrentActivities).
   for (const act of getActiveActivities()) {
-    items.push({ type: "activity", label: act.activity_name || "Activity in progress", path: "/activities" });
+    items.push({ type: "activity", label: act.name || act.activity_name || "Activity in progress", path: "/activities" });
   }
 
   // In-progress sleep (bedtime set, not woken).

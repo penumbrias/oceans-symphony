@@ -48,6 +48,8 @@ export default function QuickTaskComposer({
   startWithWhen = false,
   // Escape hatch to the full plan form (repeats, reminders, who it's for).
   moreOptions = null,
+  // Pre-filled due date (yyyy-mm-dd) — the Today widget opens with today.
+  initialDueDate = "",
 }) {
   const queryClient = useQueryClient();
   const terms = useTerms();
@@ -55,7 +57,7 @@ export default function QuickTaskComposer({
   const [expanded, setExpanded] = useState(startWithWhen);
   const [title, setTitle] = useState("");
   const [priority, setPriority] = useState("medium");
-  const [dueDate, setDueDate] = useState("");
+  const [dueDate, setDueDate] = useState(initialDueDate || "");
   const [scheduledDate, setScheduledDate] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
   const [durationMin, setDurationMin] = useState("60");
@@ -76,7 +78,7 @@ export default function QuickTaskComposer({
   });
   const selectedCategory = useMemo(() => categories.find((c) => c.id === categoryId) || null, [categories, categoryId]);
 
-  const isPristine = !title.trim() && priority === "medium" && !dueDate && !scheduledDate && !scheduledTime
+  const isPristine = !title.trim() && priority === "medium" && dueDate === (initialDueDate || "") && !scheduledDate && !scheduledTime
     && !categoryId && !goalTarget && !goalUnit.trim() && !note.trim() && !pinned && !urgent;
 
   useEffect(() => {

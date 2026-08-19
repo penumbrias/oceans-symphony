@@ -52,6 +52,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
 import { EdgeDock } from "@/components/v2/EdgeDock";
+import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -63,11 +64,12 @@ const UiEditSheet = React.lazy(() => import("@/components/v2/UiEditSheet"));
 const KEY_ICONS = {
   quick_checkin: Heart, quick_note: PenLine, start_activity: Zap,
   start_symptom: ActivityIcon, quick_thing: CheckSquare, set_front: Users,
+  active_now: null, // drawn by ActiveNowKeyFace (icon + count badge)
 };
 const KEY_LABEL_KEYS = {
   quick_checkin: "capture.checkIn", quick_note: "capture.note",
   start_activity: "capture.activity", start_symptom: "capture.symptom",
-  quick_thing: "capture.thing", set_front: "capture.front",
+  quick_thing: "capture.thing", set_front: "capture.front", active_now: "capture.active",
 };
 
 const FONT_STEPS = ["xs3", "xs2", "xs", "sm", "default", "lg", "xl", "xl2", "xl3", "xl4", "xl5"];
@@ -414,6 +416,7 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
               <span className="truncate">{presenceText}</span>
             </button>
           );
+          if (id === "active") return <ActiveNowChip key={id} />;
           if (id === "clock") return (
             <span key={id} className="text-xs tabular-nums text-muted-foreground flex-shrink-0">{clock}</span>
           );
@@ -680,6 +683,8 @@ export function V2QuickDock({ uiV2, settingsRow }) {
   const t = useT();
   const terms = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
+  const [activeOpen, setActiveOpen] = useState(false);
+  const activeAnchor = useRef(null);
   const [bubbleOpen, setBubbleOpen] = useState(() => {
     try { return localStorage.getItem(DOCK_OPEN_KEY) === "1"; } catch { return false; }
   });
@@ -749,7 +754,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
           <CommandKeyButton key={k.id} label={label}
             onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
             holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
-            onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
+            onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : k.id === "active_now" ? setActiveOpen((v) => !v) : navigate(k.target))}
             className="flex items-center justify-center text-muted-foreground hover:text-foreground active:scale-95 transition-transform backdrop-blur"
             style={{
               background: "var(--color-bg)",
@@ -758,7 +763,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
               border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
               boxShadow: "0 2px 8px rgb(0 0 0 / 0.25)",
             }}>
-            <Icon style={{ width: "45%", height: "45%" }} />
+            {k.id === "active_now" ? <ActiveNowKeyFace /> : <Icon style={{ width: "45%", height: "45%" }} />}
           </CommandKeyButton>
         );
       })}
@@ -778,6 +783,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
         </button>
       )}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+      <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
     </EdgeDock>
   );
 }
@@ -792,6 +798,8 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   const t = useT();
   const terms = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
+  const [activeOpen, setActiveOpen] = useState(false);
+  const activeAnchor = useRef(null);
   const [qaOpen, setQaOpen] = useState(() => {
     try { return localStorage.getItem(QA_OPEN_KEY) === "1"; } catch { return false; }
   });
@@ -900,14 +908,14 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                       <CommandKeyButton key={k.id} label={label}
                         onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
                         holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
-                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
+                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : k.id === "active_now" ? setActiveOpen((v) => !v) : navigate(k.target))}
                         className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
                         style={{
                           width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
                           borderRadius: "var(--v2-radius)",
                           border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
                         }}>
-                        <Icon style={{ width: "45%", height: "45%" }} />
+                        {k.id === "active_now" ? <ActiveNowKeyFace /> : <Icon style={{ width: "45%", height: "45%" }} />}
                       </CommandKeyButton>
                     );
                   })}
@@ -931,6 +939,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     <>
       {edge === "top" ? <>{row}{handle}</> : <>{handle}{row}</>}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+      <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
     </>
   );
 }
