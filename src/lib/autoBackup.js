@@ -28,6 +28,7 @@ import { isNative } from "@/lib/platform";
 import { shareFile, writeFileToDocumentsSilent } from "@/lib/shareFile";
 import { saveBlobToPublicDownloads } from "@/lib/nativeMediaStoreSave";
 import { recordBackupAttempt } from "@/lib/backupHealth";
+import { hasMultipleSystems } from "@/lib/systems";
 
 const INTERVAL_KEY = "symphony_autobackup_interval_days";
 const LAST_KEY = "symphony_autobackup_last_at";
@@ -178,7 +179,7 @@ async function buildFullBackupPayload() {
       `[Auto-backup] payload too large (${Math.round(heavyBytes / 1024 / 1024)} MB of images/fonts) — writing data-only backup so the native bridge doesn't crash.`
     );
   }
-  return {
+  const payload = {
     __format: "symphony_backup",
     __version: 1,
     __exported_at: new Date().toISOString(),
@@ -191,6 +192,14 @@ async function buildFullBackupPayload() {
     __local_fonts: skipHeavy ? {} : fonts,
     __local_settings: readBackupLocalSettings(),
   };
+  // Caveats the health surface must be able to say out loud (they used to
+  // be a console.warn and a flag inside the file — invisible in-app):
+  //   • images/fonts skipped over the size limit
+  //   • only the ACTIVE system is in an auto-backup (multi-system users)
+  let multi = false;
+  try { multi = hasMultipleSystems(); } catch { /* registry unavailable */ }
+  Object.defineProperty(payload, "__caveats", { enumerable: false, value: { skippedHeavy: skipHeavy, activeSystemOnly: multi } });
+  return payload;
 }
 
 // Run a backup right now. Two delivery paths:
@@ -204,6 +213,7 @@ async function buildFullBackupPayload() {
 // | "cancelled" | "failed").
 export async function runAutoBackupNow({ silent = false } = {}) {
   const payload = await buildFullBackupPayload();
+  const caveats = payload.__caveats || {};
   const json = JSON.stringify(payload);
   const date = new Date().toISOString().slice(0, 10);
   const filename = `oceans-symphony-backup-${date}.json`;
@@ -266,7 +276,10 @@ export async function runAutoBackupNow({ silent = false } = {}) {
 
   if (result === "filesystem" || result === "shared" || result === "downloaded") {
     setAutoBackupLastAt(new Date().toISOString());
-    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: true, detail: location || result });
+    const notes = [];
+    if (caveats.activeSystemOnly) notes.push("active system only");
+    if (caveats.skippedHeavy) notes.push("images/fonts skipped (too large)");
+    recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: true, detail: [location || result, ...notes].join(" · "), partial: notes.length > 0 });
   } else if (result === "failed") {
     // "cancelled" is the user's choice, not a failure — don't count it.
     recordBackupAttempt({ kind: silent ? "auto" : "manual", ok: false, detail: error || "delivery failed" });

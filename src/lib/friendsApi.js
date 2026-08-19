@@ -183,7 +183,10 @@ export async function fetchFriendsList() {
   const identity = await getLocalIdentity();
   if (!identity) return { friends: [], pending: [], pendingSent: [] };
 
-  const res = await fetch(`${BASE}/list?userId=${identity.userId}&secret=${identity.secret}`);
+  const res = await fetch(`${BASE}/list`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: identity.userId, secret: identity.secret }),
+  });
   if (!res.ok) {
     // THROW rather than return an empty list. A transient 5xx / offline blip
     // that still produced an HTTP response would otherwise resolve as a
@@ -204,9 +207,10 @@ export async function fetchFriendStatus(friendUserId) {
   const identity = await getLocalIdentity();
   if (!identity) return null;
 
-  const res = await fetch(
-    `${BASE}/status?userId=${friendUserId}&viewerUserId=${identity.userId}&viewerSecret=${identity.secret}`
-  );
+  const res = await fetch(`${BASE}/status`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId: friendUserId, viewerUserId: identity.userId, viewerSecret: identity.secret }),
+  });
   if (!res.ok) return null;
   return sanitizeFrontBlob(await res.json());
 }

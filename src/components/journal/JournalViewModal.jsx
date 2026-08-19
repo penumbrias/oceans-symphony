@@ -5,7 +5,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { format } from "date-fns";
 import { parseDate } from "@/lib/dateUtils";
-import { decryptContent } from "@/lib/encryption";
+import { decryptContent, encryptContent, isLegacyEncryptedContent } from "@/lib/encryption";
+import { base44 } from "@/api/base44Client";
+import { useQueryClient } from "@tanstack/react-query";
 import { Edit2, Lock, AlertCircle, Loader2, BookOpen, Trash2 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import DOMPurify from "dompurify";
@@ -75,6 +77,7 @@ async function resolveLocalImagesInHtml(html) {
 }
 
 export default function JournalViewModal({ open, onClose, entry, altersById, onEdit, onDelete }) {
+  const queryClient = useQueryClient();
   const [decryptPassword, setDecryptPassword] = useState("");
   const [decryptedContent, setDecryptedContent] = useState(null);
   const [decryptError, setDecryptError] = useState("");
@@ -100,6 +103,16 @@ export default function JournalViewModal({ open, onClose, entry, altersById, onE
     try {
       const result = await decryptContent(entry.content, decryptPassword);
       setDecryptedContent(result);
+      // Transparent upgrade: an entry locked with the old weak scheme is
+      // re-encrypted with the strong one the moment it opens successfully
+      // (same password, same content — nothing the user sees changes).
+      if (isLegacyEncryptedContent(entry.content)) {
+        try {
+          const upgraded = await encryptContent(result, decryptPassword);
+          await base44.entities.JournalEntry.update(entry.id, { content: upgraded });
+          queryClient?.invalidateQueries({ queryKey: ["journalEntries"] });
+        } catch { /* best-effort — the entry still opens; it upgrades next time */ }
+      }
     } catch {
       setDecryptError("Incorrect password.");
     } finally {

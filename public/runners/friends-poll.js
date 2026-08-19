@@ -78,8 +78,8 @@ addEventListener("checkFriends", async (resolve, reject) => {
       return;
     }
 
-    const url = `${API_BASE}/list?userId=${encodeURIComponent(userId)}&secret=${encodeURIComponent(secret)}`;
-    const res = await fetch(url);
+    const url = `${API_BASE}/list`;
+    const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId, secret }) });
     if (!res || !res.ok) {
       resolve();
       return;

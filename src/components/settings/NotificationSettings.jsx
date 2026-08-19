@@ -32,7 +32,7 @@ function CloudReminderDeliverySection() {
   const { data: identity } = useQuery({ queryKey: ["friendIdentity"], queryFn: getLocalIdentity });
   const [busy, setBusy] = useState(false);
 
-  const on = cloudReminderDeliveryEnabled(settings, !!identity);
+  const on = cloudReminderDeliveryEnabled(settings, identity || null);
 
   const toggle = async (v) => {
     setBusy(true);

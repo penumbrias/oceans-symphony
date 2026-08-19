@@ -20,6 +20,10 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Security: password-locked journal entries now use the same strong encryption as the rest of the app (they used a much weaker scheme). Existing locked entries still open and upgrade themselves the next time you unlock them." },
+      { type: "fix", text: "Security: Friends credentials are no longer sent in web addresses (where servers keep logs) — they travel in the request body like everything else." },
+      { type: "fix", text: "Cloud reminder delivery is now genuinely opt-in — enabling push notifications no longer quietly turns it on — and reminder text stays on your device when text sharing is off." },
+      { type: "improve", text: "Backup health now says when an automatic backup was partial: only your active {{system}}, or images/fonts skipped because they were too large." },
       { type: "improve", text: "Faster: {{switching}} {{fronters}} and importing data now save once instead of once per record (a switch used to re-save your whole database up to ten times, and big imports could freeze for minutes)." },
       { type: "improve", text: "Faster: pages stop re-reading and re-sorting your whole database every time you navigate back to them, and the therapy-report PDF library only loads when you make a report." },
       { type: "fix", text: "Encrypted multi-{{system}} data restored or transferred since the encryption upgrade could refuse to unlock (\u201cIncorrect password\u201d on the right password). Fixed at the source, and existing affected {{systems}} now unlock again on their own." },

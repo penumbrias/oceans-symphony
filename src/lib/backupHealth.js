@@ -34,10 +34,10 @@ function write(state) {
 
 // kind: "auto" | "manual" | "recovery"; ok: boolean; detail: short reason
 // / destination string. Never throws.
-export function recordBackupAttempt({ kind = "manual", ok, detail = "" } = {}) {
+export function recordBackupAttempt({ kind = "manual", ok, detail = "", partial = false } = {}) {
   try {
     const st = read();
-    const ev = { at: new Date().toISOString(), kind, ok: !!ok, detail: String(detail || "").slice(0, 160) };
+    const ev = { at: new Date().toISOString(), kind, ok: !!ok, partial: !!partial, detail: String(detail || "").slice(0, 160) };
     st.events = [ev, ...(Array.isArray(st.events) ? st.events : [])].slice(0, MAX_EVENTS);
     if (ok) st.lastOkAt = ev.at;
     write(st);
@@ -81,7 +81,12 @@ export function evaluateBackupHealth({ mode = "auto", intervalDays = 0, legacyLa
     const staleAfter = autoOn ? Math.max(intervalDays * 2, 7) : 30;
     if (daysSince > staleAfter) level = mode === "off" ? "off" : "stale";
   }
-  return { level, daysSince, lastOkAt: lastOk, consecutiveFails, lastFailDetail: lastFail?.detail || "", lastFailAt: lastFail?.at || null, snoozed, events };
+  // A backup that succeeded but knowingly left things out (only the active
+  // system; media over the size limit) is "partial": healthy on time, but
+  // the user must be told what's not in it.
+  const lastOkEvent = events.find((e) => e.ok) || null;
+  const partial = !!lastOkEvent?.partial;
+  return { level, daysSince, lastOkAt: lastOk, consecutiveFails, lastFailDetail: lastFail?.detail || "", lastFailAt: lastFail?.at || null, snoozed, events, partial, partialDetail: partial ? lastOkEvent.detail : "" };
 }
 
 export const BACKUP_HEALTH_CHANGE_EVENT = CHANGE_EVENT;

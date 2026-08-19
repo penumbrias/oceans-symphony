@@ -5,13 +5,16 @@ import { kv, cors } from '../_kv.js';
 export default async function handler(req, res) {
   cors(res, req);
   if (req.method === 'OPTIONS') return res.status(200).end();
-  if (req.method !== 'GET') return res.status(405).end();
+  // POST (credentials in the body) is the supported form as of v0.181.0 —
+  // a bearer secret in a query string lands in access/CDN/proxy logs. GET
+  // is still accepted for clients that haven't updated yet.
+  if (req.method !== 'GET' && req.method !== 'POST') return res.status(405).end();
 
   if (!process.env.KV_REST_API_URL) {
     return res.status(503).json({ error: 'Not configured.' });
   }
 
-  const { userId, secret } = req.query;
+  const { userId, secret } = req.method === 'POST' ? (req.body || {}) : req.query;
 
   if (!userId || !secret) return res.status(400).json({ error: 'Missing parameters.' });
 

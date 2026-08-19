@@ -112,7 +112,12 @@ export async function fetchFriendShare(friendUserId) {
   const id = await getLocalIdentity();
   if (!id?.userId || !id?.secret) return null;
   try {
-    const res = await fetch(`${FRIENDS_API_BASE}/get-alters?userId=${encodeURIComponent(id.userId)}&secret=${encodeURIComponent(id.secret)}&friendId=${encodeURIComponent(friendUserId)}`);
+    // Credentials in the BODY, never the query string (query strings are
+    // written to server / CDN logs).
+    const res = await fetch(`${FRIENDS_API_BASE}/get-alters`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ userId: id.userId, secret: id.secret, friendId: friendUserId }),
+    });
     if (!res.ok) return null;
     const { envelope } = await res.json();
     if (!envelope) return null;

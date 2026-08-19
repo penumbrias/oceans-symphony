@@ -39,13 +39,13 @@ function BackupHealthLine() {
   const h = useBackupHealth();
   const [open, setOpen] = useState(false);
   const label = {
-    ok: "Backups look healthy.",
+    ok: h.partial ? `Backups are on time, but the last one was partial — ${h.partialDetail}. Use Export in Data & privacy for a complete file.` : "Backups look healthy.",
     none: "No backup has ever completed.",
     stale: `Last successful backup was ${Math.floor(h.daysSince)} days ago — that's stale.`,
     failing: `The last ${h.consecutiveFails} attempts failed${h.lastFailDetail ? ` — ${h.lastFailDetail}` : ""}.`,
     off: "Automatic backups are off.",
   }[h.level] || "";
-  const tone = h.level === "ok" ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
+  const tone = h.level === "ok" && !h.partial ? "text-emerald-600 dark:text-emerald-400" : "text-amber-600 dark:text-amber-400";
   return (
     <div className="text-[0.6875rem] mt-1">
       <button type="button" onClick={() => setOpen((v) => !v)} className={`${tone} underline-offset-2 hover:underline text-left`}>

@@ -40,14 +40,21 @@ const REMINDERS_API_BASE = isNative() ? `${NATIVE_API_HOST}/api/reminders` : "/a
 // so it's an explicit opt-in. The app stays 100% local-only and contacts no
 // server unless this is on.
 //   - explicit true/false  → honour the user's choice
-//   - unset                → on for users who already have a server identity
-//                            (Friends users have always had server reminder
-//                            push); off — fully local — for everyone else.
-export function cloudReminderDeliveryEnabled(settings, hasIdentity) {
+//   - unset                → on ONLY for users with a real Friends identity
+//                            (they've always had server reminder push, and
+//                            already chose to talk to the relay); off for
+//                            everyone else — INCLUDING the auto-minted
+//                            push_only identity, which used to flip this on
+//                            for anyone who touched push once (v0.181.0).
+// Pass the identity OBJECT (or null); a bare boolean is treated as a real
+// identity for back-compat with older callers.
+export function cloudReminderDeliveryEnabled(settings, identity) {
   const v = settings?.reminders_cloud_delivery;
   if (v === true) return true;
   if (v === false) return false;
-  return !!hasIdentity;
+  if (!identity) return false;
+  if (typeof identity === "object") return identity.push_only !== true;
+  return !!identity;
 }
 
 // Read by nativeReminderScheduler (directly, to avoid an import cycle) to
@@ -83,7 +90,7 @@ export async function syncRemindersToServer() {
   } catch { setServerPushActive(false); return; }
 
   // Off by default — a fully-local user never reaches the server here.
-  if (!cloudReminderDeliveryEnabled(settings, !!existing)) { setServerPushActive(false); return; }
+  if (!cloudReminderDeliveryEnabled(settings, existing || null)) { setServerPushActive(false); return; }
 
   // Provision a push-only identity if the user explicitly enabled cloud delivery
   // but hasn't set up Friends. No-op (returns the existing one) otherwise.
@@ -124,8 +131,11 @@ export async function syncRemindersToServer() {
     if (!fires.length) continue;
     payload.push({
       reminderId: r.id,
-      title: r.title || "Reminder",
-      body: r.body || "",
+      // Private text stays on the device when text sharing is off — it
+      // used to be sent anyway and only stripped server-side (so it still
+      // crossed the wire and could sit in request logs).
+      title: includeText ? (r.title || "Reminder") : "Reminder",
+      body: includeText ? (r.body || "") : "",
       vibrate: true, // timed reminders use the high-importance vibrating channel
       fires,
     });
