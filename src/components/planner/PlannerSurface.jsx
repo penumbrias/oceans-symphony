@@ -7,7 +7,7 @@
 //
 // Reads and writes the SAME Activity records — no new entity, no migration.
 
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { addWeeks, startOfWeek, format } from "date-fns";
@@ -96,11 +96,21 @@ export default function PlannerSurface({
   // The tracker functions beyond name/time/who: repeat cadence (create
   // only, like the classic modal — editing one instance never changes a
   // series' cadence), critical pinning, per-plan reminder offset, location.
-  const [moreOpen, setMoreOpen] = useState(false);
   // DETAILS chips (classic popup pattern): who / notes start folded, open on
   // tap, and auto-open whenever they already hold a value.
   const [whoOpen, setWhoOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
+  // WHEN can be entered as start + duration (default) or as start → end
+  // (the end may fall on another day). Both edit the same underlying
+  // day/time/duration, so every commit path is unchanged. Remembered.
+  const [timeMode, setTimeModeState] = useState(() => lsGet("symphony_planner_time_mode", "duration"));
+  const setTimeMode = (m) => { setTimeModeState(m); lsSet("symphony_planner_time_mode", m); };
+  // The "more options" fields are Details chips now (same grammar as Who /
+  // Notes): folded until tapped, auto-open when they hold a value.
+  const [repeatOpen, setRepeatOpen] = useState(false);
+  const [reminderOpen, setReminderOpen] = useState(false);
+  const [criticalOpen, setCriticalOpen] = useState(false);
+  const [locationOpen, setLocationOpen] = useState(false);
   const whoOpenEff = whoOpen || (timing?.item?.fronting_alter_ids || []).length > 0;
   const notesOpenEff = notesOpen || !!(timing?.item?.notes || "").trim() || !!noteValue.trim();
   // "Rescheduled" outcome chip → jump into the date field: rescheduling IS
@@ -113,6 +123,13 @@ export default function PlannerSurface({
     reminder_offset_minutes: null, location: "",
   });
   const [planRemOn, setPlanRemOn] = useState(() => readPlanRemindersEnabled());
+  // Chip open states derived from values (must sit AFTER recur/extra are declared).
+  const repeatOpenEff = repeatOpen || (recur.interval && recur.interval !== "none");
+  const reminderOpenEff = reminderOpen || extra.reminder_offset_minutes != null;
+  const criticalOpenEff = criticalOpen || !!extra.is_critical;
+  const locationOpenEff = locationOpen || !!(extra.location || "").trim();
+  const canRepeat = !!timing?.create;
+  const canPlanExtras = !!(timing?.create || timing?.item?.status === "scheduled");
   // Deleting a series member must ask how far the delete reaches.
   const [branchAsk, setBranchAsk] = useState(null); // { item }
 
@@ -127,6 +144,14 @@ export default function PlannerSurface({
     const best = previousActivityEnd(activities, { before: ownStart, excludeId: timing.item?.id || null });
     return { prevEnd: best?.end || null, prevEndName: best?.name || "" };
   }, [activities, timing]);
+  // Escape closes the entry sheet — the backdrop tap is easy to miss when
+  // the sheet fills a phone screen, so there's an X too (title row).
+  useEffect(() => {
+    if (!timing) return undefined;
+    const onKey = (e) => { if (e.key === "Escape") setTiming(null); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [timing]);
   const isSameDayAsTiming = (d) => timing && new Date(timing.day).toDateString() === d.toDateString();
   const { data: categories = [] } = useQuery({ queryKey: ["activityCategories"], queryFn: () => base44.entities.ActivityCategory.list() });
   const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
@@ -246,7 +271,7 @@ export default function PlannerSurface({
     setNoteValue("");
     setRecur({ interval: "none", count: 8 });
     setExtra({ is_critical: false, critical_lead_steps: DEFAULT_LEAD_STEPS, reminder_offset_minutes: null, location: "" });
-    setMoreOpen(false);
+    setWhoOpen(false); setNotesOpen(false); setRepeatOpen(false); setReminderOpen(false); setCriticalOpen(false); setLocationOpen(false);
   };
   // Editing seeds the extras from the record, and the More section starts
   // open when any of them is set — a critical plan's flag must not hide.
@@ -257,7 +282,9 @@ export default function PlannerSurface({
       reminder_offset_minutes: item.reminder_offset_minutes ?? null,
       location: item.location || "",
     });
-    setMoreOpen(!!(item.is_critical || item.location || item.reminder_offset_minutes != null));
+    // Chips fold on open; fields that hold a value auto-open via the *OpenEff
+    // derivations, so nothing set is ever hidden.
+    setWhoOpen(false); setNotesOpen(false); setRepeatOpen(false); setReminderOpen(false); setCriticalOpen(false); setLocationOpen(false);
   };
   const handleCreate = (day, fromMin, toMin) => openCreate(day, fromMin, toMin);
   // Tap-first route (rule 28): the toolbar + opens a create for the next
@@ -749,6 +776,10 @@ export default function PlannerSurface({
           <div className="bg-card w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl border border-border p-3 space-y-3 max-h-full overflow-y-auto overscroll-contain"
             style={{ borderRadius: "var(--v2-radius, 16px)" }}>
             <div className="flex items-start justify-between gap-2">
+              <button type="button" onClick={() => setTiming(null)} aria-label={tr("planner.close")} title={tr("planner.close")}
+                className="p-1 -ml-1 rounded-lg text-muted-foreground hover:text-foreground flex-shrink-0">
+                <ChevronLeft className="w-4 h-4" />
+              </button>
               <input
                 value={timing.item.activity_name || ""}
                 placeholder={timing.create ? tr("planner.namePlaceholder") : tr("planner.untitled")}
@@ -831,10 +862,20 @@ export default function PlannerSurface({
                 className="mt-1 w-full h-8 px-2 rounded-lg border border-input bg-background text-xs" />
             </div>
 
+            {/* Time entry mode: start + duration, or start → end (end may be
+                another day). Both edit the same day/time/duration. */}
+            <div className="flex items-center gap-1">
+              {[["duration", tr("planner.modeDuration")], ["range", tr("planner.modeRange")]].map(([id, label]) => (
+                <button key={id} type="button" aria-pressed={timeMode === id} onClick={() => setTimeMode(id)}
+                  className={`text-[0.6875em] px-2 py-0.5 rounded-full border ${
+                    timeMode === id ? "text-[var(--v2-accent)] border-[var(--v2-accent)]" : "border-border/50 text-muted-foreground"
+                  }`}>{label}</button>
+              ))}
+            </div>
             <div className="flex items-end gap-2">
               <label className="flex-1 text-xs text-muted-foreground">
                 <span className="flex items-center justify-between gap-2">
-                  {tr("planner.giveTime")}
+                  {timeMode === "range" ? tr("planner.startsAt") : tr("planner.giveTime")}
                   {/* Quick-set: start where the previous thing ended. Logging
                       a day is mostly back-to-back — retyping the last end
                       time for every entry is the tedium this removes. */}
@@ -853,18 +894,57 @@ export default function PlannerSurface({
                 <input type="time" value={timeValue} onChange={(e) => setTimeValue(e.target.value)}
                   className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
               </label>
-              <label className="w-24 text-xs text-muted-foreground">
-                min
-                <input type="number" min={5} step={5} value={durValue}
-                  onChange={(e) => setDurValue(e.target.value)}
-                  className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
-              </label>
+              {timeMode === "duration" && (
+                <label className="w-24 text-xs text-muted-foreground">
+                  min
+                  <input type="number" min={5} step={5} value={durValue}
+                    onChange={(e) => setDurValue(e.target.value)}
+                    className="mt-1 w-full h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+                </label>
+              )}
             </div>
+            {timeMode === "range" && (() => {
+              // Derive the end from day + start + duration; edits write back
+              // as a new duration (never negative — an end before the start
+              // rolls to the next day, matching what people mean at midnight).
+              const startDt = (() => { const d = new Date(timing.day); const [h, m] = String(timeValue).split(":").map(Number); d.setHours(h || 0, m || 0, 0, 0); return d; })();
+              const endDt = new Date(startDt.getTime() + Math.max(5, Number(durValue) || 60) * 60000);
+              const pad = (n) => String(n).padStart(2, "0");
+              const endDate = `${endDt.getFullYear()}-${pad(endDt.getMonth() + 1)}-${pad(endDt.getDate())}`;
+              const endTime = `${pad(endDt.getHours())}:${pad(endDt.getMinutes())}`;
+              const commitEnd = (dateStr, timeStr) => {
+                const [y, mo, da] = dateStr.split("-").map(Number);
+                const [h, mi] = timeStr.split(":").map(Number);
+                if (!y || !mo || !da) return;
+                let end = new Date(y, mo - 1, da, h || 0, mi || 0, 0, 0);
+                if (end <= startDt) end = new Date(end.getTime() + 86400000);
+                setDurValue(Math.max(5, Math.round((end - startDt) / 60000)));
+              };
+              const crossesDay = endDt.toDateString() !== startDt.toDateString();
+              return (
+                <div className="flex items-end gap-2">
+                  <label className="flex-1 text-xs text-muted-foreground">
+                    {tr("planner.endsAt")}
+                    <div className="mt-1 flex gap-1">
+                      <input type="date" value={endDate} onChange={(e) => commitEnd(e.target.value, endTime)}
+                        aria-label={tr("planner.endDate")}
+                        className="flex-1 min-w-0 h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+                      <input type="time" value={endTime} onChange={(e) => commitEnd(endDate, e.target.value)}
+                        aria-label={tr("planner.endTime")}
+                        className="w-28 h-9 px-2 rounded-lg border border-input bg-background text-sm" />
+                    </div>
+                  </label>
+                  <span className="text-[0.6875em] text-muted-foreground tabular-nums pb-2 whitespace-nowrap">
+                    {fmt(Math.max(5, Number(durValue) || 60))}{crossesDay ? ` · ${tr("planner.nextDay")}` : ""}
+                  </span>
+                </div>
+              );
+            })()}
             {/* DETAILS — optional fields behind "+" chips, exactly like the
                 classic Log Activity popup: a field auto-expands whenever it
                 already holds a value, so nothing is hidden that matters. */}
             <p className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground -mb-1">{tr("planner.details")}</p>
-            {!(whoOpenEff && notesOpenEff) && (
+            {!(whoOpenEff && notesOpenEff && (!canRepeat || repeatOpenEff) && (!canPlanExtras || (reminderOpenEff && criticalOpenEff)) && locationOpenEff) && (
               <div className="flex flex-wrap gap-1.5">
                 {!whoOpenEff && (
                   <button type="button" onClick={() => setWhoOpen(true)}
@@ -876,6 +956,30 @@ export default function PlannerSurface({
                   <button type="button" onClick={() => setNotesOpen(true)}
                     className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
                     <Plus className="w-3 h-3" /> {tr("planner.notes")}
+                  </button>
+                )}
+                {canRepeat && !repeatOpenEff && (
+                  <button type="button" onClick={() => setRepeatOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.repeat")}
+                  </button>
+                )}
+                {canPlanExtras && !reminderOpenEff && (
+                  <button type="button" onClick={() => setReminderOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.reminder")}
+                  </button>
+                )}
+                {canPlanExtras && !criticalOpenEff && (
+                  <button type="button" onClick={() => setCriticalOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.critical")}
+                  </button>
+                )}
+                {!locationOpenEff && (
+                  <button type="button" onClick={() => setLocationOpen(true)}
+                    className="text-xs px-2.5 py-1 rounded-full border border-border/50 text-muted-foreground hover:text-foreground flex items-center gap-1">
+                    <Plus className="w-3 h-3" /> {tr("planner.location")}
                   </button>
                 )}
               </div>
@@ -972,19 +1076,8 @@ export default function PlannerSurface({
             </div>
             )}
 
-            {/* The tracker's remaining plan machinery: repeat, reminder
-                offset, critical pinning, location. Collapsed so the common
-                path stays short; opens itself when an edit target already
-                uses any of it. */}
-            <div>
-              <button type="button" onClick={() => setMoreOpen((v) => !v)} aria-expanded={moreOpen}
-                className="text-xs text-muted-foreground flex items-center gap-1">
-                <ChevronDown className="w-3 h-3" style={{ transform: moreOpen ? "rotate(180deg)" : "none" }} />
-                {tr("planner.more")}
-              </button>
-              {moreOpen && (
-                <div className="space-y-3 mt-2">
-                  {timing.create && (
+            <div className="space-y-3">
+                  {canRepeat && repeatOpenEff && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                         <Repeat className="w-3 h-3" /> {tr("planner.repeat")}
@@ -1014,7 +1107,7 @@ export default function PlannerSurface({
                     </div>
                   )}
 
-                  {(timing.create || timing.item.status === "scheduled") && (
+                  {canPlanExtras && reminderOpenEff && (
                     <div>
                       <p className="text-xs text-muted-foreground mb-1">{tr("planner.reminder")}</p>
                       {planRemOn ? (
@@ -1050,7 +1143,7 @@ export default function PlannerSurface({
                     </div>
                   )}
 
-                  {(timing.create || timing.item.status === "scheduled") && (
+                  {canPlanExtras && criticalOpenEff && (
                     <div>
                       <button type="button" aria-pressed={extra.is_critical}
                         onClick={() => {
@@ -1085,6 +1178,7 @@ export default function PlannerSurface({
                     </div>
                   )}
 
+                  {locationOpenEff && (
                   <div>
                     <p className="text-xs text-muted-foreground mb-1 flex items-center gap-1">
                       <MapPin className="w-3 h-3" /> {tr("planner.location")}
@@ -1106,8 +1200,7 @@ export default function PlannerSurface({
                       </a>
                     )}
                   </div>
-                </div>
-              )}
+                  )}
             </div>
 
             {timing.create ? (

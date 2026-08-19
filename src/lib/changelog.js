@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Planner entry sheet: a close button (and Escape) — it had no way out but tapping the backdrop." },
+      { type: "feature", text: "Planner: enter time as \u201cStart + length\u201d or \u201cStart \u2192 end\u201d — the end can be on another day (\u201cends the next day\u201d), and your choice is remembered." },
+      { type: "improve", text: "Planner: Repeat, Reminder, Critical and Location join Who and Notes as + chips under Details, instead of a separate \u201cMore options\u201d fold." },
       { type: "feature", text: "Appearance presets can now carry the home screen's background & widget style separately from its layout — keep one layout and give each {{alter}}'s theme its own background. Older presets keep working exactly as before." },
       { type: "feature", text: "Quick Check-In \u201cwho feels what\u201d: each emotion's picker has Clear (nobody) and Match the check-in, and the section has Clear all / Reset all. \u201cNobody\u201d is now remembered when you save instead of quietly reverting to everyone {{fronting}}." },
       { type: "improve", text: "Planner: press-and-hold to create takes a little longer now (it fired too easily), and holding a block's edge to change its time shows it clearly — a faint ring while the hold registers, then a bright ring and live times once it's armed." },
