@@ -49,10 +49,12 @@ import { applyFrontSelection, reconcileActiveFront } from "@/lib/setFront";
 import { getAlterIdsByGroupFlag } from "@/lib/subsystemUtils";
 
 // One alter in the draft (the "here now" list being edited).
-function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove }) {
+function DraftRow({ alter, entry, levelCfg, terms, formatAlter, onTogglePrimary, onLevel, onRemove, holdProps = null }) {
   const resolved = useResolvedAvatarUrl(alter.avatar_url);
   return (
-    <div className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/20 px-2 py-1.5">
+    // Press-and-hold anywhere on the row → the level spectrum, the same
+    // gesture as the add list and the board (the dropdown stays for taps).
+    <div {...(holdProps || {})} className="flex items-center gap-2 rounded-xl border border-border/50 bg-muted/20 px-2 py-1.5">
       <div className="w-9 h-9 rounded-lg overflow-hidden flex-shrink-0 flex items-center justify-center"
         style={{ backgroundColor: alter.color || "hsl(var(--muted))" }}>
         {resolved
@@ -254,7 +256,7 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
     onCommit: (alterId, levelId) => { suppressAddTap.current = Date.now() + 400; addAtLevel(alterId, levelId); },
     onRemove: (alterId) => { suppressAddTap.current = Date.now() + 400; removeAlter(alterId); },
   });
-  const addRailAlter = addRail ? activeAlters.find((a) => a.id === addRail.alterId) : null;
+  const addRailAlter = addRail ? (altersById[addRail.alterId] || null) : null;
   const guardedAdd = (id) => {
     if (addRail || Date.now() < suppressAddTap.current) return;
     addAlter(id);
@@ -380,7 +382,8 @@ export default function SetFrontSheet({ open, onClose, alters: altersProp }) {
                     return (
                       <DraftRow key={entry.alterId} alter={alter} entry={entry}
                         levelCfg={levelCfg} terms={terms} formatAlter={formatAlter}
-                        onTogglePrimary={togglePrimary} onLevel={setLevel} onRemove={removeAlter} />
+                        onTogglePrimary={togglePrimary} onLevel={setLevel} onRemove={removeAlter}
+                        holdProps={getAddHoldProps(entry.alterId, entry.level)} />
                     );
                   })
                 )}

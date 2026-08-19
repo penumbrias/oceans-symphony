@@ -27,7 +27,13 @@ import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
 
 export const LEVEL_ROW_H = 44;
 const HOLD_MS = 350;
+// Movement that cancels a pending hold. Mouse: 8px is a deliberate drag.
+// Touch: a resting fingertip drifts several px on its own — 8px cancelled
+// real holds on phones (release then landed as a plain tap: "it just adds
+// instead"). Touch gets a wide slop and lets the browser's own scroll
+// detection (pointercancel) be the real judge of "this was a scroll".
 const SLOP_PX = 8;
+const TOUCH_SLOP_PX = 24;
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
 // Pass cfg so the derived primary follows the spectrum (star retired).
@@ -79,7 +85,7 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
       "data-own-hold": "",
       onPointerDown: (e) => {
         if (e.button !== undefined && e.button !== 0) return;
-        origin.current = { x: e.clientX, y: e.clientY };
+        origin.current = { x: e.clientX, y: e.clientY, touch: e.pointerType !== "mouse" };
         if (timer.current) clearTimeout(timer.current);
         timer.current = setTimeout(() => {
           timer.current = null;
@@ -137,7 +143,8 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
         if (!timer.current || !origin.current) return;
         const dx = e.clientX - origin.current.x;
         const dy = e.clientY - origin.current.y;
-        if (dx * dx + dy * dy > SLOP_PX * SLOP_PX) {
+        const slop = origin.current.touch ? TOUCH_SLOP_PX : SLOP_PX;
+        if (dx * dx + dy * dy > slop * slop) {
           clearTimeout(timer.current);
           timer.current = null;
         }
@@ -145,6 +152,12 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
       onPointerUp: () => {
         // Released before arming — normal tap, just drop the pending hold.
         if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+      },
+      // The browser took the pointer for a scroll (or the OS interrupted):
+      // never arm a rail nobody can finish.
+      onPointerCancel: () => {
+        if (timer.current) { clearTimeout(timer.current); timer.current = null; }
+        origin.current = null;
       },
       // Always, not just while armed: text selection and the long-press
       // context menu/callout start DURING the hold, before the rail exists
