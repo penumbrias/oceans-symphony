@@ -407,3 +407,34 @@ export function resolveOverlaps(widgets, gridCols, anchorId = null) {
     return same ? w : { ...w, pos: { x: b.x, y: b.y }, span: { ...w.span, cols: b.c } };
   });
 }
+
+// First empty cell that fits `span` without displacing anything — new
+// widgets land in the next available gap (or below everything), never
+// interjected into the existing arrangement.
+export function findFreeCell(widgets, gridCols, span = { cols: 1, rows: 1 }) {
+  const cols = Math.max(1, Math.min(span.cols || 1, gridCols));
+  const rows = Math.max(1, span.rows || 1);
+  const occupied = new Set();
+  let maxY = 0;
+  for (const w of widgets) {
+    if (!w?.pos) continue;
+    const wc = Math.max(1, Math.min(w.span?.cols || 1, gridCols));
+    const wrs = Math.max(1, w.span?.rows || 1);
+    for (let dy = 0; dy < wrs; dy += 1) {
+      for (let dx = 0; dx < wc; dx += 1) occupied.add(`${w.pos.x + dx}:${w.pos.y + dy}`);
+    }
+    maxY = Math.max(maxY, w.pos.y + wrs);
+  }
+  const fits = (x, y) => {
+    for (let dy = 0; dy < rows; dy += 1) {
+      for (let dx = 0; dx < cols; dx += 1) if (occupied.has(`${x + dx}:${y + dy}`)) return false;
+    }
+    return true;
+  };
+  for (let y = 0; y <= maxY; y += 1) {
+    for (let x = 0; x <= gridCols - cols; x += 1) {
+      if (fits(x, y)) return { x, y };
+    }
+  }
+  return { x: 0, y: maxY };
+}

@@ -38,7 +38,7 @@ import { WIDGET_REGISTRY, widgetLabel } from "@/lib/widgetRegistry";
 import {
   resolveExperimentalHome, effectiveMode, newInstanceId, newPageId,
   HOME_STYLE_IDS, packPositions, resolveOverlaps, hasOverlaps,
-  compactVertically,
+  compactVertically, findFreeCell,
 } from "@/lib/experimentalHome";
 import { getAccessibilitySettings } from "@/lib/useAccessibility";
 import { useTerms } from "@/lib/useTerms";
@@ -808,10 +808,11 @@ export default function ExperimentalDashboard({
     }
     updatePageWidgets((ws) => {
       const added = { instanceId: newInstanceId(), widgetId, span: { ...(def.defaultSpan || { cols: 4, rows: 1 }) }, mode: effectiveMode(mode, def.supportsModes), settings };
-      const next = [...ws, added];
-      // On a free page a new widget needs a cell of its own, or it lands on
-      // top of whatever is at the origin.
-      return pageIsFree ? resolveOverlaps(next.map((w) => (w.pos ? w : { ...w, pos: { x: 0, y: 0 } })), gridCols, null) : next;
+      if (!pageIsFree) return [...ws, added];
+      // Free page: land in the next EMPTY spot (first gap that fits, else
+      // below everything) — never interjected into the arrangement.
+      added.pos = findFreeCell(ws, gridCols, added.span);
+      return [...ws, added];
     });
     toast.success(`${widgetLabel(def, t)} added`);
     if (edit) {

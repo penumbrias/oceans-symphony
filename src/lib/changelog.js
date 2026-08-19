@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Moving a widget past the screen edge works now — the page keeps scrolling and the widget travels with it instead of getting stuck." },
+      { type: "improve", text: "New widgets land in the next empty space on the board instead of pushing your arrangement around." },
+      { type: "improve", text: "Planner: the {{fronting}} overlay now shows real {{front}} history — one thin lane per {{alter}}, sessions as solid bars on the time scale, like the Timeline." },
       { type: "fix", text: "Mention and ~command menus no longer get clipped inside widgets or sheets — they float above everything, wherever you type." },
       { type: "improve", text: "Widget options: \u201cMove & resize widgets\u201d is the first thing in the sheet." },
       { type: "fix", text: "Moving widgets in free layout is precise now: drops were landing at the wrong height on finer grids, and a dashed outline now shows exactly where the widget will land while you drag." },

@@ -79,30 +79,46 @@ export function useFreeMove({
     const startY = e.clientY;
     const node = e.currentTarget;
 
-    const onMove = (ev) => {
+    // Everything derives from the pointer's CURRENT position over the
+    // grid's CURRENT rect — not from start deltas. Start deltas broke the
+    // moment auto-scroll moved the grid under a parked finger: the target
+    // froze and the widget "couldn't be brought down".
+    const computeDrag = (clientX, clientY) => {
       const st = state.current;
-      if (!st) return;
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
-      if (!st.active) {
-        // Moved before the hold completed — that's a scroll, not a lift.
-        if (Math.abs(dx) > SLOP || Math.abs(dy) > SLOP) cleanup();
-        return;
-      }
       const rect = gridRef.current?.getBoundingClientRect();
-      if (!rect) return;
+      if (!st || !rect) return;
       const colPitch = (rect.width + gap) / gridCols;
       const rowPitch = rowHeight + gap;
       const cols = Math.min(span.cols || 1, gridCols);
-      const x = Math.max(0, Math.min(gridCols - cols, Math.round(pos.x + dx / colPitch)));
-      const y = Math.max(0, Math.round(pos.y + dy / rowPitch));
+      if (st.grabOff === undefined) {
+        st.grabOff = {
+          x: (startX - rect.left) / colPitch - pos.x,
+          y: (startY - rect.top) / rowPitch - pos.y,
+        };
+      }
+      const x = Math.max(0, Math.min(gridCols - cols, Math.round((clientX - rect.left) / colPitch - st.grabOff.x)));
+      const y = Math.max(0, Math.round((clientY - rect.top) / rowPitch - st.grabOff.y));
+      // The ghost follows the FINGER on screen: since the element rides the
+      // grid, scrolled distance has to be added back to the visual offset.
+      const scrolled = st.scroller ? st.scroller.scrollTop - st.scrollBase : 0;
       const trash = trashSelector ? document.querySelector(trashSelector) : null;
       const tRect = trash?.getBoundingClientRect();
       const overTrash = !!tRect
-        && ev.clientX >= tRect.left && ev.clientX <= tRect.right
-        && ev.clientY >= tRect.top && ev.clientY <= tRect.bottom;
-      st.pointerY = ev.clientY;
-      setDrag({ dx, dy, target: { x, y }, overTrash });
+        && clientX >= tRect.left && clientX <= tRect.right
+        && clientY >= tRect.top && clientY <= tRect.bottom;
+      st.pointerY = clientY;
+      st.point = { x: clientX, y: clientY };
+      setDrag({ dx: clientX - startX, dy: clientY - startY + scrolled, target: { x, y }, overTrash });
+    };
+    const onMove = (ev) => {
+      const st = state.current;
+      if (!st) return;
+      if (!st.active) {
+        // Moved before the hold completed — that's a scroll, not a lift.
+        if (Math.abs(ev.clientX - startX) > SLOP || Math.abs(ev.clientY - startY) > SLOP) cleanup();
+        return;
+      }
+      computeDrag(ev.clientX, ev.clientY);
       ev.preventDefault();
     };
 
@@ -144,8 +160,12 @@ export function useFreeMove({
       setDrag({ dx: 0, dy: 0, target: { x: pos.x, y: pos.y }, overTrash: false });
 
       // Dragging toward an edge scrolls the page, so a widget can be moved
-      // somewhere that isn't currently on screen.
+      // somewhere that isn't currently on screen. After every scroll step
+      // the drag is recomputed from the parked pointer, so the target and
+      // ghost keep travelling with the scroll instead of freezing.
       const scroller = scrollParent(node);
+      st.scroller = scroller;
+      st.scrollBase = scroller.scrollTop;
       const EDGE = 72;
       const step = () => {
         const cur = state.current;
@@ -156,8 +176,10 @@ export function useFreeMove({
           const bottom = scroller === document.scrollingElement
             ? window.innerHeight
             : scroller.getBoundingClientRect().bottom;
-          if (y < top + EDGE) scroller.scrollTop -= Math.ceil((top + EDGE - y) / 6);
-          else if (y > bottom - EDGE) scroller.scrollTop += Math.ceil((y - (bottom - EDGE)) / 6);
+          let moved = false;
+          if (y < top + EDGE) { scroller.scrollTop -= Math.ceil((top + EDGE - y) / 6); moved = true; }
+          else if (y > bottom - EDGE) { scroller.scrollTop += Math.ceil((y - (bottom - EDGE)) / 6); moved = true; }
+          if (moved && cur.point) computeDrag(cur.point.x, cur.point.y);
         }
         cur.raf = requestAnimationFrame(step);
       };

@@ -380,8 +380,12 @@ function DayColumn({
         )}
 
         {showOverlays.alters && overlayBands.map((b, i) => (
-          <div key={`band-${i}`} className="absolute left-0 right-0 pointer-events-none"
-            style={{ top: pct(b.startMin), height: pct(b.endMin - b.startMin), background: `${b.color}14` }} />
+          <div key={`band-${i}`} className="absolute pointer-events-none" title={b.name}
+            style={{
+              top: pct(b.startMin), height: pct(b.endMin - b.startMin),
+              left: 2 + (b.lane % 6) * 5, width: 3.5,
+              background: b.color, opacity: 0.9, borderRadius: 2,
+            }} />
         ))}
         {/* Check-in marks — tappable, so the log entry behind a dot is one
             tap away (a dot you can only hover is decoration on a phone). */}
@@ -612,14 +616,34 @@ export default function WeekCanvas({
       });
 
     const laid = layoutDay(timed, dayStart);
+    // Front history exactly like the Timeline's alters column: one thin
+    // LANE per alter, sessions as solid bars in their lane on the same
+    // hour scale — the old full-width 8%-alpha washes blended into mud
+    // and told you nothing.
+    const laneOf = new Map();
     const bands = frontingHistory
-      .filter((s) => s.start_time && (sameDay(s.start_time) || sameDay(s.end_time)))
-      .map((s) => {
-        const span = layoutDay([{ id: s.id, start: s.start_time, end: s.end_time }], dayStart)[0];
-        const alter = alterById[s.alter_id || s.primary_alter_id];
-        return span ? { startMin: span.startMin, endMin: span.endMin, color: alter?.color || "#94a3b8" } : null;
+      .filter((s) => {
+        if (!s.start_time) return false;
+        const st = new Date(s.start_time);
+        const en = s.end_time ? new Date(s.end_time) : new Date();
+        return st < dayEnd && en > dayStart;
       })
-      .filter(Boolean);
+      .sort((a, b) => new Date(a.start_time) - new Date(b.start_time))
+      .map((s) => {
+        const aid = s.alter_id || s.primary_alter_id;
+        if (!laneOf.has(aid)) laneOf.set(aid, laneOf.size);
+        const st = new Date(Math.max(new Date(s.start_time), dayStart));
+        const en = new Date(Math.min(s.end_time ? new Date(s.end_time) : new Date(), dayEnd));
+        const alter = alterById[aid];
+        return {
+          startMin: (st - dayStart) / 60000,
+          endMin: Math.max((en - dayStart) / 60000, (st - dayStart) / 60000 + 6),
+          color: alter?.color || "#94a3b8",
+          lane: laneOf.get(aid),
+          name: alter?.name || "?",
+        };
+      })
+      .filter((b) => b.endMin > b.startMin);
     const marks = emotionCheckIns
       .filter((c) => sameDay(c.timestamp))
       .map((c) => {
