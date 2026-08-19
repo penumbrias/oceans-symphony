@@ -109,8 +109,37 @@ function bytesToBase64(bytes) {
 // A revived File wrapper → a data: URL the avatar resolver passes through
 // untouched (so images import without touching the local-image store).
 function fileToDataUrl(f) {
+  // The JSON export (Ampersand 0.3+) ships images as data: URLs already.
+  if (typeof f === 'string') return /^data:/i.test(f) ? f : null;
   if (!f || !f.__file || !(f.bytes instanceof Uint8Array) || f.bytes.length === 0) return null;
   return `data:${f.mimeType || 'image/png'};base64,${bytesToBase64(f.bytes)}`;
+}
+
+// ── Ampersand JSON export (0.3+) ───────────────────────────────────────
+// Same tables as the .ampar archive, as plain JSON:
+//   { revision: { count, humanReadable }, config: {…}, database: { systems,
+//     members, boardMessages, frontingEntries, journalPosts, reminders, tags,
+//     assets, customFields, notes, filterQueries } }
+// Dates are ISO strings and images are data: URLs, so the record mapper
+// below handles both formats unchanged.
+export function isAmpersandJson(obj) {
+  return !!(obj && typeof obj === 'object' && !Array.isArray(obj)
+    && obj.database && typeof obj.database === 'object'
+    && (Array.isArray(obj.database.members) || Array.isArray(obj.database.systems))
+    && obj.revision && typeof obj.revision === 'object');
+}
+
+// Accepts the parsed object or the raw JSON text. Returns the same
+// { version, tables } shape parseAmpar does.
+export function parseAmpersandJson(input) {
+  const obj = typeof input === 'string' ? JSON.parse(input) : input;
+  if (!isAmpersandJson(obj)) throw new Error("Not an Ampersand JSON export — expected { revision, config, database }.");
+  const tables = {};
+  for (const [table, rows] of Object.entries(obj.database)) {
+    if (table === 'filterQueries') continue;
+    if (Array.isArray(rows)) tables[table] = rows.filter((r) => r && typeof r === 'object');
+  }
+  return { version: String(obj.revision.humanReadable || obj.revision.count || 'json'), tables };
 }
 
 function toIso(d) {
@@ -158,6 +187,11 @@ export function ampersandToSystemDumps(parsed) {
   tags.forEach((t) => { if (t && t.uuid) tagName[t.uuid] = t.name || ''; });
   const fieldName = {};
   customFields.forEach((f) => { if (f && f.uuid) fieldName[f.uuid] = f.name || ''; });
+  // Ampersand writes member mentions as `@<m:uuid>` inside message / note
+  // bodies; render them as @Name so the text reads here.
+  const memberName = {};
+  members.forEach((m) => { if (m && m.uuid) memberName[m.uuid] = m.name || ''; });
+  const demention = (text) => String(text || '').replace(/@<m:([0-9a-fA-F-]{8,})>/g, (_, u) => (memberName[u] ? `@${memberName[u]}` : '@?'));
 
   // One import target per Ampersand system. If the archive somehow has no
   // system record, fall back to a single catch-all system so nothing is lost.
@@ -268,7 +302,7 @@ export function ampersandToSystemDumps(parsed) {
     const si = (author && memberSysIdx[author] != null) ? memberSysIdx[author] : 0;
     const dump = dumps[si];
     const id = j.uuid || genId();
-    let content = j.body || '';
+    let content = demention(j.body || '');
     if (j.subtitle) content = `<p><em>${j.subtitle}</em></p>${content}`;
     dump.JournalEntry[id] = {
       id,
@@ -291,7 +325,7 @@ export function ampersandToSystemDumps(parsed) {
     dump.JournalEntry[id] = {
       id,
       title: n.title || 'Note',
-      content: n.content || '',
+      content: demention(n.content || ''),
       timestamp: nowIso(),
       created_date: nowIso(),
       folder: 'Imported notes',
@@ -304,7 +338,7 @@ export function ampersandToSystemDumps(parsed) {
     const si = (author && memberSysIdx[author] != null) ? memberSysIdx[author] : 0;
     const dump = dumps[si];
     const id = bm.uuid || genId();
-    const body = bm.body || '';
+    const body = demention(bm.body || '');
     dump.Bulletin[id] = {
       id,
       content: bm.title ? `<strong>${bm.title}</strong><br/>${body}` : body,
@@ -320,7 +354,7 @@ export function ampersandToSystemDumps(parsed) {
         dump.BulletinComment[cid] = {
           id: cid,
           bulletin_id: id,
-          content: String(c.comment),
+          content: demention(c.comment),
           timestamp: toIso(c.date) || nowIso(),
           created_date: toIso(c.date) || nowIso(),
           ...(c.member ? { author_alter_id: c.member } : {}),

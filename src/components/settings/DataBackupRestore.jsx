@@ -1256,6 +1256,27 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
       // Probe for a non-Symphony external export and hand it off to the right
       // app's importer before running the Symphony parser. (The `finally`
       // already clears loading + the input.)
+      // Ampersand's JSON export (0.3+) — same tables as the .ampar archive,
+      // imported the same way: each Ampersand system becomes its own system.
+      {
+        let probe = null;
+        try { probe = JSON.parse(innerJsonText); } catch { /* not JSON */ }
+        const { isAmpersandJson, parseAmpersandJson, ampersandToSystemDumps } = await import("@/lib/ampersand");
+        if (isAmpersandJson(probe)) {
+          traceStep("format", "ampersand json");
+          const sysDumps = ampersandToSystemDumps(parseAmpersandJson(probe));
+          let created = 0;
+          for (const s of sysDumps) {
+            if (!s || !s.data) continue;
+            await createSystemWithData(s.name, s.data);
+            created++;
+          }
+          if (created === 0) throw new Error("no systems found in the export");
+          showStatus("success", `Imported ${created} ${created === 1 ? terms.system : terms.systems} from Ampersand! The app will reload.`);
+          setTimeout(() => window.location.reload(), 1400);
+          return;
+        }
+      }
       if (onExternalFile) {
         let probe = null;
         try { probe = JSON.parse(innerJsonText); } catch {}
@@ -1936,7 +1957,7 @@ export default function DataBackupRestore({ section = "all", onExternalFile, exp
             {importLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Upload className="w-4 h-4" />}
             <div className="text-left min-w-0">
               <p className="font-medium">Import from File</p>
-              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar) — auto-detected</p>
+              <p className="text-xs text-muted-foreground font-normal whitespace-normal break-words">Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip), Plural Star (.json / .zip) or Ampersand (.ampar / .json) — auto-detected</p>
             </div>
           </Button>
           <p className="text-xs text-muted-foreground">

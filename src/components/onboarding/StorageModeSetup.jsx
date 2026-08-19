@@ -127,9 +127,18 @@ function FirstRunSetup({ onComplete }) {
       // load the first system into it, and create any additional systems from
       // the archive. (Encryption can be turned on later in Settings — matches
       // applyDumpAndComplete, which also imports unencrypted.)
-      if (lowerName.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52])) {
-        const { parseAmpar, ampersandToSystemDumps } = await import("@/lib/ampersand");
-        const sysDumps = ampersandToSystemDumps(parseAmpar(buf));
+      // Ampersand's JSON export (0.3+) takes the same path.
+      let ampJson = null;
+      if (lowerName.endsWith(".json")) {
+        try {
+          const probe = JSON.parse(new TextDecoder("utf-8").decode(bytes));
+          const { isAmpersandJson } = await import("@/lib/ampersand");
+          if (isAmpersandJson(probe)) ampJson = probe;
+        } catch { /* not JSON / not Ampersand */ }
+      }
+      if (ampJson || lowerName.endsWith(".ampar") || hasMagic([0x41, 0x4d, 0x50, 0x41, 0x52])) {
+        const { parseAmpar, parseAmpersandJson, ampersandToSystemDumps } = await import("@/lib/ampersand");
+        const sysDumps = ampersandToSystemDumps(ampJson ? parseAmpersandJson(ampJson) : parseAmpar(buf));
         if (!sysDumps.length) throw new Error("no systems found in the archive");
         setMode("local");
         setEncryptionEnabled(false);
@@ -406,7 +415,7 @@ function FirstRunSetup({ onComplete }) {
               <span className="text-left min-w-0">
                 <span className="block">Import from a file</span>
                 <span className="block text-xs text-muted-foreground font-normal whitespace-normal break-words">
-                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar) — auto-detected
+                  Symphony backup, Simply Plural, Octocon, PluralSpace (.json), OpenPlural (.zip) or Ampersand (.ampar / .json) — auto-detected
                 </span>
               </span>
             </Button>
