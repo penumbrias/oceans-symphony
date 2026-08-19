@@ -652,7 +652,7 @@ export default function WeekCanvas({
         <div className={`min-w-max ${fill ? "flex-1 flex flex-col min-h-0" : ""}`}>
           <div className="flex border-b border-border/60 pb-1 mb-0.5">
             <div className="w-10 flex-shrink-0 sticky left-0 z-20"
-              style={{ background: "var(--v2-widget-bg, hsl(var(--background)))" }} />
+              style={{ background: "var(--v2-widget-bg, var(--color-bg))" }} />
             {perDay.map(({ day, total }) => {
               const today = isSameDay(day, new Date());
               return (
@@ -692,7 +692,7 @@ export default function WeekCanvas({
               ...(fill && maxHeight ? { maxHeight } : {}),
             }}>
             <div className="w-10 flex-shrink-0 relative sticky left-0 z-20"
-              style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, hsl(var(--background)))" }}>
+              style={{ marginTop: UNTIMED_STRIP_PX, background: "var(--v2-widget-bg, var(--color-bg))" }}>
               {Array.from({ length: 24 }, (_, h) => (
                 <div key={h} className="absolute right-1 text-[0.5625em] text-muted-foreground tabular-nums whitespace-nowrap"
                   style={{ top: h * hourPx, transform: "translateY(-50%)" }}>

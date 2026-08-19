@@ -535,93 +535,6 @@ export default function WidgetConfigSheet({
             />
           </div>
 
-          <SubSection title="Layout & size" icon={LayoutGrid} defaultOpen>
-          {/* Display mode */}
-          {def.supportsModes.length > 1 && (
-            <div>
-              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-                Display mode
-              </label>
-              <div className="flex flex-wrap gap-1.5">
-                {HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => onMode(widget.instanceId, m)}
-                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                      m === mode
-                        ? "border-primary/60 bg-primary/10 text-primary"
-                        : "border-border/50 text-muted-foreground hover:text-foreground"
-                    }`}
-                  >
-                    {MODE_LABEL[m]}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Content alignment within the widget's box. Centered by
-              default; overflowing content still starts at the top. */}
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Across
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {[["stretch", "Fill"], ["left", "Left"], ["center", "Center"], ["right", "Right"]].map(([v, label]) => (
-                <button key={v} type="button"
-                  onClick={() => onSettings(widget.instanceId, { halign: v })}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    (settings.halign || "stretch") === v
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}>
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Down
-            </label>
-            <div className="flex flex-wrap gap-1.5">
-              {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (
-                <button
-                  key={v}
-                  type="button"
-                  onClick={() => onSettings(widget.instanceId, { valign: v })}
-                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
-                    (settings.valign || "center") === v
-                      ? "border-primary/60 bg-primary/10 text-primary"
-                      : "border-border/50 text-muted-foreground hover:text-foreground"
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Scales everything the widget draws (rows, buttons, avatars,
-              spacing), on top of whatever text size is set. */}
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Content size — {Math.round(Number(settings.controlScale) || 100)}%
-            </label>
-            <input
-              type="range"
-              min={60}
-              max={200}
-              step={5}
-              value={Number(settings.controlScale) || 100}
-              onChange={(e) => onSettings(widget.instanceId, { controlScale: Number(e.target.value) })}
-              className="w-full accent-primary"
-            />
-          </div>
-
-          </SubSection>
           <SubSection title="Widget settings" icon={Settings2}>
           {/* Widget-specific options, declared by the registry entry. */}
           {(def.configFields || []).map((f) => {
@@ -749,8 +662,96 @@ export default function WidgetConfigSheet({
               These write CSS variables onto the widget wrapper, so the
               whole-app settings apply by default and this widget alone
               departs from them where the user says so. */}
-          <SubSection title="UI & text" icon={Palette}>
-          <div className="space-y-3">
+          <SubSection title="UI & text" icon={Palette} defaultOpen>
+          {/* Layout (mode / across / down / content size) lives here with type
+              and shape — one standard section, not two (the user's call). */}
+
+          {/* Display mode */}
+          {def.supportsModes.length > 1 && (
+            <div>
+              <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+                Display mode
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {HOME_MODES.filter((m) => def.supportsModes.includes(m)).map((m) => (
+                  <button
+                    key={m}
+                    type="button"
+                    onClick={() => onMode(widget.instanceId, m)}
+                    className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                      m === mode
+                        ? "border-primary/60 bg-primary/10 text-primary"
+                        : "border-border/50 text-muted-foreground hover:text-foreground"
+                    }`}
+                  >
+                    {MODE_LABEL[m]}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Content alignment within the widget's box. Centered by
+              default; overflowing content still starts at the top. */}
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Across
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[["stretch", "Fill"], ["left", "Left"], ["center", "Center"], ["right", "Right"]].map(([v, label]) => (
+                <button key={v} type="button"
+                  onClick={() => onSettings(widget.instanceId, { halign: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                    (settings.halign || "stretch") === v
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground"
+                  }`}>
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Down
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {[["top", "Top"], ["center", "Center"], ["bottom", "Bottom"]].map(([v, label]) => (
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => onSettings(widget.instanceId, { valign: v })}
+                  className={`text-xs px-3 py-1.5 rounded-full border transition-all ${
+                    (settings.valign || "center") === v
+                      ? "border-primary/60 bg-primary/10 text-primary"
+                      : "border-border/50 text-muted-foreground hover:text-foreground"
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Scales everything the widget draws (rows, buttons, avatars,
+              spacing), on top of whatever text size is set. */}
+          <div>
+            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
+              Content size — {Math.round(Number(settings.controlScale) || 100)}%
+            </label>
+            <input
+              type="range"
+              min={60}
+              max={200}
+              step={5}
+              value={Number(settings.controlScale) || 100}
+              onChange={(e) => onSettings(widget.instanceId, { controlScale: Number(e.target.value) })}
+              className="w-full accent-primary"
+            />
+          </div>
+
+          <div className="space-y-3 pt-2 border-t border-border/30">
             <div>
               <label className="text-xs font-medium block mb-1">Font</label>
               <SearchableSelect

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Pinned {{alters}} bar options: the colour swatches now show the bar's real colours; \u201cDown\u201d (top / centre / bottom) actually moves the icons once a bar height is set; the bar's default background renders again instead of going see-through." },
+      { type: "improve", text: "Widget options: \u201cLayout & size\u201d is folded into \u201cUI & text\u201d — one standard section for alignment, size, type and shape." },
       { type: "feature", text: "Daily tasks can be due on only some weekdays — edit a task → \u201cOn which days\u201d. On its off days it's simply not listed and doesn't count." },
       { type: "fix", text: "Pinned {{alters}} bar: it no longer grows past the screen edge (that was why the chips got cut off and wouldn't scroll sideways), and swiping down on it now hides it reliably." },
       { type: "feature", text: "Recurring tasks: each task can now say when it comes round again — weekly tasks reset on a weekday you pick, or a full period after you last completed it (7 days / 30 days / 24 hours). Edit a task → Resets." },

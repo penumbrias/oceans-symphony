@@ -145,7 +145,7 @@ function TrashZone({ active }) {
         bottom: "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 12px)",
         opacity: active ? 1 : 0,
         transform: `translateX(-50%) scale(${isOver ? 1.08 : 1})`,
-        background: isOver ? "hsl(var(--destructive))" : "hsl(var(--background) / 0.95)",
+        background: isOver ? "#ef4444" : "color-mix(in srgb, var(--color-bg) 95%, transparent)",
         color: isOver ? "hsl(var(--destructive-foreground))" : "hsl(var(--muted-foreground))",
         borderColor: isOver ? "hsl(var(--destructive))" : "hsl(var(--border))",
         backdropFilter: "blur(8px)",
@@ -1381,7 +1381,7 @@ export default function ExperimentalDashboard({
                 className="absolute -top-1 left-0 z-10 p-1 text-muted-foreground/70 hover:text-foreground">
                 <ChevronUp className="w-3.5 h-3.5" />
               </button>
-              <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
+              <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} valign={altersValign} />
             </div>
           )}
         </div>
@@ -1603,6 +1603,10 @@ export default function ExperimentalDashboard({
               // scrolled, because the strip never overflowed its own box.
               className="pointer-events-auto w-full min-w-0">
             <div data-widget-content="1"
+              // Lets the options sheet find THIS box — its colour swatches
+              // and Peek probe `[data-widget-id]`; without it they read the
+              // page body and showed colours the bar never had.
+              data-widget-id={BAR_CONFIG_ID}
               onPointerDownCapture={(e) => {
                 barDragStart.current = { x: e.clientX, y: e.clientY };
                 barDragLast.current = { x: e.clientX, y: e.clientY };
@@ -1645,14 +1649,14 @@ export default function ExperimentalDashboard({
                   ? { fontSize: `${settingsRow.ui_v2.barLooks.alters.fontScale}%` } : {}),
                 ...(settingsRow?.ui_v2?.barLooks?.alters?.font
                   ? { fontFamily: settingsRow.ui_v2.barLooks.alters.font } : {}),
-                background: "var(--v2-widget-bg, hsl(var(--background) / 0.9))",
+                backgroundColor: "var(--v2-widget-bg, color-mix(in srgb, var(--color-surface) 90%, transparent))",
                 borderRadius: "var(--v2-radius, 1rem)",
                 padding: "var(--v2-pad, 0.25rem 0.5rem)",
                 boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
                 alignItems: altersJustify,
               }}>
               <div className="min-w-0 overflow-x-auto flex-1">
-                <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} />
+                <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} valign={altersValign} />
               </div>
             </div>
             </motion.div>

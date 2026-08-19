@@ -55,7 +55,10 @@ let galleryLastTouchAt = 0;
 // size/pins settings.
 // onGear: the host can take over the cog (the v2 bar opens its own
 // options sheet, which carries size AND look — one cog, not two).
-export default function PinnedAltersGallery({ showHeader = true, showGear = false, onGear = null, className = "" }) {
+// `valign`: where the chips sit inside a bar taller than them (top /
+// center / bottom) — the bar's "Down" option. Only meaningful once a bar
+// height is set; a bar that hugs its icons has nowhere to move them.
+export default function PinnedAltersGallery({ showHeader = true, showGear = false, onGear = null, className = "", valign = "center" }) {
   const queryClient = useQueryClient();
   const formatAlter = useAlterLabel();
   const { mode: anonymize } = useAnonymizeMode();
@@ -151,7 +154,7 @@ export default function PinnedAltersGallery({ showHeader = true, showGear = fals
     ? {
         height: barHeight,
         display: "flex",
-        alignItems: "center",
+        alignItems: valign === "top" ? "flex-start" : valign === "bottom" ? "flex-end" : "center",
         overflowY: "hidden",
       }
     : undefined;

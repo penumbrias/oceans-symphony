@@ -46,7 +46,7 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
     borderWidth: borderFallback ? "var(--v2-border-w, 1px)" : "var(--v2-border-w, 0px)",
     borderStyle: "var(--v2-border-style, solid)",
     borderColor: borderFallback
-      ? "var(--v2-border-color, hsl(var(--border) / 0.6))"
+      ? "var(--v2-border-color, color-mix(in srgb, var(--color-muted) 60%, transparent))"
       : "var(--v2-border-color, transparent)",
     borderRadius: "var(--v2-radius, 8px)",
     boxShadow: "var(--v2-shadow, none)",
