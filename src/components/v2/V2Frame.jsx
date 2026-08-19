@@ -974,6 +974,40 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
 
   return (
+    <>
+    {/* The pinned {alters} bar: a floating card ABOVE the chrome, on every
+        page, visually separate from the bottom bar (the user's call — a
+        band inside the nav made the bottom section too tall). Sits on the
+        chrome's published height so it clears the tab strip and the
+        quick-action drawer whatever their size. */}
+    {altersInNav && (
+      <div
+        className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+        style={{ bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}
+      >
+          <AnimatePresence initial={false}>
+            {!altersBarCfg.collapsed && (
+              <motion.div
+                key="alters-bar"
+                initial={{ y: 24, opacity: 0 }}
+                animate={{ y: 0, opacity: 1 }}
+                exit={{ y: 24, opacity: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="pointer-events-auto w-full min-w-0"
+              >
+                <div className="mx-3">
+                  {/* The SAME card the home board draws — look, SET 5,
+                      swipe-to-hide, options gear. The gear opens the
+                      board's bar options (navigating home first if needed). */}
+                  <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+                    onCollapse={() => setNavAlters(true)}
+                    onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+      </div>
+    )}
     <nav
       ref={navRef}
       // The rail takes over on wide screens; a bottom bar there is just a
@@ -990,9 +1024,10 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       }}
       aria-label={t("nav.appNav")}
     >
-      {/* When the quick action bar is OFF, the pinned {alters} bar takes
-          its slot in this chrome (the user's spec) — same position, same
-          fold-away handle, instead of floating like the support bubble. */}
+      {/* The bar itself FLOATS above this chrome (see the fixed stack
+          before <nav>) — the user wants it visually separate, not another
+          band making the bottom section taller. Only its fold handle lives
+          here, and only when there's no split handle to do the job. */}
       {altersInNav && (
         <div className="relative">
           {/* With the quick-action row OFF there's no split handle, so the
@@ -1029,27 +1064,6 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
             </button>
           )}
-          <AnimatePresence initial={false}>
-            {!altersBarCfg.collapsed && (
-              <motion.div
-                key="alters-bar"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <div className="px-2 pb-1">
-                  {/* The SAME card the home board draws — look, SET 5,
-                      swipe-to-hide, options gear. The gear opens the
-                      board's bar options (navigating home first if needed). */}
-                  <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
-                    onCollapse={() => setNavAlters(true)}
-                    onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
         </div>
       )}
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
@@ -1185,5 +1199,6 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
 
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </nav>
+    </>
   );
 }
