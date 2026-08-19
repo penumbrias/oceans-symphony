@@ -4,7 +4,8 @@
 // Nothing snaps to the hour row; only width responds to overlapping neighbours.
 //
 // Gestures:
-//   press-hold 300ms on empty time → drag → release  : create (log if past, plan if future)
+//   press-hold ~550ms on empty time → drag → release : create (log if past, plan if future)
+//   press-hold ~400ms on a block edge → drag           : resize (ring shows it armed)
 //   drag a block's top/bottom edge                   : change start/end
 //   tap a block                                      : open it
 //
@@ -24,7 +25,11 @@ import { categoryIdOf } from "@/lib/planner/rollup";
 import { useT } from "@/lib/i18n";
 import { usePlannerPrefs, formatClock, formatHourLabel, HOUR_PX_DEFAULT, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
 
-const HOLD_MS = 300;
+// Hold lengths. Create fired too fast at 300ms ("I brushed the grid and
+// got a draft"); 550ms reads as deliberate without feeling sluggish. An
+// edge press already signals intent, so resize arms a little sooner.
+const HOLD_MS = 550;
+const RESIZE_HOLD_MS = 400;
 const SLOP_PX = 8;
 
 // Default row height; the live value is a preference (pinch / Display
@@ -62,6 +67,9 @@ function DayColumn({
   const [draft, setDraft] = useState(null);      // { fromMin, toMin }
   const [resizing, setResizing] = useState(null); // { id, edge, startMin, endMin }
   const resizeArm = useRef(null); // hold-to-arm edge resize: { timer, x, y, block, armed }
+  // Which block has an edge press in progress (before the hold lands): drives
+  // the faint "charging" ring so the user sees the hold registering.
+  const [armingId, setArmingId] = useState(null);
 
   const minuteAt = useCallback((clientY) => {
     const box = ref.current?.getBoundingClientRect();
@@ -144,6 +152,7 @@ function DayColumn({
     if (resizeArm.current?.timer) clearTimeout(resizeArm.current.timer);
     const node = ref.current;
     const pointerId = e.pointerId;
+    setArmingId(block.id);
     resizeArm.current = {
       x: e.clientX, y: e.clientY, block, pointerId,
       timer: setTimeout(() => {
@@ -152,13 +161,15 @@ function DayColumn({
         resizeArm.current.armed = true;
         try { node?.setPointerCapture(pointerId); } catch { /* mouse */ }
         if (navigator.vibrate) navigator.vibrate(8);
+        setArmingId(null);
         setResizing(spec);
-      }, HOLD_MS),
+      }, RESIZE_HOLD_MS),
     };
   };
   const cancelResizeArm = () => {
     if (resizeArm.current?.timer) clearTimeout(resizeArm.current.timer);
     resizeArm.current = null;
+    setArmingId(null);
   };
 
   // Release = commit. This is the ONLY path that creates anything.
@@ -175,6 +186,7 @@ function DayColumn({
       try { ref.current?.releasePointerCapture(ra.pointerId); } catch { /* gone */ }
       resizeArm.current = null;
     }
+    setArmingId(null);
     const g = gesture.current;
     if (g?.pointerId != null) {
       try { ref.current?.releasePointerCapture(g.pointerId); } catch { /* already gone */ }
@@ -371,6 +383,7 @@ function DayColumn({
 
         {blocks.map((b) => {
           const isLive = live?.id === b.id;
+          const isArming = !isLive && armingId === b.id;
           const top = isLive ? live.startMin : b.startMin;
           const bottom = isLive ? live.endMin : b.endMin;
           // A block that crosses midnight is drawn as two pieces. The cut
@@ -395,10 +408,24 @@ function DayColumn({
                   : r,
                 top: pct(top), height: pct(bottom - top),
                 left: `${b.left * 100}%`, width: `calc(${b.width * 100}% - 2px)`,
-                background: `${colorFor(b)}2e`,
+                background: isLive ? `${colorFor(b)}55` : `${colorFor(b)}2e`,
                 borderLeft: `2px solid ${colorFor(b)}`,
-                opacity: (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
+                opacity: isLive ? 1 : (b.status === "scheduled" ? 0.72 : 1) * (bottom <= pastMin ? 0.78 : 1),
                 borderStyle: b.status === "scheduled" ? "dashed" : "solid",
+                // ARMED for resize: unmistakable "you're now editing this
+                // block's time" — accent ring, richer fill, a hair of scale,
+                // and it rides above its neighbours. Snaps back on release.
+                ...(isLive ? {
+                  boxShadow: "0 0 0 2px var(--v2-accent, hsl(var(--primary))), 0 6px 18px rgba(0,0,0,.25)",
+                  transform: "scaleX(1.02)",
+                  zIndex: 6,
+                  transition: "box-shadow .12s ease-out, transform .12s ease-out, background .12s ease-out",
+                } : isArming ? {
+                  // Charging: the hold is registering. Faint ring now, full
+                  // ring + fill the moment it arms.
+                  boxShadow: "0 0 0 2px color-mix(in srgb, var(--v2-accent, hsl(var(--primary))) 45%, transparent)",
+                  transition: "box-shadow .4s ease-out",
+                } : { transition: "box-shadow .12s ease-out, transform .12s ease-out, background .12s ease-out" }),
               }}
             >
               {/* Edge handles — thin, and only on blocks tall enough to have
@@ -421,7 +448,12 @@ function DayColumn({
                 <span className="block truncate font-medium" style={{ color: colorFor(b) }}>
                   {b.continuesBefore ? "↰ " : ""}{b.activity_name || tr("planner.untitled")}
                 </span>
-                {bottom - top >= 40 && (
+                {isLive && (
+                  <span className="block truncate font-semibold" style={{ color: "var(--v2-accent, hsl(var(--primary)))" }}>
+                    {minutesToLabel(top)}–{minutesToLabel(bottom)}
+                  </span>
+                )}
+                {bottom - top >= 40 && !isLive && (
                   <span className="block truncate opacity-70">
                     {/* Real clock times, so the piece on day 2 still says
                         "23:00–07:00", not "00:00–07:00". */}
