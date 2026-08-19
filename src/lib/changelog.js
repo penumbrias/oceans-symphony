@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "Faster startup: the app now loads each page's code the first time you open it instead of everything up front — about a third less to download and parse before the home screen appears. Pages are still quietly saved for offline use in the background." },
       { type: "improve", text: "Every privacy notice, disclaimer and description now says the same accurate thing: exactly what Friends, cloud reminders and importers send, that Android's cloud backup is off, that automatic backups cover the active {{system}} only, and that your Friends identity is sealed under encryption." },
       { type: "improve", text: "The medical disclaimer now appears on the Therapy Report, Safety Plan (open by default, with crisis lines), Meetings and Check-In Log pages, not only Support." },
       { type: "fix", text: "Tour and help text updated for the current app: nine Settings sections by their real names, the split bottom handle, the planner's hold-to-resize / pinch / Display panel, and quick actions via holding any key. The tour's last step no longer points at a section that moved." },

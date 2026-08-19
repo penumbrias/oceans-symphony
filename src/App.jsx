@@ -1,6 +1,6 @@
 import { Toaster as SonnerToaster } from "@/components/ui/sonner"
 import { ConfirmRoot } from "@/components/shared/ConfirmDialog"
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Route, Routes } from 'react-router-dom';
@@ -9,46 +9,53 @@ import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import { ThemeProvider } from '@/lib/ThemeContext';
 import AppLayout from '@/components/layout/AppLayout';
 import Privacy from '@/pages/Privacy';
-import Home from '@/pages/Home';
 import Dashboard from '@/pages/Dashboard';
 import { Navigate } from 'react-router-dom';
-import AlterProfile from '@/pages/AlterProfile';
-import Contacts from '@/pages/Contacts';
-import ContactProfile from '@/pages/ContactProfile';
 import Settings from '@/pages/Settings';
 
-import Analytics from '@/pages/Analytics';
-import Journals from '@/pages/Journals';
-import DailyTasks from '@/pages/DailyTasks.jsx';
-import GroupsManager from '@/pages/GroupsManager';
-import GroupProfile from '@/pages/GroupProfile';
-import LocationProfile from '@/pages/LocationProfile';
-import AssetsLibrary from '@/pages/AssetsLibrary';
-import SystemCheckIn from '@/pages/SystemCheckIn';
-import ActivityTracker from '@/pages/ActivityTracker';
-import SleepTracker from '@/pages/SleepTracker';
-import ToDoList from '@/pages/ToDoList';
-import Timeline from '@/pages/Timeline.jsx';
+// Route-level code splitting (v0.184.0). Every page except the landing
+// (Dashboard), Settings (reached from every header) and Privacy is loaded
+// on first navigation — the single entry chunk had every page eagerly and
+// cost low-end phones 1–2 s of parse before first paint. The Suspense
+// fallback below sits INSIDE AppLayout so header/nav stay put while a
+// page chunk arrives (no full-screen flash).
+const Home = lazy(() => import('@/pages/Home'));
+const AlterProfile = lazy(() => import('@/pages/AlterProfile'));
+const Contacts = lazy(() => import('@/pages/Contacts'));
+const ContactProfile = lazy(() => import('@/pages/ContactProfile'));
+const Analytics = lazy(() => import('@/pages/Analytics'));
+const Journals = lazy(() => import('@/pages/Journals'));
+const DailyTasks = lazy(() => import('@/pages/DailyTasks'));
+const GroupsManager = lazy(() => import('@/pages/GroupsManager'));
+const GroupProfile = lazy(() => import('@/pages/GroupProfile'));
+const LocationProfile = lazy(() => import('@/pages/LocationProfile'));
+const AssetsLibrary = lazy(() => import('@/pages/AssetsLibrary'));
+const SystemCheckIn = lazy(() => import('@/pages/SystemCheckIn'));
+const ActivityTracker = lazy(() => import('@/pages/ActivityTracker'));
+const SleepTracker = lazy(() => import('@/pages/SleepTracker'));
+const ToDoList = lazy(() => import('@/pages/ToDoList'));
+const Timeline = lazy(() => import('@/pages/Timeline'));
+const SystemMapPage = lazy(() => import('@/pages/SystemMap'));
+const NewPresencesPage = lazy(() => import('@/pages/NewPresences'));
+const Grounding = lazy(() => import('@/pages/Grounding'));
+const SafetyPlan = lazy(() => import('@/pages/SafetyPlan'));
+const BulletinPage = lazy(() => import('@/pages/BulletinPage'));
+const BulletinsPage = lazy(() => import('@/pages/BulletinsPage'));
+const HelpMeUnblend = lazy(() => import('@/pages/HelpMeUnblend'));
+const GetToKnowMe = lazy(() => import('@/pages/GetToKnowMe'));
+const Chat = lazy(() => import('@/pages/Chat'));
+const UnblendQuestionsManager = lazy(() => import('@/pages/UnblendQuestionsManager'));
+const ManageCheckIn = lazy(() => import('@/pages/ManageCheckIn'));
+const TherapyReport = lazy(() => import('@/pages/TherapyReport'));
+const Reminders = lazy(() => import('@/pages/Reminders'));
+const Polls = lazy(() => import('@/pages/Polls'));
+const CheckInLog = lazy(() => import('@/pages/CheckInLog'));
+const SystemHistory = lazy(() => import('@/pages/SystemHistory'));
+const LocationHistory = lazy(() => import('@/pages/LocationHistory'));
+const FriendsPage = lazy(() => import('@/pages/Friends'));
+const PlannerPage = lazy(() => import('@/pages/Planner'));
 
-import SystemMapPage from '@/pages/SystemMap';
-import NewPresencesPage from '@/pages/NewPresences';
-import Grounding from '@/pages/Grounding';
-import SafetyPlan from '@/pages/SafetyPlan';
-import BulletinPage from '@/pages/BulletinPage';
-import BulletinsPage from '@/pages/BulletinsPage';
-import HelpMeUnblend from '@/pages/HelpMeUnblend';
-import GetToKnowMe from '@/pages/GetToKnowMe';
-import Chat from '@/pages/Chat';
-import UnblendQuestionsManager from '@/pages/UnblendQuestionsManager';
-import ManageCheckIn from '@/pages/ManageCheckIn';
-import TherapyReport from '@/pages/TherapyReport';
-import Reminders from '@/pages/Reminders';
-import Polls from '@/pages/Polls.jsx';
-import CheckInLog from '@/pages/CheckInLog';
-import SystemHistory from '@/pages/SystemHistory';
-import LocationHistory from '@/pages/LocationHistory';
-import FriendsPage from '@/pages/Friends';
-import PlannerPage from '@/pages/Planner';
+
 import { setEncryptionEnabled, setEncSalt, getSessionPassword, clearSessionPassword } from '@/lib/storageMode';
 import StorageModeSetup from '@/components/onboarding/StorageModeSetup';
 import AccessibilityFab from '@/components/accessibility/AccessibilityFab';
@@ -98,6 +105,17 @@ import RecoveryScreen from '@/components/onboarding/RecoveryScreen';
 import OrphanRecoveryScreen from '@/components/onboarding/OrphanRecoveryScreen';
 import GroceryListPanel from '@/components/grocery/GroceryListPanel';
 import { CornerModeApplier } from '@/lib/useCornerMode';
+
+// Shown while a lazily-loaded page chunk downloads. Sits in the page slot
+// (inside AppLayout's <Outlet/> position via Suspense above Routes), so
+// only the content area shows it.
+function RouteFallback() {
+  return (
+    <div className="flex items-center justify-center py-24" role="status" aria-live="polite">
+      <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
+    </div>
+  );
+}
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth } = useAuth();
@@ -213,6 +231,7 @@ const AuthenticatedApp = () => {
           </div>
         )}
       >
+      <Suspense fallback={<RouteFallback />}>
       <Routes>
       <Route element={<AppLayout />}>
         <Route path="/" element={<Dashboard />} />
@@ -260,6 +279,7 @@ const AuthenticatedApp = () => {
       </Route>
       <Route path="*" element={<PageNotFound />} />
       </Routes>
+      </Suspense>
       </ErrorBoundary>
     </>
   );

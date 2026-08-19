@@ -5,7 +5,7 @@
 // requests. Bumping CACHE_NAME forces the activate phase to delete
 // the old cache so users on a stale bundle pick up the new one.
 
-const CACHE_NAME = 'oceans-symphony-v6';
+const CACHE_NAME = 'oceans-symphony-v7';
 
 // ── Default avatar returned when an image ID isn't found in IDB ──
 const DEFAULT_AVATAR_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 40 40" fill="none">
@@ -75,6 +75,29 @@ self.addEventListener('install', (event) => {
   );
 });
 
+// Background warm-up of every built chunk (v0.184.0). Pages are code-split
+// and fetched on first navigation; without this, a page never visited
+// online would be unavailable offline. Runs after activate, best-effort,
+// one chunk at a time so it never competes with the page the user is
+// actually loading; a missing asset list (dev server) is simply skipped.
+async function warmChunkCache() {
+  try {
+    const res = await fetch('/assets-list.json', { cache: 'no-cache' });
+    if (!res.ok) return;
+    const { files } = await res.json();
+    if (!Array.isArray(files)) return;
+    const cache = await caches.open(CACHE_NAME);
+    for (const url of files) {
+      try {
+        if (await cache.match(url)) continue;
+        const r = await fetch(url);
+        if (r.ok) await cache.put(url, r);
+      } catch { /* one chunk failing must not stop the rest */ }
+    }
+  } catch { /* offline or no list — nothing to warm */ }
+}
+
+
 // On activate: evict old caches and claim all clients
 self.addEventListener('activate', (event) => {
   event.waitUntil(
@@ -85,6 +108,9 @@ self.addEventListener('activate', (event) => {
           .map((k) => caches.delete(k))
       )
     ).then(() => self.clients.claim())
+      // Warm the chunk cache AFTER activation completes — deliberately not
+      // awaited inside waitUntil, so a slow warm-up never delays the page.
+      .then(() => { warmChunkCache(); })
   );
 });
 

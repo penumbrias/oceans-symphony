@@ -19,6 +19,24 @@ const copyWellKnownAssetlinks = () => ({
   },
 })
 
+// Route-level code splitting (v0.184.0) means most pages are separate JS
+// chunks fetched on first navigation. The service worker caches assets on
+// first fetch, so a page never visited ONLINE would be missing OFFLINE — a
+// regression from the single-bundle days when everything was cached after
+// first load. This emits the list of built chunks; sw.js prefetches them in
+// the background after the shell is up, restoring "offline = everything".
+const emitAssetList = () => ({
+  name: 'emit-asset-list',
+  closeBundle() {
+    const dir = path.resolve('dist/assets')
+    if (!fs.existsSync(dir)) return
+    const files = fs.readdirSync(dir)
+      .filter((f) => /\.(js|css)$/.test(f))
+      .map((f) => `/assets/${f}`)
+    fs.writeFileSync(path.resolve('dist/assets-list.json'), JSON.stringify({ v: Date.now(), files }))
+  },
+})
+
 // Content-Security-Policy, injected as a <meta> tag at BUILD time only (a
 // meta CSP in dev would break Vite's HMR websocket). The web deploy also gets
 // this policy as a real header via vercel.json (which additionally carries
@@ -62,7 +80,7 @@ const injectCspMeta = () => ({
 
 export default defineConfig({
   logLevel: 'error',
-  plugins: [react(), copyWellKnownAssetlinks(), injectCspMeta()],
+  plugins: [react(), copyWellKnownAssetlinks(), injectCspMeta(), emitAssetList()],
   resolve: {
     alias: {
       '@': path.resolve('./src'),

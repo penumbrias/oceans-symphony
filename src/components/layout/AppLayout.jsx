@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useLayoutEffect, useState, useMemo } from "react";
+import React, { useRef, useEffect, useLayoutEffect, useState, useMemo, Suspense } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Settings, ChevronLeft, Users, Clock, BarChart2, BookOpen, CheckSquare, Sparkles, Activity, Zap, GitBranch, GitMerge, FileText, Heart, Vote, Shield, MapPin, UserRound, ClipboardList } from "lucide-react";
 import { useTerms } from "@/lib/useTerms";
@@ -893,7 +893,16 @@ const handleNotifClick = (mentionLog) => {
               />
             </div>
           )}
-          <Outlet context={{ setShowFeatureTour }} />
+          {/* Lazy page chunks (App.jsx route splitting) suspend HERE, so the
+              header / bars stay mounted and only the content slot shows the
+              spinner — an outer boundary would blank the whole chrome. */}
+          <Suspense fallback={
+            <div className="flex items-center justify-center py-24" role="status" aria-live="polite">
+              <div className="w-8 h-8 border-4 border-muted border-t-primary rounded-full animate-spin" aria-label="Loading page" />
+            </div>
+          }>
+            <Outlet context={{ setShowFeatureTour }} />
+          </Suspense>
         </main>
 
       </div>

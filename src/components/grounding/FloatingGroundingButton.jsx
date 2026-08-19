@@ -1,6 +1,8 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, lazy, Suspense } from "react";
 import { X } from "lucide-react";
-import Grounding from "@/pages/Grounding";
+// Lazy: the whole Grounding page rendered inside this sheet used to sit in
+// the entry chunk for every user, opened or not.
+const Grounding = lazy(() => import("@/pages/Grounding"));
 import {
   isGroundingButtonEnabled,
   setGroundingButtonEnabled,
@@ -265,7 +267,9 @@ export default function FloatingGroundingButton() {
               </button>
             </div>
             <div className="flex-1 overflow-y-auto pb-6">
-              <Grounding />
+              <Suspense fallback={<div className="p-6 text-sm text-muted-foreground">Loading support…</div>}>
+                <Grounding />
+              </Suspense>
             </div>
           </div>
         </div>

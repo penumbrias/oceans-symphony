@@ -63,7 +63,9 @@ import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { buildSubsystemItems } from "@/components/shared/AlterTreeSelect";
 import { SearchableSelect } from "@/components/shared/SearchableSelect";
 import ChannelView from "@/components/chat/ChannelView";
-import { CreatePollModal } from "@/pages/Polls";
+// Lazy: the Polls PAGE only enters the bundle when someone opens this
+// modal — a static import dragged the whole page into the entry chunk.
+const CreatePollModal = React.lazy(() => import("@/pages/Polls").then((m) => ({ default: m.CreatePollModal })));
 import { toast } from "sonner";
 import { useQueryClient } from "@tanstack/react-query";
 import { useTerms } from "@/lib/useTerms";
@@ -1814,8 +1816,10 @@ function PollComposerWidget({ api }) {
         <Vote className="w-4 h-4" /> {tr("widget.pollNew.start")}
       </button>
       {open && (
-        <CreatePollModal open onClose={() => setOpen(false)}
-          alters={(api?.alters || []).filter((a) => !a.is_archived)} />
+        <React.Suspense fallback={null}>
+          <CreatePollModal open onClose={() => setOpen(false)}
+            alters={(api?.alters || []).filter((a) => !a.is_archived)} />
+        </React.Suspense>
       )}
     </Section>
   );
