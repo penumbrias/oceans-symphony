@@ -399,6 +399,18 @@ export function getRecentPeriodKeys(frequency, count = 12) {
 const PERIOD_MS = { daily: 86400000, weekly: 7 * 86400000, monthly: 30 * 86400000, yearly: 365 * 86400000 };
 export const WEEKDAY_LABELS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// A DAILY task can be scheduled for only some weekdays (active_days:
+// array of 0–6, 0 = Sunday). Absent / empty = every day (today's
+// behaviour). On an off day the task simply isn't due — it's hidden
+// from the list and doesn't count toward that day's XP.
+export function isTaskDueOn(template, date = new Date()) {
+  if (!template) return false;
+  if ((template.frequency || "daily") !== "daily") return true;
+  const days = Array.isArray(template.active_days) ? template.active_days.map(Number) : [];
+  if (days.length === 0) return true;
+  return days.includes(new Date(date).getDay());
+}
+
 export function hasCustomReset(template) {
   if (!template) return false;
   if (template.reset_mode === "rolling") return true;

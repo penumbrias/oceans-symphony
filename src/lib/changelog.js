@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Daily tasks can be due on only some weekdays — edit a task → \u201cOn which days\u201d. On its off days it's simply not listed and doesn't count." },
+      { type: "fix", text: "Pinned {{alters}} bar: it no longer grows past the screen edge (that was why the chips got cut off and wouldn't scroll sideways), and swiping down on it now hides it reliably." },
       { type: "feature", text: "Recurring tasks: each task can now say when it comes round again — weekly tasks reset on a weekday you pick, or a full period after you last completed it (7 days / 30 days / 24 hours). Edit a task → Resets." },
       { type: "improve", text: "Recurring tasks widget: show daily, weekly and monthly sets together in one widget (widget options → Which sets), each with its own count." },
       { type: "fix", text: "Recurring tasks widget: the count link opened a missing page; it now opens Tasks. And on the Tasks edit view, the bottom Add Task button opens its form right there instead of at the top." },

@@ -32,6 +32,7 @@ const EMPTY_FORM = {
   auto_triggers: [],                 // new: ordered list of trigger ids
   auto_trigger_mode: "any",          // "any" (OR) | "all" (AND) — only matters when 2+
   nav_path: "",
+  active_days: [],                   // daily only: which weekdays it's due (0 = Sunday); empty = every day
   reset_mode: "calendar",            // "calendar" (period / chosen weekday) | "rolling" (a full period after last completion)
   week_start_day: 1,                 // weekly + calendar: which weekday the week resets on (0 = Sunday)
 };
@@ -76,6 +77,31 @@ function TaskForm({ initial, onSave, onCancel, isNew }) {
             className="mt-1 w-full rounded-md border border-border bg-background px-3 py-2 text-sm"
             value={form.points} onChange={(e) => set("points", Number(e.target.value))} />
         </div>
+        {/* Daily tasks can be due only on some weekdays. */}
+        {(form.frequency || "daily") === "daily" && (
+          <div className="col-span-2">
+            <label className="text-xs font-medium text-muted-foreground">On which days</label>
+            <div className="mt-1 flex gap-1">
+              {WEEKDAY_LABELS.map((d, i) => {
+                const days = Array.isArray(form.active_days) ? form.active_days.map(Number) : [];
+                const on = days.length === 0 || days.includes(i);
+                return (
+                  <button key={i} type="button" aria-pressed={on} title={d}
+                    onClick={() => {
+                      // Empty means "every day"; the first un-tick expands to
+                      // the explicit full set minus that day.
+                      const base = days.length === 0 ? [0, 1, 2, 3, 4, 5, 6] : days;
+                      const next = base.includes(i) ? base.filter((x) => x !== i) : [...base, i].sort();
+                      set("active_days", next.length === 7 ? [] : next);
+                    }}
+                    className={`flex-1 text-xs py-1.5 rounded-md border ${on ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50 text-muted-foreground"}`}>
+                    {d.slice(0, 2)}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
         {/* When it comes round again. Calendar = the period resets on a
             fixed day (weekly: a weekday you pick); rolling = a full period
             after the last time you completed it. */}
@@ -349,6 +375,8 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
+      active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
+        ? form.active_days.map(Number) : [],
     });
     setEditingId(null);
     invalidate();
@@ -368,6 +396,8 @@ export default function TaskTemplateManager({ templates: propTemplates, onClose 
       nav_path: form.mode === "MANUAL" ? (form.nav_path || null) : null,
       reset_mode: form.reset_mode === "rolling" ? "rolling" : "calendar",
       week_start_day: (form.frequency || "daily") === "weekly" ? Number(form.week_start_day ?? 1) : null,
+      active_days: (form.frequency || "daily") === "daily" && Array.isArray(form.active_days) && form.active_days.length > 0
+        ? form.active_days.map(Number) : [],
     });
     setShowAddForm(false);
     invalidate();

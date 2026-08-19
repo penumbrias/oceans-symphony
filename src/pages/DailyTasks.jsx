@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   getTodayString,
   getPeriodKey,
-  hasCustomReset, isCustomResetDone, lastCompletionOf,
+  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
   buildAutoCompletedTriggers,
   isTaskCompleted,
   totalPossiblePoints,
@@ -412,7 +412,7 @@ export default function DailyTasks() {
   // Active templates for current tab
   const activeTasks = useMemo(
     () => [...templates]
-      .filter(t => t.is_active && (t.frequency || "daily") === activeFreq)
+      .filter(t => t.is_active && (t.frequency || "daily") === activeFreq && isTaskDueOn(t))
       .sort((a, b) => (a.sort_order || 0) - (b.sort_order || 0)),
     [templates, activeFreq]
   );

@@ -569,6 +569,23 @@ export default function ExperimentalDashboard({
   const [styleQuery, setStyleQuery] = useState("");
   const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
   const barDragStart = useRef(null);
+  const barDragLast = useRef(null);
+  // Swipe DOWN on the bar hides it: mostly vertical, ≥32px, within 600ms
+  // (a deliberate swipe, not a hold — the level rail arms on a 350ms
+  // STATIONARY hold and then drags vertically to pick a level; a swipe
+  // moves from the first moment). Sets barSwiped so the trailing click
+  // doesn't open the chip's profile.
+  const endBarDrag = () => {
+    const s0 = barDragStart.current, s1 = barDragLast.current;
+    const dt = barDragAt.current ? Date.now() - barDragAt.current : 0;
+    barDragStart.current = null; barDragLast.current = null; barDragAt.current = null;
+    if (!s0 || !s1) return;
+    const dy = s1.y - s0.y, dx = Math.abs(s1.x - s0.x);
+    if (dy > 32 && dy > dx && dt < 600) {
+      barSwiped.current = true;
+      persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } });
+    }
+  };
   const barSwiped = useRef(false);
   const barDragAt = useRef(null);
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
@@ -1580,29 +1597,23 @@ export default function ExperimentalDashboard({
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: 24, opacity: 0 }}
               transition={{ duration: 0.18, ease: "easeOut" }}
-              className="pointer-events-auto">
+              // w-full: the stack is `items-center`, so without an explicit
+              // width this child sized itself to its CONTENT and grew past
+              // the screen — the chips got cut off at the edge and nothing
+              // scrolled, because the strip never overflowed its own box.
+              className="pointer-events-auto w-full min-w-0">
             <div data-widget-content="1"
               onPointerDownCapture={(e) => {
-                barDragStart.current = e.clientY;
+                barDragStart.current = { x: e.clientX, y: e.clientY };
+                barDragLast.current = { x: e.clientX, y: e.clientY };
                 barDragAt.current = Date.now();
                 barSwiped.current = false;
               }}
-              onPointerUpCapture={(e) => {
-                const dy = barDragStart.current == null ? 0 : e.clientY - barDragStart.current;
-                const dt = barDragAt.current ? Date.now() - barDragAt.current : 0;
-                barDragStart.current = null;
-                barDragAt.current = null;
-                // A swipe is fast. The fronting-level rail arms on a 350ms
-                // STATIONARY hold and then drags vertically to pick a level —
-                // without this bound, finishing that gesture downward also
-                // collapsed the bar.
-                if (dy > 24 && dt < 320) {
-                  // Without this the swipe falls through to the chip under
-                  // the finger and opens that alter's profile.
-                  barSwiped.current = true;
-                  persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } });
-                }
-              }}
+              onPointerMoveCapture={(e) => { if (barDragStart.current) barDragLast.current = { x: e.clientX, y: e.clientY }; }}
+              onPointerUpCapture={() => endBarDrag()}
+              // If the browser still takes the touch (older engines), judge
+              // the swipe from the last position we saw instead of dropping it.
+              onPointerCancelCapture={() => endBarDrag()}
               onClickCapture={(e) => {
                 if (!barSwiped.current) return;
                 barSwiped.current = false;

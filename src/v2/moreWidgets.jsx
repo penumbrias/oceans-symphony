@@ -24,7 +24,7 @@ import { useTerms } from "@/lib/useTerms";
 import { useTimelineSources, sliceTimelineDay } from "@/lib/timelineData";
 import {
   applyTerms, getPeriodKey, getTodayString, toggleDailyProgressTasks, FREQUENCY_LABELS,
-  hasCustomReset, isCustomResetDone, lastCompletionOf,
+  hasCustomReset, isCustomResetDone, lastCompletionOf, isTaskDueOn,
 } from "@/lib/dailyTaskSystem";
 import { Section, Row, Muted, TextAction, Dot } from "@/v2/primitives";
 import { Drawer, DrawerContent } from "@/components/ui/drawer";
@@ -255,7 +255,7 @@ export function DailyTasksWidget({ mode = "normal", settings }) {
       && (p.period_key === periodKey || (frequency === "daily" && p.date === getTodayString()))) || null;
     const recordIds = new Set(record?.completed_task_ids || []);
     const mine = templates
-      .filter((t) => t.is_active !== false && (t.frequency || "daily") === frequency)
+      .filter((t) => t.is_active !== false && (t.frequency || "daily") === frequency && isTaskDueOn(t))
       .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0));
     // A task with its own reset anchor (weekday / rolling) is judged from
     // its last completion, not the shared calendar record.

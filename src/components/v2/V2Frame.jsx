@@ -1024,11 +1024,19 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                     the trailing click is eaten so the chip under the finger
                     doesn't open a profile. pan-x keeps sideways scrolling. */}
                 <div className="px-2 pb-1 min-w-0 overflow-x-auto" style={{ touchAction: "pan-x" }}
-                  onPointerDownCapture={(e) => { altersBarDrag.current = { y: e.clientY, at: Date.now() }; }}
-                  onPointerUpCapture={(e) => {
+                  onPointerDownCapture={(e) => { altersBarDrag.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, at: Date.now() }; }}
+                  onPointerMoveCapture={(e) => { const d = altersBarDrag.current; if (d) { d.lx = e.clientX; d.ly = e.clientY; } }}
+                  onPointerUpCapture={() => {
                     const d = altersBarDrag.current; altersBarDrag.current = null;
                     if (!d) return;
-                    if (e.clientY - d.y > 24 && Date.now() - d.at < 320) { swiped.current = true; toggleNavAlters(); }
+                    const dy = d.ly - d.y, dx = Math.abs(d.lx - d.x);
+                    if (dy > 32 && dy > dx && Date.now() - d.at < 600) { swiped.current = true; toggleNavAlters(); }
+                  }}
+                  onPointerCancelCapture={() => {
+                    const d = altersBarDrag.current; altersBarDrag.current = null;
+                    if (!d) return;
+                    const dy = d.ly - d.y, dx = Math.abs(d.lx - d.x);
+                    if (dy > 32 && dy > dx && Date.now() - d.at < 600) { swiped.current = true; toggleNavAlters(); }
                   }}
                   onClickCapture={(e) => { if (swiped.current) { swiped.current = false; e.preventDefault(); e.stopPropagation(); } }}>
                   <PinnedAltersGallery showHeader={false} />
