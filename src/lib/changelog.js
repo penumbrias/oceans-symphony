@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Security: when app encryption is on, your Friends credentials and private key are now sealed on this device with the same encryption — they used to sit unencrypted even with a passphrase set. Friends keeps working exactly as before." },
       { type: "fix", text: "Security: password-locked journal entries now use the same strong encryption as the rest of the app (they used a much weaker scheme). Existing locked entries still open and upgrade themselves the next time you unlock them." },
       { type: "fix", text: "Security: Friends credentials are no longer sent in web addresses (where servers keep logs) — they travel in the request body like everything else." },
       { type: "fix", text: "Cloud reminder delivery is now genuinely opt-in — enabling push notifications no longer quietly turns it on — and reminder text stays on your device when text sharing is off." },

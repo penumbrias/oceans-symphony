@@ -506,6 +506,9 @@ export async function enableEncryption(password) {
     const { encryptOtherSystemBlobs } = await import('./systems');
     await encryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey, salt });
   } catch { /* other systems encrypt when next saved while encryption is on */ }
+  // The shared Friends identity (relay secret + E2E private key) follows the
+  // mode: seal it now that a key exists. Dynamic import (store imports us).
+  try { const m = await import('./friendIdentityStore'); await m.resealSharedFriendIdentity(); } catch { /* best-effort */ }
   setSessionPassword(password);
 }
 
@@ -519,6 +522,13 @@ export async function disableEncryption(password) {
     const { decryptOtherSystemBlobs } = await import('./systems');
     await decryptOtherSystemBlobs({ activeStorageKey: _storageKey, key: _encKey, password });
   } catch { /* a blob left encrypted is still openable with this password */ }
+  // Unseal the shared Friends identity while we STILL hold the key — after
+  // _encKey is cleared a sealed identity would be unopenable.
+  try {
+    const m = await import('./friendIdentityStore');
+    const oldKey = _encKey;
+    await m.resealSharedFriendIdentity({ readWith: (payload) => decryptData(payload, oldKey), plain: true });
+  } catch { /* best-effort */ }
   _encKey = null;
   _activeSalt = null;
   setEncryptionEnabled(false);

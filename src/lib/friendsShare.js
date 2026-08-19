@@ -1,6 +1,10 @@
 // Live encrypted member-list share (Phase 4). Ties together privacy levels
 // (what each friend may see) + E2E crypto (encrypt per friend) + the relay
-// (store/fetch blobs). The relay only ever holds ciphertext.
+// (store/fetch blobs). For MEMBER-LIST shares the relay only ever holds
+// ciphertext. (Live front status — friendsApi.pushFrontStatus — is a
+// separate, relay-readable payload so headless background notifications can
+// name who's fronting; the in-app E2E card discloses this. Encrypting it too
+// is possible at the cost of those notification names — see v0.182.0 notes.)
 //
 // Strain rules: avatar-free (no heavy image data), field-capped, fetched
 // on-demand (not in the friends poll), and pushed only when you ask / on the
