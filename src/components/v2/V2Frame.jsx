@@ -52,6 +52,7 @@ import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
 import { EdgeDock } from "@/components/v2/EdgeDock";
+import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import { ActiveNowChip, ActiveNowKeyFace, ActiveNowPopover } from "@/components/v2/ActiveNow";
 import { IconSlot } from "@/components/shared/LucideByName";
 
@@ -172,6 +173,7 @@ function OptionsSheet({ open, onClose, uiV2 }) {
   // top-bar route and Settings → Appearance are the same thing. This sheet
   // only adds the Peek affordance.
   const [peek, setPeek] = useState(false);
+  const peekResize = usePeekHeight("symphony_options_peek_h", 40);
   useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
@@ -180,7 +182,9 @@ function OptionsSheet({ open, onClose, uiV2 }) {
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} className={peek ? "max-h-[40vh]" : "max-h-[85vh]"} {...sheetPortalGuards}>
+      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} hideHandle={peek}
+        style={peek ? { maxHeight: `${peekResize.peekH}vh`, height: `${peekResize.peekH}vh` } : undefined} {...sheetPortalGuards}>
+        {peek && <PeekHandle resize={peekResize} dock={dock} />}
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>

@@ -20,6 +20,7 @@ import React from "react";
 import { Image as ImageIcon, X, Trash2, ChevronDown, Check, Eye, EyeOff, RotateCcw, LayoutGrid, Palette, Settings2, Copy, Star, SlidersHorizontal, ArrowUpToLine, ArrowDownToLine, Type } from "lucide-react";
 import PinnedAltersConfigPanel from "@/components/alters/PinnedAltersConfigPanel";
 import IconPicker from "@/components/shared/IconPicker";
+import { usePeekHeight, PeekHandle } from "@/components/v2/PeekResize";
 import { DOCK_KEY } from "@/components/v2/V2Frame";
 import { useFontOptions } from "@/lib/useFontOptions";
 // Same collapsible section shell Display options uses, so the two editors
@@ -435,27 +436,9 @@ export default function WidgetConfigSheet({
   // its options change under your finger (settings persist instantly, so
   // the page updates live).
   const [peek, setPeek] = React.useState(false);
-  // Peek height is DRAGGABLE (the user's ask) — remembered per device.
-  const [peekH, setPeekH] = React.useState(() => {
-    try { const n = Number(localStorage.getItem("symphony_widget_peek_h")); return Number.isFinite(n) && n > 0 ? n : 40; } catch { return 40; }
-  });
-  const peekDrag = React.useRef(null);
-  const onPeekHandleDown = (e) => {
-    peekDrag.current = { y: e.clientY, h: peekH };
-    try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-  };
-  const onPeekHandleMove = (e) => {
-    const d = peekDrag.current; if (!d) return;
-    // Bottom dock: dragging UP grows the sheet; top dock: dragging DOWN does.
-    const dy = (dock === "top" ? 1 : -1) * (e.clientY - d.y);
-    const next = Math.max(15, Math.min(90, d.h + (dy / window.innerHeight) * 100));
-    setPeekH(next);
-  };
-  const onPeekHandleUp = () => {
-    if (!peekDrag.current) return;
-    peekDrag.current = null;
-    try { localStorage.setItem("symphony_widget_peek_h", String(Math.round(peekH))); } catch { /* storage off */ }
-  };
+  // Peek height is draggable — shared hook (PeekResize) with Display options.
+  const peekResize = usePeekHeight("symphony_widget_peek_h", 40);
+  const peekH = peekResize.peekH;
   React.useEffect(() => {
     if (!open || !peek) return undefined;
     document.documentElement.setAttribute("data-v2-peek", "1");
@@ -536,13 +519,13 @@ export default function WidgetConfigSheet({
 
   return (
     <Drawer key={dock} direction={dock} open={open} modal={false} onOpenChange={(v) => { if (!v) onClose(); }}>
-      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} style={peek ? { maxHeight: `${peekH}vh`, height: `${peekH}vh` } : undefined} {...sheetPortalGuards}>
-        {peek && dock === "bottom" && (
-          <div role="separator" aria-label="Drag to resize" onPointerDown={onPeekHandleDown} onPointerMove={onPeekHandleMove} onPointerUp={onPeekHandleUp}
-            className="w-full flex justify-center py-1 cursor-ns-resize" style={{ touchAction: "none" }}>
-            <span className="w-10 h-1 rounded-full bg-border" />
-          </div>
-        )}
+      <DrawerContent direction={dock} className={peek ? "" : "max-h-[85vh]"} hideHandle={peek}
+        style={peek ? { maxHeight: `${peekH}vh`, height: `${peekH}vh` } : undefined} {...sheetPortalGuards}>
+        {/* Peek: the grab bar IS the resize handle (vaul's own pill is
+            hidden so there's one thing to grab). stopPropagation keeps vaul's
+            drag-to-dismiss off it — with both listening, any drag either
+            dismissed the sheet or fought the resize (the report). */}
+        {peek && <PeekHandle resize={peekResize} dock={dock} />}
         <DrawerHeader className="pb-1">
           <div className="flex items-start justify-between gap-2">
             <div>

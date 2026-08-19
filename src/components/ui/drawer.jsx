@@ -27,7 +27,9 @@ const DrawerOverlay = React.forwardRef(({ className, ...props }, ref) => (
 ))
 DrawerOverlay.displayName = DrawerPrimitive.Overlay.displayName
 
-const DrawerContent = React.forwardRef(({ className, children, direction = "bottom", ...props }, ref) => (
+// `hideHandle`: a caller that draws its own grab bar (e.g. a resizable
+// peek panel) can drop vaul's pill so there aren't two.
+const DrawerContent = React.forwardRef(({ className, children, direction = "bottom", hideHandle = false, ...props }, ref) => (
   <DrawerPortal>
     <DrawerOverlay />
     <DrawerPrimitive.Content
@@ -42,7 +44,7 @@ const DrawerContent = React.forwardRef(({ className, children, direction = "bott
         className
       )}
       {...props}>
-      <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />
+      {!hideHandle && <div className="mx-auto mt-4 h-2 w-[100px] rounded-full bg-muted" />}
       {children}
     </DrawerPrimitive.Content>
   </DrawerPortal>
