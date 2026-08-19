@@ -461,10 +461,20 @@ export function ThemeProvider({ children }) {
       // the rest of the app disagreed. Re-assert it here, last.
       try {
         const hl = document.documentElement.style.getPropertyValue("--v2-accent").trim();
-        if (hl && !/^var\(/.test(hl)) {
-          document.documentElement.style.setProperty("--color-primary", hl);
-          const t = hexToHslTriplet(hl);
+        const realHl = hl && !/^var\(/.test(hl) ? hl : "";
+        if (realHl) {
+          document.documentElement.style.setProperty("--color-primary", realHl);
+          const t = hexToHslTriplet(realHl);
           if (t) document.documentElement.style.setProperty("--primary", t);
+        }
+        // Accent is merged with the highlight (the user's call — nothing
+        // visibly rendered a separate accent): Highlight if set, else the
+        // theme's Primary. Preset `accent` values are ignored on purpose.
+        const acc = realHl || colors.primary;
+        if (acc) {
+          document.documentElement.style.setProperty("--color-accent", acc);
+          const ta = hexToHslTriplet(acc);
+          if (ta) document.documentElement.style.setProperty("--accent", ta);
         }
       } catch { /* non-fatal */ }
     }

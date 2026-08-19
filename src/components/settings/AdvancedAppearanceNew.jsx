@@ -31,9 +31,13 @@ import { V2SpacingRow, V2AccentRow, V2ShapeRows, V2LayoutControls, V2LanguageSec
 
 const BASIC_THEMES = ['warm', 'cool', 'forest', 'sunset', 'ocean', 'berry', 'charcoal', 'ivory'];
 
+// No "Accent" row: the theme's accent (--color-accent) is now DERIVED —
+// it follows the Highlight when one is set, else Primary (v0.188.4). It
+// only ever painted a few hover states, so a separate colour nobody could
+// find in the UI was noise; ThemeContext writes it.
 const COLOR_LABELS = {
   bg: 'Background', surface: 'Surface', primary: 'Primary',
-  secondary: 'Secondary', accent: 'Accent', muted: 'Muted',
+  secondary: 'Secondary', muted: 'Muted',
   'text-primary': 'Text', 'text-secondary': 'Text 2nd',
 };
 

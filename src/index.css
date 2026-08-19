@@ -763,12 +763,20 @@ html[data-v2-peek="1"] [data-vaul-overlay] { background: transparent !important;
 html[data-heading-font] :is(h1, h2, h3, h4, h5, h6) { font-family: var(--font-display); }
 /* Flags combine freely (the attribute is space-separated, matched with
    ~=): bold + italic + underline + strikethrough + small caps. */
+/* BODY flags must not leak into HEADINGS (they have their own toggles).
+   Inherited props (italic / small caps / bold) are set on the root and
+   then reset on headings unless the header flag says the same. Text
+   decoration can't be cancelled by a descendant once an ancestor sets it,
+   so underline / strike are applied per text element and skip anything
+   inside a heading. */
 [data-ui-v2="1"][data-v2-bstyle~="bold"] { font-weight: 700; }
 [data-ui-v2="1"][data-v2-bstyle~="italic"] { font-style: italic; }
-[data-ui-v2="1"][data-v2-bstyle~="underline"] { text-decoration-line: underline; }
-[data-ui-v2="1"][data-v2-bstyle~="strike"] { text-decoration-line: line-through; }
-[data-ui-v2="1"][data-v2-bstyle~="underline"][data-v2-bstyle~="strike"] { text-decoration-line: underline line-through; }
 [data-ui-v2="1"][data-v2-bstyle~="smallcaps"] { font-variant-caps: small-caps; }
+[data-ui-v2="1"][data-v2-bstyle~="italic"]:not([data-v2-hstyle~="italic"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: normal; }
+[data-ui-v2="1"][data-v2-bstyle~="smallcaps"]:not([data-v2-hstyle~="smallcaps"]) :is(h1, h2, h3, h4, h5, h6, .font-display) { font-variant-caps: normal; }
+[data-ui-v2="1"][data-v2-bstyle~="underline"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline; }
+[data-ui-v2="1"][data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: line-through; }
+[data-ui-v2="1"][data-v2-bstyle~="underline"][data-v2-bstyle~="strike"] :where(p, li, td, th, dt, dd, label, a, button, summary, input, textarea, select, blockquote, figcaption, small, em, strong, b, i, u, code, pre, time, legend, span):not(:is(h1, h2, h3, h4, h5, h6, .font-display), :is(h1, h2, h3, h4, h5, h6, .font-display) *) { text-decoration-line: underline line-through; }
 [data-ui-v2="1"][data-v2-hstyle~="bold"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-weight: 700; }
 [data-ui-v2="1"][data-v2-hstyle~="italic"] :is(h1, h2, h3, h4, h5, h6, .font-display) { font-style: italic; }
 [data-ui-v2="1"][data-v2-hstyle~="underline"] :is(h1, h2, h3, h4, h5, h6, .font-display) { text-decoration-line: underline; }

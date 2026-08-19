@@ -318,6 +318,9 @@ useEffect(() => {
     root.style.setProperty("--color-primary", hl);
     const t = hexToHslTripletSafe(hl);
     if (t) root.style.setProperty("--primary", t);
+    // Accent follows the highlight (merged — see ThemeContext).
+    root.style.setProperty("--color-accent", hl);
+    if (t) root.style.setProperty("--accent", t);
   }
   return () => {
     root.removeAttribute("data-ui-v2");

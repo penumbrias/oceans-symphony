@@ -576,7 +576,7 @@ function BarsSection({ v2, alignX }) {
 const COLOR_ROLES = [
   ["bg", "editSheet.colorBackground"], ["surface", "editSheet.colorSurface"],
   ["primary", "editSheet.colorPrimary"], ["secondary", "editSheet.colorSecondary"],
-  ["accent", "editSheet.colorAccent"], ["muted", "editSheet.colorMuted"],
+  ["muted", "editSheet.colorMuted"],
   ["text-primary", "editSheet.colorTextBody"], ["text-secondary", "editSheet.colorTextHeader"],
 ];
 

@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Display options: Body style (italic, underline…) no longer bleeds into headings — headings follow only their own Header style toggles." },
+      { type: "improve", text: "The separate \u201cAccent\u201d colour is gone — it's merged with the Highlight (and follows Primary when no highlight is set). It only ever tinted a few hover states." },
       { type: "fix", text: "Add widget → Options: picking a built-in style (Glass, Toybox, Old forum…) now previews it — only your saved styles used to show a change." },
       { type: "fix", text: "Pinned {{alters}} bar options: the colour swatches now show the bar's real colours; \u201cDown\u201d (top / centre / bottom) actually moves the icons once a bar height is set; the bar's default background renders again instead of going see-through." },
       { type: "improve", text: "Widget options: \u201cLayout & size\u201d is folded into \u201cUI & text\u201d — one standard section for alignment, size, type and shape." },
