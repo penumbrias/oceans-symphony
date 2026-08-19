@@ -448,11 +448,28 @@ export function ThemeProvider({ children }) {
         }
         return `${Math.round(hue * 360)} ${Math.round(sat * 100)}% ${Math.round(lum * 100)}%`;
       };
+      const triplets = {};
       for (const [key, value] of Object.entries(colors)) {
         document.documentElement.style.setProperty(`--color-${key}`, value);
         const triplet = hexToHslTriplet(value);
-        if (triplet) document.documentElement.style.setProperty(`--${key}`, triplet);
+        if (triplet) { triplets[key] = triplet; document.documentElement.style.setProperty(`--${key}`, triplet); }
       }
+      // shadcn-style ALIASES (v0.190.2). ~120 files write inline
+      // `hsl(var(--border))`, `hsl(var(--muted-foreground))`, `hsl(var(--
+      // background))`… — names this app never defined, so every one of them
+      // computed to transparent (invisible borders, missing tints: the
+      // "name pushed off the card" chip, the see-through alters bar…).
+      // Define them from the real palette, once, here.
+      const alias = {
+        background: triplets.bg, foreground: triplets["text-primary"],
+        card: triplets.surface, "card-foreground": triplets["text-primary"],
+        popover: triplets.surface, "popover-foreground": triplets["text-primary"],
+        border: triplets.muted, input: triplets.surface, ring: triplets.primary,
+        "muted-foreground": triplets["text-secondary"],
+        "primary-foreground": "0 0% 100%", "secondary-foreground": triplets["text-primary"],
+        "accent-foreground": "0 0% 100%", destructive: "0 84% 60%", "destructive-foreground": "0 0% 100%",
+      };
+      for (const [k, v] of Object.entries(alias)) if (v) document.documentElement.style.setProperty(`--${k}`, v);
       // The new UI's Highlight (ui_v2.tokens.accent → --v2-accent), when
       // set, IS the primary colour everywhere — page dots, focus rings,
       // buttons, links. AppLayout applies the token vars in its own effect

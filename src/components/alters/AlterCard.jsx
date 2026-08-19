@@ -15,7 +15,7 @@ import { useFrontGesture, useHoldMenu } from "@/components/fronting/FrontLevelRa
 import AlterActionMenu from "./AlterActionMenu";
 
 function getContrastColor(hex) {
-  if (!hex) return "hsl(var(--muted-foreground))";
+  if (!hex) return "var(--color-text-secondary)";
   const clean = hex.replace("#", "");
   const r = parseInt(clean.substring(0, 2), 16);
   const g = parseInt(clean.substring(2, 4), 16);
@@ -52,10 +52,10 @@ export function FrontingToggleButton({ alter, activeSessions = [], gesture = nul
       style={{
         backgroundColor: isFronting
           ? isPrimary ? "#f59e0b20" : `${alter.color || "#9333ea"}20`
-          : "hsl(var(--muted))",
+          : "var(--color-muted)",
         border: isFronting
           ? isPrimary ? "2px solid #f59e0b" : `2px solid ${alter.color || "#9333ea"}`
-          : "2px solid hsl(var(--border))",
+          : "2px solid var(--color-muted)",
       }}
       title={isFronting
         ? `${terms.Fronting} — tap to adjust their level or remove, hold for the spectrum`
@@ -111,13 +111,13 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
           style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
           <div
             className={`w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
-            style={{ backgroundColor: bgColor || "hsl(var(--muted))" }}>
+            style={{ backgroundColor: bgColor || "var(--color-muted)" }}>
             {resolvedAvatar ? (
               <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
                 onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
             ) : null}
             <div className="w-full h-full items-center justify-center"
-              style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "hsl(var(--muted-foreground))" }}>
+              style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "var(--color-text-secondary)" }}>
               <User className="w-5 h-5" />
             </div>
           </div>
@@ -136,10 +136,14 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
             const halo = bgColor && needsHalo(bgColor, surfaceBg);
             const fillColor = halo ? adjustForContrast(bgColor, surfaceBg) : bgColor;
             return (
-            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink-0 ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
+            // Long roles used to push the NAME off the card (the chip
+            // couldn't shrink). It now yields: capped width, ellipsis, the
+            // full text in the tooltip.
+            <span className={`text-xs font-medium px-2 py-0.5 rounded-full flex-shrink min-w-0 max-w-[45%] truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}
+              title={alter.role}
               style={{
-                backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "hsl(var(--muted))",
-                color: halo ? "hsl(var(--foreground))" : (bgColor || "hsl(var(--muted-foreground))"),
+                backgroundColor: fillColor ? `${fillColor}${halo ? "55" : "20"}` : "var(--color-muted)",
+                color: halo ? "var(--color-text-primary)" : (bgColor || "var(--color-text-secondary)"),
               }}>
               {alter.role}
             </span>

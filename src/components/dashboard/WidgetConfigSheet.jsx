@@ -788,20 +788,12 @@ export default function WidgetConfigSheet({
 
           {/* Scales everything the widget draws (rows, buttons, avatars,
               spacing), on top of whatever text size is set. */}
-          <div>
-            <label className="text-[0.6875rem] font-semibold uppercase tracking-wide text-muted-foreground block mb-1">
-              Content size — {Math.round(Number(settings.controlScale) || 100)}%
-            </label>
-            <input
-              type="range"
-              min={60}
-              max={200}
-              step={5}
-              value={Number(settings.controlScale) || 100}
-              onChange={(e) => onSettings(widget.instanceId, { controlScale: Number(e.target.value) })}
-              className="w-full accent-primary"
-            />
-          </div>
+          {/* Same set-then-slide row as every other size here — a bare
+              slider moved on a scroll through the sheet (the report). */}
+          <SliderRow label="Content size" value={settings.controlScale} fallback={100}
+            min={60} max={200} step={5} unit="%"
+            onChange={(v) => onSettings(widget.instanceId, { controlScale: v })}
+            onReset={() => onSettings(widget.instanceId, { controlScale: "" })} />
           {/* Size / shape fields a widget declares for this section (e.g.
               the pinned bar's height and icon size). Ranges only — that's
               what a size is. */}

@@ -488,6 +488,11 @@ function BarsSection({ v2, alignX }) {
             { v: "bubble", label: tr("editSheet.placementBubble") },
           ]} />
         {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
+          <PillRow label={tr("editSheet.actionsEdge")} value={v2.uiV2.tokens.actionsEdge ?? "bottom"}
+            onChange={(val) => v2.setToken("actionsEdge", val)} alignX={alignX}
+            options={[{ v: "bottom", label: tr("editSheet.edgeBottom") }, { v: "top", label: tr("editSheet.edgeTop") }]} />
+        )}
+        {(v2.uiV2.tokens.actionsMode ?? "bar") === "bar" && (
           <PillRow label={tr("editSheet.handleSides")} value={v2.uiV2.tokens.handleSides ?? "alters-left"}
             onChange={(val) => v2.setToken("handleSides", val)} alignX={alignX} stacked
             options={[

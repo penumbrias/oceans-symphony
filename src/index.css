@@ -644,6 +644,9 @@ html[data-corner-mode="sharp"] [class*="rounded-br-"] {
    gesture passing through. pan-y hands vertical movement back to the
    scroller, so only a deliberate horizontal drag changes the value. */
 input[type="range"] { touch-action: pan-y; }
+/* Every slider and checkbox takes the UI highlight (the reported blue
+   sliders were the browser default next to a red-accented app). */
+input[type="range"], input[type="checkbox"], input[type="radio"] { accent-color: var(--v2-accent, var(--color-primary)); }
 
 /* The "Continue setup" chip sits at z-85 — above bottom sheets (z-50).
    With a sheet open, tapping the chip's X could land on the controls

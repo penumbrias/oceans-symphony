@@ -159,6 +159,9 @@ export const V2_TOKEN_DEFS = [
       { v: "alters-left",  label: "Pinned bar left, quick actions right", css: "alters-left" },
       { v: "alters-right", label: "Quick actions left, pinned bar right", css: "alters-right" },
     ] },
+  // Bar mode: which chrome hosts the strip. Not a CSS var — V2Frame reads it.
+  { id: "actionsEdge", group: "bars", label: "Quick actions edge", type: "select", cssVar: "--v2-actions-edge-noop", default: "bottom",
+    options: [{ v: "bottom", label: "Bottom bar", css: "bottom" }, { v: "top", label: "Top bar", css: "top" }] },
   { id: "actionsMode", group: "bars", label: "Quick actions display",  type: "select", cssVar: "--v2-actions-mode", default: "bar",
     options: [
       { v: "bar",    label: "Behind the bottom handle", css: "bar" },

@@ -20,6 +20,11 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "feature", text: "Quick action bar can sit behind the TOP bar instead of the bottom one (Display options → Quick action bar → Edge)." },
+      { type: "fix", text: "Sliders and checkboxes everywhere use your highlight colour (they were browser-default blue); Content size got the same set-then-slide row and Reset as the other sizes." },
+      { type: "fix", text: "{{Alter}} rows: a long role no longer pushes the name off the card." },
+      { type: "fix", text: "Many inline tints and borders across the app were silently invisible (they pointed at colour names the theme never defined) — defined now, so cards, chips and dividers show their intended colours." },
+      { type: "hotfix", text: "Hotfix: the pinned {{alters}} bubble now runs on the same drag/dock engine as the quick-actions bubble." },
       { type: "feature", text: "Pinned {{alters}} bar can be a bubble: Widget config → Placement → Bubble. Tap to open, hold and drag it to any screen edge (it snaps and remembers); on the left or right it opens as a column." },
       { type: "feature", text: "Pinned {{alters}} bar → Widget config: manage pins and their order, choose avatar + name / avatars only / names only, name vs alias, how a {{fronting}} {{alter}} stands out (bigger · squarer · thick ring · no change, with a size slider), a bar-only avatar per {{alter}} (saved in that {{alter}}'s asset folder), and {{front}} levels right there." },
       { type: "improve", text: "Widget options: \u201cWidget settings\u201d is now \u201cWidget config\u201d; bar height and icon size moved into UI & text; alignment reads Alignment → Horizontal / Vertical; section icons fixed; Peek panel height is draggable." },

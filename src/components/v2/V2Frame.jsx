@@ -51,6 +51,7 @@ import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import AltersBarCard from "@/components/v2/AltersBarCard";
 import AltersBarBubble from "@/components/v2/AltersBarBubble";
+import { EdgeDock } from "@/components/v2/EdgeDock";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -501,6 +502,14 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
         </div>,
         document.body,
       )}
+      {/* Quick actions can live up here instead (Display options → Quick
+          action bar → Edge → Top): the same strip, row above its handle,
+          swipe DOWN opens. */}
+      {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === "top" && (
+        <div className="relative" style={{ zIndex: 1 }}>
+          <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="top" />
+        </div>
+      )}
     </header>
   );
 }
@@ -664,7 +673,7 @@ export function V2SideRail({ uiV2, settingsRow }) {
 // ── Quick-action dock (floating edge bar / bubble) ─────────────────
 // Alternative homes for the quick actions: a strip stuck to a screen edge,
 // or a single bubble that opens into the strip — same actions, same order,
-// just a different place to keep them.
+// just a different place to keep them. Positioning/drag = EdgeDock.
 export function V2QuickDock({ uiV2, settingsRow }) {
   const navigate = useNavigate();
   const qc = useQueryClient();
@@ -674,42 +683,17 @@ export function V2QuickDock({ uiV2, settingsRow }) {
   const [bubbleOpen, setBubbleOpen] = useState(() => {
     try { return localStorage.getItem(DOCK_OPEN_KEY) === "1"; } catch { return false; }
   });
-  // Hold-and-drag repositioning. While dragging, the dock follows the
-  // pointer; on release it snaps to the nearer edge at that height, clamped
-  // so it can never end up off screen, and the spot is saved.
-  const [drag, setDrag] = useState(null); // { x, y }
-  const dragState = useRef(null);
-  const suppressTap = useRef(false);
-
   const mode = uiV2.tokens.actionsMode || "bar";
   const isBubble = mode === "bubble";
   const open = !isBubble || bubbleOpen;
   const side = uiV2.dockPos?.side || (uiV2.tokens.dockSide === "left" ? "left" : "right");
   const topPct = uiV2.dockPos?.topPct ?? 50;
-  const horizontal = side === "top" || side === "bottom";
-  // Measure the stack so the clamp uses its REAL size — a fixed guess let
-  // the bottom of a tall dock slide behind the bottom bar.
-  const dockRef = useRef(null);
-  const [dockSize, setDockSize] = useState({ w: 56, h: 220 });
-  useEffect(() => {
-    const node = dockRef.current;
-    if (!node) return undefined;
-    const measure = () => {
-      const r = node.getBoundingClientRect();
-      if (r.width && r.height) setDockSize({ w: r.width, h: r.height });
-    };
-    measure();
-    const ro = new ResizeObserver(measure);
-    ro.observe(node);
-    return () => ro.disconnect();
-  }, [open, mode]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
 
   const setOpen = (v) => {
     setBubbleOpen(v);
     try { localStorage.setItem(DOCK_OPEN_KEY, v ? "1" : "0"); } catch { /* storage off */ }
   };
-
   const savePos = async (pos) => {
     try {
       if (!settingsRow?.id) return;
@@ -720,84 +704,44 @@ export function V2QuickDock({ uiV2, settingsRow }) {
     } catch { /* best-effort */ }
   };
 
-  const onHandleDown = (e) => {
-    if (e.button === 1 || e.button === 2 || dragState.current) return;
-    const node = e.currentTarget;
-    const startX = e.clientX, startY = e.clientY;
-    const st = { active: false, timer: null };
-    const onMove = (ev) => {
-      if (!st.active) {
-        if (Math.abs(ev.clientX - startX) > 6 || Math.abs(ev.clientY - startY) > 6) cleanup();
-        return;
-      }
-      setDrag({ x: ev.clientX, y: ev.clientY });
-      ev.preventDefault();
-    };
-    const onTouchMove = (ev) => { if (st.active) ev.preventDefault(); };
-    const onUp = (ev) => {
-      const wasActive = st.active;
-      cleanup();
-      setDrag(null);
-      if (!wasActive) return;
-      suppressTap.current = true;
-      const W = window.innerWidth, H = window.innerHeight;
-      const dists = {
-        left: ev.clientX, right: W - ev.clientX,
-        top: ev.clientY, bottom: H - ev.clientY,
-      };
-      const nextSide = Object.keys(dists).reduce((a, b) => (dists[a] <= dists[b] ? a : b));
-      const along = nextSide === "top" || nextSide === "bottom" ? ev.clientX / W : ev.clientY / H;
-      const pct = Math.min(88, Math.max(6, along * 100));
-      savePos({ side: nextSide, topPct: Math.round(pct * 10) / 10 });
-    };
-    const cleanup = () => {
-      if (st.timer) clearTimeout(st.timer);
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", cleanup);
-      window.removeEventListener("touchmove", onTouchMove);
-      dragState.current = null;
-    };
-    dragState.current = st;
-    window.addEventListener("pointermove", onMove, { passive: false });
-    window.addEventListener("pointerup", onUp);
-    window.addEventListener("pointercancel", cleanup);
-    window.addEventListener("touchmove", onTouchMove, { passive: false });
-    st.timer = setTimeout(() => {
-      st.active = true;
-      try { node.setPointerCapture?.(e.pointerId); } catch { /* unsupported */ }
-      try { navigator.vibrate?.(10); } catch { /* no haptics */ }
-      setDrag({ x: startX, y: startY });
-    }, 300);
-  };
-
   if (!uiV2.bars.actions || (mode !== "float" && mode !== "bubble")) return null;
 
   return (
-    <div
-      ref={dockRef}
-      className={`fixed z-40 flex items-center ${horizontal ? "flex-row" : "flex-col"}`}
-      style={drag ? {
-        left: drag.x, top: drag.y,
-        transform: "translate(-50%, -50%)",
-        gap: "calc(var(--v2-space) * 0.75)",
-        opacity: 0.9,
-      } : horizontal ? {
-        [side]: side === "top"
-          ? "calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + 8px)"
-          : "calc(var(--bottom-nav-height, 56px) + env(safe-area-inset-bottom, 0px) + 8px)",
-        left: `clamp(${8 + dockSize.w / 2}px, ${topPct}%, calc(100% - ${8 + dockSize.w / 2}px))`,
-        transform: "translateX(-50%)",
-        gap: "calc(var(--v2-space) * 0.75)",
-      } : {
-        [side]: "calc(env(safe-area-inset-" + side + ", 0px) + 8px)",
-        // Clamp with the dock's measured height so its far end can never
-        // slide behind the top or bottom chrome.
-        top: `clamp(calc(var(--v2-status-h) + env(safe-area-inset-top, 0px) + ${8 + dockSize.h / 2}px), ${topPct}%, calc(100% - var(--bottom-nav-height, 56px) - env(safe-area-inset-bottom, 0px) - ${8 + dockSize.h / 2}px))`,
-        transform: "translateY(-50%)",
-        gap: "calc(var(--v2-space) * 0.75)",
-      }}
-    >
+    <EdgeDock side={side} topPct={topPct} onSavePos={savePos}
+      renderHandle={(bind) => (!isBubble ? (
+        <span
+          onPointerDown={bind.onPointerDown}
+          onContextMenu={bind.onContextMenu}
+          title={t("nav.dockDragHint")}
+          className="w-6 h-3 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
+          style={{ touchAction: "pan-y" }}
+        >
+          <span className="w-4 h-[3px] rounded-full bg-border" aria-hidden="true" />
+        </span>
+      ) : (
+        <button type="button"
+          onPointerDown={bind.onPointerDown}
+          onContextMenu={bind.onContextMenu}
+          onClick={() => {
+            if (bind.suppressTap.current) { bind.suppressTap.current = false; return; }
+            setOpen(!bubbleOpen);
+          }}
+          aria-expanded={bubbleOpen}
+          aria-label={bubbleOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
+          className="flex items-center justify-center active:scale-95 transition-transform backdrop-blur"
+          style={{
+            background: "var(--color-bg)",
+            width: "calc(var(--v2-cmd-size) + 6px)", height: "calc(var(--v2-cmd-size) + 6px)",
+            borderRadius: "9999px",
+            border: "var(--v2-border-w) solid var(--v2-accent)",
+            color: "var(--v2-accent)",
+            boxShadow: "0 2px 10px rgb(0 0 0 / 0.3)",
+          }}>
+          {bubbleOpen
+            ? <ChevronUp style={{ width: "40%", height: "40%", transform: side === "right" ? "rotate(90deg)" : "rotate(-90deg)" }} />
+            : <Zap style={{ width: "42%", height: "42%" }} />}
+        </button>
+      ))}>
       {open && keys.map((k) => {
         const Icon = KEY_ICONS[k.id] || Heart;
         const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
@@ -833,43 +777,161 @@ export function V2QuickDock({ uiV2, settingsRow }) {
           <LifeBuoy style={{ width: "45%", height: "45%" }} />
         </button>
       )}
-      {!isBubble && (
-        <span
-          onPointerDown={onHandleDown}
-          onContextMenu={(e) => e.preventDefault()}
-          title={t("nav.dockDragHint")}
-          className="w-6 h-3 flex items-center justify-center cursor-grab active:cursor-grabbing select-none"
-          style={{ touchAction: "pan-y" }}
-        >
-          <span className="w-4 h-[3px] rounded-full bg-border" aria-hidden="true" />
-        </span>
-      )}
-      {isBubble && (
-        <button type="button"
-          onPointerDown={onHandleDown}
-          onContextMenu={(e) => e.preventDefault()}
-          onClick={() => {
-            if (suppressTap.current) { suppressTap.current = false; return; }
-            setOpen(!bubbleOpen);
-          }}
-          aria-expanded={bubbleOpen}
-          aria-label={bubbleOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
-          className="flex items-center justify-center active:scale-95 transition-transform backdrop-blur"
-          style={{
-            background: "var(--color-bg)",
-            width: "calc(var(--v2-cmd-size) + 6px)", height: "calc(var(--v2-cmd-size) + 6px)",
-            borderRadius: "9999px",
-            border: "var(--v2-border-w) solid var(--v2-accent)",
-            color: "var(--v2-accent)",
-            boxShadow: "0 2px 10px rgb(0 0 0 / 0.3)",
-          }}>
-          {bubbleOpen
-            ? <ChevronUp style={{ width: "40%", height: "40%", transform: side === "right" ? "rotate(90deg)" : "rotate(-90deg)" }} />
-            : <Zap style={{ width: "42%", height: "42%" }} />}
-        </button>
-      )}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
-    </div>
+    </EdgeDock>
+  );
+}
+
+// ── Quick-actions strip (bar mode) ──────────────────────────────────
+// The split handle + the fold-out row of command keys. One component,
+// two hosts: the bottom chrome (handle above the row, swipe UP opens) or
+// the top bar (row above the handle, swipe DOWN opens — Display options →
+// Quick action bar → Edge). Open state is a device preference.
+function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
+  const navigate = useNavigate();
+  const t = useT();
+  const terms = useTerms();
+  const [noteOpen, setNoteOpen] = useState(false);
+  const [qaOpen, setQaOpen] = useState(() => {
+    try { return localStorage.getItem(QA_OPEN_KEY) === "1"; } catch { return false; }
+  });
+  const toggleQa = (next) => {
+    setQaOpen(next);
+    try { localStorage.setItem(QA_OPEN_KEY, next ? "1" : "0"); } catch { /* storage off */ }
+  };
+  const dragStart = useRef(null);
+  const altersDragStart = useRef(null);
+  const swiped = useRef(false);
+  const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
+  const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
+  const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
+  const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
+  const altersInNav = altersBarCfg.enabled === true;
+  // Top edge: "open" is a swipe DOWN; the chevrons flip to match.
+  const dir = edge === "top" ? -1 : 1;
+  const openRot = edge === "top" ? "none" : "rotate(180deg)";
+  const closedRot = edge === "top" ? "rotate(180deg)" : "none";
+
+  // Per-bar [SET 5] for the quick-action row (no veil of its own — it
+  // sits on the hosting bar's).
+  const handle = (
+          <div className="relative" style={barLookStyle(uiV2, "actions", { veil: false })}>
+          {/* ONE handle row, split in two (the user's call — no separate
+              icon toggles): swipe up (or tap) on the LEFT half for the
+              pinned {alters} bar, on the RIGHT half for the quick
+              actions. Both halves swipe down to close their own thing. */}
+          <div className="w-full flex" style={{ height: 18 }}>
+            {/* Each half is the same glyph — dash · chevron · dash — centred
+                in its half (the lone off-centre chevron looked broken). The
+                halves swap with the Handle-halves option. */}
+            <button
+              type="button"
+              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 2 : 1 }}
+              aria-label={applyTerms(t("nav.showAlterBar"), terms)}
+              title={applyTerms(t("nav.showAlterBar"), terms)}
+              onPointerDown={(e) => {
+                altersDragStart.current = e.clientY;
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+              }}
+              onPointerUp={(e) => {
+                const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
+                altersDragStart.current = null;
+                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+                if (dir * dy < -14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }));
+                else if (dir * dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
+                else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
+              }}
+              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-3 h-3" style={{ transform: altersInNav && !altersBarCfg.collapsed ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 1 : 2 }}
+              aria-expanded={qaOpen}
+              aria-label={qaOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
+              title={t("nav.showQuickActions")}
+              onClick={() => {
+                // A swipe already decided it; don't let the trailing click undo it.
+                if (swiped.current) { swiped.current = false; return; }
+                toggleQa(!qaOpen);
+              }}
+              onPointerDown={(e) => {
+                dragStart.current = e.clientY;
+                // Capture so the release still counts as a swipe even when the
+                // finger has travelled off the handle by then.
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+              }}
+              onPointerUp={(e) => {
+                const dy = dragStart.current == null ? 0 : e.clientY - dragStart.current;
+                dragStart.current = null;
+                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+                if (dir * dy < -14) { swiped.current = true; toggleQa(true); }
+                else if (dir * dy > 14) { swiped.current = true; toggleQa(false); }
+              }}
+              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+            >
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? openRot : closedRot, transition: "transform .18s" }} />
+              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
+            </button>
+          </div>
+          </div>
+  );
+  const row = (
+          <AnimatePresence initial={false}>
+            {qaOpen && (
+              <motion.div
+                key="qa"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                transition={{ duration: 0.18, ease: "easeOut" }}
+                className="overflow-hidden"
+              >
+                <div className="flex items-center justify-center overflow-x-auto px-2"
+                  style={{ gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)" }}>
+                  {keys.map((k) => {
+                    const Icon = KEY_ICONS[k.id] || Heart;
+                    const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
+                    return (
+                      <CommandKeyButton key={k.id} label={label}
+                        onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
+                        holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
+                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
+                        className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
+                        style={{
+                          width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+                          borderRadius: "var(--v2-radius)",
+                          border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
+                        }}>
+                        <Icon style={{ width: "45%", height: "45%" }} />
+                      </CommandKeyButton>
+                    );
+                  })}
+                  <button type="button" onClick={() => navigate("/grounding")}
+                    aria-label={t("capture.support")} title={t("capture.support")}
+                    className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
+                    style={{
+                      width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
+                      borderRadius: "var(--v2-radius)",
+                      border: "var(--v2-border-w) solid var(--v2-accent)",
+                      color: "var(--v2-accent)",
+                    }}>
+                    <LifeBuoy style={{ width: "45%", height: "45%" }} />
+                  </button>
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+  );
+  return (
+    <>
+      {edge === "top" ? <>{row}{handle}</> : <>{handle}{row}</>}
+      <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
+    </>
   );
 }
 
@@ -882,19 +944,11 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   const isActive = useIsActive();
   const terms = useTerms();
   const [noteOpen, setNoteOpen] = useState(false);
-  // Quick actions live behind a pull handle; the open state is a device
-  // preference so the bar opens the way you left it.
-  const [qaOpen, setQaOpen] = useState(() => {
-    try { return localStorage.getItem(QA_OPEN_KEY) === "1"; } catch { return false; }
-  });
-  const dragStart = useRef(null);
   const altersDragStart = useRef(null);
   const swiped = useRef(false);
-
-  const toggleQa = (next) => {
-    setQaOpen(next);
-    try { localStorage.setItem(QA_OPEN_KEY, next ? "1" : "0"); } catch { /* storage off */ }
-  };
+  // The quick-actions strip (QuickActionsStrip) keeps its own open state;
+  // the chrome only needs to re-measure when it folds, which the
+  // ResizeObserver below sees on its own.
 
   const { primary: items } = useNavItems(settingsRow);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
@@ -968,9 +1022,13 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       window.removeEventListener("orientationchange", publish);
       root.style.removeProperty("--v2-bottom-chrome-h");
     };
-  }, [qaOpen, uiV2.bars.actions, uiV2.bars.tabs, uiV2.bars.rail, items.length, keys.length]);
+  }, [uiV2.bars.actions, uiV2.bars.tabs, uiV2.bars.rail, items.length, keys.length]);
 
-  if (!uiV2.bars.actions && !uiV2.bars.tabs) return null;
+  // The nav box itself has content when the tab strip is on or the
+  // quick-actions strip lives down here. The alters bar stack renders
+  // regardless (it floats; its height var falls back to 0).
+  const navHasContent = uiV2.bars.tabs || (uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top");
+  if (!navHasContent && !altersInNav) return null;
 
   return (
     <>
@@ -1020,6 +1078,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           </AnimatePresence>
       </div>
     )}
+    {navHasContent && (
     <nav
       ref={navRef}
       // The rail takes over on wide screens; a bottom bar there is just a
@@ -1047,7 +1106,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               closes (pointer captured so a swipe that leaves the strip
               still counts). With it ON, the split handle's left half does
               this — no second handle. */}
-          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar") && (
+          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top") && (
             <button
               type="button"
               aria-expanded={!altersBarCfg.collapsed}
@@ -1078,120 +1137,8 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           )}
         </div>
       )}
-      {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (
-        <>
-          {/* Per-bar [SET 5] for the quick-action row (no veil of its
-              own — it sits on the bottom bar's). */}
-          <div className="relative" style={barLookStyle(uiV2, "actions", { veil: false })}>
-          {/* ONE handle row, split in two (the user's call — no separate
-              icon toggles): swipe up (or tap) on the LEFT half for the
-              pinned {alters} bar, on the RIGHT half for the quick
-              actions. Both halves swipe down to close their own thing. */}
-          <div className="w-full flex" style={{ height: 18 }}>
-            {/* Each half is the same glyph — dash · chevron · dash — centred
-                in its half (the lone off-centre chevron looked broken). The
-                halves swap with the Handle-halves option. */}
-            <button
-              type="button"
-              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 2 : 1 }}
-              aria-label={applyTerms(t("nav.showAlterBar"), terms)}
-              title={applyTerms(t("nav.showAlterBar"), terms)}
-              onPointerDown={(e) => {
-                altersDragStart.current = e.clientY;
-                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-              }}
-              onPointerUp={(e) => {
-                const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
-                altersDragStart.current = null;
-                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
-                if (dy < -14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: true } }));
-                else if (dy > 14) window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar", { detail: { open: false } }));
-                else window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar"));
-              }}
-              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-            >
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-3 h-3" style={{ transform: altersInNav && !altersBarCfg.collapsed ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-            </button>
-            <button
-              type="button"
-              style={{ touchAction: "none", order: (uiV2.tokens.handleSides || "alters-left") === "alters-right" ? 1 : 2 }}
-              aria-expanded={qaOpen}
-              aria-label={qaOpen ? t("nav.hideQuickActions") : t("nav.showQuickActions")}
-              title={t("nav.showQuickActions")}
-              onClick={() => {
-                // A swipe already decided it; don't let the trailing click undo it.
-                if (swiped.current) { swiped.current = false; return; }
-                toggleQa(!qaOpen);
-              }}
-              onPointerDown={(e) => {
-                dragStart.current = e.clientY;
-                // Capture so the release still counts as a swipe even when the
-                // finger has travelled off the handle by then.
-                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-              }}
-              onPointerUp={(e) => {
-                const dy = dragStart.current == null ? 0 : e.clientY - dragStart.current;
-                dragStart.current = null;
-                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
-                if (dy < -14) { swiped.current = true; toggleQa(true); }
-                else if (dy > 14) { swiped.current = true; toggleQa(false); }
-              }}
-              className="flex-1 flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-            >
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-3 h-3" style={{ transform: qaOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
-              <span className="w-6 h-[3px] rounded-full bg-border" aria-hidden="true" />
-            </button>
-          </div>
-          </div>
-          <AnimatePresence initial={false}>
-            {qaOpen && (
-              <motion.div
-                key="qa"
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: "auto", opacity: 1 }}
-                exit={{ height: 0, opacity: 0 }}
-                transition={{ duration: 0.18, ease: "easeOut" }}
-                className="overflow-hidden"
-              >
-                <div className="flex items-center justify-center overflow-x-auto px-2"
-                  style={{ gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)" }}>
-                  {keys.map((k) => {
-                    const Icon = KEY_ICONS[k.id] || Heart;
-                    const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
-                    return (
-                      <CommandKeyButton key={k.id} label={label}
-                        onHold={k.id === "set_front" ? () => window.dispatchEvent(new CustomEvent("os-v2-toggle-alters-bar")) : null}
-                        holdHint={k.id === "set_front" ? `to fold the pinned ${terms.alters} bar in or out` : null}
-                        onTap={() => (k.id === "quick_note" ? setNoteOpen(true) : navigate(k.target))}
-                        className="flex items-center justify-center flex-shrink-0 text-muted-foreground hover:text-foreground active:scale-95 transition-transform"
-                        style={{
-                          width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
-                          borderRadius: "var(--v2-radius)",
-                          border: "var(--v2-border-w) solid color-mix(in srgb, var(--v2-accent) 40%, transparent)",
-                        }}>
-                        <Icon style={{ width: "45%", height: "45%" }} />
-                      </CommandKeyButton>
-                    );
-                  })}
-                  <button type="button" onClick={() => navigate("/grounding")}
-                    aria-label={t("capture.support")} title={t("capture.support")}
-                    className="flex items-center justify-center flex-shrink-0 active:scale-95 transition-transform"
-                    style={{
-                      width: "var(--v2-cmd-size)", height: "var(--v2-cmd-size)",
-                      borderRadius: "var(--v2-radius)",
-                      border: "var(--v2-border-w) solid var(--v2-accent)",
-                      color: "var(--v2-accent)",
-                    }}>
-                    <LifeBuoy style={{ width: "45%", height: "45%" }} />
-                  </button>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </>
+      {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top" && (
+        <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />
       )}
 
       {uiV2.bars.tabs && (
@@ -1217,6 +1164,7 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
 
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
     </nav>
+    )}
     </>
   );
 }
