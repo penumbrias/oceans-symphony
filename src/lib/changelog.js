@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "improve", text: "The pinned {{alters}} bar now shows on every page when it's switched on — it lives in the bottom bar like the quick actions (same handle, same swipe-down to hide, same options gear)." },
       { type: "feature", text: "Import from Ampersand's new JSON export (0.3+) — same auto-detect as the .ampar archive, from Settings or first-run setup. Each Ampersand {{system}} becomes its own {{system}}; @mentions in messages and notes show names." },
       { type: "fix", text: "Widget options: the Gradient pickers now show the gradient a style is actually drawing (start, end, angle) instead of default colours and \u201cpick both\u201d." },
       { type: "fix", text: "Colour pickers match the widget: a swatch now shows its colour at its opacity (over a checkerboard), and the swatches re-read the widget's real colours whenever its look changes instead of only when the sheet opened." },

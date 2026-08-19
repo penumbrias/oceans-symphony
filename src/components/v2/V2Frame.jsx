@@ -49,8 +49,7 @@ import HeaderPageMenu from "@/components/layout/HeaderPageMenu";
 import NewFeaturesBar from "@/components/dashboard/NewFeaturesBar";
 import GlobalSearch from "@/components/dashboard/GlobalSearch";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
-import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
-import { lookToStyle } from "@/lib/widgetLook";
+import AltersBarCard from "@/components/v2/AltersBarCard";
 
 // The full classic Appearance body — themes, palettes, fonts, corner style,
 // UI/touch/nav sizes, navigation config. Display options embeds it rather
@@ -878,6 +877,7 @@ export function V2QuickDock({ uiV2, settingsRow }) {
 // ── Bottom chrome ──────────────────────────────────────────────────
 export function V2BottomChrome({ uiV2, settingsRow }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const qc = useQueryClient();
   const t = useT();
   const isActive = useIsActive();
@@ -890,7 +890,6 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   });
   const dragStart = useRef(null);
   const altersDragStart = useRef(null);
-  const altersBarDrag = useRef(null);
   const swiped = useRef(false);
 
   const toggleQa = (next) => {
@@ -908,17 +907,37 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
   const altersBarCfg = settingsRow?.[homeField]?.altersBar || {};
-  const altersInNav = altersBarCfg.enabled === true && !uiV2.bars.actions;
-  const toggleNavAlters = async () => {
+  // Hosted here on EVERY page whenever it's switched on (v0.189.1 — the
+  // user's spec: it works like the quick-actions bar). It used to live on
+  // the home board only, with the chrome hosting it just when the
+  // quick-actions bar was off.
+  const altersInNav = altersBarCfg.enabled === true;
+  const setNavAlters = async (collapsed) => {
     if (!settingsRow?.id) return;
     await base44.entities.SystemSettings.update(settingsRow.id, {
       [homeField]: {
         ...(settingsRow[homeField] || {}),
-        altersBar: { ...altersBarCfg, collapsed: !altersBarCfg.collapsed },
+        altersBar: { ...altersBarCfg, enabled: true, collapsed },
       },
     });
     qc.invalidateQueries({ queryKey: ["systemSettings"] });
   };
+  const toggleNavAlters = () => setNavAlters(!altersBarCfg.collapsed);
+  // The split handle, the Set-Front key hold and the board all speak this
+  // event; the chrome answers it on every page (the board only when there
+  // is no chrome to host the bar).
+  const navHostsAlters = uiV2.bars.actions || uiV2.bars.tabs;
+  useEffect(() => {
+    if (!navHostsAlters) return undefined;
+    const onToggle = (e) => {
+      const want = e?.detail?.open;
+      const collapsed = want === true ? false : want === false ? true
+        : (altersBarCfg.enabled ? !altersBarCfg.collapsed : false);
+      setNavAlters(collapsed);
+    };
+    window.addEventListener("os-v2-toggle-alters-bar", onToggle);
+    return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
+  }, [navHostsAlters, settingsRow?.id, altersBarCfg.enabled, altersBarCfg.collapsed, homeField]);
 
   // Publish the bar's REAL height so everything that has to clear it —
   // page content, the sidebar, sheets, the floating buttons — reserves the
@@ -975,39 +994,41 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           its slot in this chrome (the user's spec) — same position, same
           fold-away handle, instead of floating like the support bubble. */}
       {altersInNav && (
-        <div className="relative" style={lookToStyle(altersBarCfg.look || {})} data-widget-content>
-          {/* Same handle grammar as the quick-action row: tap toggles, swipe
-              up opens, swipe down closes (pointer captured so a swipe that
-              leaves the strip still counts) — and the same animated reveal
-              below. It used to be a bare click chevron + instant show/hide,
-              which felt sloppy next to the quick actions. */}
-          <button
-            type="button"
-            aria-expanded={!altersBarCfg.collapsed}
-            aria-label={altersBarCfg.collapsed ? `Show the pinned ${terms.alters} bar` : `Hide the pinned ${terms.alters} bar`}
-            onClick={() => {
-              if (swiped.current) { swiped.current = false; return; }
-              toggleNavAlters();
-            }}
-            onPointerDown={(e) => {
-              altersDragStart.current = e.clientY;
-              try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-            }}
-            onPointerUp={(e) => {
-              const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
-              altersDragStart.current = null;
-              try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
-              if (dy < -14 && altersBarCfg.collapsed) { swiped.current = true; toggleNavAlters(); }
-              else if (dy > 14 && !altersBarCfg.collapsed) { swiped.current = true; toggleNavAlters(); }
-              else if (Math.abs(dy) > 14) { swiped.current = true; } // swiped in the direction it already is — no-op, eat the click
-            }}
-            className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-            style={{ height: 18, touchAction: "none" }}
-          >
-            <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
-            <ChevronUp className="w-3 h-3" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-            <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
-          </button>
+        <div className="relative">
+          {/* With the quick-action row OFF there's no split handle, so the
+              bar carries its own: tap toggles, swipe up opens, swipe down
+              closes (pointer captured so a swipe that leaves the strip
+              still counts). With it ON, the split handle's left half does
+              this — no second handle. */}
+          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar") && (
+            <button
+              type="button"
+              aria-expanded={!altersBarCfg.collapsed}
+              aria-label={altersBarCfg.collapsed ? `Show the pinned ${terms.alters} bar` : `Hide the pinned ${terms.alters} bar`}
+              onClick={() => {
+                if (swiped.current) { swiped.current = false; return; }
+                toggleNavAlters();
+              }}
+              onPointerDown={(e) => {
+                altersDragStart.current = e.clientY;
+                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
+              }}
+              onPointerUp={(e) => {
+                const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
+                altersDragStart.current = null;
+                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
+                if (dy < -14 && altersBarCfg.collapsed) { swiped.current = true; setNavAlters(false); }
+                else if (dy > 14 && !altersBarCfg.collapsed) { swiped.current = true; setNavAlters(true); }
+                else if (Math.abs(dy) > 14) { swiped.current = true; }
+              }}
+              className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
+              style={{ height: 18, touchAction: "none" }}
+            >
+              <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
+              <ChevronUp className="w-3 h-3" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
+              <span className="w-8 h-[3px] rounded-full bg-border" aria-hidden="true" />
+            </button>
+          )}
           <AnimatePresence initial={false}>
             {!altersBarCfg.collapsed && (
               <motion.div
@@ -1018,28 +1039,13 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
                 transition={{ duration: 0.18, ease: "easeOut" }}
                 className="overflow-hidden"
               >
-                {/* Swipe DOWN on the bar itself hides it too — not only the
-                    handle. Fast + downward only, so the level rail's slow
-                    vertical drag never collapses the bar under the finger;
-                    the trailing click is eaten so the chip under the finger
-                    doesn't open a profile. pan-x keeps sideways scrolling. */}
-                <div className="px-2 pb-1 min-w-0 overflow-x-auto" style={{ touchAction: "pan-x" }}
-                  onPointerDownCapture={(e) => { altersBarDrag.current = { x: e.clientX, y: e.clientY, lx: e.clientX, ly: e.clientY, at: Date.now() }; }}
-                  onPointerMoveCapture={(e) => { const d = altersBarDrag.current; if (d) { d.lx = e.clientX; d.ly = e.clientY; } }}
-                  onPointerUpCapture={() => {
-                    const d = altersBarDrag.current; altersBarDrag.current = null;
-                    if (!d) return;
-                    const dy = d.ly - d.y, dx = Math.abs(d.lx - d.x);
-                    if (dy > 32 && dy > dx && Date.now() - d.at < 600) { swiped.current = true; toggleNavAlters(); }
-                  }}
-                  onPointerCancelCapture={() => {
-                    const d = altersBarDrag.current; altersBarDrag.current = null;
-                    if (!d) return;
-                    const dy = d.ly - d.y, dx = Math.abs(d.lx - d.x);
-                    if (dy > 32 && dy > dx && Date.now() - d.at < 600) { swiped.current = true; toggleNavAlters(); }
-                  }}
-                  onClickCapture={(e) => { if (swiped.current) { swiped.current = false; e.preventDefault(); e.stopPropagation(); } }}>
-                  <PinnedAltersGallery showHeader={false} />
+                <div className="px-2 pb-1">
+                  {/* The SAME card the home board draws — look, SET 5,
+                      swipe-to-hide, options gear. The gear opens the
+                      board's bar options (navigating home first if needed). */}
+                  <AltersBarCard settingsRow={settingsRow} home={settingsRow?.[homeField] || {}}
+                    onCollapse={() => setNavAlters(true)}
+                    onGear={() => requestHomeAction(navigate, location.pathname, "bar-options")} />
                 </div>
               </motion.div>
             )}

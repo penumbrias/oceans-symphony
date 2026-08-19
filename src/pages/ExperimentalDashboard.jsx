@@ -59,6 +59,7 @@ import {
 import QuickCheckinButtons from "@/components/dashboard/QuickCheckinButtons";
 import AppDrawer from "@/components/dashboard/AppDrawer";
 import PinnedAltersGallery from "@/components/alters/PinnedAltersGallery";
+import AltersBarCard from "@/components/v2/AltersBarCard";
 import AssetPickerModal from "@/components/shared/AssetPickerModal";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
 import { boxStyle } from "@/v2/primitives";
@@ -511,6 +512,8 @@ export default function ExperimentalDashboard({
     const openApps = () => { setDrawerOpen(true); };
     const editHome = () => { setEditMode(true); };
     const homeSettings = () => { setHomeSettingsOpen(true); };
+    const barOptions = () => { setConfigId(BAR_CONFIG_ID); };
+    window.addEventListener("os-v2-bar-options", barOptions);
     window.addEventListener("os-v2-open-apps", openApps);
     window.addEventListener("os-v2-edit-home", editHome);
     window.addEventListener("os-v2-home-settings", homeSettings);
@@ -524,8 +527,12 @@ export default function ExperimentalDashboard({
       if (sessionStorage.getItem("symphony_v2_home-settings") === "1") {
         sessionStorage.removeItem("symphony_v2_home-settings"); setHomeSettingsOpen(true);
       }
+      if (sessionStorage.getItem("symphony_v2_bar-options") === "1") {
+        sessionStorage.removeItem("symphony_v2_bar-options"); setConfigId(BAR_CONFIG_ID);
+      }
     } catch { /* storage off */ }
     return () => {
+      window.removeEventListener("os-v2-bar-options", barOptions);
       window.removeEventListener("os-v2-open-apps", openApps);
       window.removeEventListener("os-v2-edit-home", editHome);
       window.removeEventListener("os-v2-home-settings", homeSettings);
@@ -568,26 +575,6 @@ export default function ExperimentalDashboard({
   }, [homeSettingsOpen, homePeek]);
   const [styleQuery, setStyleQuery] = useState("");
   const [styleNotes, setStyleNotes] = useState(null);   // style id whose coverage is shown
-  const barDragStart = useRef(null);
-  const barDragLast = useRef(null);
-  // Swipe DOWN on the bar hides it: mostly vertical, ≥32px, within 600ms
-  // (a deliberate swipe, not a hold — the level rail arms on a 350ms
-  // STATIONARY hold and then drags vertically to pick a level; a swipe
-  // moves from the first moment). Sets barSwiped so the trailing click
-  // doesn't open the chip's profile.
-  const endBarDrag = () => {
-    const s0 = barDragStart.current, s1 = barDragLast.current;
-    const dt = barDragAt.current ? Date.now() - barDragAt.current : 0;
-    barDragStart.current = null; barDragLast.current = null; barDragAt.current = null;
-    if (!s0 || !s1) return;
-    const dy = s1.y - s0.y, dx = Math.abs(s1.x - s0.x);
-    if (dy > 32 && dy > dx && dt < 600) {
-      barSwiped.current = true;
-      persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } });
-    }
-  };
-  const barSwiped = useRef(false);
-  const barDragAt = useRef(null);
   const [swipeDir, setSwipeDir] = useState(0); // -1 back, 1 forward — drives the slide-in
   // Pages can be addressed to specific alters. Outside edit mode the board
   // only navigates the ones the current fronters can see — but if that
@@ -949,19 +936,18 @@ export default function ExperimentalDashboard({
   // the gallery's own empty state explains what to do instead.
   const altersBarOn = home.altersBar.enabled === true;
   const altersCollapsed = home.altersBar.collapsed === true;
-  // The bar is styled like a widget: same look fields, same pipeline, so
-  // border/background/radius/padding/text all behave as they do on a tile.
-  const altersLook = widgetLookFor(home.altersBar.look || {}, userStyles);
-  const altersLookStyle = lookToStyle(altersLook);
   // The options sheet offers Alignment for the bar too; it was writing a
   // value nothing read, so the strip always sat at the top of a tall bar.
   const altersValign = home.altersBar.look?.valign || "center";
-  const altersJustify = altersValign === "top" ? "flex-start"
-    : altersValign === "bottom" ? "flex-end" : "center";
   const toggleAltersCollapsed = () => persist({
     ...home,
     altersBar: { ...home.altersBar, collapsed: !altersCollapsed },
   });
+  // The bottom chrome (V2Frame) hosts the bar on EVERY page whenever it
+  // renders at all — the user's spec: it behaves like the quick-actions
+  // bar. The board only draws its own copy when there is no chrome.
+  const navBars = { actions: true, tabs: true, ...(settingsRow?.ui_v2?.bars || {}) };
+  const altersHostedInNav = !!commandBar && (navBars.actions !== false || navBars.tabs !== false);
   // Holding the Set Fronters key folds the pinned-alters bar in or out, so
   // it can live collapsed inside the quick-action row (owner's idea).
   useEffect(() => {
@@ -973,14 +959,16 @@ export default function ExperimentalDashboard({
         : (home.altersBar.enabled ? !home.altersBar.collapsed : false);
       persist({ ...home, altersBar: { ...home.altersBar, enabled: true, collapsed } });
     };
+    // When the bottom chrome hosts the bar it also answers this event
+    // (on every page) — don't double-toggle from here.
+    if (altersHostedInNav) return undefined;
     window.addEventListener("os-v2-toggle-alters-bar", onToggle);
     return () => window.removeEventListener("os-v2-toggle-alters-bar", onToggle);
-  }, [home, persist]);
+  }, [home, persist, altersHostedInNav]);
   const altersTop = altersBarOn && home.altersBar.position === "top";
   // With the quick-action bar OFF, the pinned bar moves INTO the bottom
   // chrome (V2BottomChrome renders it there — the user's spec), so the
   // board must not also draw its own floating copy.
-  const altersHostedInNav = !!commandBar && settingsRow?.ui_v2?.bars?.actions === false;
   const altersBottom = altersBarOn && home.altersBar.position === "bottom" && !altersHostedInNav;
   const widgets = page.widgets.filter((w) => registry[w.widgetId]);
   const freeMode = page.layoutMode === "free" && !a11yStack;
@@ -1602,63 +1590,9 @@ export default function ExperimentalDashboard({
               // the screen — the chips got cut off at the edge and nothing
               // scrolled, because the strip never overflowed its own box.
               className="pointer-events-auto w-full min-w-0">
-            <div data-widget-content="1"
-              // Lets the options sheet find THIS box — its colour swatches
-              // and Peek probe `[data-widget-id]`; without it they read the
-              // page body and showed colours the bar never had.
-              data-widget-id={BAR_CONFIG_ID}
-              onPointerDownCapture={(e) => {
-                barDragStart.current = { x: e.clientX, y: e.clientY };
-                barDragLast.current = { x: e.clientX, y: e.clientY };
-                barDragAt.current = Date.now();
-                barSwiped.current = false;
-              }}
-              onPointerMoveCapture={(e) => { if (barDragStart.current) barDragLast.current = { x: e.clientX, y: e.clientY }; }}
-              onPointerUpCapture={() => endBarDrag()}
-              // If the browser still takes the touch (older engines), judge
-              // the swipe from the last position we saw instead of dropping it.
-              onPointerCancelCapture={() => endBarDrag()}
-              onClickCapture={(e) => {
-                if (!barSwiped.current) return;
-                barSwiped.current = false;
-                e.preventDefault();
-                e.stopPropagation();
-              }}
-              className="pointer-events-auto max-w-full mx-3 flex items-center gap-1 backdrop-blur-xl"
-              style={{
-                // pan-x: sideways still scrolls the chips, but a vertical
-                // drag on the bar is OURS — with the default, a downward
-                // swipe on a phone became a page scroll, the browser sent
-                // pointercancel instead of pointerup, and the swipe-to-hide
-                // below never fired (the user's report). The level rail's
-                // vertical drag needs this too.
-                touchAction: "pan-x",
-                // The look arrives as CSS VARIABLES (widget contract), so the
-                // bar must consume them through the same box helper a widget's
-                // Section uses — Tailwind border/bg classes would just ignore
-                // them. Defaults below keep today's look when nothing is set.
-                ...altersLookStyle,
-                ...boxStyle(),
-                // SET 5 for this bar (border/radius/text size/font),
-                // shadowing the app-wide tokens on the bar only.
-                ...(settingsRow?.ui_v2?.barLooks?.alters?.borderW !== undefined
-                  ? { "--v2-border-w": `${settingsRow.ui_v2.barLooks.alters.borderW}px` } : {}),
-                ...(settingsRow?.ui_v2?.barLooks?.alters?.radius !== undefined
-                  ? { "--v2-radius": `${settingsRow.ui_v2.barLooks.alters.radius}px` } : {}),
-                ...(settingsRow?.ui_v2?.barLooks?.alters?.fontScale !== undefined
-                  ? { fontSize: `${settingsRow.ui_v2.barLooks.alters.fontScale}%` } : {}),
-                ...(settingsRow?.ui_v2?.barLooks?.alters?.font
-                  ? { fontFamily: settingsRow.ui_v2.barLooks.alters.font } : {}),
-                backgroundColor: "var(--v2-widget-bg, color-mix(in srgb, var(--color-surface) 90%, transparent))",
-                borderRadius: "var(--v2-radius, 1rem)",
-                padding: "var(--v2-pad, 0.25rem 0.5rem)",
-                boxShadow: "var(--v2-shadow, 0 10px 15px -3px rgb(0 0 0 / 0.1))",
-                alignItems: altersJustify,
-              }}>
-              <div className="min-w-0 overflow-x-auto flex-1">
-                <PinnedAltersGallery showHeader={false} showGear onGear={() => setConfigId(BAR_CONFIG_ID)} valign={altersValign} />
-              </div>
-            </div>
+            <AltersBarCard settingsRow={settingsRow} home={home} className="mx-3"
+              onCollapse={() => persist({ ...home, altersBar: { ...home.altersBar, collapsed: true } })}
+              onGear={() => setConfigId(BAR_CONFIG_ID)} />
             </motion.div>
           )}
           </AnimatePresence>
