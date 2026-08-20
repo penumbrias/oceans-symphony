@@ -4,6 +4,7 @@ import {
   X, ChevronDown, HelpCircle, Bold, Italic, Underline, Strikethrough,
   Heading1, Heading2, Heading3, List, ListOrdered, Quote, Minus,
   CornerDownLeft, AlignLeft, AlignCenter, AlignRight, Link2, Puzzle, Pencil, Sparkles, EyeOff, Eraser,
+  ImagePlus, Images,
 } from "lucide-react";
 import InternalLinkPicker from "@/components/shared/InternalLinkPicker";
 
@@ -235,13 +236,18 @@ function LinkPromptModal({ onApply, onClose }) {
   );
 }
 
-export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false }) {
+// onImage / onAssets: host-provided media inserts (image upload, asset
+// gallery). When given they sit INLINE on the base row — the separate
+// media row above the toolbar is gone (owner: "in line with the rest").
+export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField = false, onImage = null, onAssets = null, mediaBusy = false }) {
   const [colorModal, setColorModal] = useState(null);
   // "More" reveals the structural tools; "Fun" (nested inside More) reveals
   // the decorative effects. ALWAYS starts collapsed on mount — every page that
   // shows a toolbar opens with it tidy, regardless of past use.
-  const [showMore, setShowMore] = useState(false);
-  const [showFun, setShowFun] = useState(false);
+  // ONE expandable section at a time (accordion): the flat three-tier
+  // layout ate half a phone screen (owner screenshot). Groups: styling /
+  // colour+font / headings / blocks / alignment / links / fun.
+  const [openGroup, setOpenGroup] = useState(null);
   const [showFontPicker, setShowFontPicker] = useState(false);
   const [fontPickerPos, setFontPickerPos] = useState(null);
   const [showLinkPicker, setShowLinkPicker] = useState(false);
@@ -255,7 +261,7 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
   const savedSelection = useRef(null);
   const fontBtnRef = useRef(null);
 
-  const toggleMore = () => setShowMore((v) => !v);
+  const toggleGroup = (g) => setOpenGroup((cur) => (cur === g ? null : g));
 
   // Re-read which toggle commands are active for the current caret/selection.
   // Called on selectionchange (caret moves), keyup (typing — some WebViews
@@ -451,131 +457,153 @@ export function MiniToolbar({ onInsert, onInsertLink, onCommand, templateField =
 
   return (
     <>
-      {/* ── Basic row (always visible) ── */}
-      <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10 flex-wrap">
-        {fmtIconBtn(Bold, "bold", null, "<strong>", "</strong>", "Bold")}
-        {fmtIconBtn(Italic, "italic", null, "<em>", "</em>", "Italic")}
-        {fmtIconBtn(Underline, "underline", null, "<u>", "</u>", "Underline")}
-        {fmtIconBtn(Strikethrough, "strikeThrough", null, "<s>", "</s>", "Strikethrough")}
-        {sep}
-        {/* Web link — opens a prompt for the real URL (the old button inserted
-            a dead "https://" placeholder that couldn't be filled in). */}
-        <button type="button" title="Web link" aria-label="Web link"
-          onMouseDown={e => e.preventDefault()} onClick={openWebLink}
-          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-          <Link2 className="w-3.5 h-3.5" />
-        </button>
-        {/* Text color */}
-        <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
-          className="w-7 h-7 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0 flex-shrink-0">
-          <span className="text-xs font-bold" style={{ lineHeight: 1 }}>A</span>
-          <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
-        </button>
-        {/* Highlight */}
-        <button type="button" title="Highlight color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("hl")}
-          className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-          <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
-        </button>
-        {/* More toggle */}
-        <button type="button" onMouseDown={e => e.preventDefault()} onClick={toggleMore}
-          className={`h-7 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ml-auto ${showMore ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
-          <ChevronDown className={`w-3 h-3 transition-transform ${showMore ? "rotate-180" : ""}`} /> More
+      {/* ── Base row: media inserts + section toggles (accordion) ── */}
+      <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/30 bg-muted/10">
+        {onImage && (
+          <button type="button" title="Insert image / GIF" aria-label="Insert image / GIF" disabled={mediaBusy}
+            onMouseDown={e => e.preventDefault()} onClick={onImage}
+            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 disabled:opacity-50">
+            <ImagePlus className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {onAssets && (
+          <button type="button" title="Insert from assets" aria-label="Insert from assets"
+            onMouseDown={e => e.preventDefault()} onClick={onAssets}
+            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            <Images className="w-3.5 h-3.5" />
+          </button>
+        )}
+        {(onImage || onAssets) && sep}
+        {[
+          ["style", Bold, "Text styling"],
+          ["colorfont", null, "Colour & font"],
+          ["headings", Heading1, "Headings"],
+          ["blocks", List, "Lists & blocks"],
+          ["align", AlignCenter, "Alignment"],
+          ["links", Link2, "Links"],
+          ["fun", Sparkles, "Fun effects"],
+        ].map(([g, Icon, title]) => (
+          <button key={g} type="button" title={title} aria-label={title} aria-pressed={openGroup === g}
+            onMouseDown={e => e.preventDefault()} onClick={() => toggleGroup(g)}
+            className={`h-7 w-7 flex items-center justify-center rounded transition-colors flex-shrink-0 ${openGroup === g ? "text-primary bg-primary/15" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
+            {Icon ? <Icon className="w-3.5 h-3.5" />
+              : <span className="flex flex-col items-center justify-center" style={{ lineHeight: 1 }}>
+                  <span className="text-xs font-bold">A</span>
+                  <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
+                </span>}
+          </button>
+        ))}
+        <button type="button" title="What do these buttons do?" aria-label="What do these buttons do?"
+          onMouseDown={e => e.preventDefault()} onClick={() => setShowHelp(true)}
+          className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 ml-auto">
+          <HelpCircle className="w-4 h-4" />
         </button>
       </div>
 
-      {/* ── More section (structural tools) ── */}
-      {showMore && (
-        <div className="px-1.5 py-1 border-t border-border/20 bg-muted/5 space-y-1">
-          <div className="flex items-center gap-0.5 flex-wrap">
-            {fmtIconBtn(Heading1, "formatBlock", "h1", "<h1>", "</h1>", "Heading 1")}
-            {fmtIconBtn(Heading2, "formatBlock", "h2", "<h2>", "</h2>", "Heading 2")}
-            {fmtIconBtn(Heading3, "formatBlock", "h3", "<h3>", "</h3>", "Heading 3")}
-            {sep}
-            {fmtIconBtn(List, "insertUnorderedList", null, "<ul><li>", "</li></ul>", "Bullet list")}
-            {fmtIconBtn(ListOrdered, "insertOrderedList", null, "<ol><li>", "</li></ol>", "Numbered list")}
-            {fmtIconBtn(Quote, "formatBlock", "blockquote", '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Block quote")}
-            {sep}
-            {iconBtn(CornerDownLeft, "<br />", "", "Line break")}
-            {fmtIconBtn(Minus, "insertHorizontalRule", null, '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
-            {sep}
-            {fmtIconBtn(AlignLeft, "justifyLeft", null, '<div style="text-align:left;">', "</div>", "Align left")}
-            {fmtIconBtn(AlignCenter, "justifyCenter", null, '<div style="text-align:center;">', "</div>", "Align center")}
-            {fmtIconBtn(AlignRight, "justifyRight", null, '<div style="text-align:right;">', "</div>", "Align right")}
-          </div>
-          <div className="flex items-center gap-0.5 flex-wrap">
-            {txtBtn("xs", '<span style="font-size:0.7em;">', "</span>", "Extra small")}
-            {txtBtn("sm", '<span style="font-size:0.85em;">', "</span>", "Small")}
-            {txtBtn("lg", '<span style="font-size:1.3em;">', "</span>", "Large")}
-            {txtBtn("xl", '<span style="font-size:1.8em;font-weight:bold;">', "</span>", "Extra large")}
-            {sep}
-            {txtBtn("X²", "<sup>", "</sup>", "Superscript")}
-            {txtBtn("X₂", "<sub>", "</sub>", "Subscript")}
-            {txtBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
-            {sep}
-            {/* Censor bar — wraps selection in ||…|| (hidden until tapped) */}
-            {iconBtn(EyeOff, "||", "||", "Censor bar — hide until tapped")}
-            {/* Clear formatting — only meaningful on a live editor (contentEditable
-                host passes onCommand). Strips styling from the selection AND
-                turns off any active bold/italic/etc. so you can keep typing
-                plain. */}
-            {onCommand && (
-              <button type="button" title="Clear formatting — back to plain text"
-                onMouseDown={e => e.preventDefault()}
-                onClick={() => onCommand("removeFormat")}
-                className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-                <Eraser className="w-3.5 h-3.5" />
-              </button>
-            )}
-            {/* Internal link (opens picker) */}
-            <button type="button" title="Link to a page in the app" onMouseDown={e => e.preventDefault()} onClick={openInternalLink}
+      {/* ── The open section ── */}
+      {openGroup === "style" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          {fmtIconBtn(Bold, "bold", null, "<strong>", "</strong>", "Bold")}
+          {fmtIconBtn(Italic, "italic", null, "<em>", "</em>", "Italic")}
+          {fmtIconBtn(Underline, "underline", null, "<u>", "</u>", "Underline")}
+          {fmtIconBtn(Strikethrough, "strikeThrough", null, "<s>", "</s>", "Strikethrough")}
+          {sep}
+          {txtBtn("X²", "<sup>", "</sup>", "Superscript")}
+          {txtBtn("X₂", "<sub>", "</sub>", "Subscript")}
+          {txtBtn("</>", '<code style="background:hsl(var(--muted));padding:1px 6px;border-radius:4px;font-family:monospace;font-size:0.9em;">', "</code>", "Inline code")}
+          {sep}
+          {iconBtn(EyeOff, "||", "||", "Censor bar — hide until tapped")}
+          {onCommand && (
+            <button type="button" title="Clear formatting — back to plain text"
+              onMouseDown={e => e.preventDefault()}
+              onClick={() => onCommand("removeFormat")}
               className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-              <Puzzle className="w-3.5 h-3.5" />
+              <Eraser className="w-3.5 h-3.5" />
             </button>
-            {/* Make-editable (bio template field) — only useful where a
-                Simple-mode editor exists, so hidden unless the host opts in. */}
-            {templateField && iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
-            {sep}
-            {/* Fun toggle */}
-            <button type="button" onMouseDown={e => e.preventDefault()} onClick={() => setShowFun(v => !v)}
-              className={`h-7 px-1.5 flex items-center gap-0.5 rounded text-xs font-medium transition-colors flex-shrink-0 ${showFun ? "text-primary bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-muted/60"}`}>
-              <Sparkles className="w-3 h-3" /> Fun
-            </button>
-            {/* Help — explains the More + Fun tools */}
-            <button type="button" title="What do these buttons do?" onMouseDown={e => e.preventDefault()} onClick={() => setShowHelp(true)}
-              className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0 ml-auto">
-              <HelpCircle className="w-4 h-4" />
-            </button>
-          </div>
-
-          {/* ── Fun section (decorative effects, nested in More) ── */}
-          {showFun && (
-            <div className="flex items-center gap-0.5 flex-wrap pt-1 border-t border-border/20">
-              {emojiBtn("✨", '<span style="background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Rainbow gradient text")}
-              {emojiBtn("🌊", '<span style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Ocean gradient text")}
-              {emojiBtn("🔥", '<span style="background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Fire gradient text")}
-              {emojiBtn("🌿", '<span style="background:linear-gradient(90deg,#00c853,#64dd17,#b2ff59);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Nature gradient text")}
-              {sep}
-              {emojiBtn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
-              {emojiBtn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
-              {emojiBtn("🟣", '<div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);border-radius:12px;padding:16px;border:1px solid rgba(147,51,234,0.3);">', "</div>", "Purple dark box")}
-              {emojiBtn("🌑", '<div style="background:radial-gradient(ellipse at top,#1a0533,#000);border-radius:16px;padding:20px;">', "</div>", "Dark radial box")}
-              {sep}
-              {emojiBtn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Float animation")}
-              {emojiBtn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow")}
-              {emojiBtn("🌀", '<span style="display:inline-block;animation:spin 3s linear infinite;">', "</span>", "Spin")}
-              {emojiBtn("〰", '<span style="display:inline-block;animation:wave 1s ease-in-out infinite alternate;transform-origin:bottom;">', "</span>", "Wave")}
-              {emojiBtn("👻", '<span style="opacity:0.6;">', "</span>", "Faded/ghost")}
-              {emojiBtn("📦", '<span style="border:1px solid currentColor;border-radius:4px;padding:1px 6px;">', "</span>", "Boxed text")}
-              {txtBtn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
-              {txtBtn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
-              {sep}
-              {/* Font picker */}
-              <button ref={fontBtnRef} type="button" onMouseDown={e => e.preventDefault()} onClick={openFontPicker}
-                className="h-7 px-1.5 flex items-center gap-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
-                Aa <ChevronDown className="w-2.5 h-2.5" />
-              </button>
-            </div>
           )}
+          {templateField && iconBtn(Pencil, '<span data-edit="true">', "</span>", "Make editable in Simple mode (template field)")}
+        </div>
+      )}
+      {openGroup === "colorfont" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          <button type="button" title="Text color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("fg")}
+            className="w-7 h-7 flex flex-col items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors gap-0 flex-shrink-0">
+            <span className="text-xs font-bold" style={{ lineHeight: 1 }}>A</span>
+            <span className="w-4 h-0.5 rounded-full" style={{ background: "linear-gradient(90deg,#ff4d4d,#ffd700,#2ecc71,#00bfff,#9b59b6)" }} />
+          </button>
+          <button type="button" title="Highlight color" onMouseDown={e => e.preventDefault()} onClick={() => openColorModal("hl")}
+            className="w-7 h-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            <span className="text-xs font-bold px-0.5 rounded" style={{ background: "linear-gradient(90deg,#ff4d4d60,#ffd70060,#2ecc7160)", lineHeight: 1.6 }}>A</span>
+          </button>
+          {sep}
+          <button ref={fontBtnRef} type="button" title="Font" onMouseDown={e => e.preventDefault()} onClick={openFontPicker}
+            className="h-7 px-1.5 flex items-center gap-0.5 rounded text-xs text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            Aa <ChevronDown className="w-2.5 h-2.5" />
+          </button>
+          {sep}
+          {txtBtn("xs", '<span style="font-size:0.7em;">', "</span>", "Extra small")}
+          {txtBtn("sm", '<span style="font-size:0.85em;">', "</span>", "Small")}
+          {txtBtn("lg", '<span style="font-size:1.3em;">', "</span>", "Large")}
+          {txtBtn("xl", '<span style="font-size:1.8em;font-weight:bold;">', "</span>", "Extra large")}
+        </div>
+      )}
+      {openGroup === "headings" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          {fmtIconBtn(Heading1, "formatBlock", "h1", "<h1>", "</h1>", "Heading 1")}
+          {fmtIconBtn(Heading2, "formatBlock", "h2", "<h2>", "</h2>", "Heading 2")}
+          {fmtIconBtn(Heading3, "formatBlock", "h3", "<h3>", "</h3>", "Heading 3")}
+        </div>
+      )}
+      {openGroup === "blocks" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          {fmtIconBtn(List, "insertUnorderedList", null, "<ul><li>", "</li></ul>", "Bullet list")}
+          {fmtIconBtn(ListOrdered, "insertOrderedList", null, "<ol><li>", "</li></ol>", "Numbered list")}
+          {fmtIconBtn(Quote, "formatBlock", "blockquote", '<blockquote style="border-left:3px solid hsl(var(--primary));margin:4px 0;padding:4px 12px;color:hsl(var(--muted-foreground));">', "</blockquote>", "Block quote")}
+          {sep}
+          {iconBtn(CornerDownLeft, "<br />", "", "Line break")}
+          {fmtIconBtn(Minus, "insertHorizontalRule", null, '<hr style="border:none;border-top:1px solid hsl(var(--border));margin:12px 0;" />', "", "Divider")}
+        </div>
+      )}
+      {openGroup === "align" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          {fmtIconBtn(AlignLeft, "justifyLeft", null, '<div style="text-align:left;">', "</div>", "Align left")}
+          {fmtIconBtn(AlignCenter, "justifyCenter", null, '<div style="text-align:center;">', "</div>", "Align center")}
+          {fmtIconBtn(AlignRight, "justifyRight", null, '<div style="text-align:right;">', "</div>", "Align right")}
+        </div>
+      )}
+      {openGroup === "links" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          <button type="button" title="Web link" aria-label="Web link"
+            onMouseDown={e => e.preventDefault()} onClick={openWebLink}
+            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            <Link2 className="w-3.5 h-3.5" />
+          </button>
+          <button type="button" title="Link to a page in the app" onMouseDown={e => e.preventDefault()} onClick={openInternalLink}
+            className="h-7 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors flex-shrink-0">
+            <Puzzle className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
+      {openGroup === "fun" && (
+        <div className="flex items-center gap-0.5 px-1.5 py-1 border-t border-border/20 bg-muted/5 flex-wrap">
+          {emojiBtn("✨", '<span style="background:linear-gradient(90deg,#ff6ec7,#ffe680,#6effc8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Rainbow gradient text")}
+          {emojiBtn("🌊", '<span style="background:linear-gradient(90deg,#38bdf8,#818cf8);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Ocean gradient text")}
+          {emojiBtn("🔥", '<span style="background:linear-gradient(90deg,#ff4d00,#ff9900,#ffee00);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Fire gradient text")}
+          {emojiBtn("🌿", '<span style="background:linear-gradient(90deg,#00c853,#64dd17,#b2ff59);-webkit-background-clip:text;-webkit-text-fill-color:transparent;">', "</span>", "Nature gradient text")}
+          {sep}
+          {emojiBtn("🔲", '<div style="background:rgba(0,0,0,0.3);border-radius:12px;padding:12px;">', "</div>", "Dark box")}
+          {emojiBtn("💠", '<div style="border:1px solid rgba(255,255,255,0.2);border-radius:12px;padding:12px;background:rgba(255,255,255,0.05);backdrop-filter:blur(10px);">', "</div>", "Glass box")}
+          {emojiBtn("🟣", '<div style="background:linear-gradient(135deg,#1a0a2e,#2d1b4e);border-radius:12px;padding:16px;border:1px solid rgba(147,51,234,0.3);">', "</div>", "Purple dark box")}
+          {emojiBtn("🌑", '<div style="background:radial-gradient(ellipse at top,#1a0533,#000);border-radius:16px;padding:20px;">', "</div>", "Dark radial box")}
+          {sep}
+          {emojiBtn("⚡", '<span style="animation:float 3s ease-in-out infinite;display:inline-block;">', "</span>", "Float animation")}
+          {emojiBtn("💥", '<span style="text-shadow:0 0 10px currentColor;">', "</span>", "Glow")}
+          {emojiBtn("🌀", '<span style="display:inline-block;animation:spin 3s linear infinite;">', "</span>", "Spin")}
+          {emojiBtn("〰", '<span style="display:inline-block;animation:wave 1s ease-in-out infinite alternate;transform-origin:bottom;">', "</span>", "Wave")}
+          {emojiBtn("👻", '<span style="opacity:0.6;">', "</span>", "Faded/ghost")}
+          {emojiBtn("📦", '<span style="border:1px solid currentColor;border-radius:4px;padding:1px 6px;">', "</span>", "Boxed text")}
+          {txtBtn("blur", '<span style="filter:blur(3px);">', "</span>", "Blur")}
+          {txtBtn("rot", '<span style="display:inline-block;transform:rotate(-5deg);">', "</span>", "Slight rotation")}
         </div>
       )}
 

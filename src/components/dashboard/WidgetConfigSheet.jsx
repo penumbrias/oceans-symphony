@@ -448,6 +448,7 @@ export default function WidgetConfigSheet({
   const live = useLiveColors(open, widget?.instanceId, JSON.stringify(widget?.settings || {}) + (pageStyleId || ""));
   const [styleOpen, setStyleOpen] = React.useState(false);
   const [cssOpen, setCssOpen] = React.useState(false);
+  const [advOpen, setAdvOpen] = React.useState(false);
   const [naming, setNaming] = React.useState(false);
   const [applyOpen, setApplyOpen] = React.useState(false);
   const [styleName, setStyleName] = React.useState("");
@@ -980,6 +981,26 @@ export default function WidgetConfigSheet({
                   </>
                 )}
               </div>
+            </div>
+
+            {/* Advanced — per-side spacing overrides. Collapsed: these are
+                the escape hatches, not the everyday controls. */}
+            <div>
+              <button type="button" onClick={() => setAdvOpen((v) => !v)}
+                className="w-full flex items-center justify-between text-xs font-medium py-1">
+                <span>Advanced</span>
+                <ChevronDown className="w-3.5 h-3.5" style={{ transform: advOpen ? "rotate(180deg)" : "none", transition: "transform .18s" }} />
+              </button>
+              {advOpen && (
+                <div className="space-y-2 pt-1">
+                  {[["padTop", "Top spacing"], ["padBottom", "Bottom spacing"], ["padLeft", "Left spacing"], ["padRight", "Right spacing"]].map(([key, label]) => (
+                    <SliderRow key={key} label={label} value={settings[key]} fallback={settings.padding ?? 12}
+                      min={0} max={48} unit="px"
+                      onChange={(v) => onSettings(widget.instanceId, { [key]: v })}
+                      onReset={() => onSettings(widget.instanceId, { [key]: "" })} />
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* The escape hatch: your own CSS, scoped to this widget. */}

@@ -293,6 +293,15 @@ button, [role="button"] {
   word-break: break-word;
 }
 
+/* Widget contract: INNER SURFACES follow the widget's look. Components
+   hosted inside widgets (the rich editor, bulletin cards…) paint their own
+   bg-card / bg-background, which ignored the per-widget background — the
+   "background components that cannot be changed" report. When the widget
+   sets a background, classed surfaces inside follow it; unset widgets keep
+   the normal tokens via the var fallback. */
+[data-widget-content] .bg-card { background-color: var(--v2-widget-bg, hsl(var(--card))); }
+[data-widget-content] .bg-background { background-color: var(--v2-widget-bg, hsl(var(--background))); }
+
 /* App-tile / quick-link labels: the rule above let the browser split words
    at any letter ("Check-In" rendered "Chec / k-In…"). Labels break only at
    spaces and hyphens; a single over-long word still wraps as a last resort. */

@@ -111,3 +111,30 @@ wrapper. So inside `[data-widget-content]`:
 6. Test: open widget options → set border width 4, background, text size 130%,
    text color, accent — all five must visibly change. If any does nothing,
    the contract is broken.
+
+
+## Inner surfaces (v0.204.0)
+
+Components hosted inside a widget that paint their own `bg-card` /
+`bg-background` (the rich editor, bulletin cards, embedded classic
+components) follow the widget's background whenever the look sets one:
+index.css maps those classes to `var(--v2-widget-bg, <normal token>)`
+inside `[data-widget-content]`. A component that hand-rolls an inline
+background must consume `var(--v2-widget-bg, …)` itself (see
+WysiwygEditor's root). The compliance test extends: set a background in
+the widget's options — NO inner panel may stay on the old colour.
+
+## Advanced options (v0.204.0)
+
+Every widget's options sheet carries an **Advanced** collapsed group in
+"Colors & background":
+
+- Per-side spacing — `padTop` / `padRight` / `padBottom` / `padLeft`
+  look keys → `--v2-pad-t/r/b/l`, each overriding the uniform
+  `--v2-pad` on its side only (boxStyle consumes the fallback chain).
+- **Your own CSS** — the existing scoped escape hatch (`css` look key,
+  applied per-widget via `[data-widget-id]`).
+
+These come free from the shared sheet + `lookToStyle` + `boxStyle`; a
+widget only breaks them by hand-rolling its box (same rule as the
+one-visible-box contract).

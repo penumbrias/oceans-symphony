@@ -56,7 +56,11 @@ export function boxStyle({ borderFallback = true, padFallback = true } = {}) {
     backdropFilter: "var(--v2-widget-blur, none)",
     WebkitBackdropFilter: "var(--v2-widget-blur, none)",
     // padFallback: false = flush until the user sets padding (text widgets).
-    padding: padFallback ? "var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))" : "var(--v2-pad, 0px)",
+    // Per-side vars (Advanced widget options) override the uniform pad on
+    // their side only; unset sides inherit --v2-pad as before.
+    padding: padFallback
+      ? "var(--v2-pad-t, var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))) var(--v2-pad-r, var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))) var(--v2-pad-b, var(--v2-pad, calc(var(--v2-space, 6px) * 1.5))) var(--v2-pad-l, var(--v2-pad, calc(var(--v2-space, 6px) * 1.5)))"
+      : "var(--v2-pad-t, var(--v2-pad, 0px)) var(--v2-pad-r, var(--v2-pad, 0px)) var(--v2-pad-b, var(--v2-pad, 0px)) var(--v2-pad-l, var(--v2-pad, 0px))",
   };
 }
 

@@ -18,6 +18,7 @@
 export const LOOK_KEYS = [
   "font", "fontScale", "radius", "borderW", "borderColor", "borderStyle",
   "accent", "bg", "bgOpacity", "bgImage", "bgSize", "textColor", "padding", "shadow", "css",
+  "padTop", "padRight", "padBottom", "padLeft",
   // Effects the user can build themselves — the same ones the built-in
   // styles use, so nothing is reserved for presets.
   "gradFrom", "gradTo", "gradAngle", "blur",
@@ -101,6 +102,12 @@ export function lookToStyle(look = {}, resolveImage = (u) => u) {
     s["--v2-text-muted"] = `color-mix(in srgb, ${look.textColor} ${mutedPct}%, transparent)`;
   }
   if (isSet(look.padding)) s["--v2-pad"] = `${look.padding}px`;
+  // Per-side spacing (Advanced) — each overrides the uniform padding on
+  // its side only; unset sides keep following --v2-pad.
+  if (isSet(look.padTop)) s["--v2-pad-t"] = `${look.padTop}px`;
+  if (isSet(look.padRight)) s["--v2-pad-r"] = `${look.padRight}px`;
+  if (isSet(look.padBottom)) s["--v2-pad-b"] = `${look.padBottom}px`;
+  if (isSet(look.padLeft)) s["--v2-pad-l"] = `${look.padLeft}px`;
   if (isSet(look.bg)) s["--v2-widget-bg"] = withAlpha(look.bg, look.bgOpacity);
   if (isSet(look.bgImage)) {
     // The image sits on the wrapper and shows through the box, so it can

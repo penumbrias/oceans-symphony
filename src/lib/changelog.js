@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "The formatting toolbar is compact now: one slim row of sections (styling, colour & font, headings, lists, alignment, links, fun) that expand one at a time — and the image/asset buttons sit in the same row. On touch devices it docks above the keyboard everywhere it appears." },
+      { type: "improve", text: "Widget backgrounds reach the inner panels too — the notebook's editor and other built-in surfaces follow the widget's background colour instead of ignoring it." },
+      { type: "improve", text: "Widget options gained an Advanced section: top/bottom/left/right spacing per side, alongside the scoped custom-CSS box." },
       { type: "fix", text: "Importing a backup on a fresh install brings your widget home screen with it — the new device's starter board used to silently win over the imported one. Real differences in settings now show in the import review." },
       { type: "improve", text: "Importing a file that references images but carries none now says so — with how to export them from the source device — instead of silently restoring without them." },
       { type: "feature", text: "The planner's Plans tab is now its own view, built for the new UI: repeating plans collapse to one row (cadence + next time + how many ahead), and a series can be edited for this-and-future occurrences \u2014 time shifts keep each occurrence on its own day." },

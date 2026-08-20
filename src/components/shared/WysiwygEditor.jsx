@@ -1,6 +1,6 @@
 import { createPortal } from "react-dom";
 import React, { useRef, useEffect, useCallback, useState } from "react";
-import { ImagePlus, Loader2, Images } from "lucide-react";
+
 import { toast } from "sonner";
 import { MiniToolbar } from "@/components/shared/MiniToolbar";
 import { saveLocalImage, createLocalImageUrl, compressImageDataUrl } from "@/lib/localImageStorage";
@@ -23,7 +23,12 @@ function fileToDataUrl(file) {
 // the "?" help legend, censor bar, internal-link picker, template-field
 // pencil) instead of a separate bespoke toolbar. Image/GIF + asset inserts
 // sit in their own row above it, mirroring the chat composer.
-export default function WysiwygEditor({ value = "", onChange, placeholder = "Write here...", floatingToolbar = false }) {
+// floatingToolbar: true = always dock above the keyboard; false = always
+// inline; "auto" (default) = dock on touch devices (where an on-screen
+// keyboard will cover an inline toolbar), inline on pointer devices.
+export default function WysiwygEditor({ value = "", onChange, placeholder = "Write here...", floatingToolbar = "auto" }) {
+  const touchDevice = typeof window !== "undefined" && (navigator.maxTouchPoints > 0 || "ontouchstart" in window);
+  const floatResolved = floatingToolbar === true || (floatingToolbar === "auto" && touchDevice);
   // floatingToolbar: the formatting rows leave the editor's own box and
   // dock in a fixed bar just above the on-screen keyboard while the
   // editor is focused — for hosts where inline rows eat the space (the
@@ -133,7 +138,7 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
   const [focused, setFocused] = useState(false);
   const [kbBottom, setKbBottom] = useState(0);
   useEffect(() => {
-    if (!floatingToolbar) return undefined;
+    if (!floatResolved) return undefined;
     const vv = window.visualViewport;
     if (!vv) return undefined;
     const on = () => setKbBottom(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
@@ -141,10 +146,17 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     vv.addEventListener("scroll", on);
     on();
     return () => { vv.removeEventListener("resize", on); vv.removeEventListener("scroll", on); };
-  }, [floatingToolbar]);
+  }, [floatResolved]);
 
   return (
-    <div className="rounded-xl border border-input bg-background overflow-hidden">
+    <div className="overflow-hidden"
+      style={{
+        borderRadius: "var(--v2-radius, 0.75rem)",
+        borderWidth: "var(--v2-border-w, 1px)",
+        borderStyle: "var(--v2-border-style, solid)",
+        borderColor: "var(--v2-border-color, hsl(var(--input)))",
+        background: "var(--v2-widget-bg, hsl(var(--background)))",
+      }}>
       {/* Scoped copy of the bio's own <style> — applies only inside the editor,
           never to the rest of the app. */}
       {scopedCss && <style>{scopedCss}</style>}
@@ -169,25 +181,12 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
           default; in floating mode they dock above the keyboard instead. */}
       {(() => {
         const rows = (
-          <>
-            <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10 border-t border-border/40">
-              <button type="button" title="Insert image / GIF" disabled={uploadingImage}
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => imageInputRef.current?.click()}
-                className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-                {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
-              </button>
-              <button type="button" title="Insert from assets"
-                onMouseDown={(e) => e.preventDefault()}
-                onClick={() => setShowAssetPicker(true)}
-                className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0">
-                <Images className="w-4 h-4" />
-              </button>
-            </div>
-            <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField />
-          </>
+          <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField
+            onImage={() => imageInputRef.current?.click()}
+            onAssets={() => setShowAssetPicker(true)}
+            mediaBusy={uploadingImage} />
         );
-        if (!floatingToolbar) return rows;
+        if (!floatResolved) return rows;
         if (!focused) return null;
         return createPortal(
           <div
