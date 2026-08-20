@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "The planner's Plans tab is now its own view, built for the new UI: repeating plans collapse to one row (cadence + next time + how many ahead), and a series can be edited for this-and-future occurrences \u2014 time shifts keep each occurrence on its own day." },
+      { type: "improve", text: "Uncategorized plans get a filter and a \"no category\" badge in the Plans tab, so the mystery bucket in the plan tracker finally has names." },
       { type: "feature", text: "New \"Plan tracker\" widget — the plan-completion tracker on your home screen. (The Planned list already lives in the \"Plans\" and \"Coming up\" widgets.)" },
       { type: "fix", text: "Pinch-zooming one planner widget resizes only that widget now — it used to change every planner surface, including the Day view and the planner page." },
       { type: "improve", text: "Active-now shows each symptom's current severity (\u201cFog \u00b7 4\u201d) in the popup and the Active widget." },

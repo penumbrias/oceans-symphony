@@ -27,7 +27,7 @@ import {
   cancelPlanReminder,
 } from "@/lib/planReminderScheduler";
 import { getActiveActivities, addActiveActivity } from "@/lib/activitySession";
-import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries } from "@/lib/recurrenceUtils";
+import { RECURRENCE_BRANCHES, membersForBranch, deleteSeries, applyEditToSeries } from "@/lib/recurrenceUtils";
 import { resolveOutcome } from "@/lib/planner/resolvePlan";
 import { previousActivityEnd } from "@/lib/planner/previousEnd";
 import { isNative } from "@/lib/platform";
@@ -48,8 +48,7 @@ import { groupedAlterSections } from "@/lib/alterSections";
 import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
-import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
-import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
+import PlansList from "@/components/planner/PlansList";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -100,7 +99,10 @@ export default function PlannerSurface({
   const formatAlter = useAlterLabel();
   const [showTotals, setShowTotals] = useState(false);
   const [showDisplay, setShowDisplay] = useState(false);
-  const [showPlans, setShowPlans] = useState(false);
+  // "Plans" tab (chrome only): the scheduled-plans view — series collapsed
+  // to one row each, built in the planner's own grammar (v2 rebuilds
+  // FUNCTIONS; the classic tracker components stay on their page).
+  const [plansView, setPlansView] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
@@ -410,15 +412,37 @@ export default function PlannerSurface({
       const prevMins = Number(timing.item.actual_duration_minutes) || Number(timing.item.duration_minutes) || 0;
       const unchanged = from === when.toISOString()
         && prevMins === Math.max(5, Number(durValue) || 60);
-      await base44.entities.Activity.update(timing.item.id, {
-        timestamp: when.toISOString(),
-        duration_minutes: Math.max(5, Number(durValue) || 60),
-        // Moving a plan is a reschedule, not a new plan: status stays
-        // `scheduled` and the move is recorded, matching the tracker's model.
-        ...(wasScheduled && from && from !== when.toISOString()
-          ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
-          : {}),
-      });
+      const dur = Math.max(5, Number(durValue) || 60);
+      const members = seriesMembers();
+      if (members.length > 1) {
+        // Series reach: every member keeps its own DATE shifted by the same
+        // day-delta as the pivot, and takes the chosen clock time + length.
+        const pivotOrig = timing.item.timestamp ? new Date(timing.item.timestamp) : when;
+        const dayDelta = Math.round((new Date(when.getFullYear(), when.getMonth(), when.getDate()) -
+          new Date(pivotOrig.getFullYear(), pivotOrig.getMonth(), pivotOrig.getDate())) / 86400000);
+        await applyEditToSeries(members, (mem) => {
+          const d0 = mem.timestamp ? new Date(mem.timestamp) : when;
+          const d = new Date(d0.getFullYear(), d0.getMonth(), d0.getDate() + dayDelta, h || 0, m || 0, 0, 0);
+          const iso = d.toISOString();
+          return {
+            timestamp: iso,
+            duration_minutes: dur,
+            ...(mem.status === "scheduled" && mem.timestamp && mem.timestamp !== iso
+              ? { reschedule_history: [...(mem.reschedule_history || []), { from: mem.timestamp, to: iso, ts: new Date().toISOString() }] }
+              : {}),
+          };
+        });
+      } else {
+        await base44.entities.Activity.update(timing.item.id, {
+          timestamp: when.toISOString(),
+          duration_minutes: dur,
+          // Moving a plan is a reschedule, not a new plan: status stays
+          // `scheduled` and the move is recorded, matching the tracker's model.
+          ...(wasScheduled && from && from !== when.toISOString()
+            ? { reschedule_history: [...(timing.item.reschedule_history || []), { from, to: when.toISOString(), ts: new Date().toISOString() }] }
+            : {}),
+        });
+      }
       qc.invalidateQueries({ queryKey: ["activities"] });
       setTiming(null);
       // Say what happened. A move of one column at the same time is easy to
@@ -503,7 +527,9 @@ export default function PlannerSurface({
     if (!timing) return;
     if (timing.create) return; // held in noteValue until commit
     try {
-      await base44.entities.Activity.update(timing.item.id, { notes: text });
+      const members = seriesMembers();
+      if (members.length > 1) await applyEditToSeries(members, { notes: text });
+      else await base44.entities.Activity.update(timing.item.id, { notes: text });
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, notes: text } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -532,6 +558,13 @@ export default function PlannerSurface({
     return !sameDay || timeValue !== origTime || Number(durValue) !== origDur;
   }, [timing, timeValue, durValue]);
 
+  // Series edit mode: the sheet was opened for "this and future", so every
+  // field write fans out over the members (same helpers the classic modal
+  // uses, so both UIs agree on reach).
+  const seriesMembers = () => (timing?.seriesBranch
+    ? membersForBranch(activities, timing.item, timing.seriesBranch)
+    : [timing?.item].filter(Boolean));
+
   // Rename / recategorise write straight through, like the member toggle.
   const saveField = async (patch) => {
     if (!timing) return;
@@ -540,7 +573,9 @@ export default function PlannerSurface({
       return;
     }
     try {
-      await base44.entities.Activity.update(timing.item.id, patch);
+      const members = seriesMembers();
+      if (members.length > 1) await applyEditToSeries(members, patch);
+      else await base44.entities.Activity.update(timing.item.id, patch);
       setTiming((prev) => (prev ? { ...prev, item: { ...prev.item, ...patch } } : prev));
       qc.invalidateQueries({ queryKey: ["activities"] });
     } catch (e) { toast.error(e.message || "Failed"); }
@@ -671,10 +706,10 @@ export default function PlannerSurface({
               <BarChart3 className="w-3.5 h-3.5" />
               <ChevronDown className="w-3 h-3" style={{ transform: showTotals ? "rotate(180deg)" : "none" }} />
             </Button>
-            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowPlans((v) => !v)}
-              aria-expanded={showPlans} aria-label={tr("planner.plans")} title={tr("planner.plans")}>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setPlansView((v) => !v)}
+              aria-pressed={plansView} aria-label={tr("planner.plans")} title={tr("planner.plans")}
+              style={plansView ? { color: "var(--v2-accent)" } : undefined}>
               <ListChecks className="w-3.5 h-3.5" />
-              <ChevronDown className="w-3 h-3" style={{ transform: showPlans ? "rotate(180deg)" : "none" }} />
             </Button>
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowDisplay((v) => !v)}
               aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
@@ -751,29 +786,6 @@ export default function PlannerSurface({
           </div>
         )}
 
-        {chrome && showPlans && (
-          <div className="rounded-lg border border-border/50 p-2 space-y-3"
-            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
-            {/* The SAME components the Activity tracker's Planned tab and
-                plan tracker use — one implementation (rule: reuse, don't
-                fork). Tapping a plan opens the planner's own edit sheet. */}
-            <PlannedActivitiesList
-              activities={activities}
-              alters={alters}
-              compact
-              onClick={(a) => {
-                const start = a.timestamp ? new Date(a.timestamp) : null;
-                setTiming({ item: a, day: start || anchor });
-                setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
-                setDurValue(Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 60);
-                setNoteValue(a.notes || "");
-                seedExtras(a);
-              }}
-            />
-            <PlanCompletionTracker />
-          </div>
-        )}
-
         {chrome && showDisplay && (
           <div className="rounded-lg border border-border/50 p-2 space-y-2 text-xs"
             style={{ borderRadius: "var(--v2-radius, 8px)" }}>
@@ -828,6 +840,24 @@ export default function PlannerSurface({
           </div>
         )}
 
+        {chrome && plansView ? (
+          <PlansList
+            activities={activities}
+            categories={categories}
+            onOpen={(item, { series } = {}) => {
+              const start = item.timestamp ? new Date(item.timestamp) : null;
+              setTiming({
+                item, day: start || anchor,
+                seriesBranch: series ? RECURRENCE_BRANCHES.THIS_AND_FUTURE : null,
+              });
+              setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
+              setDurValue(Number(item.actual_duration_minutes) || Number(item.duration_minutes) || 60);
+              setNoteValue(item.notes || "");
+              seedExtras(item);
+            }}
+            onDeleteSeries={(item) => setBranchAsk({ item })}
+          />
+        ) : (
         <WeekCanvas
           anchor={anchor}
           onOpenPage={onOpenPage}
@@ -861,6 +891,7 @@ export default function PlannerSurface({
             seedExtras(item);
           }}
         />
+        )}
       </div>
 
       <DayPlanSheet day={planDay} open={!!planDay} onClose={() => setPlanDay(null)} />
@@ -936,8 +967,12 @@ export default function PlannerSurface({
                 per-field edits and reschedules apply to THIS occurrence only
                 (matching the tracker); delete asks how far to reach. */}
             {!timing.create && timing.item.recurrence_group_id && (
-              <p className="text-[0.6875em] text-muted-foreground flex items-center gap-1">
-                <Repeat className="w-3 h-3 flex-shrink-0" /> {tr("planner.series")}
+              <p className="text-[0.6875em] flex items-center gap-1"
+                style={timing.seriesBranch ? { color: "var(--v2-accent)" } : undefined}>
+                <Repeat className="w-3 h-3 flex-shrink-0" />
+                {timing.seriesBranch
+                  ? tr("planner.seriesFuture", { count: membersForBranch(activities, timing.item, timing.seriesBranch).length })
+                  : tr("planner.series")}
               </p>
             )}
             {/* OUTCOME first when editing: the sheet is about a plan that
