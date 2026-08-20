@@ -27,10 +27,16 @@
 //                the rest as prose. A trailing keyword (…:active) needs a
 //                newline or a closing ~ to separate it from following prose.
 //
+// Activity extras (any order, each its own :segment, after the name):
+//   duration   45 / 45m / 1h / 1h30m — logs that many minutes ENDING now
+//   note=…     free-text note (n=… works too; runs to the end of the segment)
+//   urgent     marks it urgent (critical ⚡) — also: critical / important
+//
 // Examples:
 //   ~symptom:amnesia:4            ~symptom:anxiety:3:active     ~symptom:anxiety:inactive
 //   ~feeling:good:happy:cheerful  ~feeling:body:flight:on edge  ~feeling:on edge
 //   ~company:emma:active          ~activity:reading:active      ~activity:reading
+//   ~activity:reading:45m:note=couldn't focus   ~activity:chores:1h30m:urgent
 
 import { base44 } from "@/api/base44Client";
 import { WHEEL } from "@/components/emotions/EmotionWheelPicker";
@@ -63,6 +69,27 @@ const ACTIVE_WORDS = {
   active: true, on: true, start: true, started: true, begin: true,
   inactive: false, off: false, end: false, ended: false, stop: false, stopped: false, done: false,
 };
+
+// Activity extras: "45" / "45m" / "1h" / "1h30m" → minutes (leading token
+// only, so unbounded trailing prose survives). Urgency words → is_critical.
+const URGENT_RE = /^\s*(urgent|critical|important|priority)\b/i;
+const NOTE_RE = /^\s*(?:note|n)=([\s\S]*)$/i;
+function parseDurationLead(text) {
+  // No whitespace inside the token — a match must not swallow the space
+  // before following prose ("…:30 and then" keeps "and then" intact).
+  let m = /^\s*(\d+)h(?:(\d+)m?)?\b/i.exec(text);
+  if (m) return { minutes: parseInt(m[1], 10) * 60 + (m[2] ? parseInt(m[2], 10) : 0), len: m[0].length };
+  m = /^\s*(\d+)(m|min|mins)?\b/i.exec(text);
+  if (m) {
+    const n = parseInt(m[1], 10);
+    if (n > 0 && n <= 24 * 60) return { minutes: n, len: m[0].length };
+  }
+  return null;
+}
+function fmtDur(min) {
+  const h = Math.floor(min / 60), m = min % 60;
+  return h ? (m ? `${h}h${m}m` : `${h}h`) : `${m}m`;
+}
 
 // ── small utils ───────────────────────────────────────────────────────────
 function esc(s) {
@@ -327,9 +354,26 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
       if (!cat) return null;
       nameEnd = nameSeg.absEnd;
     }
-    if (isActive === true) return finish(nameEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color }, `${cat.name} · started`);
-    if (isActive === false) return finish(nameEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name }, `${cat.name} · ended`);
-    return finish(nameEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color }, cat.name);
+    // Optional extras, each its own :segment after the name, any order:
+    // a duration, a note=…, an urgency word. Stop at the first segment
+    // that's none of those — it stays literal prose (safe-fail).
+    let duration = null, note = null, critical = false;
+    let consumedEnd = nameEnd;
+    for (let k = 1; k < rest.length; k++) {
+      const segX = rest[k];
+      const isLastUnbounded = !bounded && k === rest.length - 1;
+      const nm = NOTE_RE.exec(segX.text);
+      if (nm) { note = nm[1].trim() || null; consumedEnd = segX.absEnd; continue; }
+      const d = parseDurationLead(segX.text);
+      if (d) { duration = d.minutes; consumedEnd = isLastUnbounded ? segX.absStart + d.len : segX.absEnd; continue; }
+      const u = URGENT_RE.exec(segX.text);
+      if (u) { critical = true; consumedEnd = isLastUnbounded ? segX.absStart + u[0].length : segX.absEnd; continue; }
+      break;
+    }
+    const extras = `${duration ? ` · ${fmtDur(duration)}` : ""}${critical ? " · ⚡" : ""}${note ? " · 📝" : ""}`;
+    if (isActive === true) return finish(consumedEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color, note, critical }, `${cat.name}${extras} · started`);
+    if (isActive === false) return finish(consumedEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name, note, critical, duration }, `${cat.name}${extras} · ended`);
+    return finish(consumedEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, duration }, `${cat.name}${extras}`);
   }
 
   return null;
@@ -389,14 +433,20 @@ async function executePlan(plan, ctx) {
     case "companyEnd": { const r = await endEncounterForContact(plan.contact_id); return r?.id || null; }
     case "companyVisit": { const r = await logVisit(plan.contact_id); return r?.id || null; }
     case "activityStart": {
-      const item = addActiveActivity({ categoryId: plan.categoryId, name: plan.name, color: plan.color || null, startTime: now, alterIds: ctx.fronting_alter_ids, notes: "" });
+      const item = addActiveActivity({ categoryId: plan.categoryId, name: plan.name, color: plan.color || null, startTime: now, alterIds: ctx.fronting_alter_ids, notes: plan.note || "" });
       return item?.id || null;
     }
     case "activityLog": {
+      // A duration means "this many minutes, ENDING now" — same reading as
+      // the log modal's quick-duration presets anchored on the end.
+      const start = plan.duration ? new Date(Date.parse(now) - plan.duration * 60000).toISOString() : now;
       const r = await base44.entities.Activity.create({
-        timestamp: now, activity_name: plan.name,
+        timestamp: start, activity_name: plan.name,
         activity_category_ids: plan.categoryId ? [plan.categoryId] : [],
         ...(plan.color ? { color: plan.color } : {}),
+        duration_minutes: plan.duration || null,
+        notes: plan.note || null,
+        ...(plan.critical ? { is_critical: true } : {}),
         fronting_alter_ids: ctx.fronting_alter_ids, is_planned: false, status: ACTIVITY_STATUSES.LOGGED,
       });
       return r?.id || null;
@@ -404,9 +454,13 @@ async function executePlan(plan, ctx) {
     case "activityEnd": {
       const running = getActiveActivities().find((a) => a.categoryId === plan.categoryId || lc(a.name) === lc(plan.name));
       if (running) { const res = await endAndLogActiveActivity(running.id, now); return res?.record?.id || null; }
+      const start = plan.duration ? new Date(Date.parse(now) - plan.duration * 60000).toISOString() : now;
       const r = await base44.entities.Activity.create({
-        timestamp: now, activity_name: plan.name,
+        timestamp: start, activity_name: plan.name,
         activity_category_ids: plan.categoryId ? [plan.categoryId] : [],
+        duration_minutes: plan.duration || null,
+        notes: plan.note || null,
+        ...(plan.critical ? { is_critical: true } : {}),
         fronting_alter_ids: ctx.fronting_alter_ids, is_planned: false, status: ACTIVITY_STATUSES.LOGGED,
       });
       return r?.id || null;
@@ -563,10 +617,16 @@ export function buildCommandSuggestions({ segments, catalogues }) {
       const items = filterByLabel(catalogues.activityCategories, query, (c) => c.name).slice(0, 8).map((c) => ({ insert: c.name, terminal: false }));
       return { header: "Activity", icon, canFinish: false, items };
     }
-    // Only "active" (a running session). Plain "log it" (no end time) is the
-    // header chevron; a PAST activity with a duration is out of scope here.
-    const items = [{ insert: "active", terminal: true }].filter((it) => !q || it.insert.startsWith(q));
-    return { header: "Active?", icon, canFinish: true, items };
+    // Extras, any order: a duration (ends now), note=…, urgent, or "active"
+    // to start a running session. Each is its own :segment.
+    const items = [
+      { insert: "active", terminal: true },
+      { insert: "15m", terminal: false }, { insert: "30m", terminal: false },
+      { insert: "1h", terminal: false }, { insert: "2h", terminal: false },
+      { insert: "note=", terminal: true },
+      { insert: "urgent", terminal: false },
+    ].filter((it) => !q || it.insert.startsWith(q));
+    return { header: "Extras", icon, canFinish: true, items };
   }
 
   if (type === "feeling") return feelingSuggestions(segments, catalogues, icon, query);
