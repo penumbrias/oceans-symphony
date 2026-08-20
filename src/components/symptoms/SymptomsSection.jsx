@@ -243,9 +243,23 @@ function SymptomCardRow({ symptom, activeSession, state = {}, onStateChange, alt
         await endSymptomSessions(symptom.id);
         toast.success(`${symptom.label} session ended`);
       } else {
-        await startSymptomSession(symptom.id);
+        const { session, reused } = await startSymptomSession(symptom.id);
         updateState(true, severity);
-        toast.success(`${symptom.label} set to active`);
+        // Undo on the toast: the +/− session toggle sits at the row's edge
+        // and gets tapped by accident while checking off (tester found a
+        // mystery active session hours later). A freshly-created session is
+        // DELETED on undo (a seconds-long stub would pollute the timeline);
+        // a reused one — already running before this tap — is left alone.
+        toast.success(`${symptom.label} set to active`, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (session && !reused) await base44.entities.SymptomSession.delete(session.id);
+              else await endSymptomSessions(symptom.id);
+              queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+            },
+          },
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
     } catch (e) {

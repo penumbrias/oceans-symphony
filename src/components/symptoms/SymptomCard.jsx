@@ -46,9 +46,19 @@ export default function SymptomCard({ definition, activeSession, onSessionChange
         await endSymptomSessions(definition.id);
         toast.success(`${definition.name} session ended`);
       } else {
-        await startSymptomSession(definition.id, { legacyDefinitionField: true });
+        const { session, reused } = await startSymptomSession(definition.id, { legacyDefinitionField: true });
         setChecked(true);
-        toast.success(`${definition.name} set to active`);
+        toast.success(`${definition.name} set to active`, {
+          action: {
+            label: "Undo",
+            onClick: async () => {
+              if (session && !reused) await base44.entities.SymptomSession.delete(session.id);
+              else await endSymptomSessions(definition.id);
+              queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
+              onSessionChange?.();
+            },
+          },
+        });
       }
       queryClient.invalidateQueries({ queryKey: ["symptomSessions"] });
       onSessionChange?.();
