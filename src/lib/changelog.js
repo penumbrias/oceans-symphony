@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "Two inner-world widgets: a live map widget (pick a map, optionally one layer, pan and pinch right on the home screen) and a places list that jumps to any location." },
       { type: "improve", text: "Notebook widget: the formatting toolbar docks above the keyboard while you're writing instead of crowding the widget." },
       { type: "fix", text: "Active company (~company:name:active) now shows in the Active-now popup as \"with \u2026\", with a stop button to end it; the row opens their contact page." },
     ],

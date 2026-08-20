@@ -31,6 +31,7 @@ import {
   Moon, Megaphone, Bell, FolderOpen, ChevronLeft, ChevronRight, NotebookPen,
   Pin, Wind, Link2, Vote, CalendarDays, BarChart2, MessageSquare, Hash, Activity,
   CalendarRange, Grid2X2, CalendarClock, AlarmClock, ListChecks, GraduationCap, CheckCircle2, Music
+, Map, MapPin
 } from "lucide-react";
 import { buildGridItems, findGridItem } from "@/lib/navCatalogue";
 import { useResolvedAvatarUrl } from "@/hooks/useResolvedAvatarUrl";
@@ -92,6 +93,7 @@ import {
 import {
   TimelineWidget, DailySummaryWidget, CheckInLogWidget, DailyTasksWidget,
   ChatChannelsWidget, GroundingWidget, LearnWidget,
+  InnerMapWidget, InnerLocationsWidget,
 } from "@/v2/moreWidgets";
 import { COMMAND_WIDGETS, CommandWidget } from "@/v2/commandWidgets";
 
@@ -2815,6 +2817,28 @@ export const V2_WIDGETS = {
       { key: "rich", type: "toggle", label: "Formatting & images", default: false },
     ],
     defaultSpan: { cols: 4, rows: 3 }, minSpan: { cols: 2, rows: 2 }, maxSpan: { cols: 12, rows: 10 },
+  },
+  inner_map: {
+    label: "Inner world map", description: "One of your inner-world maps, right on the home screen — pick the map, and optionally a single layer. Pan and pinch work; Open jumps to the full canvas.",
+    icon: Map, category: "system",
+    render: ({ settings }) => <InnerMapWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "mapId", type: "dynamicSelect", source: "innerMaps", label: "Map", emptyLabel: "First map" },
+      { key: "layerId", type: "dynamicSelect", source: "innerLayers", label: "Layer", emptyLabel: "All visible layers" },
+      { key: "soloLayer", type: "toggle", label: "Show only that layer", default: false },
+    ],
+    defaultSpan: { cols: 8, rows: 5 }, minSpan: { cols: 3, rows: 3 }, maxSpan: { cols: 12, rows: 12 },
+  },
+  inner_locations: {
+    label: "Inner world places", description: "Every location across your maps and layers as a list — tap one to jump to it. Can be pinned to a single map.",
+    icon: MapPin, category: "system",
+    render: ({ settings }) => <InnerLocationsWidget settings={settings} />,
+    supportsModes: ["normal"], supportsMultiInstance: true,
+    configFields: [
+      { key: "mapId", type: "dynamicSelect", source: "innerMaps", label: "Map", emptyLabel: "All maps" },
+    ],
+    defaultSpan: { cols: 6, rows: 5 }, minSpan: { cols: 3, rows: 2 }, maxSpan: { cols: 12, rows: 12 },
   },
   bulletin_board: {
     label: "Bulletin board", description: "The board itself — post and read. Can show group boards too, with arrows to flip between them.",

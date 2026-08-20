@@ -550,6 +550,61 @@ export function LearnWidget({ mode = "normal", settings }) {
   );
 }
 
+// ── Inner world ────────────────────────────────────────────────────
+// The REAL canvas (InnerWorldMapV2, embedded mode) and the REAL list view
+// — windows onto the System Map page, never re-drawings of it.
+const InnerWorldMapLazy = React.lazy(() => import("@/components/systemmap/InnerWorldMapV2"));
+const InnerWorldListLazy = React.lazy(() => import("@/components/systemmap/InnerWorldListView"));
+
+export function InnerMapWidget({ settings }) {
+  const navigate = useNavigate();
+  const { data: maps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => localEntities.InnerWorldMap.list() });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const { data: relationships = [], refetch } = useQuery({ queryKey: ["alterRelationships"], queryFn: () => base44.entities.AlterRelationship.list() });
+  const live = maps.filter((m) => !m.is_archived).sort((a, b) => (a.order || 0) - (b.order || 0));
+  const map = live.find((m) => m.id === settings?.mapId) || live[0] || null;
+  const layerId = settings?.layerId || null;
+  const openPath = map
+    ? `/system-map?view=inner&map=${encodeURIComponent(map.id)}${layerId ? `&layer=${encodeURIComponent(layerId)}${settings?.soloLayer ? "&solo=1" : ""}` : ""}`
+    : "/system-map?view=inner";
+  return (
+    <Section label={map?.name || "Inner world"} action={<TextAction onClick={() => navigate(openPath)}>Open</TextAction>}>
+      {!map && <Muted>No maps yet — open the {"System Map"} to start one.</Muted>}
+      {map && (
+        <div className="flex-1 min-h-[140px] min-h-0 relative" data-own-hold>
+          <React.Suspense fallback={<Muted>…</Muted>}>
+            <InnerWorldMapLazy key={`${map.id}:${layerId || ""}:${settings?.soloLayer ? 1 : 0}`} embedded
+              alters={alters} relationships={relationships} onRefreshRelationships={refetch}
+              initialMapId={map.id} initialLayerId={layerId} initialSolo={!!(layerId && settings?.soloLayer)} />
+          </React.Suspense>
+        </div>
+      )}
+    </Section>
+  );
+}
+
+export function InnerLocationsWidget({ settings }) {
+  const navigate = useNavigate();
+  const { data: maps = [] } = useQuery({ queryKey: ["innerWorldMaps"], queryFn: () => localEntities.InnerWorldMap.list() });
+  const { data: layers = [] } = useQuery({ queryKey: ["innerWorldLayers"], queryFn: () => localEntities.InnerWorldLayer.list() });
+  const { data: locations = [] } = useQuery({ queryKey: ["innerWorldLocations"], queryFn: () => localEntities.InnerWorldLocation.list() });
+  const { data: alters = [] } = useQuery({ queryKey: ["alters"], queryFn: () => base44.entities.Alter.list() });
+  const mapId = settings?.mapId || "";
+  const fMaps = mapId ? maps.filter((m) => m.id === mapId) : maps.filter((m) => !m.is_archived);
+  const fLayers = mapId ? layers.filter((l) => l.map_id === mapId) : layers;
+  const fLocations = mapId ? locations.filter((l) => l.map_id === mapId) : locations;
+  return (
+    <Section label={mapId ? (maps.find((m) => m.id === mapId)?.name || "Locations") : "Inner world"}
+      action={<TextAction onClick={() => navigate("/system-map?view=inner")}>Open</TextAction>}>
+      <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+        <React.Suspense fallback={<Muted>…</Muted>}>
+          <InnerWorldListLazy maps={fMaps} layers={fLayers} locations={fLocations} alters={alters} />
+        </React.Suspense>
+      </div>
+    </Section>
+  );
+}
+
 export const MORE_WIDGET_ICONS = {
   timeline: CalendarClock, summary: ListChecks, checkins: Heart,
   dailyTasks: CheckCircle2, channels: Hash, grounding: Wind, learn: GraduationCap, clock: Clock,

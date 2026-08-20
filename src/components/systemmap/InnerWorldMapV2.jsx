@@ -278,7 +278,11 @@ function AlterRelationshipsSection({ alter, relationships, alterMap }) {
   );
 }
 
-export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false }) {
+// embedded: hosted inside a home-screen widget — starts in view mode with
+// the layers panel closed, and hides the maps bar + edit/zoom toolbars so
+// the canvas alone fills the tile. Pan/pinch still work; the widget's
+// header link opens the full page.
+export default function InnerWorldMapV2({ alters: allAlters, relationships, onRefreshRelationships, initialMapId = null, initialLayerId = null, initialSolo = false, embedded = false }) {
   const terms = useTerms();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -328,8 +332,8 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   const [placingAlter, setPlacingAlter] = useState(null);
   const [snapToGrid, setSnapToGrid] = useState(false);
   const [relMode, setRelMode] = useState("all");
-  const [panelOpen, setPanelOpen] = useState(true);
-  const [viewOnly, setViewOnly] = useState(false);
+  const [panelOpen, setPanelOpen] = useState(!embedded);
+  const [viewOnly, setViewOnly] = useState(embedded);
   // Full-screen mode — lifts the whole map UI to a fixed viewport overlay so
   // the canvas isn't boxed into the page's fixed-height slot.
   const [fullscreen, setFullscreen] = useState(false);
@@ -601,7 +605,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
   return (
     <div className={fullscreen ? "fixed inset-0 z-[100] bg-background p-2 flex flex-col" : "relative w-full h-full flex flex-col"} style={{ touchAction: "none" }}>
       {/* Maps bar */}
-      <div className="flex items-center gap-1 flex-wrap pb-2">
+      {!embedded && <div className="flex items-center gap-1 flex-wrap pb-2">
         {maps.map((m) => (
           <button key={m.id} onClick={() => { setActiveMapId(m.id); setSoloLayerId(null); }}
             className={`px-3 py-1 rounded-lg text-xs font-medium border transition-colors ${m.id === activeMapId ? "bg-primary/15 border-primary/50 text-primary" : "border-border/50 bg-card text-muted-foreground hover:bg-muted/40"}`}>
@@ -622,7 +626,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
             )}
           </>
         )}
-      </div>
+      </div>}
 
       <div className="relative flex-1 min-h-0 flex">
         {/* Layers + unplaced panel */}
@@ -800,7 +804,7 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
           )}
 
           {/* Toolbar — consistent icon-only buttons */}
-          <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
+          {!embedded && <div className="absolute top-3 right-3 flex flex-col gap-1 z-20 items-end">
             <button title={fullscreen ? "Exit full screen" : "Full screen"} className={tbBtn(fullscreen)} onClick={() => setFullscreen((v) => !v)}>
               {fullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
             </button>
@@ -819,14 +823,14 @@ export default function InnerWorldMapV2({ alters: allAlters, relationships, onRe
               onClick={() => setRelMode((m) => (m === "all" ? "selected" : m === "selected" ? "none" : "all"))}>
               {relMode === "all" ? <Eye className="w-4 h-4" /> : relMode === "selected" ? <Users className="w-4 h-4" /> : <EyeOff className="w-4 h-4" />}
             </button>
-          </div>
+          </div>}
 
           {/* Zoom controls */}
-          <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
+          {!embedded && <div className="absolute bottom-4 right-3 flex flex-col gap-1 z-20">
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("in")}><ZoomIn className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={() => handleZoom("out")}><ZoomOut className="w-3.5 h-3.5" /></Button>
             <Button size="icon" variant="outline" className="h-8 w-8 bg-card/90 backdrop-blur-sm" onClick={handleReset}><RotateCcw className="w-3.5 h-3.5" /></Button>
-          </div>
+          </div>}
 
           {/* Backdrop image edit — bottom sheet (data-iw-panel lets its sliders slide) */}
           {editingImage && !viewOnly && (

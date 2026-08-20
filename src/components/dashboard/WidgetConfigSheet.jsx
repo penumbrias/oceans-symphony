@@ -246,6 +246,29 @@ const DYNAMIC_SOURCES = {
     toOptions: (rows) => rows.filter((x) => !x.is_archived).map((x) => ({ id: x.id, label: x.label || x.name || "Symptom" })),
     searchPlaceholder: "Search symptoms…",
   },
+  innerMaps: {
+    queryKey: ["innerWorldMaps"],
+    queryFn: () => base44.entities.InnerWorldMap.list(),
+    toOptions: (rows) => rows.filter((m) => !m.is_archived)
+      .sort((a, b) => (a.order || 0) - (b.order || 0))
+      .map((m) => ({ id: m.id, label: m.name || "Map" })),
+    searchPlaceholder: "Search maps…",
+  },
+  innerLayers: {
+    queryKey: ["innerWorldLayersWithMaps"],
+    queryFn: async () => {
+      const [layers, maps] = await Promise.all([
+        base44.entities.InnerWorldLayer.list(),
+        base44.entities.InnerWorldMap.list(),
+      ]);
+      return { layers, maps };
+    },
+    toOptions: ({ layers = [], maps = [] } = {}) => {
+      const mapName = Object.fromEntries(maps.map((m) => [m.id, m.name || "Map"]));
+      return layers.map((l) => ({ id: l.id, label: `${mapName[l.map_id] || "Map"} · ${l.name || "Layer"}` }));
+    },
+    searchPlaceholder: "Search layers…",
+  },
   boards: {
     fallback: ["system"],
     queryKey: ["groups"],
