@@ -69,11 +69,22 @@ export function resolveFrontLevels(settingsRow) {
           counts_as_front: l.counts_as_front !== false,
         }))
     : DEFAULT_FRONT_LEVELS;
+  const soloRaw = raw?.solo_swipe || {};
   return {
     // Always on — the binary model IS the default two-level spectrum now.
     // Stored `enabled` from the opt-in era is deliberately ignored.
     enabled: true,
     levels: levels.length > 0 ? levels : DEFAULT_FRONT_LEVELS,
+    // The rail's sideways-slide "sole" gesture: while picking a level,
+    // sliding sideways commits the alter as the ONLY one — at that level
+    // (scope "level": others there shift one level further out, or leave
+    // front if there's nothing below) or outright (scope "all": everyone
+    // else leaves front). Configurable in Fronting levels settings.
+    solo_swipe: {
+      enabled: soloRaw.enabled !== false,
+      direction: soloRaw.direction === "right" ? "right" : "left",
+      scope: soloRaw.scope === "all" ? "all" : "level",
+    },
   };
 }
 

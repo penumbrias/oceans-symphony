@@ -152,9 +152,9 @@ function PresenceWidget({ mode, api, settings }) {
   const suppressTapUntil = React.useRef(0);
   const { rail, getHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
-    onCommit: (alterId, levelId) => {
+    onCommit: (alterId, levelId, extras = {}) => {
       suppressTapUntil.current = Date.now() + 400;
-      commitFrontLevel({ alterId, levelId, queryClient: qc });
+      commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg, solo: !!extras.solo });
     },
     // One slot past the far end of the spectrum: remove from front.
     // One-way removeFrontFor — a non-fronter stays out (never a toggle).
@@ -2123,7 +2123,7 @@ function PinnedAltersWidget({ api, settings }) {
 
   const levelCfg = useFrontLevels();
   const suppressTapUntil = React.useRef(0);
-  const addOrLevel = async (alterId, levelId) => {
+  const addOrLevel = async (alterId, levelId, extras = {}) => {
     // Holding a non-fronter and picking a level ADDS them at that level.
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
@@ -2131,13 +2131,13 @@ function PinnedAltersWidget({ api, settings }) {
       const alter = alters.find((a) => a.id === alterId);
       if (alter) await toggleFrontFor(alter, fresh, base44, qc, toast, t);
     }
-    await commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg });
+    await commitFrontLevel({ alterId, levelId, queryClient: qc, cfg: levelCfg, solo: !!extras.solo });
   };
   const { rail, getHoldProps } = useHoldDragLevel({
     cfg: levelCfg,
-    onCommit: (alterId, levelId) => {
+    onCommit: (alterId, levelId, extras = {}) => {
       suppressTapUntil.current = Date.now() + 400;
-      addOrLevel(alterId, levelId);
+      addOrLevel(alterId, levelId, extras);
     },
     onRemove: (alterId) => {
       suppressTapUntil.current = Date.now() + 400;

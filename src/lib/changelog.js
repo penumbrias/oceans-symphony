@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "feature", text: "{{Front}}-level rail: while holding and picking a level, slide sideways to make that {{alter}} the sole one — clearing just that level, or everyone else (direction and behaviour configurable under {{Fronting}} levels, in Settings and the setup guide)." },
+      { type: "improve", text: "The pinned {{alters}} bar's fold chevrons are gone — its visibility lives in Display options and the bar's own gear; swiping the bar down still tucks it away." },
       { type: "fix", text: "The toolbar's list buttons make real bulleted/numbered lists again — the bullets were invisible, so lists looked like plain indents." },
       { type: "improve", text: "A widget's Horizontal alignment now truly mirrors the layout: pick Right and left-hugging buttons/inputs swap sides — for left-handed use or RTL languages." },
       { type: "improve", text: "Colour swatches in the edit menus carry small labels, and the background gradient sits behind a clear on/off toggle — no more mystery swatches." },

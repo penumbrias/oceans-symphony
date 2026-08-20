@@ -22,6 +22,7 @@ import { toast } from "sonner";
 import { base44 } from "@/api/base44Client";
 import { useTerms } from "@/lib/useTerms";
 import { frontLevelLabel, useFrontLevels } from "@/lib/frontLevels";
+import { applyTerms } from "@/lib/dailyTaskSystem";
 import { recomputePrimaryFromLevels } from "@/lib/setFront";
 import { toggleFrontFor, removeFrontFor } from "@/hooks/useSwipeActions";
 
@@ -37,13 +38,34 @@ const TOUCH_SLOP_PX = 24;
 
 // Shared commit helper — usable outside the gesture too (modal, panel).
 // Pass cfg so the derived primary follows the spectrum (star retired).
-export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null }) {
+export async function commitFrontLevel({ alterId, levelId, queryClient, cfg = null, solo = false }) {
   try {
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const session = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
     if (!session) return false;
     if (session.front_level !== levelId) {
       await base44.entities.FrontingSession.update(session.id, { front_level: levelId });
+    }
+    // "Sole" (the rail's sideways slide): clear the picked level — or the
+    // whole front — of everyone else. Scope comes from the level config.
+    if (solo && cfg) {
+      const now = new Date().toISOString();
+      const scope = cfg.solo_swipe?.scope || "level";
+      const idx = cfg.levels.findIndex((l) => l.id === levelId);
+      const lower = cfg.levels[idx + 1] || null;
+      for (const s of fresh) {
+        const aid = s.alter_id || s.primary_alter_id;
+        if (aid === alterId) continue;
+        if (scope === "all") {
+          await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+          continue;
+        }
+        const sLevelId = s.front_level || (s.is_primary ? cfg.levels[0]?.id : cfg.levels[1]?.id || cfg.levels[0]?.id);
+        if (sLevelId === levelId) {
+          if (lower) await base44.entities.FrontingSession.update(s.id, { front_level: lower.id });
+          else await base44.entities.FrontingSession.update(s.id, { is_active: false, end_time: now });
+        }
+      }
     }
     if (cfg?.enabled) await recomputePrimaryFromLevels({ cfg, queryClient: null });
     queryClient?.invalidateQueries({ queryKey: ["activeFront"] });
@@ -111,20 +133,27 @@ export function useHoldDragLevel({ cfg, onCommit, onRemove }) {
             Math.min(maxIndex, Math.max(0, Math.round((clientY - top - LEVEL_ROW_H / 2) / LEVEL_ROW_H)));
           const state = {
             alterId, x: origin.current.x, y: origin.current.y, top,
-            pickedIndex: pickAt(origin.current.y), startIndex,
+            pickedIndex: pickAt(origin.current.y), startIndex, solo: false,
           };
           setRail(state);
+          // Sideways slide (direction configurable) arms "sole" — commit
+          // makes this alter the only one at the level (or outright).
+          const soloDir = cfg.solo_swipe?.direction === "right" ? 1 : -1;
+          const soloOn = cfg.solo_swipe?.enabled !== false;
           const pick = (ev) => {
             const idx = pickAt(ev.clientY);
-            setRail((r) => (r ? { ...r, pickedIndex: idx } : r));
+            const solo = soloOn && (ev.clientX - state.x) * soloDir > 64;
+            setRail((r) => (r ? { ...r, pickedIndex: idx, solo } : r));
             state.pickedIndex = idx;
+            state.solo = solo;
           };
           const move = (ev) => pick(ev);
           const up = () => {
             const idx = state.pickedIndex;
+            const solo = state.solo;
             teardown();
             if (onRemove && idx === cfg.levels.length) onRemove(alterId);
-            else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id);
+            else if (cfg.levels[idx]) onCommit(alterId, cfg.levels[idx].id, { solo });
           };
           const cancel = () => teardown();
           // Native scroll fires pointercancel the moment the finger moves,
@@ -324,21 +353,21 @@ export function useFrontGesture() {
   const suppress = useRef(0);
   const [pickFor, setPickFor] = useState(null);
 
-  const addOrLevel = async (alterId, levelId) => {
+  const addOrLevel = async (alterId, levelId, extras = {}) => {
     const fresh = await base44.entities.FrontingSession.filter({ is_active: true });
     const existing = fresh.find((s) => (s.alter_id || s.primary_alter_id) === alterId);
     if (!existing) {
       const alter = altersRef.current[alterId];
       if (alter) await toggleFrontFor(alter, fresh, base44, queryClient, toast, terms);
     }
-    await commitFrontLevel({ alterId, levelId, queryClient, cfg });
+    await commitFrontLevel({ alterId, levelId, queryClient, cfg, solo: !!extras.solo });
   };
 
   const { rail, getHoldProps: rawHoldProps } = useHoldDragLevel({
     cfg,
-    onCommit: (alterId, levelId) => {
+    onCommit: (alterId, levelId, extras = {}) => {
       suppress.current = Date.now() + 400;
-      addOrLevel(alterId, levelId);
+      addOrLevel(alterId, levelId, extras);
     },
     onRemove: (alterId) => {
       suppress.current = Date.now() + 400;
@@ -412,6 +441,13 @@ export function FrontLevelRail({ rail, cfg, alterName, withRemove = false }) {
         <div className="absolute px-2 py-0.5 rounded-md bg-background border border-border text-xs font-medium whitespace-nowrap"
           style={{ ...(flip ? { right: window.innerWidth - left - 20 } : { left }), top: Math.max(2, top - 26) }}>
           {alterName}
+          {rail.solo && (
+            <span className="ml-1.5 font-semibold" style={{ color: "var(--color-primary)" }}>
+              {(cfg.solo_swipe?.scope || "level") === "all"
+                ? applyTerms("only one {{fronting}}", terms)
+                : "sole at this level"}
+            </span>
+          )}
         </div>
       )}
       <div className="absolute" style={{ left, top }}>

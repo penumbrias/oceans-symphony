@@ -626,9 +626,9 @@ export default function CurrentFronters({ alters, hideStatusNote = false }) {
   const chipLevelCfgMain = useFrontLevels();
   const { rail: chipRail, getHoldProps: getChipHoldProps } = useHoldDragLevel({
     cfg: chipLevelCfgMain,
-    onCommit: (alterId, levelId) => {
+    onCommit: (alterId, levelId, extras = {}) => {
       window.__chipSuppressTapUntil = Date.now() + 400;
-      commitFrontLevel({ alterId, levelId, queryClient, cfg: chipLevelCfgMain });
+      commitFrontLevel({ alterId, levelId, queryClient, cfg: chipLevelCfgMain, solo: !!extras.solo });
     },
     onRemove: (alterId) => {
       window.__chipSuppressTapUntil = Date.now() + 400;

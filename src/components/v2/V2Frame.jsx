@@ -849,8 +849,10 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   // The alters half of the split handle lives ONLY on the edge the alters
   // bar is actually on (the user's rule) — a top strip must not carry a
   // toggle for a bar sitting at the bottom.
-  const withAltersHalf = altersInNav && altersBarCfg.mode !== "bubble"
-    && (altersBarCfg.position || "bottom") === edge;
+  // The alters half of the split handle is RETIRED (owner: show/hide
+  // lives in Display options + the bar's own gear; the extra chevron was
+  // clutter). The strip's handle now only folds the quick actions.
+  const withAltersHalf = false;
   // Top edge: "open" is a swipe DOWN; the chevrons flip to match.
   const dir = edge === "top" ? -1 : 1;
   const openRot = edge === "top" ? "none" : "rotate(180deg)";
@@ -1203,16 +1205,10 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
               ? "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + var(--v2-qa-float-top-h, 0px))"
               : "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
       >
-          {/* Its toggle rides the QA strip's split handle when that strip
-              shares this edge, and the bottom nav's own fold handle when
-              ANY bottom chrome exists — the floating chevron tab is the
-              fallback for a bare edge only (a second toggle floating over
-              the bar read as a stray). */}
-          {(altersPos === "bottom"
-            ? !navHasContent
-            : !(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === "top")) && (
-            <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
-          )}
+          {/* Top/bottom fold tabs RETIRED (owner) — visibility lives in
+              Display options; a collapsed bar reopens there or via the
+              set_front key's hold. Left/right keep their edge tab (it is
+              the vertical bar's only access). */}
           <AnimatePresence initial={false}>
             {!altersBarCfg.collapsed && (
               <motion.div
@@ -1280,44 +1276,9 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
           before <nav>) — the user wants it visually separate, not another
           band making the bottom section taller. Only its fold handle lives
           here, and only when there's no split handle to do the job. */}
-      {altersInNav && (
-        <div className="relative">
-          {/* With the quick-action row OFF there's no split handle, so the
-              bar carries its own: tap toggles, swipe up opens, swipe down
-              closes (pointer captured so a swipe that leaves the strip
-              still counts). With it ON, the split handle's left half does
-              this — no second handle. */}
-          {altersPos === "bottom" && !(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === "bottom") && (
-            <button
-              type="button"
-              aria-expanded={!altersBarCfg.collapsed}
-              aria-label={altersBarCfg.collapsed ? `Show the pinned ${terms.alters} bar` : `Hide the pinned ${terms.alters} bar`}
-              onClick={() => {
-                if (swiped.current) { swiped.current = false; return; }
-                toggleNavAlters();
-              }}
-              onPointerDown={(e) => {
-                altersDragStart.current = e.clientY;
-                try { e.currentTarget.setPointerCapture(e.pointerId); } catch { /* unsupported */ }
-              }}
-              onPointerUp={(e) => {
-                const dy = altersDragStart.current == null ? 0 : e.clientY - altersDragStart.current;
-                altersDragStart.current = null;
-                try { e.currentTarget.releasePointerCapture(e.pointerId); } catch { /* unsupported */ }
-                if (dy < -14 && altersBarCfg.collapsed) { swiped.current = true; setNavAlters(false); }
-                else if (dy > 14 && !altersBarCfg.collapsed) { swiped.current = true; setNavAlters(true); }
-                else if (Math.abs(dy) > 14) { swiped.current = true; }
-              }}
-              className="w-full flex items-center justify-center gap-1 text-muted-foreground hover:text-foreground"
-              style={{ height: 13, touchAction: "none" }}
-            >
-              <span className="w-6 h-[2px] rounded-full bg-border" aria-hidden="true" />
-              <ChevronUp className="w-2.5 h-2.5" style={{ transform: altersBarCfg.collapsed ? "none" : "rotate(180deg)", transition: "transform .18s" }} />
-              <span className="w-6 h-[2px] rounded-full bg-border" aria-hidden="true" />
-            </button>
-          )}
-        </div>
-      )}
+      {/* The nav's own alters fold handle is RETIRED (owner) — the bar's
+          visibility lives in Display options; swipe-down on the bar itself
+          still tucks it away, and the set_front key's hold brings it back. */}
       {uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") !== "top" && (
         <QuickActionsStrip uiV2={uiV2} settingsRow={settingsRow} edge="bottom" />
       )}

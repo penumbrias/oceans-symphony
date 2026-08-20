@@ -41,7 +41,8 @@ export default function FrontLevelsSettings() {
     }
   };
 
-  const save = (patch) => persist({ levels: cfg.levels, ...patch });
+  const save = (patch) => persist({ levels: cfg.levels, solo_swipe: cfg.solo_swipe, ...patch });
+  const saveSolo = (patch) => save({ solo_swipe: { ...cfg.solo_swipe, ...patch } });
 
   const updateLevel = (id, change) =>
     save({ levels: cfg.levels.map((l) => (l.id === id ? { ...l, ...change } : l)) });
@@ -125,6 +126,49 @@ export default function FrontLevelsSettings() {
             Currently {terms.Fronting}, or (new UI) press-and-hold an {terms.alter} in
             the who's-here widget and drag along the spectrum.
           </p>
+
+          {/* The rail's sideways "sole" gesture — while holding and picking
+              a level, sliding sideways commits the alter as the only one. */}
+          <div className="rounded-xl border border-border/50 p-2.5 space-y-2.5">
+            <label className="flex items-center justify-between gap-3 text-xs font-medium">
+              <span>Slide sideways for "sole {terms.fronter}"</span>
+              <Switch checked={cfg.solo_swipe.enabled} disabled={busy}
+                onCheckedChange={(v) => saveSolo({ enabled: !!v })} />
+            </label>
+            {cfg.solo_swipe.enabled && (
+              <>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>Slide direction</span>
+                  <div className="flex gap-1">
+                    {[["left", "Left"], ["right", "Right"]].map(([v, label]) => (
+                      <button key={v} type="button" disabled={busy} aria-pressed={cfg.solo_swipe.direction === v}
+                        onClick={() => saveSolo({ direction: v })}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${cfg.solo_swipe.direction === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50"}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                  <span>What it clears</span>
+                  <div className="flex gap-1">
+                    {[["level", "That level"], ["all", `Everyone else`]].map(([v, label]) => (
+                      <button key={v} type="button" disabled={busy} aria-pressed={cfg.solo_swipe.scope === v}
+                        onClick={() => saveSolo({ scope: v })}
+                        className={`text-xs px-2.5 py-1 rounded-full border ${cfg.solo_swipe.scope === v ? "border-primary/60 bg-primary/10 text-primary" : "border-border/50"}`}>
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <p className="text-[0.6875rem] text-muted-foreground">
+                  {cfg.solo_swipe.scope === "all"
+                    ? `Everyone else leaves ${terms.front} — the held ${terms.alter} becomes the only one.`
+                    : `Other ${terms.alters} at the picked level move one level further out (or leave ${terms.front} if it's the last level).`}
+                </p>
+              </>
+            )}
+          </div>
         </>
       )}
     </div>
