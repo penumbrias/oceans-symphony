@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "improve", text: "The quick actions row now floats as its own card, visually separate from the top/bottom bars — same treatment as the pinned {{alters}} bar. When both share an edge they stack neatly." },
+      { type: "fix", text: "No more stray chevron floating above the pinned {{alters}} bar when the quick actions bar sits on the other edge." },
       { type: "fix", text: "Dragging inside a colour picker no longer swipes the home screen to the next page." },
       { type: "improve", text: "The home screen's cog menu now has a \"Setup guide\" entry alongside What's new — it opens straight to the setup checklist." },
       { type: "fix", text: "The Plans widget matches the classic Coming Up card: recurring and older plans show again, urgent plans keep their \u26a1 pin, and each row shows how soon it starts." },

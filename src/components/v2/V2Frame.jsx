@@ -820,6 +820,25 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   const dragStart = useRef(null);
   const altersDragStart = useRef(null);
   const swiped = useRef(false);
+  // The key row floats as its own card (the user's call — same visual
+  // separation as the pinned bar, so the chrome band stays slim). The
+  // pinned-bar stack on this edge sits ABOVE the card via this published
+  // height (0 when folded, so nothing shifts).
+  const floatRef = useRef(null);
+  useEffect(() => {
+    const varName = `--v2-qa-float-${edge}-h`;
+    const root = document.documentElement;
+    const el = floatRef.current;
+    if (!el || typeof ResizeObserver === "undefined") return undefined;
+    const publish = () => {
+      const h = Math.ceil(el.getBoundingClientRect().height);
+      root.style.setProperty(varName, h > 0 ? `${h + 8}px` : "0px");
+    };
+    const ro = new ResizeObserver(publish);
+    ro.observe(el);
+    publish();
+    return () => { ro.disconnect(); root.style.setProperty(varName, "0px"); };
+  }, [edge]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
@@ -906,6 +925,11 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
           </div>
   );
   const row = (
+    <div className={`fixed left-0 right-0 z-40 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+      style={edge === "top"
+        ? { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }
+        : { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
+      <div ref={floatRef} className="mx-3">
           <AnimatePresence initial={false}>
             {qaOpen && (
               <motion.div
@@ -914,10 +938,18 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
                 animate={{ height: "auto", opacity: 1 }}
                 exit={{ height: 0, opacity: 0 }}
                 transition={{ duration: 0.18, ease: "easeOut" }}
-                className="overflow-hidden"
+                className="overflow-hidden pointer-events-auto"
               >
-                <div className="flex items-center justify-center overflow-x-auto px-2"
-                  style={{ gap: "calc(var(--v2-space) * 1.5)", paddingBottom: "var(--v2-space)" }}>
+                <div className="flex items-center justify-center overflow-x-auto px-2 backdrop-blur-xl"
+                  style={{
+                    gap: "calc(var(--v2-space) * 1.5)",
+                    padding: "var(--v2-space) 0.5rem",
+                    ...barLookStyle(uiV2, "actions", { veil: false }),
+                    backgroundColor: "color-mix(in srgb, var(--color-surface) 90%, transparent)",
+                    borderRadius: "var(--v2-radius, 1rem)",
+                    border: "var(--v2-border-w, 1px) solid color-mix(in srgb, var(--v2-accent) 30%, transparent)",
+                    boxShadow: "0 10px 15px -3px rgb(0 0 0 / 0.1)",
+                  }}>
                   {keys.map((k) => {
                     const Icon = KEY_ICONS[k.id] || Heart;
                     const label = applyTerms(t(KEY_LABEL_KEYS[k.id] || "capture.checkIn"), terms);
@@ -951,10 +983,13 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
               </motion.div>
             )}
           </AnimatePresence>
+      </div>
+    </div>
   );
   return (
     <>
-      {edge === "top" ? <>{row}{handle}</> : <>{handle}{row}</>}
+      {handle}
+      {createPortal(row, document.body)}
       <QuickNoteSheet open={noteOpen} onClose={() => setNoteOpen(false)} />
       <ActiveNowPopover anchorRef={activeAnchor} open={activeOpen} onClose={() => setActiveOpen(false)} />
     </>
@@ -1103,13 +1138,17 @@ export function V2BottomChrome({ uiV2, settingsRow }) {
       <div
         className={`fixed left-0 right-0 z-40 flex flex-col items-center pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
         style={altersPos === "bottom"
-          ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }
-          : { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }}
+          ? { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px + var(--v2-qa-float-bottom-h, 0px))" }
+          : { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px + var(--v2-qa-float-top-h, 0px))" }}
       >
           {/* Its toggle rides the QA strip's split handle when that strip
-              shares this edge; otherwise this edge grows its own chevron
-              tab (click to fold — no swipe on a tab). */}
-          {!(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === altersPos) && (
+              shares this edge, and the bottom nav's own fold handle when
+              ANY bottom chrome exists — the floating chevron tab is the
+              fallback for a bare edge only (a second toggle floating over
+              the bar read as a stray). */}
+          {(altersPos === "bottom"
+            ? !navHasContent
+            : !(uiV2.bars.actions && (uiV2.tokens.actionsMode || "bar") === "bar" && (uiV2.tokens.actionsEdge || "bottom") === "top")) && (
             <AltersEdgeTab edge={altersPos} open={!altersBarCfg.collapsed} onToggle={toggleNavAlters} terms={terms} />
           )}
           <AnimatePresence initial={false}>
