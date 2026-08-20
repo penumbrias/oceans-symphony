@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "hotfix", text: "Hotfix: the pinned {{alters}} bar no longer overlaps the open quick-actions card." },
       { type: "feature", text: "Every bar — top, bottom, quick actions, sidebar, pinned {{alters}} bar, active bubble — now takes the same styling the widgets get: colours, gradients, borders, shadows, text, spacing. All in Display options, per bar." },
       { type: "feature", text: "The quick actions row and the pinned {{alters}} bar can each be a floating card or sit inside the top/bottom bar — your choice, in Display options." },
       { type: "improve", text: "Planner: a \"{{Fronting}} lane strength\" slider (page Display menu and widget config) fades or strengthens the {{fronting}} lanes." },

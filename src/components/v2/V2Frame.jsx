@@ -820,6 +820,13 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
   // pinned-bar stack on this edge sits ABOVE the card via this published
   // height (0 when folded, so nothing shifts).
   const floatRef = useRef(null);
+  // Floating card vs attached flat row — computed HERE because the effect
+  // below must re-run when it flips: switching attached → floating swaps
+  // the portal in without remounting this component, and an effect keyed
+  // on [edge] alone never re-observed the new element — the published
+  // height stayed 0 and the pinned bar sat ON TOP of the card (owner
+  // screenshot, "the bars are overlapping").
+  const attached = (uiV2.tokens.actionsAttach || "float") === "attached";
   useEffect(() => {
     const varName = `--v2-qa-float-${edge}-h`;
     const root = document.documentElement;
@@ -833,7 +840,7 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
     ro.observe(el);
     publish();
     return () => { ro.disconnect(); root.style.setProperty(varName, "0px"); };
-  }, [edge]);
+  }, [edge, attached]);
   const keys = uiV2.commandKeys.map((id) => V2_COMMAND_KEYS.find((k) => k.id === id)).filter(Boolean);
   const wide = typeof window !== "undefined" && window.matchMedia("(min-width: 1024px)").matches;
   const homeField = wide ? "ui_v2_home_desktop" : "ui_v2_home";
@@ -919,9 +926,6 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
           </div>
           </div>
   );
-  // Floating card (default) or attached flat row — the user's call
-  // (Display options → Quick action bar → Quick actions row).
-  const attached = (uiV2.tokens.actionsAttach || "float") === "attached";
   const row = (
     <div className={`fixed left-0 right-0 z-40 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={edge === "top"
