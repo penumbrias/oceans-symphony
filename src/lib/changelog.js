@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Per-{{front}}-level display styles (shape, size, ring) now reach the {{alters}} page list too, not just the pinned bar." },
+      { type: "feature", text: "{{Alter}} lists can show each {{alter}}'s profile header image as their card background — the image toggle in the {{alters}} page toolbar." },
       { type: "feature", text: "{{Front}}-level rail: while holding and picking a level, slide sideways to make that {{alter}} the sole one — clearing just that level, or everyone else (direction and behaviour configurable under {{Fronting}} levels, in Settings and the setup guide)." },
       { type: "improve", text: "The pinned {{alters}} bar's fold chevrons are gone — its visibility lives in Display options and the bar's own gear; swiping the bar down still tucks it away." },
       { type: "fix", text: "The toolbar's list buttons make real bulleted/numbered lists again — the bullets were invisible, so lists looked like plain indents." },

@@ -1,6 +1,7 @@
 import React, { useState, useMemo, useEffect } from "react";
 import { Input } from "@/components/ui/input";
-import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive } from "lucide-react";
+import { Search, ArrowDownAZ, ListOrdered, ArrowUpAZ, Eye, EyeOff, Settings, Grid3X3, Plus, TrendingDown, TrendingUp, FolderMinus, Camera, Filter, List, Archive , Image as ImageIcon
+} from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
@@ -79,6 +80,9 @@ export default function AlterGrid({ alters }) {
   // so the toggle applies system-wide (Dashboard's Currently Fronting
   // widget reads the same mode).
   const { mode: anonymize, cycle: cycleAnonymize } = useAnonymizeMode();
+  const [headerBg, setHeaderBg] = useState(() => {
+    try { return localStorage.getItem("alter_card_header_bg") === "true"; } catch { return false; }
+  });
   const [createGroupOpen, setCreateGroupOpen] = useState(false);
   const [hideGrouped, setHideGrouped] = useState(() => localStorage.getItem("alter_hide_grouped") === "true");
   // Listing filter: nested vs flat, plus multi-select group/subsystem
@@ -372,6 +376,18 @@ export default function AlterGrid({ alters }) {
             {sortMode === "alpha-desc" && <ArrowUpAZ className="w-4 h-4" />}
             {sortMode === "most" && <TrendingDown className="w-4 h-4" />}
             {sortMode === "least" && <TrendingUp className="w-4 h-4" />}
+          </button>
+
+          {/* Header image as card background */}
+          <button
+            onClick={() => {
+              const next = !headerBg;
+              setHeaderBg(next);
+              try { localStorage.setItem("alter_card_header_bg", next ? "true" : "false"); } catch { /* storage off */ }
+            }}
+            title={headerBg ? "Plain card backgrounds" : `Use each ${terms.alter}'s profile header as their card background`}
+            className={`flex-shrink-0 flex items-center justify-center w-9 h-9 rounded-xl border border-border/50 bg-card/50 transition-colors ${headerBg ? "text-primary border-primary/40 bg-primary/10" : "text-muted-foreground hover:text-foreground hover:bg-accent"}`}>
+            <ImageIcon className="w-4 h-4" />
           </button>
 
           {/* Hide grouped */}

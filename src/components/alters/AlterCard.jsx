@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { User, Zap } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isValidHexColor } from "@/lib/colorUtils";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { useTerms } from "@/lib/useTerms";
 import { needsHalo, getSurfaceBackground, adjustForContrast } from "@/lib/contrast";
@@ -13,6 +13,7 @@ import { useRotatingImageUrl } from "@/lib/imageRotation";
 import { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { useFrontGesture, useHoldMenu } from "@/components/fronting/FrontLevelRail";
 import AlterActionMenu from "./AlterActionMenu";
+import { shapeLayerStyles } from "@/lib/avatarShapes";
 
 function getContrastColor(hex) {
   if (!hex) return "var(--color-text-secondary)";
@@ -101,6 +102,24 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
   const fronting = !!mySession;
   const isPrimary = mySession?.is_primary ?? false;
 
+  // Per-front-level display styles (the pinned bar's levelStyles) reach
+  // the alter lists too (owner ask): a fronting alter's avatar takes its
+  // level's shape / size / ring here as well.
+  const { data: settingsRows = [] } = useQuery({ queryKey: ["systemSettings"], queryFn: () => base44.entities.SystemSettings.list() });
+  const levelStyles = settingsRows[0]?.pinned_alters_config?.levelStyles || {};
+  const ls = (fronting && levelStyles[mySession?.front_level]) || null;
+  const lsShape = ls?.shape ? shapeLayerStyles(ls.shape) : null;
+  const lsDim = ls && Number.isFinite(ls.scale) ? Math.round(40 * ls.scale / 100) : 40;
+  const lsRing = ls && Number.isFinite(ls.ringW) ? ls.ringW : null;
+
+  // "Header as card background" — the alter's profile header image behind
+  // the whole list card (toggled from the list's toolbar; shared via
+  // localStorage so every list using this card follows).
+  let headerBgOn = false;
+  try { headerBgOn = localStorage.getItem("alter_card_header_bg") === "true"; } catch { /* storage off */ }
+  const headerUrl = headerBgOn ? (alter.custom_fields?.["_header_image"] || "") : "";
+  const resolvedHeader = useResolvedAvatarUrl(headerUrl);
+
   return (
     <div className="flex items-center gap-2 select-none">
       {gesture.node}
@@ -108,18 +127,32 @@ export default function AlterCard({ alter, index, activeSessions = [], anonymize
         {...holdMenu.bind}
         onClick={() => { if (!holdMenu.suppressed()) navigate(`/alter/${alter.id}`); }}>
         <div className="bg-card pt-1 pr-4 pb-2 pl-3 rounded-xl flex items-center gap-3 border border-border/50 hover:bg-muted/30 hover:border-border transition-all cursor-pointer group"
-          style={{ borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1 }}>
+          style={{
+            borderLeftColor: bgColor || "transparent", borderLeftWidth: bgColor ? 3 : 1,
+            ...(resolvedHeader ? {
+              backgroundImage: `linear-gradient(color-mix(in srgb, var(--color-surface) 62%, transparent), color-mix(in srgb, var(--color-surface) 62%, transparent)), url("${resolvedHeader}")`,
+              backgroundSize: "cover", backgroundPosition: "center",
+            } : {}),
+          }}>
           <div
-            className={`w-10 h-10 rounded-xl overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""}`}
-            style={{ backgroundColor: bgColor || "var(--color-muted)" }}>
-            {resolvedAvatar ? (
-              <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
-                onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
-            ) : null}
-            <div className="w-full h-full items-center justify-center"
-              style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "var(--color-text-secondary)" }}>
-              <User className="w-5 h-5" />
-            </div>
+            className={`overflow-hidden flex-shrink-0 flex items-center justify-center border border-border/40 ${anonymizeBlurAvatars(anonymize) ? "blur-sm" : ""} ${lsShape ? "" : "rounded-xl"}`}
+            style={{
+              width: lsDim, height: lsDim,
+              backgroundColor: lsRing != null ? (alter.color || "var(--color-primary)") : (bgColor || "var(--color-muted)"),
+              padding: lsRing != null ? lsRing : 0,
+              ...(lsShape ? lsShape.ring : {}),
+            }}>
+            <span className="w-full h-full overflow-hidden flex items-center justify-center"
+              style={{ backgroundColor: bgColor || "var(--color-muted)", ...(lsShape ? lsShape.inner : {}) }}>
+              {resolvedAvatar ? (
+                <img src={resolvedAvatar} alt={alter.name} className="w-full h-full object-cover"
+                  onError={(e) => { e.target.style.display = "none"; e.target.nextSibling.style.display = "flex"; }} />
+              ) : null}
+              <div className="w-full h-full items-center justify-center"
+                style={{ display: resolvedAvatar ? "none" : "flex", color: textColor || "var(--color-text-secondary)" }}>
+                <User className="w-5 h-5" />
+              </div>
+            </span>
           </div>
           <div className="flex-1 min-w-0">
             <p className={`font-medium text-sm text-foreground group-hover:text-primary transition-colors truncate ${anonymizeBlurNames(anonymize) ? "blur-sm" : ""}`}>
