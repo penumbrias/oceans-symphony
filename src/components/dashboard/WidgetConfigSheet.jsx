@@ -42,6 +42,7 @@ import { buildGridItems } from "@/lib/navCatalogue";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import ColorPicker from "@/components/shared/ColorPicker";
+import { Switch } from "@/components/ui/switch";
 import ProfileSongPicker from "@/components/shared/ProfileSongPicker";
 import {
   themeToLook, BORDER_STYLES, SHADOW_PRESETS, USER_STYLE_PREFIX,
@@ -927,30 +928,42 @@ export default function WidgetConfigSheet({
                   onClear={() => onSettings(widget.instanceId, { borderColor: "", borderOpacity: "" })} />
               </div>
             </div>
-            {/* Effects — the same two the built-in styles use, so a user can
-                build Aero (or anything else) themselves. */}
+            {/* Background gradient — a layer OVER the background colour
+                above. A toggle owns it: swatches only show while it's on
+                (two always-visible pickers read as unrelated colours). */}
             <div>
-              <label className="text-xs font-medium block mb-1.5">Gradient</label>
-              <div className="flex items-center gap-3">
-                <ColorPicker compact label="Gradient start"
-                  value={gradHex(effective.gradFrom) || live.bg || "#38bdf8"}
-                  onChange={(v) => onSettings(widget.instanceId, { gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
-                  opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
-                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                <ColorPicker compact label="Gradient end"
-                  value={gradHex(effective.gradTo) || "#6ee7b7"}
-                  onChange={(v) => onSettings(widget.instanceId, { gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
-                  opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
-                  onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
-                <span className="text-[0.6875rem] text-muted-foreground">
-                  {gradOn ? "on" : "pick both"}
-                </span>
+              <div className="flex items-center gap-2 mb-1.5">
+                <label className="text-xs font-medium">Background gradient</label>
+                <Switch checked={!!gradOn} onCheckedChange={(on) => {
+                  if (on) {
+                    onSettings(widget.instanceId, {
+                      gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8",
+                      gradTo: gradHex(effective.gradTo) || "#6ee7b7",
+                    });
+                  } else {
+                    onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "", gradAngle: "" });
+                  }
+                }} aria-label="Background gradient" />
               </div>
               {gradOn && (
-                <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
-                  min={0} max={360} step={15} unit="°"
-                  onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
-                  onReset={() => onSettings(widget.instanceId, { gradAngle: "" })} />
+                <>
+                  <div className="flex items-center gap-3">
+                    <ColorPicker compact label="From"
+                      value={gradHex(effective.gradFrom) || live.bg || "#38bdf8"}
+                      onChange={(v) => onSettings(widget.instanceId, { gradFrom: v, ...(gradHex(settings.gradTo) ? {} : { gradTo: gradHex(effective.gradTo) || "#6ee7b7" }) })}
+                      opacity={{ value: settings.gradFromOpacity ?? effective.gradFromOpacity, onChange: (v) => setAlpha("gradFrom", "gradFromOpacity", v, gradHex(effective.gradFrom) || live.bg || "#38bdf8") }}
+                      onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                    <ColorPicker compact label="To"
+                      value={gradHex(effective.gradTo) || "#6ee7b7"}
+                      onChange={(v) => onSettings(widget.instanceId, { gradTo: v, ...(gradHex(settings.gradFrom) ? {} : { gradFrom: gradHex(effective.gradFrom) || live.bg || "#38bdf8" }) })}
+                      opacity={{ value: settings.gradToOpacity ?? effective.gradToOpacity, onChange: (v) => setAlpha("gradTo", "gradToOpacity", v, gradHex(effective.gradTo) || "#6ee7b7") }}
+                      onClear={() => onSettings(widget.instanceId, { gradFrom: "", gradTo: "", gradFromOpacity: "", gradToOpacity: "" })} />
+                  </div>
+                  <SliderRow label="Gradient angle" value={settings.gradAngle} fallback={Number(effective.gradAngle) || 135}
+                    min={0} max={360} step={15} unit="°"
+                    onChange={(v) => onSettings(widget.instanceId, { gradAngle: v })}
+                    onReset={() => onSettings(widget.instanceId, { gradAngle: "" })} />
+                </>
               )}
             </div>
 

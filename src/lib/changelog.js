@@ -20,6 +20,9 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "The toolbar's list buttons make real bulleted/numbered lists again — the bullets were invisible, so lists looked like plain indents." },
+      { type: "improve", text: "A widget's Horizontal alignment now truly mirrors the layout: pick Right and left-hugging buttons/inputs swap sides — for left-handed use or RTL languages." },
+      { type: "improve", text: "Colour swatches in the edit menus carry small labels, and the background gradient sits behind a clear on/off toggle — no more mystery swatches." },
       { type: "feature", text: "The formatting toolbar is compact now: one slim row of sections (styling, colour & font, headings, lists, alignment, links, fun) that expand one at a time — and the image/asset buttons sit in the same row. On touch devices it docks above the keyboard everywhere it appears." },
       { type: "improve", text: "Widget backgrounds reach the inner panels too — the notebook's editor and other built-in surfaces follow the widget's background colour instead of ignoring it." },
       { type: "improve", text: "Widget options gained an Advanced section: top/bottom/left/right spacing per side, alongside the scoped custom-CSS box." },

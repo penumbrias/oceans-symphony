@@ -313,6 +313,8 @@ export default {
   "editSheet.borderStyle": "Border style",
   "editSheet.innerSpacing": "Inner spacing",
   "editSheet.gradientClear": "No gradient",
+  "editSheet.gradFrom": "From",
+  "editSheet.gradTo": "To",
   "editSheet.highlight": "Highlight",
   "editSheet.background": "Background",
   "editSheet.textColor": "Text",

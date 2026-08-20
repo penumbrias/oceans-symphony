@@ -359,19 +359,26 @@ function BarLookRows({ v2, barId, alignX }) {
         </div>
       </div>
       <div className="py-1">
-        <p className="text-xs font-medium mb-1.5">{tr("editSheet.gradient")}</p>
-        <div className="flex items-center gap-3">
-          {colorRow("gradFrom", "gradFromOpacity", "editSheet.background", "#312e81")}
-          {colorRow("gradTo", "gradToOpacity", "editSheet.background", "#831843")}
-          {(look.gradFrom || look.gradTo) && (
-            <button type="button"
-              onClick={() => write({ gradFrom: undefined, gradTo: undefined, gradAngle: undefined, gradFromOpacity: undefined, gradToOpacity: undefined })}
-              className="text-xs px-2 py-1 rounded-full border border-border/50 text-muted-foreground">
-              {tr("editSheet.gradientClear")}
-            </button>
-          )}
-        </div>
-        {look.gradFrom && look.gradTo && slider("gradAngle", "editSheet.gradAngle", 0, 360, 135, "\u00b0")}
+        {/* Toggle-owned: gradient swatches only exist while it's on —
+            always-visible pickers read as unrelated colours. */}
+        <label className="flex items-center gap-2 mb-1.5 text-xs font-medium cursor-pointer">
+          {tr("editSheet.gradient")}
+          <input type="checkbox" className="w-4 h-4 rounded accent-primary"
+            checked={!!(look.gradFrom && look.gradTo)}
+            onChange={(e) => e.target.checked
+              ? write({ gradFrom: look.gradFrom || "#312e81", gradTo: look.gradTo || "#831843" })
+              : write({ gradFrom: undefined, gradTo: undefined, gradAngle: undefined, gradFromOpacity: undefined, gradToOpacity: undefined })}
+            aria-label={tr("editSheet.gradient")} />
+        </label>
+        {look.gradFrom && look.gradTo && (
+          <>
+            <div className="flex items-center gap-3">
+              {colorRow("gradFrom", "gradFromOpacity", "editSheet.gradFrom", "#312e81")}
+              {colorRow("gradTo", "gradToOpacity", "editSheet.gradTo", "#831843")}
+            </div>
+            {slider("gradAngle", "editSheet.gradAngle", 0, 360, 135, "\u00b0")}
+          </>
+        )}
       </div>
       {chips("shadow", "editSheet.shadow", Object.keys(SHADOW_PRESETS))}
       {chips("borderStyle", "editSheet.borderStyle", BORDER_STYLES)}

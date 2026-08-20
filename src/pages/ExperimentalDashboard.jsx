@@ -398,6 +398,12 @@ function SortableWidget({ widget, def, editMode, gridCols, gridRef, api, topRowO
           // (and by the flex wrapper below for content-sized widgets).
           "--v2-widget-valign": valignJustify,
           "--v2-widget-halign": halignItems,
+          // Horizontal "Left"/"Right" MIRRORS the layout, not just the
+          // justification — a left-handed (or RTL-language) user picking
+          // Right moves left-hugging elements to the right side and vice
+          // versa (owner spec). Flex rows, margin-auto pushes and text
+          // alignment all follow the direction; bidi keeps words readable.
+          ...(halign === "right" ? { direction: "rtl" } : halign === "left" ? { direction: "ltr" } : {}),
           // Per-widget content size — index.css zooms the widget's body
           // wrapper by this, so every widget scales, not just tagged ones.
           "--v2-control-scale": (Math.min(200, Math.max(60, Number(widget.settings?.controlScale) || 100)) / 100),

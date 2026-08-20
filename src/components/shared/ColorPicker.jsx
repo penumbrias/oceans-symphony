@@ -70,7 +70,7 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
   return (
     <div className='relative' ref={containerRef}>
       {label && !compact && <p className='text-xs text-muted-foreground mb-1'>{label}</p>}
-      <div className='flex items-center gap-2'>
+      <div className={compact && label ? 'flex flex-col items-center gap-0.5' : 'flex items-center gap-2'}>
         <button
           type='button'
           onClick={() => setOpen(v => !v)}
@@ -94,6 +94,11 @@ export default function ColorPicker({ value, onChange, label, compact = false, o
           title={label || 'Pick color'}
           aria-label={label || 'Pick colour'}
         />
+        {/* Compact swatches carry a caption — a bare square forced opening
+            the picker just to learn which colour it was (owner report). */}
+        {compact && label && (
+          <span className='text-[0.5625rem] leading-tight text-muted-foreground text-center max-w-[52px] truncate'>{label}</span>
+        )}
         {!compact && (
           <input
             value={hex}
