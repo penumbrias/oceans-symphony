@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "fix", text: "Bottom bar taps could get eaten — opening the quick-actions row instead of navigating, or needing several tries. Two invisible tap-blockers fixed; the app also now self-heals if a closed popup leaves the screen unresponsive." },
       { type: "improve", text: "Active-now overhaul: everything started by ~command shows up instantly (no more waiting or reloading), every row shows how long it's been running, the Active widget lists active company with an End button, and tapping a running activity can no longer open the wrong one's menu." },
       { type: "fix", text: "Active symptoms show their name in the Active-now popup (they rendered blank), and tapping one opens the adjust/end menu instead of jumping to another page." },
       { type: "feature", text: "Two inner-world widgets: a live map widget (pick a map, optionally one layer, pan and pinch right on the home screen) and a places list that jumps to any location." },

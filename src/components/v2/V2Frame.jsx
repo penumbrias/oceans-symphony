@@ -927,10 +927,13 @@ function QuickActionsStrip({ uiV2, settingsRow, edge = "bottom" }) {
           </div>
   );
   const row = (
-    <div className={`fixed left-0 right-0 z-40 pointer-events-none ${uiV2.bars.rail ? "lg:hidden" : ""}`}
+    // pointerEvents INLINE: the global `body > .fixed { pointer-events:
+    // auto }` rule (the vaul body fix) out-specifies the Tailwind class,
+    // which silently turned this full-width wrapper into a tap eater.
+    <div className={`fixed left-0 right-0 z-40 ${uiV2.bars.rail ? "lg:hidden" : ""}`}
       style={edge === "top"
-        ? { top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }
-        : { bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
+        ? { pointerEvents: "none", top: "calc(var(--v2-status-h, 40px) + env(safe-area-inset-top, 0px) + 12px)" }
+        : { pointerEvents: "none", bottom: "calc(var(--v2-bottom-chrome-h, 56px) + env(safe-area-inset-bottom, 0px) + 8px)" }}>
       <div ref={floatRef} className="mx-3">
           <AnimatePresence initial={false}>
             {qaOpen && (
@@ -1051,7 +1054,28 @@ function AltersEdgeTab({ edge, open, onToggle, terms }) {
 }
 
 // ── Bottom chrome ──────────────────────────────────────────────────
+// Vaul (and anything else) may leave `pointer-events: none` stamped on
+// <body> after its sheet is gone — the app then feels dead: nav taps do
+// nothing, or land on floating portals ("takes five taps", tester
+// report). Watchdog: whenever body's style changes or a body-level
+// portal unmounts, clear the stamp if no drawer remains.
+function useBodyPointerWatchdog() {
+  useEffect(() => {
+    if (typeof MutationObserver === "undefined") return undefined;
+    const heal = () => {
+      if (document.body.style.pointerEvents === "none" && !document.querySelector("[data-vaul-drawer]")) {
+        document.body.style.pointerEvents = "";
+      }
+    };
+    const mo = new MutationObserver(heal);
+    mo.observe(document.body, { attributes: true, attributeFilter: ["style"], childList: true });
+    heal();
+    return () => mo.disconnect();
+  }, []);
+}
+
 export function V2BottomChrome({ uiV2, settingsRow }) {
+  useBodyPointerWatchdog();
   const navigate = useNavigate();
   const location = useLocation();
   const qc = useQueryClient();
