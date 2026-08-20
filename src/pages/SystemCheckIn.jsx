@@ -154,7 +154,9 @@ export default function SystemCheckInPage() {
     for (const key of ["step3_greet", "step4_share", "step5_closing"]) {
       const step = dataToSave[key];
       if (step?.notes) {
-        const lc = await applyLogCommands(step.notes, { isRich: false });
+        let lc;
+        try { lc = await applyLogCommands(step.notes, { isRich: false }); }
+        catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
         const ww = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: "check-in note" });
         if (ww === null) return; // user backed out of the whole-blur warning
         dataToSave[key] = { ...step, notes: ww.content };

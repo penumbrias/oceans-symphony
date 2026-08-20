@@ -357,7 +357,9 @@ export default function ActivityPlanModal({
     if (!isQuickPlan && endTime && durationMinutes <= 0) { toast.error("End time must be after start time"); return; }
 
     // Run inline ~commands first (each becomes a chip), then whisper handling.
-    const lc = await applyLogCommands(notes || "", { isRich: false });
+    let lc;
+    try { lc = await applyLogCommands(notes || "", { isRich: false }); }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     // "/w @name [secret]" in the notes hides that part behind a whisper bar
     // (no brackets warns first — a plan note is a personal record). Done
     // before setIsLoading so a "go back" leaves the form untouched.

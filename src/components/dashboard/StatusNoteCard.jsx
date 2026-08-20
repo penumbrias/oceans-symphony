@@ -46,7 +46,9 @@ export default function StatusNoteCard() {
     setTempStatus("");
     // Execute any inline ~commands (status notes render as plain text, so use
     // plain-label tokens rather than HTML chips).
-    const { content: note } = await applyLogCommands(raw, { chips: false });
+    let note;
+    try { ({ content: note } = await applyLogCommands(raw, { chips: false })); }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     await localEntities.StatusNote.create({
       timestamp: new Date().toISOString(),
       note,

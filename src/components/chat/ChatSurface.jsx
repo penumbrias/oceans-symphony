@@ -697,7 +697,9 @@ export default function ChatSurface({
   // Build a fully-resolved send payload and hand it to the host.
   const handleComposerSubmit = async ({ content: rawContent, speakerIds, notifyOnReply }) => {
     // Execute any inline ~commands first — each becomes a chip in the message.
-    const content = (await applyLogCommands(rawContent, { isRich: true })).content;
+    let content;
+    try { content = (await applyLogCommands(rawContent, { isRich: true })).content; }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     let body = content;
     let whisperRecipientIds = [];
     let isWhisper = false;

@@ -580,6 +580,60 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
   return null;
 }
 
+// Why a command-LIKE token (a known ~type that didn't resolve) failed —
+// one short, fixable sentence. Mirrors resolveCommandAt's null paths.
+function explainFailure(text, tildeIndex, catalogues) {
+  let j = tildeIndex + 1;
+  while (j < text.length && !"\n~<>".includes(text[j])) j++;
+  const body = text.slice(tildeIndex + 1, j);
+  const segs = body.split(":").map((x) => x.trim());
+  const type = normalizeType(segs[0]);
+  if (!type) return null;
+  const rest = segs.slice(1).filter(Boolean);
+  const name = rest[0] || "";
+  if (type === "symptom" || type === "habit") {
+    if (!name) return `~${type} needs a name \u2014 like ~${type}:anxiety:3`;
+    if (!matchSymptom(name, type, catalogues)) return `No ${type} called \u201c${name}\u201d \u2014 it has to match one from your list`;
+  }
+  if (type === "feeling") {
+    if (!name) return "~feeling needs an emotion \u2014 like ~feeling:on edge";
+    return `No feeling matched \u201c${rest[rest.length - 1]}\u201d \u2014 the last part has to be an emotion from the wheel`;
+  }
+  if (type === "company") {
+    if (!name) return "~company needs a contact \u2014 like ~company:emma";
+    if (!matchContact(name, catalogues)) return `No contact called \u201c${name}\u201d`;
+  }
+  if (type === "activity") {
+    if (!name) return "~activity needs an activity \u2014 like ~activity:reading:30m";
+    if (!matchActivity(name, catalogues)) return `No activity called \u201c${name}\u201d \u2014 it has to match one of your activity categories`;
+  }
+  if (type === "journal") return "~journal needs title[\u2026] or body[\u2026] \u2014 like ~journal:body[dear diary]";
+  return `\u201c~${body.slice(0, 30)}\u201d isn\u2019t a complete ~${type} command`;
+}
+
+// Command-LIKE tokens that failed to resolve: a ~ at a word boundary whose
+// first segment IS a known type but that resolveCommandAt rejects. Plain
+// prose tildes (~5 min) are not command-like and never flagged.
+export function findCommandProblems(text, catalogues) {
+  const problems = [];
+  if (!text || !text.includes("~")) return problems;
+  const resolved = parseLogCommands(text, catalogues);
+  let i = 0;
+  while (i < text.length) {
+    if (text[i] === "~") {
+      const inResolved = resolved.some((r) => i >= r.start && i < r.end);
+      const prev = i > 0 ? text[i - 1] : "";
+      const boundary = i === 0 || /\s/.test(prev) || prev === ">";
+      if (!inResolved && boundary) {
+        const reason = explainFailure(text, i, catalogues);
+        if (reason) problems.push({ index: i, reason });
+      }
+    }
+    i += 1;
+  }
+  return problems;
+}
+
 // Every resolvable, non-overlapping command in `text`, left to right.
 export function parseLogCommands(text, catalogues) {
   const out = [];
@@ -707,6 +761,16 @@ function passthrough(seg, isRich) {
 export async function applyLogCommands(content, { isRich = true, chips = true } = {}) {
   if (!content || typeof content !== "string" || !content.includes("~")) return { content, logged: [] };
   const catalogues = await fetchCatalogues();
+  // A broken command BLOCKS the save with a fixable message (owner rule) —
+  // nothing is logged and nothing is sent, so the text stays editable.
+  // Only command-LIKE tokens block; a plain prose "~" never does.
+  const problems = findCommandProblems(content, catalogues);
+  if (problems.length) {
+    const err = new Error(problems[0].reason + (problems.length > 1 ? ` (+${problems.length - 1} more)` : ""));
+    err.name = "LogCommandFormatError";
+    err.problems = problems;
+    throw err;
+  }
   const matches = parseLogCommands(content, catalogues);
   if (!matches.length) return { content, logged: [] };
 

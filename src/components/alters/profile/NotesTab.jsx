@@ -1,3 +1,4 @@
+import { toast } from "sonner";
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
@@ -51,7 +52,9 @@ export default function NotesTab({ alterId }) {
 
   const createNote = async () => {
     if (!newContent.trim()) return;
-    const lc = await applyLogCommands(newContent.trim(), { isRich: false });
+    let lc;
+    try { lc = await applyLogCommands(newContent.trim(), { isRich: false }); }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return; // user backed out of the whole-blur warning
     setSaving(true);
@@ -65,7 +68,9 @@ export default function NotesTab({ alterId }) {
 
   const saveEdit = async () => {
     if (!editContent.trim()) return;
-    const lc = await applyLogCommands(editContent.trim(), { isRich: false });
+    let lc;
+    try { lc = await applyLogCommands(editContent.trim(), { isRich: false }); }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     const w = applyWhisper(lc.content, alters, { allowWholeBlur: false, rich: lc.logged.length > 0, surfaceLabel: `${t.alter} note` });
     if (w === null) return;
     setSaving(true);

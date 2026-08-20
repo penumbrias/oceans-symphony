@@ -523,6 +523,10 @@ function StatusWidget() {
       await base44.entities.StatusNote.create({ timestamp: new Date().toISOString(), note });
       qc.invalidateQueries({ queryKey: ["statusNotes"] });
       setDraft("");
+    } catch (e) {
+      // A malformed ~command blocks the save with a fixable message — the
+      // draft stays in the box.
+      toast.error(e?.message || "Couldn't save");
     } finally { setSaving(false); }
   };
 

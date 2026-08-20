@@ -172,7 +172,9 @@ function CommentInput({ bulletinId, parentCommentId, alters, frontingAlterIds, o
     if (!text.trim()) return;
     setSaving(true);
     // Execute any inline ~commands first — each becomes a chip in the comment.
-    const textWithChips = (await applyLogCommands(text, { isRich: true })).content;
+    let textWithChips;
+    try { textWithChips = (await applyLogCommands(text, { isRich: true })).content; }
+    catch (e) { if (e?.name === "LogCommandFormatError") { toast.error(e.message); return; } throw e; }
     // Strip signposts from the ORIGINAL text first so whisper wrapping can't be
     // mangled by signpost stripping. Authorship is computed from the shared fold
     // below (same rule as the preview chips).
