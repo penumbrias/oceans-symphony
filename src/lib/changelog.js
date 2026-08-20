@@ -20,6 +20,7 @@ export const CHANGELOG = [
   {
     date: "August 18, 2026",
     changes: [
+      { type: "fix", text: "Dragging a widget no longer shoots it to the top of the screen — grabbing one near the top edge used to start auto-scrolling by itself and threw the position off." },
       { type: "fix", text: "The page behind Display options / Home screen settings / widget options scrolls and taps normally while the sheet is open — it was silently frozen." },
       { type: "improve", text: "Planner: tap a {{fronting}} lane to see who it is — {{alter}}, times, and shortcuts to their profile and {{front}} history." },
       { type: "fix", text: "Moving a widget past the screen edge works now — the page keeps scrolling and the widget travels with it instead of getting stuck." },

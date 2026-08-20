@@ -90,14 +90,9 @@ export function useFreeMove({
       const colPitch = (rect.width + gap) / gridCols;
       const rowPitch = rowHeight + gap;
       const cols = Math.min(span.cols || 1, gridCols);
-      if (st.grabOff === undefined) {
-        st.grabOff = {
-          x: (startX - rect.left) / colPitch - pos.x,
-          y: (startY - rect.top) / rowPitch - pos.y,
-        };
-      }
-      const x = Math.max(0, Math.min(gridCols - cols, Math.round((clientX - rect.left) / colPitch - st.grabOff.x)));
-      const y = Math.max(0, Math.round((clientY - rect.top) / rowPitch - st.grabOff.y));
+      const off = st.grabOff || { x: 0, y: 0 };
+      const x = Math.max(0, Math.min(gridCols - cols, Math.round((clientX - rect.left) / colPitch - off.x)));
+      const y = Math.max(0, Math.round((clientY - rect.top) / rowPitch - off.y));
       // The ghost follows the FINGER on screen: since the element rides the
       // grid, scrolled distance has to be added back to the visual offset.
       const scrolled = st.scroller ? st.scroller.scrollTop - st.scrollBase : 0;
@@ -155,6 +150,23 @@ export function useFreeMove({
       if (!st) return;
       st.active = true;
       st.pointerY = startY;
+      // Grab offset is fixed at LIFT, against the grid as it is right now.
+      // Computing it lazily on the first move meant that if auto-scroll ran
+      // first (lifting near an edge), the offset was taken against an
+      // already-scrolled grid — and the widget rocketed to the top.
+      {
+        const rect0 = gridRef.current?.getBoundingClientRect();
+        if (rect0) {
+          const colPitch0 = (rect0.width + gap) / gridCols;
+          st.grabOff = {
+            x: (startX - rect0.left) / colPitch0 - pos.x,
+            y: (startY - rect0.top) / (rowHeight + gap) - pos.y,
+          };
+        } else {
+          st.grabOff = { x: 0, y: 0 };
+        }
+      }
+
       try { node.setPointerCapture?.(e.pointerId); } catch { /* not supported */ }
       try { navigator.vibrate?.(10); } catch { /* no haptics */ }
       setDrag({ dx: 0, dy: 0, target: { x: pos.x, y: pos.y }, overTrash: false });
@@ -170,7 +182,10 @@ export function useFreeMove({
       const step = () => {
         const cur = state.current;
         if (!cur || !cur.active) return;
-        const y = cur.pointerY;
+        // Only once the finger has genuinely moved — lifting a widget that
+        // happens to sit in the edge zone must not start scrolling on its
+        // own.
+        const y = cur.point ? cur.point.y : null;
         if (typeof y === "number") {
           const top = scroller === document.scrollingElement ? 0 : scroller.getBoundingClientRect().top;
           const bottom = scroller === document.scrollingElement
