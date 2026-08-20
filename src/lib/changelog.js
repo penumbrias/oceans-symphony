@@ -18,7 +18,14 @@
 
 export const CHANGELOG = [
   {
+    date: "August 20, 2026",
+    changes: [
+      { type: "fix", text: "Active company (~company:name:active) now shows in the Active-now popup as \"with \u2026\", with a stop button to end it; the row opens their contact page." },
+    ],
+  },
+  {
     date: "August 19, 2026",
+    version: "0.200.4",
     changes: [
       { type: "improve", text: "A mistyped ~command now blocks the save with a message saying what to fix (\"No activity called \u2026\"), instead of quietly sending it as plain text. A plain ~ in prose is left alone." },
       { type: "improve", text: "~activity times work without the start keyword too: ~activity:sing:1630:30m or :1630:1730 — a 4-digit military time reads as the start." },

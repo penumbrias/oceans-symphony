@@ -11,7 +11,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
-import { Activity as ActivityIcon, Moon, Zap, X, Timer } from "lucide-react";
+import { Activity as ActivityIcon, Moon, Zap, X, Timer, Users, Square } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useCurrentFocus } from "@/lib/currentFocus";
 import { useT } from "@/lib/i18n";
@@ -20,7 +20,7 @@ import { barLookStyle } from "@/lib/widgetLook";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
 import { getActiveActivities } from "@/lib/activitySession";
 
-const TYPE_ICON = { activity: Zap, sleep: Moon, symptom: ActivityIcon };
+const TYPE_ICON = { activity: Zap, sleep: Moon, symptom: ActivityIcon, company: Users };
 
 export function useActiveNow() {
   const { items } = useCurrentFocus();
@@ -32,7 +32,7 @@ export function useActiveNow() {
     window.addEventListener("active-activity-changed", on);
     return () => window.removeEventListener("active-activity-changed", on);
   }, []);
-  return items.filter((i) => i.type === "activity" || i.type === "sleep" || i.type === "symptom");
+  return items.filter((i) => i.type === "activity" || i.type === "sleep" || i.type === "symptom" || i.type === "company");
 }
 
 // Anchored popover (portaled, viewport-clamped) listing what's active.
@@ -79,19 +79,32 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
       {items.map((it, i) => {
         const Icon = TYPE_ICON[it.type] || Timer;
         return (
-          <button key={`${it.type}-${i}`} type="button"
-            onClick={() => {
-              // A running activity opens its end/edit menu right here.
-              if (it.type === "activity") {
-                const act = getActiveActivities().find((a) => a.id === it.id) || getActiveActivities()[0];
-                if (act) { setActivityMenu(act); return; }
-              }
-              onClose?.(); navigate(it.path);
-            }}
-            className="w-full flex items-center gap-2 px-2 py-2 rounded-lg text-left text-sm hover:bg-muted/40">
-            <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--v2-accent)" }} />
-            <span className="truncate flex-1">{it.label}</span>
-          </button>
+          <div key={`${it.type}-${i}`} className="w-full flex items-center rounded-lg hover:bg-muted/40">
+            <button type="button"
+              onClick={() => {
+                // A running activity opens its end/edit menu right here.
+                if (it.type === "activity") {
+                  const act = getActiveActivities().find((a) => a.id === it.id) || getActiveActivities()[0];
+                  if (act) { setActivityMenu(act); return; }
+                }
+                onClose?.(); navigate(it.path);
+              }}
+              className="flex-1 min-w-0 flex items-center gap-2 px-2 py-2 text-left text-sm">
+              <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--v2-accent)" }} />
+              <span className="truncate flex-1">{it.label}</span>
+            </button>
+            {it.type === "company" && (
+              <button type="button" aria-label={`End \u2014 ${it.label}`} title={`End \u2014 ${it.label}`}
+                onClick={async () => {
+                  const { endEncounter } = await import("@/lib/contactEncounters");
+                  await endEncounter(it.id, new Date().toISOString());
+                  try { window.dispatchEvent(new Event("symphony-encounters-changed")); } catch { /* SSR */ }
+                }}
+                className="p-2 mr-1 text-muted-foreground hover:text-foreground flex-shrink-0">
+                <Square className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         );
       })}
       {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => { setActivityMenu(null); onClose?.(); }} />}

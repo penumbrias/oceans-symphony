@@ -684,8 +684,16 @@ async function executePlan(plan, ctx) {
       const r = await base44.entities.EmotionCheckIn.create({ timestamp: now, emotions: [plan.label], fronting_alter_ids: ctx.fronting_alter_ids });
       return r?.id || null;
     }
-    case "companyStart": { const r = await startEncounter(plan.contact_id); return r?.id || null; }
-    case "companyEnd": { const r = await endEncounterForContact(plan.contact_id); return r?.id || null; }
+    case "companyStart": {
+      const r = await startEncounter(plan.contact_id);
+      try { window.dispatchEvent(new Event("symphony-encounters-changed")); } catch { /* SSR */ }
+      return r?.id || null;
+    }
+    case "companyEnd": {
+      const r = await endEncounterForContact(plan.contact_id);
+      try { window.dispatchEvent(new Event("symphony-encounters-changed")); } catch { /* SSR */ }
+      return r?.id || null;
+    }
     case "companyVisit": { const r = await logVisit(plan.contact_id); return r?.id || null; }
     case "activityStart": {
       const item = addActiveActivity({ categoryId: plan.categoryId, name: plan.name, color: plan.color || null, startTime: plan.startIso || now, alterIds: ctx.fronting_alter_ids, notes: plan.note || "" });

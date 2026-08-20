@@ -8,16 +8,26 @@
 // ["sleep"], ["statusNotes"]) so no extra fetch pressure, plus the
 // localStorage-backed activity-session store.
 
-import { useQuery } from "@tanstack/react-query";
+import { useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { useAlterLabel } from "@/lib/useAlterLabel";
 import { useTerms } from "@/lib/useTerms";
 import { getActiveActivities } from "@/lib/activitySession";
+import { contactDisplayName } from "@/lib/contacts";
 
-// Items: [{ type: "fronting"|"activity"|"sleep"|"symptom"|"status", label, path }]
+// Items: [{ type: "fronting"|"activity"|"sleep"|"symptom"|"company"|"status", label, path }]
 export function useCurrentFocus() {
   const terms = useTerms();
   const formatAlter = useAlterLabel();
+  const qc = useQueryClient();
+  // ~company commands write encounters outside react-query — they announce
+  // themselves so the "active now" surfaces refresh immediately.
+  useEffect(() => {
+    const on = () => qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
+    window.addEventListener("symphony-encounters-changed", on);
+    return () => window.removeEventListener("symphony-encounters-changed", on);
+  }, [qc]);
 
   const { data: activeSessions = [] } = useQuery({
     queryKey: ["activeFront"],
@@ -44,6 +54,15 @@ export function useCurrentFocus() {
     queryKey: ["statusNotes"],
     queryFn: () => base44.entities.StatusNote.list(),
   });
+  const { data: activeEncounters = [] } = useQuery({
+    queryKey: ["contactEncounters", "active"],
+    queryFn: () => base44.entities.ContactEncounter.filter({ is_active: true }),
+    refetchInterval: 60000,
+  });
+  const { data: contacts = [] } = useQuery({
+    queryKey: ["contacts"],
+    queryFn: () => base44.entities.Contact.list(),
+  });
 
   const items = [];
 
@@ -64,6 +83,18 @@ export function useCurrentFocus() {
   // Running activity timers (localStorage store, same as CurrentActivities).
   for (const act of getActiveActivities()) {
     items.push({ type: "activity", id: act.id, label: act.name || act.activity_name || "Activity in progress", path: "/activities" });
+  }
+
+  // Active company — "I'm with X" sessions (~company:X:active or the
+  // contact page's own button). Ends from the Active-now popup.
+  const contactById = Object.fromEntries(contacts.map((ct) => [ct.id, ct]));
+  for (const enc of activeEncounters) {
+    const ct = contactById[enc.contact_id];
+    items.push({
+      type: "company", id: enc.id, contactId: enc.contact_id,
+      label: `with ${ct ? contactDisplayName(ct) : "someone"}`,
+      path: `/contacts/${enc.contact_id}`,
+    });
   }
 
   // In-progress sleep (bedtime set, not woken).
