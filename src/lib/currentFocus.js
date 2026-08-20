@@ -106,7 +106,12 @@ export function useCurrentFocus() {
   for (const sess of symptomSessions) {
     const sym = symptomsById[sess.symptom_id];
     if (sym && !sym.is_archived) {
-      items.push({ type: "symptom", label: sym.name, path: "/system-checkin" });
+      // Symptom entities carry `label` (defaults catalogue); `name` was a
+      // ghost field — rows rendered blank and read as misdetections.
+      // The session + symptom ride along so the Active-now popup can open
+      // the SAME action menu the classic pills use (adjust / end) instead
+      // of dumping the user on a page.
+      items.push({ type: "symptom", id: sess.id, label: sym.label || sym.name || "Symptom", path: "/system-checkin", session: sess, symptom: sym });
     }
   }
 

@@ -18,6 +18,7 @@ import { useT } from "@/lib/i18n";
 import { EdgeDock } from "@/components/v2/EdgeDock";
 import { barLookStyle } from "@/lib/widgetLook";
 import { ActivityActionMenu } from "@/components/activities/CurrentActivities";
+import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { getActiveActivities } from "@/lib/activitySession";
 
 const TYPE_ICON = { activity: Zap, sleep: Moon, symptom: ActivityIcon, company: Users };
@@ -43,6 +44,7 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
   const [pos, setPos] = useState({ top: 0, left: 0 });
   const popRef = useRef(null);
   const [activityMenu, setActivityMenu] = useState(null);
+  const [symptomMenu, setSymptomMenu] = useState(null); // { sess, symptom }
   useEffect(() => {
     if (!open) return undefined;
     const place = () => {
@@ -70,7 +72,10 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
   return createPortal(
     <div ref={popRef} role="dialog" aria-label={tr("active.title")}
       className="fixed z-[95] w-[260px] rounded-xl border border-border/60 bg-card shadow-xl p-2"
-      style={{ top: pos.top, left: pos.left }}>
+      // While an action menu (activity / symptom) is up, the little panel
+      // hides so it can't float over the menu — visibility (not display)
+      // so the menu, a descendant, can reset it and stay shown.
+      style={{ top: pos.top, left: pos.left, visibility: activityMenu || symptomMenu ? "hidden" : "visible" }}>
       <div className="flex items-center justify-between px-1 pb-1">
         <span className="text-[0.6875rem] font-semibold uppercase tracking-wider text-muted-foreground">{tr("active.title")}</span>
         <button type="button" onClick={onClose} aria-label="Close" className="p-1 text-muted-foreground hover:text-foreground"><X className="w-3.5 h-3.5" /></button>
@@ -86,6 +91,13 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
                 if (it.type === "activity") {
                   const act = getActiveActivities().find((a) => a.id === it.id) || getActiveActivities()[0];
                   if (act) { setActivityMenu(act); return; }
+                }
+                // An active symptom opens the classic pill menu (adjust
+                // severity / end) — tapping used to dump the user on the
+                // check-in page (owner report).
+                if (it.type === "symptom" && it.session && it.symptom) {
+                  setSymptomMenu({ sess: it.session, symptom: it.symptom });
+                  return;
                 }
                 onClose?.(); navigate(it.path);
               }}
@@ -107,7 +119,10 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
           </div>
         );
       })}
-      {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => { setActivityMenu(null); onClose?.(); }} />}
+      <div style={{ visibility: "visible" }}>
+        {activityMenu && <ActivityActionMenu activity={activityMenu} onClose={() => { setActivityMenu(null); onClose?.(); }} />}
+        {symptomMenu && <SymptomActionMenu sess={symptomMenu.sess} symptom={symptomMenu.symptom} onClose={() => { setSymptomMenu(null); onClose?.(); }} />}
+      </div>
     </div>,
     document.body
   );
