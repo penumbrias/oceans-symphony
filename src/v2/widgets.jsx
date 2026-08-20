@@ -1402,7 +1402,7 @@ function NotebookWidget({ settings, updateSettings, instanceId }) {
       {settings?.rich ? (
         <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
           <React.Suspense fallback={<Muted>…</Muted>}>
-            <WysiwygEditorLazy value={text} onChange={setText} placeholder={tr("widget.notebook.placeholder")} />
+            <WysiwygEditorLazy value={text} onChange={setText} placeholder={tr("widget.notebook.placeholder")} floatingToolbar />
           </React.Suspense>
         </div>
       ) : (

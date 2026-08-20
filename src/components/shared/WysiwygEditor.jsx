@@ -1,3 +1,4 @@
+import { createPortal } from "react-dom";
 import React, { useRef, useEffect, useCallback, useState } from "react";
 import { ImagePlus, Loader2, Images } from "lucide-react";
 import { toast } from "sonner";
@@ -22,7 +23,11 @@ function fileToDataUrl(file) {
 // the "?" help legend, censor bar, internal-link picker, template-field
 // pencil) instead of a separate bespoke toolbar. Image/GIF + asset inserts
 // sit in their own row above it, mirroring the chat composer.
-export default function WysiwygEditor({ value = "", onChange, placeholder = "Write here..." }) {
+export default function WysiwygEditor({ value = "", onChange, placeholder = "Write here...", floatingToolbar = false }) {
+  // floatingToolbar: the formatting rows leave the editor's own box and
+  // dock in a fixed bar just above the on-screen keyboard while the
+  // editor is focused — for hosts where inline rows eat the space (the
+  // notebook widget). visualViewport tracks the keyboard height.
   const editorRef = useRef(null);
   const lastHtml = useRef(value);
   const imageInputRef = useRef(null);
@@ -123,6 +128,21 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
     }
   };
 
+  // Floating mode: visible while the editable has focus; pointerdown on the
+  // bar preventDefaults so tapping a style never blurs the editor.
+  const [focused, setFocused] = useState(false);
+  const [kbBottom, setKbBottom] = useState(0);
+  useEffect(() => {
+    if (!floatingToolbar) return undefined;
+    const vv = window.visualViewport;
+    if (!vv) return undefined;
+    const on = () => setKbBottom(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    vv.addEventListener("resize", on);
+    vv.addEventListener("scroll", on);
+    on();
+    return () => { vv.removeEventListener("resize", on); vv.removeEventListener("scroll", on); };
+  }, [floatingToolbar]);
+
   return (
     <div className="rounded-xl border border-input bg-background overflow-hidden">
       {/* Scoped copy of the bio's own <style> — applies only inside the editor,
@@ -135,29 +155,54 @@ export default function WysiwygEditor({ value = "", onChange, placeholder = "Wri
         suppressContentEditableWarning
         onInput={emit}
         onKeyDown={handleKeyDown}
+        onFocus={() => setFocused(true)}
+        onBlur={() => setTimeout(() => {
+          // Delayed: a tap on the floating bar preventDefaults, so focus
+          // never actually leaves — this only fires on a real blur.
+          if (document.activeElement !== editorRef.current) setFocused(false);
+        }, 120)}
         data-placeholder={placeholder}
         className="wysiwyg-content bio-scope-wysiwyg-live min-h-[200px] px-3 py-2.5 text-sm focus:outline-none prose prose-sm dark:prose-invert max-w-none leading-relaxed"
       />
 
-      {/* Image / GIF + asset row (mirrors the chat composer) */}
-      <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10 border-t border-border/40">
-        <button type="button" title="Insert image / GIF" disabled={uploadingImage}
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => imageInputRef.current?.click()}
-          className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
-          {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
-        </button>
-        <button type="button" title="Insert from assets"
-          onMouseDown={(e) => e.preventDefault()}
-          onClick={() => setShowAssetPicker(true)}
-          className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0">
-          <Images className="w-4 h-4" />
-        </button>
-        <span className="text-[0.625rem] text-muted-foreground/70 ml-1 truncate">Select text, then tap a style</span>
-      </div>
-
-      {/* Shared formatting toolbar (same as system chat) */}
-      <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField />
+      {/* Image / GIF + asset row + the shared formatting toolbar. Inline by
+          default; in floating mode they dock above the keyboard instead. */}
+      {(() => {
+        const rows = (
+          <>
+            <div className="flex items-center gap-1 px-1.5 py-1 bg-muted/10 border-t border-border/40">
+              <button type="button" title="Insert image / GIF" disabled={uploadingImage}
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => imageInputRef.current?.click()}
+                className="h-6 px-1.5 flex items-center gap-1 rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 transition-colors text-xs font-medium flex-shrink-0 disabled:opacity-50">
+                {uploadingImage ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ImagePlus className="w-3.5 h-3.5" />} Image / GIF
+              </button>
+              <button type="button" title="Insert from assets"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setShowAssetPicker(true)}
+                className="h-6 w-7 flex items-center justify-center rounded text-muted-foreground hover:text-foreground hover:bg-muted/60 flex-shrink-0">
+                <Images className="w-4 h-4" />
+              </button>
+            </div>
+            <MiniToolbar onInsert={insertHTML} onCommand={(cmd, val) => execCmd(cmd, val)} templateField />
+          </>
+        );
+        if (!floatingToolbar) return rows;
+        if (!focused) return null;
+        return createPortal(
+          <div
+            className="fixed left-0 right-0 z-[130] bg-card border-t border-border/60 shadow-[0_-4px_16px_rgb(0_0_0/0.25)]"
+            style={{ bottom: kbBottom }}
+            // Keep the editor focused (and the selection alive) while
+            // tapping anything on the bar.
+            onPointerDown={(e) => e.preventDefault()}
+            onMouseDown={(e) => e.preventDefault()}
+          >
+            {rows}
+          </div>,
+          document.body
+        );
+      })()}
 
       <input ref={imageInputRef} type="file" accept="image/*" hidden onChange={handleImageFile} />
 
