@@ -29,7 +29,9 @@
 //
 // Activity extras (any order, each its own :segment, after the name):
 //   duration   45 / 45m / 1h / 1h30m — logs that many minutes ENDING now
-//   note=…     free-text note (n=… works too; runs to the end of the segment)
+//   note=…     free-text note (n=… works too; runs to the end of the segment).
+//              Wrap it in quotes to include colons or to bound it against
+//              following prose: note="tea: chamomile" worked wonders
 //   urgent     marks it urgent (critical ⚡) — also: critical / important
 //
 // Examples:
@@ -362,6 +364,16 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
     for (let k = 1; k < rest.length; k++) {
       const segX = rest[k];
       const isLastUnbounded = !bounded && k === rest.length - 1;
+      // Quoted note first — scanned against the RAW text so it can span
+      // colons and stops exactly at the closing quote (prose after it
+      // stays prose). Straight or curly quotes.
+      const qm = /^\s*(?:note|n)=\s*["'\u201c\u201e]([\s\S]*?)["'\u201d]/.exec(text.slice(segX.absStart));
+      if (qm) {
+        note = qm[1].trim() || null;
+        consumedEnd = segX.absStart + qm[0].length;
+        while (k + 1 < rest.length && rest[k + 1].absStart < consumedEnd) k++;
+        continue;
+      }
       const nm = NOTE_RE.exec(segX.text);
       if (nm) { note = nm[1].trim() || null; consumedEnd = segX.absEnd; continue; }
       const d = parseDurationLead(segX.text);
