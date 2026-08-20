@@ -366,13 +366,21 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
       const isLastUnbounded = !bounded && k === rest.length - 1;
       // Quoted note first — scanned against the RAW text so it can span
       // colons and stops exactly at the closing quote (prose after it
-      // stays prose). Straight or curly quotes.
-      const qm = /^\s*(?:note|n)=\s*["'\u201c\u201e]([\s\S]*?)["'\u201d]/.exec(text.slice(segX.absStart));
-      if (qm) {
-        note = qm[1].trim() || null;
-        consumedEnd = segX.absStart + qm[0].length;
-        while (k + 1 < rest.length && rest[k + 1].absStart < consumedEnd) k++;
-        continue;
+      // stays prose). The closer must PAIR with the opener — an apostrophe
+      // inside "couldn't" must not close a double quote.
+      const rawFrom = text.slice(segX.absStart);
+      const qOpen = /^\s*(?:note|n)=\s*(["'\u201c\u201e])/.exec(rawFrom);
+      if (qOpen) {
+        const closer = qOpen[1] === '"' ? '"' : qOpen[1] === "'" ? "'" : "\u201d";
+        const bodyStart = qOpen[0].length;
+        const closeIdx = rawFrom.indexOf(closer, bodyStart);
+        if (closeIdx > -1) {
+          note = rawFrom.slice(bodyStart, closeIdx).trim() || null;
+          consumedEnd = segX.absStart + closeIdx + 1;
+          while (k + 1 < rest.length && rest[k + 1].absStart < consumedEnd) k++;
+          continue;
+        }
+        // No closer: fall through — the unquoted form takes the segment.
       }
       const nm = NOTE_RE.exec(segX.text);
       if (nm) { note = nm[1].trim() || null; consumedEnd = segX.absEnd; continue; }
@@ -382,7 +390,11 @@ function resolveCommandAt(text, tildeIndex, catalogues) {
       if (u) { critical = true; consumedEnd = isLastUnbounded ? segX.absStart + u[0].length : segX.absEnd; continue; }
       break;
     }
-    const extras = `${duration ? ` · ${fmtDur(duration)}` : ""}${critical ? " · ⚡" : ""}${note ? " · 📝" : ""}`;
+    // The note rides IN the label (quoted, truncated) — a bare 📝 marker
+    // left the note unreadable everywhere the token renders (check-in log,
+    // status history — owner report).
+    const noteTxt = note ? ` · \u201c${note.length > 60 ? `${note.slice(0, 57)}\u2026` : note}\u201d` : "";
+    const extras = `${duration ? ` · ${fmtDur(duration)}` : ""}${critical ? " · ⚡" : ""}${noteTxt}`;
     if (isActive === true) return finish(consumedEnd, { kind: "activityStart", categoryId: cat.id, name: cat.name, color: cat.color, note, critical }, `${cat.name}${extras} · started`);
     if (isActive === false) return finish(consumedEnd, { kind: "activityEnd", categoryId: cat.id, name: cat.name, note, critical, duration }, `${cat.name}${extras} · ended`);
     return finish(consumedEnd, { kind: "activityLog", categoryId: cat.id, name: cat.name, color: cat.color, note, critical, duration }, `${cat.name}${extras}`);

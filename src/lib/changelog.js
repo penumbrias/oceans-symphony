@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "fix", text: "Notes added with ~activity are readable now — the logged line shows the note text instead of a bare \ud83d\udcdd icon, and an apostrophe inside a quoted note no longer cuts it short." },
+      { type: "improve", text: "Check-In Log: activity pills are colour-coded by their activity colour and show the note." },
       { type: "feature", text: "~activity commands take optional extras in any order: a duration that ends now (~activity:reading:45m), note=… (quotes let it contain colons), and urgent — the autocomplete offers them after the name." },
       { type: "hotfix", text: "Hotfix: the pinned {{alters}} bar no longer overlaps the open quick-actions card." },
       { type: "feature", text: "Every bar — top, bottom, quick actions, sidebar, pinned {{alters}} bar, active bubble — now takes the same styling the widgets get: colours, gradients, borders, shadows, text, spacing. All in Display options, per bar." },

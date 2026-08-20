@@ -204,6 +204,17 @@ function DiaryDataSection({ diaryCard }) {
   );
 }
 
+// Category-coloured activity pill styling; falls back to the primary tint
+// when the activity has no colour anywhere.
+function activityPillStyle(color) {
+  if (!color) return undefined;
+  return { background: `${color}1f`, color, borderColor: `${color}59` };
+}
+function activityPillText(act) {
+  const note = act.notes ? ` \u00b7 \u201c${act.notes.length > 40 ? `${act.notes.slice(0, 37)}\u2026` : act.notes}\u201d` : "";
+  return `${act.activity_name}${act.duration_minutes ? ` \u00b7 ${act.duration_minutes}m` : ""}${note}`;
+}
+
 function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activities, locations, diaryCard, highlighted, onDelete, onEdit, display = DEFAULT_DISPLAY }) {
   const ts = parseISO(checkIn.timestamp);
   const timeStr = format(ts, "h:mm a");
@@ -370,8 +381,9 @@ function CheckInCard({ checkIn, altersById, symptomsById, symptomCheckIns, activ
       {display.activities && myActivities.length > 0 && (
         <div className="flex flex-wrap gap-1">
           {myActivities.map((act, i) => (
-            <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              ⚡ {act.activity_name}{act.duration_minutes ? ` · ${act.duration_minutes}m` : ""}
+            <span key={i} className="flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+              style={activityPillStyle(act._color)}>
+              ⚡ {activityPillText(act)}
             </span>
           ))}
         </div>
@@ -489,7 +501,14 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
     return Object.values(seen);
   }, [symptomCheckIns, display.symptoms]);
 
-  const allActivities = display.activities ? [...new Set(activities.map(a => a.activity_name))] : [];
+  // One rollup chip per name; carries the first entry's colour so the
+  // summary matches the per-entry pills.
+  const allActivities = useMemo(() => {
+    if (!display.activities) return [];
+    const seen = new Map();
+    activities.forEach(a => { if (!seen.has(a.activity_name)) seen.set(a.activity_name, a._color || null); });
+    return [...seen.entries()].map(([name, color]) => ({ name, color }));
+  }, [display.activities, activities]);
 
   // Aggregate diary data across all diary cards for the day
   const diaryAggregate = useMemo(() => {
@@ -589,9 +608,10 @@ function DayTotals({ checkIns, altersById, symptomCheckIns, symptomsById, activi
 
       {allActivities.length > 0 && (
         <div className="flex flex-wrap gap-1">
-          {allActivities.map((name, i) => (
-            <span key={i} className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-              ⚡ {name}
+          {allActivities.map((a, i) => (
+            <span key={i} className="text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+              style={activityPillStyle(a.color)}>
+              ⚡ {a.name}
             </span>
           ))}
         </div>
@@ -890,8 +910,9 @@ function SymptomUpdateEntry({ sc, symptomsById }) {
 function ActivityEntry({ act }) {
   return (
     <StandaloneEntry timestamp={act.timestamp}>
-      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20">
-        ⚡ {act.activity_name}{act.duration_minutes ? ` · ${act.duration_minutes}m` : ""}
+      <span className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary border border-primary/20"
+        style={activityPillStyle(act._color)}>
+        ⚡ {activityPillText(act)}
       </span>
     </StandaloneEntry>
   );
@@ -1381,6 +1402,10 @@ export default function CheckInLog() {
     queryKey: ["activities"],
     queryFn: () => base44.entities.Activity.list("-timestamp", 500),
   });
+  const { data: activityCategories = [] } = useQuery({
+    queryKey: ["activityCategories"],
+    queryFn: () => base44.entities.ActivityCategory.list(),
+  });
   // Hide STILL-SCHEDULED future plans from the Check-In Log — they're
   // upcoming events, not logged history. Plans that have been resolved
   // (done / partial / skipped / cancelled) belong here because they
@@ -1389,13 +1414,16 @@ export default function CheckInLog() {
   // exactly what the log is for.
   const activities = useMemo(() => {
     const now = Date.now();
+    // Pills colour-code by the activity's own colour, else its category's
+    // colour from Activity management (owner ask).
+    const catColor = Object.fromEntries(activityCategories.map(c => [c.id, c.color || null]));
     return rawActivities.filter(a => {
       const status = statusFor(a);
       if (status !== ACTIVITY_STATUSES.SCHEDULED) return true;
       try { return new Date(a.timestamp).getTime() <= now; }
       catch { return true; }
-    });
-  }, [rawActivities]);
+    }).map(a => ({ ...a, _color: a.color || (a.activity_category_ids || []).map(id => catColor[id]).find(Boolean) || null }));
+  }, [rawActivities, activityCategories]);
 
   const { data: diaryCards = [] } = useQuery({
     queryKey: ["diaryCards"],
