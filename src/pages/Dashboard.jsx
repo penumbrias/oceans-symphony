@@ -194,15 +194,20 @@ export default function Dashboard() {
     // The UI-v2 status line's notification LED opens the inbox from any
     // register — the modal is hosted here.
     const openNotif = () => setShowNotifHistory(true);
+    // The v2 cog menu's "Setup guide" — jumps straight to the checklist
+    // step, not the welcome/terms pages (those are for first runs).
+    const openGuide = () => { setTourOpenAt("checklist"); setShowTour(true); };
     window.addEventListener("open-quick-checkin", open);
     window.addEventListener("open-quick-checkin-close", close);
     window.addEventListener("symphony-open-dashboard-layout", openLayout);
     window.addEventListener("open-notification-history", openNotif);
+    window.addEventListener("open-setup-guide", openGuide);
     return () => {
       window.removeEventListener("open-quick-checkin", open);
       window.removeEventListener("open-quick-checkin-close", close);
       window.removeEventListener("symphony-open-dashboard-layout", openLayout);
       window.removeEventListener("open-notification-history", openNotif);
+      window.removeEventListener("open-setup-guide", openGuide);
     };
   }, []);
 
@@ -238,6 +243,9 @@ export default function Dashboard() {
       setShowQuickTask(true);
     } else if (action === "notifications") {
       setShowNotifHistory(true);
+    } else if (action === "setup-guide") {
+      setTourOpenAt("checklist");
+      setShowTour(true);
     }
     // Settings → About → "Re-run setup" replays the guided onboarding
     // (different alters may want to re-do it — it never overwrites data).

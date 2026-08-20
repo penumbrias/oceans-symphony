@@ -1,6 +1,6 @@
 import React from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles } from "lucide-react";
+import { Settings, LayoutGrid, SlidersHorizontal, Users, Activity, Cog, Pencil, Sparkles, ClipboardList } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useTerms } from "@/lib/useTerms";
 import {
@@ -61,6 +61,14 @@ export default function HeaderPageMenu({ className, v2Options = null, label = nu
         ? v2Options.openWhatsNew()
         : navigate("/settings#about-updates")),
     });
+    if (v2Options.openSetupGuide) {
+      pageActions.push({
+        key: "v2-setup-guide",
+        label: "Setup guide",
+        icon: ClipboardList,
+        onSelect: () => v2Options.openSetupGuide(),
+      });
+    }
   }
   if (!v2Options && path === "/") {
     pageActions.push({

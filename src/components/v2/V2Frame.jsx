@@ -472,6 +472,10 @@ export function V2StatusLine({ settingsRow, uiV2 }) {
               ? requestHomeAction(navigate, location.pathname, "home-settings")
               : setOptionsOpen(true)),
             openWhatsNew: () => setWhatsNewOpen(true),
+            openSetupGuide: () => {
+              if (location.pathname === "/") window.dispatchEvent(new CustomEvent("open-setup-guide"));
+              else navigate("/?action=setup-guide");
+            },
           }}
         />
       </div>

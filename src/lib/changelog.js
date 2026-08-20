@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 19, 2026",
     changes: [
+      { type: "fix", text: "Dragging inside a colour picker no longer swipes the home screen to the next page." },
+      { type: "improve", text: "The home screen's cog menu now has a \"Setup guide\" entry alongside What's new — it opens straight to the setup checklist." },
       { type: "fix", text: "The Plans widget matches the classic Coming Up card: recurring and older plans show again, urgent plans keep their \u26a1 pin, and each row shows how soon it starts." },
       { type: "improve", text: "The setup guide's reminders step can now turn on push reminders too, so notification setup happens in one place during onboarding." },
     ],

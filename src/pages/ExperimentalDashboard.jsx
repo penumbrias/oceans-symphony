@@ -1138,6 +1138,11 @@ export default function ExperimentalDashboard({
       // not at all: a sideways move cancels their hold and reads as a
       // page swipe, which is exactly right.
       if (t.closest?.("[data-day-key], input, textarea, select, [contenteditable='true']")) return true;
+      // Portaled overlays float OVER the board, so the coordinate bounds
+      // check passes even though the touch belongs to them — dragging the
+      // colour-picker's saturation square was flipping home pages. Any
+      // press inside a floating layer keeps its gesture.
+      if (t.closest?.("[data-color-picker-popover], .react-colorful, [role='dialog'], [data-radix-popper-content-wrapper], [data-vaul-drawer], [data-sonner-toast]")) return true;
       const el = surface();
       let n = t;
       while (n && n !== el && n !== document.body) {
