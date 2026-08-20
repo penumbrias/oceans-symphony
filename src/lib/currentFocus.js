@@ -24,9 +24,14 @@ export function useCurrentFocus() {
   // ~company commands write encounters outside react-query — they announce
   // themselves so the "active now" surfaces refresh immediately.
   useEffect(() => {
-    const on = () => qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
-    window.addEventListener("symphony-encounters-changed", on);
-    return () => window.removeEventListener("symphony-encounters-changed", on);
+    const onEnc = () => qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
+    const onSym = () => qc.invalidateQueries({ queryKey: ["symptomSessions", "active"] });
+    window.addEventListener("symphony-encounters-changed", onEnc);
+    window.addEventListener("symphony-symptoms-changed", onSym);
+    return () => {
+      window.removeEventListener("symphony-encounters-changed", onEnc);
+      window.removeEventListener("symphony-symptoms-changed", onSym);
+    };
   }, [qc]);
 
   const { data: activeSessions = [] } = useQuery({
@@ -82,7 +87,7 @@ export function useCurrentFocus() {
 
   // Running activity timers (localStorage store, same as CurrentActivities).
   for (const act of getActiveActivities()) {
-    items.push({ type: "activity", id: act.id, label: act.name || act.activity_name || "Activity in progress", path: "/activities" });
+    items.push({ type: "activity", id: act.id, label: act.name || act.activity_name || "Activity in progress", path: "/activities", since: act.startTime || null });
   }
 
   // Active company — "I'm with X" sessions (~company:X:active or the
@@ -94,12 +99,13 @@ export function useCurrentFocus() {
       type: "company", id: enc.id, contactId: enc.contact_id,
       label: `with ${ct ? contactDisplayName(ct) : "someone"}`,
       path: `/contacts/${enc.contact_id}`,
+      since: enc.start_time || null,
     });
   }
 
   // In-progress sleep (bedtime set, not woken).
   const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time);
-  if (activeSleep) items.push({ type: "sleep", label: "Sleeping", path: "/sleep" });
+  if (activeSleep) items.push({ type: "sleep", label: "Sleeping", path: "/sleep", since: activeSleep.bedtime || null });
 
   // Active symptom sessions.
   const symptomsById = Object.fromEntries(symptoms.map((s) => [s.id, s]));
@@ -111,7 +117,7 @@ export function useCurrentFocus() {
       // The session + symptom ride along so the Active-now popup can open
       // the SAME action menu the classic pills use (adjust / end) instead
       // of dumping the user on a page.
-      items.push({ type: "symptom", id: sess.id, label: sym.label || sym.name || "Symptom", path: "/system-checkin", session: sess, symptom: sym });
+      items.push({ type: "symptom", id: sess.id, label: sym.label || sym.name || "Symptom", path: "/system-checkin", session: sess, symptom: sym, since: sess.start_time || null });
     }
   }
 

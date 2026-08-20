@@ -22,6 +22,12 @@ import { SymptomActionMenu } from "@/components/symptoms/CurrentSymptoms";
 import { getActiveActivities } from "@/lib/activitySession";
 
 const TYPE_ICON = { activity: Zap, sleep: Moon, symptom: ActivityIcon, company: Users };
+const fmtElapsed = (start) => {
+  const mins = Math.max(0, Math.round((Date.now() - new Date(start).getTime()) / 60000));
+  if (mins < 60) return `${mins}m`;
+  const h = Math.floor(mins / 60), m = mins % 60;
+  return m ? `${h}h ${m}m` : `${h}h`;
+};
 
 export function useActiveNow() {
   const { items } = useCurrentFocus();
@@ -31,7 +37,9 @@ export function useActiveNow() {
   useEffect(() => {
     const on = () => bump((n) => n + 1);
     window.addEventListener("active-activity-changed", on);
-    return () => window.removeEventListener("active-activity-changed", on);
+    // Elapsed labels tick over without any data changing.
+    const t = setInterval(on, 60000);
+    return () => { window.removeEventListener("active-activity-changed", on); clearInterval(t); };
   }, []);
   return items.filter((i) => i.type === "activity" || i.type === "sleep" || i.type === "symptom" || i.type === "company");
 }
@@ -89,7 +97,9 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
               onClick={() => {
                 // A running activity opens its end/edit menu right here.
                 if (it.type === "activity") {
-                  const act = getActiveActivities().find((a) => a.id === it.id) || getActiveActivities()[0];
+                  // Exact match only — the old [0] fallback could open the
+                  // WRONG activity's end menu.
+                  const act = getActiveActivities().find((a) => a.id === it.id);
                   if (act) { setActivityMenu(act); return; }
                 }
                 // An active symptom opens the classic pill menu (adjust
@@ -104,6 +114,7 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
               className="flex-1 min-w-0 flex items-center gap-2 px-2 py-2 text-left text-sm">
               <Icon className="w-4 h-4 flex-shrink-0" style={{ color: "var(--v2-accent)" }} />
               <span className="truncate flex-1">{it.label}</span>
+              {it.since && <span className="text-[0.6875rem] tabular-nums text-muted-foreground flex-shrink-0">{fmtElapsed(it.since)}</span>}
             </button>
             {it.type === "company" && (
               <button type="button" aria-label={`End \u2014 ${it.label}`} title={`End \u2014 ${it.label}`}

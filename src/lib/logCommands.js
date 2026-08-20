@@ -672,12 +672,17 @@ async function executePlan(plan, ctx) {
         symptom_id: plan.symptom_id, start_time: now, is_active: true,
         severity_snapshots: plan.severity != null ? [{ severity: plan.severity, timestamp: now }] : [],
       });
+      try { window.dispatchEvent(new Event("symphony-symptoms-changed")); } catch { /* SSR */ }
       return r?.id || null;
     }
     case "symptomSessionEnd": {
       const active = await base44.entities.SymptomSession.filter({ is_active: true });
       const s = (active || []).find((x) => x.symptom_id === plan.symptom_id);
-      if (s) { await base44.entities.SymptomSession.update(s.id, { is_active: false, end_time: now }); return s.id; }
+      if (s) {
+        await base44.entities.SymptomSession.update(s.id, { is_active: false, end_time: now });
+        try { window.dispatchEvent(new Event("symphony-symptoms-changed")); } catch { /* SSR */ }
+        return s.id;
+      }
       return null;
     }
     case "emotion": {

@@ -63,6 +63,7 @@ import { sheetPortalGuards } from "@/lib/sheetPortalGuards";
 import useAnonymizeMode, { anonymizeBlurNames, anonymizeBlurAvatars } from "@/hooks/useAnonymizeMode";
 import { getMemberAlters } from "@/lib/subsystemUtils";
 import { endSymptomSessions } from "@/lib/symptomSessions";
+import { contactDisplayName } from "@/lib/contacts";
 import ProfileSongPlayer from "@/components/alters/ProfileSongPlayer";
 import SleepEndModal from "@/components/sleep/SleepEndModal";
 import UpcomingPlans from "@/components/dashboard/UpcomingPlans";
@@ -321,9 +322,27 @@ function ActiveWidget({ api }) {
   const symptoms = useList("symptoms", "Symptom");
   const sleeps = useList("sleep", "Sleep");
   const activities = getActiveActivities();
+  const encounters = useQuery({
+    queryKey: ["contactEncounters", "active"],
+    queryFn: () => base44.entities.ContactEncounter.filter({ is_active: true }),
+  }).data || [];
+  const contacts = useList("contacts", "Contact");
+  // ~commands write outside react-query; their announcements keep this
+  // widget honest without waiting for a refetch interval.
+  React.useEffect(() => {
+    const onSym = () => qc.invalidateQueries({ queryKey: ["symptomSessions", "active"] });
+    const onEnc = () => qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
+    window.addEventListener("symphony-symptoms-changed", onSym);
+    window.addEventListener("symphony-encounters-changed", onEnc);
+    return () => {
+      window.removeEventListener("symphony-symptoms-changed", onSym);
+      window.removeEventListener("symphony-encounters-changed", onEnc);
+    };
+  }, [qc]);
   const symById = React.useMemo(() => Object.fromEntries(symptoms.map((s) => [s.id, s])), [symptoms]);
+  const contactById = React.useMemo(() => Object.fromEntries(contacts.map((c) => [c.id, c])), [contacts]);
   const activeSleep = sleeps.find((s) => s.bedtime && !s.wake_time);
-  const nothing = activities.length === 0 && symptomSessions.length === 0 && !activeSleep;
+  const nothing = activities.length === 0 && symptomSessions.length === 0 && !activeSleep && encounters.length === 0;
 
   return (
     <Section label={tr("widget.active.label")}>
@@ -359,6 +378,29 @@ function ActiveWidget({ api }) {
               </button>
             }
             onClick={() => setSymptomMenu({ sess: s, symptom: { ...def, label: def.label || def.name } })} />
+        );
+      })}
+      {encounters.map((enc) => {
+        const ct = contactById[enc.contact_id];
+        return (
+          <Row key={enc.id} left={<Dot color="#34d399" />}
+            primary={`with ${ct ? contactDisplayName(ct) : "someone"}`}
+            secondary={enc.start_time ? fmtElapsed(enc.start_time) : undefined}
+            right={
+              <button type="button"
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  const { endEncounter } = await import("@/lib/contactEncounters");
+                  await endEncounter(enc.id, new Date().toISOString());
+                  qc.invalidateQueries({ queryKey: ["contactEncounters", "active"] });
+                  try { window.dispatchEvent(new Event("symphony-encounters-changed")); } catch { /* SSR */ }
+                }}
+                className="text-[0.625em] px-1.5 py-0.5 border border-border/60 hover:border-primary/60"
+                style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+                {tr("widget.active.end")}
+              </button>
+            }
+            onClick={() => navigate(`/contacts/${enc.contact_id}`)} />
         );
       })}
       {activeSleep && (
