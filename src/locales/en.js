@@ -288,6 +288,7 @@ export default {
   "planner.sunday": "Sunday",
   "planner.rowHeight": "Hour height",
   "planner.laneOpacity": "{term} lane strength",
+  "planner.plans": "Plans",
   "editSheet.actionsAttach": "Quick actions row",
   "editSheet.attachFloat": "Floating card",
   "editSheet.attachBar": "Inside the bar",

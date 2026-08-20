@@ -45,9 +45,11 @@ import { SearchableMultiList } from "@/v2/widgets";
 import AlterSortToggle from "@/components/shared/AlterSortToggle";
 import { useAlterSorter } from "@/lib/alterSort";
 import { groupedAlterSections } from "@/lib/alterSections";
-import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal } from "lucide-react";
+import { BarChart3, CopyPlus, ChevronDown, SlidersHorizontal, ListChecks } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { usePlannerPrefs, HOUR_PX_MIN, HOUR_PX_MAX, DAY_PX_MIN, DAY_PX_MAX } from "@/lib/planner/displayPrefs";
+import PlannedActivitiesList from "@/components/activities/PlannedActivitiesList";
+import PlanCompletionTracker from "@/components/activities/PlanCompletionTracker";
 
 const lsGet = (k, d) => {
   try { const v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch { return d; }
@@ -97,6 +99,7 @@ export default function PlannerSurface({
   const formatAlter = useAlterLabel();
   const [showTotals, setShowTotals] = useState(false);
   const [showDisplay, setShowDisplay] = useState(false);
+  const [showPlans, setShowPlans] = useState(false);
   // Display prefs (row height / clock / week start) — the same keys the
   // classic tracker used, so nothing resets moving between the two.
   const [prefs, setPref] = usePlannerPrefs(prefsOverride);
@@ -667,6 +670,11 @@ export default function PlannerSurface({
               <BarChart3 className="w-3.5 h-3.5" />
               <ChevronDown className="w-3 h-3" style={{ transform: showTotals ? "rotate(180deg)" : "none" }} />
             </Button>
+            <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowPlans((v) => !v)}
+              aria-expanded={showPlans} aria-label={tr("planner.plans")} title={tr("planner.plans")}>
+              <ListChecks className="w-3.5 h-3.5" />
+              <ChevronDown className="w-3 h-3" style={{ transform: showPlans ? "rotate(180deg)" : "none" }} />
+            </Button>
             <Button variant="ghost" size="sm" className="gap-1" onClick={() => setShowDisplay((v) => !v)}
               aria-expanded={showDisplay} aria-label={tr("planner.display")} title={tr("planner.display")}>
               <SlidersHorizontal className="w-3.5 h-3.5" />
@@ -739,6 +747,29 @@ export default function PlannerSurface({
                 </div>
               ))}
             </div>
+          </div>
+        )}
+
+        {chrome && showPlans && (
+          <div className="rounded-lg border border-border/50 p-2 space-y-3"
+            style={{ borderRadius: "var(--v2-radius, 8px)" }}>
+            {/* The SAME components the Activity tracker's Planned tab and
+                plan tracker use — one implementation (rule: reuse, don't
+                fork). Tapping a plan opens the planner's own edit sheet. */}
+            <PlannedActivitiesList
+              activities={activities}
+              alters={alters}
+              compact
+              onClick={(a) => {
+                const start = a.timestamp ? new Date(a.timestamp) : null;
+                setTiming({ item: a, day: start || anchor });
+                setTimeValue(start ? `${String(start.getHours()).padStart(2, "0")}:${String(start.getMinutes()).padStart(2, "0")}` : "09:00");
+                setDurValue(Number(a.actual_duration_minutes) || Number(a.duration_minutes) || 60);
+                setNoteValue(a.notes || "");
+                seedExtras(a);
+              }}
+            />
+            <PlanCompletionTracker />
           </div>
         )}
 

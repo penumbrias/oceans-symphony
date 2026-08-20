@@ -359,8 +359,10 @@ function ActiveWidget({ api }) {
       {symptomSessions.map((s) => {
         const def = symById[s.symptom_id || s.symptom_definition_id];
         if (!def) return null;
+        const snaps = s.severity_snapshots || [];
+        const sev = snaps.length ? snaps[snaps.length - 1]?.severity : null;
         return (
-          <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={def.label || def.name}
+          <Row key={s.id} left={<Dot color={def.color || "#a78bfa"} />} primary={`${def.label || def.name}${sev != null ? ` · ${sev}` : ""}`}
             secondary={s.start_time ? fmtElapsed(s.start_time) : undefined}
             right={
               <button type="button"

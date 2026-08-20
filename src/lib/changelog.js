@@ -20,6 +20,8 @@ export const CHANGELOG = [
   {
     date: "August 20, 2026",
     changes: [
+      { type: "improve", text: "Active-now shows each symptom's current severity (\u201cFog \u00b7 4\u201d) in the popup and the Active widget." },
+      { type: "feature", text: "The Planner gained the Activity tracker's Planned list and plan-completion tracker — the new checklist button in its header; tapping a plan opens the planner's edit sheet." },
       { type: "fix", text: "Active-now popup: tapping inside the severity/end menu no longer dismisses everything with nothing happening — the tap lands." },
       { type: "improve", text: "Settings \u2192 Reminders: a \"Check scheduled alerts\" diagnostic reads what the OS actually has queued (plus permission, exact-alarm and channel state) — for hunting down reminders that never fired." },
       { type: "improve", text: "Starting a symptom session shows an Undo on the toast — an accidental tap on the little + no longer leaves a mystery \"active\" symptom (undoing removes the accidental session entirely)." },
