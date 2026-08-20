@@ -420,3 +420,61 @@ export function usePlanReminderSync() {
   }, [activities, settingsTick]);
 }
 
+
+
+// ── Diagnostics ─────────────────────────────────────────────────────
+// "My reminder never fired" is undebuggable without the OS's own truth.
+// Returns pushDiagnostics-style checks covering every gate in the
+// scheduled-alert chain: the toggle, permission, the Android exact-alarm
+// setting, the notification channel, and — decisive — what the OS
+// scheduler ACTUALLY has queued, cross-checked against our log.
+export async function scheduledAlertsDiagnostics() {
+  const checks = [];
+  const enabled = readPlanRemindersEnabled();
+  checks.push({ ok: enabled, label: "Plan reminders toggle", detail: enabled ? "On" : "Off — turn on \u201cRemind me before upcoming plans\u201d above" });
+
+  if (!isNative()) {
+    const perm = typeof Notification !== "undefined" ? Notification.permission : "unsupported";
+    checks.push({ ok: perm === "granted", label: "Browser notification permission", detail: perm });
+    checks.push({ ok: webTimers.size > 0 || !enabled, label: `In-app timers queued: ${webTimers.size}`, detail: "Web reminders only fire while the app is open — install the app or enable push for closed-app alerts" });
+    return checks;
+  }
+
+  const granted = await isNativeNotificationsEnabled();
+  checks.push({ ok: granted, label: "Notification permission", detail: granted ? "Granted" : "Denied — allow notifications in system Settings \u2192 Apps \u2192 Oceans Symphony" });
+
+  try {
+    const { LocalNotifications } = await import("@capacitor/local-notifications");
+    // Android 12+: without exact-alarm capability, alarms fire late or
+    // get coalesced — the classic "it never came" cause.
+    try {
+      const ex = await LocalNotifications.checkExactNotificationSetting();
+      const ok = (ex?.exact_alarm ?? ex?.value ?? "granted") === "granted";
+      checks.push({ ok, label: "Exact alarms", detail: ok ? "Allowed" : "Not allowed — Android delays or drops timed alerts. System Settings \u2192 Apps \u2192 Oceans Symphony \u2192 Alarms & reminders" });
+    } catch { /* API absent on this platform/version — skip */ }
+
+    try {
+      const { channels = [] } = await LocalNotifications.listChannels();
+      const ch = channels.find((c) => c.id === REMINDERS_CHANNEL_ID);
+      const ok = !!ch && (ch.importance == null || ch.importance >= 3);
+      checks.push({ ok, label: "Reminders notification channel", detail: !ch ? "Missing (created on next schedule)" : ok ? "Active" : "MUTED in system settings — long-press a notification or open the app's notification settings to re-enable" });
+    } catch { /* listChannels unsupported — skip */ }
+
+    const { notifications: pending = [] } = await LocalNotifications.getPending();
+    const log = readLog();
+    const pendingIds = new Set(pending.map((n) => n.id));
+    const missing = log.filter((e) => !pendingIds.has(e.nativeId) && new Date(e.fireAt).getTime() > Date.now());
+    checks.push({
+      ok: missing.length === 0,
+      label: `OS queue: ${pending.length} scheduled`,
+      detail: missing.length
+        ? `${missing.length} reminder(s) in the app's log are MISSING from the OS queue (cleared by a reboot/optimiser?) — reopening the app reschedules them`
+        : pending.length
+          ? `Next: ${pending.slice(0, 3).map((n) => `\u201c${n.title}\u201d ${n.schedule?.at ? new Date(n.schedule.at).toLocaleString([], { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }) : ""}`).join(" \u00b7 ")}`
+          : "Nothing queued — no upcoming plans/reminders inside the 30-day window, or they were scheduled before the toggle was on",
+    });
+  } catch (e) {
+    checks.push({ ok: false, label: "OS scheduler unreachable", detail: e?.message || String(e) });
+  }
+  return checks;
+}

@@ -53,6 +53,12 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
   const popRef = useRef(null);
   const [activityMenu, setActivityMenu] = useState(null);
   const [symptomMenu, setSymptomMenu] = useState(null); // { sess, symptom }
+  // The action menus PORTAL to document.body — the outside-tap-close
+  // below must not treat taps inside them as "outside" (it was closing
+  // the whole popover mid-tap, unmounting the menu before its button
+  // fired: "the popup just disappears, no action" — owner report).
+  const menuOpenRef = useRef(false);
+  useEffect(() => { menuOpenRef.current = !!(activityMenu || symptomMenu); }, [activityMenu, symptomMenu]);
   useEffect(() => {
     if (!open) return undefined;
     const place = () => {
@@ -71,7 +77,10 @@ export function ActiveNowPopover({ anchorRef, open, onClose }) {
       setPos({ top, left });
     };
     place();
-    const out = (e) => { if (!popRef.current?.contains(e.target) && !anchorRef?.current?.contains(e.target)) onClose?.(); };
+    const out = (e) => {
+      if (menuOpenRef.current) return; // a body-portaled action menu owns the screen
+      if (!popRef.current?.contains(e.target) && !anchorRef?.current?.contains(e.target)) onClose?.();
+    };
     document.addEventListener("pointerdown", out);
     window.addEventListener("resize", place);
     return () => { document.removeEventListener("pointerdown", out); window.removeEventListener("resize", place); };

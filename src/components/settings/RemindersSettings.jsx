@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Check, Loader2, Bell, BellOff, X, Plus } from "lucide-react";
 import { registerPush, unregisterPush, isPushEnabled, pushDiagnostics, showLocalTestNotification, pushDeepDiagnostic } from "@/lib/pushRegistration";
+import { scheduledAlertsDiagnostics } from "@/lib/planReminderScheduler";
 import { isNative } from "@/lib/platform";
 import { formatSnoozeLabel, DEFAULT_SNOOZE_OPTIONS } from "@/components/reminders/snoozeHelpers";
 import TimezoneSettings from "@/components/settings/TimezoneSettings";
@@ -154,6 +155,21 @@ export default function RemindersSettings() {
             className="text-primary hover:underline disabled:opacity-50"
           >
             {diagLoading ? "Testing…" : "Test push notification"}
+          </button>
+          {/* Scheduled-alerts check — reads the OS scheduler's OWN queue and
+              every gate before it (toggle, permission, exact alarms, muted
+              channel), cross-checked against the app's log. Turns "my
+              reminder never fired" into the specific dead link. */}
+          <button
+            type="button"
+            onClick={async () => {
+              setDiagLoading(true);
+              try { setPushDiag(await scheduledAlertsDiagnostics()); }
+              finally { setDiagLoading(false); }
+            }}
+            className="text-primary hover:underline disabled:opacity-50"
+          >
+            Check scheduled alerts
           </button>
           {/* Bypass test — calls showNotification directly from the running
               app. If "Test push" reports everything green but no notification
